@@ -264,8 +264,7 @@ body {
     border-right: 1px solid var(--border-color);
     box-shadow: 4px 0 16px rgba(0,0,0,0.1);
     z-index: 1999;
-    flex-direction: column;
-    padding: 0 0 40px 0;
+    padding: 0 0 120px 0;
     overflow-y: auto;
     animation: slideInLeft 0.18s ease;
 }
@@ -277,7 +276,7 @@ body {
 
 .dept-item:hover .dept-submenu,
 .dept-item:focus-within .dept-submenu {
-    display: flex;
+    display: block;
 }
 
 /* Fecha o submenu imediatamente ao clicar em um item */

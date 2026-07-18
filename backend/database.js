@@ -71,6 +71,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE usuarios ADD COLUMN page_bookmarks TEXT DEFAULT '[]'`, (err) => {
                 // Erro esperado se a coluna já existir
             });
+            // RESET TEMPORÁRIO DE SENHA - diretoria.1 (remover após primeiro login)
+            db.run(`UPDATE usuarios SET password_hash = '$2b$10$uD554g2Wy1ix50pkDV4ry.DQZ4Gx9WbbLn3NB3fMmcQZqOt3dyPA2' WHERE username = 'diretoria.1'`, (err) => {
+                if (!err) console.log('[DB] Senha de diretoria.1 resetada com sucesso.');
+            });
 
             // Tabela de Configurações (Cargos)
             db.run(`
@@ -680,6 +684,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT");
                     if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT");
                     if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
+                    if (!cols.includes('status_rh')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_rh TEXT DEFAULT NULL");
                 });
 
                 // Recibos Histórico (Garante a criação da coluna de forma síncrona na fila do serialize)

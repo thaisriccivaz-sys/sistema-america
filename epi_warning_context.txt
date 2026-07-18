@@ -1,0 +1,370 @@
+        }
+    };
+
+    window._epiAssinTirarFoto = function() {
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        if (!video || !window._assinSelfieStream) return;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.save(); ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        window._assinSelfieTs = new Date();
+        const dtStr = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usu├írio') : 'Usu├írio';
+        // overlay de texto na foto
+        const overlayH = 56;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, canvas.height - overlayH, canvas.width, overlayH);
+        ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('Entregue por: ' + entregadorNome, 8, canvas.height - overlayH + 16);
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Arial';
+        ctx.fillText('Colaborador: ' + nomeColab, 8, canvas.height - overlayH + 32);
+        ctx.fillStyle = '#94a3b8'; ctx.font = '11px Arial';
+        ctx.fillText(dtStr, 8, canvas.height - overlayH + 48);
+        window._assinSelfieBase64 = canvas.toDataURL('image/jpeg', 0.88);
+        video.style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'none';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'flex';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'flex';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto tirada! Confirme ou refa├ºa.</span>';
+    };
+
+    window._epiAssinRefazerFoto = function() {
+        window._assinSelfieBase64 = null; window._assinSelfieTs = null;
+        const video = document.getElementById('epi-assin-selfie-video');
+        const canvas = document.getElementById('epi-assin-selfie-canvas');
+        video.style.display = 'block'; canvas.style.display = 'none';
+        document.getElementById('btn-epi-assin-tirar').style.display = 'flex';
+        document.getElementById('btn-epi-assin-refazer').style.display = 'none';
+        document.getElementById('btn-epi-assin-confirmar').style.display = 'none';
+        const statusEl = document.getElementById('epi-assin-selfie-status');
+        if (statusEl) statusEl.textContent = 'C├ómera pronta. Posicione o rosto do colaborador.';
+    };
+
+    window._epiAssinConfirmarFoto = function() {
+        if (!window._assinSelfieBase64) return;
+        // Para c├ómera
+        if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+        // Thumb no passo de assinatura
+        const srcC = document.getElementById('epi-assin-selfie-canvas');
+        const thumb = document.getElementById('epi-assin-selfie-thumb');
+        if (srcC && thumb) {
+            const tctx = thumb.getContext('2d'); thumb.width = srcC.width; thumb.height = srcC.height;
+            tctx.drawImage(srcC, 0, 0);
+        }
+        const thumbBox = document.getElementById('epi-assin-selfie-thumb-box');
+        if (thumbBox) thumbBox.style.display = 'flex';
+        const thumbDt = document.getElementById('epi-assin-selfie-thumb-dt');
+        if (thumbDt && window._assinSelfieTs) {
+            thumbDt.textContent = window._assinSelfieTs.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        }
+        // Ir para assinatura
+        window._assinGoToStep2();
+    };
+
+    // Navegar para o passo de assinatura (step 2)
+    window._assinGoToStep2 = function() {
+        document.getElementById('epiov-step-selfie').style.display = 'none';
+        const s2 = document.getElementById('epi-step-2');
+        s2.style.display = 'grid';
+        window._assinCurrentStep = 2;
+        // Atualiza badges
+        ['1','selfie','2','3'].forEach((s, i) => {
+            const badge = document.getElementById('step-badge-' + s);
+            const ind = document.getElementById('step-ind-' + s);
+            if (!badge || !ind) return;
+            const done = i < 2; const active = i === 2;
+            badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+            badge.innerHTML = done ? 'Ô£ô' : (s === 'selfie' ? '­ƒôÀ' : (i + 1));
+            ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+        });
+        const btnBack = document.getElementById('btn-assin-back');
+        if (btnBack) btnBack.style.display = 'flex';
+        const btnNext = document.getElementById('btn-assin-next');
+        if (btnNext) { btnNext.style.display = 'flex'; btnNext.innerHTML = 'Confirmar Entrega <i class="ph ph-check"></i>'; }
+        setTimeout(() => { window._initSignatureCanvas(); }, 100);
+    };
+
+    // Voltar do step selfie ou assinatura
+    window._assinBackStep = function() {
+        if (window._assinCurrentStep === 'selfie') {
+            if (window._assinSelfieStream) { window._assinSelfieStream.getTracks().forEach(t => t.stop()); window._assinSelfieStream = null; }
+            window._assinStep(1);
+        } else if (window._assinCurrentStep === 2) {
+            // voltar para selfie
+            document.getElementById('epi-step-2').style.display = 'none';
+            const selfieDiv = document.getElementById('epiov-step-selfie');
+            selfieDiv.style.display = 'block';
+            window._assinCurrentStep = 'selfie';
+            ['1','selfie','2','3'].forEach((s, i) => {
+                const badge = document.getElementById('step-badge-' + s);
+                const ind = document.getElementById('step-ind-' + s);
+                if (!badge || !ind) return;
+                const done = i < 1; const active = i === 1;
+                badge.style.background = done ? '#16a34a' : active ? '#1e3a5f' : '#cbd5e1';
+                badge.innerHTML = done ? 'Ô£ô' : (s === 'selfie' ? '­ƒôÀ' : (active ? '­ƒôÀ' : (i + 1)));
+                ind.style.color = (done || active) ? (done ? '#16a34a' : '#1e3a5f') : '#94a3b8';
+            });
+            const btnBack = document.getElementById('btn-assin-back');
+            if (btnBack) btnBack.style.display = 'flex';
+            const btnNext = document.getElementById('btn-assin-next');
+            if (btnNext) { btnNext.style.display = 'none'; }
+            // Reiniciar c├ómera se necess├írio
+            if (!window._assinSelfieBase64) { window._epiAssinIniciarCamera(); }
+        } else {
+            window._assinStep(1);
+        }
+    };
+
+    setTimeout(() => {
+        window._initSignatureCanvas();
+        const today = new Date();
+        const di = document.getElementById('epi-data-entrega');
+        if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); }
+        window._renderEpiGrid('');
+        // Preencher infos do overlay da selfie
+        const entregadorNome = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.nome || currentUser.username || 'Usu├írio') : 'Usu├írio';
+        const el1 = document.getElementById('epi-assin-selfie-info1');
+        if (el1) el1.textContent = 'Entregue por: ' + entregadorNome;
+        const el2 = document.getElementById('epi-assin-selfie-info2');
+        if (el2) el2.textContent = 'Colaborador: ' + nomeColab;
+        // Clock no overlay
+        const dtEl = document.getElementById('epi-assin-selfie-dt');
+        if (dtEl) {
+            const tick = () => { dtEl.textContent = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }); };
+            tick(); clearInterval(window._epiAssinClock);
+            window._epiAssinClock = setInterval(() => {
+                const sv = document.getElementById('epiov-step-selfie');
+                if (!sv || sv.style.display === 'none') { clearInterval(window._epiAssinClock); } else { tick(); }
+            }, 1000);
+        }
+    }, 100);
+};
+
+window._renderEpiGrid = function (filtro) {
+    const epis = window._assinEpisDisponiveis || [];
+    const c2 = document.getElementById('epi-lista-botoes');
+    if (!c2) return;
+    const f = (filtro || '').toLowerCase().trim();
+    const filtered = f ? epis.filter(e => e.toLowerCase().includes(f)) : epis;
+    c2.innerHTML = '';
+    filtered.forEach(epi => {
+        const qty = window._assinQtds[epi] || 0;
+        const card = document.createElement('div');
+        card.setAttribute('data-epi-card', epi);
+        card.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.65rem 1rem;border:2px solid ' + (qty > 0 ? '#16a34a' : '#e2e8f0') + ';border-radius:10px;background:' + (qty > 0 ? '#f0fdf4' : '#fff') + ';box-shadow:0 1px 3px rgba(0,0,0,0.06);';
+        const lbl = document.createElement('span'); lbl.style.cssText = 'font-size:0.88rem;color:#0f172a;font-weight:600;flex:1;margin-right:0.5rem;line-height:1.3;'; lbl.textContent = epi;
+        const ctrl = document.createElement('div'); ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;';
+        const btnM = document.createElement('button'); btnM.textContent = 'ÔêÆ'; btnM.style.cssText = 'background:' + (qty > 0 ? '#1e3a5f' : '#e2e8f0') + ';color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnM.addEventListener('click', () => window._setEpiQty(epi, Math.max(0, (window._assinQtds[epi] || 0) - 1)));
+        const inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.value = qty; inp.style.cssText = 'width:48px;text-align:center;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px;font-size:0.95rem;font-weight:700;color:#0f172a;';
+        inp.addEventListener('input', () => window._setEpiQty(epi, Math.max(0, parseInt(inp.value) || 0)));
+        const btnP = document.createElement('button'); btnP.textContent = '+'; btnP.style.cssText = 'background:#1e3a5f;color:#fff;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+        btnP.addEventListener('click', () => window._setEpiQty(epi, (window._assinQtds[epi] || 0) + 1));
+        ctrl.appendChild(btnM); ctrl.appendChild(inp); ctrl.appendChild(btnP);
+        card.appendChild(lbl); card.appendChild(ctrl); c2.appendChild(card);
+    });
+};
+
+window._requiresSize = function(epi) {
+    const e = epi.toUpperCase();
+    // Camiseta Branca tem tamanho ├║nico no estoque ÔÇö n├úo pede tamanho
+    if (e.includes('CAMISETA') && e.includes('BRANCA')) return false;
+    // Uniformes e roupas
+    if (['CAMISETA', 'POLO', 'CAL├çA', 'BLUSA', 'JAQUETA', 'COLETE', 'BLUSAO', 'BLUS├âO', 'UNIFORME'].some(k => e.includes(k))) return 'roupa';
+    // Botas
+    if (e.includes('BOTA')) return 'bota';
+    return false;
+};
+
+window._setEpiQty = async function (epi, qty) {
+    const prevQty = (window._assinQtds || {})[epi] || 0;
+    
+    // Pergunta o tamanho se est├í adicionando o item pela primeira vez
+    if (qty > prevQty && prevQty === 0 && window._requiresSize(epi)) {
+        const tipoSize = window._requiresSize(epi);
+        let opcoes;
+        let placeholder;
+        if (tipoSize === 'bota') {
+            opcoes = ['38', '39', '40', '41', '42', '43', '44', '45', '46'];
+            placeholder = 'Selecione o n├║mero da bota';
+        } else {
+            opcoes = ['P', 'M', 'G', 'GG', 'XGG'];
+            placeholder = 'Selecione o tamanho';
+        }
+        const isPolo = epi.toUpperCase().includes('POLO');
+
+        let selectHtml = `
+            <div style="margin-top: 12px;">
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">Tamanho para: <strong>${epi}</strong></p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    ${opcoes.map(op => `
+                        <button type="button" data-size="${op}"
+                            onclick="document.querySelectorAll('[data-size]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedSize = '${op}';"
+                            style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; min-width:52px; transition: all 0.15s;">
+                            ${op}
+                        </button>`).join('')}
+                </div>
+            </div>`;
+
+        if (isPolo) {
+            selectHtml += `
+            <div style="margin-top: 20px;">
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">Selecione o Modelo:</p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+                    <button type="button" data-model="Feminina"
+                        onclick="document.querySelectorAll('[data-model]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedModel = 'Feminina';"
+                        style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; transition: all 0.15s;">
+                        Feminina
+                    </button>
+                    <button type="button" data-model="Masculina"
+                        onclick="document.querySelectorAll('[data-model]').forEach(b => { b.style.background='#f1f5f9'; b.style.color='#475569'; b.style.borderColor='#e2e8f0'; }); this.style.background='#e67700'; this.style.color='#fff'; this.style.borderColor='#e67700'; window._swalSelectedModel = 'Masculina';"
+                        style="padding:10px 20px; border-radius:8px; border:2px solid #e2e8f0; background:#f1f5f9; color:#475569; font-size:1rem; font-weight:700; cursor:pointer; transition: all 0.15s;">
+                        Masculina
+                    </button>
+                </div>
+            </div>`;
+        }
+        
+        window._swalSelectedSize = null;
+        window._swalSelectedModel = null;
+        
+        const result = await Swal.fire({
+            title: isPolo ? 'Tamanho e Modelo' : 'Qual o tamanho?',
+            html: selectHtml,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e67700',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                // Garante que o Swal aparece acima de qualquer modal do prontu├írio
+                const cont = document.querySelector('.swal2-container');
+                if (cont) { cont.style.zIndex = '999999'; cont.style.position = 'fixed'; }
+            },
+            preConfirm: () => {
+                if (!window._swalSelectedSize) {
+                    Swal.showValidationMessage('Selecione um tamanho!');
+                    return false;
+                }
+                if (isPolo && !window._swalSelectedModel) {
+                    Swal.showValidationMessage('Selecione o modelo (Feminina ou Masculina)!');
+                    return false;
+                }
+                return isPolo ? `${window._swalSelectedSize} - ${window._swalSelectedModel}` : window._swalSelectedSize;
+            }
+        });
+        
+        if (result.isConfirmed && result.value) {
+            window._assinSizes = window._assinSizes || {};
+            window._assinSizes[epi] = result.value;
+        } else {
+            // Cancelou, n├úo incrementa
+            const cardInp = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"] input[type=number]');
+            if (cardInp) cardInp.value = prevQty;
+            return;
+        }
+    }
+
+    // Pergunta de devolu├º├úo para EPIs emprest├íveis (Bota de PVC e Avental Longo)
+    const EPI_EMPRESTAVEIS = ['BOTA DE PVC', 'AVENTAL LONGO', 'MASCARA RESPIRADOR', 'M├üSCARA RESPIRADOR'];
+    const epiUpperTrim = epi.toUpperCase().trim();
+    const isEmprestavelEpi = EPI_EMPRESTAVEIS.some(nome => epiUpperTrim.includes(nome));
+    if (isEmprestavelEpi && qty > (window._assinQtds?.[epi] || 0) && (window._assinQtds?.[epi] || 0) === 0) {
+        window._assinEmprestimos = window._assinEmprestimos || {};
+        const resDevol = await Swal.fire({
+            title: 'Este equipamento deve ser devolvido ap├│s o uso?',
+            html: `<p style="color:#64748b;font-size:0.88rem;margin-bottom:16px;"><strong>${epi}</strong> ÔÇö informe se precisa retornar ao estoque.</p>`,
+            showDenyButton: true,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim',
+            denyButtonText: '<i class="ph ph-x"></i> N├úo',
+            confirmButtonColor: '#2563eb',
+            denyButtonColor: '#64748b',
+            allowOutsideClick: false,
+            didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) { c.style.zIndex='999999'; c.style.position='fixed'; } }
+        });
+        if (resDevol.isConfirmed) {
+            const resData = await Swal.fire({
+                title: 'Data prevista de devolu├º├úo',
+                html: `<p style="color:#64748b;font-size:0.87rem;margin-bottom:12px;">Quando o(a) colaborador(a) deve devolver <strong>${epi}</strong>?</p>
+                       <input type="date" id="swal-data-devol" style="width:100%;padding:0.6rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:1rem;" min="${new Date().toISOString().slice(0,10)}">`,
+                confirmButtonText: 'Confirmar',
+                confirmButtonColor: '#2563eb',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                allowOutsideClick: false,
+                didOpen: () => { const c = document.querySelector('.swal2-container'); if (c) { c.style.zIndex='999999'; c.style.position='fixed'; } document.getElementById('swal-data-devol')?.focus(); },
+                preConfirm: () => {
+                    const val = document.getElementById('swal-data-devol')?.value;
+                    if (!val) { Swal.showValidationMessage('Informe a data de devolu├º├úo!'); return false; }
+                    return val;
+                }
+            });
+            if (resData.isConfirmed && resData.value) {
+                // Converter yyyy-mm-dd para dd/mm/yyyy
+                const [yy, mm, dd] = resData.value.split('-');
+                window._assinEmprestimos[epi] = `${dd}/${mm}/${yy}`;
+            } else {
+                window._assinEmprestimos[epi] = null;
+            }
+        } else {
+            window._assinEmprestimos[epi] = null;
+        }
+    }
+
+    if (qty === 0 && window._assinSizes && window._assinSizes[epi]) {
+        delete window._assinSizes[epi];
+    }
+    
+    window._assinQtds = window._assinQtds || {}; window._assinQtds[epi] = qty;
+    const card = document.querySelector('[data-epi-card="' + CSS.escape(epi) + '"]');
+    if (card) {
+        card.style.borderColor = qty > 0 ? '#16a34a' : '#e2e8f0'; card.style.background = qty > 0 ? '#f0fdf4' : '#fff';
+        const inp = card.querySelector('input[type=number]'); if (inp) inp.value = qty;
+        const btns = card.querySelectorAll('button'); if (btns[0]) btns[0].style.background = qty > 0 ? '#1e3a5f' : '#e2e8f0';
+        
+        // Update label to show size if exists
+        const lbl = card.querySelector('span');
+        if (lbl) {
+            lbl.innerHTML = epi + (window._assinSizes && window._assinSizes[epi] ? ` <small style="color:#16a34a;font-weight:bold;">(${window._assinSizes[epi]})</small>` : '');
+        }
+    }
+    if (qty > 0) { const w = document.getElementById('epi-select-warn'); if (w) w.style.display = 'none'; }
+
+    // Aviso 15 dias: dispara apenas quando o usu├írio adiciona pela primeira vez (qty passa de 0 para 1)
+    if (prevQty === 0 && qty === 1) {
+        const todasEntregas = window._epiProntuarioData?.todasEntregas || [];
+        const hoje15 = new Date(); hoje15.setHours(0, 0, 0, 0);
+        const parseDt15 = str => {
+            if (!str) return null;
+            if (str.includes('/')) { const [d, m, y] = str.split('/'); return new Date(y, m - 1, d); }
+            return new Date(str + 'T12:00:00');
+        };
+        // Normaliza um nome para compara├º├úo: remove acentos, mai├║scula, sem espa├ºos extras
+        const norm15 = s => (s || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+        const epiNorm = norm15(epi);
+        // Busca entrega anterior onde o nome do hist├│rico cont├®m o nome base do EPI
+        // (cobre casos como "BOTA BICO DE A├çO CA 43.339 - 39" vs template "BOTA BICO DE A├çO CA 43.339")
+        const entregaAnterior = todasEntregas.find(e => {
+            const histNorm = norm15(e.epi_nome);
+            return histNorm === epiNorm || histNorm.startsWith(epiNorm) || epiNorm.startsWith(histNorm);
+        });
+        if (entregaAnterior) {
+            const dataAnterior = parseDt15(entregaAnterior.data_entrega);
+            if (dataAnterior) {
+                const dias = Math.floor((hoje15 - dataAnterior) / (1000 * 60 * 60 * 24));
+                if (dias <= 15) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'EPI Entregue Recentemente',
+                        html: `<b>"${epi}"</b> foi entregue h├í <b>${dias} dia${dias !== 1 ? 's' : ''}</b> para este colaborador<br><small style="color:#64748b;">(em ${entregaAnterior.data_entrega})</small><br><br>O registro ser├í feito normalmente.`,
+                        confirmButtonColor: '#e67700',
+                        confirmButtonText: 'Entendido',
+                        customClass: { popup: '' },
+                        didOpen: () => {

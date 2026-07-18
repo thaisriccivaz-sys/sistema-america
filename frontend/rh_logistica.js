@@ -54,11 +54,11 @@ window._rhSinBuildLayout = function() {
         '</div>',
         '<select id="rh-sin-status" onchange="window.rhSinFiltrarLista()" style="flex:1; min-width:160px; padding:0.45rem 0.7rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; outline:none;">',
         '<option value="">Todos os Status</option>',
+        '<option value="iniciado">Iniciado</option>',
         '<option value="pendente">Aguardando Assinaturas</option>',
         '<option value="assinado_testemunhas">Assinado pelas Testemunhas</option>',
         '<option value="assinado">Finalizado e Assinado</option>',
         '</select>',
-        '<button onclick="window.rhSinLimparFiltros()" style="padding:0.45rem 0.8rem; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; color:#475569; white-space:nowrap;">&#x2715; Limpar</button>',
         '</div>',
         '<div id="rh-sin-contagem" style="font-size:0.82rem; color:#64748b; margin-bottom:0.75rem;"></div>',
         '<div id="rh-sin-lista-area">',
@@ -97,7 +97,7 @@ window.rhSinFiltrarLista = function() {
         if (statusFiltro && s.status !== statusFiltro) return false;
         return true;
     });
-    var ord = { pendente: 0, assinado_testemunhas: 1, assinado: 2 };
+    var ord = { iniciado: 0, pendente: 1, assinado_testemunhas: 2, assinado: 3 };
     lista.sort(function(a, b) {
         var oa = ord[a.status] !== undefined ? ord[a.status] : 9;
         var ob = ord[b.status] !== undefined ? ord[b.status] : 9;
@@ -127,11 +127,12 @@ window.rhSinLimparFiltros = function() {
 
 window._rhSinRenderCard = function(s, container) {
     var statusMap = {
+        iniciado: { text: 'Iniciado', color: '#b45309', bg: '#fef3c7', icon: 'ph-play-circle' },
         pendente: { text: 'Aguardando Assinaturas', color: '#f59e0b', bg: '#fef3c7', icon: 'ph-clock' },
         assinado_testemunhas: { text: 'Assinado pelas Testemunhas', color: '#8b5cf6', bg: '#ede9fe', icon: 'ph-pencil-simple' },
         assinado: { text: 'Finalizado e Assinado', color: '#10b981', bg: '#d1fae5', icon: 'ph-check-circle' }
     };
-    var st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9', icon: 'ph-warning' };
+    var st = statusMap[s.status] || { text: s.status || '-', color: '#64748b', bg: '#f1f5f9', icon: 'ph-warning' };
     var testemunhasOk = !!(s.assinatura_testemunha1_base64);
     var condutorOk = !!(s.assinatura_condutor_base64);
     var nomeColab = s.colaborador_nome || s.nome_completo || '—';
@@ -191,7 +192,7 @@ window._rhSinRenderCard = function(s, container) {
     }
 
     var btns = '';
-    if (s.status === 'pendente') {
+    if (s.status === 'iniciado' || s.status === 'pendente') {
         btns += '<button onclick="window.rhSinAbrirModalEditar(' + s.id + ',' + colabId + ')" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;"><i class="ph ph-pencil-simple"></i> Editar</button>';
         if (s.processo_iniciado) {
             btns += '<button onclick="window.abrirFinalizarSinistro(' + s.id + ',' + colabId + ')" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:0.4rem 0.8rem; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:4px;"><i class="ph ph-signature"></i> Assinaturas</button>';
@@ -289,23 +290,33 @@ window.initRhLogisticaMultas = async function() {
     }
     // Troca o ID temporariamente para o esperado pelo módulo multas_logistica
     container.id = 'multas-logistica-container';
+    window._isRhContext = true;
     if (typeof renderMultasLogistica === 'function') {
         renderMultasLogistica(container);
     } else {
+        window._isRhContext = false;
         container.id = 'rh-multas-logistica-container';
         container.innerHTML = '<div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;"><h5 style="color:#475569;">Módulo de multas não carregado</h5><p style="color:#94a3b8; font-size:0.9rem;">Recarregue a página e tente novamente.</p></div>';
         return;
     }
     container.id = 'rh-multas-logistica-container';
+    var RH_STATUS_PERMITIDOS = ['Indicado', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
     try {
         var token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         var response = await fetch('/api/logistica/multas', { headers: { 'Authorization': 'Bearer ' + token } });
         if (response.ok) {
             var multas = await response.json();
-            if (typeof multasLogistica !== 'undefined') multasLogistica = multas;
+            // Filtrar apenas os status permitidos para a tela de RH
+            var multasFiltradas = multas.filter(function(m) {
+                return RH_STATUS_PERMITIDOS.includes(m.status);
+            });
+            if (typeof multasLogistica !== 'undefined') multasLogistica = multasFiltradas;
             if (typeof filtrarMultasLogistica === 'function') filtrarMultasLogistica();
         }
     } catch(e) { console.error('[RH-Multas]', e); }
+    // Ocultar botão Limpar nesta tela do RH
+    var btnLimpar = container.querySelector('button[onclick*="limparFiltrosMultas"]');
+    if (btnLimpar) btnLimpar.style.display = 'none';
     _rhMultasInjetarHeader(container);
 };
 

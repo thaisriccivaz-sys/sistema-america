@@ -205,12 +205,17 @@ function renderSenhasTable(senhas) {
         const statusClass = (s.colab_status === 'Desligado') ? 'color:#ef4444;background:#fee2e2;' : 'color:#155724;background:#d4edda;';
         const statusIcon = (s.colab_status === 'Desligado') ? '🔴 Inativo' : '🟢 Ativo';
         
+        const nomeExibicao = s.nome ? (s.nome.length > 15 ? s.nome.substring(0, 15) + '…' : s.nome) : '';
+        const nomeHtml = nomeExibicao ? `<span title="${s.nome.replace(/"/g, '&quot;')}">${nomeExibicao}</span>` : '<span style="color:#94a3b8;">-</span>';
+        const usuarioExibicao = s.usuario ? (s.usuario.length > 20 ? s.usuario.substring(0, 20) + '…' : s.usuario) : '-';
+        const usuarioHtml = s.usuario && s.usuario.length > 20 ? `<span title="${s.usuario.replace(/"/g, '&quot;')}">${usuarioExibicao}</span>` : usuarioExibicao;
+
         tr.innerHTML = `
             <td><span style="${statusClass} padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${statusIcon}</span></td>
-            <td style="font-weight:600; color:#1e293b;">${s.nome || '<span style="color:#94a3b8;">-</span>'}</td>
+            <td style="font-weight:600; color:#1e293b;">${nomeHtml}</td>
             <td>${s.servico || '-'}</td>
             <td>${linkHtml}</td>
-            <td style="font-family:monospace; font-size:0.95rem;">${s.usuario}</td>
+            <td style="font-family:monospace; font-size:0.95rem;">${usuarioHtml}</td>
             ${donoHtml}
             <td>${pwdHtml}</td>
             <td style="text-align: right;">

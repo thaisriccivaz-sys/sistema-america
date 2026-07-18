@@ -1,0 +1,1 @@
+const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('data/hr_system_v2.sqlite'); db.run('ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT', (err) => console.log(err ? err.message : 'Success'));

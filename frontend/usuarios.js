@@ -16,6 +16,8 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     { modulo: 'RH', pagina_id: 'recibos',                pagina_nome: 'Recibos', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
+    { modulo: 'RH', pagina_id: 'rh-logistica-sinistros', pagina_nome: 'Sinistros (RH)', icone: 'ph-warning-circle' },
+    { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
     // Prontuário Digital Abas
     { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: '00. CheckList', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Ficha Cadastral', icone: 'ph-file-text' },
@@ -53,7 +55,12 @@ const TELAS_SISTEMA = [
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
-    { modulo: 'Administrativo', pagina_id: 'admin-em-breve', pagina_nome: 'Administrativo (Em breve)', icone: 'ph-gear' },
+    { modulo: 'Administrativo', pagina_id: 'celulares-corporativos', pagina_nome: 'Celulares Corporativos', icone: 'ph-device-mobile' },
+    { modulo: 'Administrativo', pagina_id: 'computadores-corporativos', pagina_nome: 'Computadores', icone: 'ph-desktop' },
+    { modulo: 'Administrativo', pagina_id: 'emails-corporativos', pagina_nome: 'E-mails Corporativos', icone: 'ph-envelope-simple' },
+    { modulo: 'Administrativo', pagina_id: 'administrativo-senhas', pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
+    { modulo: 'Administrativo', pagina_id: 'assinaturas-adm', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
+    { modulo: 'Administrativo', pagina_id: 'administrativo-protocolos', pagina_nome: 'Protocolos', icone: 'ph-file-text' },
     // Módulo Treinamentos
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
@@ -562,7 +569,8 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa'
+                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa',
+                    'rh-logistica-sinistros', 'rh-logistica-multas'
                 ]
             },
             {
@@ -591,7 +599,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
-        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'admin-em-breve'] }]
+        grupos: [{ titulo: 'Telas', telas: ['licencas', 'estoque', 'celulares-corporativos', 'computadores-corporativos', 'emails-corporativos', 'administrativo-senhas', 'assinaturas-adm', 'administrativo-protocolos'] }]
     },
     {
         modulo: 'Treinamentos', icone: 'ph-graduation-cap', cor: '#0e7490',

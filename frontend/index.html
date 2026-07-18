@@ -19,13 +19,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="style.css?v=1778869020176">
+    <link rel="stylesheet" href="style.css?v=20260716v2">
     <script src="experiencia.js?v=1778869020176" defer></script>
     <script src="entregas.js" defer></script>
     <script src="resumo_rota.js?v=20260701v10" defer></script>
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
-    <script src="notificacoes.js" defer></script>
+    <script src="notificacoes.js?v=20260716v5" defer></script>
     <script src="estoque.js?v=202606272305" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1780956700456" defer></script>
@@ -269,12 +269,25 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#e67700;"><i class="ph ph-gear"></i> Administrativo
                     </div>
+                    <a href="#" class="nav-item" data-target="administrativo-senhas" onclick="navigateTo('administrativo-senhas'); return false;"><i class="ph ph-lock-key"></i>
+                        Cofre de Senhas</a>
                     <a href="#" class="nav-item" data-target="licencas"
                         onclick="navigateTo('licencas'); return false;"><i class="ph ph-certificate"></i>
                         Licen&ccedil;as</a>
                     <a href="#" class="nav-item" data-target="estoque"
                         onclick="navigateTo('estoque'); return false;"><i class="ph ph-package"></i>
                         Estoque</a>
+                    <a href="#" class="nav-item" data-target="celulares-corporativos"
+                        onclick="navigateTo('celulares-corporativos'); return false;"><i class="ph ph-device-mobile"></i>
+                        Celulares</a>
+                    <a href="#" class="nav-item" data-target="computadores-corporativos"
+                        onclick="navigateTo('computadores-corporativos'); return false;"><i class="ph ph-desktop"></i>
+                        Computadores</a>
+
+                    <a href="#" class="nav-item" data-target="assinaturas-adm" onclick="navigateTo('assinaturas-adm'); return false;"><i class="ph ph-signature"></i>
+                        Assinaturas</a>
+                    <a href="#" class="nav-item" data-target="administrativo-protocolos" onclick="navigateTo('administrativo-protocolos'); return false;"><i class="ph ph-file-text"></i>
+                        Protocolos</a>
                 </div>
             </div>
 
@@ -334,18 +347,32 @@
                     <a href="#" class="nav-item" data-target="chaves"><i class="ph ph-key"></i> Chaves</a>
                     <a href="#" class="nav-item" data-target="certificado-digital"><i class="ph ph-certificate"></i>
                         Certificado Digital</a>
-                    <a href="#" class="nav-item" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
-                    <a href="#" class="nav-item" data-target="homologacao"><i class="ph ph-database"></i>
-                        Homologação</a>
-                    <a href="#" class="nav-item" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
                     <a href="#" class="nav-item" data-target="departamentos"><i class="ph ph-buildings"></i>
                         Departamentos</a>
                     <a href="#" class="nav-item" data-target="notificacoes"><i class="ph ph-bell-ringing"></i>
                         Notificações</a>
                     <a href="#" class="nav-item" data-target="end-produto" onclick="navigateTo('end-produto'); return false;"><i class="ph ph-map-pin"></i> End. Prod.</a>
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
-                    <a href="#" class="nav-item" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas M&ocirc;naco</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
+
+                    <!-- ── Desenvolvedor (submenu aninhado) ────────────────── -->
+                    <div class="nav-group" id="nav-group-dev">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-dev')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;font-weight:700;color:#d9480f;text-transform:uppercase;">
+                                <i class="ph ph-code"></i>
+                                Desenvolvedor
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-dev">
+                            <a href="#" class="nav-item nav-item-sub" data-target="dir-webhooks" onclick="navigateTo('dir-webhooks'); return false;"><i class="ph ph-plugs-connected"></i> Webhooks</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="config-sigor" onclick="navigateTo('config-sigor'); return false;"><i class="ph ph-key"></i> Credenciais SIGOR</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="homologacao"><i class="ph ph-database"></i> Homologação</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="controlid" onclick="navigateTo('controlid'); return false;"><i class="ph ph-fingerprint"></i> Control iD</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="logistica-multas-monaco" onclick="navigateTo('logistica-multas-monaco'); return false;"><i class="ph ph-police-car"></i> Multas Mônaco</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -985,6 +1012,128 @@
 
                 </section>
 
+                <section id="view-assinaturas-adm" class="content-view">
+                    <!-- Configurao e Fila de Assinaturas (Carregado via assinaturas.js) -->
+                    <div class="page-header flex-between">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div
+                                style="width: 50px; height: 50px; border-radius: 12px; background: #ffedd5; color: #e8590c; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                                <i class="ph ph-signature"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.4rem;">Gesto de Assinaturas</h2>
+                                <p style="margin: 0.2rem 0 0; color: var(--text-muted);">Configure templates de assinaturas e gere assinaturas pendentes para novos colaboradores do Administrativo.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tabs -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                        <button class="tab-btn active" onclick="assinaturasChangeTab('templates')">Templates de Fundo</button>
+                        <button class="tab-btn" onclick="assinaturasChangeTab('pendentes')">Fila de Pendentes</button>
+                    </div>
+
+                    <!-- TAB: Templates -->
+                    <div id="assinaturas-tab-templates" style="display:block; margin-top: 20px;">
+                        <div class="card" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h3 style="margin:0; font-size: 1.1rem;">Templates</h3>
+                                <button class="btn btn-primary" onclick="assinaturasAbrirModalTemplate()">
+                                    <i class="ph ph-plus"></i> Novo Template
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Tipo / Acesso</th>
+                                            <th>Ativo</th>
+                                            <th>Aes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assinaturas-table-templates"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Pendentes -->
+                    <div id="assinaturas-tab-pendentes" style="display:none; margin-top: 20px;">
+                        <div class="card" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap:wrap; gap:0.5rem;">
+                                <h3 style="margin:0; font-size: 1.1rem;">Geradas recentemente</h3>
+                                <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
+                                    <i class="ph ph-download-simple"></i> Baixar Pendentes (ZIP)
+                                </button>
+                            </div>
+                            <!-- Filtros -->
+                            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;">
+                                <i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>
+                                <input id="ass-filter-nome" type="text" placeholder="Buscar por nome..." oninput="assinaturasAplicarFiltro()" style="flex:1;min-width:150px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">
+                                <input id="ass-filter-dept" type="text" placeholder="Departamento..." oninput="assinaturasAplicarFiltro()" style="flex:1;min-width:130px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">
+                                <select id="ass-filter-status" onchange="assinaturasAplicarFiltro()" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;color:#475569;">
+                                    <option value="">Todos os status</option>
+                                    <option value="Pendente">Pendente</option>
+                                    <option value="Baixada">Baixado</option>
+                                </select>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th>Departamento</th>
+                                            <th>Template</th>
+                                            <th>Data de Cria&ccedil;&atilde;o</th>
+                                            <th>Status</th>
+                                            <th style="text-align:right;">A&ccedil;&otilde;es</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assinaturas-table-pendentes"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Modal: Editar Dados da Assinatura -->
+                <div id="modal-ass-editar-dados" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.5);align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                            <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;"><i class="ph ph-pencil-simple" style="color:#6366f1;"></i> Editar Dados da Assinatura</h3>
+                            <button onclick="assinaturasFecharModalEditar()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button>
+                        </div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-bottom:1.25rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.6rem 0.75rem;"><i class="ph ph-info"></i> Essas informa&ccedil;&otilde;es ser&atilde;o usadas na assinatura. O cadastro do colaborador n&atilde;o ser&aacute; alterado.</p>
+                        <div style="display:flex;flex-direction:column;gap:1rem;">
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome (como aparece na assinatura)</label>
+                                <input id="ass-edit-nome" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Primeiro e &uacute;ltimo nome">
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">E-mail corporativo</label>
+                                <input id="ass-edit-email" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="email@americarental.com.br">
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Departamento</label>
+                                <input id="ass-edit-dept" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Departamento">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;margin-top:1.75rem;justify-content:flex-end;">
+                            <button onclick="assinaturasFecharModalEditar()" class="btn btn-secondary">Cancelar</button>
+                            <button onclick="assinaturasSalvarDados()" class="btn btn-primary"><i class="ph ph-floppy-disk"></i> Salvar</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <section id="view-administrativo-senhas" class="content-view">
+                    <div id="administrativo-senhas-container"></div>
+                </section>
+
+                <section id="view-administrativo-protocolos" class="content-view">
+                    <div id="protocolos-administrativos-container"></div>
+                </section>
+
                 <section id="view-departamentos" class="content-view">
                     <div class="page-header flex-between"
                         style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1rem 0; margin-top: -1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
@@ -1537,16 +1686,21 @@
                                 <div class="card mb-4 p-4">
                                     <h3 class="section-title"><i class="ph ph-address-book"></i> 2. Contato</h3>
                                     <div class="form-grid">
-                                        <div class="input-group">
-                                            <label>Telefone *</label>
+                                        <div class="input-group span-2" id="wrapper-telefone-pessoal">
+                                            <label>Telefone Pessoal *</label>
                                             <input type="text" id="colab-telefone" placeholder="(00) 00000-0000"
                                                 onkeyup="mascaraTelefone(this)" maxlength="15" required>
                                         </div>
+                                        <div class="input-group" id="wrapper-telefone-corporativo" style="display:none;">
+                                            <label>Telefone Corporativo</label>
+                                            <input type="text" id="colab-telefone-corporativo" placeholder="(00) 00000-0000"
+                                                onkeyup="mascaraTelefone(this)" maxlength="15">
+                                        </div>
                                         <div class="input-group">
-                                            <label>Email *</label>
+                                            <label>E-mail Pessoal *</label>
                                             <input type="email" id="colab-email" required>
                                         </div>
-                                        <div class="input-group span-2">
+                                        <div class="input-group">
                                             <label>E-mail Corporativo</label>
                                             <input type="email" id="colab-email-corporativo"
                                                 placeholder="exemplo@americarental.com.br">
@@ -3448,6 +3602,21 @@
                     <div id="licencas-content"></div>
                 </section>
 
+                <!-- VIEW: CELULARES CORPORATIVOS -->
+                <section id="view-celulares-corporativos" class="content-view">
+                    <div id="celulares-corporativos-content"></div>
+                </section>
+
+                <!-- VIEW: COMPUTADORES CORPORATIVOS -->
+                <section id="view-computadores-corporativos" class="content-view">
+                    <div id="computadores-content"></div>
+                </section>
+
+                <!-- VIEW: E-MAILS CORPORATIVOS -->
+                <section id="view-emails-corporativos" class="content-view">
+                    <div id="emails-corporativos-content"></div>
+                </section>
+
                 <!-- VIEW: GERADORES -->
                 <section id="view-geradores" class="content-view">
                     <div class="page-header flex-between">
@@ -4160,6 +4329,174 @@
                             </tbody>
                         </table>
                     </div>
+                </section>
+
+                <!-- VIEW: WEBHOOKS (Desenvolvedor) -->
+                <section id="view-dir-webhooks" class="content-view" style="padding:1.5rem; background:#f8fafc; min-height:100vh;">
+                    <div class="page-header flex-between" style="margin-bottom:1.5rem;">
+                        <div>
+                            <h2 style="display:flex;align-items:center;gap:10px;margin:0 0 4px;">
+                                <i class="ph ph-plugs-connected" style="color:#d9480f;font-size:1.6rem;"></i>
+                                Webhooks
+                            </h2>
+                            <p style="margin:0;color:#64748b;font-size:0.875rem;">Gerencie as URLs externas que recebem notificações automáticas do sistema.</p>
+                        </div>
+                    </div>
+                    <!-- Abas de eventos -->
+                    <div style="display:flex;gap:4px;border-bottom:2px solid #e2e8f0;margin-bottom:1.5rem;">
+                        <button id="whk-tab-motoristas" onclick="window.whkAbrirAba('motoristas')"
+                            style="padding:10px 20px;border:none;background:none;font-weight:700;font-size:0.875rem;color:#d9480f;border-bottom:2px solid #d9480f;margin-bottom:-2px;cursor:pointer;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;">
+                            <i class="ph ph-device-mobile"></i> Celulares Motoristas
+                        </button>
+                    </div>
+                    <!-- Painel: Celulares Motoristas -->
+                    <div id="whk-painel-motoristas">
+                        <!-- Cabeçalho do evento -->
+                        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px 24px;margin-bottom:1.25rem;">
+                            <div style="display:flex;align-items:flex-start;gap:14px;">
+                                <div style="background:#fff7ed;border-radius:10px;padding:12px;flex-shrink:0;">
+                                    <i class="ph ph-device-mobile" style="font-size:1.75rem;color:#d9480f;"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                        <h3 style="margin:0;font-size:1rem;font-weight:700;color:#1e293b;">celular.atribuido_motorista</h3>
+                                        <span style="background:#dcfce7;color:#15803d;font-size:0.7rem;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:0.5px;">ATIVO</span>
+                                    </div>
+                                    <p style="margin:6px 0 0;color:#475569;font-size:0.85rem;">Disparado sempre que um chip é atribuído a um colaborador do departamento <strong>Motorista</strong>.</p>
+                                    <details style="margin-top:10px;">
+                                        <summary style="cursor:pointer;color:#d9480f;font-size:0.82rem;font-weight:600;">Ver estrutura do payload (JSON)</summary>
+                                        <pre style="margin:10px 0 0;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:14px;font-size:0.78rem;overflow-x:auto;line-height:1.6;">{
+  "evento": "celular.atribuido_motorista",
+  "timestamp": "2026-07-16T14:00:00.000Z",
+  "dados": {
+    "colaborador_id": 42,
+    "nome_motorista": "João da Silva",
+    "telefone_principal": "11999990001",
+    "telefone_secundario": null,
+    "data_atribuicao": "2026-07-16"
+  }
+}</pre>
+                                    </details>
+                                </div>
+                                <!-- Botão Manual PDF -->
+                                <div style="flex-shrink:0;margin-left:auto;">
+                                    <button onclick="window.whkAbrirEditorManual()"
+                                        id="btn-whk-manual-pdf"
+                                        title="Editar e baixar o Manual em PDF"
+                                        style="display:flex;align-items:center;gap:7px;background:#fff;border:1.5px solid #d9480f;color:#d9480f;border-radius:9px;padding:9px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:background 0.18s,color 0.18s;white-space:nowrap;"
+                                        onmouseover="this.style.background='#d9480f';this.style.color='#fff'"
+                                        onmouseout="this.style.background='#fff';this.style.color='#d9480f'">
+                                        <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Manual PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Formulário adicionar URL -->
+                        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px 24px;margin-bottom:1.25rem;">
+                            <h4 style="margin:0 0 14px;font-size:0.9rem;color:#374151;display:flex;align-items:center;gap:8px;">
+                                <i class="ph ph-plus-circle" style="color:#d9480f;"></i> Adicionar URL assinante
+                            </h4>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                <input id="whk-nome-motoristas" type="text" placeholder="Nome da integração (ex: Cobli Rastreadores)"
+                                    style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.875rem;outline:none;transition:border 0.2s;"
+                                    onfocus="this.style.borderColor='#d9480f'" onblur="this.style.borderColor='#e2e8f0'">
+                                <input id="whk-url-motoristas" type="url" placeholder="https://api.fornecedor.com/webhook"
+                                    style="flex:2;min-width:260px;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.875rem;outline:none;transition:border 0.2s;"
+                                    onfocus="this.style.borderColor='#d9480f'" onblur="this.style.borderColor='#e2e8f0'"
+                                    onkeydown="if(event.key==='Enter') window.whkAdicionarUrl('celular.atribuido_motorista','motoristas')">
+                                <button onclick="window.whkAdicionarUrl('celular.atribuido_motorista','motoristas')"
+                                    style="background:#d9480f;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:0.875rem;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:background 0.2s;"
+                                    onmouseover="this.style.background='#b03c0e'" onmouseout="this.style.background='#d9480f'">
+                                    <i class="ph ph-plus"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Lista de URLs -->
+                        <div id="whk-lista-motoristas" style="display:flex;flex-direction:column;gap:10px;">
+                            <div style="text-align:center;padding:40px;color:#94a3b8;">
+                                <i class="ph ph-spinner" style="font-size:2rem;animation:spin 1s linear infinite;display:block;margin-bottom:10px;"></i>
+                                Carregando webhooks...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── MODAL: Editor do Manual PDF ──────────────────────────────────── -->
+                    <div id="modal-whk-manual" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);backdrop-filter:blur(3px);overflow-y:auto;">
+                        <div style="max-width:860px;margin:40px auto;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
+                            <!-- Header do modal -->
+                            <div style="display:flex;align-items:center;gap:12px;padding:20px 28px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#fff7ed,#fff);">
+                                <div style="background:#fff7ed;border-radius:10px;padding:10px;border:1.5px solid #fed7aa;">
+                                    <i class="ph ph-file-pdf" style="font-size:1.5rem;color:#d9480f;"></i>
+                                </div>
+                                <div style="flex:1;">
+                                    <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#1e293b;">Manual de Integração – Celulares Motoristas</h3>
+                                    <p style="margin:2px 0 0;font-size:0.8rem;color:#64748b;">Edite o conteúdo abaixo e clique em <strong>Baixar PDF</strong>. O arquivo será salvo como <em>Webhook celulares motoristas.pdf</em>.</p>
+                                </div>
+                                <button onclick="window.whkFecharEditorManual()"
+                                    style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1.4rem;padding:4px;border-radius:6px;line-height:1;transition:color 0.15s;"
+                                    onmouseover="this.style.color='#e11d48'" onmouseout="this.style.color='#94a3b8'">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
+
+                            <!-- Barra de ferramentas de formatação -->
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;padding:12px 28px;border-bottom:1px solid #f1f5f9;background:#f8fafc;">
+                                <button onclick="document.execCommand('bold')" title="Negrito (Ctrl+B)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:700;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><b>N</b></button>
+                                <button onclick="document.execCommand('italic')" title="Itálico (Ctrl+I)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><i>I</i></button>
+                                <button onclick="document.execCommand('underline')" title="Sublinhado (Ctrl+U)" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><u>S</u></button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('insertUnorderedList')" title="Lista com marcadores" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">• Lista</button>
+                                <button onclick="document.execCommand('insertOrderedList')" title="Lista numerada" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">1. Lista</button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <select onchange="document.execCommand('formatBlock',false,this.value);this.value=''" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:0.8rem;color:#374151;outline:none;">
+                                    <option value="">Estilo</option>
+                                    <option value="h2">Título 1</option>
+                                    <option value="h3">Título 2</option>
+                                    <option value="h4">Título 3</option>
+                                    <option value="p">Parágrafo</option>
+                                </select>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('justifyLeft')" title="Alinhar à esquerda" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">⬅</button>
+                                <button onclick="document.execCommand('justifyCenter')" title="Centralizar" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">↔</button>
+                                <button onclick="document.execCommand('justifyRight')" title="Alinhar à direita" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">➡</button>
+                                <div style="width:1px;background:#e2e8f0;margin:0 4px;"></div>
+                                <button onclick="document.execCommand('removeFormat')" title="Limpar formatação" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.75rem;color:#64748b;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'"><i class="ph ph-eraser"></i> Limpar</button>
+                            </div>
+
+                            <!-- Área de edição -->
+                            <div style="padding:20px 28px;max-height:55vh;overflow-y:auto;">
+                                <div id="whk-manual-editor"
+                                    contenteditable="true"
+                                    spellcheck="false"
+                                    style="min-height:400px;outline:none;font-family:'Inter',sans-serif;font-size:0.9rem;line-height:1.75;color:#1e293b;padding:4px 2px;">
+                                </div>
+                            </div>
+
+                            <!-- Rodapé do modal -->
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap;">
+                                <span style="font-size:0.78rem;color:#94a3b8;"><i class="ph ph-info"></i> O texto será salvo localmente no navegador para próximas edições.</span>
+                                <div style="display:flex;gap:10px;">
+                                    <button onclick="window.whkFecharEditorManual()"
+                                        style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;border-radius:8px;padding:9px 20px;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background 0.15s;"
+                                        onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                                        Cancelar
+                                    </button>
+                                    <button onclick="window.whkSalvarEditorManual()" id="btn-whk-salvar-manual"
+                                        style="display:flex;align-items:center;gap:7px;background:#f8fafc;border:1.5px solid #cbd5e1;color:#475569;border-radius:8px;padding:9px 20px;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background 0.15s;"
+                                        onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">
+                                        <i class="ph ph-floppy-disk"></i> Salvar
+                                    </button>
+                                    <button onclick="window.whkBaixarManualPDF()" id="btn-whk-baixar-pdf"
+                                        style="display:flex;align-items:center;gap:7px;background:#d9480f;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:0.875rem;font-weight:700;cursor:pointer;transition:background 0.15s;"
+                                        onmouseover="this.style.background='#b03c0e'" onmouseout="this.style.background='#d9480f'">
+                                        <i class="ph ph-download-simple"></i> Baixar PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- FIM MODAL Manual PDF ───────────────────────────────────────────── -->
+
                 </section>
 
                 <section id="view-usuarios-permissoes" class="content-view">
@@ -5519,18 +5856,20 @@
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1778869020176"></script>
-    <script src="usuarios.js?v=20260701v4"></script>
+    <script src="usuarios.js?v=20260716v4"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
     <script src="pagamentos_massa.js"></script>
     <script src="pipeline.js?v=1778869020176"></script>
     <script src="clientes_itinerantes.js?v=1778869020176"></script>
-    <script src="multas_logistica.js?v=20260708v4"></script>
+    <script src="multas_logistica.js?v=20260716v5"></script>
     <script src="multas_monaco.js?v=1778869020176"></script>
     <script src="equipes.js?v=1778869020176"></script>
     <script src="frota.js?v=20260702v6"></script>
-    <script src="logistica_senhas.js?v=1778869020176"></script>
+    <script src="logistica_senhas.js?v=20260718v1"></script>
+    <script src="administrativo_senhas.js?v=1"></script>
+    <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js"></script>
     <script src="comercial_credenciamento.js"></script>
     <script src="proposta.js"></script>
@@ -5538,11 +5877,14 @@
     <script src="logistica_sinistros.js?v=1778869020176"></script>
     <script src="rh_logistica.js?v=20260708v4"></script>
     <script src="licencas.js?v=1778869020176"></script>
+    <script src="celulares.js?v=20260718v6"></script>
+    <script src="computadores.js?v=20260718v7"></script>
+    <script src="emails.js?v=20260718v2"></script>
     <script src="videos_os.js?v=20260701v10"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260708v4"></script>
+    <script src="app.js?v=20260718v3"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
@@ -5761,6 +6103,7 @@
     <script src="end-produto.js"></script>
     <script src="treinamento.js?v=20260702v7"></script>
     <script src="treinamento_presenca.js?v=20260702v4"></script>
+    <script src="assinaturas.js?v=1"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
@@ -5942,6 +6285,130 @@
         <p id="treinamento-lightbox-caption" style="color:rgba(255,255,255,0.8);margin-top:12px;font-size:0.9rem;"></p>
     </div>
 
+    <!-- MODAL: TEMPLATE ASSINATURA -->
+    <div id="modal-assinatura-template" class="modal">
+        <div class="modal-content" style="width: 100%; max-width: 98vw; height: 95vh; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="modal-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <h2 style="margin: 0; font-size: 1.25rem; color: #1e293b; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="ph ph-image"></i> <span id="assinaturas-modal-title">Novo Template</span>
+                </h2>
+                <button type="button" class="btn-close" onclick="fecharModalAssinaturaTemplate()" style="background: none; border: none; font-size: 1.5rem; color: #64748b; cursor: pointer; padding: 0;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem; overflow-y: auto; overflow-x: hidden; display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1 1 350px; display: flex; flex-direction: column; gap: 15px;">
+                    <input type="hidden" id="assinaturas-template-id">
+                    
+                    <label style="font-weight: 600; color: #475569; display: block;">Nome do Template</label>
+                    <input type="text" id="assinaturas-template-nome" class="form-control" placeholder="Ex: Assinatura Padrão 2026" required>
+                    
+                    <label style="font-weight: 600; color: #475569; display: block; margin-top: 10px;">Imagem de Fundo (JPG/PNG)</label>
+                    <input type="file" id="assinaturas-template-bg" class="form-control" accept="image/*">
+                    <input type="hidden" id="assinaturas-template-bg-existing">
+                    
+                    <label style="font-weight: 600; color: #475569; display: block; margin-top: 10px;">Template Ativo?</label>
+                    <select id="assinaturas-template-ativo" class="form-control">
+                        <option value="1">Sim (Novos usarão este)</option>
+                        <option value="0">Não</option>
+                    </select>
+
+                    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+                    <h4 style="margin: 0; color: #1e293b;">Campos Dinâmicos</h4>
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 5px 0 15px;">Configure as posições (X, Y) e tamanho da fonte. O fundo deve ter 600x200px aproximadamente.</p>
+                    
+                    <!-- Contêiner horizontal para os 3 campos -->
+                    <div style="display: flex; gap: 15px; width: 100%;">
+                        <!-- Campo: Nome -->
+                        <div style="flex: 1; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <strong style="display: block; margin-bottom: 5px;">Nome</strong>
+                            <div style="display: flex; flex-direction: column; gap: 5px;">
+                                <input type="number" id="assinaturas-size-nome" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="18">
+                                <select id="assinaturas-font-nome" class="form-control" title="Fonte">
+                                    <option value="Inter">Inter</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times</option>
+                                    <option value="Courier New">Courier</option>
+                                    <option value="Georgia">Georgia</option>
+                                </select>
+                                <div style="display: flex; gap: 5px; margin-top: 2px;">
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-bold-nome" checked> Negrito</label>
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-italic-nome"> Itálico</label>
+                                </div>
+                                <input type="color" id="assinaturas-color-nome" value="#000000" title="Cor" style="width: 100%; height: 38px;">
+                                <input type="hidden" id="assinaturas-pos-nome-x" value="50">
+                                <input type="hidden" id="assinaturas-pos-nome-y" value="50">
+                            </div>
+                        </div>
+
+                        <!-- Campo: Departamento -->
+                        <div style="flex: 1; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <strong style="display: block; margin-bottom: 5px;">Departamento</strong>
+                            <div style="display: flex; flex-direction: column; gap: 5px;">
+                                <input type="number" id="assinaturas-size-dept" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="14">
+                                <select id="assinaturas-font-dept" class="form-control" title="Fonte">
+                                    <option value="Inter">Inter</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times</option>
+                                    <option value="Courier New">Courier</option>
+                                    <option value="Georgia">Georgia</option>
+                                </select>
+                                <div style="display: flex; gap: 5px; margin-top: 2px;">
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-bold-dept" checked> Negrito</label>
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-italic-dept"> Itálico</label>
+                                </div>
+                                <input type="color" id="assinaturas-color-dept" value="#000000" title="Cor" style="width: 100%; height: 38px;">
+                                <input type="hidden" id="assinaturas-pos-dept-x" value="50">
+                                <input type="hidden" id="assinaturas-pos-dept-y" value="75">
+                            </div>
+                        </div>
+
+                        <!-- Campo: Email -->
+                        <div style="flex: 1; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <strong style="display: block; margin-bottom: 5px;">E-mail</strong>
+                            <div style="display: flex; flex-direction: column; gap: 5px;">
+                                <input type="number" id="assinaturas-size-email" class="form-control" title="Tamanho da Fonte" placeholder="Tamanho" value="12">
+                                <select id="assinaturas-font-email" class="form-control" title="Fonte">
+                                    <option value="Inter">Inter</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Times New Roman">Times</option>
+                                    <option value="Courier New">Courier</option>
+                                    <option value="Georgia">Georgia</option>
+                                </select>
+                                <div style="display: flex; gap: 5px; margin-top: 2px;">
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-bold-email" checked> Negrito</label>
+                                    <label style="flex:1; display:flex; align-items:center; gap:3px; font-size:0.8rem; cursor:pointer;"><input type="checkbox" id="assinaturas-italic-email"> Itálico</label>
+                                </div>
+                                <input type="color" id="assinaturas-color-email" value="#000000" title="Cor" style="width: 100%; height: 38px;">
+                                <input type="hidden" id="assinaturas-pos-email-x" value="50">
+                                <input type="hidden" id="assinaturas-pos-email-y" value="90">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex: 1 1 400px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f1f5f9; display: flex; flex-direction: column;">
+                    <div style="padding: 10px; background: #e2e8f0; font-weight: 600; text-align: center; border-bottom: 1px solid #cbd5e1;">Preview Interativo</div>
+                    <div id="assinaturas-preview-wrapper" style="flex: 1; position: relative; background: #cbd5e1; padding: 10px; overflow: auto;">
+                        <span id="assinaturas-preview-placeholder" style="color: #64748b; font-weight: 500; display: block; text-align: center; padding: 60px 0;">Faça upload de uma imagem para ver o preview</span>
+                        <div id="assinaturas-preview-canvas" style="display: none; position: relative;">
+                            <img id="assinaturas-preview-img" src="" style="width: 100%; height: auto; display: block; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                            <div id="drag-nome" class="draggable-text" data-target="nome" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 10%; left: 10%; z-index: 10; line-height: 1;">Nome do Colaborador</div>
+                            <div id="drag-dept" class="draggable-text" data-target="dept" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 20%; left: 10%; z-index: 10; line-height: 1;">Departamento</div>
+                            <div id="drag-email" class="draggable-text" data-target="email" style="position: absolute; cursor: grab; outline: 1px dashed #3b82f6; white-space: nowrap; user-select: none; top: 30%; left: 10%; z-index: 10; line-height: 1;">email@america.com</div>
+                        </div>
+                    </div>
+
+                    <div style="padding: 10px; background: #fff; text-align: center;">
+                        <button class="btn btn-secondary" type="button" onclick="assinaturasAtualizarPreview()">Atualizar Preview</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 1.5rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; background: #f8fafc;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalAssinaturaTemplate()" style="background: white; border: 1px solid #cbd5e1; color: #475569;">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="assinaturasSalvarTemplate()">Salvar Template</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

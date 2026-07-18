@@ -522,6 +522,7 @@ const BREADCRUMB_MAP = {
     'treinamento-materiais-terapia': { path: 'Treinamentos - Terapia - Palestras', code: 'TER01' },
     'treinamento-presenca-terapia': { path: 'Treinamentos - Terapia - Listas', code: 'TER02' },
     'ficha-epi': { path: 'Ficha EPI', code: 'RHEPI01' },
+    'assinaturas-adm': { path: 'Administrativo → Assinaturas', code: 'ADMIN01' },
     'avaliacoes': { path: 'Avaliações', code: 'RHAV01' },
     'gerenciar-avaliacoes': { path: 'Diretoria → Gerenciar Avaliações', code: 'DIRAVAL' },
     'usuarios-permissoes': { path: 'Diretoria → Usuários e Permissões', code: 'DIR001' },
@@ -529,6 +530,7 @@ const BREADCRUMB_MAP = {
     'form-usuario': { path: 'Diretoria → Usuários e Permissões → Cadastro', code: 'DIR002' },
     'certificado-digital': { path: 'Diretoria → Certificado Digital', code: 'DIR003' },
     'auditoria': { path: 'Diretoria → Trilha de Auditoria', code: 'DIR006' },
+    'dir-webhooks': { path: 'Diretoria → Desenvolvedor → Webhooks', code: 'DIR007' },
     // Sub-telas (Prontuário Digital - abas)
     'tab:00. CheckList': { path: 'Colaboradores → Prontuário Digital → 00. CheckList', },
     'tab:01_FICHA_CADASTRAL': { path: 'Colaboradores → Prontuário Digital → Ficha Cadastral', },
@@ -587,6 +589,10 @@ const BREADCRUMB_MAP = {
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
+    'celulares-corporativos': { path: 'Celulares Corporativos', code: 'ADM003' },
+    'computadores-corporativos': { path: 'Computadores Corporativos', code: 'ADM004' },
+    'administrativo-senhas': { path: 'Cofre de Senhas', code: 'ADM005' },
+    'administrativo-protocolos': { path: 'Protocolos', code: 'ADM006' },
 };
 
 window.carregarPermissoesOnline = async function () {
@@ -738,7 +744,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -774,6 +780,7 @@ const TAB_META = {
     'departamentos': { color: '#f503c5', icon: 'ph-buildings', title: 'Departamentos' },
     'faculdade': { color: '#f503c5', icon: 'ph-graduation-cap', title: 'Faculdade' },
     'geradores': { color: '#f503c5', icon: 'ph-file-text', title: 'Geradores' },
+    'assinaturas-adm': { color: '#e67700', icon: 'ph-signature', title: 'Administrativo > Assinaturas' },
     'ficha-epi': { color: '#f503c5', icon: 'ph-shield-check', title: 'Ficha EPI' },
     'gerenciar-avaliacoes': { color: '#d9480f', icon: 'ph-clipboard-text', title: 'Avaliações' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
@@ -794,6 +801,7 @@ const TAB_META = {
     'chaves': { color: '#d9480f', icon: 'ph-key', title: 'Chaves' },
     'form-usuario': { color: '#d9480f', icon: 'ph-user-gear', title: 'Cadastro de Usuário' },
     'config-sigor': { color: '#d9480f', icon: 'ph-key', title: 'Credenciais SIGOR' },
+    'dir-webhooks': { color: '#d9480f', icon: 'ph-plugs-connected', title: 'Webhooks' },
     // Logística - Verde
     'logistica-em-breve': { color: '#2d9e5f', icon: 'ph-truck', title: 'Logística' },
     'logistica-dashboard': { color: '#2d9e5f', icon: 'ph-chart-bar', title: 'Dashboard Logística' },
@@ -824,11 +832,15 @@ const TAB_META = {
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
     'licencas': { color: '#e67700', icon: 'ph-certificate', title: 'Licenças' },
     'estoque': { color: '#e67700', icon: 'ph-package', title: 'Estoque' },
+    'celulares-corporativos': { color: '#e67700', icon: 'ph-device-mobile', title: 'Celulares' },
+    'computadores-corporativos': { color: '#e67700', icon: 'ph-desktop', title: 'Computadores' },
+    'administrativo-senhas': { color: '#e67700', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
+    'administrativo-protocolos': { color: '#e67700', icon: 'ph-file-text', title: 'Protocolos' },
     // Treinamento - Azul Turquesa
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
-    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros Logística' },
-    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas Logística' }
+    'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
+    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' }
 };
 
 
@@ -1103,8 +1115,18 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'comercial-proposta') {
         if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
+    } else if (target === 'administrativo-senhas') {
+        if (typeof window.initAdministrativoSenhas === 'function') setTimeout(() => window.initAdministrativoSenhas(), 80);
+    } else if (target === 'administrativo-protocolos') {
+        if (typeof window.initProtocolosAdministrativos === 'function') setTimeout(() => window.initProtocolosAdministrativos(), 80);
     } else if (target === 'licencas') {
         if (typeof window.initLicencas === 'function') setTimeout(() => window.initLicencas(), 80);
+    } else if (target === 'celulares-corporativos') {
+        if (typeof window.initCelularesCorporativos === 'function') setTimeout(() => window.initCelularesCorporativos(), 80);
+    } else if (target === 'emails-corporativos') {
+        if (typeof window.initEmailsCorporativos === 'function') setTimeout(() => window.initEmailsCorporativos(), 80);
+    } else if (target === 'computadores-corporativos') {
+        if (typeof window.computadoresInit === 'function') setTimeout(() => window.computadoresInit(), 80);
     } else if (target === 'config-sigor') {
         if (typeof window.initConfigSigor === 'function') setTimeout(() => window.initConfigSigor(), 80);
     } else if (target === 'treinamento-materiais') {
@@ -1115,6 +1137,8 @@ function navigateTo(target) {
         if (typeof window.renderTreinamentosTable === 'function') setTimeout(() => window.renderTreinamentosTable(), 80);
     } else if (target === 'treinamento-presenca-terapia') {
         if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
+    } else if (target === 'dir-webhooks') {
+        if (typeof window.whkCarregarTodos === 'function') setTimeout(() => window.whkCarregarTodos(), 80);
     }
 }
 
@@ -1892,7 +1916,27 @@ window.toggleCelularFields = function (val) {
             if (dInput) dInput.value = '';
         }
     }
+    // Mostrar/esconder campo de Telefone Corporativo na seção de Contato
+    const wrapperCorpTel = document.getElementById('wrapper-telefone-corporativo');
+    if (wrapperCorpTel) {
+        wrapperCorpTel.style.display = (val === 'Sim') ? '' : 'none';
+        if (val === 'Não') {
+            const corpTelInput = document.getElementById('colab-telefone-corporativo');
+            if (corpTelInput) corpTelInput.value = '';
+        }
+    }
+    // Quando Sim: Telefone Pessoal ocupa meia linha (Corporativo fica ao lado)
+    // Quando Não: Telefone Pessoal ocupa linha inteira
+    const wrapperPesTel = document.getElementById('wrapper-telefone-pessoal');
+    if (wrapperPesTel) {
+        if (val === 'Sim') {
+            wrapperPesTel.classList.remove('span-2');
+        } else {
+            wrapperPesTel.classList.add('span-2');
+        }
+    }
 };
+
 
 window.toggleChavesColabFields = function (val) {
     const section = document.getElementById('section-chaves-colab');
@@ -4094,6 +4138,7 @@ window.editColaborador = async function (id) {
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
+        if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
         // Chaves
         const participaChaves = c.chaves_participa || 'Não';
@@ -4309,6 +4354,7 @@ if (formColab) {
             nome_mae: document.getElementById('colab-mae').value,
             nome_pai: document.getElementById('colab-pai').value,
             telefone: document.getElementById('colab-telefone').value,
+            telefone_corporativo: document.getElementById('colab-telefone-corporativo') ? document.getElementById('colab-telefone-corporativo').value : '',
             email: document.getElementById('colab-email').value,
             email_corporativo: document.getElementById('colab-email-corporativo') ? document.getElementById('colab-email-corporativo').value : '',
             endereco: document.getElementById('colab-endereco').value,
@@ -10710,7 +10756,7 @@ window.anexarAoProntuarioPerfil = async function (btn) {
         if (!previewContent) throw new Error('Conteúdo do preview não encontrado. Feche e gere novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
         const colabNome = (viewedColaborador.nome_completo || viewedColaborador.id).toString();
 
         const formData = new FormData();
@@ -10801,7 +10847,7 @@ window.enviarAssinaturaPerfilDireto = async function (event) {
         if (!previewContent) throw new Error('Conteúdo do formulário foi perdido. Tente gerar novamente.');
 
         const pdfBlob = await window.gerarPDFBlob(previewContent);
-        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+        const safeName = (geradorNome || 'documento').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
         const colabId = viewedColaborador?.id || '';
         const colabNome = (viewedColaborador?.nome_completo || colabId).toString();
 
@@ -11614,7 +11660,7 @@ window.previewAdmissaoDoc = async function (geradorId, colabId, evt) {
                     if (!previewContent) throw new Error('Conteúdo do preview não encontrado');
 
                     const pdfBlob = await window.gerarPDFBlob(previewContent);
-                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-� _-]/g, '');
+                    const safeName = (data.gerador_nome || 'documento_admissao').replace(/[^a-zA-Z0-9À-ã _-]/g, '');
                     const cNome = (data.colaborador?.NOME_COMPLETO || colabId).toString();
 
                     const formData = new FormData();
@@ -13572,13 +13618,13 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'nova_ocorrencia') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
                 } else if (notif.tipo === 'pesquisa_satisfacao_treinamento') {
-                    bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamentos';
+                    bg = '#ecfeff'; color = '#0e7490'; icon = 'ph-star'; titulo = 'Pesquisa de Satisfação'; navTarget = 'treinamento-materiais';
                 } else if (notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') {
-                    bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
-
-
-                    bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-warning-octagon'; titulo = 'Ocorrência Registrada'; navTarget = 'dashboard';
-
+                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-traffic-cone'; titulo = 'Nova Multa'; navTarget = 'logistica';
+                } else if (notif.tipo === 'celular_controle') {
+                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-device-mobile'; titulo = 'Celular Corporativo'; navTarget = 'celulares-corporativos';
+                } else if (notif.tipo === 'computador_controle') {
+                    bg = '#fff3e6'; color = '#e67700'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -13706,7 +13752,25 @@ async function checkUserNotificacoes() {
                         ${motoristaNome ? `<div style="color:#065f46;font-size:0.88rem;font-weight:600;margin-bottom:4px;"><i class="ph ph-user"></i> ${motoristaNome}</div>` : ''}
                         ${prazoStr ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 10px;font-size:0.85rem;font-weight:700;color:#854d0e;margin-top:4px;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-calendar-x"></i> Prazo indicação: ${prazoStr}</div>` : `<div style="color:#64748b;font-size:0.82rem;">${notif.mensagem}</div>`}
                     `;
+                } else if (notif.tipo === 'celular_controle') {
+                    const colabNome = dados.nome || notif.mensagem || 'Colaborador';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${colabNome}</div>
+                        <div style="color:#64748b;font-size:0.85rem;">Novo participante no programa de Celular Corporativo.</div>
+                    `;
                 } else {
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">${notif.mensagem || ''}</div>
+                    `;
+                }
+
+                // Definir ação do botão Ver Detalhes
                 let btnOnClick = `window.markUserNotifLida('${notif.id}'); navigateTo('${navTarget}'); this.closest('[data-notif-id]').remove();`;
                 if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
@@ -13714,7 +13778,10 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Advertências');`;
                 } else if ((notif.tipo === 'nova_multa_prontuario' || notif.tipo === 'nova_multa_monaco') && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Multas');`;
-                }
+                } else if (notif.tipo === 'celular_controle' && dados.colaborador_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
+                } else if (notif.tipo === 'computador_controle') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 }
 
                 popup.innerHTML = `
@@ -14949,7 +15016,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                     <p style="font-size:0.8rem;color:#64748b;margin:0 0 8px;">Assine abaixo. Será aplicada em todos os itens entregues.</p>
                     <div style="border:2px dashed #94a3b8;border-radius:10px;background:#fafafa;position:relative;flex:1;display:flex;">
                         <canvas id="epi-signature-canvas" width="900" height="450" style="width:100%;height:100%;min-height:220px;border-radius:8px;touch-action:none;cursor:crosshair;display:block;"></canvas>
-                        <button onclick="window._limparAssinatura()" style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;">Limpar</button>
+                        <button id="btn-limpar-epi-assinatura" style="position:absolute;top:8px;right:8px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:4px 12px;font-size:0.78rem;color:#475569;cursor:pointer;z-index:10;">Limpar</button>
                     </div>
                     <p id="epi-assin-warn" style="color:#dc2626;font-size:0.82rem;margin:0.5rem 0 0;display:none;">A assinatura é obrigatória.</p>
                 </div>
@@ -14966,7 +15033,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
     document.body.appendChild(overlay);
-    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
     setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
 };
 
@@ -14993,13 +15060,109 @@ window._renderEpiGrid = function (filtro) {
     });
 };
 
+// EPIs que precisam agendar devolução (não perguntam sobre EPI anterior danificado)
+window._EPIS_AGENDAR_DEVOLUCAO = ['CA 14.781', 'CA 46.468', 'CA 42.291', 'BOTA DE PVC', 'AVENTAL LONGO', 'MASCARA RESPIRADOR', 'MÁSCARA RESPIRADOR'];
+window._requiresAgendarDevolucao = function(epi) {
+    const eu = epi.toUpperCase().trim();
+    return window._EPIS_AGENDAR_DEVOLUCAO.some(k => eu.includes(k));
+};
+
+// Armazena se o colaborador devolveu o anterior (por nome do EPI)
+window._assinRetornosConfirmados = window._assinRetornosConfirmados || {};
+// Armazena EPIs que precisam ser devolvidos com data prevista { epiNome: 'dd/mm/yyyy' }
+window._assinEmprestimos = window._assinEmprestimos || {};
 window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
 
 window._setEpiQty = async function (epi, qty) {
     const prevQty = (window._assinQtds||{})[epi]||0;
+
+    // Demais EPIs (não agendáveis): pergunta se devolveu o EPI anterior danificado
+    if (qty > prevQty && prevQty === 0 && !window._requiresAgendarDevolucao(epi)) {
+        let swalStyleEl = document.getElementById('swal-epi-zindex-fix');
+        if (!swalStyleEl) { swalStyleEl = document.createElement('style'); swalStyleEl.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl); }
+        swalStyleEl.textContent = '.swal2-container { z-index: 999999 !important; }';
+        const result = await Swal.fire({
+            title: 'Troca de EPI',
+            html: `<div style="text-align:center;"><i class="ph ph-arrows-left-right" style="font-size:2.5rem;color:#d97706;display:block;margin-bottom:0.5rem;"></i><p style="color:#475569;font-size:0.95rem;margin:0;">O colaborador devolveu o <strong>${epi}</strong> anterior danificado?</p></div>`,
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim, devolveu',
+            denyButtonText: '<i class="ph ph-x"></i> Não devolveu',
+            cancelButtonText: 'Primeira Entrega',
+            confirmButtonColor: '#16a34a',
+            denyButtonColor: '#dc2626',
+        });
+        if (swalStyleEl) swalStyleEl.textContent = '';
+        
+        if (result.isDismissed && result.dismiss !== Swal.DismissReason.cancel) return;
+        
+        if (result.isConfirmed) {
+            window._assinRetornosConfirmados[epi] = true;
+        } else if (result.isDenied) {
+            window._assinRetornosConfirmados[epi] = false;
+            let swalStyleEl2 = document.getElementById('swal-epi-zindex-fix');
+            if (!swalStyleEl2) { swalStyleEl2 = document.createElement('style'); swalStyleEl2.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl2); }
+            swalStyleEl2.textContent = '.swal2-container { z-index: 999999 !important; }';
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Atenção!',
+                html: `<p style="color:#374151;font-size:0.92rem;">O colaborador <strong>não devolveu</strong> o ${epi} anterior danificado.<br>A entrega será registrada com observação de pendência de devolução.</p>`,
+                confirmButtonText: 'Entendido, continuar',
+                confirmButtonColor: '#d97706',
+            });
+            if (swalStyleEl2) swalStyleEl2.textContent = '';
+        } else if (result.dismiss === Swal.DismissReason.cancel) {
+            window._assinRetornosConfirmados[epi] = true; 
+        }
+    }
+
+    // EPIs Especiais: Agendar devolução
+    if (qty > prevQty && prevQty === 0 && window._requiresAgendarDevolucao(epi)) {
+        window._assinEmprestimos = window._assinEmprestimos || {};
+        let swalStyleEmp = document.getElementById('swal-epi-zindex-fix');
+        if (!swalStyleEmp) { swalStyleEmp = document.createElement('style'); swalStyleEmp.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEmp); }
+        swalStyleEmp.textContent = '.swal2-container { z-index: 999999 !important; }';
+        const resDevol = await Swal.fire({
+            title: 'Agendar Devolução',
+            html: `<div style="text-align:center;"><i class="ph ph-calendar-plus" style="font-size:2.5rem;color:#d97706;display:block;margin-bottom:0.5rem;"></i><p style="color:#64748b;font-size:0.88rem;margin-bottom:16px;"><strong>${epi}</strong> &mdash; necessita agendar a devolução deste equipamento?</p></div>`,
+            showDenyButton: true,
+            showCancelButton: false,
+            confirmButtonText: '<i class="ph ph-check"></i> Sim, agendar',
+            denyButtonText: '<i class="ph ph-x"></i> Não precisa',
+            confirmButtonColor: '#16a34a',
+            denyButtonColor: '#64748b',
+        });
+        if (swalStyleEmp) swalStyleEmp.textContent = '';
+        if (resDevol.isConfirmed) {
+            let swalStyleEmp2 = document.getElementById('swal-epi-zindex-fix');
+            if (!swalStyleEmp2) { swalStyleEmp2 = document.createElement('style'); swalStyleEmp2.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEmp2); }
+            swalStyleEmp2.textContent = '.swal2-container { z-index: 999999 !important; }';
+            const todayEmp = new Date(); const todayEmpStr = todayEmp.toISOString().split('T')[0];
+            const resData = await Swal.fire({
+                title: 'Data de Devolução Prevista',
+                html: `<p style="color:#475569;font-size:0.9rem;margin-bottom:12px;">Informe a data prevista para devolução de <strong>${epi}</strong>:</p><input type="date" id="swal-data-devolucao" class="swal2-input" value="${todayEmpStr}" min="${todayEmpStr}">`,
+                showCancelButton: true,
+                confirmButtonText: '<i class="ph ph-check"></i> Confirmar',
+                cancelButtonText: 'Pular',
+                confirmButtonColor: '#1e3a5f',
+                preConfirm: () => document.getElementById('swal-data-devolucao')?.value || null
+            });
+            if (swalStyleEmp2) swalStyleEmp2.textContent = '';
+            if (resData.isConfirmed && resData.value) {
+                const [yy, mm, dd] = resData.value.split('-');
+                window._assinEmprestimos[epi] = `${dd}/${mm}/${yy}`;
+            } else { window._assinEmprestimos[epi] = null; }
+        } else { window._assinEmprestimos[epi] = null; }
+    }
+
     if (qty>prevQty && prevQty===0 && window._requiresSize(epi)) {
         const tipoSize=window._requiresSize(epi); const opcoes=tipoSize==='bota'?['33','34','35','36','37','38','39','40','41','42','43','44','45','46']:['PP','P','M','G','GG','XG','XXG'];
-        const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null,didOpen:()=>{const c=document.querySelector('.swal2-container');if(c)c.style.zIndex='999999';}});
+        // Garantir que o Swal apareça acima do overlay de EPI (z-index 99990)
+        let swalStyleEl = document.getElementById('swal-epi-zindex-fix');
+        if (!swalStyleEl) { swalStyleEl = document.createElement('style'); swalStyleEl.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl); }
+        swalStyleEl.textContent = '.swal2-container { z-index: 999999 !important; }';
+        const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null});
+        if (swalStyleEl) swalStyleEl.textContent = '';
         if(tamanho){
             const baseEpi = epi.replace(/\s*\(TAM.*?\)/g, '');
             const nomeComTamanho = `${baseEpi} (TAM ${tamanho})`;
@@ -15107,8 +15270,9 @@ window._assinNextStep = async function () {
             const canvas=document.getElementById('epi-signature-canvas'); const assinaturaBase64=canvas?canvas.toDataURL('image/png'):'';
             const di=document.getElementById('epi-data-entrega'); const dataVal=di?di.value:new Date().toISOString().split('T')[0]; const[y,m,d]=dataVal.split('-'); const dataFormatada=`${d}/${m}/${y}`;
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
+            const episParaDevolver = Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }));
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||''}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver}),signal:controller.signal});
 
             if (res.ok && window._assinSelfieBase64) {
                  try {
@@ -15241,8 +15405,28 @@ window._initSignatureCanvas = function () {
     canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y;};
     canvas.onmousemove=canvas.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;};
     canvas.onmouseup=canvas.ontouchend=()=>{drawing=false;}; canvas.onmouseleave=()=>{drawing=false;};
+    // Conectar o botão Limpar via addEventListener (mais confiável que onclick inline)
+    const btnLimpar = document.getElementById('btn-limpar-epi-assinatura');
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            canvas.width = canvas.width; // reset completo do canvas
+            ctx.strokeStyle='#1e3a5f'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+        });
+    }
 };
-window._limparAssinatura=function(){const c=document.getElementById('epi-signature-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);};
+window._limparAssinatura=function(){
+    const c=document.getElementById('epi-signature-canvas');
+    if(!c)return;
+    // Resetar width força limpeza total do canvas (inclusive transforms e estado de desenho)
+    c.width=c.width;
+    const ctx=c.getContext('2d');
+    ctx.strokeStyle='#1e3a5f';
+    ctx.lineWidth=4;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+};
 window._assinaturaTemConteudo=function(){const c=document.getElementById('epi-signature-canvas');if(!c)return false;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4)if(d[i]>0)return true;return false;};
 
 window.gerarNovaFichaEpi = async function () {
@@ -15374,7 +15558,8 @@ window.carregarOcorrenciaAnexos = async function(docId) {
     galeria.innerHTML = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">Carregando anexos...</span>';
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
+        const apiBase = window.API_URL || '';
+        const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!resp.ok) throw new Error('Erro ao buscar anexos');
@@ -15401,13 +15586,14 @@ window.uploadOcorrenciaAnexo = async function(docId, inputEl) {
         if (arrow) arrow.style.transform = 'rotate(90deg)';
     }
 
+    const apiBase = window.API_URL || '';
     for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('docId', docId);
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-            const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos`, {
+            const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -15429,7 +15615,8 @@ window.excluirOcorrenciaAnexo = async function(docId, anexoId) {
     if (!confirm('Deseja excluir este anexo?')) return;
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-        const resp = await fetch(`${window.API_URL}/ocorrencias/${docId}/anexos/${anexoId}`, {
+        const apiBase = window.API_URL || '';
+        const resp = await fetch(`${apiBase}/ocorrencias/${docId}/anexos/${anexoId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -15459,13 +15646,14 @@ window._renderizarAnexosGaleria = function(docId, anexos) {
     }
 
     galeria.innerHTML = anexos.map(a => {
-        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.tipo && a.tipo.startsWith('image/'));
-        const isPdf   = /\.pdf$/i.test(a.nome || '') || a.tipo === 'application/pdf';
-        const url     = a.url;
-        const nome    = a.nome || 'Arquivo';
+        // URLs do R2 são públicas — podem ser usadas diretamente em <img src>
+        const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(a.nome || '') || (a.mime_type && a.mime_type.startsWith('image/'));
+        const isPdf   = /\.pdf$/i.test(a.nome || '') || a.mime_type === 'application/pdf';
+        const url  = a.url || '';
+        const nome = a.nome || 'Arquivo';
 
         const thumbnail = isImage
-            ? `<img src="${url}" alt="${nome}" style="width:100%; height:100%; object-fit:cover; display:block;">`
+            ? `<img src="${url}" alt="${nome}" style="width:100%; height:100%; object-fit:cover; display:block;" onerror="this.style.display='none'">`
             : isPdf
                 ? `<div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#fef2f2;">
                      <i class="ph ph-file-pdf" style="font-size:2rem; color:#ef4444;"></i>
@@ -15717,7 +15905,7 @@ window.renderBookmarks = function () {
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja exceções
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];
@@ -16280,6 +16468,13 @@ if (typeof _origNavigateTo === 'function') {
         _origNavigateTo(view);
         if (view === 'certificado-digital') {
             setTimeout(() => window.carregarCertificadoView(), 150);
+        }
+        if (view === 'assinaturas-adm' || view === 'view-assinaturas-adm') {
+            setTimeout(() => {
+                if (typeof window.assinaturasChangeTab === 'function') {
+                    window.assinaturasChangeTab('templates');
+                }
+            }, 100);
         }
     };
 }
@@ -18825,7 +19020,8 @@ window.renderMultasMotoristaTab = async function (container) {
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || currentToken || '';
         const resp = await fetch(`/api/logistica/multas?motorista_id=${colab.id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store'
         });
         if (resp.ok) {
             const todas = await resp.json();
@@ -18836,8 +19032,9 @@ window.renderMultasMotoristaTab = async function (container) {
         try { multas = await apiGet(`/colaboradores/${colab.id}/multas`) || []; } catch (_) { }
     }
 
-    // ÔöÇÔöÇ Apenas multas com status Indicado ou Multa NIC aparecem no prontuário ÔöÇÔöÇ
-    const multasVisiveis = multas.filter(m => m.status === 'Indicado' || m.status === 'Multa NIC');
+    // ── Apenas multas com status relevantes aparecem no prontuário ──
+    const PRONTUARIO_STATUS_VISIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const multasVisiveis = multas.filter(m => PRONTUARIO_STATUS_VISIVEIS.includes(m.status));
 
     container.innerHTML = '';
     container.appendChild(aviso);
@@ -18846,7 +19043,7 @@ window.renderMultasMotoristaTab = async function (container) {
         const vazio = document.createElement('div');
         vazio.className = 'alert alert-info';
         if (multas.length > 0) {
-            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de análise. Elas aparecerão aqui quando atingirem o status <strong>Indicado</strong> ou <strong>Multa NIC</strong>.';
+            vazio.innerHTML = '<i class="ph ph-clock"></i> Este colaborador possui multas em processo de análise. Elas aparecerão aqui quando atingirem um dos status: <strong>Indicado</strong>, <strong>Multa Nic</strong>, <strong>Id. Indeferida</strong>, <strong>Id. Deferida</strong>, <strong>Rec. Indeferida</strong> ou <strong>Cobrada - Pz. Perdido</strong>.';
         } else {
             vazio.innerHTML = '<i class="ph ph-warning"></i> Nenhuma multa registrada para este colaborador.';
         }
@@ -18859,11 +19056,16 @@ window.renderMultasMotoristaTab = async function (container) {
         'Conferido': '#bfdbfe',
         'Indicado': '#bbf7d0',
         'Multa NIC': '#fecaca',
+        'Multa Nic': '#fecaca',
+        'Id. Indeferida': '#fed7aa',
+        'Id. Deferida': '#bfdbfe',
+        'Rec. Indeferida': '#fde68a',
+        'Cobrada - Pz. Perdido': '#e9d5b4',
         'Não Se Aplica': '#e2e8f0',
     };
 
     multas.forEach((m, idx) => {
-        if (m.status !== 'Indicado' && m.status !== 'Multa NIC') return; // só exibe visíveis
+        if (!PRONTUARIO_STATUS_VISIVEIS.includes(m.status)) return; // só exibe visíveis
         const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
         const uid = `multa-det-${m.id || idx}`;
@@ -19799,5 +20001,413 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window._carregarAuditoria) window._carregarAuditoria();
             }
         };
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEBHOOKS — Lógica da tela Diretoria › Desenvolvedor › Webhooks
+// ═══════════════════════════════════════════════════════════════════════════════
+
+window._whkCache = [];
+
+window.whkCarregarTodos = async function () {
+    try {
+        const data = await apiGet('/webhooks');
+        window._whkCache = data || [];
+        window.whkRenderLista('celular.atribuido_motorista', 'motoristas');
+    } catch(e) {
+        document.getElementById('whk-lista-motoristas').innerHTML =
+            `<div style="text-align:center;padding:30px;color:#ef4444;"><i class="ph ph-warning" style="font-size:1.5rem;display:block;margin-bottom:8px;"></i>Erro ao carregar webhooks.</div>`;
+    }
+};
+
+window.whkRenderLista = function(evento, abaId) {
+    const container = document.getElementById(`whk-lista-${abaId}`);
+    if (!container) return;
+    const items = (window._whkCache || []).filter(w => w.evento === evento);
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:48px 24px;background:#fff;border-radius:12px;border:2px dashed #e2e8f0;color:#94a3b8;">
+                <i class="ph ph-plugs" style="font-size:2.5rem;display:block;margin-bottom:10px;opacity:0.5;"></i>
+                <p style="margin:0;font-size:0.9rem;">Nenhuma URL cadastrada ainda.</p>
+                <p style="margin:6px 0 0;font-size:0.8rem;opacity:0.75;">Adicione a URL fornecida pelo integrador acima.</p>
+            </div>`;
+        return;
+    }
+    container.innerHTML = items.map(w => {
+        const ativoStyle = w.ativo ? 'background:#dcfce7;color:#15803d;' : 'background:#f1f5f9;color:#94a3b8;';
+        const ativoLabel = w.ativo ? 'Ativo' : 'Pausado';
+        return `
+        <div id="whk-card-${w.id}" style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+            <div style="flex:0 0 auto;width:42px;height:42px;background:#fff7ed;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <i class="ph ph-link" style="font-size:1.3rem;color:#d9480f;"></i>
+            </div>
+            <div style="flex:1;min-width:200px;">
+                <div style="font-weight:700;font-size:0.9rem;color:#1e293b;">${w.nome || '(sem nome)'}</div>
+                <div style="font-size:0.8rem;color:#64748b;margin-top:2px;word-break:break-all;">${w.url}</div>
+                <div style="font-size:0.72rem;color:#94a3b8;margin-top:3px;">Cadastrado em ${w.criado_em ? w.criado_em.slice(0,10) : '—'}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="${ativoStyle}font-size:0.72rem;font-weight:700;padding:3px 12px;border-radius:20px;letter-spacing:0.5px;">${ativoLabel}</span>
+                <button onclick="window.whkTestar(${w.id})" title="Enviar disparo de teste"
+                    style="padding:7px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#374151;transition:all 0.2s;"
+                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                    <i class="ph ph-paper-plane-tilt" style="color:#6366f1;"></i> Testar
+                </button>
+                <button onclick="window.whkToggle(${w.id},'${abaId}')" title="${w.ativo ? 'Pausar' : 'Reativar'}"
+                    style="padding:7px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#374151;transition:all 0.2s;"
+                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+                    <i class="ph ${w.ativo ? 'ph-pause' : 'ph-play'}" style="color:${w.ativo ? '#f59e0b' : '#22c55e'};"></i> ${w.ativo ? 'Pausar' : 'Reativar'}
+                </button>
+                <button onclick="window.whkDeletar(${w.id},'${w.nome || w.url}','${abaId}')" title="Remover"
+                    style="padding:7px 12px;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;color:#dc2626;transition:all 0.2s;"
+                    onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff5f5'">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+};
+
+window.whkAdicionarUrl = async function(evento, abaId) {
+    const nomeEl = document.getElementById(`whk-nome-${abaId}`);
+    const urlEl  = document.getElementById(`whk-url-${abaId}`);
+    const nome = (nomeEl?.value || '').trim();
+    const url  = (urlEl?.value  || '').trim();
+    if (!url) { urlEl?.focus(); return; }
+    try { new URL(url); } catch(e) {
+        urlEl.style.borderColor = '#ef4444';
+        setTimeout(() => urlEl.style.borderColor = '#e2e8f0', 2000);
+        return;
+    }
+    const btn = document.querySelector(`[onclick*="whkAdicionarUrl('${evento}"]`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
+    try {
+        const result = await fetch(`${API_URL}/webhooks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` },
+            body: JSON.stringify({ evento, nome, url })
+        }).then(r => r.json());
+        if (result.error) throw new Error(result.error);
+        window._whkCache.push(result);
+        window.whkRenderLista(evento, abaId);
+        if (nomeEl) nomeEl.value = '';
+        if (urlEl)  urlEl.value  = '';
+    } catch(e) {
+        alert('Erro ao salvar: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-plus"></i> Adicionar'; }
+    }
+};
+
+window.whkToggle = async function(id, abaId) {
+    try {
+        const result = await fetch(`${API_URL}/webhooks/${id}/toggle`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        }).then(r => r.json());
+        const idx = window._whkCache.findIndex(w => w.id === id);
+        if (idx >= 0 && result) window._whkCache[idx] = result;
+        window.whkRenderLista(result.evento, abaId);
+    } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.whkDeletar = async function(id, label, abaId) {
+    if (!confirm(`Remover "${label}"?\nEsta ação não pode ser desfeita.`)) return;
+    try {
+        await fetch(`${API_URL}/webhooks/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        });
+        window._whkCache = window._whkCache.filter(w => w.id !== id);
+        const removed = window._whkCache;
+        // Re-render usando o evento correspondente ao abaId
+        const eventoMap = { motoristas: 'celular.atribuido_motorista' };
+        window.whkRenderLista(eventoMap[abaId] || '', abaId);
+    } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.whkTestar = async function(id) {
+    const btn = document.querySelector(`#whk-card-${id} button[onclick*="whkTestar"]`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Enviando...'; }
+    try {
+        const result = await fetch(`${API_URL}/webhooks/testar/${id}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token')}` }
+        }).then(r => r.json());
+        if (result.ok) {
+            alert(`✅ Disparo de teste enviado com sucesso!\nHTTP ${result.status}\n\nResposta:\n${result.resposta || '(sem corpo)'}`);
+        } else {
+            alert(`❌ Falha no disparo:\n${result.erro}`);
+        }
+    } catch(e) { alert('Erro: ' + e.message); }
+    finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt" style="color:#6366f1;"></i> Testar'; }
+    }
+};
+
+window.whkAbrirAba = function(abaId) {
+    // Futuramente, ao ter múltiplas abas, esta função ativa a selecionada
+    document.querySelectorAll('[id^="whk-painel-"]').forEach(p => p.style.display = 'none');
+    const painel = document.getElementById(`whk-painel-${abaId}`);
+    if (painel) painel.style.display = '';
+};
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Auto-abre o grupo dev se a página atual for filha dele
+(function() {
+    const DEV_TARGETS = new Set(['config-sigor','homologacao','controlid','logistica-multas-monaco','dir-webhooks']);
+    const original = window.navigateTo;
+    if (typeof original === 'function') {
+        window.navigateTo = function(target, ...args) {
+            if (DEV_TARGETS.has(target)) {
+                const group = document.getElementById('nav-group-dev');
+                if (group && !group.classList.contains('open')) {
+                    group.classList.add('open');
+                }
+            }
+            return original.call(this, target, ...args);
+        };
+    }
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── Editor + Gerador PDF: Manual de Integração Webhook ────────────────────────
+
+const WHK_MANUAL_STORAGE_KEY = 'whk_manual_motoristas_html';
+
+const WHK_MANUAL_DEFAULT = `<h2 style="color:#d9480f;margin:0 0 6px;">Manual de Integração: Webhooks</h2>
+<h3 style="color:#d9480f;font-size:1rem;margin:0 0 20px;font-weight:400;">Celulares de Motoristas – América Rental</h3>
+<hr style="border:none;border-top:2px solid #fed7aa;margin:0 0 20px;">
+
+<h3>1. O que são Webhooks?</h3>
+<p>Webhooks são ferramentas de integração automática que permitem que o <strong>Sistema América</strong> se comunique instantaneamente com outros sistemas externos (como sistemas de rastreamento, ERPs, CRMs ou plataformas de envio de mensagens).</p>
+<p>Em vez de atualizar as informações manualmente em vários sistemas diferentes, o Webhook funciona como um <em>"mensageiro automático"</em>: assim que um evento importante acontece, ele envia os dados atualizados para o sistema parceiro.</p>
+
+<h3>2. Como Acessar</h3>
+<p>O painel de gerenciamento de Webhooks é restrito à Diretoria/Administração. Para acessá-lo:</p>
+<ol>
+  <li>Abra o menu lateral esquerdo.</li>
+  <li>Clique na aba <strong>Diretoria</strong>.</li>
+  <li>Clique em <strong>Desenvolvedor</strong> para abrir o submenu.</li>
+  <li>Selecione <strong>Webhooks</strong>.</li>
+</ol>
+
+<h3>3. Evento Disponível: Celulares de Motoristas</h3>
+<p>O evento disponível é o <strong>celular.atribuido_motorista</strong>, focado na logística e rastreamento.</p>
+<p><strong>Quando é disparado?</strong> Sempre que um chip/celular é atribuído a um colaborador do departamento <strong>Motorista</strong>.</p>
+<p><strong>Para que serve?</strong> Ideal para manter sistemas de roteirização e rastreamento (como <em>Cobli</em>, <em>Ótimo Gestor</em> etc.) atualizados automaticamente.</p>
+
+<h3>4. Como Adicionar uma Nova Integração</h3>
+<ol>
+  <li>No painel de Webhooks, acesse a aba <strong>Celulares Motoristas</strong>.</li>
+  <li>No campo <strong>Nome da Integração</strong>, informe um nome descritivo (ex: <em>"Integração Cobli"</em>).</li>
+  <li>No campo <strong>URL</strong>, cole o endereço fornecido pelo sistema parceiro.</li>
+  <li>Clique em <strong>Adicionar</strong>.</li>
+  <li>Pronto! A URL passará a receber avisos automaticamente.</li>
+</ol>
+<p><em>Você pode cadastrar múltiplas URLs para notificar vários sistemas ao mesmo tempo. Para remover, clique no ícone de lixeira ao lado da URL.</em></p>
+
+<h3>5. Estrutura Técnica dos Dados (Para Desenvolvedores)</h3>
+<p>O disparo é feito via requisição HTTP <strong>POST</strong>, com payload em <strong>JSON</strong>:</p>
+<pre style="background:#f1f5f9;border-radius:8px;padding:14px;font-size:0.82rem;line-height:1.7;overflow-x:auto;">{
+  "evento": "celular.atribuido_motorista",
+  "timestamp": "2026-07-16T14:30:00.000Z",
+  "dados": {
+    "colaborador_id": 42,
+    "nome_motorista": "João da Silva",
+    "telefone_principal": "11999990001",
+    "telefone_secundario": null,
+    "data_atribuicao": "2026-07-16"
+  }
+}</pre>
+<p><strong>Dicionário de Dados:</strong></p>
+<ul>
+  <li><strong>evento</strong> – Identificador fixo da ação.</li>
+  <li><strong>timestamp</strong> – Data e hora exata do disparo (ISO 8601).</li>
+  <li><strong>colaborador_id</strong> – Código único do motorista no sistema.</li>
+  <li><strong>nome_motorista</strong> – Nome completo do colaborador.</li>
+  <li><strong>telefone_principal</strong> – Número do chip atribuído (somente dígitos).</li>
+  <li><strong>telefone_secundario</strong> – Número adicional, se houver.</li>
+  <li><strong>data_atribuicao</strong> – Data em que o celular foi vinculado.</li>
+</ul>`;
+
+window.whkAbrirEditorManual = function () {
+    const modal = document.getElementById('modal-whk-manual');
+    const editor = document.getElementById('whk-manual-editor');
+    if (!modal || !editor) return;
+
+    // Carrega conteúdo salvo ou usa o padrão
+    const saved = localStorage.getItem(WHK_MANUAL_STORAGE_KEY);
+    editor.innerHTML = saved || WHK_MANUAL_DEFAULT;
+
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    editor.focus();
+};
+
+window.whkFecharEditorManual = function () {
+    // Salva antes de fechar
+    const editor = document.getElementById('whk-manual-editor');
+    if (editor) {
+        localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+    }
+    const modal = document.getElementById('modal-whk-manual');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.whkSalvarEditorManual = function () {
+    const editor = document.getElementById('whk-manual-editor');
+    const btn = document.getElementById('btn-whk-salvar-manual');
+    if (!editor || !btn) return;
+    
+    localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+    
+    // Feedback visual rápido
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-check"></i> Salvo!';
+    btn.style.background = '#dcfce7';
+    btn.style.color = '#15803d';
+    btn.style.borderColor = '#bbf7d0';
+    
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '#f8fafc';
+        btn.style.color = '#475569';
+        btn.style.borderColor = '#cbd5e1';
+    }, 2000);
+};
+
+window.whkBaixarManualPDF = async function () {
+    const editor = document.getElementById('whk-manual-editor');
+    const btn = document.getElementById('btn-whk-baixar-pdf');
+    if (!editor) return;
+
+    // Salva o conteúdo atual
+    localStorage.setItem(WHK_MANUAL_STORAGE_KEY, editor.innerHTML);
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando PDF...'; }
+
+    try {
+        const apiBase = (typeof API_URL !== 'undefined') ? API_URL.replace('/api', '') : '';
+        const logoSrc = apiBase + '/assets/logo-header.png';
+
+        // Pré-carrega o logo
+        await new Promise(resolve => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = logoSrc;
+            setTimeout(resolve, 2000);
+        });
+
+        const hoje = new Date();
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const ano = hoje.getFullYear();
+
+        // Limpeza de estilos avançados que o html2canvas antigo não suporta (ex: color(srgb ...) injetado ao colar)
+        let htmlSeguro = editor.innerHTML
+            .replace(/color\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/oklch\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/lab\([^)]+\)/gi, 'rgb(30, 41, 59)')
+            .replace(/var\([^)]+\)/gi, 'inherit');
+
+        const htmlString = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Webhook celulares motoristas</title>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                    body {
+                        font-family: 'Inter', sans-serif;
+                        font-size: 14px;
+                        line-height: 1.75;
+                        color: #1e293b;
+                        background: #fff;
+                        margin: 0;
+                        padding: 48px 64px 64px;
+                    }
+                    /* Estilos para blocos de código manterem a formatação */
+                    pre {
+                        background: #0f172a;
+                        color: #e2e8f0;
+                        padding: 16px;
+                        border-radius: 8px;
+                        overflow-x: auto;
+                        font-family: monospace;
+                        font-size: 13px;
+                        white-space: pre-wrap;
+                        word-break: break-all;
+                    }
+                    code {
+                        font-family: monospace;
+                    }
+                    @media print {
+                        body { padding: 0; }
+                        @page { margin: 20mm; }
+                    }
+                </style>
+            </head>
+            <body>
+                <!-- Cabeçalho com logo -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid #d9480f;margin-bottom:32px;">
+                    <img src="${logoSrc}" alt="América Rental" style="height:52px;object-fit:contain;" crossorigin="anonymous">
+                    <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.5;">
+                        <div style="font-weight:700;color:#d9480f;font-size:12px;">DOCUMENTO INTERNO</div>
+                        <div>Emitido em: ${dia}/${mes}/${ano}</div>
+                        <div>América Rental Equipamentos Ltda.</div>
+                    </div>
+                </div>
+                
+                <!-- Conteúdo editado -->
+                <div style="font-size:14px;line-height:1.8;">
+                    ${htmlSeguro}
+                </div>
+                
+                <!-- Rodapé -->
+                <div style="margin-top:60px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+                    <span>América Rental Equipamentos Ltda. – Documento gerado pelo Sistema Interno</span>
+                    <span>${dia}/${mes}/${ano}</span>
+                </div>
+
+                <script>
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        // Abre uma nova janela invisível/focada para impressão nativa do navegador
+        // A impressão nativa é a única forma de gerar PDFs com texto 100% selecionável no frontend
+        const printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            throw new Error("O navegador bloqueou a abertura da janela de impressão. Permita pop-ups para este site.");
+        }
+        
+        printWindow.document.open();
+        printWindow.document.write(htmlString);
+        printWindow.document.close();
+        printWindow.focus();
+
+    } catch (err) {
+        console.error('[WHK Manual PDF]', err);
+        alert('Erro ao gerar o PDF: ' + err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar PDF'; }
+    }
+};
+
+// Fecha o modal ao clicar no backdrop
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('modal-whk-manual');
+    if (modal && e.target === modal) {
+        window.whkFecharEditorManual();
     }
 });

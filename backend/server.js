@@ -127,14 +127,19 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
+        // Busca todos os usuários configurados para o tipo, com múltiplas fontes de e-mail
         db.all(`
-            SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail,
-                   cn1.email_corporativo as ec_by_nome, cn1.email as ce_by_nome,
-                   cn2.email_corporativo as ec_by_username, cn2.email as ce_by_username
+            SELECT
+                u.id as uid, u.nome as unome, u.username, u.email as uemail,
+                cn.email_override as email_override,
+                cn1.email_corporativo as ec_by_nome,   cn1.email as ce_by_nome,
+                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname,
+                cn3.email_corporativo as ec_by_upart,  cn3.email as ce_by_upart
             FROM config_notificacoes cn
             JOIN usuarios u ON u.id = cn.usuario_id
             LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
             LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
+            LEFT JOIN colaboradores cn3 ON LOWER(TRIM(cn3.nome_completo)) LIKE '%' || REPLACE(LOWER(TRIM(u.username)), '.', ' ') || '%'
             WHERE cn.tipo = ? AND u.ativo = 1
         `, [tipo], async (err, rows) => {
             if (err) {
@@ -147,24 +152,31 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 1: email_corporativo via JOIN por nome
-                if (r.ec_by_nome && r.ec_by_nome.includes('@')) { emails.add(r.ec_by_nome.trim()); return; }
+                // Estratégia 0: email_override direto na config (mais confiável)
+                if (r.email_override && r.email_override.includes('@')) { emails.add(r.email_override.trim()); return; }
+                // Estratégia 1: email_corporativo via JOIN por nome completo
+                if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
                 // Estratégia 2: email do colaborador via JOIN por nome
-                if (r.ce_by_nome && r.ce_by_nome.includes('@')) { emails.add(r.ce_by_nome.trim()); return; }
+                else if (r.ce_by_nome && r.ce_by_nome.includes('@')) emails.add(r.ce_by_nome.trim());
                 // Estratégia 3: email_corporativo via JOIN por username
-                if (r.ec_by_username && r.ec_by_username.includes('@')) { emails.add(r.ec_by_username.trim()); return; }
+                else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
                 // Estratégia 4: email do colaborador via JOIN por username
-                if (r.ce_by_username && r.ce_by_username.includes('@')) { emails.add(r.ce_by_username.trim()); return; }
-                // Estratégia 5: email direto na tabela usuarios
-                if (r.uemail && r.uemail.includes('@')) { emails.add(r.uemail.trim()); return; }
-                // Estratégia 6: username parece um e-mail
-                if (r.username && r.username.includes('@')) { emails.add(r.username.trim()); return; }
-                console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}")`);
+                else if (r.ce_by_uname && r.ce_by_uname.includes('@')) emails.add(r.ce_by_uname.trim());
+                // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci → Thais Ricci)
+                else if (r.ec_by_upart && r.ec_by_upart.includes('@')) emails.add(r.ec_by_upart.trim());
+                // Estratégia 6: email do colaborador via JOIN por partes do username
+                else if (r.ce_by_upart && r.ce_by_upart.includes('@')) emails.add(r.ce_by_upart.trim());
+                // Estratégia 7: email direto na tabela usuarios
+                else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
+                // Estratégia 8: username parece um e-mail
+                else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
+                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}") — configure email_override na tela de Notificações`);
             });
             if (emails.size === 0) {
                 console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores têm email_corporativo cadastrado.`);
                 return;
             }
+            console.log(`[Notif Email] Tipo="${tipo}" — enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
             try {
                 await sendMailHelper({
                     to: [...emails].join(', '),
@@ -172,7 +184,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                     html: mailOpts.html,
                     attachments
                 });
-                console.log(`[Notif Email] Tipo="${tipo}" enviado para: ${[...emails].join(', ')}`);
+                console.log(`[Notif Email] Tipo="${tipo}" enviado com sucesso para: ${[...emails].join(', ')}`);
             } catch (mailErr) {
                 console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
             }
@@ -248,6 +260,51 @@ db.run(`
     )
 `);
 
+// Migração: Cofre de Senhas Administrativo
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_senhas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        servico TEXT,
+        link TEXT,
+        usuario TEXT,
+        senha_encriptada TEXT,
+        owner_id INTEGER,
+        tipo TEXT DEFAULT 'compartilhada',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_senhas_historico (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        senha_id INTEGER,
+        acao TEXT NOT NULL,
+        campo_alterado TEXT,
+        valor_anterior TEXT,
+        valor_novo TEXT,
+        usuario_id INTEGER,
+        usuario_nome TEXT,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS administrativo_protocolos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numeros TEXT,
+        assunto TEXT,
+        status TEXT DEFAULT 'Aberto',
+        comentarios TEXT DEFAULT '[]',
+        arquivos_json TEXT DEFAULT '[]',
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+        criado_por_nome TEXT,
+        criado_por_id INTEGER
+    )
+`);
+
 // Migração: Histórico de Resumos de Rota
 db.run(`
     CREATE TABLE IF NOT EXISTS logistica_resumo_rota (
@@ -266,6 +323,34 @@ db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KE
     // Excluir permanentemente o departamento duplicado 'Recursos Humanos' (ID 1136)
     db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Recursos Humanos')");
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
+});
+
+// MIGRATION: Assinaturas Admin Templates & Fila
+db.run(`CREATE TABLE IF NOT EXISTS assinatura_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    bg_image_path TEXT,
+    config_json TEXT,
+    is_active INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS assinaturas_pendentes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER,
+    template_id INTEGER,
+    status TEXT DEFAULT 'Aguardando',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    nome_exibicao TEXT,
+    email_exibicao TEXT,
+    dept_exibicao TEXT,
+    cargo_exibicao TEXT,
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id),
+    FOREIGN KEY(template_id) REFERENCES assinatura_templates(id)
+)`);
+// Migração: adicionar colunas de exibição se não existirem
+['nome_exibicao','email_exibicao','dept_exibicao','cargo_exibicao'].forEach(col => {
+    db.run(`ALTER TABLE assinaturas_pendentes ADD COLUMN ${col} TEXT`, () => {});
 });
 
 // Tabela de auditoria do Resumo de Rota
@@ -374,11 +459,53 @@ db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_nome TEXT", (err) => {
 db.run("ALTER TABLE colaboradores ADD COLUMN conjuge_cpf TEXT", (err) => {
     if (!err) console.log("Coluna conjuge_cpf adicionada com sucesso.");
 });
+db.run("ALTER TABLE colaboradores ADD COLUMN telefone_corporativo TEXT", (err) => {
+    if (!err) console.log("Coluna telefone_corporativo adicionada com sucesso.");
+});
 db.run("ALTER TABLE colaboradores ADD COLUMN tem_pensao_alimenticia TEXT DEFAULT 'Não'", (err) => {
     if (!err) console.log("Coluna tem_pensao_alimenticia adicionada com sucesso.");
 });
 db.run("ALTER TABLE colaboradores ADD COLUMN admissao_status TEXT", (err) => {
     if (!err) console.log("Coluna admissao_status adicionada com sucesso.");
+});
+
+// MIGRATION: Celulares Corporativos
+db.run(`CREATE TABLE IF NOT EXISTS celulares_aparelhos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    imei1 TEXT NOT NULL,
+    imei2 TEXT,
+    modelo TEXT,
+    patrimonio TEXT,
+    cor TEXT,
+    status TEXT DEFAULT 'disponivel',
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela aparelhos:', err); });
+
+db.run(`CREATE TABLE IF NOT EXISTS celulares_chips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero TEXT NOT NULL,
+    operadora TEXT,
+    status TEXT DEFAULT 'disponivel',
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela chips:', err); });
+
+db.run(`CREATE TABLE IF NOT EXISTS celulares_atribuicoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    aparelho_id INTEGER,
+    chip_id INTEGER,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    data_inicio TEXT,
+    data_fim TEXT,
+    observacao TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err) console.error('[CELULARES] Erro tabela atribuicoes:', err); });
+
+// MIGRATION: chip_id2 em celulares_atribuicoes
+db.run(`ALTER TABLE celulares_atribuicoes ADD COLUMN chip_id2 INTEGER`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_atribuicoes.chip_id2:', err.message);
 });
 
 // MIGRATION: Multas de Trânsito
@@ -411,6 +538,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
     data_assinatura_condutor DATETIME,
     usuario_abertura TEXT,
     midias_paths TEXT,
+    observacoes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => {
     if (err) console.error('Erro tabela sinistros:', err);
@@ -419,6 +547,8 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN usuario_abertura TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN midias_paths TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN observacoes TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN observacoes_historico TEXT', (e) => { });
     }
 });
 
@@ -480,6 +610,24 @@ db.run("UPDATE multas_logistica SET status = 'Em Andamento' WHERE status = 'Conf
     else if (this.changes > 0) console.log(`[MIGRATION] ${this.changes} multa(s) renomeada(s) de Conferido para Em Andamento.`);
 });
 
+// AUTO-PATCH: Move declarações HTML do slot 0 para slot 1 (Termo Assinado) nas multas existentes
+db.all("SELECT id, documentos_extras FROM multas_logistica WHERE documentos_extras IS NOT NULL AND documentos_extras != '[]' AND documentos_extras != ''", [], (err, rows) => {
+    if (err) return;
+    let fixed = 0;
+    rows.forEach(row => {
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch(_) { return; }
+        // Se slot 0 for uma declaração HTML e slot 1 estiver vazio, move para slot 1
+        if (extras[0] && extras[0].tipo === 'text/html' && extras[0].nome && extras[0].nome.includes('Declaracao') && !extras[1]) {
+            extras[1] = extras[0];
+            extras[0] = null;
+            db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), row.id]);
+            fixed++;
+        }
+    });
+    if (fixed > 0) console.log(`[MIGRATION] ${fixed} declaração(ões) movida(s) do slot 0 para slot 1 (Termo Assinado).`);
+});
+
 function getNowBR() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
     const pad = n => n.toString().padStart(2, '0');
@@ -505,6 +653,32 @@ db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
     timestamp TEXT,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+
+// Tabela de anexos de ocorrências (documentos do prontuário - aba Advertências)
+db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ocorrencia_id INTEGER NOT NULL,
+    nome_arquivo TEXT NOT NULL,
+    mime_type TEXT,
+    tamanho INTEGER,
+    r2_key TEXT,
+    url TEXT NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+// Migration: renomear dados_base64 → url (se tabela antiga existir)
+db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN url TEXT`, () => {});
+db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN r2_key TEXT`, () => {});
+
+// Tabela de Webhooks — armazena URLs assinantes por evento
+db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evento TEXT NOT NULL,
+    nome TEXT,
+    url TEXT NOT NULL,
+    ativo INTEGER DEFAULT 1,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
     // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
@@ -673,13 +847,43 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     });
 });
 
+// MIGRATION: Celular Corporativo
+['celular_participa', 'celular_data'].forEach(col => {
+    db.run(`ALTER TABLE colaboradores ADD COLUMN ${col} TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column')) console.error(`[Migration] ${col}:`, err.message);
+    });
+});
+
+// MIGRATION: Unificar tipos antigos de notificação celular em 'celular_controle'
+db.run(`INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id) 
+        SELECT 'celular_controle', usuario_id 
+        FROM config_notificacoes 
+        WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err) => {
+    if (err) console.error('[Migration] Erro ao inserir celular_controle:', err.message);
+    else {
+        db.run(`DELETE FROM config_notificacoes WHERE tipo IN ('celular_novo_participante', 'celular_mudanca_status')`, (err2) => {
+            if (err2) console.error('[Migration] Erro ao deletar tipos antigos:', err2.message);
+            else console.log('[Migration] Tipos de notificacao celular unificados em celular_controle com sucesso.');
+        });
+    }
+});
+
+
+// MIGRATION: Adicionar coluna email_override em config_notificacoes
+db.run(`ALTER TABLE config_notificacoes ADD COLUMN email_override TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] email_override:', err.message);
+    else if (!err) console.log('[Migration] Coluna email_override adicionada em config_notificacoes.');
+});
+
 
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
+
     'Termo de Interesse Terapia',
     'Responsabilidade Bilhete Único',
     'Responsabilidade Celular',
+
     'Contrato Faculdade',
     'Contrato Academia',
     // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
@@ -1306,6 +1510,11 @@ app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ total: rows.length, registros: rows });
     });
+});
+
+// Executado ao iniciar o servidor para atualizar o usuário
+db.run("UPDATE usuarios SET username = 'Thais.Ricci' WHERE username = 'diretoria.1'", function(err) {
+    if (!err && this.changes > 0) console.log("Usuário diretoria.1 renomeado para Thais.Ricci");
 });
 
 // POST /api/admin/resetar-assinatura-falsa
@@ -2919,7 +3128,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
         'academia_participa', 'academia_data_inicio',
         'terapia_participa', 'terapia_data_inicio',
-        'celular_participa', 'celular_data',
+        'celular_participa', 'celular_data', 'telefone_corporativo',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
@@ -2953,7 +3162,65 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
 
+        // ── Notificação de Computadores: novo colaborador administrativo ──
+        const _novoStatusComp = values[colunas.indexOf('status')] || 'Ativo';
+        const _novoDeptComp   = values[colunas.indexOf('departamento')] || '';
+        const _statusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
+        const _statusMatch = _statusesValidos.some(s => s.toLowerCase() === _novoStatusComp.toLowerCase());
+        if (_statusMatch) {
+            db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_novoDeptComp], (errCD, rowCD) => {
+                const isAdmin = (rowCD && rowCD.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_novoDeptComp.trim().toLowerCase());
+                if (!isAdmin) return;
+
+                // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+                    if (rowTpl) {
+                        db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [newColabId, rowTpl.id]);
+                    }
+                });
+                // Checar se notificação já foi enviada para este colaborador
+                db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [newColabId], (errLog, rowLog) => {
+                    if (rowLog) return; // Já enviada antes — não reenvia
+                    // Marcar como enviada
+                    db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [newColabId, _novoStatusComp]);
+                    // Popup in-app para cada usuário inscrito
+                    const _nomeCB = nomeOriginal || 'Colaborador';
+                    const _msgComp = `Novo colaborador administrativo cadastrado: ${_nomeCB} (${_novoDeptComp}) — Situação: ${_novoStatusComp}. Verifique se precisa de computador.`;
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCN, rowsCN) => {
+                        if (!errCN && rowsCN) rowsCN.forEach(r => {
+                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                [r.usuario_id, 'computador_controle', _msgComp, JSON.stringify({ colaborador_id: newColabId, nome: _nomeCB, departamento: _novoDeptComp, status: _novoStatusComp })]);
+                        });
+                    });
+                    // E-mail
+                    const _logoPathCp = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                    sendEmailParaNotificados('computador_controle', {
+                        subject: `💻 Novo Colaborador Administrativo – ${_nomeCB} – Verificar Computador`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                            </div>
+                            <div style="padding:24px;">
+                                <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Novo Colaborador Administrativo</h2>
+                                <p>Um novo colaborador administrativo foi cadastrado no sistema e pode precisar de um computador:</p>
+                                <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
+                                    <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_nomeCB}</p>
+                                    <p style="margin:4px 0;"><strong>Departamento:</strong> ${_novoDeptComp || '-'}</p>
+                                    <p style="margin:4px 0;"><strong>Cargo:</strong> ${data.cargo || '-'}</p>
+                                    <p style="margin:4px 0;"><strong>Situação:</strong> <span style="color:#6366f1;font-weight:700;">${_novoStatusComp}</span></p>
+                                </div>
+                                <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
+                            </div>
+                        </div>`,
+                        attachments: [{ filename: 'logo-header.png', path: _logoPathCp, cid: 'empresa-logo' }]
+                    });
+                });
+            });
+        }
+
         // Nova notificação de distribuição de equipe na criação
+
         const novoStatus = values[colunas.indexOf('status')];
         const dept = values[colunas.indexOf('departamento')];
         const isOperacional = ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(dept);
@@ -3431,7 +3698,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'faculdade_participa', 'faculdade_curso_id', 'faculdade_data_inicio', 'faculdade_data_termino',
         'academia_participa', 'academia_data_inicio',
         'terapia_participa', 'terapia_data_inicio',
-        'celular_participa', 'celular_data',
+        'celular_participa', 'celular_data', 'telefone_corporativo',
         'chaves_participa', 'chaves_data',
         'ferias_programadas_inicio', 'ferias_programadas_fim', 'ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2', 'alergias', 'aso_email_enviado', 'aso_exame_data', 'aso_assinafy_link', 'aso_exames_assinafy_link',
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
@@ -3534,6 +3801,80 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
+            // ── Notificações de Controle de Celulares ────────────────────────────
+            const _logoPathCel = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            console.log('[Notif Celular] data.celular_participa=', data.celular_participa, '| oldColab.celular_participa=', oldColab.celular_participa);
+
+            // Evento A: celular_participa mudou para 'Sim'
+            if ('celular_participa' in data && data.celular_participa === 'Sim' && (oldColab.celular_participa || '') !== 'Sim') {
+                const nomeColab = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                const msgA = `${nomeColab} foi marcado(a) para receber Celular Corporativo.`;
+                console.log('[Notif Celular] Evento A disparado para:', nomeColab);
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCN, rowsCN) => {
+                    console.log('[Notif Celular] Destinatarios encontrados:', rowsCN ? rowsCN.length : 0, '| erro:', errCN ? errCN.message : 'nenhum');
+                    if (!errCN && rowsCN) rowsCN.forEach(r => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                            [r.usuario_id, 'celular_controle', msgA, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab })]);
+                    });
+                });
+                sendEmailParaNotificados('celular_controle', {
+                    subject: `📱 Novo Participante de Celular Corporativo – ${nomeColab}`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📱 Novo Participante – Celular Corporativo</h2>
+                            <p>Um colaborador foi marcado para receber celular corporativo:</p>
+                            <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
+                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
+                                <p style="margin:4px 0;"><strong>Departamento:</strong> ${oldColab.departamento || '-'}</p>
+                                <p style="margin:4px 0;"><strong>Cargo:</strong> ${oldColab.cargo || '-'}</p>
+                            </div>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`,
+                    attachments: [{ filename: 'logo-header.png', path: _logoPathCel, cid: 'empresa-logo' }]
+                });
+            }
+
+            // Evento B: status mudou para Desligado / Férias / Afastado e colaborador tem celular_participa = Sim
+            const novoStatusCel = data.status;
+            const velhoStatusCel = oldColab.status;
+            const statusAlertaCel = ['Desligado', 'Férias', 'Afastado'];
+            if ('status' in data && novoStatusCel && novoStatusCel !== velhoStatusCel &&
+                statusAlertaCel.includes(novoStatusCel) && (data.celular_participa || oldColab.celular_participa) === 'Sim') {
+                const nomeColab2 = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                const msgB = `${nomeColab2} mudou a situação para "${novoStatusCel}" e possui Celular Corporativo.`;
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'celular_controle'", [], (errCS, rowsCS) => {
+                    if (!errCS && rowsCS) rowsCS.forEach(r => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                            [r.usuario_id, 'celular_controle', msgB, JSON.stringify({ colaborador_id: parseInt(id), nome: nomeColab2, novo_status: novoStatusCel })]);
+                    });
+                });
+                sendEmailParaNotificados('celular_controle', {
+                    subject: `📴 Mudança de Situação – Celular Corporativo – ${nomeColab2}`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📴 Mudança de Situação – Celular Corporativo</h2>
+                            <p>Um colaborador com Celular Corporativo teve sua situação alterada:</p>
+                            <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
+                                <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab2}</p>
+                                <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${velhoStatusCel || '-'}</p>
+                                <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#e67700;font-weight:700;">${novoStatusCel}</span></p>
+                                <p style="margin:4px 0;"><strong>Departamento:</strong> ${oldColab.departamento || '-'}</p>
+                            </div>
+                            <p>Verifique a necessidade de recolher o aparelho e/ou chip corporativo.</p>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`,
+                    attachments: [{ filename: 'logo-header.png', path: _logoPathCel, cid: 'empresa-logo' }]
+                });
+            }
+
             // Novo colaborador para distribuição de equipe (status mudou de Iniciado para Ativo/Experiência ou similar)
             const novoStatus = data.status;
             const velhoStatus = oldColab.status;
@@ -3567,6 +3908,69 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     }
                 });
             }
+
+            // ── Notificação de Computadores (PUT): status mudou para algo válido em colaborador admin ──
+            // Só dispara se nunca houve notificação antes para este colaborador
+            const _puStatusNovo  = data.status;
+            const _puStatusVelho = oldColab.status;
+            const _puStatusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
+            const _puStatusMatch = _puStatusNovo && _puStatusesValidos.some(s => s.toLowerCase() === _puStatusNovo.toLowerCase());
+            if (_puStatusMatch && _puStatusNovo !== _puStatusVelho) {
+                db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [id], (errLogPu, rowLogPu) => {
+                    if (rowLogPu) return; // Notificação já enviada antes — regra "apenas primeira vez"
+                    // Verificar se é departamento Administrativo
+                    const _puDept = data.departamento || oldColab.departamento || '';
+                    db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_puDept], (errDPu, rowDPu) => {
+                        const isAdmin = (rowDPu && rowDPu.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_puDept.trim().toLowerCase());
+                        if (!isAdmin) return;
+
+                        // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                        db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+                            if (rowTpl) {
+                                db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [id, rowTpl.id]);
+                            }
+                        });
+                        // Marcar como enviada
+                        db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
+                        const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
+                        const _puCargo = data.cargo || oldColab.cargo || '-';
+                        const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situação "${_puStatusNovo}" — verifique necessidade de computador.`;
+                        // Popup in-app
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCNP, rowsCNP) => {
+                            if (!errCNP && rowsCNP) rowsCNP.forEach(r => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                    [r.usuario_id, 'computador_controle', _puMsgComp, JSON.stringify({ colaborador_id: parseInt(id), nome: _puNome, departamento: _puDept, status: _puStatusNovo })]);
+                            });
+                        });
+                        // E-mail
+                        const _logoPathPu = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                        sendEmailParaNotificados('computador_controle', {
+                            subject: `💻 Colaborador Administrativo Ativo – ${_puNome} – Verificar Computador`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Colaborador Administrativo com Nova Situação</h2>
+                                    <p>Um colaborador administrativo atingiu um status que pode requerer atribuição de computador:</p>
+                                    <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_puNome}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${_puDept || '-'}</p>
+                                        <p style="margin:4px 0;"><strong>Cargo:</strong> ${_puCargo}</p>
+                                        <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${_puStatusVelho || '-'}</p>
+                                        <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#6366f1;font-weight:700;">${_puStatusNovo}</span></p>
+                                    </div>
+                                    <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
+                                </div>
+                            </div>`,
+                            attachments: [{ filename: 'logo-header.png', path: _logoPathPu, cid: 'empresa-logo' }]
+                        });
+                    });
+                });
+            }
+
+
 
             const novoDept = data.departamento || oldColab.departamento || '';
             const antigoDept = oldColab.departamento || '';
@@ -4206,16 +4610,17 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
         const docOnedrivePath = targetDir + '/' + pnome;
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
+        const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
@@ -4350,7 +4755,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH: Editar sinistro (somente se status = 'pendente' — sem assinaturas)
 // ─────────────────────────────────────────────────────────────────────────────
-app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.none(), async (req, res) => {
+app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         const { id: colabId, sinistroId } = req.params;
         const body = req.body;
@@ -4363,19 +4768,47 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         });
 
         if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
-        if (sinistro.status !== 'pendente') {
+        if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
             return res.status(403).json({ error: 'Edição não permitida: sinistro já possui assinaturas.' });
+        }
+
+        const novoStatus = body.status || sinistro.status;
+        const processoIniciado = (novoStatus === 'pendente') ? 1 : sinistro.processo_iniciado;
+
+        // Calcular novo histórico de observações
+        let novoHistorico = null;
+        if (body.nova_observacao && body.nova_observacao.trim()) {
+            let historico = [];
+            try { if (sinistro.observacoes_historico) historico = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
+            const agora = new Date();
+            const tzOpts = { timeZone: 'America/Sao_Paulo' };
+            const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour:'2-digit', minute:'2-digit' });
+            historico.push({
+                autor: body.autor_observacao || (req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema'),
+                data: dataBR,
+                texto: body.nova_observacao.trim()
+            });
+            novoHistorico = JSON.stringify(historico);
         }
 
         // Atualizar campos básicos
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE sinistros SET
-                    numero_boletim = COALESCE(?, numero_boletim),
-                    data_hora      = COALESCE(?, data_hora),
-                    natureza       = COALESCE(?, natureza),
-                    veiculo        = COALESCE(?, veiculo),
-                    placa          = COALESCE(?, placa)
+                    numero_boletim   = COALESCE(?, numero_boletim),
+                    data_hora        = COALESCE(?, data_hora),
+                    natureza         = COALESCE(?, natureza),
+                    veiculo          = COALESCE(?, veiculo),
+                    placa            = COALESCE(?, placa),
+                    tipo_sinistro    = COALESCE(?, tipo_sinistro),
+                    desconto         = COALESCE(?, desconto),
+                    parcelas         = COALESCE(?, parcelas),
+                    valor_parcela    = COALESCE(?, valor_parcela),
+                    valor_total      = COALESCE(?, valor_total),
+                    observacoes      = COALESCE(?, observacoes),
+                    observacoes_historico = COALESCE(?, observacoes_historico),
+                    status           = ?,
+                    processo_iniciado = ?
                 WHERE id = ?`,
                 [
                     body.numero_boletim || null,
@@ -4383,11 +4816,35 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.natureza       || null,
                     body.veiculo        || null,
                     body.placa          || null,
+                    body.tipo_sinistro  || null,
+                    body.desconto       || null,
+                    body.parcelas       || null,
+                    body.valor_parcela  || null,
+                    body.valor_total    || null,
+                    body.observacoes    || null,
+                    novoHistorico       || null,
+                    novoStatus,
+                    processoIniciado,
                     sinistroId
                 ],
                 err => { if (err) reject(err); else resolve(); }
             );
         });
+
+        // Upload do arquivo BO se enviado
+        if (req.file && typeof onedrive !== 'undefined' && sinistro.boletim_path) {
+            try {
+                try {
+                    const { censorBOPdfBuffer } = require('./censorPDF.js');
+                    const censored = await censorBOPdfBuffer(req.file.buffer);
+                    if (censored) req.file.buffer = Buffer.from(censored);
+                } catch (e) { console.error('[CENSOR]', e.message); }
+
+                const targetDir = sinistro.boletim_path.substring(0, sinistro.boletim_path.lastIndexOf('/'));
+                const pnome = sinistro.boletim_path.substring(sinistro.boletim_path.lastIndexOf('/') + 1);
+                await onedrive.uploadToOneDrive(targetDir, pnome, req.file.buffer);
+            } catch(e) { console.error('Erro OneDrive BO (PATCH):', e); }
+        }
 
         // Novos orçamentos (acrescentar à lista existente)
         if (body.orcamentos_base64) {
@@ -5302,6 +5759,236 @@ app.get('/api/logistica/senhas/historico', authenticateToken, (req, res) => {
 });
 
 // ==========================================
+// COFRE DE SENHAS ADMINISTRATIVO
+// ==========================================
+
+app.get('/api/administrativo/senhas', authenticateToken, (req, res) => {
+    const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
+    let query = `
+        SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
+        FROM administrativo_senhas ls
+        LEFT JOIN usuarios u ON ls.owner_id = u.id
+        LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
+        WHERE ls.tipo = 'compartilhada' OR ls.owner_id = ?
+    `;
+    let params = [req.user.id];
+
+    if (isDiretoria) {
+        query = `
+            SELECT ls.*, u.nome as owner_nome, u.username as owner_username, c.status as colab_status
+            FROM administrativo_senhas ls
+            LEFT JOIN usuarios u ON ls.owner_id = u.id
+            LEFT JOIN colaboradores c ON ls.nome = c.nome_completo
+        `;
+        params = [];
+    }
+    query += " ORDER BY ls.servico ASC";
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const senhas = rows.map(r => {
+            r.senha = r.senha_encriptada ? decryptPassword(r.senha_encriptada) : '';
+            delete r.senha_encriptada;
+            return r;
+        });
+        res.json(senhas);
+    });
+});
+
+app.post('/api/administrativo/senhas', authenticateToken, (req, res) => {
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
+
+    const tipoVal = tipo === 'pessoal' ? 'pessoal' : 'compartilhada';
+    const senhaEncriptada = senha ? encryptPassword(senha) : '';
+    db.run("INSERT INTO administrativo_senhas (nome, servico, link, usuario, senha_encriptada, owner_id, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)", [nome || '', servico || '', link || '', usuario || '', senhaEncriptada, req.user.id, tipoVal], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const newId = this.lastID;
+        db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'criacao', 'servico', null, ?, ?, ?)",
+            [newId, servico || '', req.user.id, req.user.nome || req.user.username]);
+        res.json({ id: newId, message: 'Senha cadastrada com sucesso' });
+    });
+});
+
+app.put('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
+    const { nome, servico, link, usuario, senha, tipo } = req.body;
+    const updates = [];
+    const params = [];
+    const senhaId = req.params.id;
+
+    if (nome !== undefined) { updates.push("nome = ?"); params.push(nome); }
+    if (servico !== undefined) { updates.push("servico = ?"); params.push(servico); }
+    if (link !== undefined) { updates.push("link = ?"); params.push(link); }
+    if (usuario !== undefined) { updates.push("usuario = ?"); params.push(usuario); }
+    if (tipo !== undefined) { updates.push("tipo = ?"); params.push(tipo === 'pessoal' ? 'pessoal' : 'compartilhada'); }
+    if (senha !== undefined) {
+        updates.push("senha_encriptada = ?");
+        params.push(senha ? encryptPassword(senha) : '');
+    }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nenhum dado para atualizar.' });
+    updates.push("updated_at = CURRENT_TIMESTAMP");
+    params.push(senhaId);
+
+    db.get("SELECT * FROM administrativo_senhas WHERE id = ?", [senhaId], (err, oldRow) => {
+        db.run(`UPDATE administrativo_senhas SET ${updates.join(', ')} WHERE id = ?`, params, function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const camposAlterados = [];
+            if (servico !== undefined && oldRow && oldRow.servico !== servico) camposAlterados.push({ campo: 'servico', de: oldRow.servico, para: servico });
+            if (usuario !== undefined && oldRow && oldRow.usuario !== usuario) camposAlterados.push({ campo: 'usuario', de: oldRow.usuario, para: usuario });
+            if (nome !== undefined && oldRow && oldRow.nome !== nome) camposAlterados.push({ campo: 'nome', de: oldRow.nome, para: nome });
+            if (link !== undefined && oldRow && oldRow.link !== link) camposAlterados.push({ campo: 'link', de: oldRow.link, para: link });
+            if (senha !== undefined) camposAlterados.push({ campo: 'senha', de: '***', para: '***' });
+            if (camposAlterados.length === 0) camposAlterados.push({ campo: 'registro', de: null, para: null });
+            camposAlterados.forEach(c => {
+                db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'edicao', ?, ?, ?, ?, ?)",
+                    [senhaId, c.campo, c.de, c.para, req.user.id, req.user.nome || req.user.username]);
+            });
+            res.json({ message: 'Senha atualizada com sucesso' });
+        });
+    });
+});
+
+app.delete('/api/administrativo/senhas/:id', authenticateToken, (req, res) => {
+    db.get("SELECT * FROM administrativo_senhas WHERE id = ?", [req.params.id], (err, row) => {
+        db.run("DELETE FROM administrativo_senhas WHERE id = ?", [req.params.id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.run("INSERT INTO administrativo_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'exclusao', 'servico', ?, null, ?, ?)",
+                [req.params.id, row ? row.servico : '?', req.user.id, req.user.nome || req.user.username]);
+            res.json({ message: 'Senha deletada com sucesso' });
+        });
+    });
+});
+
+app.get('/api/administrativo/senhas/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*, ls.servico as senha_servico, ls.nome as senha_nome
+        FROM administrativo_senhas_historico h
+        LEFT JOIN administrativo_senhas ls ON h.senha_id = ls.id
+        ORDER BY h.criado_em DESC
+        LIMIT 200
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ==========================================
+// PROTOCOLOS ADMINISTRATIVOS
+// ==========================================
+
+app.get('/api/administrativo/protocolos', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM administrativo_protocolos ORDER BY atualizado_em DESC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/administrativo/protocolos', authenticateToken, (req, res) => {
+    const { numeros, assunto } = req.body;
+    const nome = req.user.nome || req.user.username;
+    
+    db.run(
+        "INSERT INTO administrativo_protocolos (numeros, assunto, criado_por_nome, criado_por_id) VALUES (?, ?, ?, ?)",
+        [numeros || '', assunto || '', nome, req.user.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Protocolo criado com sucesso' });
+        }
+    );
+});
+
+app.put('/api/administrativo/protocolos/:id', authenticateToken, (req, res) => {
+    const { status, numeros, assunto } = req.body;
+    const updates = [];
+    const params = [];
+    
+    if (status !== undefined) { updates.push("status = ?"); params.push(status); }
+    if (numeros !== undefined) { updates.push("numeros = ?"); params.push(numeros); }
+    if (assunto !== undefined) { updates.push("assunto = ?"); params.push(assunto); }
+    
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada a atualizar' });
+    
+    updates.push("atualizado_em = CURRENT_TIMESTAMP");
+    params.push(req.params.id);
+    
+    db.run(`UPDATE administrativo_protocolos SET ${updates.join(', ')} WHERE id = ?`, params, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Protocolo atualizado' });
+    });
+});
+
+app.post('/api/administrativo/protocolos/:id/comentarios', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto) return res.status(400).json({ error: 'Texto é obrigatório' });
+    
+    db.get("SELECT comentarios FROM administrativo_protocolos WHERE id = ?", [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let comentarios = [];
+        try { comentarios = JSON.parse(row.comentarios || '[]'); } catch(e) {}
+        
+        const now = new Date();
+        const dataHora = new Date(now.getTime() - (3 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19);
+        
+        comentarios.push({
+            usuario: req.user.nome || req.user.username,
+            dataHora: dataHora,
+            texto: texto
+        });
+        
+        db.run(
+            "UPDATE administrativo_protocolos SET comentarios = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+            [JSON.stringify(comentarios), req.params.id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Comentário adicionado', comentarios });
+            }
+        );
+    });
+});
+
+app.post('/api/administrativo/protocolos/:id/upload', authenticateToken, uploadFoto.single('documento'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    
+    db.get("SELECT arquivos_json FROM administrativo_protocolos WHERE id = ?", [req.params.id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let arquivos = [];
+        try { arquivos = JSON.parse(row.arquivos_json || '[]'); } catch(e) {}
+        
+        if (typeof r2 !== 'undefined' && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
+            try {
+                const ext = req.file.originalname.split('.').pop() || 'pdf';
+                const key = `protocolos/${req.params.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                
+                const url = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+                
+                arquivos.push({
+                    nome_original: req.file.originalname,
+                    url: url,
+                    key: key,
+                    data_upload: new Date().toISOString()
+                });
+                
+                db.run(
+                    "UPDATE administrativo_protocolos SET arquivos_json = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+                    [JSON.stringify(arquivos), req.params.id],
+                    (updateErr) => {
+                        if (updateErr) return res.status(500).json({ error: updateErr.message });
+                        res.json({ message: 'Arquivo enviado com sucesso', arquivos });
+                    }
+                );
+            } catch (r2Err) {
+                console.error('[PROTOCOLOS] Erro no upload R2:', r2Err);
+                res.status(500).json({ error: 'Falha no upload R2' });
+            }
+        } else {
+            res.status(500).json({ error: 'Serviço R2 não está configurado' });
+        }
+    });
+});
+
+// ==========================================
 // RESUMO DE ROTA
 // ==========================================
 
@@ -5421,8 +6108,17 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
         db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
             if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
 
-            const numericStr = (valorMultaStr || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
-            const valorOriginal = parseFloat(numericStr) || 0;
+            let valorOriginal = 0;
+            if (typeof valorMultaStr === 'number') {
+                valorOriginal = valorMultaStr;
+            } else if (valorMultaStr) {
+                let str = valorMultaStr.toString().trim();
+                if (str.includes(',')) {
+                    str = str.replace(/\./g, '').replace(',', '.');
+                }
+                str = str.replace(/[^\d.-]/g, '');
+                valorOriginal = parseFloat(str) || 0;
+            }
             const multiplicador = (status === 'Multa NIC') ? 3 : 1;
             const valorTotalNum = valorOriginal * multiplicador;
             const p = parseInt(parcelas) || 1;
@@ -5491,7 +6187,8 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
+    const autorComentario = req.user?.username || req.user?.nome || req.user?.login || 'Usuário';
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -5518,6 +6215,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 placa = ?,
                 local_infracao = ?,
                 data_limite = ?,
+                status_rh = ?,
                 atualizado_em = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [
@@ -5537,11 +6235,48 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 placa !== undefined ? placa : oldData.placa,
                 local_infracao !== undefined ? local_infracao : oldData.local_infracao,
                 data_limite !== undefined ? data_limite : oldData.data_limite,
+                status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh,
                 req.params.id
             ],
             function (errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa não atualizada' });
+
+                // Append novo comentário ao obs_historico se fornecido
+                // E também registra mudança de status automaticamente
+                const agora = new Date();
+                const tzOpts = { timeZone: 'America/Sao_Paulo' };
+                const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
+
+                let hist = [];
+                try { if (oldData.obs_historico) hist = JSON.parse(oldData.obs_historico); } catch(e) {}
+
+                // Auto-registra mudança de status no histórico
+                if (status && status !== oldData.status) {
+                    hist.push({
+                        tipo: 'status',
+                        autor: autorComentario,
+                        data: dataBR,
+                        status_anterior: oldData.status || '(sem status)',
+                        status_novo: status
+                    });
+                }
+
+                // Append comentário manual
+                if (novo_comentario && novo_comentario.trim()) {
+                    hist.push({ tipo: 'comentario', autor: autorComentario, data: dataBR, texto: novo_comentario.trim() });
+                }
+
+                if (hist.length > 0) {
+                    db.run('UPDATE multas_logistica SET obs_historico = ? WHERE id = ?', [JSON.stringify(hist), req.params.id]);
+                }
+
+
+                // Auto-definir status_rh = 'Recebido' quando status muda para Indicado, Multa NIC ou Cobrada - Pz. Perdido
+                const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
+                if (status && autoRhStatuses.includes(status) && oldData.status !== status && !oldData.status_rh) {
+                    db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [req.params.id]);
+                }
 
                 // Envia email ao RH apenas quando o status MUDA para Indicado, Multa NIC ou Cobrada - Pz. Perdido
                 if (status && (status === 'Indicado' || status === 'Multa NIC' || status === 'Cobrada - Pz. Perdido') && oldData.status !== status) {
@@ -5674,8 +6409,8 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
     const multaId = req.params.id;
     const { opcao, parcelas, assinatura_base64, selfie_base64 } = req.body;
 
-    if (!opcao || !['indicacao', 'nic'].includes(opcao)) {
-        return res.status(400).json({ error: 'Opção inválida. Use "indicacao" ou "nic".' });
+    if (!opcao || !['indicacao', 'nic', 'prazo_perdido'].includes(opcao)) {
+        return res.status(400).json({ error: 'Opção inválida. Use "indicacao", "nic" ou "prazo_perdido".' });
     }
 
     db.get(`SELECT ml.*, c.nome_completo as colab_nome, c.cpf as colab_cpf
@@ -5695,10 +6430,12 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
         const valorTotal = valorOriginal + valorNIC;
         const fmtMoney = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const numParcelas = parseInt(parcelas) || 1;
-        const valorParcela = opcao === 'nic' ? valorTotal / numParcelas : valorOriginal / numParcelas;
+        const valorBase = (opcao === 'nic') ? valorTotal : valorOriginal;
+        const valorParcela = valorBase / numParcelas;
 
-        const checkInd = opcao === 'indicacao' ? '✓' : '&nbsp;';
-        const checkNic = opcao === 'nic'       ? '✓' : '&nbsp;';
+        const checkInd  = opcao === 'indicacao'    ? '✓' : '&nbsp;';
+        const checkNic  = opcao === 'nic'           ? '✓' : '&nbsp;';
+        const checkPraz = opcao === 'prazo_perdido' ? '✓' : '&nbsp;';
 
         const now = new Date();
         const dataDeclFmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
@@ -5777,6 +6514,13 @@ p{line-height:1.5;margin:5px 0}
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x &nbsp; (${numParcelas>3?'✓':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
+<div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
+  <div class="opcao-titulo">OPÇÃO 3 – COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</div>
+  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicação de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
+  <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x</p>
+  <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
+</div>
 <div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
   <div style="flex:1; text-align:center;">
     <p style="margin-bottom:14px; font-weight:bold;">Assinatura do Colaborador</p>
@@ -5797,23 +6541,33 @@ p{line-height:1.5;margin:5px 0}
             let extras = [];
             try { extras = JSON.parse(rowDoc.documentos_extras || '[]'); } catch(_) {}
 
-            extras.push({
+            // Insere o Termo Assinado no slot 1 (índice fixo) para aparecer no ícone correto
+            while (extras.length <= 1) extras.push(null);
+            extras[1] = {
                 nome: `Declaracao_Responsabilidade_${m.numero_ait || multaId}.html`,
                 tipo: 'text/html',
                 base64: termoBase64,
                 adicionado_em: new Date().toISOString(),
                 opcao
-            });
+            };
 
             db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [JSON.stringify(extras), multaId], (errUpd) => {
                 if (errUpd) return res.status(500).json({ error: 'Erro ao salvar documento.' });
 
-                const novoStatus = opcao === 'indicacao' ? 'Indicado' : 'Multa NIC';
+                const novoStatus = opcao === 'indicacao' ? 'Indicado'
+                                 : opcao === 'prazo_perdido' ? 'Cobrada - Pz. Perdido'
+                                 : 'Multa NIC';
                 const oldStatus = m.status;
 
                 db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
                     [novoStatus, getNowBR(), numParcelas, multaId], (errStatus) => {
                         if (errStatus) return res.status(500).json({ error: 'Erro ao atualizar status.' });
+
+                        // Auto status_rh = Recebido se ainda não definido
+                        const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
+                        if (autoRhStatuses.includes(novoStatus)) {
+                            db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [multaId]);
+                        }
 
                         if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
                             const val2 = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
@@ -5983,6 +6737,9 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN documentos_extras TEXT DEFAULT '
 db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica parcelas]', err.message);
 });
+db.run("ALTER TABLE multas_logistica ADD COLUMN obs_historico TEXT DEFAULT '[]'", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica obs_historico]', err.message);
+});
 
 // POST /api/logistica/multas/:id/documento-extra — adiciona um documento extra à multa
 const multaExtraUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -5996,8 +6753,8 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
 
         // Corrige mojibake no nome do arquivo
-        let nomeArquivo = req.file.originalname || '';
-        try { nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
+        let nomeArquivo = req.body.nome || req.file.originalname || '';
+        try { if (!req.body.nome) nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
 
         const novoDoc = {
             nome: nomeArquivo,
@@ -6005,7 +6762,16 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
             base64: req.file.buffer.toString('base64'),
             adicionado_em: new Date().toISOString()
         };
-        extras.push(novoDoc);
+
+        // Se foi passado um slot específico, inserir/substituir nesse índice
+        const slot = req.body.slot !== undefined ? parseInt(req.body.slot) : -1;
+        if (slot >= 0) {
+            // Garante que o array tem tamanho suficiente
+            while (extras.length <= slot) extras.push(null);
+            extras[slot] = novoDoc;
+        } else {
+            extras.push(novoDoc);
+        }
 
         const extrasJson = JSON.stringify(extras);
         db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function (err2) {
@@ -6013,7 +6779,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
             // Retorna lista sem o base64 (para não sobrecarregar a resposta)
             res.json({
                 ok: true,
-                documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
+                documentos_extras: extras.map((d, i) => d ? { nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em } : null)
             });
         });
     });
@@ -6042,6 +6808,19 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
                 documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
             });
         });
+    });
+});
+
+// GET /api/logistica/multas/:id/documento-extra-meta/:idx — retorna metadados do documento (tipo, nome) sem o conteúdo
+app.get('/api/logistica/multas/:id/documento-extra-meta/:idx', authenticateToken, (req, res) => {
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+        let extras = [];
+        try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
+        const idx = parseInt(req.params.idx);
+        const doc = extras[idx];
+        if (!doc) return res.status(404).json({ error: 'Documento não encontrado' });
+        res.json({ tipo: doc.tipo || 'application/octet-stream', nome: doc.nome || 'documento' });
     });
 });
 
@@ -10824,14 +11603,15 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
 });
 // --- CONFIGURAÇÕES DE NOTIFICAÇÕES (POPUP) ---
 app.get('/api/config-notificacoes', authenticateToken, (req, res) => {
-    db.all('SELECT tipo, usuario_id FROM config_notificacoes', [], (err, rows) => {
+    db.all('SELECT tipo, usuario_id, email_override FROM config_notificacoes', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
-    const { tipo, usuarios } = req.body; // usuarios = array of usuario_id
+    // usuarios = array of { usuario_id, email_override? } OR just usuario_id (backward compat)
+    const { tipo, usuarios } = req.body;
     if (!tipo || !Array.isArray(usuarios)) return res.status(400).json({ error: 'Dados inválidos' });
 
     db.serialize(() => {
@@ -10839,12 +11619,14 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
 
             if (usuarios.length > 0) {
-                const placeholders = usuarios.map(() => '(?, ?)').join(',');
+                const placeholders = usuarios.map(() => '(?, ?, ?)').join(',');
                 const values = [];
-                usuarios.forEach(uid => {
-                    values.push(tipo, uid);
+                usuarios.forEach(u => {
+                    const uid = (typeof u === 'object') ? u.usuario_id : u;
+                    const emailOv = (typeof u === 'object' && u.email_override) ? u.email_override : null;
+                    values.push(tipo, uid, emailOv);
                 });
-                db.run(`INSERT INTO config_notificacoes (tipo, usuario_id) VALUES ${placeholders}`, values, (err2) => {
+                db.run(`INSERT INTO config_notificacoes (tipo, usuario_id, email_override) VALUES ${placeholders}`, values, (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
                     res.json({ message: 'Configurações salvas' });
                 });
@@ -10855,12 +11637,222 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
     });
 });
 
+// Endpoint interno: forçar disparo de notificação de teste (requer secret no header)
+app.post('/api/internal/trigger-notif-test', (req, res) => {
+    const secret = req.headers['x-internal-secret'] || req.body.secret;
+    const internalSecret = process.env.INTERNAL_SECRET || 'america-test-2025';
+    if (secret !== internalSecret) return res.status(403).json({ error: 'Forbidden' });
+
+    const { colaborador_nome } = req.body;
+    const nome = colaborador_nome || 'Colaborador Teste';
+    const msg = `[TESTE INTERNO] ${nome} foi marcado(a) para receber Celular Corporativo.`;
+
+    db.all("SELECT cn.usuario_id, cn.email_override, u.username, u.nome, u.email FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = 'celular_controle' AND u.ativo = 1", [], (err, rows) => {
+        if (err) return res.json({ ok: false, error: err.message });
+        const destinatarios = (rows || []).map(r => ({
+            usuario_id: r.usuario_id,
+            username: r.username,
+            nome: r.nome,
+            email_override: r.email_override,
+            email_usuario: r.email
+        }));
+        console.log('[TESTE INTERNO] Destinatários config:', JSON.stringify(destinatarios));
+
+        // Insert popup notifications
+        destinatarios.forEach(d => {
+            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                [d.usuario_id, 'celular_controle', msg, JSON.stringify({ nome, teste: true })]);
+        });
+
+        // Send email
+        sendEmailParaNotificados('celular_controle', {
+            subject: `[TESTE INTERNO] Notificação Celular Corporativo`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px dashed #e67700;border-radius:8px;padding:24px;"><h2 style="color:#e67700;text-align:center;">TESTE INTERNO</h2><p>Este é um e-mail de teste disparado internamente.</p><p><strong>Colaborador:</strong> ${nome}</p></div>`
+        });
+
+        res.json({ ok: true, destinatarios_encontrados: destinatarios.length, destinatarios });
+    });
+});
+
 
 app.get('/api/wipe-credenciamentos', (req, res) => {
     db.run('DELETE FROM credenciamentos', (err) => {
         res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
     });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEBHOOKS — Gerenciamento e Disparo
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Dispara um evento webhook para todas as URLs ativas registradas.
+ * Executa em background (não bloqueia a resposta ao cliente).
+ */
+async function dispararWebhook(evento, payload) {
+    db.all('SELECT id, url, nome FROM webhooks_config WHERE evento = ? AND ativo = 1', [evento], async (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const https = require('https');
+        const http = require('http');
+        const body = JSON.stringify({ evento, timestamp: new Date().toISOString(), dados: payload });
+        for (const row of rows) {
+            try {
+                const urlObj = new URL(row.url);
+                const lib = urlObj.protocol === 'https:' ? https : http;
+                await new Promise((resolve) => {
+                    const options = {
+                        hostname: urlObj.hostname,
+                        port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                        path: urlObj.pathname + urlObj.search,
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'AmericaRental-Webhook/1.0' }
+                    };
+                    const req2 = lib.request(options, (r2) => {
+                        console.log(`[Webhook] ${evento} → ${row.url} — HTTP ${r2.statusCode}`);
+                        r2.resume();
+                        resolve();
+                    });
+                    req2.on('error', (e) => { console.error(`[Webhook] Erro ao disparar para ${row.url}:`, e.message); resolve(); });
+                    req2.setTimeout(10000, () => { req2.destroy(); resolve(); });
+                    req2.write(body);
+                    req2.end();
+                });
+            } catch(e) { console.error(`[Webhook] URL inválida (${row.url}):`, e.message); }
+        }
+    });
+}
+
+// GET /api/webhooks — lista todos os webhooks cadastrados
+app.get('/api/webhooks', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM webhooks_config ORDER BY evento, criado_em', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/webhooks — cadastra nova URL assinante
+app.post('/api/webhooks', authenticateToken, (req, res) => {
+    const { evento, nome, url } = req.body;
+    if (!evento || !url) return res.status(400).json({ error: 'evento e url são obrigatórios' });
+    try { new URL(url); } catch(e) { return res.status(400).json({ error: 'URL inválida' }); }
+    db.run('INSERT INTO webhooks_config (evento, nome, url) VALUES (?, ?, ?)',
+        [evento, nome || '', url],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, evento, nome, url, ativo: 1 });
+        });
+});
+
+// PATCH /api/webhooks/:id/toggle — ativa ou desativa
+app.patch('/api/webhooks/:id/toggle', authenticateToken, (req, res) => {
+    db.run('UPDATE webhooks_config SET ativo = CASE WHEN ativo = 1 THEN 0 ELSE 1 END WHERE id = ?',
+        [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.get('SELECT * FROM webhooks_config WHERE id = ?', [req.params.id], (e, row) => res.json(row));
+        });
+});
+
+// DELETE /api/webhooks/:id — remove uma URL assinante
+app.delete('/api/webhooks/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM webhooks_config WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// POST /api/webhooks/testar/:id — faz disparo de teste para uma URL específica
+app.post('/api/webhooks/testar/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM webhooks_config WHERE id = ?', [req.params.id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+        const https = require('https');
+        const http = require('http');
+        const payload = { evento: row.evento, timestamp: new Date().toISOString(), dados: { teste: true, mensagem: 'Este é um webhook de teste da América Rental.' } };
+        const body = JSON.stringify(payload);
+        try {
+            const urlObj = new URL(row.url);
+            const lib = urlObj.protocol === 'https:' ? https : http;
+            await new Promise((resolve, reject) => {
+                const options = {
+                    hostname: urlObj.hostname, port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+                    path: urlObj.pathname + urlObj.search, method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'AmericaRental-Webhook/1.0' }
+                };
+                const req2 = lib.request(options, (r2) => {
+                    let data = '';
+                    r2.on('data', d => data += d);
+                    r2.on('end', () => { res.json({ ok: true, status: r2.statusCode, resposta: data.slice(0, 300) }); resolve(); });
+                });
+                req2.on('error', (e) => { res.status(502).json({ ok: false, erro: e.message }); resolve(); });
+                req2.setTimeout(10000, () => { req2.destroy(); res.status(504).json({ ok: false, erro: 'Timeout (10s)' }); resolve(); });
+                req2.write(body); req2.end();
+            });
+        } catch(e) { res.status(400).json({ ok: false, erro: 'URL inválida: ' + e.message }); }
+    });
+});
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ────────────────────────────────────
+const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+// GET /api/ocorrencias/:id/anexos — lista anexos da ocorrência
+app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
+    db.all('SELECT id, nome_arquivo, mime_type, tamanho, url, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
+        [req.params.id], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json((rows || []).map(r => ({
+                id: r.id,
+                nome: r.nome_arquivo,
+                mime_type: r.mime_type,
+                tamanho: r.tamanho,
+                url: r.url,
+                criado_em: r.criado_em
+            })));
+        });
+});
+
+// POST /api/ocorrencias/:id/anexos — faz upload para R2
+app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.single('file'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    if (!r2 || !r2.isReady()) return res.status(503).json({ error: 'R2 Storage não configurado.' });
+
+    try {
+        const ocorrenciaId = req.params.id;
+        const ext = require('path').extname(req.file.originalname);
+        const ts = Date.now();
+        const r2Key = `ocorrencias/${ocorrenciaId}/${ts}${ext}`;
+
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+
+        db.run('INSERT INTO ocorrencias_anexos (ocorrencia_id, nome_arquivo, mime_type, tamanho, r2_key, url) VALUES (?, ?, ?, ?, ?, ?)',
+            [ocorrenciaId, req.file.originalname, req.file.mimetype, req.file.size, r2Key, publicUrl],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, nome: req.file.originalname, url: publicUrl });
+            });
+    } catch (e) {
+        console.error('[Ocorr Anexo] Erro upload R2:', e.message);
+        res.status(500).json({ error: 'Falha no upload: ' + e.message });
+    }
+});
+
+// DELETE /api/ocorrencias/:id/anexos/:aid — remove do R2 e do banco
+app.delete('/api/ocorrencias/:id/anexos/:aid', authenticateToken, (req, res) => {
+    db.get('SELECT r2_key FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+        [req.params.aid, req.params.id], async (err, row) => {
+            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+            // Remover do R2
+            if (row.r2_key && r2 && r2.isReady()) {
+                try { await r2.deleteFromR2(row.r2_key); } catch(e) { console.error('[Ocorr Anexo] Erro delete R2:', e.message); }
+            }
+            // Remover do banco
+            db.run('DELETE FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
+                [req.params.aid, req.params.id], function(err2) {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ message: 'Excluído' });
+                });
+        });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 // --- GRUPOS DE PERMISSÃO ---
 app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
@@ -12868,6 +13860,37 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                            if (!errC && rowsC && rowsC.length > 0) {
+                                const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                rowsC.forEach(row => {
+                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
+                                });
+                            }
+                        });
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        sendEmailParaNotificados('formulario_experiencia', {
+                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                    <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                    <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                </div>
+                            </div>`
+                        });
+
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
@@ -12902,6 +13925,37 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                             ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                        
+                        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
+                            if (!errC && rowsC && rowsC.length > 0) {
+                                const msg = `O gestor enviou o formulário de experiência finalizado.`;
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                rowsC.forEach(row => {
+                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
+                                });
+                            }
+                        });
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        sendEmailParaNotificados('formulario_experiencia', {
+                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                </div>
+                                <div style="padding:24px;">
+                                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Formulário de Experiência Finalizado</h2>
+                                    <p>O formulário de período de experiência foi preenchido e finalizado.</p>
+                                    <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
+                                        <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                    </div>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
+                                </div>
+                            </div>`
+                        });
+
                         gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
                     }
                 });
@@ -20406,6 +21460,208 @@ setInterval(syncBase64ToR2, 5 * 60 * 1000);
 setTimeout(syncBase64ToR2, 10000);
 // ────────────────────────────────────────────────────────────────────────────
 
+// ============================================================================
+// ROTAS DE ASSINATURAS
+// ============================================================================
+
+// Listar templates
+app.get('/api/assinaturas/templates', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM assinatura_templates ORDER BY id DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Criar / Atualizar template (incluindo upload com Cloudflare R2)
+app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_image'), async (req, res) => {
+    try {
+        const { id, nome, is_active, config_json } = req.body;
+        let bg_image_path = req.body.bg_image_path_existing;
+
+        if (req.file) {
+            if (r2 && r2.isReady()) {
+                const ext = req.file.originalname.split('.').pop() || 'png';
+                const key = `assinaturas/templates/bg_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                bg_image_path = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+            } else {
+                return res.status(500).json({ error: "Serviço de upload indisponível (R2 não configurado)." });
+            }
+        }
+
+        if (is_active == 1 || is_active === '1' || is_active === true) {
+            await new Promise((resolve) => {
+                db.run(`UPDATE assinatura_templates SET is_active = 0`, (err) => {
+                    if (err) console.error("Erro ao inativar", err);
+                    resolve();
+                });
+            });
+        }
+
+        if (id) {
+            db.run(`UPDATE assinatura_templates SET nome = ?, bg_image_path = ?, is_active = ?, config_json = ? WHERE id = ?`,
+                [nome, bg_image_path, is_active, config_json, id],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    // Ao editar o template, resetar todas as assinaturas para Pendente
+                    // para que todos os colaboradores precisem baixar novamente
+                    db.run(
+                        `UPDATE assinaturas_pendentes SET status = 'Pendente' WHERE template_id = ?`,
+                        [id],
+                        (resetErr) => {
+                            if (resetErr) console.error('Erro ao resetar assinaturas pendentes:', resetErr.message);
+                        }
+                    );
+                    res.json({ message: "Template atualizado. Todas as assinaturas foram marcadas como pendentes." });
+                });
+        } else {
+            db.run(`INSERT INTO assinatura_templates (nome, bg_image_path, is_active, config_json) VALUES (?, ?, ?, ?)`,
+                [nome, bg_image_path, is_active, config_json],
+                function(err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ id: this.lastID, message: "Template criado" });
+                });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
+    db.get(`SELECT bg_image_path, is_active FROM assinatura_templates WHERE id = ?`, [req.params.id], async (err, row) => {
+        try {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: "Template não encontrado." });
+
+            if (row.is_active == 1) {
+                return res.status(400).json({ error: "Não é possível excluir um template ativo. Altere-o para inativo primeiro." });
+            }
+
+            if (row.bg_image_path && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
+                let key = row.bg_image_path;
+                if(key.startsWith('http')) {
+                    try {
+                        const urlObj = new URL(key);
+                        key = urlObj.pathname.substring(1); 
+                    } catch(e) {}
+                }
+                if (key.includes('assinaturas/templates/')) {
+                    await r2.deleteFromR2(key);
+                }
+            }
+            db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ message: "Excluído" });
+            });
+        } catch (innerErr) {
+            console.error("Erro no delete template:", innerErr);
+            if (!res.headersSent) res.status(500).json({ error: "Erro interno" });
+        }
+    });
+});
+
+// Listar assinaturas pendentes
+app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
+    const query = `
+        SELECT p.id as pendencia_id, COALESCE(p.status, 'Pendente') as pendencia_status, p.created_at,
+               c.id as colaborador_id, c.nome_completo as nome_colaborador, c.cargo, c.departamento,
+               c.email_corporativo, c.telefone, c.telefone_corporativo,
+               c.foto_path, c.foto_base64,
+               COALESCE(p.nome_exibicao, c.nome_completo) as nome_exibicao,
+               COALESCE(p.email_exibicao, c.email_corporativo) as email_exibicao,
+               COALESCE(p.dept_exibicao, c.departamento) as dept_exibicao,
+               COALESCE(p.cargo_exibicao, c.cargo) as cargo_exibicao,
+               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
+        FROM colaboradores c
+        JOIN departamentos d ON c.departamento = d.nome
+        LEFT JOIN assinatura_templates t ON t.is_active = 1
+        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
+        WHERE d.tipo = 'Administrativo'
+          AND LOWER(TRIM(c.departamento)) NOT LIKE '%limpeza%'
+          AND c.status != 'Desligado'
+        ORDER BY CASE WHEN COALESCE(p.status, 'Pendente') = 'Pendente' THEN 0 ELSE 1 END ASC,
+                 c.nome_completo ASC
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Salvar dados de exibição editados (não afeta cadastro do colaborador)
+app.patch('/api/assinaturas/pendentes/:colabId/dados', authenticateToken, (req, res) => {
+    const colabId = req.params.colabId;
+    const { nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao } = req.body;
+    db.get(`SELECT p.id FROM assinaturas_pendentes p
+            JOIN assinatura_templates t ON t.id = p.template_id
+            WHERE p.colaborador_id = ? AND t.is_active = 1`, [colabId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row) {
+            db.run(`UPDATE assinaturas_pendentes SET nome_exibicao=?, email_exibicao=?, dept_exibicao=?, cargo_exibicao=? WHERE id=?`,
+                [nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao, row.id],
+                (e) => { if (e) return res.status(500).json({ error: e.message }); res.json({ ok: true }); });
+        } else {
+            // Criar registro se ainda não existe
+            db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (e2, tpl) => {
+                if (e2 || !tpl) return res.status(400).json({ error: 'Nenhum template ativo' });
+                db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status, nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao)
+                        VALUES (?, ?, 'Pendente', ?, ?, ?, ?)`,
+                    [colabId, tpl.id, nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao],
+                    (e3) => { if (e3) return res.status(500).json({ error: e3.message }); res.json({ ok: true }); });
+            });
+        }
+    });
+});
+
+// Marcar como baixada
+app.post('/api/assinaturas/pendentes/:id/baixar', authenticateToken, (req, res) => {
+    const colabId = req.params.id;
+    db.get(`SELECT p.id FROM assinaturas_pendentes p JOIN assinatura_templates t ON t.id = p.template_id WHERE p.colaborador_id = ? AND t.is_active = 1`, [colabId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row) {
+            db.run(`UPDATE assinaturas_pendentes SET status = 'Baixada' WHERE id = ?`, [row.id], (e) => {
+                if (e) return res.status(500).json({ error: e.message });
+                res.json({ message: "Marcado como baixada" });
+            });
+        } else {
+            db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status) VALUES (?, (SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1), 'Baixada')`, [colabId], (e) => {
+                if (e) return res.status(500).json({ error: e.message });
+                res.json({ message: "Marcado como baixada" });
+            });
+        }
+    });
+});
+
+// Proxy para imagens CORS
+app.get('/api/proxy-image', (req, res) => {
+    const url = req.query.url;
+    if (!url) return res.status(400).send('URL missing');
+    const getProtocol = url.startsWith('https') ? require('https') : require('http');
+    
+    getProtocol.get(url, (response) => {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Content-Type', response.headers['content-type'] || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        response.pipe(res);
+    }).on('error', (e) => {
+        res.status(500).send(e.message);
+    });
+});
+
+// Gerar avulsa
+app.post('/api/assinaturas/gerar-manual', authenticateToken, (req, res) => {
+    const { colaborador_id } = req.body;
+    db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
+        if (errTpl) return res.status(500).json({ error: errTpl.message });
+        if (!rowTpl) return res.status(400).json({ error: "Nenhum template ativo encontrado" });
+
+        db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [colaborador_id, rowTpl.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: "Assinatura enviada para a fila de pendências" });
+        });
+    });
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
@@ -22218,7 +23474,976 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 
 
+
+// ============================================================
+// MÓDULO: CELULARES CORPORATIVOS
+// ============================================================
+
+// ── Colaboradores com celular_participa = Sim ──
+app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento, cargo
+         FROM colaboradores
+         WHERE celular_participa = 'Sim'
+         ORDER BY nome_completo`,
+        [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// ── APARELHOS ──
+app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT a.*,
+               at.id as atrib_id,
+               at.colaborador_id, at.responsavel_nome, at.chip_id as atrib_chip_id, at.chip_id2 as atrib_chip_id2,
+               at.data_inicio as atrib_data_inicio,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.telefone_corporativo as colab_tel_corp, c.status as colab_status,
+               ch.numero as chip_numero, ch.operadora as chip_operadora,
+               ch2.numero as chip_numero2, ch2.operadora as chip_operadora2
+        FROM celulares_aparelhos a
+        LEFT JOIN celulares_atribuicoes at ON at.aparelho_id = a.id AND at.data_fim IS NULL
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        LEFT JOIN celulares_chips ch2 ON ch2.id = at.chip_id2
+        ORDER BY LOWER(a.modelo) ASC, a.patrimonio ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// MIGRATION: foto_path e ativo em celulares_aparelhos
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.foto_path:', err.message);
+});
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN ativo INTEGER DEFAULT 1`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.ativo:', err.message);
+});
+
+app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
+    const { imei1, imei2, modelo, patrimonio, cor, observacao, ativo } = req.body;
+    if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
+    // Verificar duplicidade de IMEI
+    const imeiCheck = imei2
+        ? `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE imei1=? OR imei2=? OR imei1=? OR imei2=?`
+        : `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE imei1=? OR imei2=?`;
+    const imeiParams = imei2 ? [imei1, imei1, imei2, imei2] : [imei1, imei1];
+    db.get(imeiCheck, imeiParams, (errChk, dup) => {
+        if (errChk) return res.status(500).json({ error: errChk.message });
+        if (dup) {
+            const which = (dup.imei1 === imei1 || dup.imei1 === imei2) ? dup.imei1 : dup.imei2;
+            return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
+        }
+        db.run(
+            `INSERT INTO celulares_aparelhos (imei1, imei2, modelo, patrimonio, cor, observacao, status, ativo)
+             VALUES (?, ?, ?, ?, ?, ?, 'disponivel', ?)`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, ativo !== undefined ? ativo : 1],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ id: this.lastID, ok: true });
+
+            }
+        );
+    });
+});
+
+app.post('/api/celulares/aparelhos/:id/foto', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    let dbPath = '';
+
+    try {
+        if (r2 && r2.isReady()) {
+            const fname = 'celulares/aparelhos/celular_' + req.params.id + '_' + Date.now() + ext;
+            dbPath = await r2.uploadToR2(fname, req.file.buffer, req.file.mimetype || 'image/jpeg');
+        } else {
+            const fname = 'uploads/celular_' + req.params.id + '_' + Date.now() + ext;
+            const fpath = path.join(__dirname, '..', fname);
+            require('fs').writeFileSync(fpath, req.file.buffer);
+            dbPath = fname;
+        }
+
+        db.run(`UPDATE celulares_aparelhos SET foto_path=? WHERE id=?`, [dbPath, req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, foto_path: dbPath });
+        });
+    } catch (err) {
+        console.error("Erro ao salvar foto do aparelho:", err);
+        return res.status(500).json({ error: 'Erro ao salvar a foto: ' + err.message });
+    }
+});
+
+app.put('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
+    const { imei1, imei2, modelo, patrimonio, cor, observacao, status, ativo } = req.body;
+    if (!imei1) return res.status(400).json({ error: 'IMEI 1 é obrigatório.' });
+    const curId = req.params.id;
+    // Verificar duplicidade excluindo o próprio registro
+    const imeiCheck = imei2
+        ? `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE (imei1=? OR imei2=? OR imei1=? OR imei2=?) AND id!=?`
+        : `SELECT id, imei1, imei2, modelo FROM celulares_aparelhos WHERE (imei1=? OR imei2=?) AND id!=?`;
+    const imeiParams = imei2 ? [imei1, imei1, imei2, imei2, curId] : [imei1, imei1, curId];
+    db.get(imeiCheck, imeiParams, (errChk, dup) => {
+        if (errChk) return res.status(500).json({ error: errChk.message });
+        if (dup) {
+            const which = (dup.imei1 === imei1 || dup.imei1 === imei2) ? dup.imei1 : dup.imei2;
+            return res.status(409).json({ error: `IMEI ${which} já está cadastrado no sistema (${dup.modelo || 'Aparelho ID ' + dup.id}).` });
+        }
+        db.run(
+            `UPDATE celulares_aparelhos SET imei1=?, imei2=?, modelo=?, patrimonio=?, cor=?, observacao=?, status=?, ativo=? WHERE id=?`,
+            [imei1, imei2 || null, modelo || null, patrimonio || null, cor || null, observacao || null, status || 'disponivel', ativo !== undefined ? ativo : 1, curId],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
+app.delete('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM celulares_aparelhos WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── CHIPS ──
+app.get('/api/celulares/chips', authenticateToken, (req, res) => {
+    // JOIN prioriza chip_id (slot 1). chip_id2 só aparece se o chip NÃO for chip_id em nenhuma atribuição ativa.
+    db.all(`
+        SELECT ch.*,
+               at.id as atrib_id,
+               at.colaborador_id, at.responsavel_nome, at.aparelho_id as atrib_aparelho_id,
+               at.data_inicio as atrib_data_inicio,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64, c.status as colab_status,
+               a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio
+        FROM celulares_chips ch
+        LEFT JOIN (
+            SELECT id, chip_id as matched_chip_id, colaborador_id, responsavel_nome, aparelho_id, data_inicio
+            FROM celulares_atribuicoes
+            WHERE data_fim IS NULL AND chip_id IS NOT NULL
+            UNION ALL
+            SELECT id, chip_id2 as matched_chip_id, colaborador_id, responsavel_nome, aparelho_id, data_inicio
+            FROM celulares_atribuicoes
+            WHERE data_fim IS NULL AND chip_id2 IS NOT NULL
+              AND chip_id2 NOT IN (SELECT chip_id FROM celulares_atribuicoes WHERE data_fim IS NULL AND chip_id IS NOT NULL)
+        ) at ON at.matched_chip_id = ch.id
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
+        ORDER BY ch.id DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/celulares/chips', authenticateToken, (req, res) => {
+    const { numero, operadora, observacao } = req.body;
+    if (!numero) return res.status(400).json({ error: 'Número é obrigatório.' });
+    db.run(
+        `INSERT INTO celulares_chips (numero, operadora, observacao, status) VALUES (?, ?, ?, 'disponivel')`,
+        [numero, operadora || null, observacao || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, ok: true });
+        }
+    );
+});
+
+app.put('/api/celulares/chips/:id', authenticateToken, (req, res) => {
+    const { numero, operadora, observacao, status } = req.body;
+    db.run(
+        `UPDATE celulares_chips SET numero=?, operadora=?, observacao=?, status=? WHERE id=?`,
+        [numero, operadora || null, observacao || null, status || 'disponivel', req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+app.delete('/api/celulares/chips/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM celulares_chips WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── ATRIBUIÇÕES ──
+app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
+    const { aparelho_id, chip_id, chip_id2, colaborador_id, responsavel_nome, data_inicio, observacao } = req.body;
+
+    const tasks = [];
+    // Fechar atribuição ativa do aparelho
+    if (aparelho_id) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE aparelho_id = ? AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], aparelho_id],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do aparelho
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_aparelhos SET status = 'em_uso' WHERE id = ?`, [aparelho_id], (err) => err ? reject(err) : resolve());
+        }));
+    }
+    // Fechar atribuição ativa do chip 1
+    if (chip_id) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], chip_id, chip_id],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do chip 1
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_chips SET status = 'em_uso' WHERE id = ?`, [chip_id], (err) => err ? reject(err) : resolve());
+        }));
+    }
+    // Fechar atribuição ativa do chip 2
+    if (chip_id2) {
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE celulares_atribuicoes SET data_fim = ? WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`,
+                [data_inicio || new Date().toISOString().split('T')[0], chip_id2, chip_id2],
+                (err) => err ? reject(err) : resolve()
+            );
+        }));
+        // Atualiza status do chip 2
+        tasks.push(new Promise((resolve, reject) => {
+            db.run(`UPDATE celulares_chips SET status = 'em_uso' WHERE id = ?`, [chip_id2], (err) => err ? reject(err) : resolve());
+        }));
+    }
+
+    Promise.all(tasks).then(() => {
+        db.run(
+            `INSERT INTO celulares_atribuicoes (aparelho_id, chip_id, chip_id2, colaborador_id, responsavel_nome, data_inicio, observacao)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [aparelho_id || null, chip_id || null, chip_id2 || null, colaborador_id || null, responsavel_nome || null,
+             data_inicio || new Date().toISOString().split('T')[0], observacao || null],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                const newAtribId = this.lastID;
+                // Auto-preencher telefone_corporativo com o número do chip 1
+                if (colaborador_id && chip_id) {
+                    db.get(`SELECT numero FROM celulares_chips WHERE id = ?`, [chip_id], (errCh, chipRow) => {
+                        if (!errCh && chipRow && chipRow.numero) {
+                            db.run(`UPDATE colaboradores SET telefone_corporativo = ? WHERE id = ?`, [chipRow.numero, colaborador_id], (errUpd) => {
+                                if (errUpd) console.error('[Celular] Erro ao atualizar telefone_corporativo:', errUpd.message);
+                                else console.log(`[Celular] telefone_corporativo do colaborador ${colaborador_id} atualizado para ${chipRow.numero}`);
+                            });
+                        }
+                    });
+                }
+                // ── Gatilho de Webhook para Celulares Motoristas ──────────────────
+                if (colaborador_id) {
+                    db.get(
+                        `SELECT c.nome_completo, c.departamento, ch.numero AS numero_chip, ch2.numero AS numero_chip2
+                         FROM colaboradores c
+                         LEFT JOIN celulares_chips ch  ON ch.id  = ?
+                         LEFT JOIN celulares_chips ch2 ON ch2.id = ?
+                         WHERE c.id = ?`,
+                        [chip_id || null, chip_id2 || null, colaborador_id],
+                        (errC, colabRow) => {
+                            if (!errC && colabRow) {
+                                const dept = (colabRow.departamento || '').toLowerCase();
+                                if (dept.includes('motorista') || dept.includes('motoristas')) {
+                                    dispararWebhook('celular.atribuido_motorista', {
+                                        colaborador_id,
+                                        nome_motorista: colabRow.nome_completo,
+                                        telefone_principal: colabRow.numero_chip  || null,
+                                        telefone_secundario: colabRow.numero_chip2 || null,
+                                        data_atribuicao: data_inicio || new Date().toISOString().split('T')[0]
+                                    });
+                                }
+                            }
+                        }
+                    );
+                }
+                // ─────────────────────────────────────────────────────────────────
+                res.json({ id: newAtribId, ok: true });
+            }
+        );
+    }).catch(err => res.status(500).json({ error: err.message }));
+});
+
+app.put('/api/celulares/atribuicoes/:id/devolver', authenticateToken, (req, res) => {
+    const { data_fim, observacao } = req.body;
+    const dataFim = data_fim || new Date().toISOString().split('T')[0];
+
+    // Busca atribuição para liberar aparelho/chip
+    db.get(`SELECT * FROM celulares_atribuicoes WHERE id = ?`, [req.params.id], (err, atrib) => {
+        if (err || !atrib) return res.status(404).json({ error: 'Atribuição não encontrada.' });
+
+        db.run(
+            `UPDATE celulares_atribuicoes SET data_fim = ?, observacao = COALESCE(observacao || ' | Devolução: ' || ?, ?) WHERE id = ?`,
+            [dataFim, observacao || '', observacao || '', req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                const updates = [];
+                if (atrib.aparelho_id) {
+                    updates.push(new Promise((resolve, reject) => {
+                        // Verifica se aparelho ainda tem outra atribuição ativa
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE aparelho_id = ? AND data_fim IS NULL`, [atrib.aparelho_id], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_aparelhos SET status = 'disponivel' WHERE id = ?`, [atrib.aparelho_id], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+                if (atrib.chip_id) {
+                    updates.push(new Promise((resolve, reject) => {
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`, [atrib.chip_id, atrib.chip_id], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_chips SET status = 'disponivel' WHERE id = ?`, [atrib.chip_id], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+                if (atrib.chip_id2) {
+                    updates.push(new Promise((resolve, reject) => {
+                        db.get(`SELECT id FROM celulares_atribuicoes WHERE (chip_id = ? OR chip_id2 = ?) AND data_fim IS NULL`, [atrib.chip_id2, atrib.chip_id2], (e, row) => {
+                            if (!row) {
+                                db.run(`UPDATE celulares_chips SET status = 'disponivel' WHERE id = ?`, [atrib.chip_id2], (e2) => e2 ? reject(e2) : resolve());
+                            } else resolve();
+                        });
+                    }));
+                }
+
+                Promise.all(updates)
+                    .then(() => res.json({ ok: true }))
+                    .catch(e => res.status(500).json({ error: e.message }));
+            }
+        );
+    });
+});
+
+// ── HISTÓRICO de aparelho ou chip ──
+app.get('/api/celulares/historico/aparelho/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT at.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               ch.numero as chip_numero, ch.operadora as chip_operadora,
+               ch2.numero as chip_numero2, ch2.operadora as chip_operadora2
+        FROM celulares_atribuicoes at
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_chips ch ON ch.id = at.chip_id
+        LEFT JOIN celulares_chips ch2 ON ch2.id = at.chip_id2
+        WHERE at.aparelho_id = ?
+        ORDER BY at.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/celulares/historico/chip/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT at.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto,
+               a.modelo as aparelho_modelo, a.patrimonio as aparelho_patrimonio, a.imei1, a.imei2
+        FROM celulares_atribuicoes at
+        LEFT JOIN colaboradores c ON c.id = at.colaborador_id
+        LEFT JOIN celulares_aparelhos a ON a.id = at.aparelho_id
+        WHERE at.chip_id = ?
+        ORDER BY at.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+console.log('[CELULARES] Módulo de celulares corporativos carregado.');
+
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO COMPUTADORES CORPORATIVOS
+// ══════════════════════════════════════════════════════════════
+
+// ── Criação da tabela ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo                    TEXT NOT NULL DEFAULT 'Notebook',
+    modelo                  TEXT,
+    patrimonio              TEXT,
+    numero_serie            TEXT,
+    colaborador_id          INTEGER,
+    colaborador_livre       TEXT,
+    status                  TEXT DEFAULT 'Reserva',
+    data_atribuicao         TEXT,
+    senha_windows           TEXT,
+    observacoes             TEXT,
+    ram_1                   TEXT,
+    ram_2                   TEXT,
+    ssd                     TEXT,
+    expansivel              INTEGER DEFAULT 0,
+    email_vinculado         TEXT,
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ─ MIGRAÇÃO PARA TABELA computadores: Adiciona campos novos se não existirem ─
+db.all("PRAGMA table_info(computadores)", (err, rows) => {
+    if (!err && rows && rows.length > 0) {
+        const hasLivre = rows.some(r => r.name === 'colaborador_livre');
+        if (!hasLivre) {
+            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT");
+        }
+        const hasRam = rows.some(r => r.name === 'ram_1');
+        if (!hasRam) {
+            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0");
+        }
+        const hasEmail = rows.some(r => r.name === 'email_vinculado');
+        if (!hasEmail) {
+            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT");
+        }
+    }
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS computadores_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    computador_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    acao TEXT NOT NULL,
+    observacao TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(computador_id) REFERENCES computadores(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+db.all(`SELECT id, colaborador_id, colaborador_livre, status, data_atribuicao, observacoes, created_at FROM computadores`, (err, rows) => {
+    if (!err && rows && rows.length > 0) {
+        db.get("SELECT count(*) as count FROM computadores_historico", (err, row) => {
+            if (!err && row && row.count === 0) {
+                let stmt = db.prepare(`INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
+                rows.forEach(r => {
+                    let acao = "Cadastro Inicial";
+                    if (r.colaborador_id || r.colaborador_livre) acao = "Atribuído";
+                    stmt.run(r.id, r.colaborador_id, r.colaborador_livre, acao, r.observacoes || r.status, r.created_at || new Date().toISOString());
+                });
+                stmt.finalize();
+            }
+        });
+    }
+});
+
+// ── GET: Historico de Computador ──
+app.get('/api/computadores/historico/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto
+        FROM computadores_historico h
+        LEFT JOIN colaboradores c ON c.id = h.colaborador_id
+        WHERE h.computador_id = ?
+        ORDER BY h.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── GET: listar todos com JOIN de colaborador ──
+app.get('/api/computadores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT cp.*,
+               c.nome_completo  AS nome_colaborador,
+               c.foto_path,
+               c.foto_base64,
+               c.departamento   AS departamento_colaborador
+        FROM computadores cp
+        LEFT JOIN colaboradores c ON c.id = cp.colaborador_id
+        ORDER BY LOWER(COALESCE(c.nome_completo, '')) ASC, cp.id ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── GET: colaboradores para o select ──
+app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
+        FROM colaboradores c
+        LEFT JOIN departamentos d ON LOWER(TRIM(c.departamento)) = LOWER(TRIM(d.nome)) OR LOWER(TRIM(c.cargo)) = LOWER(TRIM(d.nome))
+        WHERE TRIM(d.tipo) = 'Administrativo' 
+          AND (c.status IS NULL OR LOWER(c.status) NOT LIKE '%desligado%')
+        ORDER BY LOWER(c.nome_completo) ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST: criar computador ──
+app.post('/api/computadores', authenticateToken, (req, res) => {
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
+    if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
+    if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
+
+    db.run(
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const lastId = this.lastID;
+            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
+                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                    if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
+                });
+            }
+            
+            res.json({ id: lastId, ok: true });
+        }
+    );
+});
+
+// ── PUT: atualizar computador ──
+app.put('/api/computadores/:id', authenticateToken, (req, res) => {
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao } = req.body;
+    db.get(`SELECT colaborador_id, colaborador_livre, status FROM computadores WHERE id=?`, [req.params.id], (errOld, rowOld) => {
+        db.run(
+            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
+             WHERE id=?`,
+            [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
+            function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                if (rowOld) {
+                    let changed = false;
+                    let acao = "";
+                    if (String(rowOld.colaborador_id||'') !== String(colaborador_id||'')) changed = true;
+                    if (String(rowOld.colaborador_livre||'') !== String(colaborador_livre||'')) changed = true;
+                    if (String(rowOld.status||'') !== String(status||'')) changed = true;
+                    
+                    if (changed) {
+                        if (status === 'Devolvido' || (!colaborador_id && !colaborador_livre && (rowOld.colaborador_id || rowOld.colaborador_livre))) {
+                            acao = "Devolvido";
+                        } else if (colaborador_id || colaborador_livre) {
+                            acao = "Atribuído";
+                        } else {
+                            acao = "Atualizado";
+                        }
+                        let obsHist = historico_observacao || (acao === "Devolvido" ? "Equipamento devolvido" : "Alteração de status/atribuição");
+                        let colabIdHist = colaborador_id || rowOld.colaborador_id;
+                        let colabLivreHist = colaborador_livre || rowOld.colaborador_livre;
+                        db.run(`INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao) VALUES (?, ?, ?, ?, ?)`,
+                            [req.params.id, colabIdHist, colabLivreHist, acao, obsHist]);
+                    }
+                }
+                
+                if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
+                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                        if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
+                    });
+                }
+                
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
+// ── DELETE: remover computador ──
+app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── TABELA: log de notificações enviadas (garante "apenas 1 vez por colaborador") ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_log (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    colaborador_id INTEGER NOT NULL UNIQUE,
+    status_inicial TEXT,
+    enviado_em     DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+// ── TABELA: fila de popups pendentes de Computadores (para polling frontend) ──
+db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_pendentes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo       TEXT DEFAULT 'novo_colaborador_admin',
+    dados      TEXT,
+    criado_em  DATETIME DEFAULT (datetime('now','-3 hours')),
+    lido       INTEGER DEFAULT 0
+)`);
+
+// ── GET: popups pendentes (não lidos) ──
+app.get('/api/computadores/notificacoes/pendentes', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM notificacoes_usuarios
+            WHERE tipo = 'computador_controle' AND lida = 0 AND usuario_id = ?
+            ORDER BY criado_em DESC LIMIT 30`,
+        [req.user.id || req.user.userId || 0],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// ── PUT: marcar notificação como lida ──
+app.put('/api/computadores/notificacoes/:id/lida', authenticateToken, (req, res) => {
+    db.run(`UPDATE notificacoes_usuarios SET lida = 1 WHERE id = ? AND usuario_id = ?`,
+        [req.params.id, req.user.id || req.user.userId || 0],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// ── GET: configuração de notificações de computadores (quem recebe) ──
+app.get('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT u.id, u.nome, u.username,
+               CASE WHEN cn.usuario_id IS NOT NULL THEN 1 ELSE 0 END as inscrito,
+               cn.email_override
+        FROM usuarios u
+        LEFT JOIN config_notificacoes cn ON cn.usuario_id = u.id AND cn.tipo = 'computador_controle'
+        WHERE u.ativo = 1
+        ORDER BY u.nome ASC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST: salvar configuração de notificações de computadores ──
+app.post('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
+    const { usuario_ids, email_overrides } = req.body; // usuario_ids: number[], email_overrides: {[uid]: email}
+    if (!Array.isArray(usuario_ids)) return res.status(400).json({ error: 'usuario_ids deve ser array' });
+    // Remover inscrições antigas para computador_controle
+    db.run(`DELETE FROM config_notificacoes WHERE tipo = 'computador_controle'`, [], (errD) => {
+        if (errD) return res.status(500).json({ error: errD.message });
+        if (usuario_ids.length === 0) return res.json({ ok: true });
+        const placeholders = usuario_ids.map(() => '(?, ?, ?)').join(', ');
+        const values = [];
+        usuario_ids.forEach(uid => {
+            values.push('computador_controle', uid, (email_overrides && email_overrides[uid]) || null);
+        });
+        db.run(
+            `INSERT OR IGNORE INTO config_notificacoes (tipo, usuario_id, email_override) VALUES ${placeholders}`,
+            values,
+            (errI) => {
+                if (errI) return res.status(500).json({ error: errI.message });
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
+console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com notificações).');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MÓDULO E-MAILS CORPORATIVOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    endereco          TEXT UNIQUE NOT NULL,
+    senha             TEXT,
+    plataforma        TEXT,
+    colaborador_id    INTEGER,
+    responsavel_nome  TEXT,
+    data_atribuicao   TEXT,
+    caixa_compartilhada INTEGER DEFAULT 0,
+    recebe_copia      INTEGER DEFAULT 0,
+    status            TEXT DEFAULT 'Ativo',
+    observacao        TEXT,
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+db.run(`ALTER TABLE emails_corporativos ADD COLUMN caixa_compartilhada INTEGER DEFAULT 0`, (err) => {});
+db.run(`ALTER TABLE emails_corporativos ADD COLUMN recebe_copia INTEGER DEFAULT 0`, (err) => {});
+
+db.run(`CREATE TABLE IF NOT EXISTS emails_relacionamentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_origem_id INTEGER NOT NULL,
+    email_destino_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(email_origem_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(email_destino_id) REFERENCES emails_corporativos(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS emails_atribuicoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    recebe_copia INTEGER DEFAULT 0,
+    data_atribuicao TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(email_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS emails_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    acao TEXT NOT NULL,
+    observacao TEXT,
+    created_at DATETIME DEFAULT (datetime('now','-3 hours')),
+    FOREIGN KEY(email_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+// Migrar dados antigos se existirem em emails_corporativos
+db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails_corporativos WHERE colaborador_id IS NOT NULL OR responsavel_nome IS NOT NULL`, (err, rows) => {
+    if (!err && rows && rows.length > 0) {
+        db.get(`SELECT count(*) as count FROM emails_atribuicoes`, (err, countRow) => {
+            if (!err && countRow && countRow.count === 0) {
+                let stmt = db.prepare(`INSERT INTO emails_atribuicoes (email_id, colaborador_id, responsavel_nome, data_atribuicao) VALUES (?, ?, ?, ?)`);
+                rows.forEach(r => stmt.run(r.id, r.colaborador_id, r.responsavel_nome, r.data_atribuicao));
+                stmt.finalize();
+            }
+        });
+    }
+});
+
+// ─── GET: Listar E-mails ───
+app.get('/api/emails', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT e.*
+        FROM emails_corporativos e
+        ORDER BY LOWER(e.endereco) ASC
+    `, [], (err, emails) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        db.all(`
+            SELECT a.*, c.nome_completo as colab_nome, c.status as colab_status, c.departamento as colab_depto, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64
+            FROM emails_atribuicoes a
+            LEFT JOIN colaboradores c ON c.id = a.colaborador_id
+        `, [], (err, atribuicoes) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            db.all(`SELECT * FROM emails_relacionamentos`, [], (errRel, relacionamentos) => {
+                if (errRel) return res.status(500).json({ error: errRel.message });
+                
+                // Map legacy single assignments if no atribuicoes exist for backward compatibility
+                emails.forEach(e => {
+                    e.atribuicoes = atribuicoes.filter(a => a.email_id === e.id);
+                    e.relacionamentos = relacionamentos ? relacionamentos.filter(r => r.email_origem_id === e.id) : [];
+                    if (e.atribuicoes.length === 0 && (e.colaborador_id || e.responsavel_nome)) {
+                         e.atribuicoes = [{
+                             id: 'legacy_'+e.id,
+                             email_id: e.id,
+                             colaborador_id: e.colaborador_id,
+                             responsavel_nome: e.responsavel_nome,
+                             data_atribuicao: e.data_atribuicao,
+                             recebe_copia: 0
+                         }];
+                    }
+                });
+                res.json(emails);
+            });
+        });
+    });
+});
+
+// ─── GET: Listar Colaboradores para E-mails (simplificado) ───
+app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
+        FROM colaboradores c
+        WHERE c.status != 'Desligado'
+           OR EXISTS (SELECT 1 FROM emails_corporativos e WHERE e.colaborador_id = c.id)
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// ─── POST: Novo E-mail ───
+app.post('/api/emails', authenticateToken, (req, res) => {
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
+    if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
+
+    db.run(
+        `INSERT INTO emails_corporativos (endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0],
+        function(err) {
+            if (err) return res.status(500).json({ error: 'Erro ao criar (endereço já existe?)' });
+            
+            const emailId = this.lastID;
+            
+            // Inserir relacionamentos
+            const rels = [];
+            if (caixa_compartilhada && Array.isArray(emails_compartilhados)) {
+                emails_compartilhados.forEach(id => rels.push([emailId, id, 'compartilhada_com']));
+            }
+            if (recebe_copia && Array.isArray(emails_copia)) {
+                emails_copia.forEach(id => rels.push([emailId, id, 'recebe_copia_de']));
+            }
+            
+            if (rels.length > 0) {
+                const placeholders = rels.map(() => '(?, ?, ?)').join(', ');
+                const values = rels.reduce((acc, val) => acc.concat(val), []);
+                db.run(`INSERT INTO emails_relacionamentos (email_origem_id, email_destino_id, tipo) VALUES ${placeholders}`, values, (errRel) => {
+                    if (errRel) console.error("Erro relacionamentos:", errRel);
+                    res.json({ id: emailId });
+                });
+            } else {
+                res.json({ id: emailId });
+            }
+        }
+    );
+});
+
+// ─── PUT: Editar E-mail ───
+app.put('/api/emails/:id', authenticateToken, (req, res) => {
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
+    if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
+
+    db.run(
+        `UPDATE emails_corporativos SET endereco=?, senha=?, plataforma=?, status=?, observacao=?, caixa_compartilhada=?, recebe_copia=?, updated_at=datetime('now','-3 hours')
+         WHERE id=?`,
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Deletar relacionamentos antigos
+            db.run(`DELETE FROM emails_relacionamentos WHERE email_origem_id = ?`, [req.params.id], (errDel) => {
+                if (errDel) return res.status(500).json({ error: errDel.message });
+                
+                // Inserir relacionamentos novos
+                const rels = [];
+                if (caixa_compartilhada && Array.isArray(emails_compartilhados)) {
+                    emails_compartilhados.forEach(id => rels.push([req.params.id, id, 'compartilhada_com']));
+                }
+                if (recebe_copia && Array.isArray(emails_copia)) {
+                    emails_copia.forEach(id => rels.push([req.params.id, id, 'recebe_copia_de']));
+                }
+                
+                if (rels.length > 0) {
+                    const placeholders = rels.map(() => '(?, ?, ?)').join(', ');
+                    const values = rels.reduce((acc, val) => acc.concat(val), []);
+                    db.run(`INSERT INTO emails_relacionamentos (email_origem_id, email_destino_id, tipo) VALUES ${placeholders}`, values, (errRel) => {
+                        if (errRel) console.error("Erro relacionamentos:", errRel);
+                        res.json({ ok: true });
+                    });
+                } else {
+                    res.json({ ok: true });
+                }
+            });
+        }
+    );
+});
+
+// ─── POST: Atribuir E-mail ───
+app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
+    const { colaborador_id, responsavel_nome, data_atribuicao, recebe_copia } = req.body;
+    const isAvulso = !colaborador_id && responsavel_nome;
+
+    db.run(
+        `INSERT INTO emails_atribuicoes (email_id, colaborador_id, responsavel_nome, data_atribuicao, recebe_copia) VALUES (?, ?, ?, ?, ?)`,
+        [req.params.id, colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, recebe_copia ? 1 : 0],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Legacy fallback
+            db.run(
+                `UPDATE emails_corporativos 
+                 SET colaborador_id = ?, responsavel_nome = ?, data_atribuicao = ?, updated_at=datetime('now','-3 hours')
+                 WHERE id = ? AND caixa_compartilhada = 0`,
+                [colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, req.params.id]
+            );
+            
+            // Sincronizar com cadastro de colaboradores
+            if (colaborador_id) {
+                db.get(`SELECT endereco FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
+                    if (!errE && rowE) {
+                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [rowE.endereco, colaborador_id]);
+                    }
+                });
+            }
+            
+            db.run(`INSERT INTO emails_historico (email_id, colaborador_id, responsavel_nome, acao) VALUES (?, ?, ?, 'Atribuição')`, [req.params.id, colaborador_id || null, isAvulso ? responsavel_nome : null], function() {
+                res.json({ ok: true, id: this.lastID });
+            });
+        }
+    );
+});
+
+// ─── POST: Devolver E-mail ───
+app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
+    const { atribuicao_id, colaborador_id } = req.body || {};
+    
+    let deleteQuery = `DELETE FROM emails_atribuicoes WHERE email_id = ?`;
+    let deleteParams = [req.params.id];
+    
+    if (atribuicao_id && !String(atribuicao_id).startsWith('legacy_')) {
+        deleteQuery += ` AND id = ?`;
+        deleteParams.push(atribuicao_id);
+    } else if (colaborador_id) {
+        deleteQuery += ` AND colaborador_id = ?`;
+        deleteParams.push(colaborador_id);
+    }
+
+    db.run(deleteQuery, deleteParams, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Clear legacy
+        db.run(
+            `UPDATE emails_corporativos 
+             SET colaborador_id = NULL, responsavel_nome = NULL, data_atribuicao = NULL, updated_at=datetime('now','-3 hours')
+             WHERE id = ? AND (colaborador_id = ? OR ? IS NULL)`,
+            [req.params.id, colaborador_id || null, colaborador_id || null]
+        );
+        
+        if (colaborador_id) {
+            db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id = ?`, [colaborador_id]);
+        } else {
+            // Se devolver tudo
+            db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id IN (SELECT colaborador_id FROM emails_corporativos WHERE id = ?)`, [req.params.id]);
+        }
+        
+        db.run(`INSERT INTO emails_historico (email_id, colaborador_id, responsavel_nome, acao) VALUES (?, ?, NULL, 'Devolução')`, [req.params.id, colaborador_id || null], function() {
+            res.json({ ok: true });
+        });
+    });
+});
+
+// ─── DELETE: Excluir E-mail ───
+app.get('/api/emails/:id/historico', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*, c.nome_completo as colab_nome
+        FROM emails_historico h
+        LEFT JOIN colaboradores c ON c.id = h.colaborador_id
+        WHERE h.email_id = ?
+        ORDER BY h.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.delete('/api/emails/:id', authenticateToken, (req, res) => {
+    db.run(`DELETE FROM emails_corporativos WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[EMAILS] Módulo de E-mails Corporativos carregado.');
+
 
 
 

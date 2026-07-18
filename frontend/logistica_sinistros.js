@@ -122,7 +122,8 @@ window._logSinRenderCardGeral = function(s, container) {
 
     const statusMap = {
         'pendente': { text: 'Aguardando Assinaturas (RH)', color: '#f59e0b', bg: '#fef3c7' },
-        'assinado': { text: 'Finalizado e Assinado',  color: '#10b981', bg: '#d1fae5' }
+        'assinado': { text: 'Finalizado e Assinado',  color: '#10b981', bg: '#d1fae5' },
+        'iniciado': { text: 'Iniciado', color: '#b45309', bg: '#fef08a' }
     };
     const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
 
@@ -172,6 +173,7 @@ window._logSinRenderCardGeral = function(s, container) {
                     <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#059669;"></i> ${s.nome_completo || 'Colaborador Desconhecido'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-file-text"></i> BO: ${s.numero_boletim || 'N/A'} &nbsp;|&nbsp; <i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
+                    ${s.observacoes ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${s.observacoes}</p>` : ''}
                 </div>
             </div>
             <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg}; white-space:nowrap;">${st.text}</span>
@@ -199,12 +201,17 @@ window._logSinRenderCardGeral = function(s, container) {
 
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
             </div>
-            ${s.status === 'pendente' ? `
-            <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id})" title="Editar sinistro"
-                style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
-                onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9'; this.style.color='#475569'">
-                <i class="ph ph-pencil-simple"></i> Editar
-            </button>` : `
+            ${(s.status === 'pendente' || s.status === 'iniciado') ? `
+            <div style="display:flex; gap:8px;">
+                <button onclick="window.logSinExcluirSinistro(${s.id}, ${s.colaborador_id})" title="Excluir sinistro" style="background:#fef2f2; border:1px solid #fecaca; color:#ef4444; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                    <i class="ph ph-trash"></i> Excluir
+                </button>
+                <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id})" title="Editar sinistro"
+                    style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
+                    onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9'; this.style.color='#475569'">
+                    <i class="ph ph-pencil-simple"></i> Editar
+                </button>
+            </div>` : `
             <span style="font-size:0.72rem; color:#94a3b8; display:flex; align-items:center; gap:4px;">
                 <i class="ph ph-lock"></i> Assinado — edição bloqueada
             </span>`}
@@ -222,15 +229,19 @@ window.logSinAbrirModalNovo = function() {
         m.id = 'modal-logistica-novo-sinistro';
         m.className = 'modal';
         
-        const colabsOptions = _logSinListaColabs.map(c => `<option value="${c.id}">${c.nome_completo} (${c.cpf || ''})</option>`).join('');
+        const colabsOptions = _logSinListaColabs
+            .slice()
+            .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
+            .map(c => `<option value="${c.id}">${c.nome_completo} (${c.cpf || ''})</option>`)
+            .join('');
 
         m.innerHTML = `
-            <div class="modal-content" style="max-width:640px;">
-                <div class="modal-header">
-                    <h3><i class="ph ph-warning" style="color:#059669;"></i> Registrar Novo Sinistro</h3>
-                    <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close"><i class="ph ph-x"></i></button>
+            <div class="modal-content" style="max-width:100vw; width:100vw; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; overflow:hidden;">
+                <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0;">
+                    <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;"><i class="ph ph-warning" style="color:#34d399;"></i> Registrar Novo Sinistro</h3>
+                    <button onclick="document.getElementById('modal-logistica-novo-sinistro').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="flex:1; overflow-y:auto; padding:1.5rem;">
                     <div id="log-sinistro-step-1">
                         <div class="input-group" style="margin-bottom: 1rem;">
                             <label>Selecionar Colaborador *</label>
@@ -239,112 +250,324 @@ window.logSinAbrirModalNovo = function() {
                                 ${colabsOptions}
                             </select>
                         </div>
-                        <p style="font-size:0.9rem; color:#475569; margin-bottom:1rem;">Anexe o Boletim de Ocorrência (PDF). O sistema tentará extrair os dados automaticamente.</p>
-                        <div class="input-group">
-                            <label>Arquivo do BO *</label>
-                            <input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control">
+                        <!-- Busca de veículo por placa -->
+                        <div class="input-group" style="margin-bottom:1rem;">
+                            <label><i class="ph ph-truck" style="color:#d97706;"></i> Selecionar Veículo (buscar por placa)</label>
+                            <div style="position:relative;width:100%;">
+                                <input type="text" id="log-sin-placa-search" class="form-control" placeholder="Digite a placa ou modelo..." autocomplete="off"
+                                    oninput="window._logSinFiltrarVeiculos(this.value)"
+                                    style="width:100%;box-sizing:border-box;padding-right:2.2rem;">
+                                <i class="ph ph-magnifying-glass" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                            </div>
+                            <div id="log-sin-veiculo-dropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:100%;margin-top:2px;"></div>
                         </div>
-                        <button type="button" class="btn btn-primary" onclick="window.logSinProcessarLeituraBO()" style="width:100%; margin-top:0.5rem; background:#059669; border-color:#047857;">
-                            <i class="ph ph-scan"></i> Analisar BO e Continuar
+                        <!-- 3 painéis lado a lado -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+                            <!-- Veículo Selecionado -->
+                            <div id="log-sin-veiculo-dados-step1" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-truck"></i> Veículo Selecionado</p>
+                                <div id="log-sin-veiculo-dados-step1-rows" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
+                            <!-- Dados do Colaborador -->
+                            <div id="log-sin-dados-colab-section-s1" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-user"></i> Dados do Colaborador</p>
+                                <div id="log-sin-dados-colab-rows-s1" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
+                            <!-- Dados do Declarante -->
+                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1rem;min-height:60px;">
+                                <p style="margin:0 0 0.45rem;font-weight:700;font-size:0.79rem;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-identification-card"></i> Dados do Declarante</p>
+                                <div id="log-sin-dados-declarante-rows-s1" style="display:flex;flex-direction:column;gap:0.3rem;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Nº do Protocolo -->
+                        <div class="input-group" style="margin-bottom:1rem;">
+                            <label><i class="ph ph-hash" style="color:#475569;"></i> Nº do Protocolo / Boletim <span style="font-size:0.78rem;color:#94a3b8;font-weight:400;">(opcional)</span></label>
+                            <input type="text" id="log-sin-protocolo" class="form-control" placeholder="Ex: 2026.00123456">
+                        </div>
+
+                        <button type="button" class="btn btn-primary" onclick="window.logSinSalvarIniciado()" id="log-sin-btn-iniciar" style="width:100%;margin-top:0.25rem;background:#0f172a;border:none;">
+                            <i class="ph ph-floppy-disk"></i> Salvar — Status: Iniciado
                         </button>
                     </div>
 
                     <div id="log-sinistro-step-2" style="display:none;">
-                        <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:1rem; font-size:0.85rem;"></div>
+                        <div style="display:flex; gap:1.5rem; align-items:flex-start; min-height:calc(100vh - 160px);">
+                            <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
+                            <div style="flex:1.1; min-width:0; display:flex; flex-direction:column; gap:0.85rem;">
+                                <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.85rem;"></div>
 
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="input-group">
-                                <label>Boletim Nº</label>
-                                <input type="text" id="log-sin-bo" class="form-control">
+                                <!-- BO Upload -->
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;">
+                                    <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
+                                    <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+                                        <div style="flex:1;"><input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;"></div>
+                                        <button type="button" class="btn btn-secondary" onclick="window.logSinProcessarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;"><i class="ph ph-scan"></i> Analisar BO</button>
+                                    </div>
+                                </div>
+
+                                <!-- Campos do BO -->
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="input-group"><label>Boletim Nº</label><input type="text" id="log-sin-bo" class="form-control"></div>
+                                    <div class="input-group"><label>Data e Hora da Ocorrência</label><input type="text" id="log-sin-data" class="form-control" placeholder="13/04/2026 às 13:30"></div>
+                                </div>
+                                <div class="input-group"><label>Natureza da Ocorrência</label><input type="text" id="log-sin-natureza" class="form-control"></div>
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                                    <div class="input-group"><label>Marca/Modelo</label><input type="text" id="log-sin-veiculo" class="form-control"></div>
+                                    <div class="input-group"><label>Placa</label><input type="text" id="log-sin-placa" class="form-control"></div>
+                                </div>
+
+                                <hr style="border-color:#e2e8f0; margin:0.25rem 0;">
+                                <div id="area-log-sinistro-desconto" style="display:none;"></div>
+
+                                <!-- Orçamentos -->
+                                <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem;"><i class="ph ph-receipt"></i> Orçamentos (fotos JPG/PNG)</p>
+                                    <div id="log-sin-orc-dropzone"
+                                        style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1.2rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                        onclick="document.getElementById('log-sin-orcs-file').click()"
+                                        ondragover="event.preventDefault(); this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
+                                        ondragleave="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1';"
+                                        ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
+                                        <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                                        <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
+                                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
+                                        <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;" onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
+                                    </div>
+                                    <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                                    <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
+                                </div>
+
+                                <!-- Fotos e Vídeos -->
+                                <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd;">
+                                    <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
+                                    <div id="log-sin-dropzone"
+                                        style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                                        onclick="document.getElementById('log-sin-midias-file').click()"
+                                        ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
+                                        ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
+                                        ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._logSinAdicionarMidias(event.dataTransfer.files);">
+                                        <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
+                                        <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                                        <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                                        <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" style="display:none;" onchange="window._logSinAdicionarMidias(this.files); this.value='';">
+                                    </div>
+                                    <div id="log-sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                                    <p id="log-sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
+                                </div>
                             </div>
-                            <div class="input-group">
-                                <label>Data e Hora da Ocorrência</label>
-                                <input type="text" id="log-sin-data" class="form-control" placeholder="13/04/2026 às 13:30">
+
+                            <!-- COLUNA DIREITA: Tipo de Sinistro + Observações -->
+                            <div style="width:380px; flex-shrink:0; display:flex; flex-direction:column; gap:0.85rem; position:sticky; top:0;">
+                                <!-- Tipo de Sinistro -->
+                                <div class="input-group" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:1rem;">
+                                    <label style="color:#c2410c;font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
+                                    <select id="log-sin-tipo" class="form-control" style="font-size:0.9rem;">
+                                        <option value="">-- Selecione o tipo --</option>
+                                        <option value="Danos em Terceiros e Nosso">Danos em Terceiros e Nosso</option>
+                                        <option value="Danos em Terceiros">Danos em Terceiros</option>
+                                        <option value="Danos no Nosso Veículo">Danos no Nosso Veículo</option>
+                                        <option value="Outros Danos">Outros Danos</option>
+                                    </select>
+                                </div>
+
+                                <!-- Observações -->
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;flex:1;">
+                                    <p style="margin:0 0 8px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-note-pencil" style="color:#6366f1;"></i> Observações</p>
+                                    <textarea id="log-sin-observacoes" class="form-control" rows="8" placeholder="Descreva os detalhes do sinistro, informações adicionais, notas importantes..." style="resize:vertical; min-height:180px;"></textarea>
+                                </div>
+
+                                <!-- Aviso RH -->
+                                <div class="alert alert-warning" style="font-size: 0.82rem; margin:0;">
+                                    <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser finalizados pelo RH. O RH será notificado deste registro.
+                                </div>
+
+                                <!-- Botão Finalizar -->
+                                <button type="button" class="btn btn-primary" onclick="window.logSinFinalizarSinistro()" id="log-sin-btn-finalizar" style="width:100%; background:#059669; border:none; padding:0.75rem;">
+                                    <i class="ph ph-check"></i> Finalizar e Salvar
+                                </button>
                             </div>
                         </div>
-                        <div class="input-group">
-                            <label>Natureza da Ocorrência</label>
-                            <input type="text" id="log-sin-natureza" class="form-control">
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                            <div class="input-group">
-                                <label>Marca/Modelo</label>
-                                <input type="text" id="log-sin-veiculo" class="form-control">
-                            </div>
-                            <div class="input-group">
-                                <label>Placa</label>
-                                <input type="text" id="log-sin-placa" class="form-control">
-                            </div>
-                        </div>
-
-                        <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
-
-                        <div id="area-log-sinistro-desconto" style="display:none;"></div>
-                        
-                        <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:1rem;">
-                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem;"><i class="ph ph-receipt"></i> Orçamentos (fotos JPG/PNG)</p>
-                            <div id="log-sin-orc-dropzone"
-                                style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1.2rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                                onclick="document.getElementById('log-sin-orcs-file').click()"
-                                ondragover="event.preventDefault(); this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
-                                ondragleave="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1';"
-                                ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
-                                <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
-                                <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                                <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
-                                <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
-                                    onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
-                            </div>
-                            <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                            <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
-                        </div>
-
-                        <div style="background:#f0f9ff; padding:1rem; border-radius:8px; border:1px solid #bae6fd; margin-bottom:1rem;">
-                            <p style="margin:0 0 8px; font-weight:600; font-size:0.9rem; color:#0369a1;"><i class="ph ph-camera"></i> Fotos e Vídeos dos Itens Danificados</p>
-                            <div id="log-sin-dropzone"
-                                style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                                onclick="document.getElementById('log-sin-midias-file').click()"
-                                ondragover="event.preventDefault(); this.style.background='#bae6fd'; this.style.borderColor='#0ea5e9';"
-                                ondragleave="this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc';"
-                                ondrop="event.preventDefault(); this.style.background='#e0f2fe'; this.style.borderColor='#7dd3fc'; window._logSinAdicionarMidias(event.dataTransfer.files);">
-                                <i class="ph ph-upload-simple" style="font-size:2rem; color:#0ea5e9; display:block; margin-bottom:6px;"></i>
-                                <p style="margin:0; font-weight:600; font-size:0.85rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
-                                <p style="margin:2px 0 0; font-size:0.75rem; color:#38bdf8;">ou clique para selecionar &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
-                                <input type="file" id="log-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
-                                    onchange="window._logSinAdicionarMidias(this.files); this.value='';">
-                            </div>
-                            <div id="log-sin-midias-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                            <p id="log-sin-midias-count" style="margin:6px 0 0; font-size:0.75rem; color:#0369a1; display:none;"></p>
-                        </div>
-
-                        <div class="alert alert-warning" style="font-size: 0.85rem; margin-bottom: 1rem;">
-                            <i class="ph ph-warning"></i> Assinaturas e acordos de desconto devem ser finalizados exclusivamente pelo departamento de Recursos Humanos. O RH será notificado deste registro e fará a coleta da assinatura do colaborador.
-                        </div>
-
-                        <button type="button" class="btn btn-primary" onclick="window.logSinSalvarFinal()" style="width:100%; background:#059669; border:none;">
-                            <i class="ph ph-check"></i> Concluir Registro
-                        </button>
                     </div>
                 </div>
             </div>
         `;
+
         document.body.appendChild(m);
     }
 
     document.getElementById('log-sinistro-step-1').style.display = 'block';
     document.getElementById('log-sinistro-step-2').style.display = 'none';
-    document.getElementById('log-sinistro-file-bo').value = '';
+    var logBoInput = document.getElementById('log-sinistro-file-bo');
+    if (logBoInput) logBoInput.value = '';
+    var logProtoInput = document.getElementById('log-sin-protocolo');
+    if (logProtoInput) logProtoInput.value = '';
     document.getElementById('log-sin-colab-select').value = '';
-    
-    // reset orcamentos list
-    const orcList = document.getElementById('log-sin-orcamentos-list');
-    if (orcList) {
-        orcList.innerHTML = '<input type="file" name="log_sin_orc_file" accept=".pdf,image/*" class="form-control" style="font-size:0.8rem;">';
-    }
     window._logSinMidiasFiles = [];
+    window._logSinOrcFiles = [];
+    window._logSinistroAtualId = null;
+    window._logSinistroAtualColabId = null;
     if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
+    // Preencher dados fixos do declarante e ocultar/limpar seções dinâmicas
+    window._logSinPreencherDeclarante();
+
+    // Ocultar e limpar seção de colaborador (Step 1 e Step 2)
+    var colabS1 = document.getElementById('log-sin-dados-colab-section-s1');
+    var colabS1Rows = document.getElementById('log-sin-dados-colab-rows-s1');
+    if (colabS1) { colabS1.style.display = 'none'; }
+    if (colabS1Rows) { colabS1Rows.innerHTML = ''; }
+
+    var colabS2 = document.getElementById('log-sin-dados-colab-section');
+    var colabS2Rows = document.getElementById('log-sin-dados-colab-rows');
+    if (colabS2) { colabS2.style.display = 'none'; }
+    if (colabS2Rows) { colabS2Rows.innerHTML = ''; }
+
+    // Ocultar e limpar seção de veículo (Step 1 e Step 2)
+    var veicS1 = document.getElementById('log-sin-veiculo-dados-step1');
+    var veicS1Rows = document.getElementById('log-sin-veiculo-dados-step1-rows');
+    if (veicS1) { veicS1.style.display = 'none'; }
+    if (veicS1Rows) { veicS1Rows.innerHTML = ''; }
+
+    var veicS2 = document.getElementById('log-sin-dados-veiculo-section');
+    var veicS2Rows = document.getElementById('log-sin-dados-veiculo-rows');
+    if (veicS2) { veicS2.style.display = 'none'; }
+    if (veicS2Rows) { veicS2Rows.innerHTML = ''; }
+
+    // Ao selecionar colaborador, atualizar dados exibidos
+    var selColab = document.getElementById('log-sin-colab-select');
+    if (selColab) {
+        selColab.onchange = function() { window._logSinAtualizarDadosColab(this.value); };
+    }
+
+    // Reset veículo e carregar lista
+    window._logSinVeiculoSelecionado = null;
+    var logPlacaInp = document.getElementById('log-sin-placa-search');
+    if (logPlacaInp) logPlacaInp.value = '';
+    var logVeicDD = document.getElementById('log-sin-veiculo-dropdown');
+    if (logVeicDD) logVeicDD.style.display = 'none';
+    window._logSinPreencherDadosVeiculo();
+    window._logSinCarregarVeiculos();
+
     m.style.display = 'flex';
+};
+
+// Helper: delega para _sinLinhaCopiavel (com scheme 'colab'|'veiculo'|'declarante')
+window._logSinLinhaCopiavel = function(label, value, scheme) {
+    if (typeof window._sinLinhaCopiavel === 'function') return window._sinLinhaCopiavel(label, value, scheme);
+    return label + ': ' + value; // fallback
+};
+
+// Preenche dados do declarante (Step 1 e Step 2)
+window._logSinPreencherDeclarante = function() {
+    var dados = [
+        { label: 'Nome da Mãe', value: 'Sandra Regina Mezuraro' },
+        { label: 'CNH', value: '04130394162' },
+        { label: 'Validade CNH', value: '16/10/2034' },
+        { label: 'Profissão', value: 'Publicitario' },
+        { label: 'Celular', value: '11 94788-4343' }
+    ];
+    var html = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, 'declarante'); }).join('');
+    ['log-sin-dados-declarante-rows', 'log-sin-dados-declarante-rows-s1'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
+};
+
+// Atualiza dados do colaborador selecionado (Step 1 e Step 2)
+window._logSinAtualizarDadosColab = function(colabId) {
+    var pares = [
+        { section: 'log-sin-dados-colab-section-s1', rows: 'log-sin-dados-colab-rows-s1' },
+        { section: 'log-sin-dados-colab-section',    rows: 'log-sin-dados-colab-rows' }
+    ];
+    if (!colabId) {
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
+    var c = (_logSinListaColabs || []).find(function(x) { return String(x.id) === String(colabId); });
+    if (!c) {
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
+    var dados = [];
+    if (c.nome_completo) dados.push({ label: 'Nome Completo', value: c.nome_completo });
+    if (c.endereco)      dados.push({ label: 'Endereço',      value: c.endereco });
+    if (c.telefone)      dados.push({ label: 'Telefone/Cel',  value: c.telefone });
+    if (!dados.length) {
+        pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
+    var html = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, 'colab'); }).join('');
+    pares.forEach(function(p) {
+        var section = document.getElementById(p.section);
+        var rows    = document.getElementById(p.rows);
+        if (section && rows) { rows.innerHTML = html; section.style.display = 'block'; }
+    });
+};
+
+// ---- VEÍCULO (Logística) ----
+window._logSinListaVeiculos = [];
+
+window._logSinCarregarVeiculos = async function() {
+    if (window._logSinListaVeiculos.length) return;
+    try {
+        var data = await apiGet('/frota/veiculos');
+        if (Array.isArray(data)) window._logSinListaVeiculos = data;
+    } catch(e) { console.warn('[logSinistros] Erro ao carregar veículos', e); }
+};
+
+window._logSinFiltrarVeiculos = function(q) {
+    var dd = document.getElementById('log-sin-veiculo-dropdown');
+    if (!dd) return;
+    var lista = window._logSinListaVeiculos;
+    if (!q || q.length < 1) { dd.style.display = 'none'; return; }
+    var termo = q.toLowerCase();
+    var filtrados = lista.filter(function(v) {
+        return (v.placa || '').toLowerCase().includes(termo) || (v.marca_modelo_versao || '').toLowerCase().includes(termo);
+    }).slice(0, 12);
+    if (!filtrados.length) { dd.style.display = 'none'; return; }
+    dd.innerHTML = filtrados.map(function(v) {
+        return '<div onclick="window._logSinSelecionarVeiculo(' + v.id + ')" ' +
+            'style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.85rem;" ' +
+            'onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">' +
+            '<strong style="color:#1e293b;">' + (v.placa || '') + '</strong>' +
+            '<span style="color:#64748b;margin-left:8px;">' + (v.marca_modelo_versao || '') + '</span>' +
+            '</div>';
+    }).join('');
+    dd.style.display = 'block';
+};
+
+window._logSinSelecionarVeiculo = function(id) {
+    var v = (window._logSinListaVeiculos || []).find(function(x) { return x.id === id; });
+    var dd = document.getElementById('log-sin-veiculo-dropdown');
+    var inp = document.getElementById('log-sin-placa-search');
+    if (dd) dd.style.display = 'none';
+    if (!v) return;
+    if (inp) inp.value = (v.placa || '') + (v.marca_modelo_versao ? ' — ' + v.marca_modelo_versao : '');
+    window._logSinVeiculoSelecionado = v;
+    window._logSinPreencherDadosVeiculo();
+};
+
+window._logSinPreencherDadosVeiculo = function() {
+    var v = window._logSinVeiculoSelecionado;
+    var s1 = document.getElementById('log-sin-veiculo-dados-step1');
+    var r1 = document.getElementById('log-sin-veiculo-dados-step1-rows');
+    var s2 = document.getElementById('log-sin-dados-veiculo-section');
+    var r2 = document.getElementById('log-sin-dados-veiculo-rows');
+    if (!v) {
+        if (s1) s1.style.display = 'none';
+        if (s2) s2.style.display = 'none';
+        return;
+    }
+    var dados = [];
+    if (v.placa)              dados.push({ label: 'Placa',          value: v.placa });
+    if (v.marca_modelo_versao)dados.push({ label: 'Modelo',         value: v.marca_modelo_versao });
+    if (v.ano_fabricacao)     dados.push({ label: 'Ano Fabricação', value: v.ano_fabricacao });
+    if (v.renavam)            dados.push({ label: 'Renavam',        value: v.renavam });
+    if (v.cor_predominante)   dados.push({ label: 'Cor',            value: v.cor_predominante });
+    var html = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, 'veiculo'); }).join('');
+    if (s1 && r1) { r1.innerHTML = html; s1.style.display = 'block'; }
+    if (s2 && r2) { r2.innerHTML = html; s2.style.display = 'block'; }
 };
 
 // _addLogSinOrcField removido - usar _logSinAdicionarOrcs com drag-and-drop
@@ -477,19 +700,16 @@ window._logSinAtualizarPreviewOrcs = function() {
 };
 
 window.logSinProcessarLeituraBO = async function() {
-    const colabSelect = document.getElementById('log-sin-colab-select');
-    if (!colabSelect.value) return alert('Por favor, selecione o colaborador envolvido no sinistro.');
-
     const fileInput = document.getElementById('log-sinistro-file-bo');
-    if (!fileInput.files.length) return alert('Selecione o arquivo do BO.');
+    if (!fileInput || !fileInput.files.length) return alert('Selecione o arquivo do BO.');
 
     const formData = new FormData();
     formData.append('arquivo', fileInput.files[0]);
 
-    const btn = document.querySelector('#log-sinistro-step-1 button');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo documento...';
-    btn.disabled = true;
+    const btn = document.getElementById('log-sin-btn-finalizar') ||
+                document.querySelector('#log-sinistro-step-2 button.btn-secondary');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo...'; btn.disabled = true; }
 
     let boletimData = {};
     try {
@@ -498,156 +718,165 @@ window.logSinProcessarLeituraBO = async function() {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
-        if (res.status === 401 || res.status === 403) {
-            alert("Aviso: Sua sessão expirou. Por favor, recarregue a página e faça login novamente para enviar o documento.");
-            location.reload();
-            return;
-        }
-
+        if (res.status === 401 || res.status === 403) { alert('Sessão expirada.'); location.reload(); return; }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro interno no servidor.');
-
+        if (!res.ok) throw new Error(data.error || 'Erro interno.');
         boletimData = data;
     } catch(e) {
         console.warn('Leitura BO falhou, modo manual:', e.message);
     } finally {
-        btn.innerHTML = oldText;
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
 
-        document.getElementById('log-sin-bo').value = boletimData.boletim || '';
-        document.getElementById('log-sin-data').value = boletimData.data_hora || '';
-        // Limpa "Crime Consumado..." da natureza antes de preencher
-        const naturezaLimpa = (boletimData.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
-        document.getElementById('log-sin-natureza').value = naturezaLimpa;
-        document.getElementById('log-sin-veiculo').value = boletimData.marca_modelo || '';
-        document.getElementById('log-sin-placa').value = boletimData.placa || '';
+        var fbo  = document.getElementById('log-sin-bo');      if (fbo)  fbo.value  = boletimData.boletim    || fbo.value  || '';
+        var fdt  = document.getElementById('log-sin-data');    if (fdt)  fdt.value  = boletimData.data_hora  || fdt.value  || '';
+        var fnat = document.getElementById('log-sin-natureza');if (fnat) fnat.value = (boletimData.natureza||'').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi,'').trim() || fnat.value || '';
+        var fvei = document.getElementById('log-sin-veiculo'); if (fvei) fvei.value = boletimData.marca_modelo || fvei.value || '';
+        var fpla = document.getElementById('log-sin-placa');   if (fpla) fpla.value = boletimData.placa || fpla.value || '';
 
         const temDados = boletimData.boletim || boletimData.natureza || boletimData.placa || boletimData.marca_modelo;
         const notifEl = document.getElementById('log-sin-bo-notif');
         if (notifEl) {
             notifEl.style.display = 'block';
-            if (temDados) {
-                notifEl.innerHTML = '<i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.';
-                notifEl.style.cssText = 'display:block;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
-            } else {
-                notifEl.innerHTML = '<i class="ph ph-warning"></i> Preenchimento automático não disponível para este PDF. Preencha os campos abaixo manualmente.';
-                notifEl.style.cssText = 'display:block;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
-            }
+            notifEl.innerHTML = temDados
+                ? '<i class="ph ph-check-circle"></i> Dados extraídos. Confira ou edite se necessário.'
+                : '<i class="ph ph-warning"></i> Preenchimento automático não disponível. Preencha manualmente.';
+            notifEl.style.cssText = temDados
+                ? 'display:block;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;'
+                : 'display:block;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;font-size:0.85rem;';
         }
-
-        document.getElementById('log-sinistro-step-1').style.display = 'none';
-        document.getElementById('log-sinistro-step-2').style.display = 'block';
     }
 };
 
-window.toggleLogSinistroDesconto = function(show) {
-    document.getElementById('area-log-sinistro-desconto').style.display = show ? 'block' : 'none';
-};
-
-window._calcLogSinParcela = function() {
-    const vTotalStr = document.getElementById('log-sin-valor-total').value || '0';
-    const vTotalRaw = parseFloat(vTotalStr.replace(/[^0-9,]/g,'').replace(',','.')) || 0;
-    const qtd = parseInt(document.getElementById('log-sin-parcelas').value) || 1;
-    const vParcela = vTotalRaw / qtd;
-    
-    document.getElementById('log-sin-valor-parcela-display').innerText = 'Parcela: R$ ' + vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    document.getElementById('log-sin-parcelas').dataset.valor_parcela = vParcela.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-};
-
-window.logSinSalvarFinal = async function() {
-    if (window._isSavingSinistro) return;
-
+// Step 1: Salvar sinistro logistica com status 'iniciado'
+window.logSinSalvarIniciado = async function() {
     const colabId = document.getElementById('log-sin-colab-select').value;
-    if (!colabId) return alert('Colaborador não selecionado.');
+    if (!colabId) return alert('Selecione o colaborador envolvido.');
 
-    const fileBO = document.getElementById('log-sinistro-file-bo').files[0];
-    if (!fileBO) return alert('O arquivo do BO não foi encontrado. Volte ao passo anterior.');
-
-    window._isSavingSinistro = true;
-
-    const temDesconto = 'Sim'; // Sempre passamos Sim para o RH avaliar
-    const parcelas = temDesconto === 'Sim' ? (document.getElementById('log-sin-parcelas')?.value || 1) : null;
-
-    const formData = new FormData();
-    formData.append('arquivo', fileBO);
-    formData.append('numero_boletim', document.getElementById('log-sin-bo').value || '');
-    formData.append('data_hora', document.getElementById('log-sin-data').value || '');
-    formData.append('natureza', document.getElementById('log-sin-natureza').value || '');
-    formData.append('veiculo', document.getElementById('log-sin-veiculo').value || '');
-    formData.append('placa', document.getElementById('log-sin-placa').value || '');
-    formData.append('desconto', temDesconto);
-
-    // Valor/parcelas serão definidos pelo RH ao finalizar
-
-    // Orçamentos
-    const filesOrc = window._logSinOrcFiles || [];
-    if (filesOrc.length > 0) {
-        const orcsBase64 = [];
-        for (const f of filesOrc) {
-            const b64 = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
-            orcsBase64.push(b64);
-        }
-        formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
-    }
-
-    const filesMidia = window._logSinMidiasFiles || [];
-
-    const btn = document.querySelector('#log-sinistro-step-2 button.btn-primary');
-    const oldText = btn.innerHTML;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Registrando...';
-    btn.disabled = true;
+    const btn = document.getElementById('log-sin-btn-iniciar');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
 
     try {
+        const formData = new FormData();
+        formData.append('status', 'iniciado');
+        const proto = document.getElementById('log-sin-protocolo');
+        if (proto && proto.value) formData.append('numero_boletim', proto.value);
+        if (window._logSinVeiculoSelecionado) {
+            formData.append('placa', window._logSinVeiculoSelecionado.placa || '');
+            formData.append('veiculo', window._logSinVeiculoSelecionado.marca_modelo_versao || '');
+        }
+
         const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
             body: formData
         });
         const data = await res.json();
-        
-        if (!res.ok) throw new Error(data.error || 'Erro ao registrar sinistro.');
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
 
-        const sinId = data.id;
+        window._logSinistroAtualId = data.id;
+        window._logSinistroAtualColabId = colabId;
 
-        // Upload media files to R2
-        if (filesMidia.length > 0 && sinId) {
-            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando Mídias...';
-            for (let i = 0; i < filesMidia.length; i++) {
-                btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando Mídias (${i+1}/${filesMidia.length})...`;
-                const mfData = new FormData();
-                mfData.append('file', filesMidia[i]);
-                try {
-                    const rMidia = await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
-                        body: mfData
-                    });
-                    if (!rMidia.ok) {
-                        const err = await rMidia.json();
-                        throw new Error(err.error || 'Erro ao enviar mídia.');
-                    }
-                } catch(e) {
-                    console.error('Falha ao enviar mídia:', e);
-                    alert('Falha ao enviar arquivo ' + filesMidia[i].name + ': ' + e.message);
-                }
-            }
+        document.getElementById('log-sinistro-step-1').style.display = 'none';
+        document.getElementById('log-sinistro-step-2').style.display = 'block';
+        const notif = document.getElementById('log-sin-bo-notif');
+        if (notif) {
+            notif.innerHTML = '<i class="ph ph-check-circle"></i> Sinistro criado com <strong>Status: Iniciado</strong>. Complete as informações abaixo (opcional).';
+            notif.style.cssText = 'display:block;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:0.6rem 0.85rem;margin-bottom:1rem;font-size:0.85rem;';
         }
-
-        if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro registrado com sucesso!', backgroundColor: '#10b981' }).showToast();
-        
-        document.getElementById('modal-logistica-novo-sinistro').style.display = 'none';
-        
-        // Recarregar a lista
+        if (window._logSinVeiculoSelecionado) {
+            var fv = document.getElementById('log-sin-veiculo'); if (fv) fv.value = window._logSinVeiculoSelecionado.marca_modelo_versao || '';
+            var fp = document.getElementById('log-sin-placa');   if (fp) fp.value = window._logSinVeiculoSelecionado.placa || '';
+        }
         await window.logSinCarregarListaGeral();
-        
     } catch(e) {
         alert('Erro ao salvar: ' + e.message);
     } finally {
-        btn.innerHTML = oldText;
-        btn.disabled = false;
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
+    }
+};
+
+// Step 2: Finalizar sinistro logistica via PATCH
+window.logSinFinalizarSinistro = async function() {
+    const sinId   = window._logSinistroAtualId;
+    const colabId = window._logSinistroAtualColabId;
+    if (!sinId || !colabId) return alert('Sinistro não identificado. Salve o Passo 1 primeiro.');
+
+    if (window._isSavingSinistro) return;
+    window._isSavingSinistro = true;
+
+    const btn = document.getElementById('log-sin-btn-finalizar');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
+
+    try {
+        const formData = new FormData();
+        formData.append('status', 'pendente');
+        formData.append('desconto', 'Sim');
+
+        var fbo  = document.getElementById('log-sin-bo');      if (fbo && fbo.value)  formData.append('numero_boletim', fbo.value);
+        var fdt  = document.getElementById('log-sin-data');    if (fdt && fdt.value)  formData.append('data_hora', fdt.value);
+        var fnat = document.getElementById('log-sin-natureza');if (fnat && fnat.value) formData.append('natureza', fnat.value);
+        var fvei = document.getElementById('log-sin-veiculo'); if (fvei && fvei.value) formData.append('veiculo', fvei.value);
+        var fpla = document.getElementById('log-sin-placa');   if (fpla && fpla.value) formData.append('placa', fpla.value);
+        var fpar = document.getElementById('log-sin-parcelas');if (fpar) formData.append('parcelas', fpar.value);
+        var fvtot= document.getElementById('log-sin-valor-total');if (fvtot && fvtot.value) formData.append('valor_total', fvtot.value);
+        var ftipo = document.getElementById('log-sin-tipo'); if (ftipo && ftipo.value) formData.append('tipo_sinistro', ftipo.value);
+        var fobs = document.getElementById('log-sin-observacoes'); if (fobs && fobs.value.trim()) formData.append('observacoes', fobs.value.trim());
+
+        // Orçamentos
+        const filesOrc = window._logSinOrcFiles || [];
+        if (filesOrc.length > 0) {
+            const orcsBase64 = [];
+            for (const f of filesOrc) {
+                const b64 = await new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); });
+                orcsBase64.push(b64);
+            }
+            formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
+        }
+
+        // Arquivo BO
+        const boFile = document.getElementById('log-sinistro-file-bo');
+        if (boFile && boFile.files.length) formData.append('arquivo', boFile.files[0]);
+
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao finalizar.');
+
+        // Mídias
+        const filesMidia = window._logSinMidiasFiles || [];
+        if (filesMidia.length > 0) {
+            if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando Mídias...';
+            for (let i = 0; i < filesMidia.length; i++) {
+                if (btn) btn.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Mídias (${i+1}/${filesMidia.length})...`;
+                const mfData = new FormData();
+                mfData.append('file', filesMidia[i]);
+                try {
+                    const rM = await fetch(`${API_URL}/sinistros/${sinId}/midia`, {
+                        method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }, body: mfData
+                    });
+                    if (!rM.ok) { const e = await rM.json(); console.error('Erro mídia:', e); }
+                } catch(e) { console.error('Falha mídia:', e); }
+            }
+        }
+
+        if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro finalizado!', backgroundColor: '#10b981' }).showToast();
+        document.getElementById('modal-logistica-novo-sinistro').style.display = 'none';
+        await window.logSinCarregarListaGeral();
+    } catch(e) {
+        alert('Erro ao finalizar: ' + e.message);
+    } finally {
+        if (btn) { btn.innerHTML = oldText; btn.disabled = false; }
         window._isSavingSinistro = false;
     }
 };
+
+// Alias para compatibilidade
+window.logSinSalvarFinal = window.logSinFinalizarSinistro;
 
 
 // ============================================================
@@ -665,6 +894,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
     window._logSinEditColabId      = colabId;
     window._logSinEditOrcFiles     = [];
     window._logSinEditNovasMidias  = [];
+    window._logSinEditBOFile       = null;
 
     // Buscar dados atuais do sinistro
     let sinistro = null;
@@ -673,7 +903,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
         sinistro = (lista || []).find(function(s) { return s.id === sinId; });
     } catch(e) { alert('Erro ao carregar sinistro.'); return; }
     if (!sinistro) { alert('Sinistro não encontrado.'); return; }
-    if (sinistro.status !== 'pendente') {
+    if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
         alert('Este sinistro já possui assinaturas e não pode ser editado.');
         return;
     }
@@ -699,135 +929,247 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
     }
 
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:660px; max-height:92vh; overflow-y:auto;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); position:sticky; top:0; z-index:10;">
+        <div class="modal-content" style="max-width:100vw; width:100vw; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; overflow:hidden;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0;">
                 <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;">
                     <i class="ph ph-pencil-simple" style="color:#60a5fa;"></i> Editar Sinistro
                     <span style="font-size:0.75rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:6px;">PENDENTE</span>
                 </h3>
                 <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
             </div>
-            <div class="modal-body" style="display:flex; flex-direction:column; gap:1rem;">
+            <div class="modal-body" style="display:flex; gap:1.5rem; flex:1; overflow-y:auto; padding:1.5rem;">
 
-                <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-warning"></i>
-                    Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
+                <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
+                <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
+
+                    <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-warning"></i>
+                        Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
+                    </div>
+
+                    <div id="edit-sin-msg" style="display:none; margin-bottom:0.5rem;"></div>
+
+                    <!-- BO Upload -->
+                    <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
+                        <div style="display:flex; gap:0.5rem; align-items:center;">
+                            <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
+                            <button type="button" class="btn btn-secondary" onclick="window.logSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
+                                <i class="ph ph-scan"></i> Analisar BO
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DADOS BÁSICOS -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem;">
+                        <div class="input-group">
+                            <label>Boletim Nº</label>
+                            <input type="text" id="edit-sin-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Data e Hora da Ocorrência</label>
+                            <input type="text" id="edit-sin-data" class="form-control" value="${sinistro.data_hora || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Natureza da Ocorrência</label>
+                            <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="input-group">
+                            <label>Marca/Modelo</label>
+                            <input type="text" id="edit-sin-veiculo" class="form-control" value="${sinistro.veiculo || ''}">
+                        </div>
+                        <div class="input-group">
+                            <label>Placa</label>
+                            <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}">
+                        </div>
+                    </div>
+
+                    <hr style="border-color:#e2e8f0; margin:0;">
+
+                    <!-- FOTOS E VÍDEOS EXISTENTES -->
+                    <div>
+                        <p style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-camera" style="color:#0369a1;"></i>
+                            Fotos e Vídeos Anexados
+                            <span id="edit-midias-count-badge" style="background:#e0f2fe; color:#0369a1; border-radius:12px; padding:1px 8px; font-size:0.72rem; font-weight:700;">
+                                ${midiasExistentes.length}
+                            </span>
+                        </p>
+                        <div id="edit-sin-midias-grid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px;">
+                            ${midiasExistentes.length === 0
+                                ? '<p style="font-size:0.8rem; color:#94a3b8; margin:0;">Nenhuma mídia anexada ainda.</p>'
+                                : ''}
+                        </div>
+                    </div>
+
+                    <!-- ADICIONAR NOVAS MÍDIAS -->
+                    <div style="background:#f0f9ff; padding:0.85rem; border-radius:8px; border:1px solid #bae6fd;">
+                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem; color:#0369a1;"><i class="ph ph-upload-simple"></i> Adicionar fotos e vídeos</p>
+                        <div id="edit-sin-midia-dropzone"
+                            style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                            onclick="document.getElementById('edit-sin-midias-file').click()"
+                            ondragover="event.preventDefault(); this.style.background='#bae6fd';"
+                            ondragleave="this.style.background='#e0f2fe';"
+                            ondrop="event.preventDefault(); this.style.background='#e0f2fe'; window._logSinEditAdicionarMidias(event.dataTransfer.files);">
+                            <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#0ea5e9; display:block; margin-bottom:4px;"></i>
+                            <p style="margin:0; font-weight:600; font-size:0.82rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
+                            <p style="margin:2px 0 0; font-size:0.72rem; color:#38bdf8;">ou clique &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
+                            <input type="file" id="edit-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
+                                onchange="window._logSinEditAdicionarMidias(this.files); this.value='';">
+                        </div>
+                        <div id="edit-sin-novas-midias-preview" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
+                    </div>
+
+                    <hr style="border-color:#e2e8f0; margin:0;">
+
+                    <!-- ORÇAMENTOS EXISTENTES -->
+                    ${orcsExistentes.length > 0 ? `
+                    <div>
+                        <p style="font-size:0.85rem; font-weight:700; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcsExistentes.length})</p>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${orcsExistentes.map(function(p, idx) {
+                                return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:4px;text-decoration:none;"><i class=\"ph ph-image\"></i> Orç. ' + (idx + 1) + '</a>';
+                            }).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- ADICIONAR NOVOS ORÇAMENTOS -->
+                    <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
+                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
+                        <div id="edit-sin-orc-dropzone"
+                            style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
+                            onclick="document.getElementById('edit-sin-orcs-file').click()"
+                            ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
+                            ondragleave="this.style.background='#f1f5f9';"
+                            ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._logSinEditAdicionarOrcs(event.dataTransfer.files);">
+                            <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
+                            <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste fotos dos orçamentos aqui</p>
+                            <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; apenas JPG e PNG</p>
+                            <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                                onchange="window._logSinEditAdicionarOrcs(this.files); this.value='';">
+                        </div>
+                        <div id="edit-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                        <p id="edit-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
+                    </div>
+
                 </div>
 
-                <!-- DADOS BÁSICOS -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                    <div class="input-group">
-                        <label>Boletim Nº</label>
-                        <input type="text" id="edit-sin-bo" class="form-control" value="${sinistro.numero_boletim || ''}">
+                <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
+                <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
+
+                    <!-- Tipo de Sinistro -->
+                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem;">
+                        <label style="color:#c2410c; font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
+                        <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
+                            <option value="">-- Selecione o tipo --</option>
+                            <option value="Danos em Terceiros e Nosso" ${sinistro.tipo_sinistro === 'Danos em Terceiros e Nosso' ? 'selected' : ''}>Danos em Terceiros e Nosso</option>
+                            <option value="Danos em Terceiros" ${sinistro.tipo_sinistro === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
+                            <option value="Danos no Nosso Veículo" ${sinistro.tipo_sinistro === 'Danos no Nosso Veículo' ? 'selected' : ''}>Danos no Nosso Veículo</option>
+                            <option value="Outros Danos" ${sinistro.tipo_sinistro === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
+                        </select>
                     </div>
-                    <div class="input-group">
-                        <label>Data e Hora da Ocorrência</label>
-                        <input type="text" id="edit-sin-data" class="form-control" value="${sinistro.data_hora || ''}">
+
+                    <!-- Histórico de Observações -->
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; flex:1;">
+                        <p style="margin:0 0 10px; font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-chat-text" style="color:#6366f1;"></i> Histórico de Observações
+                        </p>
+                        <div id="edit-sin-historico-obs" style="max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+                            ${(function() {
+                                let hist = [];
+                                try { if (sinistro.observacoes_historico) hist = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
+                                if (!hist.length && sinistro.observacoes) {
+                                    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
+                                        + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
+                                        + '<p style="margin:0;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                                }
+                                if (!hist.length) return '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
+                                // Mostrar do mais novo ao mais antigo
+                                return hist.slice().reverse().map(function(h) {
+                                    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+                                        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                        + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
+                                        + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
+                                        + '</div>'
+                                        + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                        + '</div>';
+                                }).join('');
+                            })()}
+                        </div>
+                        <hr style="border-color:#e2e8f0; margin:0 0 10px;">
+                        <p style="margin:0 0 5px; font-size:0.78rem; font-weight:600; color:#475569;"><i class="ph ph-plus-circle"></i> Nova Observação</p>
+                        <textarea id="edit-sin-nova-obs" class="form-control" rows="8" placeholder="Escreva uma nova observação aqui..." style="resize:vertical; font-size:0.85rem; min-height:180px; width:100%; box-sizing:border-box;"></textarea>
+                    </div>
+
+                    <!-- Botões -->
+                    <div style="display:flex; gap:0.5rem;">
+                        <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'"
+                            style="flex:1; border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:8px; padding:0.6rem 1rem; font-size:0.85rem; font-weight:600; cursor:pointer;">
+                            Cancelar
+                        </button>
+                        <button id="btn-edit-sin-salvar" onclick="window.logSinSalvarEdicao()"
+                            style="flex:2; border:none; background:#059669; color:#fff; border-radius:8px; padding:0.6rem 1.25rem; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <i class="ph ph-floppy-disk"></i> Salvar Alterações
+                        </button>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Natureza da Ocorrência</label>
-                    <input type="text" id="edit-sin-natureza" class="form-control" value="${(sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim()}">
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-                    <div class="input-group">
-                        <label>Marca/Modelo</label>
-                        <input type="text" id="edit-sin-veiculo" class="form-control" value="${sinistro.veiculo || ''}">
-                    </div>
-                    <div class="input-group">
-                        <label>Placa</label>
-                        <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}">
-                    </div>
-                </div>
-
-                <hr style="border-color:#e2e8f0; margin:0;">
-
-                <!-- FOTOS E VÍDEOS EXISTENTES -->
-                <div>
-                    <p style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0 0 8px; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-camera" style="color:#0369a1;"></i>
-                        Fotos e Vídeos Anexados
-                        <span id="edit-midias-count-badge" style="background:#e0f2fe; color:#0369a1; border-radius:12px; padding:1px 8px; font-size:0.72rem; font-weight:700;">
-                            ${midiasExistentes.length}
-                        </span>
-                    </p>
-                    <div id="edit-sin-midias-grid" style="display:flex; flex-wrap:wrap; gap:8px; min-height:40px;">
-                        ${midiasExistentes.length === 0
-                            ? '<p style="font-size:0.8rem; color:#94a3b8; margin:0;">Nenhuma mídia anexada ainda.</p>'
-                            : ''}
-                    </div>
-                </div>
-
-                <!-- ADICIONAR NOVAS MÍDIAS -->
-                <div style="background:#f0f9ff; padding:0.85rem; border-radius:8px; border:1px solid #bae6fd;">
-                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem; color:#0369a1;"><i class="ph ph-upload-simple"></i> Adicionar fotos e vídeos</p>
-                    <div id="edit-sin-midia-dropzone"
-                        style="border:2px dashed #7dd3fc; border-radius:10px; background:#e0f2fe; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                        onclick="document.getElementById('edit-sin-midias-file').click()"
-                        ondragover="event.preventDefault(); this.style.background='#bae6fd';"
-                        ondragleave="this.style.background='#e0f2fe';"
-                        ondrop="event.preventDefault(); this.style.background='#e0f2fe'; window._logSinEditAdicionarMidias(event.dataTransfer.files);">
-                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#0ea5e9; display:block; margin-bottom:4px;"></i>
-                        <p style="margin:0; font-weight:600; font-size:0.82rem; color:#0369a1;">Arraste fotos e vídeos aqui</p>
-                        <p style="margin:2px 0 0; font-size:0.72rem; color:#38bdf8;">ou clique &bull; múltiplos arquivos &bull; Máx. 500MB cada</p>
-                        <input type="file" id="edit-sin-midias-file" multiple accept="image/*,video/*" style="display:none;"
-                            onchange="window._logSinEditAdicionarMidias(this.files); this.value='';">
-                    </div>
-                    <div id="edit-sin-novas-midias-preview" style="display:none; margin-top:10px; flex-wrap:wrap; gap:8px;"></div>
-                </div>
-
-                <hr style="border-color:#e2e8f0; margin:0;">
-
-                <!-- ORÇAMENTOS EXISTENTES -->
-                ${orcsExistentes.length > 0 ? `
-                <div>
-                    <p style="font-size:0.85rem; font-weight:700; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcsExistentes.length})</p>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                        ${orcsExistentes.map(function(p, idx) {
-                            return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:4px;text-decoration:none;"><i class=\"ph ph-image\"></i> Orç. ' + (idx + 1) + '</a>';
-                        }).join('')}
-                    </div>
-                </div>
-                ` : ''}
-
-                <!-- ADICIONAR NOVOS ORÇAMENTOS -->
-                <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
-                    <div id="edit-sin-orc-dropzone"
-                        style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
-                        onclick="document.getElementById('edit-sin-orcs-file').click()"
-                        ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
-                        ondragleave="this.style.background='#f1f5f9';"
-                        ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._logSinEditAdicionarOrcs(event.dataTransfer.files);">
-                        <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
-                        <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; apenas JPG e PNG</p>
-                        <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
-                            onchange="window._logSinEditAdicionarOrcs(this.files); this.value='';">
-                    </div>
-                    <div id="edit-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
-                    <p id="edit-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
-                </div>
-
-                <div id="edit-sin-msg" style="display:none; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem;"></div>
-            </div>
-            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:0.5rem; padding:1rem 1.25rem; border-top:1px solid #e2e8f0; background:#f8fafc; position:sticky; bottom:0; z-index:10;">
-                <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'"
-                    style="border:1px solid #e2e8f0; background:#fff; color:#374151; border-radius:8px; padding:0.5rem 1rem; font-size:0.85rem; font-weight:600; cursor:pointer;">
-                    Cancelar
-                </button>
-                <button id="btn-edit-sin-salvar" onclick="window.logSinSalvarEdicao()"
-                    style="border:none; background:#059669; color:#fff; border-radius:8px; padding:0.5rem 1.25rem; font-size:0.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                    <i class="ph ph-floppy-disk"></i> Salvar Alterações
-                </button>
             </div>
         </div>
     `;
+
 
     modal.style.display = 'flex';
 
     // Renderizar grade de mídias existentes
     window._logSinEditRenderMidiasExistentes();
+};
+
+window.logSinEditProcessarLeituraBO = async function(btn) {
+    const fileInput = document.getElementById('edit-sin-file-bo');
+    if (!fileInput || !fileInput.files.length) return alert('Selecione o arquivo do BO em PDF.');
+
+    const formData = new FormData();
+    formData.append('arquivo', fileInput.files[0]);
+
+    const oldText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Lendo...'; 
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/extrair-bo`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` },
+            body: formData
+        });
+        if (res.status === 401 || res.status === 403) { alert('Sessão expirada.'); location.reload(); return; }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro na leitura.');
+
+        const fbo = document.getElementById('edit-sin-bo');
+        if (fbo && data.protocolo && !fbo.value) fbo.value = data.protocolo;
+        
+        const fdt = document.getElementById('edit-sin-data'); 
+        if (fdt && data.data_hora) fdt.value = data.data_hora;
+        
+        const fnat = document.getElementById('edit-sin-natureza'); 
+        if (fnat && data.natureza) fnat.value = data.natureza.replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
+
+        window._logSinEditBOFile = fileInput.files[0];
+
+        const notif = document.getElementById('edit-sin-msg');
+        if (notif) {
+            notif.innerHTML = '<i class="ph ph-check-circle"></i> Leitura concluída! O PDF também será salvo ao enviar.';
+            notif.style.cssText = 'display:block; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; margin-bottom:10px;';
+        }
+    } catch(e) {
+        alert('Erro ao analisar BO: ' + e.message);
+    } finally {
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+    }
 };
 
 window._logSinEditRenderMidiasExistentes = function() {
@@ -1055,12 +1397,30 @@ window.logSinSalvarEdicao = async function() {
 
     try {
         // 1) Salvar campos básicos e orçamentos
-        var formData = new URLSearchParams();
-        formData.set('numero_boletim', document.getElementById('edit-sin-bo')?.value || '');
-        formData.set('data_hora',      document.getElementById('edit-sin-data')?.value || '');
-        formData.set('natureza',       document.getElementById('edit-sin-natureza')?.value || '');
-        formData.set('veiculo',        document.getElementById('edit-sin-veiculo')?.value || '');
-        formData.set('placa',          document.getElementById('edit-sin-placa')?.value || '');
+        var formData = new FormData();
+        if (document.getElementById('edit-sin-bo')) formData.append('numero_boletim', document.getElementById('edit-sin-bo').value);
+        if (document.getElementById('edit-sin-data')) formData.append('data_hora', document.getElementById('edit-sin-data').value);
+        if (document.getElementById('edit-sin-natureza')) formData.append('natureza', document.getElementById('edit-sin-natureza').value);
+        if (document.getElementById('edit-sin-veiculo')) formData.append('veiculo', document.getElementById('edit-sin-veiculo').value);
+        if (document.getElementById('edit-sin-placa')) formData.append('placa', document.getElementById('edit-sin-placa').value);
+        var fTipo = document.getElementById('edit-sin-tipo'); if (fTipo && fTipo.value) formData.append('tipo_sinistro', fTipo.value);
+        var fNovaObs = document.getElementById('edit-sin-nova-obs');
+        if (fNovaObs && fNovaObs.value.trim()) {
+            formData.append('nova_observacao', fNovaObs.value.trim());
+            var nomeAutor = (typeof currentUser !== 'undefined' && currentUser)
+                ? (currentUser.nome || currentUser.username || 'Sistema')
+                : 'Sistema';
+            formData.append('autor_observacao', nomeAutor);
+        }
+
+        if (window._logSinEditBOFile) {
+            formData.append('arquivo', window._logSinEditBOFile);
+        } else {
+            var fFile = document.getElementById('edit-sin-file-bo');
+            if (fFile && fFile.files.length > 0) {
+                formData.append('arquivo', fFile.files[0]);
+            }
+        }
 
         if (window._logSinEditOrcFiles && window._logSinEditOrcFiles.length > 0) {
             if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando orçamentos...';
@@ -1072,16 +1432,15 @@ window.logSinSalvarEdicao = async function() {
                 });
                 orcsBase64.push(b64);
             }
-            formData.set('orcamentos_base64', JSON.stringify(orcsBase64));
+            formData.append('orcamentos_base64', JSON.stringify(orcsBase64));
         }
 
         var resPatch = await fetch(API_URL + '/colaboradores/' + colabId + '/sinistros/' + sinId, {
             method: 'PATCH',
             headers: {
-                'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || ''),
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || '')
             },
-            body: formData.toString()
+            body: formData
         });
         var patchData = await resPatch.json();
         if (!resPatch.ok) throw new Error(patchData.error || 'Erro ao salvar campos.');
@@ -1108,10 +1467,47 @@ window.logSinSalvarEdicao = async function() {
         }
 
         showMsg('Sinistro atualizado com sucesso!', true);
-        setTimeout(async function() {
-            document.getElementById('modal-log-sin-editar').style.display = 'none';
-            await window.logSinCarregarListaGeral();
-        }, 1200);
+
+        // Limpar campo de nova observação e recarregar histórico
+        var obsField = document.getElementById('edit-sin-nova-obs');
+        if (obsField) obsField.value = '';
+
+        // Atualizar o histórico de observações sem fechar o modal
+        try {
+            var resSin = await fetch(API_URL + '/colaboradores/' + colabId + '/sinistros', {
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || '') }
+            });
+            if (resSin.ok) {
+                var listaSin = await resSin.json();
+                var sinAtual = Array.isArray(listaSin) ? listaSin.find(function(s) { return s.id == sinId; }) : null;
+                if (sinAtual) {
+                    var histContainer = document.getElementById('edit-sin-historico-obs');
+                    if (histContainer) {
+                        var hist = [];
+                        try { if (sinAtual.observacoes_historico) hist = JSON.parse(sinAtual.observacoes_historico); } catch(e) {}
+                        if (!hist.length && sinAtual.observacoes) {
+                            histContainer.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;"><p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p><p style="margin:0;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                        } else if (!hist.length) {
+                            histContainer.innerHTML = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
+                        } else {
+                            histContainer.innerHTML = hist.slice().reverse().map(function(h) {
+                                return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+                                    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                    + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
+                                    + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
+                                    + '</div>'
+                                    + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                    + '</div>';
+                            }).join('');
+                        }
+                        histContainer.scrollTop = 0; // Topo = mais recente
+                    }
+                }
+            }
+        } catch(eHist) { console.warn('Erro ao recarregar histórico:', eHist); }
+
+        // Atualizar lista geral em background sem fechar o modal
+        if (typeof window.logSinCarregarListaGeral === 'function') window.logSinCarregarListaGeral();
 
     } catch(e) {
         showMsg(e.message, false);
@@ -1119,6 +1515,40 @@ window.logSinSalvarEdicao = async function() {
         if (btn) { btn.disabled = false; btn.innerHTML = oldTxt; }
     }
 }
+
+// ============================================================
+// EXCLUSÃO DE SINISTRO
+// ============================================================
+window.logSinExcluirSinistro = async function(sinId, colabId) {
+    if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
+    
+    const senha = prompt('Para excluir o sinistro, digite a senha de autorização:');
+    if (senha !== 'EXL2499!') {
+        return alert('Senha incorreta. Exclusão cancelada.');
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/colaboradores/${colabId}/sinistros/${sinId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('erp_token')}`,
+                'x-delete-password': senha
+            }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir sinistro.');
+
+        if (typeof Toastify !== 'undefined') {
+            Toastify({ text: 'Sinistro excluído com sucesso!', backgroundColor: '#10b981' }).showToast();
+        } else {
+            alert('Sinistro excluído com sucesso!');
+        }
+
+        await window.logSinCarregarListaGeral();
+    } catch (e) {
+        alert('Erro ao excluir: ' + e.message);
+    }
+};
 
 // ============================================================
 // MODAL DE VÍDEO EXPLICATIVO
