@@ -9723,7 +9723,7 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                     }
                                 });
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
-                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at };
+                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas };
                             });
 
                             const result = colabs.map(c => {

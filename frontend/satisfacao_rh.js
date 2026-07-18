@@ -181,8 +181,8 @@
         const ultimoPeriodo = periodos[periodos.length - 1];
         const periodoKey = ultimoPeriodo ? `${ultimoPeriodo.ano}-T${ultimoPeriodo.trimestre}` : null;
 
-        const responderam = _dash.contagens?.respondidosLastP || 0;
-        const total = _dash.contagens?.contagemTotal || colabs.length;
+        const responderam = colabs.filter(c => periodoKey && c.pesquisas?.[periodoKey]?.respondido).length;
+        const total = colabs.length;
         const faltam = total - responderam;
         const pct = total > 0 ? ((responderam / total) * 100).toFixed(1).replace('.0', '') : 0;
 
@@ -234,11 +234,6 @@
                 <div class="sc-label">Média geral (último período)</div>
                 <div class="sc-val" style="color:${mc};">${mediaGeral}</div>
                 <div class="sc-sub">${trendHTML}</div>
-            </div>
-            <div class="sat-card">
-                <div class="sc-label">Ciclos avaliados</div>
-                <div class="sc-val" style="color:#0ea5e9;">${periodos.length}</div>
-                <div class="sc-sub">${periodos.map(periodLabel).join(' · ')}</div>
             </div>
         </div>`;
     }
@@ -312,6 +307,8 @@
 
             topicos.forEach(t => {
                 const vals = periodos.map(p => t[`${p.ano}-T${p.trimestre}`] ?? null);
+                if (vals.every(v => v === null)) return; // Oculta tópicos sem dados
+
                 const firstValid = vals.find(v => v !== null);
                 const lastValid = [...vals].reverse().find(v => v !== null);
                 const variacao = (firstValid !== undefined && lastValid !== undefined && firstValid !== lastValid)
@@ -461,7 +458,7 @@
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
-                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}')" style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}</button>
+                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}', '${lastP && lastP.respostas ? JSON.stringify(lastP.respostas).replace(/'/g, "\\'") : '{}'}')" style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}</button>
             </td>
         </tr>`;
     }
@@ -506,11 +503,14 @@
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._satOpenForm = function(colabId, nome, cargo, dept) {
+    window._satOpenForm = function(colabId, nome, cargo, dept, respostasStr = '{}') {
         if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
             alert('Erro: Perguntas de satisfação não carregadas.');
             return;
         }
+        
+        let saved = {};
+        try { saved = JSON.parse(respostasStr); } catch(e) {}
         
         const grupo = grupoFromDeptCargo(dept, cargo);
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
@@ -545,6 +545,8 @@
             `;
             
             perguntasGroup[topico].forEach((pergunta, idx) => {
+                const val = saved[topico] ? saved[topico][idx] : null;
+                const obsStr = (saved.__obs__ && saved.__obs__[topico] && saved.__obs__[topico][idx]) ? saved.__obs__[topico][idx] : '';
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
                     <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
@@ -557,10 +559,11 @@
                 
                 for(let v=1; v<=5; v++) {
                     const c = qColors[v]; const bg = bgColors[v];
+                    const checked = (val == v) ? 'checked' : '';
                     html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
-                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" required style="position:absolute; opacity:0; pointer-events:none;">
-                        <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:#fff; color:${c}; transition:all 0.15s;" 
+                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checked} required style="position:absolute; opacity:0; pointer-events:none;">
+                        <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:${checked?bg:'#fff'}; color:${checked?'#fff':c}; border-color:${checked?c:'#cbd5e1'}; transition:all 0.15s;" 
                              onclick="this.parentElement.parentElement.querySelectorAll('.sat-rbtn').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
                              data-color="${c}" data-bg="${c}">
                             ${v}
@@ -570,7 +573,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${obsStr.replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -578,10 +581,11 @@
             catIdx++;
         });
 
+        const infoAdic = (saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '';
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
-                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra..."></textarea>
+                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
