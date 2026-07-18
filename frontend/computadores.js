@@ -234,10 +234,11 @@
                 
                 var btnHist = temComp ? '<button onclick="window.computadoresToggleHistorico(' + compsDoColab[0].id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;display:flex;align-items:center;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-down" style="font-size:0.7rem;margin-left:2px;"></i></button>' : '';
                 var btnDev = '<button onclick="window.computadoresDevolverMulti(' + c.id + ',\'' + (c.nome_completo.replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;display:flex;align-items:center;gap:3px;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
-                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnDev + '</div>';
+                var btnVincular = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:5px 9px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;" title="Atribuir"><i class="ph ph-link"></i> Atribuir</button>';
+                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnVincular + btnDev + '</div>';
             } else {
                 eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
-                acoes = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Vincular Equipamentos</button>';
+                acoes = '<button onclick="window.computadoresVincularModal(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Atribuir</button>';
             }
 
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
@@ -985,13 +986,22 @@
         var c = _colaboradores.find(function(x){ return x.id === _vincularColabId; });
         if(!c) return '';
 
-        var compOpts = '<option value="">— Selecione um Computador —</option>' +
-            _computadores.filter(function(cp) { return !cp.colaborador_id && (cp.status === 'Disponível' || cp.status === 'Reserva' || cp.status === 'Devolvido'); })
-            .map(function(cp) {
-                return '<option value="'+cp.id+'">'+(cp.tipo||'Computador')+' '+cp.modelo+' (Patr: '+cp.patrimonio+')</option>';
-            }).join('');
+        var temCompColab = _computadores.some(function(cp) { return String(cp.colaborador_id) === String(_vincularColabId); });
+        var compBlock = '';
+        if (temCompColab) {
+            compBlock = '<div style="font-size:0.85rem;color:#dc2626;background:#fef2f2;padding:0.5rem;border-radius:6px;border:1px solid #fecaca;"><i class="ph ph-warning"></i> Colaborador já possui computador. Devolva-o para atribuir outro.</div>' +
+                        '<input type="hidden" id="vincular-comp-id" value="">';
+        } else {
+            var compOpts = '<option value="">- Selecione um Computador -</option>' +
+                _computadores.filter(function(cp) { return !cp.colaborador_id && (cp.status === 'Disponível' || cp.status === 'Reserva' || cp.status === 'Devolvido'); })
+                .map(function(cp) {
+                    return '<option value="'+cp.id+'">'+(cp.tipo||'Computador')+' '+cp.modelo+' (Patr: '+cp.patrimonio+')</option>';
+                }).join('');
+            compBlock = '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Computador</label>' +
+                        '<select id="vincular-comp-id" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + compOpts + '</select></div>';
+        }
 
-        var emailsList = _emails.filter(function(em) { return !em.colaborador_id && !em.caixa_compartilhada; })
+        var emailsList = _emails.filter(function(em) { return !em.colaborador_id && !em.caixa_compartilhada && em.status !== 'Bloqueado'; })
             .map(function(em) {
                 return '<label style="display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:0.85rem;cursor:pointer;" class="email-cb-item">' +
                        '<input type="checkbox" value="'+em.id+'" class="cb-vincular-email"> ' +
@@ -1006,8 +1016,7 @@
             '<h3 style="margin:0;font-size:1.1rem;color:#0f172a;display:flex;align-items:center;gap:8px;"><i class="ph ph-link" style="color:#4f46e5;font-size:1.4rem;"></i> Vincular a '+(c.nome_completo)+'</h3>' +
             '<button onclick="document.getElementById(\'modal-vincular-equipamentos\').style.display=\'none\'" style="background:none;border:none;font-size:1.2rem;color:#94a3b8;cursor:pointer;">&times;</button></div>' +
             '<div style="padding:1.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;">' +
-            '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Computador</label>' +
-            '<select id="vincular-comp-id" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + compOpts + '</select></div>' +
+            compBlock +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">E-mails</label>' +
             '<div style="border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
             '<div style="padding:0.4rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;">' +
