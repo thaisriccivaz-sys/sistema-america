@@ -9714,12 +9714,19 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                 try { respostas = JSON.parse(a.respostas_json || '{}'); } catch(e) {}
                                 // Calcular média geral de todas as notas do JSON
                                 let todas = [];
-                                Object.values(respostas).forEach(val => {
-                                    if (Array.isArray(val)) todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
-                                    else if (typeof val === 'number' && !isNaN(val)) todas.push(val);
-                                    else if (val && typeof val.media === 'number') todas.push(val.media);
-                                    else if (typeof val === 'object' && val !== null) {
-                                        todas = todas.concat(Object.values(val).filter(n => typeof n === 'number' && !isNaN(n)));
+                                Object.entries(respostas).forEach(([topico, val]) => {
+                                    if (topico === '__obs__' || topico === '__status__') return; // ignorar observações
+                                    if (Array.isArray(val)) {
+                                        todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
+                                    } else if (typeof val === 'number' && !isNaN(val)) {
+                                        todas.push(val);
+                                    } else if (val && typeof val.media === 'number') {
+                                        todas.push(val.media);
+                                    } else if (typeof val === 'object' && val !== null) {
+                                        // formato { '0': 3, '1': 5, ... }
+                                        Object.values(val).forEach(n => {
+                                            if (typeof n === 'number' && !isNaN(n)) todas.push(n);
+                                        });
                                     }
                                 });
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;

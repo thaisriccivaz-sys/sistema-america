@@ -458,7 +458,16 @@
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
-                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}', '${lastP && lastP.respostas ? JSON.stringify(lastP.respostas).replace(/'/g, "\\'") : '{}'}')" style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}</button>
+                <button
+                    data-colab-id="${c.id}"
+                    data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
+                    data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
+                    data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
+                    data-respostas='${lastP && lastP.respostas ? JSON.stringify(lastP.respostas).replace(/'/g, "&#39;") : "{}"}'
+                    onclick="window._satOpenFormBtn(this)"
+                    style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
+                </button>
             </td>
         </tr>`;
     }
@@ -500,17 +509,28 @@
     window._satSortColabs = function (col) {
         if (_sortCol === col) _sortDir *= -1;
         else { _sortCol = col; _sortDir = 1; }
+        const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._satOpenForm = function(colabId, nome, cargo, dept, respostasStr = '{}') {
+    window._satOpenFormBtn = function(btn) {
+        const id = parseInt(btn.dataset.colabId, 10);
+        const nome = btn.dataset.colabNome;
+        const cargo = btn.dataset.colabCargo;
+        const dept = btn.dataset.colabDept;
+        let saved = {};
+        try { saved = JSON.parse(btn.dataset.respostas || '{}'); } catch(e) {}
+        window._satOpenForm(id, nome, cargo, dept, saved);
+    };
+
+    window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
         if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
             alert('Erro: Perguntas de satisfação não carregadas.');
             return;
         }
-        
-        let saved = {};
-        try { saved = JSON.parse(respostasStr); } catch(e) {}
+        if (typeof saved === 'string') {
+            try { saved = JSON.parse(saved); } catch(e) { saved = {}; }
+        }
         
         const grupo = grupoFromDeptCargo(dept, cargo);
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
