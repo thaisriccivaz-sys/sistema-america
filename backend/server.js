@@ -9566,6 +9566,27 @@ app.post('/api/avaliacao-templates/dedup', authenticateToken, (req, res) => {
 
 // ─── DASHBOARD DE SATISFAÇÃO ──────────────────────────────────────────────────
 
+// DEBUG: ver formato real dos dados
+app.get('/api/debug/satisfacao-raw', authenticateToken, (req, res) => {
+    db.all(`SELECT a.id, a.colaborador_id, c.nome_completo, a.ano, a.trimestre, a.respostas_json
+            FROM avaliacoes a JOIN colaboradores c ON c.id=a.colaborador_id
+            WHERE a.tipo='satisfacao' ORDER BY a.created_at DESC LIMIT 10`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const result = (rows||[]).map(r => {
+            let parsed = null, keys = [], firstTopicKey = null, firstTopicSample = null;
+            try {
+                parsed = JSON.parse(r.respostas_json || '{}');
+                keys = Object.keys(parsed);
+                firstTopicKey = keys.find(k => k !== '__obs__' && k !== 'scores' && k !== 'topicos' && k !== 'info_adicional');
+                if (firstTopicKey) firstTopicSample = JSON.stringify(parsed[firstTopicKey]).substring(0, 120);
+                if (parsed.scores) firstTopicSample = 'OLD_FORMAT scores: ' + JSON.stringify(parsed.scores).substring(0, 120);
+            } catch(e) { firstTopicSample = 'PARSE_ERROR: ' + e.message; }
+            return { id: r.id, nome: r.nome_completo, ano: r.ano, tri: r.trimestre, keys, firstTopicKey, firstTopicSample };
+        });
+        res.json(result);
+    });
+});
+
 // GET /api/avaliacoes/satisfacao/dashboard
 // Retorna médias por departamento/grupo/tópico nas últimas 4 pesquisas (ano+trimestre distintos)
 app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) => {
