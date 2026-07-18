@@ -629,7 +629,6 @@
             '<input id="comp-atrib-email-avulso-nome" type="text" placeholder="Ex: Financeiro Geral" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data de Atribuição</label>' +
             '<input id="comp-atrib-email-data" type="date" value="' + (new Date().toISOString().split('T')[0]) + '" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
-            '<div style="margin-top:0.5rem;"><label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-atrib-email-copia"> Receber como Cópia</label></div>' +
             '</div>' +
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
             '<button onclick="document.getElementById(\'modal-comp-email-atribuir\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
@@ -924,15 +923,13 @@
         var colabId = tipo === 'colaborador' ? ((document.getElementById('comp-atrib-email-colab') || {}).value || null) : null;
         var nomeAvulso = tipo === 'avulso' ? (((document.getElementById('comp-atrib-email-avulso-nome') || {}).value || '').trim()) : null;
         var dataAt = (document.getElementById('comp-atrib-email-data') || {}).value || '';
-        var recebeCp = (document.getElementById('comp-atrib-email-copia') || {}).checked;
-
         if (tipo === 'colaborador' && !colabId) return alert('Selecione um colaborador.');
         if (tipo === 'avulso' && !nomeAvulso) return alert('Informe o nome do responsável.');
 
         fetch('/api/emails/' + emailId + '/atribuir', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
-            body: JSON.stringify({ colaborador_id: colabId, responsavel_nome: nomeAvulso, data_atribuicao: dataAt, recebe_copia: recebeCp })
+            body: JSON.stringify({ colaborador_id: colabId, responsavel_nome: nomeAvulso, data_atribuicao: dataAt })
         }).then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.error) return alert(data.error);
