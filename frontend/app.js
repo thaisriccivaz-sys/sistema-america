@@ -1070,8 +1070,6 @@ function navigateTo(target) {
         if (typeof window.initDesempenhoRH === 'function') setTimeout(() => window.initDesempenhoRH(), 80);
     } else if (target === 'experiencia-rh') {
         // placeholder
-    } else if (target === 'desempenho-rh') {
-        // placeholder
     } else if (target === 'terapias-rh') {
         // placeholder
     } else if (target === 'palestras-rh') {
