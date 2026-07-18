@@ -73,8 +73,8 @@
 
         try {
             const [dash, colabs] = await Promise.all([
-                fetchJSON('/api/avaliacoes/satisfacao/dashboard'),
-                fetchJSON('/api/avaliacoes/satisfacao/colaboradores'),
+                fetchJSON('/avaliacoes/satisfacao/dashboard'),
+                fetchJSON('/avaliacoes/satisfacao/colaboradores'),
             ]);
             _dash = dash;
             _colabs = colabs;
