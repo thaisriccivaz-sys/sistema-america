@@ -9589,11 +9589,12 @@ app.get('/api/debug/satisfacao-raw', authenticateToken, (req, res) => {
 
 // GET /api/avaliacoes/satisfacao/dashboard
 // Retorna médias por departamento/grupo/tópico nas últimas 4 pesquisas (ano+trimestre distintos)
-app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) => {
-    // Buscar as 4 últimas combinações distintas de ano+trimestre para satisfação
+app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
+    const tipoAval = req.params.tipo || 'satisfacao';
+    // Buscar as 4 últimas combinações distintas de ano+trimestre para o tipo
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
-        [],
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
             if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
@@ -9608,9 +9609,9 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                         c.departamento, c.cargo
                  FROM avaliacoes a
                  JOIN colaboradores c ON c.id = a.colaborador_id
-                 WHERE a.tipo = 'satisfacao'
+                 WHERE a.tipo = ?
                    AND (${orClauses})`,
-                params,
+                [tipoAval, ...params],
                 (err2, rows) => {
                     if (err2) return res.status(500).json({ error: err2.message });
 
@@ -9699,10 +9700,10 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                                 COUNT(a.id) as responderam
                          FROM avaliacoes a
                          JOIN colaboradores c ON c.id = a.colaborador_id
-                         WHERE a.tipo = 'satisfacao'
+                         WHERE a.tipo = ?
                            AND (${orClauses})
                          GROUP BY c.departamento, c.cargo, a.ano, a.trimestre`,
-                        params,
+                        [tipoAval, ...params],
                         (err3, contagens) => {
                             if (err3) return res.status(500).json({ error: err3.message });
                             res.json({ periodos: periodos.reverse(), dashboard: resultado, contagens: contagens || [] });
@@ -9716,10 +9717,11 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
 
 // GET /api/avaliacoes/satisfacao/colaboradores
 // Retorna todos os colaboradores ativos com histórico de satisfação (últimas 4 pesquisas)
-app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res) => {
+app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => {
+    const tipoAval = req.params.tipo || 'satisfacao';
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
-        [],
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
             const periodosOrdenados = (periodos || []).slice().reverse();
@@ -9741,9 +9743,9 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                     db.all(
                         `SELECT colaborador_id, ano, trimestre, respostas_json, created_at
                          FROM avaliacoes
-                         WHERE tipo = 'satisfacao' AND colaborador_id IN (${placeholders2})
+                         WHERE tipo = ? AND colaborador_id IN (${placeholders2})
                          ORDER BY ano DESC, trimestre DESC`,
-                        colabIds,
+                        [tipoAval, ...colabIds],
                         (err3, avaliacoes) => {
                             if (err3) return res.status(500).json({ error: err3.message });
 
