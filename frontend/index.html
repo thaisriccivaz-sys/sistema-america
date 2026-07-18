@@ -1061,20 +1061,33 @@
                     <!-- TAB: Pendentes -->
                     <div id="assinaturas-tab-pendentes" style="display:none; margin-top: 20px;">
                         <div class="card" style="padding: 1.5rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap:wrap; gap:0.5rem;">
                                 <h3 style="margin:0; font-size: 1.1rem;">Geradas recentemente</h3>
                                 <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
-                                    <i class="ph ph-download-simple"></i> Baixar Todas (ZIP)
+                                    <i class="ph ph-download-simple"></i> Baixar Pendentes (ZIP)
                                 </button>
+                            </div>
+                            <!-- Filtros -->
+                            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;">
+                                <i class="ph ph-funnel" style="color:#94a3b8;font-size:1.1rem;"></i>
+                                <input id="ass-filter-nome" type="text" placeholder="Buscar por nome..." oninput="assinaturasAplicarFiltro()" style="flex:1;min-width:150px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">
+                                <input id="ass-filter-dept" type="text" placeholder="Departamento..." oninput="assinaturasAplicarFiltro()" style="flex:1;min-width:130px;border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;">
+                                <select id="ass-filter-status" onchange="assinaturasAplicarFiltro()" style="border:1.5px solid #e2e8f0;border-radius:7px;padding:0.4rem 0.7rem;font-size:0.85rem;background:#fff;outline:none;color:#475569;">
+                                    <option value="">Todos os status</option>
+                                    <option value="Pendente">Pendente</option>
+                                    <option value="Baixada">Baixado</option>
+                                </select>
                             </div>
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
                                         <tr>
                                             <th>Colaborador</th>
+                                            <th>Departamento</th>
                                             <th>Template</th>
-                                            <th>Data Criao</th>
-                                            <th>Baixar</th>
+                                            <th>Data de Cria&ccedil;&atilde;o</th>
+                                            <th>Status</th>
+                                            <th style="text-align:right;">A&ccedil;&otilde;es</th>
                                         </tr>
                                     </thead>
                                     <tbody id="assinaturas-table-pendentes"></tbody>
@@ -1083,6 +1096,35 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- Modal: Editar Dados da Assinatura -->
+                <div id="modal-ass-editar-dados" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.5);align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                            <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;"><i class="ph ph-pencil-simple" style="color:#6366f1;"></i> Editar Dados da Assinatura</h3>
+                            <button onclick="assinaturasFecharModalEditar()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button>
+                        </div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-bottom:1.25rem;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.6rem 0.75rem;"><i class="ph ph-info"></i> Essas informa&ccedil;&otilde;es ser&atilde;o usadas na assinatura. O cadastro do colaborador n&atilde;o ser&aacute; alterado.</p>
+                        <div style="display:flex;flex-direction:column;gap:1rem;">
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome (como aparece na assinatura)</label>
+                                <input id="ass-edit-nome" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Primeiro e &uacute;ltimo nome">
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">E-mail corporativo</label>
+                                <input id="ass-edit-email" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="email@americarental.com.br">
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Departamento</label>
+                                <input id="ass-edit-dept" type="text" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Departamento">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.75rem;margin-top:1.75rem;justify-content:flex-end;">
+                            <button onclick="assinaturasFecharModalEditar()" class="btn btn-secondary">Cancelar</button>
+                            <button onclick="assinaturasSalvarDados()" class="btn btn-primary"><i class="ph ph-floppy-disk"></i> Salvar</button>
+                        </div>
+                    </div>
+                </div>
                 
                 <section id="view-administrativo-senhas" class="content-view">
                     <div id="administrativo-senhas-container"></div>

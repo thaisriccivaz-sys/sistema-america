@@ -341,9 +341,17 @@ db.run(`CREATE TABLE IF NOT EXISTS assinaturas_pendentes (
     template_id INTEGER,
     status TEXT DEFAULT 'Aguardando',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    nome_exibicao TEXT,
+    email_exibicao TEXT,
+    dept_exibicao TEXT,
+    cargo_exibicao TEXT,
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id),
     FOREIGN KEY(template_id) REFERENCES assinatura_templates(id)
 )`);
+// Migração: adicionar colunas de exibição se não existirem
+['nome_exibicao','email_exibicao','dept_exibicao','cargo_exibicao'].forEach(col => {
+    db.run(`ALTER TABLE assinaturas_pendentes ADD COLUMN ${col} TEXT`, () => {});
+});
 
 // Tabela de auditoria do Resumo de Rota
 db.run(`CREATE TABLE IF NOT EXISTS resumo_rota_auditoria (
@@ -21556,20 +21564,51 @@ app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
 app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
     const query = `
         SELECT p.id as pendencia_id, COALESCE(p.status, 'Pendente') as pendencia_status, p.created_at,
-               c.id as colaborador_id, c.nome_completo as nome_colaborador, c.cargo, c.departamento, c.email_corporativo, c.telefone, c.telefone_corporativo,
+               c.id as colaborador_id, c.nome_completo as nome_colaborador, c.cargo, c.departamento,
+               c.email_corporativo, c.telefone, c.telefone_corporativo,
+               c.foto_path, c.foto_base64,
+               COALESCE(p.nome_exibicao, c.nome_completo) as nome_exibicao,
+               COALESCE(p.email_exibicao, c.email_corporativo) as email_exibicao,
+               COALESCE(p.dept_exibicao, c.departamento) as dept_exibicao,
+               COALESCE(p.cargo_exibicao, c.cargo) as cargo_exibicao,
                t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
         FROM colaboradores c
         JOIN departamentos d ON c.departamento = d.nome
         LEFT JOIN assinatura_templates t ON t.is_active = 1
         LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
-        WHERE d.tipo = 'Administrativo' 
-          AND c.status != 'Desligado' 
-          AND (p.id IS NULL OR p.status = 'Pendente')
-        ORDER BY c.nome_completo ASC
+        WHERE d.tipo = 'Administrativo'
+          AND c.status != 'Desligado'
+        ORDER BY CASE WHEN COALESCE(p.status, 'Pendente') = 'Pendente' THEN 0 ELSE 1 END ASC,
+                 c.nome_completo ASC
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
+    });
+});
+
+// Salvar dados de exibição editados (não afeta cadastro do colaborador)
+app.patch('/api/assinaturas/pendentes/:colabId/dados', authenticateToken, (req, res) => {
+    const colabId = req.params.colabId;
+    const { nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao } = req.body;
+    db.get(`SELECT p.id FROM assinaturas_pendentes p
+            JOIN assinatura_templates t ON t.id = p.template_id
+            WHERE p.colaborador_id = ? AND t.is_active = 1`, [colabId], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row) {
+            db.run(`UPDATE assinaturas_pendentes SET nome_exibicao=?, email_exibicao=?, dept_exibicao=?, cargo_exibicao=? WHERE id=?`,
+                [nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao, row.id],
+                (e) => { if (e) return res.status(500).json({ error: e.message }); res.json({ ok: true }); });
+        } else {
+            // Criar registro se ainda não existe
+            db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (e2, tpl) => {
+                if (e2 || !tpl) return res.status(400).json({ error: 'Nenhum template ativo' });
+                db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id, status, nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao)
+                        VALUES (?, ?, 'Pendente', ?, ?, ?, ?)`,
+                    [colabId, tpl.id, nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao],
+                    (e3) => { if (e3) return res.status(500).json({ error: e3.message }); res.json({ ok: true }); });
+            });
+        }
     });
 });
 
