@@ -1,12 +1,12 @@
-﻿/* ============================================================
-   desempenho_rh.js â€” Dashboard de SatisfaÃ§Ã£o dos Colaboradores
+/* ============================================================
+   satisfacao_rh.js — Dashboard de Desempenho dos Colaboradores
    ============================================================ */
 'use strict';
 
 (function () {
     const API = window.API_URL || '';
 
-    /* â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── helpers ─────────────────────────────────────────────── */
     function authHeaders() {
         const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('erp_token') || sessionStorage.getItem('token') || '';
         return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` };
@@ -33,10 +33,10 @@
     function trendIcon(arr, i) {
         if (i === 0 || arr[i - 1] === null || arr[i] === null) return '';
         const diff = arr[i] - arr[i - 1];
-        if (Math.abs(diff) < 0.1) return '<span style="color:#94a3b8">â†’</span>';
+        if (Math.abs(diff) < 0.1) return '<span style="color:#94a3b8">→</span>';
         return diff > 0
-            ? '<span style="color:#22c55e">â–²</span>'
-            : '<span style="color:#ef4444">â–¼</span>';
+            ? '<span style="color:#22c55e">▲</span>'
+            : '<span style="color:#ef4444">▼</span>';
     }
     function avatarHTML(col, size = 36) {
         const initials = (col.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
@@ -50,16 +50,16 @@
         return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:${Math.round(size*0.38)}px;font-weight:700;flex-shrink:0;">${initials}</div>`;
     }
     function fmtScore(v) {
-        return v !== null && v !== undefined ? v.toFixed(1) : 'â€”';
+        return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
         return `T${p.trimestre}/${p.ano}`;
     }
     function grupoLabel(g) {
-        return { escritorio: 'EscritÃ³rio', motorista: 'Motoristas', manutencao: 'ManutenÃ§Ã£o' }[g] || g;
+        return { escritorio: 'Escritório', motorista: 'Motoristas', manutencao: 'Manutenção' }[g] || g;
     }
 
-    /* â”€â”€ STATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── STATE ───────────────────────────────────────────────── */
     let _dash = null;   // { periodos, dashboard, contagens }
     let _colabs = null; // { periodos, colaboradores }
     let _filterGroup = 'all';
@@ -67,16 +67,16 @@
     let _sortCol = null;
     let _sortDir = 1;
 
-    /* â”€â”€ MAIN INIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── MAIN INIT ───────────────────────────────────────────── */
     window.initDesempenhoRH = async function () {
         const container = document.getElementById('desempenho-rh-container');
         if (!container) return;
-        container.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:#94a3b8;"><div class="spinner-sm"></div> Carregando dados de satisfaÃ§Ã£oâ€¦</div>';
+        container.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:#94a3b8;"><div class="spinner-sm"></div> Carregando dados de desempenho…</div>';
 
         try {
             const [dash, colabs] = await Promise.all([
-                fetchJSON('/avaliacoes/desempenho/dashboard'),
-                fetchJSON('/avaliacoes/desempenho/colaboradores'),
+                fetchJSON('/avaliacoes/satisfacao/dashboard'),
+                fetchJSON('/avaliacoes/satisfacao/colaboradores'),
             ]);
             _dash = dash;
             _colabs = colabs;
@@ -88,7 +88,7 @@
         render(container);
     };
 
-    /* â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── RENDER ──────────────────────────────────────────────── */
     function render(container) {
         const periodos = _dash.periodos || [];  // [{ano, trimestre}] crescente
         const hasData = periodos.length > 0;
@@ -149,8 +149,8 @@
         </style>
 
         <div id="sat-root">
-            <h1><i class="ph ph-smiley" style="color:#7c3aed;margin-right:.4rem;"></i>SatisfaÃ§Ã£o dos Colaboradores</h1>
-            <p class="sub">Acompanhe a satisfaÃ§Ã£o por departamento e tÃ³pico nas Ãºltimas 4 pesquisas</p>
+            <h1><i class="ph ph-smiley" style="color:#7c3aed;margin-right:.4rem;"></i>Desempenho dos Colaboradores</h1>
+            <p class="sub">Acompanhe a desempenho por departamento e tópico nas últimas 4 pesquisas</p>
 
             ${hasData ? '' : renderNoData()}
             ${hasData ? renderOverviewCards() : ''}
@@ -169,12 +169,12 @@
     function renderNoData() {
         return `<div class="no-data-box">
             <i class="ph ph-chart-bar"></i>
-            <h3 style="color:#334155;margin:0 0 .5rem;">Nenhuma pesquisa de satisfaÃ§Ã£o encontrada</h3>
-            <p style="margin:0;">Assim que os colaboradores responderem o formulÃ¡rio, os dados aparecerÃ£o aqui.</p>
+            <h3 style="color:#334155;margin:0 0 .5rem;">Nenhuma pesquisa de desempenho encontrada</h3>
+            <p style="margin:0;">Assim que os colaboradores responderem o formulário, os dados aparecerão aqui.</p>
         </div>`;
     }
 
-    /* â”€â”€ OVERVIEW CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── OVERVIEW CARDS ─────────────────────────────────────── */
     function renderOverviewCards() {
         const periodos = _dash.periodos || [];
         const colabs = _colabs.colaboradores || [];
@@ -186,15 +186,15 @@
         const faltam = total - responderam;
         const pct = total > 0 ? ((responderam / total) * 100).toFixed(1).replace('.0', '') : 0;
 
-        // MÃ©dia geral Ãºltima pesquisa
+        // Média geral última pesquisa
         let mediasUlt = [];
         _dash.dashboard.forEach(d => {
             const v = d[periodoKey];
             if (v !== null && v !== undefined) mediasUlt.push(v);
         });
-        const mediaGeral = mediasUlt.length > 0 ? (mediasUlt.reduce((a, b) => a + b, 0) / mediasUlt.length).toFixed(1) : 'â€”';
+        const mediaGeral = mediasUlt.length > 0 ? (mediasUlt.reduce((a, b) => a + b, 0) / mediasUlt.length).toFixed(1) : '—';
 
-        // tendÃªncia geral (Ãºltimo vs anterior)
+        // tendência geral (último vs anterior)
         let trendHTML = '';
         if (periodos.length >= 2) {
             const p1 = periodos[periodos.length - 2];
@@ -211,19 +211,19 @@
                 const m2 = sum2.reduce((a, b) => a + b, 0) / sum2.length;
                 const diff = m2 - m1;
                 trendHTML = diff >= 0.1
-                    ? `<span style="color:#22c55e;font-weight:700;">â–² +${diff.toFixed(1)} vs perÃ­odo anterior</span>`
+                    ? `<span style="color:#22c55e;font-weight:700;">▲ +${diff.toFixed(1)} vs período anterior</span>`
                     : diff <= -0.1
-                        ? `<span style="color:#ef4444;font-weight:700;">â–¼ ${diff.toFixed(1)} vs perÃ­odo anterior</span>`
-                        : `<span style="color:#94a3b8;">â†’ estÃ¡vel vs perÃ­odo anterior</span>`;
+                        ? `<span style="color:#ef4444;font-weight:700;">▼ ${diff.toFixed(1)} vs período anterior</span>`
+                        : `<span style="color:#94a3b8;">→ estável vs período anterior</span>`;
             }
         }
 
         const mc = scoreColor(parseFloat(mediaGeral));
         return `<div class="sat-cards">
             <div class="sat-card">
-                <div class="sc-label">Responderam (Ãºltimo perÃ­odo)</div>
+                <div class="sc-label">Responderam (último período)</div>
                 <div class="sc-val" style="color:#7c3aed;">${responderam}<span style="font-size:1rem;font-weight:400;color:#94a3b8;">/${total}</span></div>
-                <div class="sc-sub">${pct}% de adesÃ£o</div>
+                <div class="sc-sub">${pct}% de adesão</div>
             </div>
             <div class="sat-card">
                 <div class="sc-label">Faltam responder</div>
@@ -231,14 +231,14 @@
                 <div class="sc-sub">${ultimoPeriodo ? periodLabel(ultimoPeriodo) : ''}</div>
             </div>
             <div class="sat-card">
-                <div class="sc-label">MÃ©dia geral (Ãºltimo perÃ­odo)</div>
+                <div class="sc-label">Média geral (último período)</div>
                 <div class="sc-val" style="color:${mc};">${mediaGeral}</div>
                 <div class="sc-sub">${trendHTML}</div>
             </div>
         </div>`;
     }
 
-    /* â”€â”€ GROUP TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── GROUP TABS ──────────────────────────────────────────── */
     function renderGroupTabs() {
         const grupos = ['all', ...new Set((_dash.dashboard || []).map(d => d.grupo))];
         return `<div class="sat-tabs" id="sat-group-tabs">
@@ -258,7 +258,7 @@
         renderDashboardArea();
     };
 
-    /* â”€â”€ DASHBOARD AREA (topic table per group) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── DASHBOARD AREA (topic table per group) ──────────────── */
     function renderDashboardArea() {
         const area = document.getElementById('sat-dashboard-area');
         if (!area) return;
@@ -283,9 +283,9 @@
 
         let html = `
         <div class="sat-legend">
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (â‰¥4)</div>
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (3â€“3.9)</div>
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>CrÃ­tico (&lt;3)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (≥4)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (3–3.9)</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#ef4444;"></div>Crítico (&lt;3)</div>
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Sem dados</div>
         </div>`;
 
@@ -299,14 +299,14 @@
 
             html += `<div class="sat-table-wrap"><table class="sat-table">
                 <thead><tr>
-                    <th>TÃ³pico</th>
-                    ${periodos.map((p, i) => `<th style="text-align:center;">${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendÃªncia</span>' : ''}</th>`).join('')}
+                    <th>Tópico</th>
+                    ${periodos.map((p, i) => `<th style="text-align:center;">${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
                 </tr></thead>
                 <tbody>`;
 
             topicos.forEach(t => {
                 const vals = periodos.map(p => t[`${p.ano}-T${p.trimestre}`] ?? null);
-                if (vals.every(v => v === null)) return; // Oculta tÃ³picos sem dados
+                if (vals.every(v => v === null)) return; // Oculta tópicos sem dados
 
                 html += `<tr>
                     <td style="font-weight:600;color:#334155;">${t.topico}</td>
@@ -321,14 +321,14 @@
                 </tr>`;
             });
 
-            // Linha de mÃ©dia do grupo por perÃ­odo
+            // Linha de média do grupo por período
             const groupAvgs = periodos.map(p => {
                 const key = `${p.ano}-T${p.trimestre}`;
                 const vals = topicos.map(t => t[key]).filter(v => v !== null);
                 return vals.length > 0 ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)) : null;
             });
             html += `<tr style="background:#f8fafc;font-weight:700;">
-                <td style="color:#7c3aed;">MÃ©dia do grupo</td>
+                <td style="color:#7c3aed;">Média do grupo</td>
                 ${groupAvgs.map((v, i) => `<td>
                     <div style="display:flex;align-items:center;justify-content:center;gap:.45rem;">
                         <span class="score-pill" style="background:${scoreBg(v)};color:${scoreColor(v)};font-weight:800;">${fmtScore(v)}</span>
@@ -358,25 +358,25 @@
     function grupoFromDeptCargo(dept, cargo) {
         const d = (dept || '').toLowerCase();
         const c = (cargo || '').toLowerCase();
-        if (c.includes('motorista') || d.includes('motorista') || d.includes('logÃ­stica') || d.includes('logistica')) return 'motorista';
-        if (d.includes('manutencao') || d.includes('manutenÃ§Ã£o')) return 'manutencao';
+        if (c.includes('motorista') || d.includes('motorista') || d.includes('logística') || d.includes('logistica')) return 'motorista';
+        if (d.includes('manutencao') || d.includes('manutenção')) return 'manutencao';
         return 'escritorio';
     }
 
-    /* â”€â”€ COLABORADORES TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── COLABORADORES TABLE ─────────────────────────────────── */
     function renderColaboradoresSection() {
         const periodos = _colabs.periodos || [];
         return `
         <div class="sat-section-title" style="margin-top:2rem;">
             <i class="ph ph-users" style="color:#7c3aed;font-size:1.1rem;"></i>
-            Colaboradores â€” histÃ³rico individual
+            Colaboradores — histórico individual
         </div>
         <div class="sat-search-bar">
-            <input class="sat-search-input" id="sat-colab-search" placeholder="Filtrar por nome, departamento ou cargoâ€¦" oninput="window._desFilterColabs()" />
+            <input class="sat-search-input" id="sat-colab-search" placeholder="Filtrar por nome, departamento ou cargo…" oninput="window._desFilterColabs()" />
         </div>
         <div class="sat-legend" style="margin-bottom:.75rem;">
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>NÃ£o estava admitido na Ã©poca</div>
-            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#fef9c3;border:1px solid #fbbf24;"></div>NÃ£o respondeu</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Não estava admitido na época</div>
+            <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#fef9c3;border:1px solid #fbbf24;"></div>Não respondeu</div>
         </div>
         <div class="sat-table-wrap" id="sat-colab-table-wrap">
             ${renderColabTable()}
@@ -399,16 +399,16 @@
 
         return `
         <div style="padding:.6rem 1rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:.78rem;color:#64748b;">
-            Mostrando <strong>${colabs.length}</strong> colaboradores â€”
-            <span style="color:#22c55e;font-weight:600;">${responderam} responderam</span> o Ãºltimo perÃ­odo,
+            Mostrando <strong>${colabs.length}</strong> colaboradores —
+            <span style="color:#22c55e;font-weight:600;">${responderam} responderam</span> o último período,
             <span style="color:#f59e0b;font-weight:600;">${colabs.length - responderam} pendentes</span>
         </div>
         <table class="sat-table" id="sat-colab-table">
             <thead><tr>
-                <th onclick="window._desSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'â–²':'â–¼'):''}</th>
-                <th onclick="window._desSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'â–²':'â–¼'):''}</th>
+                <th onclick="window._desSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'▲':'▼'):''}</th>
+                <th onclick="window._desSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
                 ${periodos.map(p => `<th style="text-align:center;">${periodLabel(p)}</th>`).join('')}
-                <th style="text-align:center;width:100px;">AÃ§Ãµes</th>
+                <th style="text-align:center;width:100px;">Ações</th>
             </tr></thead>
             <tbody>
             ${colabs.map(c => renderColabRow(c, periodos)).join('')}
@@ -427,15 +427,15 @@
                     ${avatarHTML(c)}
                     <div>
                         <div style="font-weight:600;color:#1e293b;font-size:.83rem;" title="${c.nome_completo}">${c.nome_completo.length > 15 ? c.nome_completo.substring(0, 15) + '...' : c.nome_completo}</div>
-                        <div style="color:#94a3b8;font-size:.72rem;">${c.cargo || 'â€”'}</div>
+                        <div style="color:#94a3b8;font-size:.72rem;">${c.cargo || '—'}</div>
                     </div>
                 </div>
             </td>
-            <td style="color:#64748b;font-size:.82rem;">${c.departamento || 'â€”'}</td>
+            <td style="color:#64748b;font-size:.82rem;">${c.departamento || '—'}</td>
             ${periodos.map(p => {
                 const key = `${p.ano}-T${p.trimestre}`;
                 const ps = c.pesquisas?.[key];
-                if (!ps) return `<td style="text-align:center;color:#94a3b8;">â€”</td>`;
+                if (!ps) return `<td style="text-align:center;color:#94a3b8;">—</td>`;
                 if (ps.nao_admitido) {
                     return `<td style="text-align:center;background:#f8fafc;"><span style="color:#cbd5e1;font-size:.75rem;">N/A</span></td>`;
                 }
@@ -461,7 +461,7 @@
         </tr>`;
     }
 
-    /* â”€â”€ FILTER & SORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* ── FILTER & SORT ──────────────────────────────────────── */
     function getFilteredColabs() {
         let colabs = (_colabs.colaboradores || []).slice();
         if (_searchText) {
@@ -486,7 +486,7 @@
     }
 
     function bindColabsTable() {
-        // nothing extra needed â€” oninput / onclick are inline
+        // nothing extra needed — oninput / onclick are inline
     }
 
     window._desFilterColabs = function () {
@@ -519,25 +519,25 @@
     };
 
     window._desOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
-        if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.desempenho) {
-            alert('Erro: Perguntas de satisfaÃ§Ã£o nÃ£o carregadas.');
+        if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
+            alert('Erro: Perguntas de desempenho não carregadas.');
             return;
         }
         if (typeof saved === 'string') {
             try { saved = JSON.parse(saved); } catch(e) { saved = {}; }
         }
-        // Normalizar formato legado { scores: {...}, topicos: [...] } â€” ignorar prefill, usar formulÃ¡rio limpo
+        // Normalizar formato legado { scores: {...}, topicos: [...] } — ignorar prefill, usar formulário limpo
         if (saved && saved.scores && typeof saved.scores === 'object') {
-            // formato antigo do prontuÃ¡rio: nÃ£o conseguimos preencher individualmente
+            // formato antigo do prontuário: não conseguimos preencher individualmente
             saved = {};
         }
         // Garantir que saved tem __obs__
         if (!saved.__obs__) saved.__obs__ = {};
         
         const grupo = grupoFromDeptCargo(dept, cargo);
-        const perguntasGroup = window.AVALIACAO_QUESTIONS.desempenho[grupo];
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         if (!perguntasGroup) {
-            alert('Erro: Perguntas nÃ£o encontradas para o grupo "' + grupo + '".');
+            alert('Erro: Perguntas não encontradas para o grupo "' + grupo + '".');
             return;
         }
         
@@ -545,15 +545,15 @@
             <div style="background:#fff;border-radius:14px;width:100%;max-width:900px;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
                 <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#0f4c81;color:#fff;border-radius:14px 14px 0 0;">
                     <div>
-                        <h2 style="margin:0;font-size:1.25rem;color:#fff;"><i class="ph ph-smiley" style="color:#cffafe;margin-right:.5rem;"></i>AvaliaÃ§Ã£o de SatisfaÃ§Ã£o</h2>
-                        <div style="color:#e0f2fe;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> â€” ${cargo || dept}</div>
+                        <h2 style="margin:0;font-size:1.25rem;color:#fff;"><i class="ph ph-smiley" style="color:#cffafe;margin-right:.5rem;"></i>Avaliação de Desempenho</h2>
+                        <div style="color:#e0f2fe;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> — ${cargo || dept}</div>
                     </div>
                     <button onclick="window._desCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#fff;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
                 </div>
                 
                 <div style="padding:2rem;overflow-y:auto;flex:1;background:#f8fafc;" id="sat-form-body">
                     <p style="margin-top:0; margin-bottom:1.5rem; color:#0f4c81; font-size:1.05rem; font-weight:700; background:#e0f2fe; padding:12px 16px; border-radius:8px; border-left:5px solid #0ea5e9; box-shadow:0 2px 4px rgba(14,165,233,0.15);">
-                        Avalie cada critÃ©rio (1 Muito ruim - 2 Ruim - 3 MÃ©dio - 4 Bom - 5 Muito bom) e adicione uma observaÃ§Ã£o caso aplicÃ¡vel.
+                        Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom) e adicione uma observação caso aplicável.
                     </p>
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -607,7 +607,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" placeholder="ObservaÃ§Ã£o (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -618,8 +618,8 @@
         const infoAdic = (saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '';
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
-                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">InformaÃ§Ãµes Adicionais / ObservaÃ§Ã£o Geral (Opcional)</label>
-                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="ObservaÃ§Ãµes, feedback extra...">${infoAdic}</textarea>
+                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
+                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
@@ -648,9 +648,9 @@
         const currentYear = new Date().getFullYear();
         const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
         
-        // build respostas_json â€” salva como arrays para compatibilidade com backend
+        // build respostas_json — salva como arrays para compatibilidade com backend
         const respostas = { __obs__: {} };
-        const perguntasGroup = window.AVALIACAO_QUESTIONS.desempenho[grupo];
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
         let missingRequired = [];
         
@@ -665,7 +665,7 @@
                     respostas[cat].push(parseInt(selected.value, 10));
                 } else {
                     respostas[cat].push(null);
-                    missingRequired.push(`${cat} â€” Pergunta ${i+1}`);
+                    missingRequired.push(`${cat} — Pergunta ${i+1}`);
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
                 respostas.__obs__[cat].push((obs && obs.value.trim()) ? obs.value.trim() : '');
@@ -694,7 +694,7 @@
                 },
                 body: JSON.stringify({
                     colaborador_id: colabId,
-                    tipo: 'desempenho',
+                    tipo: 'satisfacao',
                     ano: currentYear,
                     trimestre: currentQ,
                     respostas_json: JSON.stringify(respostas)
@@ -706,7 +706,7 @@
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
             
-            // Recarregar a tela inteira para atualizar os nÃºmeros
+            // Recarregar a tela inteira para atualizar os números
             if (typeof window.initDesempenhoRH === 'function') window.initDesempenhoRH();
             
         } catch(err) {
@@ -716,5 +716,3 @@
         }
     };
 })();
-
-
