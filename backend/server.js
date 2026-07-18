@@ -23442,7 +23442,7 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 // ── Colaboradores com celular_participa = Sim ──
 app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     db.all(
-        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento
+        `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento, cargo
          FROM colaboradores
          WHERE celular_participa = 'Sim'
          ORDER BY nome_completo`,
@@ -23869,6 +23869,49 @@ db.all("PRAGMA table_info(computadores)", (err, rows) => {
     }
 });
 
+db.run(`CREATE TABLE IF NOT EXISTS computadores_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    computador_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    acao TEXT NOT NULL,
+    observacao TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(computador_id) REFERENCES computadores(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+db.all(`SELECT id, colaborador_id, colaborador_livre, status, data_atribuicao, observacoes, created_at FROM computadores`, (err, rows) => {
+    if (!err && rows && rows.length > 0) {
+        db.get("SELECT count(*) as count FROM computadores_historico", (err, row) => {
+            if (!err && row && row.count === 0) {
+                let stmt = db.prepare(`INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
+                rows.forEach(r => {
+                    let acao = "Cadastro Inicial";
+                    if (r.colaborador_id || r.colaborador_livre) acao = "Atribuído";
+                    stmt.run(r.id, r.colaborador_id, r.colaborador_livre, acao, r.observacoes || r.status, r.created_at || new Date().toISOString());
+                });
+                stmt.finalize();
+            }
+        });
+    }
+});
+
+// ── GET: Historico de Computador ──
+app.get('/api/computadores/historico/:id', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT h.*,
+               c.nome_completo as colab_nome, c.foto_path as colab_foto
+        FROM computadores_historico h
+        LEFT JOIN colaboradores c ON c.id = h.colaborador_id
+        WHERE h.computador_id = ?
+        ORDER BY h.created_at DESC
+    `, [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
 // ── GET: listar todos com JOIN de colaborador ──
 app.get('/api/computadores', authenticateToken, (req, res) => {
     db.all(`
@@ -24050,6 +24093,8 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
     colaborador_id    INTEGER,
     responsavel_nome  TEXT,
     data_atribuicao   TEXT,
+    caixa_compartilhada INTEGER DEFAULT 0,
+    recebe_copia      INTEGER DEFAULT 0,
     status            TEXT DEFAULT 'Ativo',
     observacao        TEXT,
     created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -24057,21 +24102,66 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
 )`);
 
+db.run(`ALTER TABLE emails_corporativos ADD COLUMN caixa_compartilhada INTEGER DEFAULT 0`, (err) => {});
+db.run(`ALTER TABLE emails_corporativos ADD COLUMN recebe_copia INTEGER DEFAULT 0`, (err) => {});
+
+db.run(`CREATE TABLE IF NOT EXISTS emails_atribuicoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_id INTEGER NOT NULL,
+    colaborador_id INTEGER,
+    responsavel_nome TEXT,
+    recebe_copia INTEGER DEFAULT 0,
+    data_atribuicao TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(email_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+)`);
+
+// Migrar dados antigos se existirem em emails_corporativos
+db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails_corporativos WHERE colaborador_id IS NOT NULL OR responsavel_nome IS NOT NULL`, (err, rows) => {
+    if (!err && rows && rows.length > 0) {
+        db.get(`SELECT count(*) as count FROM emails_atribuicoes`, (err, countRow) => {
+            if (!err && countRow && countRow.count === 0) {
+                let stmt = db.prepare(`INSERT INTO emails_atribuicoes (email_id, colaborador_id, responsavel_nome, data_atribuicao) VALUES (?, ?, ?, ?)`);
+                rows.forEach(r => stmt.run(r.id, r.colaborador_id, r.responsavel_nome, r.data_atribuicao));
+                stmt.finalize();
+            }
+        });
+    }
+});
+
 // ─── GET: Listar E-mails ───
 app.get('/api/emails', authenticateToken, (req, res) => {
     db.all(`
-        SELECT e.*,
-               c.nome_completo AS colab_nome,
-               c.status AS colab_status,
-               c.departamento AS colab_depto,
-               c.foto_path AS colab_foto,
-               c.foto_base64 AS colab_foto_base64
+        SELECT e.*
         FROM emails_corporativos e
-        LEFT JOIN colaboradores c ON c.id = e.colaborador_id
         ORDER BY LOWER(e.endereco) ASC
-    `, [], (err, rows) => {
+    `, [], (err, emails) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        
+        db.all(`
+            SELECT a.*, c.nome_completo as colab_nome, c.status as colab_status, c.departamento as colab_depto, c.foto_path as colab_foto, c.foto_base64 as colab_foto_base64
+            FROM emails_atribuicoes a
+            LEFT JOIN colaboradores c ON c.id = a.colaborador_id
+        `, [], (err, atribuicoes) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            // Map legacy single assignments if no atribuicoes exist for backward compatibility
+            emails.forEach(e => {
+                e.atribuicoes = atribuicoes.filter(a => a.email_id === e.id);
+                if (e.atribuicoes.length === 0 && (e.colaborador_id || e.responsavel_nome)) {
+                     e.atribuicoes = [{
+                         id: 'legacy_'+e.id,
+                         email_id: e.id,
+                         colaborador_id: e.colaborador_id,
+                         responsavel_nome: e.responsavel_nome,
+                         data_atribuicao: e.data_atribuicao,
+                         recebe_copia: 0
+                     }];
+                }
+            });
+            res.json(emails);
+        });
     });
 });
 
@@ -24090,13 +24180,13 @@ app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
 
 // ─── POST: Novo E-mail ───
 app.post('/api/emails', authenticateToken, (req, res) => {
-    const { endereco, senha, plataforma, status, observacao } = req.body;
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
 
     db.run(
-        `INSERT INTO emails_corporativos (endereco, senha, plataforma, status, observacao, updated_at)
-         VALUES (?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null],
+        `INSERT INTO emails_corporativos (endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: 'Erro ao criar (endereço já existe?)' });
             res.json({ id: this.lastID });
@@ -24106,13 +24196,13 @@ app.post('/api/emails', authenticateToken, (req, res) => {
 
 // ─── PUT: Editar E-mail ───
 app.put('/api/emails/:id', authenticateToken, (req, res) => {
-    const { endereco, senha, plataforma, status, observacao } = req.body;
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
 
     db.run(
-        `UPDATE emails_corporativos SET endereco=?, senha=?, plataforma=?, status=?, observacao=?, updated_at=datetime('now','-3 hours')
+        `UPDATE emails_corporativos SET endereco=?, senha=?, plataforma=?, status=?, observacao=?, caixa_compartilhada=?, recebe_copia=?, updated_at=datetime('now','-3 hours')
          WHERE id=?`,
-        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, req.params.id],
+        [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true });
@@ -24122,16 +24212,22 @@ app.put('/api/emails/:id', authenticateToken, (req, res) => {
 
 // ─── POST: Atribuir E-mail ───
 app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
-    const { colaborador_id, responsavel_nome, data_atribuicao } = req.body;
+    const { colaborador_id, responsavel_nome, data_atribuicao, recebe_copia } = req.body;
     const isAvulso = !colaborador_id && responsavel_nome;
 
     db.run(
-        `UPDATE emails_corporativos 
-         SET colaborador_id = ?, responsavel_nome = ?, data_atribuicao = ?, updated_at=datetime('now','-3 hours')
-         WHERE id = ?`,
-        [colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, req.params.id],
+        `INSERT INTO emails_atribuicoes (email_id, colaborador_id, responsavel_nome, data_atribuicao, recebe_copia) VALUES (?, ?, ?, ?, ?)`,
+        [req.params.id, colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, recebe_copia ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            
+            // Legacy fallback
+            db.run(
+                `UPDATE emails_corporativos 
+                 SET colaborador_id = ?, responsavel_nome = ?, data_atribuicao = ?, updated_at=datetime('now','-3 hours')
+                 WHERE id = ? AND caixa_compartilhada = 0`,
+                [colaborador_id || null, isAvulso ? responsavel_nome : null, data_atribuicao || null, req.params.id]
+            );
             
             // Sincronizar com cadastro de colaboradores
             if (colaborador_id) {
@@ -24142,31 +24238,45 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
                 });
             }
             
-            res.json({ ok: true });
+            res.json({ ok: true, id: this.lastID });
         }
     );
 });
 
 // ─── POST: Devolver E-mail ───
 app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
-    db.get(`SELECT colaborador_id FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
-        const oldColabId = rowE ? rowE.colaborador_id : null;
+    const { atribuicao_id, colaborador_id } = req.body || {};
+    
+    let deleteQuery = `DELETE FROM emails_atribuicoes WHERE email_id = ?`;
+    let deleteParams = [req.params.id];
+    
+    if (atribuicao_id && !String(atribuicao_id).startsWith('legacy_')) {
+        deleteQuery += ` AND id = ?`;
+        deleteParams.push(atribuicao_id);
+    } else if (colaborador_id) {
+        deleteQuery += ` AND colaborador_id = ?`;
+        deleteParams.push(colaborador_id);
+    }
+
+    db.run(deleteQuery, deleteParams, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
         
+        // Clear legacy
         db.run(
             `UPDATE emails_corporativos 
              SET colaborador_id = NULL, responsavel_nome = NULL, data_atribuicao = NULL, updated_at=datetime('now','-3 hours')
-             WHERE id = ?`,
-            [req.params.id],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                
-                if (oldColabId) {
-                    db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id = ?`, [oldColabId]);
-                }
-                
-                res.json({ ok: true });
-            }
+             WHERE id = ? AND (colaborador_id = ? OR ? IS NULL)`,
+            [req.params.id, colaborador_id || null, colaborador_id || null]
         );
+        
+        if (colaborador_id) {
+            db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id = ?`, [colaborador_id]);
+        } else {
+            // Se devolver tudo
+            db.run(`UPDATE colaboradores SET email_corporativo = NULL WHERE id IN (SELECT colaborador_id FROM emails_corporativos WHERE id = ?)`, [req.params.id]);
+        }
+        
+        res.json({ ok: true });
     });
 });
 

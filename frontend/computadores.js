@@ -339,10 +339,13 @@
                 '<div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;">' + (c.numero_serie || '') + '</div></td>' +
                 '<td style="' + td + '">' + statusBadge(c.status) + '</td>' +
                 '<td style="' + td + 'font-size:0.8rem;color:#64748b;">' + fmtData(c.data_atribuicao) + '</td>' +
-                '<td style="' + td + '"><div style="display:flex;gap:5px;">' +
+                '<td style="' + td + '"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+                '<button onclick="window.computadoresToggleHistorico(' + c.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i></button>' +
                 '<button onclick="window.computadoresOpenModal(' + c.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#6366f1;" title="Editar"><i class="ph ph-pencil-simple"></i></button>' +
+                (c.colaborador_id || c.colaborador_livre ? '<button onclick="window.computadoresDevolver(' + c.id + ',\'' + ((c.nome_colaborador || c.colaborador_livre || '').replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i></button>' : '') +
                 '<button onclick="window.computadoresExcluir(' + c.id + ',\'' + (c.modelo || '').replace(/'/g, "\\'") + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;" title="Excluir"><i class="ph ph-trash"></i></button>' +
-                '</div></td></tr>';
+                '</div></td></tr>' + 
+                '<tr id="hist-row-comp-' + c.id + '" style="display:none;"><td colspan="9" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-comp-' + c.id + '" style="padding:1rem;">Carregando histórico...</div></td></tr>';
         }).join('');
 
         return '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">' +
@@ -385,29 +388,46 @@
         var td = 'padding:0.75rem;vertical-align:middle;';
 
         var rows = filtered.map(function (e) {
-            var isAtrib = !!(e.colaborador_id || e.responsavel_nome);
-            var nomeResp = e.colab_nome || e.responsavel_nome;
-            var respInfo = isAtrib && nomeResp
-                ? '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px;"><i class="ph ph-user" style="color:#6d28d9;font-size:0.8rem;"></i><span style="font-size:0.72rem;color:#6d28d9;font-weight:600;">' + nomeResp + '</span></div>'
-                : '<span style="font-size:0.75rem;color:#94a3b8;font-style:italic;">Disponível</span>';
+            var atribs = e.atribuicoes || [];
+            var isAtrib = atribs.length > 0;
+            
+            var respInfo = '';
+            if (isAtrib) {
+                respInfo = atribs.map(function(a) {
+                    var nome = a.colab_nome || a.responsavel_nome;
+                    var delBtn = '';
+                    if (e.caixa_compartilhada || a.recebe_copia) {
+                         delBtn = '<button onclick="window.compEmailOpenModalDevolver(' + e.id + ',\'' + (nome || '').replace(/'/g, "\\'") + '\', ' + (typeof a.id === 'number' ? a.id : `'${a.id}'`) + ')" style="background:none;border:none;color:#dc2626;cursor:pointer;margin-left:4px;padding:2px;" title="Remover"><i class="ph ph-x"></i></button>';
+                    }
+                    var badge = a.recebe_copia ? ' <span style="font-size:0.65rem;background:#e2e8f0;color:#475569;padding:1px 4px;border-radius:4px;">Cópia</span>' : '';
+                    return '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px;"><i class="ph ph-user" style="color:#6d28d9;font-size:0.8rem;"></i><span style="font-size:0.72rem;color:#6d28d9;font-weight:600;">' + nome + badge + '</span>' + delBtn + '</div>';
+                }).join('');
+            } else {
+                respInfo = '<span style="font-size:0.75rem;color:#94a3b8;font-style:italic;">Disponível</span>';
+            }
 
             var acoes = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
                 '<button onclick="window.compEmailOpenModalEmail(' + e.id + ')" style="background:transparent;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;cursor:pointer;color:#2563eb;font-size:0.78rem;" title="Editar"><i class="ph ph-pencil-simple"></i></button>' +
                 '<button onclick="window.compEmailDelete(' + e.id + ')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;" title="Excluir"><i class="ph ph-trash"></i></button>';
 
-            if (isAtrib) {
-                // Pode devolver (liberar o e-mail)
-                acoes += '<button onclick="window.compEmailOpenModalDevolver(' + e.id + ',\'' + (nomeResp || '').replace(/'/g, "\\'") + '\')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
-            } else {
-                // Pode atribuir a um colaborador
+            if (isAtrib && !e.caixa_compartilhada) {
+                var a = atribs[0];
+                var nomeA = a.colab_nome || a.responsavel_nome;
+                acoes += '<button onclick="window.compEmailOpenModalDevolver(' + e.id + ',\'' + (nomeA || '').replace(/'/g, "\\'") + '\', ' + (typeof a.id === 'number' ? a.id : `'${a.id}'`) + ')" style="background:transparent;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:0.78rem;"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
+            }
+            if (!isAtrib || e.caixa_compartilhada) {
                 acoes += '<button onclick="window.compEmailOpenModalAtribuir(' + e.id + ', null)" style="background:#4f46e5;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600;"><i class="ph ph-link"></i> Atribuir</button>';
             }
             acoes += '</div>';
+            
+            var tags = '';
+            if (e.caixa_compartilhada) tags += '<span style="font-size:0.65rem;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:12px;margin-right:4px;display:inline-block;">Compartilhada</span>';
+            if (e.recebe_copia) tags += '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:12px;display:inline-block;">Recebe Cópia</span>';
 
             return '<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'transparent\'">' +
                 '<td style="' + td + '">' +
                 '<div style="font-weight:700;color:#2563eb;font-size:0.9rem;">' + e.endereco + '</div>' +
-                '<div style="font-size:0.72rem;color:#64748b;">' + (e.plataforma || '-') + '</div>' +
+                '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">' + (e.plataforma || '-') + '</div>' + tags +
                 '</td>' +
                 '<td style="' + td + '">' + emailStatusBadge(e.status) + '</td>' +
                 '<td style="' + td + '">' + respInfo + '</td>' +
@@ -522,7 +542,11 @@
             '<option value="Ativo"' + (e && e.status === 'Ativo' ? ' selected' : '') + '>Ativo</option>' +
             '<option value="Bloqueado"' + (e && e.status === 'Bloqueado' ? ' selected' : '') + '>Bloqueado</option></select></div></div>' +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observações</label>' +
-            '<textarea id="comp-email-cad-obs" rows="2" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + (e ? e.observacao || '' : '') + '</textarea></div></div>' +
+            '<textarea id="comp-email-cad-obs" rows="2" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + (e ? e.observacao || '' : '') + '</textarea></div>' +
+            '<div style="display:flex;gap:1.5rem;margin-top:0.25rem;">' +
+            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-caixa" ' + (e && e.caixa_compartilhada ? 'checked' : '') + '> Caixa Compartilhada</label>' +
+            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-copia" ' + (e && e.recebe_copia ? 'checked' : '') + '> E-mail de Cópia</label>' +
+            '</div></div>' +
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
             '<button onclick="document.getElementById(\'modal-comp-email-cadastro\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
             '<button onclick="window.compEmailSaveEmail()" style="background:#4f46e5;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Salvar</button>' +
@@ -532,9 +556,9 @@
     function renderModalAtribuirEmail() {
         // Todos os e-mails disponíveis para atribuição (sem dono) + o atual se editando
         var emOpts = _emails.filter(function (e) {
-            return !e.colaborador_id && !e.responsavel_nome;
+            return !e.colaborador_id && !e.responsavel_nome && (!e.atribuicoes || e.atribuicoes.length === 0) || e.caixa_compartilhada;
         }).map(function (e) {
-            return '<option value="' + e.id + '"' + (e.id === _atribData.email_id ? ' selected' : '') + '>' + e.endereco + '</option>';
+            return '<option value="' + e.id + '"' + (e.id === _atribData.email_id ? ' selected' : '') + '>' + e.endereco + (e.caixa_compartilhada ? ' (Compartilhada)' : '') + '</option>';
         }).join('');
 
         // Colaboradores — podem ter múltiplos e-mails, então não filtramos
@@ -562,7 +586,9 @@
             '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Nome do Responsável (Livre)</label>' +
             '<input id="comp-atrib-email-avulso-nome" type="text" placeholder="Ex: Financeiro Geral" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Data de Atribuição</label>' +
-            '<input id="comp-atrib-email-data" type="date" value="' + (new Date().toISOString().split('T')[0]) + '" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div></div>' +
+            '<input id="comp-atrib-email-data" type="date" value="' + (new Date().toISOString().split('T')[0]) + '" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"></div>' +
+            '<div style="margin-top:0.5rem;"><label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-atrib-email-copia"> Receber como Cópia</label></div>' +
+            '</div>' +
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
             '<button onclick="document.getElementById(\'modal-comp-email-atribuir\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
             '<button onclick="window.compEmailSaveAtribuir()" style="background:#4f46e5;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Atribuir</button>' +
@@ -693,6 +719,58 @@
         catch (e) { alert('Erro ao excluir: ' + (e.message || e)); }
     };
 
+    window.computadoresDevolver = async function (id, nome) {
+        if (!confirm('Tem certeza que deseja devolver o computador de ' + nome + '? Ele ficará disponível.')) return;
+        try { 
+            await fetch('/api/computadores/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+                body: JSON.stringify({ status: 'Devolvido', colaborador_id: null, colaborador_livre: '', data_atribuicao: '' })
+            });
+            await loadAll(); 
+        }
+        catch (e) { alert('Erro ao devolver: ' + (e.message || e)); }
+    };
+
+    window.computadoresToggleHistorico = async function (id) {
+        var row = document.getElementById('hist-row-comp-' + id);
+        if (!row) return;
+        if (row.style.display === 'table-row') {
+            row.style.display = 'none';
+            return;
+        }
+        row.style.display = 'table-row';
+        var cont = document.getElementById('hist-content-comp-' + id);
+        cont.innerHTML = '<div style="text-align:center;padding:1rem;"><i class="ph ph-spinner ph-spin" style="font-size:1.5rem;color:#6366f1;"></i></div>';
+        
+        try {
+            var data = await _apiGet('/computadores/historico/' + id);
+            if (!data || data.length === 0) {
+                cont.innerHTML = '<div style="text-align:center;color:#64748b;font-size:0.85rem;">Nenhum histórico encontrado.</div>';
+                return;
+            }
+            var html = '<div style="max-height:200px;overflow-y:auto;padding-right:0.5rem;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">' +
+                '<thead><tr style="text-align:left;color:#64748b;border-bottom:1px solid #e2e8f0;">' +
+                '<th style="padding:0.4rem 0;">Data</th><th>Ação</th><th>Responsável</th><th>Observação</th>' +
+                '</tr></thead><tbody>';
+            
+            data.forEach(function(h) {
+                var d = new Date(h.created_at).toLocaleDateString('pt-BR') + ' ' + new Date(h.created_at).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                var resp = h.colab_nome || h.responsavel_nome || '-';
+                html += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                    '<td style="padding:0.4rem 0;color:#64748b;">' + d + '</td>' +
+                    '<td><span style="font-weight:600;color:#0f172a;">' + h.acao + '</span></td>' +
+                    '<td>' + resp + '</td>' +
+                    '<td style="color:#64748b;">' + (h.observacao || '-') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table></div>';
+            cont.innerHTML = html;
+        } catch(e) {
+            cont.innerHTML = '<div style="color:red;font-size:0.85rem;">Erro ao carregar histórico: ' + e.message + '</div>';
+        }
+    };
+
     /* ─── Ações E-mail ─── */
     window.compEmailOpenModalEmail = function (id) {
         _editandoEmail = id ? (_emails.find(function (e) { return e.id === id; }) || null) : null;
@@ -709,10 +787,12 @@
         var pla = (document.getElementById('comp-email-cad-plat') || {}).value || '';
         var sta = (document.getElementById('comp-email-cad-status') || {}).value || 'Ativo';
         var obs = (document.getElementById('comp-email-cad-obs') || {}).value || '';
+        var cx = (document.getElementById('comp-email-cad-caixa') || {}).checked;
+        var cp = (document.getElementById('comp-email-cad-copia') || {}).checked;
 
         if (!end) return alert('Endereço de e-mail é obrigatório.');
 
-        var payload = { endereco: end, senha: sen, plataforma: pla, status: sta, observacao: obs };
+        var payload = { endereco: end, senha: sen, plataforma: pla, status: sta, observacao: obs, caixa_compartilhada: cx, recebe_copia: cp };
         var url = _editandoEmail ? '/api/emails/' + _editandoEmail.id : '/api/emails';
         var meth = _editandoEmail ? 'PUT' : 'POST';
 
@@ -768,6 +848,7 @@
         var colabId = tipo === 'colaborador' ? ((document.getElementById('comp-atrib-email-colab') || {}).value || null) : null;
         var nomeAvulso = tipo === 'avulso' ? (((document.getElementById('comp-atrib-email-avulso-nome') || {}).value || '').trim()) : null;
         var dataAt = (document.getElementById('comp-atrib-email-data') || {}).value || '';
+        var recebeCp = (document.getElementById('comp-atrib-email-copia') || {}).checked;
 
         if (tipo === 'colaborador' && !colabId) return alert('Selecione um colaborador.');
         if (tipo === 'avulso' && !nomeAvulso) return alert('Informe o nome do responsável.');
@@ -775,7 +856,7 @@
         fetch('/api/emails/' + emailId + '/atribuir', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
-            body: JSON.stringify({ colaborador_id: colabId, responsavel_nome: nomeAvulso, data_atribuicao: dataAt })
+            body: JSON.stringify({ colaborador_id: colabId, responsavel_nome: nomeAvulso, data_atribuicao: dataAt, recebe_copia: recebeCp })
         }).then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.error) return alert(data.error);
@@ -785,8 +866,9 @@
         }).catch(function (e) { alert('Erro de rede: ' + e.message); });
     };
 
-    window.compEmailOpenModalDevolver = function (emailId, nomeResp) {
+    window.compEmailOpenModalDevolver = function (emailId, nomeResp, atribId) {
         _devEmailId = emailId;
+        _devAtribId = atribId;
         var el = document.getElementById('comp-email-dev-nome');
         if (el) el.textContent = nomeResp;
         var m = document.getElementById('modal-comp-email-devolver');
@@ -796,7 +878,8 @@
     window.compEmailSaveDevolver = function () {
         fetch('/api/emails/' + _devEmailId + '/devolver', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + _tok() }
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
+            body: JSON.stringify({ atribuicao_id: _devAtribId })
         }).then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.error) return alert(data.error);
