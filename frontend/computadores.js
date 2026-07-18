@@ -219,8 +219,11 @@
                     '<div>' + statusBadge(cp.status) + '</div>' +
                     '<button onclick="window.computadoresOpenModal(' + cp.id + ')" style="background:none;border:none;color:#6366f1;cursor:pointer;padding:4px;" title="Editar"><i class="ph ph-pencil-simple"></i></button>' +
                     '</div>';
-                // Colaborador já tem computador → NÃO mostra botão "Outro Equip."
-                acoes = '<span style="font-size:0.75rem;color:#94a3b8;font-style:italic;">1 equip. máx.</span>';
+                // Colaborador já tem computador → Mostrar botões
+                var btnHist = '<button onclick="window.computadoresToggleHistorico(' + cp.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#64748b;display:flex;align-items:center;" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i><i class="ph ph-caret-down" style="font-size:0.7rem;margin-left:2px;"></i></button>';
+                var btnDev = '<button onclick="window.computadoresDevolver(' + cp.id + ',\'' + (c.nome_completo.replace(/'/g, "\\'")) + '\')" style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:5px 9px;cursor:pointer;color:#dc2626;display:flex;align-items:center;gap:3px;" title="Devolver"><i class="ph ph-arrow-u-up-left"></i> Devolver</button>';
+                var btnEdit = '<button onclick="window.computadoresOpenModal(' + cp.id + ')" style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;cursor:pointer;color:#6366f1;display:flex;align-items:center;" title="Editar"><i class="ph ph-pencil-simple"></i></button>';
+                acoes = '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + btnHist + btnDev + btnEdit + '</div>';
             } else {
                 eqpInfo = '<span style="color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum equipamento</span>';
                 acoes = '<button onclick="window.computadoresVincular(' + c.id + ')" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4f46e5;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-link"></i> Vincular Computador</button>';
@@ -230,7 +233,8 @@
                 '<td style="' + td + '">' + colabInfo + '</td>' +
                 '<td style="' + td + '">' + eqpInfo + '</td>' +
                 '<td style="' + td + '">' + acoes + '</td>' +
-                '</tr>';
+                '</tr>' + 
+                (temComp ? '<tr id="hist-row-comp-' + compsDoColab[0].id + '" style="display:none;"><td colspan="3" style="padding:0;background:#f8fafc;border-bottom:2px solid #e2e8f0;"><div id="hist-content-comp-' + compsDoColab[0].id + '" style="padding:1rem;">Carregando histórico...</div></td></tr>' : '');
         }).join('');
 
         if (!filtered.length) rows = '<tr><td colspan="3" style="padding:2rem;text-align:center;color:#64748b;">Nenhum colaborador encontrado.</td></tr>';
@@ -544,9 +548,26 @@
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observações</label>' +
             '<textarea id="comp-email-cad-obs" rows="2" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">' + (e ? e.observacao || '' : '') + '</textarea></div>' +
             '<div style="display:flex;gap:1.5rem;margin-top:0.25rem;">' +
-            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-caixa" ' + (e && e.caixa_compartilhada ? 'checked' : '') + '> Caixa Compartilhada</label>' +
-            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-copia" ' + (e && e.recebe_copia ? 'checked' : '') + '> E-mail de Cópia</label>' +
-            '</div></div>' +
+            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-caixa" ' + (e && e.caixa_compartilhada ? 'checked' : '') + ' onchange="window.compEmailToggleRelacionamentos()"> Caixa Compartilhada</label>' +
+            '<label style="font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="comp-email-cad-copia" ' + (e && e.recebe_copia ? 'checked' : '') + ' onchange="window.compEmailToggleRelacionamentos()"> Recebe cópia dos e-mails</label>' +
+            '</div>' +
+            '<div id="comp-email-rel-caixa-container" style="display:' + (e && e.caixa_compartilhada ? 'block' : 'none') + ';margin-top:0.5rem;">' +
+            '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Compartilhada com quais e-mails? (Segure Ctrl para selecionar vários):</label>' +
+            '<select id="comp-email-cad-compartilhados" multiple style="width:100%;height:80px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem;font-size:0.85rem;outline:none;">' +
+            _emails.filter(function(em) { return !e || em.id !== e.id; }).map(function(em) { 
+                var sel = (e && e.relacionamentos && e.relacionamentos.some(function(r){ return r.tipo === "compartilhada_com" && r.email_destino_id === em.id; })) ? ' selected' : '';
+                return '<option value="' + em.id + '"' + sel + '>' + em.endereco + '</option>'; 
+            }).join('') +
+            '</select></div>' +
+            '<div id="comp-email-rel-copia-container" style="display:' + (e && e.recebe_copia ? 'block' : 'none') + ';margin-top:0.5rem;">' +
+            '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Recebe cópia de quais e-mails? (Segure Ctrl para selecionar vários):</label>' +
+            '<select id="comp-email-cad-copias" multiple style="width:100%;height:80px;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem;font-size:0.85rem;outline:none;">' +
+            _emails.filter(function(em) { return !e || em.id !== e.id; }).map(function(em) { 
+                var sel = (e && e.relacionamentos && e.relacionamentos.some(function(r){ return r.tipo === "recebe_copia_de" && r.email_destino_id === em.id; })) ? ' selected' : '';
+                return '<option value="' + em.id + '"' + sel + '>' + em.endereco + '</option>'; 
+            }).join('') +
+            '</select></div>' +
+            '</div>' +
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.5rem;">' +
             '<button onclick="document.getElementById(\'modal-comp-email-cadastro\').style.display=\'none\'" style="background:#f1f5f9;color:#64748b;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;">Cancelar</button>' +
             '<button onclick="window.compEmailSaveEmail()" style="background:#4f46e5;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Salvar</button>' +
@@ -772,6 +793,15 @@
     };
 
     /* ─── Ações E-mail ─── */
+    window.compEmailToggleRelacionamentos = function() {
+        var cx = document.getElementById('comp-email-cad-caixa');
+        var cp = document.getElementById('comp-email-cad-copia');
+        var cxCont = document.getElementById('comp-email-rel-caixa-container');
+        var cpCont = document.getElementById('comp-email-rel-copia-container');
+        if (cx && cxCont) cxCont.style.display = cx.checked ? 'block' : 'none';
+        if (cp && cpCont) cpCont.style.display = cp.checked ? 'block' : 'none';
+    };
+
     window.compEmailOpenModalEmail = function (id) {
         _editandoEmail = id ? (_emails.find(function (e) { return e.id === id; }) || null) : null;
         renderTela();
@@ -790,9 +820,25 @@
         var cx = (document.getElementById('comp-email-cad-caixa') || {}).checked;
         var cp = (document.getElementById('comp-email-cad-copia') || {}).checked;
 
+        var emComp = [];
+        var selCx = document.getElementById('comp-email-cad-compartilhados');
+        if (selCx && selCx.options) {
+            for (var i = 0; i < selCx.options.length; i++) {
+                if (selCx.options[i].selected) emComp.push(selCx.options[i].value);
+            }
+        }
+        
+        var emCop = [];
+        var selCp = document.getElementById('comp-email-cad-copias');
+        if (selCp && selCp.options) {
+            for (var j = 0; j < selCp.options.length; j++) {
+                if (selCp.options[j].selected) emCop.push(selCp.options[j].value);
+            }
+        }
+
         if (!end) return alert('Endereço de e-mail é obrigatório.');
 
-        var payload = { endereco: end, senha: sen, plataforma: pla, status: sta, observacao: obs, caixa_compartilhada: cx, recebe_copia: cp };
+        var payload = { endereco: end, senha: sen, plataforma: pla, status: sta, observacao: obs, caixa_compartilhada: cx, recebe_copia: cp, emails_compartilhados: emComp, emails_copia: emCop };
         var url = _editandoEmail ? '/api/emails/' + _editandoEmail.id : '/api/emails';
         var meth = _editandoEmail ? 'PUT' : 'POST';
 

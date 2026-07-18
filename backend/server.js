@@ -24105,6 +24105,16 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
 db.run(`ALTER TABLE emails_corporativos ADD COLUMN caixa_compartilhada INTEGER DEFAULT 0`, (err) => {});
 db.run(`ALTER TABLE emails_corporativos ADD COLUMN recebe_copia INTEGER DEFAULT 0`, (err) => {});
 
+db.run(`CREATE TABLE IF NOT EXISTS emails_relacionamentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email_origem_id INTEGER NOT NULL,
+    email_destino_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(email_origem_id) REFERENCES emails_corporativos(id),
+    FOREIGN KEY(email_destino_id) REFERENCES emails_corporativos(id)
+)`);
+
 db.run(`CREATE TABLE IF NOT EXISTS emails_atribuicoes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email_id INTEGER NOT NULL,
@@ -24146,21 +24156,26 @@ app.get('/api/emails', authenticateToken, (req, res) => {
         `, [], (err, atribuicoes) => {
             if (err) return res.status(500).json({ error: err.message });
             
-            // Map legacy single assignments if no atribuicoes exist for backward compatibility
-            emails.forEach(e => {
-                e.atribuicoes = atribuicoes.filter(a => a.email_id === e.id);
-                if (e.atribuicoes.length === 0 && (e.colaborador_id || e.responsavel_nome)) {
-                     e.atribuicoes = [{
-                         id: 'legacy_'+e.id,
-                         email_id: e.id,
-                         colaborador_id: e.colaborador_id,
-                         responsavel_nome: e.responsavel_nome,
-                         data_atribuicao: e.data_atribuicao,
-                         recebe_copia: 0
-                     }];
-                }
+            db.all(`SELECT * FROM emails_relacionamentos`, [], (errRel, relacionamentos) => {
+                if (errRel) return res.status(500).json({ error: errRel.message });
+                
+                // Map legacy single assignments if no atribuicoes exist for backward compatibility
+                emails.forEach(e => {
+                    e.atribuicoes = atribuicoes.filter(a => a.email_id === e.id);
+                    e.relacionamentos = relacionamentos ? relacionamentos.filter(r => r.email_origem_id === e.id) : [];
+                    if (e.atribuicoes.length === 0 && (e.colaborador_id || e.responsavel_nome)) {
+                         e.atribuicoes = [{
+                             id: 'legacy_'+e.id,
+                             email_id: e.id,
+                             colaborador_id: e.colaborador_id,
+                             responsavel_nome: e.responsavel_nome,
+                             data_atribuicao: e.data_atribuicao,
+                             recebe_copia: 0
+                         }];
+                    }
+                });
+                res.json(emails);
             });
-            res.json(emails);
         });
     });
 });
@@ -24180,7 +24195,7 @@ app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
 
 // ─── POST: Novo E-mail ───
 app.post('/api/emails', authenticateToken, (req, res) => {
-    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia } = req.body;
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
 
     db.run(
@@ -24189,14 +24204,35 @@ app.post('/api/emails', authenticateToken, (req, res) => {
         [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0],
         function(err) {
             if (err) return res.status(500).json({ error: 'Erro ao criar (endereço já existe?)' });
-            res.json({ id: this.lastID });
+            
+            const emailId = this.lastID;
+            
+            // Inserir relacionamentos
+            const rels = [];
+            if (caixa_compartilhada && Array.isArray(emails_compartilhados)) {
+                emails_compartilhados.forEach(id => rels.push([emailId, id, 'compartilhada_com']));
+            }
+            if (recebe_copia && Array.isArray(emails_copia)) {
+                emails_copia.forEach(id => rels.push([emailId, id, 'recebe_copia_de']));
+            }
+            
+            if (rels.length > 0) {
+                const placeholders = rels.map(() => '(?, ?, ?)').join(', ');
+                const values = rels.reduce((acc, val) => acc.concat(val), []);
+                db.run(`INSERT INTO emails_relacionamentos (email_origem_id, email_destino_id, tipo) VALUES ${placeholders}`, values, (errRel) => {
+                    if (errRel) console.error("Erro relacionamentos:", errRel);
+                    res.json({ id: emailId });
+                });
+            } else {
+                res.json({ id: emailId });
+            }
         }
     );
 });
 
 // ─── PUT: Editar E-mail ───
 app.put('/api/emails/:id', authenticateToken, (req, res) => {
-    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia } = req.body;
+    const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
 
     db.run(
@@ -24205,7 +24241,31 @@ app.put('/api/emails/:id', authenticateToken, (req, res) => {
         [endereco.toLowerCase().trim(), senha || null, plataforma || null, status || 'Ativo', observacao || null, caixa_compartilhada ? 1 : 0, recebe_copia ? 1 : 0, req.params.id],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ ok: true });
+            
+            // Deletar relacionamentos antigos
+            db.run(`DELETE FROM emails_relacionamentos WHERE email_origem_id = ?`, [req.params.id], (errDel) => {
+                if (errDel) return res.status(500).json({ error: errDel.message });
+                
+                // Inserir relacionamentos novos
+                const rels = [];
+                if (caixa_compartilhada && Array.isArray(emails_compartilhados)) {
+                    emails_compartilhados.forEach(id => rels.push([req.params.id, id, 'compartilhada_com']));
+                }
+                if (recebe_copia && Array.isArray(emails_copia)) {
+                    emails_copia.forEach(id => rels.push([req.params.id, id, 'recebe_copia_de']));
+                }
+                
+                if (rels.length > 0) {
+                    const placeholders = rels.map(() => '(?, ?, ?)').join(', ');
+                    const values = rels.reduce((acc, val) => acc.concat(val), []);
+                    db.run(`INSERT INTO emails_relacionamentos (email_origem_id, email_destino_id, tipo) VALUES ${placeholders}`, values, (errRel) => {
+                        if (errRel) console.error("Erro relacionamentos:", errRel);
+                        res.json({ ok: true });
+                    });
+                } else {
+                    res.json({ ok: true });
+                }
+            });
         }
     );
 });
