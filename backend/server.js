@@ -14831,7 +14831,7 @@ function verificarDesempenhosPendentes() {
             `;
             
             try {
-                await sendEmail(emailDestino, subject, html, null);
+                await sendMailHelper({ to: emailDestino, subject: subject, html: html });
                 console.log(`[Desempenho CRON] E-mail enviado para ${emailDestino} ref. ${r.nome_completo}`);
                 await new Promise(res => setTimeout(res, 2000));
             } catch (err) {
@@ -14907,7 +14907,7 @@ app.get('/api/desempenho/test-email', async (req, res) => {
                     </div>
                 `;
                 try {
-                    await sendEmail('thais.ricci@americarental.com.br', subject, html, null);
+                    await sendMailHelper({ to: 'thais.ricci@americarental.com.br', subject: subject, html: html });
                     console.log('Test email sent for', r.nome_completo);
                 } catch (e) {
                     console.error('Error sending test email:', e.message);
