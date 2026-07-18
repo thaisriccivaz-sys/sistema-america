@@ -301,18 +301,12 @@
                 <thead><tr>
                     <th>Tópico</th>
                     ${periodos.map((p, i) => `<th>${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
-                    <th>Variação</th>
                 </tr></thead>
                 <tbody>`;
 
             topicos.forEach(t => {
                 const vals = periodos.map(p => t[`${p.ano}-T${p.trimestre}`] ?? null);
                 if (vals.every(v => v === null)) return; // Oculta tópicos sem dados
-
-                const firstValid = vals.find(v => v !== null);
-                const lastValid = [...vals].reverse().find(v => v !== null);
-                const variacao = (firstValid !== undefined && lastValid !== undefined && firstValid !== lastValid)
-                    ? lastValid - firstValid : null;
 
                 html += `<tr>
                     <td style="font-weight:600;color:#334155;">${t.topico}</td>
@@ -324,10 +318,6 @@
                             </div>
                         </td>
                     `).join('')}
-                    <td>${variacao !== null
-                        ? `<span style="color:${variacao >= 0 ? '#22c55e' : '#ef4444'};font-weight:700;">${variacao >= 0 ? '+' : ''}${variacao.toFixed(1)}</span>`
-                        : '<span style="color:#94a3b8;">—</span>'
-                    }</td>
                 </tr>`;
             });
 
@@ -345,7 +335,6 @@
                         ${trendIcon(groupAvgs, i)}
                     </div>
                 </td>`).join('')}
-                <td></td>
             </tr>`;
 
             html += `</tbody></table></div>`;

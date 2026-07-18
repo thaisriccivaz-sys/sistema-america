@@ -726,10 +726,12 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     let globalTotalQ_init = 0;
     let globalAnsQ_init = 0;
     categories.forEach(cat => {
-        globalTotalQ_init += questions[cat].length;
-        if (savedAnswers[cat]) {
-            Object.values(savedAnswers[cat]).forEach(v => { if (v) globalAnsQ_init++; });
-        }
+        questions[cat].forEach((q, i) => {
+            if (q && q.trim()) {
+                globalTotalQ_init++;
+                if (savedAnswers[cat] && savedAnswers[cat][i]) globalAnsQ_init++;
+            }
+        });
     });
     const globalPerc_init = globalTotalQ_init > 0 ? Math.round((globalAnsQ_init / globalTotalQ_init) * 100) : 0;
     const globalColor_init = globalPerc_init === 100 ? '#16a34a' : 'rgba(255,255,255,0.2)';
@@ -752,11 +754,14 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     `;
 
     categories.forEach((cat, catIdx) => {
-        const totalQ = questions[cat].length;
+        let totalQ = 0;
         let ansQ = 0;
-        if (savedAnswers[cat]) {
-            Object.values(savedAnswers[cat]).forEach(v => { if (v) ansQ++; });
-        }
+        questions[cat].forEach((q, i) => {
+            if (q && q.trim()) {
+                totalQ++;
+                if (savedAnswers[cat] && savedAnswers[cat][i]) ansQ++;
+            }
+        });
         let perc = totalQ > 0 ? Math.round((ansQ/totalQ)*100) : 0;
         const completeColor = perc === 100 ? '#16a34a' : '#0ea5e9';
 
@@ -774,6 +779,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                 <div style="padding:1rem;">
         `;
         questions[cat].forEach((q, i) => {
+            if (!q || !q.trim()) return;
             const val = savedAnswers[cat] ? savedAnswers[cat][i] : null;
             const obsStr = (savedObs[cat] && savedObs[cat][i]) ? savedObs[cat][i] : '';
             html += `
