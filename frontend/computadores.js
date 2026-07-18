@@ -12,6 +12,7 @@
     var _editandoEmail = null;
     var _atribData = { email_id: null, colab_id: null };
     var _devEmailId = null;
+    var _devAtribId = null;
     var _filterQ = '';
     var _filterStatus = '';
     var _filterEmailQ = '';
