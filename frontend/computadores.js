@@ -420,7 +420,11 @@
                     return '<div style="display:flex;align-items:center;gap:0.4rem;margin-top:3px;"><i class="ph ph-user" style="color:#6d28d9;font-size:0.8rem;"></i><span style="font-size:0.72rem;color:#6d28d9;font-weight:600;">' + nome + badge + '</span>' + delBtn + '</div>';
                 }).join('');
             } else {
-                respInfo = '<span style="font-size:0.75rem;color:#94a3b8;font-style:italic;">Disponível</span>';
+                if (e.status === 'Bloqueado') {
+                    respInfo = '<span style="font-size:0.75rem;color:#dc2626;font-style:italic;font-weight:600;">Bloqueado</span>';
+                } else {
+                    respInfo = '<span style="font-size:0.75rem;color:#22c55e;font-style:italic;font-weight:600;">Disponível</span>';
+                }
             }
 
             var acoes = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
