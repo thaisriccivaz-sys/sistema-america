@@ -9759,19 +9759,22 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                 
                                 // Formato legado: { scores: { 'Topico': avg } }
                                 if (respostas.scores && typeof respostas.scores === 'object') {
-                                    todas = Object.values(respostas.scores).filter(n => typeof n === 'number' && !isNaN(n));
+                                    todas = Object.values(respostas.scores).map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 } else {
                                     Object.entries(respostas).forEach(([topico, val]) => {
-                                        if (topico === '__obs__' || topico === '__status__') return;
+                                        if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                                         if (Array.isArray(val)) {
-                                            todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
-                                        } else if (typeof val === 'number' && !isNaN(val)) {
-                                            todas.push(val);
-                                        } else if (val && typeof val.media === 'number') {
-                                            todas.push(val.media);
+                                            todas = todas.concat(val.map(n => parseFloat(n)).filter(n => !isNaN(n)));
+                                        } else if (val !== null && val !== undefined && typeof val !== 'object') {
+                                            const n = parseFloat(val);
+                                            if (!isNaN(n)) todas.push(n);
+                                        } else if (val && val.media !== undefined) {
+                                            const m = parseFloat(val.media);
+                                            if (!isNaN(m)) todas.push(m);
                                         } else if (typeof val === 'object' && val !== null) {
                                             Object.values(val).forEach(n => {
-                                                if (typeof n === 'number' && !isNaN(n)) todas.push(n);
+                                                const p = parseFloat(n);
+                                                if (!isNaN(p)) todas.push(p);
                                             });
                                         }
                                     });
