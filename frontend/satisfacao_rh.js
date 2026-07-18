@@ -40,8 +40,10 @@
     }
     function avatarHTML(col, size = 36) {
         const initials = (col.nome_completo || '?').split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
-        if (col.foto_base64) {
-            return `<img src="data:image/jpeg;base64,${col.foto_base64}" alt="${initials}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;
+        const fotoSrc = col.foto_base64 || (col.foto_path ? `${API_URL.replace('/api', '')}/${col.foto_path}` : null);
+        if (fotoSrc) {
+            const finalSrc = fotoSrc.startsWith('data:') || fotoSrc.startsWith('http') || fotoSrc.startsWith('/') ? fotoSrc : `data:image/jpeg;base64,${fotoSrc}`;
+            return `<img src="${finalSrc}" alt="${initials}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;">`;
         }
         const colors = ['#7c3aed','#0ea5e9','#f59e0b','#10b981','#ef4444','#ec4899'];
         const bg = colors[(col.nome_completo||'').charCodeAt(0) % colors.length];
@@ -284,6 +286,11 @@
         }
 
         let html = `
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.5rem;margin-bottom:2rem;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+            <h3 style="margin:0 0 1rem;font-size:1.1rem;color:#1e293b;">Evolução Geral da Satisfação</h3>
+            <div style="height:250px;"><canvas id="sat-evolution-chart"></canvas></div>
+        </div>
+        
         <div class="sat-legend">
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#22c55e;"></div>Bom (≥8)</div>
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#f59e0b;"></div>Regular (6–7.9)</div>
@@ -352,6 +359,60 @@
         });
 
         area.innerHTML = html;
+        
+        // Render Chart
+        const ctx = document.getElementById('sat-evolution-chart');
+        if (ctx) {
+            const labels = periodos.map(p => periodLabel(p));
+            // Calculate global averages per period based on allData
+            const globalAvgs = periodos.map(p => {
+                let sum = 0, count = 0;
+                allData.forEach(t => {
+                    const v = t[`${p.ano}-T${p.trimestre}`];
+                    if (v !== null && v !== undefined) {
+                        sum += v;
+                        count++;
+                    }
+                });
+                return count > 0 ? parseFloat((sum / count).toFixed(2)) : null;
+            });
+            
+            if (window._satChartInstance) {
+                window._satChartInstance.destroy();
+            }
+            
+            window._satChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Média Geral',
+                        data: globalAvgs,
+                        borderColor: '#7c3aed',
+                        backgroundColor: 'rgba(124,58,237,0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#7c3aed',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 10, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => 'Média: ' + ctx.parsed.y } }
+                    }
+                }
+            });
+        }
     }
 
     function calcTotalRespondents(grupo, periodos) {
@@ -419,7 +480,7 @@
                 <th onclick="window._satSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'▲':'▼'):''}</th>
                 <th onclick="window._satSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
                 ${periodos.map(p => `<th style="text-align:center;">${periodLabel(p)}</th>`).join('')}
-                <th onclick="window._satSortColabs('media_geral')" style="text-align:center;">Média ${_sortCol==='media_geral'?(_sortDir>0?'▲':'▼'):''}</th>
+                <th style="text-align:center;">Evolução</th>
                 <th style="text-align:center;width:100px;">Ações</th>
             </tr></thead>
             <tbody>
@@ -455,16 +516,41 @@
                     return `<td style="text-align:center;background:#fef9c3;"><span style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
                 }
                 return `<td style="text-align:center;">
-                    <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
+                    <div style="background:#dcfce7;color:#166534;font-size:.75rem;font-weight:600;padding:0.2rem 0.5rem;border-radius:999px;display:inline-flex;align-items:center;gap:0.3rem;">
+                        <i class="ph-fill ph-check-circle"></i> Resp: ${fmtScore(ps.media)}
+                    </div>
                 </td>`;
             }).join('')}
-            <td style="text-align:center;">
-                <span class="score-pill" style="background:${scoreBg(c.media_geral)};color:${scoreColor(c.media_geral)};font-size:.85rem;font-weight:800;">${fmtScore(c.media_geral)}</span>
+            <td style="text-align:center; vertical-align:middle;">
+                ${renderSparkline(periodos.map(p => c.pesquisas?.[`${p.ano}-T${p.trimestre}`]?.media ?? null))}
             </td>
             <td style="text-align:center;">
-                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}')" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Responder</button>
+                <button onclick="window._satOpenForm(${c.id}, '${(c.nome_completo || '').replace(/'/g, "\\'")}', '${c.cargo || ''}', '${c.departamento || ''}')" style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;"><i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}</button>
             </td>
         </tr>`;
+    }
+
+    function renderSparkline(values) {
+        const valid = values.filter(v => v !== null);
+        if (valid.length < 2) return '<span style="color:#cbd5e1;font-size:0.75rem;">N/A</span>';
+        const min = 0; const max = 10;
+        const w = 60; const h = 20;
+        const pts = valid.map((v, i) => {
+            const x = (i / (valid.length - 1)) * w;
+            const y = h - ((v - min) / (max - min)) * h;
+            return `${x},${y}`;
+        }).join(' ');
+        const first = valid[0];
+        const last = valid[valid.length - 1];
+        const color = last >= first ? '#22c55e' : '#ef4444';
+        return `<svg width="${w}" height="${h}" viewBox="0 -2 ${w} ${h+4}" style="overflow:visible; display:inline-block; vertical-align:middle;">
+            <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            ${valid.map((v, i) => {
+                const x = (i / (valid.length - 1)) * w;
+                const y = h - ((v - min) / (max - min)) * h;
+                return `<circle cx="${x}" cy="${y}" r="3" fill="${color}" stroke="#fff" stroke-width="1.5" />`;
+            }).join('')}
+        </svg>`;
     }
 
     /* ── FILTER & SORT ──────────────────────────────────────── */
