@@ -924,6 +924,17 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     }
 };
 
+window.deleteAvaliacao = async function(id) {
+    if (!confirm('Tem certeza que deseja excluir esta avaliação? Esta ação não pode ser desfeita.')) return;
+    try {
+        await apiDelete(`/avaliacoes/${id}`);
+        alert('Avaliação excluída com sucesso!');
+        renderAvaliacaoTab(document.getElementById('docs-list-container'));
+    } catch (e) {
+        alert('Erro ao excluir avaliação: ' + e.message);
+    }
+};
+
 // ============================================================
 // MOTOR DE PDF - usa jsPDF DIRETAMENTE (sem html2canvas)
 // Solução definitiva: gera o PDF programaticamente, sem DOM
