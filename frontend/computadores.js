@@ -205,6 +205,7 @@
             var td = 'padding:0.75rem;vertical-align:middle;';
             // Apenas 1 computador por colaborador
             var emailsDoColab = _emails.filter(function (e) { return String(e.colaborador_id) === String(c.id); });
+            var compsDoColab = _computadores.filter(function (comp) { return String(comp.colaborador_id) === String(c.id); });
             var temEmail = emailsDoColab.length > 0;
             var temComp = compsDoColab.length > 0;
 
