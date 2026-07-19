@@ -20,6 +20,10 @@ let _integProcessosData = [];
 let _integFiltroStatus = 'todos';
 let _confIntegPassos = [];
 let _confIntegUsuarios = [];
+let _confTemplatesDepto = [];
+let _confDeptos = [];
+let _confIntegTabAtual = 'padrao';
+let _acaoCustomContador = 0;
 
 // ── Badge de notificações ─────────────────────────────────────────────────────
 window.atualizarBadgeIntegracao = async function() {
@@ -273,9 +277,7 @@ window.marcarPassoInteg = async function(passoStatusId, processoId, status) {
             body: JSON.stringify({ status })
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Erro'); }
-        // Recarregar o modal
         await window.abrirProcessoIntegracao(processoId);
-        // Atualizar lista e badge
         await window.loadIntegracaoProcessos();
         if (typeof showToast === 'function') {
             const msgs = { feito: '✅ Atividade marcada como feita!', nao_aplica: 'Atividade marcada como não aplicável.', pendente: 'Atividade reaberta.' };
@@ -286,17 +288,76 @@ window.marcarPassoInteg = async function(passoStatusId, processoId, status) {
     }
 };
 
-// ── Configuração: Conf. Integra. ──────────────────────────────────────────────
+// =============================================================================
+// CONF. INTEGRAÇÃO — ABAS: TEMPLATES PADRÃO / TEMPLATES POR DEPARTAMENTO
+// =============================================================================
+
 window.loadConfIntegracao = async function() {
     await Promise.all([
-        window.loadConfIntegPassos(),
         window.loadConfIntegUsuarios(),
+        window.loadConfDeptos(),
     ]);
+    // Exibir aba atual
+    if (_confIntegTabAtual === 'padrao') {
+        await window.loadConfIntegPassos();
+    } else {
+        await window.loadTemplatesDepto();
+    }
+    window._updateConfIntegHeaderBtn();
 };
 
+// ── Troca de abas ────────────────────────────────────────────────────────────
+window.switchConfIntegTab = function(tab) {
+    _confIntegTabAtual = tab;
+    const panelPadrao = document.getElementById('panel-ci-padrao');
+    const panelDepto  = document.getElementById('panel-ci-depto');
+    const btnPadrao   = document.getElementById('tab-btn-ci-padrao');
+    const btnDepto    = document.getElementById('tab-btn-ci-depto');
+    if (!panelPadrao || !panelDepto) return;
+
+    if (tab === 'padrao') {
+        panelPadrao.style.display = '';
+        panelDepto.style.display = 'none';
+        btnPadrao.style.color = 'var(--primary-color)';
+        btnPadrao.style.borderBottomColor = 'var(--primary-color)';
+        btnPadrao.style.fontWeight = '600';
+        btnDepto.style.color = '#64748b';
+        btnDepto.style.borderBottomColor = 'transparent';
+        btnDepto.style.fontWeight = '500';
+        window.loadConfIntegPassos();
+    } else {
+        panelPadrao.style.display = 'none';
+        panelDepto.style.display = '';
+        btnDepto.style.color = 'var(--primary-color)';
+        btnDepto.style.borderBottomColor = 'var(--primary-color)';
+        btnDepto.style.fontWeight = '600';
+        btnPadrao.style.color = '#64748b';
+        btnPadrao.style.borderBottomColor = 'transparent';
+        btnPadrao.style.fontWeight = '500';
+        window.loadTemplatesDepto();
+    }
+    window._updateConfIntegHeaderBtn();
+};
+
+window._updateConfIntegHeaderBtn = function() {
+    const area = document.getElementById('conf-integ-header-actions');
+    if (!area) return;
+    if (_confIntegTabAtual === 'padrao') {
+        area.innerHTML = `<button onclick="window.abrirModalNovoPasso()" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;background:#059669;border-color:#059669;">
+            <i class="ph ph-plus"></i> Novo Passo Padrão
+        </button>`;
+    } else {
+        area.innerHTML = `<button onclick="window.abrirModalTemplateDepto()" class="btn btn-primary" style="display:flex;align-items:center;gap:6px;background:#7c3aed;border-color:#7c3aed;">
+            <i class="ph ph-plus"></i> Novo Template
+        </button>`;
+    }
+};
+
+// ── TAB 1: Templates Padrão ───────────────────────────────────────────────────
 window.loadConfIntegPassos = async function() {
-    const tbody = document.getElementById('conf-integ-tbody');
-    if (!tbody) return;
+    const container = document.getElementById('conf-integ-secoes');
+    if (!container) return;
+    container.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-spinner-gap" style="font-size:2rem;animation:spin 1s linear infinite;"></i></div>`;
     try {
         const token = window.currentToken || localStorage.getItem('erp_token');
         const res = await fetch('/api/integracao/config/all', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -306,9 +367,9 @@ window.loadConfIntegPassos = async function() {
         }
         const data = await res.json();
         _confIntegPassos = Array.isArray(data) ? data : [];
-        window.renderConfIntegTabela(_confIntegPassos);
+        window.renderConfIntegSecoes(_confIntegPassos);
     } catch(e) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;text-align:center;padding:1rem;"><i class="ph ph-warning-circle"></i> Erro ao carregar: ${e.message}<br><button onclick="window.loadConfIntegPassos()" style="margin-top:8px;padding:6px 14px;border:none;background:#0f4c81;color:#fff;border-radius:6px;cursor:pointer;">Tentar novamente</button></td></tr>`;
+        container.innerHTML = `<div style="text-align:center;padding:2rem;color:#ef4444;"><i class="ph ph-warning-circle" style="font-size:2rem;"></i><p>Erro ao carregar: ${e.message}</p><button onclick="window.loadConfIntegPassos()" style="margin-top:8px;padding:6px 14px;border:none;background:#0f4c81;color:#fff;border-radius:6px;cursor:pointer;">Tentar novamente</button></div>`;
     }
 };
 
@@ -320,66 +381,116 @@ window.loadConfIntegUsuarios = async function() {
     } catch(e) {}
 };
 
-window.filtrarConfIntegGrupo = function(grupo) {
-    const filtrado = grupo ? _confIntegPassos.filter(p => p.grupo === grupo) : _confIntegPassos;
-    window.renderConfIntegTabela(filtrado);
+window.loadConfDeptos = async function() {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token');
+        const res = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+        _confDeptos = (await res.json()) || [];
+    } catch(e) {}
 };
 
 const INTEG_CONDICAO_LABELS = { vt: 'Somente VT', vc: 'Somente VC' };
+const GRUPOS_ORDEM_PADRAO = ['todos', 'administrativo', 'motorista', 'operacional', 'acompanhamento'];
 
-window.renderConfIntegTabela = function(passos) {
-    const tbody = document.getElementById('conf-integ-tbody');
-    if (!tbody) return;
+window.renderConfIntegSecoes = function(passos) {
+    const container = document.getElementById('conf-integ-secoes');
+    if (!container) return;
+
     if (!passos || !Array.isArray(passos) || passos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum passo encontrado. Os passos serão carregados após o servidor processar a migração do banco de dados.</td></tr>`;
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8;background:#f8fafc;border-radius:12px;border:2px dashed #e2e8f0;">
+            <i class="ph ph-list-checks" style="font-size:2.5rem;"></i>
+            <p style="margin-top:1rem;font-weight:600;">Nenhum passo padrão configurado.</p>
+            <p style="font-size:0.85rem;">Clique em "Novo Passo Padrão" para começar.</p>
+        </div>`;
         return;
     }
-    const gruposMap = INTEG_GRUPOS;
-    tbody.innerHTML = passos.map(p => {
-        const g = gruposMap[p.grupo] || { label: p.grupo, color: '#64748b', bg: '#f8fafc' };
-        const aStatus = p.ativo ? '' : 'opacity:0.5;';
-        return `<tr style="${aStatus}border-bottom:1px solid #f1f5f9;">
-            <td style="padding:10px 12px;text-align:center;color:#64748b;font-size:0.85rem;">${p.ordem}</td>
-            <td style="padding:10px 12px;">
-                <div style="font-weight:600;font-size:0.9rem;color:#0f172a;">${p.titulo}</div>
-                ${p.descricao ? `<div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>` : ''}
-                ${!p.ativo ? '<span style="font-size:0.73rem;color:#94a3b8;">(inativo)</span>' : ''}
-            </td>
-            <td style="padding:10px 12px;">
-                <span style="font-size:0.78rem;background:${g.bg};color:${g.color};padding:3px 8px;border-radius:20px;font-weight:600;">${g.label}</span>
-            </td>
-            <td style="padding:10px 12px;font-size:0.83rem;color:#64748b;">${p.condicao ? (INTEG_CONDICAO_LABELS[p.condicao] || p.condicao) : '—'}</td>
-            <td style="padding:10px 12px;font-size:0.83rem;color:#334155;">${p.responsavel_nome || '<span style="color:#94a3b8">—</span>'}</td>
-            <td style="padding:10px 12px;">
-                <div style="display:flex;gap:6px;">
-                    <button onclick="window.editarPasso(${p.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#334155;display:flex;align-items:center;gap:4px;">
-                        <i class="ph ph-pencil-simple"></i> Editar
-                    </button>
-                    ${p.ativo ? `<button onclick="window.desativarPasso(${p.id})" style="background:#fee2e2;border:1px solid #fecaca;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#dc2626;display:flex;align-items:center;gap:4px;">
-                        <i class="ph ph-trash"></i>
-                    </button>` : ''}
+
+    // Agrupar por grupo
+    const porGrupo = {};
+    GRUPOS_ORDEM_PADRAO.forEach(g => porGrupo[g] = []);
+    passos.forEach(p => {
+        const g = p.grupo || 'todos';
+        if (!porGrupo[g]) porGrupo[g] = [];
+        porGrupo[g].push(p);
+    });
+
+    let html = '';
+    GRUPOS_ORDEM_PADRAO.forEach(grupo => {
+        const lista = porGrupo[grupo];
+        const gInfo = INTEG_GRUPOS[grupo] || { label: grupo, color: '#64748b', bg: '#f8fafc', icon: 'ph-list' };
+        html += `<div style="margin-bottom:2rem;">
+            <!-- Cabeçalho da seção -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;padding:10px 14px;border-radius:10px;background:${gInfo.bg};border-left:4px solid ${gInfo.color};">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <i class="ph ${gInfo.icon}" style="color:${gInfo.color};font-size:1.15rem;"></i>
+                    <strong style="font-size:0.95rem;color:${gInfo.color};">${gInfo.label}</strong>
+                    <span style="font-size:0.78rem;background:${gInfo.color}20;color:${gInfo.color};padding:2px 8px;border-radius:20px;">${lista.length} passo${lista.length !== 1 ? 's' : ''}</span>
                 </div>
-            </td>
-        </tr>`;
-    }).join('');
+                <button onclick="window.abrirModalNovoPasso('${grupo}')"
+                    style="background:${gInfo.color};color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:0.78rem;cursor:pointer;display:flex;align-items:center;gap:4px;opacity:0.85;transition:opacity .15s;"
+                    onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.85'">
+                    <i class="ph ph-plus"></i> Adicionar
+                </button>
+            </div>`;
+
+        if (lista.length === 0) {
+            html += `<div style="text-align:center;padding:1.25rem;color:#94a3b8;border:1px dashed #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                Nenhum passo neste grupo ainda.
+            </div>`;
+        } else {
+            html += `<div style="display:flex;flex-direction:column;gap:6px;">`;
+            lista.forEach(p => {
+                const aStatus = p.ativo ? '' : 'opacity:0.45;';
+                const condHtml = p.condicao ? `<span style="font-size:0.73rem;background:#fef9c3;color:#854d0e;padding:2px 7px;border-radius:20px;margin-left:4px;">${INTEG_CONDICAO_LABELS[p.condicao] || p.condicao}</span>` : '';
+                html += `<div style="${aStatus}display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:8px;background:#fff;border:1px solid #e2e8f0;transition:box-shadow .15s;"
+                    onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'" onmouseleave="this.style.boxShadow=''">
+                    <div style="display:flex;align-items:flex-start;gap:10px;flex:1;">
+                        <span style="background:${gInfo.bg};color:${gInfo.color};min-width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;margin-top:1px;">${p.ordem}</span>
+                        <div style="flex:1;">
+                            <div style="font-size:0.9rem;font-weight:600;color:#0f172a;">${p.titulo}${condHtml}</div>
+                            ${p.descricao ? `<div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>` : ''}
+                            ${p.responsavel_nome ? `<div style="font-size:0.75rem;color:#64748b;margin-top:3px;"><i class="ph ph-user"></i> ${p.responsavel_nome}</div>` : ''}
+                            ${!p.ativo ? '<span style="font-size:0.72rem;color:#94a3b8;">(inativo)</span>' : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:5px;flex-shrink:0;">
+                        <button onclick="window.editarPasso(${p.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#334155;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-pencil-simple"></i> Editar
+                        </button>
+                        ${p.ativo ? `<button onclick="window.desativarPasso(${p.id})" style="background:#fee2e2;border:1px solid #fecaca;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#dc2626;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-trash"></i>
+                        </button>` : ''}
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+        }
+        html += `</div>`;
+    });
+
+    container.innerHTML = html;
 };
 
-window.abrirModalNovoPasso = function() {
+// Mantida para compatibilidade retroativa
+window.renderConfIntegTabela = function(passos) {
+    window.renderConfIntegSecoes(passos);
+};
+
+window.abrirModalNovoPasso = function(grupoInicial) {
     document.getElementById('conf-passo-id').value = '';
     document.getElementById('conf-passo-titulo').value = '';
     document.getElementById('conf-passo-descricao').value = '';
-    document.getElementById('conf-passo-grupo').value = 'todos';
+    document.getElementById('conf-passo-grupo').value = grupoInicial || 'todos';
     document.getElementById('conf-passo-condicao').value = '';
     document.getElementById('conf-passo-ordem').value = '0';
-    document.getElementById('modal-conf-integ-title').textContent = 'Novo Passo';
+    document.getElementById('modal-conf-integ-title').textContent = 'Novo Passo Padrão';
 
-    // Preencher select de usuários
     const selUsuario = document.getElementById('conf-passo-responsavel');
-    selUsuario.innerHTML = '<option value="">— Nenhum (sem responsável) —</option>';
+    selUsuario.innerHTML = '<option value="">— Nenhum —</option>';
     _confIntegUsuarios.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.id;
-        opt.textContent = u.nome_completo || u.username;
+        opt.textContent = u.nome || u.nome_completo || u.username;
         selUsuario.appendChild(opt);
     });
     selUsuario.value = '';
@@ -402,14 +513,14 @@ window.editarPasso = function(id) {
     document.getElementById('conf-passo-grupo').value = passo.grupo || 'todos';
     document.getElementById('conf-passo-condicao').value = passo.condicao || '';
     document.getElementById('conf-passo-ordem').value = passo.ordem || 0;
-    document.getElementById('modal-conf-integ-title').textContent = 'Editar Passo';
+    document.getElementById('modal-conf-integ-title').textContent = 'Editar Passo Padrão';
 
     const selUsuario = document.getElementById('conf-passo-responsavel');
-    selUsuario.innerHTML = '<option value="">— Nenhum (sem responsável) —</option>';
+    selUsuario.innerHTML = '<option value="">— Nenhum —</option>';
     _confIntegUsuarios.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.id;
-        opt.textContent = u.nome_completo || u.username;
+        opt.textContent = u.nome || u.nome_completo || u.username;
         selUsuario.appendChild(opt);
     });
     selUsuario.value = passo.responsavel_user_id || '';
@@ -464,9 +575,255 @@ window.desativarPasso = async function(id) {
     }
 };
 
+// ── TAB 2: Templates por Departamento ────────────────────────────────────────
+window.loadTemplatesDepto = async function() {
+    const lista = document.getElementById('conf-depto-lista');
+    if (!lista) return;
+    lista.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-spinner-gap" style="font-size:2rem;animation:spin 1s linear infinite;"></i></div>`;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token');
+        const res = await fetch('/api/integracao/templates', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Erro ao buscar templates');
+        _confTemplatesDepto = await res.json();
+        window.renderTemplatesDepto(_confTemplatesDepto);
+    } catch(e) {
+        lista.innerHTML = `<div style="text-align:center;padding:2rem;color:#ef4444;"><i class="ph ph-warning-circle" style="font-size:2rem;"></i><p>${e.message}</p><button onclick="window.loadTemplatesDepto()" style="margin-top:8px;padding:6px 14px;border:none;background:#7c3aed;color:#fff;border-radius:6px;cursor:pointer;">Tentar novamente</button></div>`;
+    }
+};
+
+window.renderTemplatesDepto = function(templates) {
+    const lista = document.getElementById('conf-depto-lista');
+    if (!lista) return;
+
+    if (!templates || templates.length === 0) {
+        lista.innerHTML = `<div style="text-align:center;padding:4rem;color:#94a3b8;background:#f8fafc;border-radius:12px;border:2px dashed #e2e8f0;">
+            <i class="ph ph-buildings" style="font-size:3rem;color:#7c3aed;opacity:0.4;"></i>
+            <p style="margin-top:1rem;font-weight:600;font-size:1rem;">Nenhum template por departamento criado.</p>
+            <p style="font-size:0.85rem;">Clique em "Novo Template" para criar um template personalizado para um departamento.</p>
+        </div>`;
+        return;
+    }
+
+    lista.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;">
+        ${templates.map(t => {
+            const gruposPills = (t.grupos || []).map(g => {
+                const gi = INTEG_GRUPOS[g] || { label: g, color: '#64748b', bg: '#f8fafc' };
+                return `<span style="font-size:0.72rem;background:${gi.bg};color:${gi.color};padding:2px 8px;border-radius:20px;font-weight:600;">${gi.label}</span>`;
+            }).join('');
+            return `<div class="card" style="padding:1.25rem;border:1px solid #e2e8f0;border-left:4px solid #7c3aed;transition:box-shadow .2s;"
+                onmouseenter="this.style.boxShadow='0 4px 16px rgba(124,58,237,0.1)'" onmouseleave="this.style.boxShadow=''">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:4px;">${t.nome}</div>
+                        <div style="font-size:0.82rem;color:#64748b;display:flex;align-items:center;gap:5px;">
+                            <i class="ph ph-buildings"></i>
+                            ${t.departamento_nome ? `<strong>${t.departamento_nome}</strong>` : '<em>Todos os departamentos</em>'}
+                        </div>
+                        ${t.descricao ? `<div style="font-size:0.8rem;color:#94a3b8;margin-top:5px;">${t.descricao}</div>` : ''}
+                    </div>
+                    <div style="display:flex;gap:5px;flex-shrink:0;">
+                        <button onclick="window.editarTemplateDepto(${t.id})" style="background:#f1f5f9;border:1px solid #e2e8f0;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#334155;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-pencil-simple"></i> Editar
+                        </button>
+                        <button onclick="window.excluirTemplateDepto(${t.id}, '${t.nome.replace(/'/g,"\\\'")}')" style="background:#fee2e2;border:1px solid #fecaca;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#dc2626;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
+                    ${gruposPills || '<span style="font-size:0.75rem;color:#94a3b8;">Nenhum grupo padrão selecionado</span>'}
+                </div>
+                <div style="font-size:0.78rem;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:8px;margin-top:4px;">
+                    <i class="ph ph-star" style="color:#d97706;"></i> ${t.acoes_count || 0} ação${t.acoes_count !== 1 ? 'ões' : ''} exclusiva${t.acoes_count !== 1 ? 's' : ''}
+                </div>
+            </div>`;
+        }).join('')}
+    </div>`;
+};
+
+// ── Modal Template por Departamento ──────────────────────────────────────────
+window.abrirModalTemplateDepto = function() {
+    document.getElementById('td-id').value = '';
+    document.getElementById('td-nome').value = '';
+    document.getElementById('td-descricao').value = '';
+    document.getElementById('modal-td-title').textContent = 'Novo Template de Departamento';
+
+    // Desmarcar todos os checkboxes de grupo
+    document.querySelectorAll('input[name="td-grupo"]').forEach(cb => cb.checked = false);
+
+    // Preencher select de departamentos
+    const selDepto = document.getElementById('td-departamento');
+    selDepto.innerHTML = '<option value="">— Todos os departamentos —</option>';
+    _confDeptos.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.nome;
+        selDepto.appendChild(opt);
+    });
+
+    // Limpar ações customizadas
+    document.getElementById('td-acoes-lista').innerHTML = '';
+    document.getElementById('td-acoes-empty').style.display = 'block';
+    _acaoCustomContador = 0;
+
+    const modal = document.getElementById('modal-template-depto');
+    if (modal) { modal.style.display = 'flex'; modal.style.alignItems = 'flex-start'; modal.style.justifyContent = 'center'; }
+};
+
+window.fecharModalTemplateDepto = function() {
+    const modal = document.getElementById('modal-template-depto');
+    if (modal) modal.style.display = 'none';
+};
+
+window.editarTemplateDepto = async function(id) {
+    window.abrirModalTemplateDepto();
+    document.getElementById('modal-td-title').textContent = 'Editar Template';
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token');
+        const res = await fetch(`/api/integracao/templates/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Erro ao carregar template');
+        const t = await res.json();
+
+        document.getElementById('td-id').value = t.id;
+        document.getElementById('td-nome').value = t.nome || '';
+        document.getElementById('td-descricao').value = t.descricao || '';
+        document.getElementById('td-departamento').value = t.departamento_id || '';
+
+        // Marcar grupos
+        document.querySelectorAll('input[name="td-grupo"]').forEach(cb => {
+            cb.checked = (t.grupos || []).includes(cb.value);
+        });
+
+        // Carregar ações custom
+        document.getElementById('td-acoes-lista').innerHTML = '';
+        _acaoCustomContador = 0;
+        (t.acoes_custom || []).forEach(a => window.addAcaoCustom(a));
+
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
+};
+
+window.excluirTemplateDepto = async function(id, nome) {
+    if (!confirm(`Excluir o template "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    const token = window.currentToken || localStorage.getItem('erp_token');
+    try {
+        const res = await fetch(`/api/integracao/templates/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Erro ao excluir');
+        await window.loadTemplatesDepto();
+        if (typeof showToast === 'function') showToast('Template excluído.', 'info');
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
+};
+
+window.addAcaoCustom = function(acao) {
+    const idx = ++_acaoCustomContador;
+    const lista = document.getElementById('td-acoes-lista');
+    const empty = document.getElementById('td-acoes-empty');
+    if (empty) empty.style.display = 'none';
+
+    const div = document.createElement('div');
+    div.id = `acao-custom-${idx}`;
+    div.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;';
+    div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="font-size:0.78rem;font-weight:600;color:#7c3aed;"><i class="ph ph-star"></i> Ação #${idx}</span>
+            <button type="button" onclick="window.removerAcaoCustom(${idx})" style="background:#fee2e2;border:none;color:#dc2626;border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        <input type="text" id="acao-titulo-${idx}" placeholder="Título da ação *" value="${acao ? (acao.titulo || '') : ''}"
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+        <textarea id="acao-descricao-${idx}" rows="2" placeholder="Descrição (opcional)"
+            style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:vertical;box-sizing:border-box;">${acao ? (acao.descricao || '') : ''}</textarea>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <select id="acao-responsavel-${idx}" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                <option value="">— Responsável —</option>
+                ${_confIntegUsuarios.map(u => `<option value="${u.id}" ${acao && acao.responsavel_user_id == u.id ? 'selected' : ''}>${u.nome || u.username}</option>`).join('')}
+            </select>
+            <select id="acao-condicao-${idx}" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                <option value="" ${acao && !acao.condicao ? 'selected' : ''}>Sem condição</option>
+                <option value="vt" ${acao && acao.condicao === 'vt' ? 'selected' : ''}>Somente VT</option>
+                <option value="vc" ${acao && acao.condicao === 'vc' ? 'selected' : ''}>Somente VC</option>
+            </select>
+        </div>
+        <input type="hidden" id="acao-ordem-${idx}" value="${acao ? (acao.ordem || idx) : idx}">
+    `;
+    lista.appendChild(div);
+};
+
+window.removerAcaoCustom = function(idx) {
+    const el = document.getElementById(`acao-custom-${idx}`);
+    if (el) el.remove();
+    // Mostrar empty se não houver mais ações
+    if (document.getElementById('td-acoes-lista').children.length === 0) {
+        document.getElementById('td-acoes-empty').style.display = 'block';
+    }
+};
+
+window.salvarTemplateDepto = async function(e) {
+    e.preventDefault();
+    const token = window.currentToken || localStorage.getItem('erp_token');
+
+    // Coletar grupos
+    const grupos = [];
+    document.querySelectorAll('input[name="td-grupo"]:checked').forEach(cb => grupos.push(cb.value));
+
+    // Coletar ações customizadas
+    const acoes_custom = [];
+    let ordem = 1;
+    for (let i = 1; i <= _acaoCustomContador; i++) {
+        const tituloEl = document.getElementById(`acao-titulo-${i}`);
+        if (!tituloEl) continue;
+        const titulo = tituloEl.value.trim();
+        if (!titulo) continue;
+        acoes_custom.push({
+            titulo,
+            descricao: (document.getElementById(`acao-descricao-${i}`)?.value || '').trim(),
+            responsavel_user_id: document.getElementById(`acao-responsavel-${i}`)?.value || null,
+            condicao: document.getElementById(`acao-condicao-${i}`)?.value || null,
+            ordem: ordem++,
+        });
+    }
+
+    const body = {
+        id: document.getElementById('td-id').value || undefined,
+        nome: document.getElementById('td-nome').value.trim(),
+        departamento_id: document.getElementById('td-departamento').value || null,
+        descricao: document.getElementById('td-descricao').value.trim(),
+        grupos,
+        acoes_custom,
+    };
+
+    if (!body.nome) return alert('Informe o nome do template.');
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
+
+    try {
+        const res = await fetch('/api/integracao/templates', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+        window.fecharModalTemplateDepto();
+        await window.loadTemplatesDepto();
+        if (typeof showToast === 'function') showToast('Template salvo com sucesso!', 'success');
+    } catch(err) {
+        alert('Erro ao salvar: ' + err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Template'; }
+    }
+};
+
 // ── Integrar com o hook de navegação ─────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Monkeypatch navigateTo to hook integration pages
     const _origNavigateTo = window.navigateTo;
     window.navigateTo = function(target, ...args) {
         if (typeof _origNavigateTo === 'function') _origNavigateTo(target, ...args);
@@ -478,7 +835,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Também interceptar clicks de nav-item
     document.querySelectorAll('.nav-item[data-target="integracao"]').forEach(el => {
         el.addEventListener('click', () => setTimeout(() => window.loadIntegracaoProcessos(), 200));
     });
@@ -487,11 +843,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Adicionar CSS para spin animation se não existir
+// CSS de animação
 (function addSpinCSS() {
     if (document.getElementById('integ-spin-style')) return;
     const style = document.createElement('style');
     style.id = 'integ-spin-style';
-    style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+    style.textContent = `
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        #td-grupos-checkboxes label:hover { background: #f5f3ff; border-color: #c4b5fd; }
+        #td-grupos-checkboxes label:has(input:checked) { background: #f5f3ff; border-color: #7c3aed; }
+    `;
     document.head.appendChild(style);
 })();
+
+// Compatibilidade retroativa
+window.loadIntegracaoColabs = async function () {
+    if (typeof window.loadIntegracaoProcessos === 'function') window.loadIntegracaoProcessos();
+};
+window.filtrarConfIntegGrupo = function(grupo) {
+    const filtrado = grupo ? _confIntegPassos.filter(p => p.grupo === grupo) : _confIntegPassos;
+    window.renderConfIntegSecoes(filtrado);
+};
