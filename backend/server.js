@@ -22337,7 +22337,7 @@ function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador,
 
 // ── API: Configuração dos passos ───────────────────────────────────────────────
 app.get('/api/integracao/config', authenticateToken, (req, res) => {
-    db.all(`SELECT p.*, u.nome_completo as responsavel_nome, u.email as responsavel_email
+    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
             FROM integracao_passos_config p
             LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
             WHERE p.ativo = 1
@@ -22348,7 +22348,7 @@ app.get('/api/integracao/config', authenticateToken, (req, res) => {
 });
 
 app.get('/api/integracao/config/all', authenticateToken, (req, res) => {
-    db.all(`SELECT p.*, u.nome_completo as responsavel_nome, u.email as responsavel_email
+    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
             FROM integracao_passos_config p
             LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
             ORDER BY p.grupo, p.ordem`, [], (err, rows) => {
@@ -22407,7 +22407,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
         );
 
         const passos = await new Promise((resolve, reject) =>
-            db.all(`SELECT p.*, u.nome_completo as responsavel_nome, u.email as responsavel_email
+            db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
                     FROM integracao_passos_config p
                     LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
                     WHERE p.ativo = 1 ORDER BY p.grupo, p.ordem`, [], (e, r) => e ? reject(e) : resolve(r || []))
@@ -22507,13 +22507,13 @@ app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
         if (!processo) return res.status(404).json({ error: 'Processo não encontrado' });
         const stepSql = isAdmin
             ? `SELECT ps.*, pc.titulo, pc.descricao, pc.grupo, pc.condicao, pc.tipo, pc.ordem,
-                      u.nome_completo as responsavel_nome
+                      u.nome as responsavel_nome
                FROM integracao_passos_status ps
                JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
                LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
                WHERE ps.processo_id = ? ORDER BY pc.grupo, pc.ordem`
             : `SELECT ps.*, pc.titulo, pc.descricao, pc.grupo, pc.condicao, pc.tipo, pc.ordem,
-                      u.nome_completo as responsavel_nome
+                      u.nome as responsavel_nome
                FROM integracao_passos_status ps
                JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
                LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
