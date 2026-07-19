@@ -13917,6 +13917,11 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 </div>`
                             });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            if (situacao_avaliacao === 'Aprovado') {
+                                db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
+                                    if(err) console.error("Erro ao liberar integracao de experiencia:", err);
+                                });
+                            }
                             res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
                 } else {
@@ -13954,6 +13959,11 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 </div>`
                             });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            if (situacao_avaliacao === 'Aprovado') {
+                                db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
+                                    if(err) console.error("Erro ao liberar integracao de experiencia:", err);
+                                });
+                            }
                             res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
                 }
@@ -22303,6 +22313,7 @@ function _condicaoAplicavel(colab, condicao) {
     if (condicao === 'vt') return transporte.includes('vt') || transporte.includes('vale transporte') || transporte.includes('vale-transporte');
     if (condicao === 'vc') return transporte.includes('vc') || transporte.includes('combustivel') || transporte.includes('combustível') || transporte.includes('vale combust');
     if (condicao === 'terapia') return (colab.terapia_participa || '').toLowerCase() === 'sim';
+    if (condicao === 'experiencia_aprovado') return true;
     return true;
 }
 
@@ -22523,9 +22534,10 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                         }
                     }
                     
+                    let initialStatus = (a.condicao === 'experiencia_aprovado') ? 'aguardando_experiencia' : 'pendente';
                     await new Promise((resolve, reject) =>
-                        db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom, treinamento_id) VALUES (?, NULL, 'pendente', ?, ?, ?, 1, ?)`,
-                            [processoId, respFinalId || null, a.titulo, a.descricao || null, a.treinamento_id || null],
+                        db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom, treinamento_id) VALUES (?, NULL, ?, ?, ?, ?, 1, ?)`,
+                            [processoId, initialStatus, respFinalId || null, a.titulo, a.descricao || null, a.treinamento_id || null],
                             err => err ? reject(err) : resolve()));
                 }
                 passosAplicaveis = acoesFiltradas; // para e-mail

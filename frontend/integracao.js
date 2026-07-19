@@ -6,6 +6,7 @@ const INTEG_STATUS = {
     pendente:   { label: 'Pendente',        color: '#f59e0b', bg: '#fffbeb', icon: 'ph-clock' },
     feito:      { label: 'Feito',           color: '#059669', bg: '#ecfdf5', icon: 'ph-check-circle' },
     nao_aplica: { label: 'Não se aplica',   color: '#94a3b8', bg: '#f8fafc', icon: 'ph-x-circle' },
+    aguardando_experiencia: { label: 'Aguard. Aprovação (Exp.)', color: '#0f4c81', bg: '#eff6ff', icon: 'ph-lock' },
 };
 
 let _integProcessosData = [];
@@ -129,8 +130,8 @@ window.abrirProcessoIntegracao = async function(processoId) {
                 const stInfo = INTEG_STATUS[p.status]||INTEG_STATUS.pendente; const isPendente = p.status==='pendente';
                 html += `<div id="passo-row-${p.id}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:${stInfo.bg};border:1px solid ${stInfo.color}30;transition:all .2s;">
                     <div style="padding-top:2px;"><i class="ph ${stInfo.icon}" style="color:${stInfo.color};font-size:1.2rem;"></i></div>
-                    <div style="flex:1;"><div style="font-size:.9rem;font-weight:${isPendente?'600':'400'};color:${isPendente?'#0f172a':'#94a3b8'};${p.status==='feito'?'text-decoration:line-through;':''}">${p.titulo}</div>${p.descricao?`<div style="font-size:.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>`:''} ${p.responsavel_nome?`<div style="font-size:.75rem;color:#64748b;margin-top:3px;"><i class="ph ph-user"></i> ${p.responsavel_nome}</div>`:''} ${p.feito_em?`<div style="font-size:.73rem;color:#059669;margin-top:2px;"><i class="ph ph-check"></i> Feito em ${new Date(p.feito_em).toLocaleDateString('pt-BR')}</div>`:''}</div>
-                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">${isPendente?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'feito')" style="background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-check"></i> Marcar Feito</button><button onclick="window.marcarPassoInteg(${p.id},${processoId},'nao_aplica')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;"><i class="ph ph-x"></i> Não se aplica</button>`:p.status!=='pendente'?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'pendente')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;">Desfazer</button>`:''}</div>
+                    <div style="flex:1;"><div style="font-size:.9rem;font-weight:${isPendente?'600':'400'};color:${(isPendente || p.status==='aguardando_experiencia')?'#0f172a':'#94a3b8'};${p.status==='feito'?'text-decoration:line-through;':''}">${p.titulo}</div>${p.descricao?`<div style="font-size:.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>`:''} ${p.responsavel_nome?`<div style="font-size:.75rem;color:#64748b;margin-top:3px;"><i class="ph ph-user"></i> ${p.responsavel_nome}</div>`:''} ${p.feito_em?`<div style="font-size:.73rem;color:#059669;margin-top:2px;"><i class="ph ph-check"></i> Feito em ${new Date(p.feito_em).toLocaleDateString('pt-BR')}</div>`:''}</div>
+                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">${isPendente?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'feito')" style="background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-check"></i> Marcar Feito</button><button onclick="window.marcarPassoInteg(${p.id},${processoId},'nao_aplica')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;"><i class="ph ph-x"></i> Não se aplica</button>`:(p.status!=='pendente' && p.status!=='aguardando_experiencia')?`<button onclick=\"window.marcarPassoInteg(${p.id},${processoId},'pendente')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;">Desfazer</button>`:''}</div>
                 </div>`;
             });
         }
@@ -538,6 +539,7 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
                     <option value="vt" ${a.condicao==='vt'?'selected':''}>Somente se usar VT</option>
                     <option value="vc" ${a.condicao==='vc'?'selected':''}>Somente se usar VC</option>
                     <option value="terapia" ${a.condicao==='terapia'?'selected':''}>Somente se usar Terapia</option>
+                        <option value="experiencia_aprovado" ${a.condicao==='experiencia_aprovado'?'selected':''}>Somente se Aprovado na Experiência</option>
                 </select>
             </div>
                 <div style="flex:1; display:${displayTrein};">
