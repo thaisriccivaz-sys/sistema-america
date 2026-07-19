@@ -18367,23 +18367,19 @@ setInterval(() => {
 
 })();
 
-// --- GESTÃO DE INTEGRAÇÃO ---
+// --- GESTÃO DE INTEGRAÇÃO (redirecionado para integracao.js) ---
+// As funções abaixo foram substituídas pelo módulo integracao.js
 window.startIntegracao = function (val) {
-    if (val) {
-        document.getElementById('integracao-workflow').style.display = 'block';
-    } else {
-        document.getElementById('integracao-workflow').style.display = 'none';
-    }
+    // Compatibilidade retroativa — o select antigo foi removido
+    if (typeof window.loadIntegracaoProcessos === 'function') window.loadIntegracaoProcessos();
 };
 window.nextIntegracaoStep = function (step) {
-    document.querySelectorAll('.integracao-panel').forEach(p => p.style.display = 'none');
-    document.querySelectorAll('#integracao-workflow .step-item').forEach(s => s.classList.remove('active'));
+    // Função antiga — sem uso na nova interface
+};
 
-    const panel = document.getElementById('int-panel-step-' + step);
-    if (panel) panel.style.display = 'block';
-
-    const icon = document.getElementById('int-step-' + step);
-    if (icon) icon.classList.add('active');
+window.loadIntegracaoColabs = async function () {
+    // Compatibilidade retroativa — chamada redirecionada
+    if (typeof window.loadIntegracaoProcessos === 'function') window.loadIntegracaoProcessos();
 };
 
 window.switchCargoDeptoTab = function (tab) {
@@ -18403,21 +18399,8 @@ window.switchCargoDeptoTab = function (tab) {
 };
 
 window.loadIntegracaoColabs = async function () {
-    try {
-        const colaboradores = await apiGet('/colaboradores');
-        if (!colaboradores) return;
-        const integracaoUsers = colaboradores.filter(c => c.status === 'Em Integração');
-        const sel = document.getElementById('select-integracao-colab');
-        if (sel) {
-            sel.innerHTML = '<option value="">Selecione um colaborador...</option>';
-            integracaoUsers.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.nome_completo;
-                sel.appendChild(opt);
-            });
-        }
-    } catch (e) { }
+    // Compatibilidade retroativa — redireciona para nova função
+    if (typeof window.loadIntegracaoProcessos === 'function') window.loadIntegracaoProcessos();
 };
 window.toggleAlergias = function (val) {
     const input = document.getElementById('colab-alergias');

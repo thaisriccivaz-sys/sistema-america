@@ -30,13 +30,32 @@ window.atualizarBadgeIntegracao = async function() {
         });
         if (!res.ok) return;
         const data = await res.json();
+        const count = data.count || 0;
+
+        // Atualizar badge
         const badge = document.getElementById('integracao-badge');
-        if (!badge) return;
-        if (data.count > 0) {
-            badge.textContent = data.count > 99 ? '99+' : data.count;
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
+        if (badge) {
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Atualizar cor do item lateral (cinza = sem pendências, vermelho = com pendências)
+        const deptItem = document.getElementById('dept-item-integracao');
+        const deptHeader = document.getElementById('dept-integ-header');
+        if (deptItem) {
+            if (count > 0) {
+                deptItem.style.setProperty('--dept-color', '#dc2626');
+                deptItem.style.setProperty('--dept-bg', '#fef2f2');
+                if (deptHeader) { deptHeader.style.color = '#dc2626'; }
+            } else {
+                deptItem.style.setProperty('--dept-color', '#6b7280');
+                deptItem.style.setProperty('--dept-bg', '#f3f4f6');
+                if (deptHeader) { deptHeader.style.color = '#6b7280'; }
+            }
         }
     } catch(e) {}
 };
@@ -281,10 +300,15 @@ window.loadConfIntegPassos = async function() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token');
         const res = await fetch('/api/integracao/config/all', { headers: { 'Authorization': `Bearer ${token}` } });
-        _confIntegPassos = await res.json();
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Servidor retornou ${res.status}`);
+        }
+        const data = await res.json();
+        _confIntegPassos = Array.isArray(data) ? data : [];
         window.renderConfIntegTabela(_confIntegPassos);
     } catch(e) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;text-align:center;padding:1rem;">Erro: ${e.message}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color:#ef4444;text-align:center;padding:1rem;"><i class="ph ph-warning-circle"></i> Erro ao carregar: ${e.message}<br><button onclick="window.loadConfIntegPassos()" style="margin-top:8px;padding:6px 14px;border:none;background:#0f4c81;color:#fff;border-radius:6px;cursor:pointer;">Tentar novamente</button></td></tr>`;
     }
 };
 
@@ -306,8 +330,8 @@ const INTEG_CONDICAO_LABELS = { vt: 'Somente VT', vc: 'Somente VC' };
 window.renderConfIntegTabela = function(passos) {
     const tbody = document.getElementById('conf-integ-tbody');
     if (!tbody) return;
-    if (!passos || passos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum passo encontrado.</td></tr>`;
+    if (!passos || !Array.isArray(passos) || passos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#94a3b8;">Nenhum passo encontrado. Os passos serão carregados após o servidor processar a migração do banco de dados.</td></tr>`;
         return;
     }
     const gruposMap = INTEG_GRUPOS;
@@ -361,7 +385,7 @@ window.abrirModalNovoPasso = function() {
     selUsuario.value = '';
 
     const modal = document.getElementById('modal-conf-integ-passo');
-    if (modal) { modal.style.display = 'flex'; }
+    if (modal) { modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center'; }
 };
 
 window.fecharModalPasso = function() {

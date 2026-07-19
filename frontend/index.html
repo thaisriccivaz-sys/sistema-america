@@ -115,8 +115,7 @@
                         Experi&ecirc;ncia</a>
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i>
                         Admiss&atilde;o</a>
-                    <a href="#" class="nav-item" data-target="integracao" id="nav-integracao-item"><i class="ph ph-users-three"></i>
-                        Integra&ccedil;&atilde;o <span id="integracao-badge" style="display:none;background:#ef4444;color:#fff;border-radius:50%;font-size:0.65rem;font-weight:700;padding:1px 5px;margin-left:4px;min-width:16px;text-align:center;line-height:16px;">0</span></a>
+                    
                     <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i>
                         Faculdade</a>
                     <!-- ▸ Grupo: Avaliações (acordeão) -->
@@ -176,7 +175,22 @@
                 </div>
             </div>
 
-            <!-- Log&iacute;stica - Verde -->
+            
+            <!-- Integração - Dinâmico (cinza/vermelho) -->
+            <div class="dept-item" id="dept-item-integracao" style="--dept-color:#6b7280; --dept-bg:#f3f4f6;">
+                <button class="dept-btn" title="Integração" id="dept-btn-integracao">
+                    <i class="ph ph-handshake"></i>
+                    <span>Integra&ccedil;&atilde;o</span>
+                </button>
+                <div class="dept-submenu" id="sub-integracao">
+                    <div class="dept-submenu-header" style="color:#6b7280;" id="dept-integ-header"><i class="ph ph-handshake"></i> Integração</div>
+                    <a href="#" class="nav-item" data-target="integracao" id="nav-integracao-item"
+                       onclick="navigateTo('integracao'); return false;"><i class="ph ph-list-checks"></i>
+                        Processo de Integração <span id="integracao-badge" style="display:none;background:#ef4444;color:#fff;border-radius:50%;font-size:0.65rem;font-weight:700;padding:1px 5px;margin-left:4px;min-width:16px;text-align:center;line-height:16px;">0</span></a>
+                </div>
+            </div>
+
+<!-- Log&iacute;stica - Verde -->
             <div class="dept-item" style="--dept-color:#2d9e5f; --dept-bg:#d6f5e5;">
                 <button class="dept-btn" title="Log&iacute;stica">
                     <i class="ph ph-truck"></i>
@@ -1374,7 +1388,7 @@
                 </section>
 
                 <!-- Modal: Novo/Editar Passo de Integração -->
-                <div id="modal-conf-integ-passo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;">
+                <div id="modal-conf-integ-passo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
                     <div style="background:#fff;border-radius:16px;padding:0;width:100%;max-width:540px;box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;">
                         <div style="background:linear-gradient(135deg,#059669,#0f4c81);padding:1.25rem 1.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;">
                             <h3 style="margin:0;font-weight:700;" id="modal-conf-integ-title">Novo Passo</h3>
