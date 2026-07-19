@@ -22439,18 +22439,67 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 function(err) { err ? reject(err) : resolve(this.lastID); })
         );
 
-        const passos = await new Promise((resolve, reject) =>
-            db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
-                    FROM integracao_passos_config p
-                    LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
-                    WHERE p.ativo = 1 ORDER BY p.grupo, p.ordem`, [], (e, r) => e ? reject(e) : resolve(r || []))
-        );
+        // ── Verificar se há template para o departamento do colaborador ──────
+        const template = colab.departamento_id
+            ? await new Promise(resolve =>
+                db.get(`SELECT t.* FROM integracao_templates t
+                        WHERE t.departamento_id = ? AND t.ativo = 1
+                        LIMIT 1`, [colab.departamento_id], (e, r) => resolve(r || null)))
+            : null;
 
-        const passosAplicaveis = passos.filter(p => _grupoAplicavel(colab, p.grupo) && _condicaoAplicavel(colab, p.condicao));
+        let passosAplicaveis = [];
+        let acoesCustom = [];
+
+        if (template) {
+            // ── Com template: usar grupos selecionados + ações exclusivas ────
+            console.log(`[INTEGRAÇÃO] Usando template "${template.nome}" (id ${template.id}) para ${colab.nome_completo}`);
+
+            const grupos = await new Promise(resolve =>
+                db.all(`SELECT grupo FROM integracao_template_grupos WHERE template_id=?`, [template.id],
+                    (e, g) => resolve((g || []).map(x => x.grupo))));
+
+            for (const grupo of grupos) {
+                const passosGrupo = await new Promise(resolve =>
+                    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+                            FROM integracao_passos_config p
+                            LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+                            WHERE p.ativo = 1 AND p.grupo = ? ORDER BY p.ordem`, [grupo],
+                        (e, r) => resolve(r || [])));
+                passosAplicaveis.push(...passosGrupo.filter(p => _condicaoAplicavel(colab, p.condicao)));
+            }
+
+            acoesCustom = await new Promise(resolve =>
+                db.all(`SELECT a.*, u.nome as responsavel_nome, u.email as responsavel_email
+                        FROM integracao_template_acoes_custom a
+                        LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+                        WHERE a.template_id = ? AND a.ativo = 1 ORDER BY a.ordem`, [template.id],
+                    (e, r) => resolve(r || [])));
+            acoesCustom = acoesCustom.filter(a => _condicaoAplicavel(colab, a.condicao));
+
+        } else {
+            // ── Sem template: auto-detecção (lógica original) ────────────────
+            const todosPassos = await new Promise(resolve =>
+                db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+                        FROM integracao_passos_config p
+                        LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+                        WHERE p.ativo = 1 ORDER BY p.grupo, p.ordem`, [], (e, r) => resolve(r || [])));
+            passosAplicaveis = todosPassos.filter(p => _grupoAplicavel(colab, p.grupo) && _condicaoAplicavel(colab, p.condicao));
+        }
+
+        // ── Inserir passos padrão ────────────────────────────────────────────
         for (const p of passosAplicaveis) {
             await new Promise((resolve, reject) =>
                 db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id) VALUES (?, ?, 'pendente', ?)`,
                     [processoId, p.id, p.responsavel_user_id || null],
+                    err => err ? reject(err) : resolve())
+            );
+        }
+
+        // ── Inserir ações customizadas do template ───────────────────────────
+        for (const a of acoesCustom) {
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom) VALUES (?, NULL, 'pendente', ?, ?, ?, 1)`,
+                    [processoId, a.responsavel_user_id || null, a.titulo, a.descricao || null],
                     err => err ? reject(err) : resolve())
             );
         }
@@ -22460,9 +22509,10 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 err => err ? reject(err) : resolve())
         );
 
-        // Enviar e-mails por responsável
+        // ── Enviar e-mails por responsável ───────────────────────────────────
+        const todosPassosEmail = [...passosAplicaveis, ...acoesCustom];
         const responsaveisMapa = {};
-        for (const p of passosAplicaveis) {
+        for (const p of todosPassosEmail) {
             if (p.responsavel_user_id && p.responsavel_email) {
                 if (!responsaveisMapa[p.responsavel_user_id]) {
                     responsaveisMapa[p.responsavel_user_id] = { nome: p.responsavel_nome, email: p.responsavel_email, passos: [] };
@@ -22482,8 +22532,9 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 console.error('[INTEGRAÇÃO] Erro ao enviar e-mail para', resp.email, mailErr.message);
             }
         }
-        console.log(`[INTEGRAÇÃO] Processo ${processoId} criado para colaborador ${colaboradorId} (${passosAplicaveis.length} passos)`);
-        res.json({ ok: true, processo_id: processoId, passos_criados: passosAplicaveis.length });
+        const totalPassos = passosAplicaveis.length + acoesCustom.length;
+        console.log(`[INTEGRAÇÃO] Processo ${processoId} criado para ${colab.nome_completo} — ${passosAplicaveis.length} passos padrão + ${acoesCustom.length} ações custom${template ? ` (template: ${template.nome})` : ' (auto)'}`);
+        res.json({ ok: true, processo_id: processoId, passos_criados: totalPassos, template_usado: template ? template.nome : null });
     } catch(e) {
         console.error('[INTEGRAÇÃO] Erro ao iniciar processo:', e.message);
         res.status(500).json({ error: e.message });
@@ -22539,19 +22590,32 @@ app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!processo) return res.status(404).json({ error: 'Processo não encontrado' });
         const stepSql = isAdmin
-            ? `SELECT ps.*, pc.titulo, pc.descricao, pc.grupo, pc.condicao, pc.tipo, pc.ordem,
+            ? `SELECT ps.*,
+                      COALESCE(ps.titulo, pc.titulo)    AS titulo,
+                      COALESCE(ps.descricao_custom, pc.descricao) AS descricao,
+                      COALESCE(pc.grupo, 'todos')       AS grupo,
+                      COALESCE(pc.condicao, '')         AS condicao,
+                      COALESCE(pc.tipo, 'checkbox')     AS tipo,
+                      COALESCE(pc.ordem, 9999)          AS ordem,
                       u.nome as responsavel_nome
                FROM integracao_passos_status ps
-               JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
+               LEFT JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
                LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
-               WHERE ps.processo_id = ? ORDER BY pc.grupo, pc.ordem`
-            : `SELECT ps.*, pc.titulo, pc.descricao, pc.grupo, pc.condicao, pc.tipo, pc.ordem,
+               WHERE ps.processo_id = ?
+               ORDER BY COALESCE(pc.grupo,'todos'), COALESCE(pc.ordem,9999)`
+            : `SELECT ps.*,
+                      COALESCE(ps.titulo, pc.titulo)    AS titulo,
+                      COALESCE(ps.descricao_custom, pc.descricao) AS descricao,
+                      COALESCE(pc.grupo, 'todos')       AS grupo,
+                      COALESCE(pc.condicao, '')         AS condicao,
+                      COALESCE(pc.tipo, 'checkbox')     AS tipo,
+                      COALESCE(pc.ordem, 9999)          AS ordem,
                       u.nome as responsavel_nome
                FROM integracao_passos_status ps
-               JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
+               LEFT JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
                LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
                WHERE ps.processo_id = ? AND ps.responsavel_user_id = ?
-               ORDER BY pc.grupo, pc.ordem`;
+               ORDER BY COALESCE(pc.grupo,'todos'), COALESCE(pc.ordem,9999)`;
         const stepParams = isAdmin ? [processoId] : [processoId, userId];
         db.all(stepSql, stepParams, (err2, passos) => {
             if (err2) return res.status(500).json({ error: err2.message });
