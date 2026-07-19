@@ -22983,7 +22983,7 @@ app.post('/api/integ/templates/seed', async (req, res) => {
 app.get('/api/integ/templates', authenticateToken, (req, res) => {
     db.all(`SELECT t.*,
             (SELECT COUNT(*) FROM integ_template_acoes a WHERE a.template_id=t.id AND a.ativo=1) as total_acoes,
-            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id)) FROM (SELECT titulo, grupo FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
+            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id)) FROM (SELECT titulo, grupo, grupo_responsavel_user_id FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
             FROM integ_templates t WHERE t.ativo=1 ORDER BY t.tipo_key, t.nome`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
