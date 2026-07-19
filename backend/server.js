@@ -12663,13 +12663,13 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
     const logoUrl = `${apiBase}/assets/logo-header.png`;
     const prazoFimFormatado = prazos ? prazos.prazo2_fim.split('-').reverse().join('/') : '';
     const mensagem = tipo === 'automatico'
-        ? `O per??odo de experi??ncia do colaborador <strong>${nomeCompleto}</strong> (${cargo}) est?? se encerrando em <strong>${diasRestantes} dias</strong> (t??rmino em ${prazoFimFormatado}).`
-        : `Por favor, preencha o formul??rio de avalia????o de experi??ncia do colaborador <strong>${nomeCompleto}</strong> (${cargo}).`;
+        ? `O período de experiência do colaborador <strong>${nomeCompleto}</strong> (${cargo}) está se encerrando em <strong>${diasRestantes} dias</strong> (término em ${prazoFimFormatado}).`
+        : `Por favor, preencha o formulário de avaliação de experiência do colaborador <strong>${nomeCompleto}</strong> (${cargo}).`;
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Avalia????o de Experi??ncia ??? Am??rica Rental</title>
+<title>Avaliação de Experiência — América Rental</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
@@ -12679,19 +12679,19 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
       <!-- HEADER IMAGEM -->
       <tr>
         <td style="padding:0;text-align:center;background:#fff;border-bottom:1px solid #eee;">
-          <img src="${logoUrl}" alt="Am??rica Rental" width="600" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;">
+          <img src="${logoUrl}" alt="América Rental" width="600" style="width:100%;max-width:600px;height:auto;display:block;margin:0 auto;">
         </td>
       </tr>
 
-      <!-- T??TULO -->
+      <!-- TÍTULO -->
       <tr>
         <td style="padding:24px 28px 8px;">
           <table cellpadding="0" cellspacing="0">
             <tr>
-              <td style="width:24px;height:24px;background:#e8f5e9;border-radius:4px;text-align:center;line-height:24px;font-size:14px;">????</td>
+              <td style="width:24px;height:24px;background:#e8f5e9;border-radius:4px;text-align:center;line-height:24px;font-size:14px;">📝</td>
               <td style="padding-left:10px;">
-                <span style="font-size:1.15rem;font-weight:800;color:#0f4c81;">Avalia????o de</span>
-                <span style="font-size:1.15rem;font-weight:800;color:#2db0d8;"> Experi??ncia</span>
+                <span style="font-size:1.15rem;font-weight:800;color:#0f4c81;">Avaliação de</span>
+                <span style="font-size:1.15rem;font-weight:800;color:#2db0d8;"> Experiência</span>
               </td>
             </tr>
           </table>
@@ -12702,7 +12702,7 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
       <!-- CORPO -->
       <tr>
         <td style="padding:8px 28px 16px;">
-          <p style="color:#334155;font-size:0.95rem;margin:0 0 12px;">Ol??, <strong>${respNome || 'Respons??vel'}</strong>,</p>
+          <p style="color:#334155;font-size:0.95rem;margin:0 0 12px;">Olá, <strong>${respNome || 'Responsável'}</strong>,</p>
           <p style="color:#334155;font-size:0.95rem;margin:0 0 16px;">${mensagem}</p>
 
           <!-- INFO BOX -->
@@ -12710,17 +12710,17 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
             <tr><td style="padding:14px 18px;">
               <p style="margin:0 0 6px;color:#334155;font-size:0.9rem;"><strong>Colaborador:</strong> ${nomeCompleto}</p>
               <p style="margin:0 0 6px;color:#334155;font-size:0.9rem;"><strong>Cargo:</strong> ${cargo}</p>
-              ${prazos ? `<p style="margin:0;color:#334155;font-size:0.9rem;"><strong>T??rmino do per??odo:</strong> ${prazoFimFormatado}</p>` : ''}
+              ${prazos ? `<p style="margin:0;color:#334155;font-size:0.9rem;"><strong>Término do período:</strong> ${prazoFimFormatado}</p>` : ''}
             </td></tr>
           </table>
 
 
-          <!-- BANNER RASCUNHO (s?? aparece se j?? foi iniciado) -->
+          <!-- BANNER RASCUNHO (só aparece se já foi iniciado) -->
           ${temRascunho ? `
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;margin-bottom:16px;">
             <tr><td style="padding:16px 20px;text-align:center;">
-              <p style="margin:0 0 4px;color:#78350f;font-weight:800;font-size:1rem;">??? Formul??rio Iniciado e Pendente de Finaliza????o</p>
-              <p style="margin:0;color:#92400e;font-size:0.88rem;">Este formul??rio foi parcialmente preenchido. Clique no bot??o abaixo para continuar de onde parou e finaliz??-lo.</p>
+              <p style="margin:0 0 4px;color:#78350f;font-weight:800;font-size:1rem;">⚠️ Formulário Iniciado e Pendente de Finalização</p>
+              <p style="margin:0;color:#92400e;font-size:0.88rem;">Este formulário foi parcialmente preenchido. Clique no botão abaixo para continuar de onde parou e finalizá-lo.</p>
             </td></tr>
           </table>
           ` : ''}
@@ -12729,16 +12729,16 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;margin-bottom:20px;">
             <tr><td style="padding:14px 18px;text-align:center;">
               <p style="margin:0;color:#92400e;font-weight:700;font-size:0.9rem;">
-                Favor preencher o formul??rio de avalia????o clicando no bot??o abaixo.
+                Favor preencher o formulário de avaliação clicando no botão abaixo.
               </p>
             </td></tr>
           </table>
 
-          <!-- BOT??O -->
+          <!-- BOTÃO -->
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td align="center" style="padding-bottom:20px;">
               <a href="${formLink}" style="display:inline-block;background:#0f4c81;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;letter-spacing:0.3px;">
-                Acessar Formul??rio de Avalia????o
+                Acessar Formulário de Avaliação
               </a>
             </td></tr>
           </table>
@@ -12748,7 +12748,7 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
       <!-- FOOTER -->
       <tr>
         <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 28px;text-align:center;">
-          <p style="margin:0;color:#94a3b8;font-size:0.78rem;">Am??rica Rental ??? Sistema de Gest??o de Colaboradores | E-mail autom??tico.</p>
+          <p style="margin:0;color:#94a3b8;font-size:0.78rem;">América Rental — Sistema de Gestão de Colaboradores | E-mail automático.</p>
         </td>
       </tr>
 
