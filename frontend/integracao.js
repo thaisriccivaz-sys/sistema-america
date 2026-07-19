@@ -539,21 +539,37 @@ window.ciReordenarPorInput = function(input) {
     const parts = newVal.split('.');
     if (parts.length !== 2) { window.ciAtualizarNumeracao(); return; }
     
+    const targetGroupNum = parseInt(parts[0]) - 1;
     const targetIdx = parseInt(parts[1]) - 1;
-    const item = input.closest('.ci-acao-item');
-    const parentList = item.parentNode;
-    const items = Array.from(parentList.children);
-    const currentIdx = items.indexOf(item);
     
-    if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
-        if (targetIdx > currentIdx) {
-            parentList.insertBefore(item, items[targetIdx].nextElementSibling);
+    const item = input.closest('.ci-acao-item');
+    const grupos = Array.from(document.querySelectorAll('.ci-grupo-block'));
+    
+    if (targetGroupNum >= 0 && targetGroupNum < grupos.length) {
+        const targetGroup = grupos[targetGroupNum];
+        const targetList = targetGroup.querySelector('.cig-acoes-lista');
+        const items = Array.from(targetList.children);
+        
+        if (targetList === item.parentNode) {
+            const currentIdx = items.indexOf(item);
+            if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
+                if (targetIdx > currentIdx) {
+                    targetList.insertBefore(item, items[targetIdx].nextElementSibling);
+                } else {
+                    targetList.insertBefore(item, items[targetIdx]);
+                }
+            } else {
+                targetList.appendChild(item);
+            }
         } else {
-            parentList.insertBefore(item, items[targetIdx]);
+            if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
+                targetList.insertBefore(item, items[targetIdx]);
+            } else {
+                targetList.appendChild(item);
+            }
         }
-    } else if (!isNaN(targetIdx) && targetIdx >= items.length) {
-        parentList.appendChild(item);
     }
+    
     window.ciAtualizarNumeracao();
 };
 
@@ -625,7 +641,14 @@ window.ciSalvarTemplate = async function() {
     document.querySelectorAll('.ci-grupo-block').forEach((grp) => {
         const grupoNome = grp.querySelector('.cig-nome').value.trim() || 'Geral';
         
-        grp.querySelectorAll('.ci-acao-item').forEach((item) => {
+        const acoesNode = grp.querySelectorAll('.ci-acao-item');
+        if (acoesNode.length === 0) {
+            alert(`O grupo "${grupoNome}" está vazio! Adicione pelo menos uma ação dentro dele ou exclua-o (lixeira vermelha) para poder salvar.`);
+            hasError = true;
+            return;
+        }
+        
+        acoesNode.forEach((item) => {
             const titulo = item.querySelector('.cia-titulo').value.trim();
             if (!titulo) { hasError = true; return; }
             
