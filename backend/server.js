@@ -22876,8 +22876,20 @@ db.serialize(() => {
     // PATCH: Responsável por Departamento
     db.run("ALTER TABLE integ_template_acoes ADD COLUMN responsavel_depto_id INTEGER", [], err => {});
     db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo_responsavel_depto_id INTEGER", [], err => {});
-    
-    // PATCH: Treinamentos na Integração
+db.run("ALTER TABLE integ_template_acoes ADD COLUMN treinamento_id INTEGER", [], err => {});
+
+// Migration: Add Treinamentos group to Operacional template if missing
+db.get(`SELECT id FROM integ_templates WHERE tipo_key = 'operacional'`, [], (err, row) => {
+    if (!err && row) {
+        db.get(`SELECT id FROM integ_template_acoes WHERE template_id = ? AND (grupo LIKE '%Treinamentos%' OR grupo LIKE '%treinamentos%')`, [row.id], (err2, row2) => {
+            if (!err2 && !row2) {
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, ordem, grupo, ativo) VALUES (?, 'Ação de Treinamento Padrão (Exemplo)', 'Ação criada automaticamente para manter o grupo.', 99, '4 Treinamentos', 1)`, [row.id], err3 => {
+                    if(!err3) console.log("[MIGRATION] Grupo '4 Treinamentos' adicionado ao template Operacional");
+                });
+            }
+        });
+    }
+});// PATCH: Treinamentos na Integração
     db.run("ALTER TABLE treinamentos ADD COLUMN is_integracao INTEGER DEFAULT 0", [], err => {});
     db.run("ALTER TABLE integ_template_acoes ADD COLUMN treinamento_id INTEGER", [], err => {});
     db.run("ALTER TABLE integracao_passos_status ADD COLUMN treinamento_id INTEGER", [], err => {});

@@ -474,6 +474,9 @@ window.ciAdicionarGrupo = function(nome, updateNum = true, respId = null) {
 
 window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
     if (!a || a instanceof Event) a = {};
+    const grupoNomeAcao = (grupoEl && grupoEl.querySelector('.cig-nome')) ? grupoEl.querySelector('.cig-nome').value.toLowerCase() : '';
+    const isTreinamentosAcao = grupoNomeAcao.includes('treinamentos');
+    const displayTrein = isTreinamentosAcao ? 'block' : 'none';
     if (!grupoEl) { console.error('grupoEl é nulo'); alert('Erro interno: Bloco do grupo não encontrado.'); return; }
     try {
     const lista = grupoEl.querySelector('.cig-acoes-lista');
@@ -534,7 +537,7 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
                     <option value="terapia" ${a.condicao==='terapia'?'selected':''}>Somente se usar Terapia</option>
                 </select>
             </div>
-                <div style="flex:1;">
+                <div style="flex:1; display:${displayTrein};">
                     <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:0.25rem;">Treinamento Vinculado</label>
                     <select class="cia-treinamento" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;">
                         ${window._ciTreinOpts}
