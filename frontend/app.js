@@ -401,6 +401,20 @@ if (btnLogout) {
 
 
 window.navigateInitialPage = function () {
+    const params = new URLSearchParams(window.location.search);
+    const colabId = params.get('colaborador_id');
+    const autoOpenDesempenho = params.get('autoOpenDesempenho');
+    
+    if (colabId && autoOpenDesempenho) {
+        navigateTo('colaboradores');
+        setTimeout(() => {
+            if (typeof window.editColaborador === 'function') {
+                window.editColaborador(colabId);
+            }
+        }, 500);
+        return;
+    }
+
     if (window.isTopAdmin) {
         navigateTo('dashboard');
         return;

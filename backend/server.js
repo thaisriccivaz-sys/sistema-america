@@ -14815,23 +14815,31 @@ function verificarDesempenhosPendentes() {
             const managerName = (r.resp_nome || 'Gestor').split(' ')[0];
             const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
             
-            const html = `
-                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #0ea5e9;">Avaliação de Desempenho Pendente</h2>
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                </div>
+                <div style="padding:24px;">
+                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Avaliação de Desempenho Pendente</h2>
                     <p>Olá <strong>${managerName}</strong>,</p>
                     <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
-                    <p>Por favor, acesse o sistema no botão abaixo para preenchê-la. O formulário abrirá automaticamente.</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${link}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                    <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
+                    <div style="text-align:center;margin:30px 0;">
+                        <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
                             Preencher Avaliação de Desempenho
                         </a>
                     </div>
-                    <p>Atenciosamente,<br>Equipe RH</p>
+                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
                 </div>
-            `;
+            </div>`;
             
             try {
-                await sendMailHelper({ to: emailDestino, subject: subject, html: html });
+                await sendMailHelper({ 
+                    to: emailDestino, 
+                    subject: subject, 
+                    html: html,
+                    attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                });
                 console.log(`[Desempenho CRON] E-mail enviado para ${emailDestino} ref. ${r.nome_completo}`);
                 await new Promise(res => setTimeout(res, 2000));
             } catch (err) {
@@ -14892,22 +14900,30 @@ app.get('/api/desempenho/test-email', async (req, res) => {
                 const link = `https://sistema-america.onrender.com/?colaborador_id=${r.id}&aba=avaliacao&autoOpenDesempenho=1&ano=${expectedAno}&trimestre=${expectedTrim}`;
                 const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
                 
-                const html = `
-                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #0ea5e9;">Avaliação de Desempenho Pendente</h2>
+                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📋 Avaliação de Desempenho Pendente</h2>
                         <p>Olá <strong>Thais</strong>,</p>
                         <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
-                        <p>Por favor, acesse o sistema no botão abaixo para preenchê-la. O formulário abrirá automaticamente.</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${link}" style="background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                        <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
+                        <div style="text-align:center;margin:30px 0;">
+                            <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
                                 Preencher Avaliação de Desempenho
                             </a>
                         </div>
-                        <p>Atenciosamente,<br>Equipe RH</p>
+                        <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
                     </div>
-                `;
+                </div>`;
                 try {
-                    await sendMailHelper({ to: 'thais.ricci@americarental.com.br', subject: subject, html: html });
+                    await sendMailHelper({ 
+                        to: 'thais.ricci@americarental.com.br', 
+                        subject: subject, 
+                        html: html,
+                        attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                    });
                     console.log('Test email sent for', r.nome_completo);
                 } catch (e) {
                     console.error('Error sending test email:', e.message);
