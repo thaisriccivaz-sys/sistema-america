@@ -1,21 +1,30 @@
-
 # -*- coding: utf-8 -*-
-f = r'C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\cadastro-colaboradores\backend\server.js'
-with open(f, 'r', encoding='utf-8') as fh:
-    content = fh.read()
+import re
 
-cleanup_code = """
-// LIMPEZA TEMPORÁRIA DE ENCODING
-db.serialize(() => {
-    db.run("DELETE FROM departamentos WHERE nome LIKE '%?%'", [], err => {
-        if (!err) console.log('[DB] Limpeza de departamentos com caracteres especiais (?) concluída.');
-    });
-});
-"""
+js_file = r'C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\cadastro-colaboradores\backend\server.js'
+with open(js_file, 'r', encoding='utf-8', errors='ignore') as f:
+    js = f.read()
 
-if "LIMPEZA TEMPORÁRIA DE ENCODING" not in content:
-    content += cleanup_code
+replacements = {
+    'F??rias': 'Férias',
+    'Distribui????o': 'Distribuição',
+    'Log??stica': 'Logística',
+    'per??odo': 'período',
+    'per??odos': 'períodos',
+    '1?? e 2??': '1º e 2º',
+    'autom??tica': 'automática',
+    'L??gica': 'Lógica',
+    't??rmino': 'término',
+    'ap??s': 'após',
+    'aplic??veis': 'aplicáveis',
+    'cont??m': 'contém',
+    'conclus??o': 'conclusão',
+    'lan??adas': 'lançadas',
+}
 
-with open(f, 'w', encoding='utf-8') as fh:
-    fh.write(content)
-print("Limpeza de departamentos adicionada")
+for old, new in replacements.items():
+    js = js.replace(old, new)
+
+with open(js_file, 'w', encoding='utf-8') as f:
+    f.write(js)
+print("Fixed encoding corruptions in server.js")

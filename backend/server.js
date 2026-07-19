@@ -225,7 +225,7 @@ db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)",
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVI??O NR01')");
 });
 
-// Migra????o: Cofre de Senhas da Log??stica
+// Migra????o: Cofre de Senhas da Logística
 db.run(`
     CREATE TABLE IF NOT EXISTS logistica_senhas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -840,7 +840,7 @@ db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_calcado TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
 
-// MIGRATION: F??rias Fracionadas
+// MIGRATION: Férias Fracionadas
 ['ferias_fracionadas', 'ferias_fracionadas_tipo', 'ferias_fracionadas_inicio2', 'ferias_fracionadas_fim2'].forEach(col => {
     db.run(`ALTER TABLE colaboradores ADD COLUMN ${col} TEXT`, (err) => {
         if (err && !err.message.includes('duplicate column')) console.error(`[Migration] ${col}:`, err.message);
@@ -1029,10 +1029,10 @@ const cargosDeptosSync = [
     ['Aux. Administrativo', 'Administrativo'], ['Ass. Administrativo 1', 'Administrativo'],
     ['Ass. Administrativo', 'Administrativo'], ['Aux. Comercial', 'Comercial'],
     ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'],
-    ['Aux. Log??stica', 'Log??stica'], ['Ass. Log??stica 1', 'Log??stica'],
-    ['Ass. Log??stica 2', 'Log??stica'], ['Sup. Log??stica', 'Log??stica'],
-    ['Sup. P??tio', 'Log??stica'], ['Ger. Log??stica', 'Log??stica'],
-    ['Lid. Log??stica', 'Log??stica'], ['Aux. Financeiro', 'Financeiro'],
+    ['Aux. Logística', 'Logística'], ['Ass. Logística 1', 'Logística'],
+    ['Ass. Logística 2', 'Logística'], ['Sup. Logística', 'Logística'],
+    ['Sup. P??tio', 'Logística'], ['Ger. Logística', 'Logística'],
+    ['Lid. Logística', 'Logística'], ['Aux. Financeiro', 'Financeiro'],
     ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'],
     ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'],
     ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'],
@@ -1715,8 +1715,8 @@ async function pollAdmissaoAssinaturas() {
                 // Tentar sincronizar com OneDrive diretamente da mem??ria (sem salvar em disco)
                 let onedriveOk = false;
                 // Regra de OneDrive por subtipo de Advert??ncia:
-                //  Ocorr??ncia / Verbal -> n??o sincroniza no poll (j?? sincronizou ap??s testemunhas ou nunca)
-                //  Escrita / Suspens??o -> sobrescreve ap??s assinatura do colaborador
+                //  Ocorr??ncia / Verbal -> n??o sincroniza no poll (j?? sincronizou após testemunhas ou nunca)
+                //  Escrita / Suspens??o -> sobrescreve após assinatura do colaborador
                 const _tipoSimplesP = (doc.document_type || '').split('###')[1] || '';
                 const _skipOneDriveP = /ocorr|verbal/i.test(_tipoSimplesP);
                 if (onedrive && finalBuffer && !_skipOneDriveP) {
@@ -1819,7 +1819,7 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
-// Iniciar polling ap??s o servidor subir (aguarda 60s e depois a cada 3 minutos)
+// Iniciar polling após o servidor subir (aguarda 60s e depois a cada 3 minutos)
 // Intervalo aumentado para reduzir carga na mem??ria do Render (era 30s)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
@@ -2428,8 +2428,8 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
             stats.total += 1;
             let effectiveStatus = row.status || 'Ativo';
 
-            // L??gica de f??rias autom??tica: considera 1?? e 2?? per??odo
-            if (effectiveStatus === 'Ativo' || effectiveStatus === 'F??rias') {
+            // Lógica de f??rias automática: considera 1º e 2º período
+            if (effectiveStatus === 'Ativo' || effectiveStatus === 'Férias') {
                 const ini1 = row.ferias_programadas_inicio;
                 const fim1 = row.ferias_programadas_fim;
                 const em1 = ini1 && fim1 && today >= ini1 && today <= fim1;
@@ -2440,16 +2440,16 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
                 const em2 = ini2 && fim2 && today >= ini2 && today <= fim2;
 
                 if (em1 || em2) {
-                    effectiveStatus = 'F??rias';
-                } else if (effectiveStatus === 'F??rias') {
-                    // Volta a Ativo apenas ap??s o t??rmino de TODOS os per??odos
+                    effectiveStatus = 'Férias';
+                } else if (effectiveStatus === 'Férias') {
+                    // Volta a Ativo apenas após o término de TODOS os períodos
                     const ultimoFim = [fim1, fim2].filter(Boolean).sort().pop();
                     if (ultimoFim && today > ultimoFim) effectiveStatus = 'Ativo';
                 }
             }
 
             if (effectiveStatus === 'Ativo' || effectiveStatus === 'Em Integra????o') stats.ativos += 1;
-            else if (effectiveStatus === 'F??rias') stats.ferias += 1;
+            else if (effectiveStatus === 'Férias') stats.ferias += 1;
             else if (effectiveStatus === 'Afastado') stats.afastados += 1;
             else if (effectiveStatus === 'Desligado') stats.desligados += 1;
             else if (effectiveStatus === 'Aguardando in??cio') stats.aguardando += 1;
@@ -2584,7 +2584,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     const diasTrabalhados = Math.floor((today - admDias) / 86400000);
                     const anosCompletos = Math.floor(diasTrabalhados / 365);
 
-                    // Ainda em per??odo aquisitivo (menos de 1 ano) ??? n??o exibir no dashboard
+                    // Ainda em período aquisitivo (menos de 1 ano) ??? n??o exibir no dashboard
                     if (anosCompletos < 1) return null;
 
                     // aquisitivoFim = quando o direito nasceu = adm + anosCompletos anos
@@ -2595,7 +2595,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     const concessivoEnd = new Date(admDias);
                     concessivoEnd.setFullYear(admDias.getFullYear() + anosCompletos + 1);
 
-                    // Considera como agendada apenas se a data de in??cio for posterior ao fim do per??odo aquisitivo atual
+                    // Considera como agendada apenas se a data de in??cio for posterior ao fim do período aquisitivo atual
                     let feriasValidasAtual = false;
                     if (r.ferias_programadas_inicio) {
                         let dStr = r.ferias_programadas_inicio;
@@ -3114,7 +3114,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         console.error("ERRO AO CRIAR PASTAS LOCAIS:", erro);
     }
 
-    // (A Sincroniza????o foi movida para o final do processo, ap??s salvar no banco)
+    // (A Sincroniza????o foi movida para o final do processo, após salvar no banco)
 
     const colunas = [
         'nome_completo', 'cpf', 'rg', 'data_nascimento', 'estado_civil', 'nacionalidade',
@@ -3854,10 +3854,10 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
-            // Evento B: status mudou para Desligado / F??rias / Afastado e colaborador tem celular_participa = Sim
+            // Evento B: status mudou para Desligado / Férias / Afastado e colaborador tem celular_participa = Sim
             const novoStatusCel = data.status;
             const velhoStatusCel = oldColab.status;
-            const statusAlertaCel = ['Desligado', 'F??rias', 'Afastado'];
+            const statusAlertaCel = ['Desligado', 'Férias', 'Afastado'];
             if ('status' in data && novoStatusCel && novoStatusCel !== velhoStatusCel &&
                 statusAlertaCel.includes(novoStatusCel) && (data.celular_participa || oldColab.celular_participa) === 'Sim') {
                 const nomeColab2 = data.nome_completo || oldColab.nome_completo || 'Colaborador';
@@ -4021,17 +4021,17 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         if (cLow && list.includes(cLow)) score = Math.max(score, 100);
                         // Cargo: igual ao nome do grupo do template
                         if (cLow && gLow === cLow) score = Math.max(score, 90);
-                        // Cargo: CONT??M algum item da lista (ex: 'ass. de manutencao 1' cont??m 'manutencao')
+                        // Cargo: CONT??M algum item da lista (ex: 'ass. de manutencao 1' contém 'manutencao')
                         if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
-                        // Cargo: cont??m o nome do grupo
+                        // Cargo: contém o nome do grupo
                         if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
                         // Dept: match exato na lista
                         if (dLow && list.includes(dLow)) score = Math.max(score, 50);
                         // Dept: igual ao nome do grupo
                         if (dLow && gLow === dLow) score = Math.max(score, 40);
-                        // Dept: cont??m algum item da lista
+                        // Dept: contém algum item da lista
                         if (dLow && list.some(l => l.length > 3 && dLow.includes(l))) score = Math.max(score, 20);
-                        // Dept: cont??m o nome do grupo
+                        // Dept: contém o nome do grupo
                         if (dLow && gLow.length > 3 && dLow.includes(gLow)) score = Math.max(score, 10);
 
                         if (score > bestScore) { bestScore = score; bestTemplate = t; }
@@ -4551,7 +4551,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
         // Natureza
         let natureza = '';
-        // Captura o que vem logo ap??s Naturezas da Ocorr??ncia... at?? encontrar Dados da Ocorr??ncia ou Crime Consumado
+        // Captura o que vem logo após Naturezas da Ocorr??ncia... at?? encontrar Dados da Ocorr??ncia ou Crime Consumado
         const matN = cleanText.match(/Naturezas? da Ocorr[e??]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
         if (matN && matN[1].trim().length > 3) {
             natureza = matN[1].trim();
@@ -5375,7 +5375,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 }
             }
 
-            // 3) LINKS DE V??DEOS ??? todos em uma ??nica p??gina ap??s as fotos
+            // 3) LINKS DE V??DEOS ??? todos em uma ??nica p??gina após as fotos
             if (videoLinks.length > 0) {
                 let videoHtml = `<div style="page-break-before:always;padding:2rem 2.5rem;">
                     <h3 style="font-size:1rem;font-weight:700;color:#1e293b;border-bottom:2px solid #334155;padding-bottom:0.6rem;margin-bottom:1.5rem;text-align:center;">&#x1F3A5; V&iacute;deos do Dano</h3>`;
@@ -5389,7 +5389,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 anxsHtml += videoHtml;
             }
 
-            // 4) OR??AMENTOS ??? ap??s os v??deos (cada um em sua p??gina)
+            // 4) OR??AMENTOS ??? após os v??deos (cada um em sua p??gina)
             let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch (e) { }
             for (let p of orcs) {
                 if (!p || typeof p !== 'string') continue;
@@ -6175,7 +6175,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
                             <p style="font-size: 1.1rem;"><strong>Valor Total a Descontar:</strong> ${fmt(valorTotalNum)}</p>
                             <p style="font-size: 1.1rem;"><strong>Forma de Pagamento:</strong> ${p}x de ${fmt(valorParcelaNum)}</p>
                         </div>
-                        <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Log??stica</p>
+                        <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
                     </div>
                 </div>
             `;
@@ -9630,7 +9630,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
 
-            // Buscar todas as avalia????es de satisfa????o dos ??ltimos 4 per??odos
+            // Buscar todas as avalia????es de satisfa????o dos ??ltimos 4 períodos
             // NOTA: SQLite n??o suporta tuplas em IN ??? usar OR expl??cito
             const orClauses = periodos.map(() => '(a.ano = ? AND a.trimestre = ?)').join(' OR ');
             const params = periodos.flatMap(p => [p.ano, p.trimestre]);
@@ -9725,7 +9725,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
                         });
                     });
 
-                    // Buscar totais de respondentes vs esperados por grupo/per??odo
+                    // Buscar totais de respondentes vs esperados por grupo/período
                     db.all(
                         `SELECT c.departamento, c.cargo, a.ano, a.trimestre,
                                 COUNT(a.id) as responderam
@@ -10005,7 +10005,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         }
         const ehEsocial = duracaoDias >= 16;
 
-        // Textos din??micos conforme per??odo
+        // Textos din??micos conforme período
         const emailTitulo = ehEsocial
             ? '???? Documento RH ??? Afastamento para eSocial'
             : '???? Documento RH ??? Controle de Afastamento';
@@ -10013,8 +10013,8 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             ? `Documento RH enviado por Am??rica Rental ??? ${colab.nome_completo} (eSocial)`
             : `Documento RH enviado por Am??rica Rental ??? ${colab.nome_completo} (Controle)`;
         const emailIntro = ehEsocial
-            ? `Encaminhamos o atestado m??dico do colaborador abaixo para <strong>inclus??o no cadastro do eSocial</strong>, pois o per??odo de afastamento ?? de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
-            : `Encaminhamos o atestado m??dico do colaborador abaixo <strong>apenas para controle interno</strong>. O per??odo de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> n??o atinge o m??nimo de 16 dias exigido pelo eSocial e <strong>n??o requer lan??amento</strong>.`;
+            ? `Encaminhamos o atestado m??dico do colaborador abaixo para <strong>inclus??o no cadastro do eSocial</strong>, pois o período de afastamento ?? de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado m??dico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> n??o atinge o m??nimo de 16 dias exigido pelo eSocial e <strong>n??o requer lan??amento</strong>.`;
         const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
 
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
@@ -10280,7 +10280,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
 
 /**
- * WEBHOOK UNIFICADO: Escuta cria????o de links e conclus??o de assinaturas
+ * WEBHOOK UNIFICADO: Escuta cria????o de links e conclusão de assinaturas
  */
 const salvarLinkAssinatura = async (assinafyId, link) => {
     return new Promise((resolve) => {
@@ -11558,7 +11558,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             }
                             processarBaixaEstoque(match, count, eEnderecoId, eEnderecoNome);
                         } else {
-                            console.warn(`[ESTOQUE] Item "${originalNome}" n??o encontrado no estoque ap??s tentativas.`);
+                            console.warn(`[ESTOQUE] Item "${originalNome}" n??o encontrado no estoque após tentativas.`);
                         }
                     });
                 });
@@ -12302,7 +12302,7 @@ app.get('/api/auditoria/:id?', authenticateToken, (req, res) => {
                ORDER BY a.data_hora DESC LIMIT 200`;
         params.push(`%${programa}%`);
     } else if (programa && programa.toLowerCase().includes('os log')) {
-        // OS Log??stica: retorna numero_os como documento_nome
+        // OS Logística: retorna numero_os como documento_nome
         const numeroOsFiltro = req.query.numero_os;
         if (numeroOsFiltro) {
             sql = `SELECT a.*, os.numero_os as documento_nome
@@ -12636,7 +12636,7 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
 
 // Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se n??o estiverem no env
 setTimeout(() => {
-    // 1??: Verificar se o arquivo existe direto no CERT_DIR (persist??ncia autom??tica)
+    // 1??: Verificar se o arquivo existe direto no CERT_DIR (persist??ncia automática)
     const certFilePadrao = path.join(CERT_DIR, 'certificado.pfx');
     if (!process.env.PFX_PATH && fs.existsSync(certFilePadrao)) {
         process.env.PFX_PATH = certFilePadrao;
@@ -13118,7 +13118,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                                         <p><strong>Infra????o:</strong> ${body.codigo_infracao || 'S/C'} - ${body.descricao_infracao || ''}</p>
                                         <p><strong>Valor:</strong> ${fmt(body.valor_multa)}</p>
                                     </div>
-                                    <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Log??stica</p>
+                                    <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
                                 </div>
                             </div>
                         `;
@@ -13735,7 +13735,7 @@ function calcPrazoExp(dataAdmissao) {
     };
 }
 
-// DEBUG TEMPOR??RIO ??? remover ap??s diagn??stico
+// DEBUG TEMPOR??RIO ??? remover após diagn??stico
 app.get('/api/debug-exp-templates', (req, res) => {
     db.all("SELECT id, nome, tipo, grupo_key, SUBSTR(categorias_json, 1, 200) as cat_preview FROM avaliacao_templates WHERE tipo = 'experiencia'", [], (e, r) => {
         if (e) return res.json({ error: e.message });
@@ -13921,7 +13921,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                     </div>
                                     <div style="padding:24px;">
                                         <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Formul??rio de Experi??ncia Finalizado</h2>
-                                        <p>O formul??rio de per??odo de experi??ncia foi preenchido e finalizado.</p>
+                                        <p>O formul??rio de período de experi??ncia foi preenchido e finalizado.</p>
                                         <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                             <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
@@ -13963,7 +13963,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                     </div>
                                     <div style="padding:24px;">
                                         <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Formul??rio de Experi??ncia Finalizado</h2>
-                                        <p>O formul??rio de per??odo de experi??ncia foi preenchido e finalizado.</p>
+                                        <p>O formul??rio de período de experi??ncia foi preenchido e finalizado.</p>
                                         <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                             <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
@@ -14019,7 +14019,7 @@ app.post('/api/experiencia/publico/rascunho', (req, res) => {
     }
 });
 
-// GET /api/experiencia ??? Lista colaboradores em ou que passaram pelo per??odo de experi??ncia
+// GET /api/experiencia ??? Lista colaboradores em ou que passaram pelo período de experi??ncia
 app.get('/api/experiencia', authenticateToken, (req, res) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     // Show all active collaborators with up to 90 days + those who already have a form
@@ -14171,7 +14171,7 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                                 </div>
                                 <div style="padding:24px;">
                                     <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Formul??rio de Experi??ncia Finalizado</h2>
-                                    <p>O formul??rio de per??odo de experi??ncia foi preenchido e finalizado.</p>
+                                    <p>O formul??rio de período de experi??ncia foi preenchido e finalizado.</p>
                                     <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
@@ -14236,7 +14236,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                                 </div>
                                 <div style="padding:24px;">
                                     <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Formul??rio de Experi??ncia Finalizado</h2>
-                                    <p>O formul??rio de per??odo de experi??ncia foi preenchido e finalizado.</p>
+                                    <p>O formul??rio de período de experi??ncia foi preenchido e finalizado.</p>
                                     <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
@@ -14313,7 +14313,7 @@ app.put('/api/diretoria/notificacoes/:id/lida', authenticateToken, (req, res) =>
     });
 });
 
-// GET /api/logistica/notificacoes/pendentes ??? Polling para popup de Log??stica
+// GET /api/logistica/notificacoes/pendentes ??? Polling para popup de Logística
 app.get('/api/logistica/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM logistica_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14520,7 +14520,7 @@ async function notificarResponsaveisEquipes(mensagem, titulo, icone = 'ph-users-
                         <h2 style="color: ${cor}; border-bottom: 2px solid #fbcfe8; padding-bottom: 10px;">${titulo}</h2>
                         <p>${mensagem}</p>
                         <div style="margin-top: 30px; padding: 15px; border: 2px solid ${cor}; border-radius: 8px; background: #fdf2f8; text-align: center;">
-                            <p style="color: #be185d; font-weight: bold; margin: 0;">Por favor, acesse o m??dulo de Equipes na aba Log??stica para mais detalhes.</p>
+                            <p style="color: #be185d; font-weight: bold; margin: 0;">Por favor, acesse o m??dulo de Equipes na aba Logística para mais detalhes.</p>
                         </div>
                         <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema Am??rica Rental</p>
                     </div>
@@ -14586,7 +14586,7 @@ async function verificarFeriasEquipes() {
                 const nomeEq = (m.equipe_nome || '').toLowerCase();
                 if (!nomeEq.includes('reserva') && !nomeEq.includes('intermitente')) {
                     const msg = `O colaborador <strong>${m.nome_completo}</strong> entrou em f??rias/afastamento e foi <strong>removido</strong> da <strong>${m.equipe_nome}</strong>. ?? necess??rio realocar algu??m para a equipe.`;
-                    await notificarResponsaveisEquipes(msg, 'Equipe Desfalcada por F??rias', 'ph-warning', '#eab308', true);
+                    await notificarResponsaveisEquipes(msg, 'Equipe Desfalcada por Férias', 'ph-warning', '#eab308', true);
                 }
             }
         }
@@ -14618,7 +14618,7 @@ async function verificarFeriasEquipes() {
 
                     if (!jaNotificado) {
                         const msg = `O colaborador <strong>${c.nome_completo}</strong> retornou das f??rias e aguarda aloca????o na tela de equipes (Fora de Equipe).`;
-                        await notificarResponsaveisEquipes(msg, 'Retorno de F??rias para Distribui????o', 'ph-user-plus', '#22c55e', false);
+                        await notificarResponsaveisEquipes(msg, 'Retorno de Férias para Distribuição', 'ph-user-plus', '#22c55e', false);
                     }
                 }
             }
@@ -14657,7 +14657,7 @@ function verificarAtestadosVencidos() {
         });
     });
 }
-// CRON JOB ??? Verificar CRLV Vencido (Log??stica)
+// CRON JOB ??? Verificar CRLV Vencido (Logística)
 function verificarCRLVVencidoCron() {
     console.log('[CRON] Verificando vencimento de CRLV...');
     db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
@@ -14704,7 +14704,7 @@ function enviarEmailAlertaCRLV(v) {
     db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
             FROM departamentos d WHERE d.nome LIKE '%Log_stica%' LIMIT 1`, [], async (err, row) => {
         if (err || !row || !row.email) {
-            console.log('[CRON CRLV] E-mail do respons??vel de Log??stica n??o encontrado para o ve??culo:', v.placa);
+            console.log('[CRON CRLV] E-mail do respons??vel de Logística n??o encontrado para o ve??culo:', v.placa);
             return;
         }
 
@@ -15116,9 +15116,9 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     criado_em TEXT DEFAULT (datetime('now')),
     atualizado_em TEXT DEFAULT (datetime('now'))
 )`, (err) => {
-    if (err) console.error('[OS Log??stica] Erro na cria????o da tabela:', err.message);
+    if (err) console.error('[OS Logística] Erro na cria????o da tabela:', err.message);
     else {
-        console.log('[OS Log??stica] Tabela os_logistica OK');
+        console.log('[OS Logística] Tabela os_logistica OK');
         db.run("ALTER TABLE os_logistica ADD COLUMN observacoes_internas TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN habilidades TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN variaveis TEXT", () => { });
@@ -15335,7 +15335,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 app.get('/api/limpar-os-teste', (req, res) => {
     db.run("DELETE FROM os_logistica");
     db.run("DELETE FROM os_videos");
-    res.json({ ok: true, message: "Base de OS Log??stica resetada para testes." });
+    res.json({ ok: true, message: "Base de OS Logística resetada para testes." });
 });
 
 // GET /api/logistica/os/agenda-endereco
@@ -15595,7 +15595,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                     if (err) return res.status(500).json({ error: err.message });
                     const newId = this.lastID;
                     db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                        [loggedUser, 'OS Log??stica', 'Cria????o de OS', '', `OS ${numero_os} | ${cliente} | ${tipo_servico || ''}`, newId]);
+                        [loggedUser, 'OS Logística', 'Cria????o de OS', '', `OS ${numero_os} | ${cliente} | ${tipo_servico || ''}`, newId]);
                     res.status(201).json({ ok: true, id: newId });
                 }
             );
@@ -15656,7 +15656,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                     if (changes.length === 0) changes.push({ campo: 'Atualiza????o', old: '', new: `OS ${numero_os} | ${cliente}` });
                     changes.forEach(c => {
                         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                            [loggedUser, 'OS Log??stica', c.campo, c.old, c.new, osId]);
+                            [loggedUser, 'OS Logística', c.campo, c.old, c.new, osId]);
                     });
                 }
 
@@ -15680,7 +15680,7 @@ app.patch('/api/logistica/os/:id/observacoes', authenticateToken, (req, res) => 
 
             if (oldRow.observacoes !== observacoes) {
                 db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [loggedUser, 'OS Log??stica', 'Observa????es (Pipeline)', oldRow.observacoes || '', observacoes || '', osId]);
+                    [loggedUser, 'OS Logística', 'Observa????es (Pipeline)', oldRow.observacoes || '', observacoes || '', osId]);
             }
             res.json({ ok: true });
         });
@@ -15697,7 +15697,7 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
             if (err2) return res.status(500).json({ error: err2.message });
             if (row) {
                 db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [loggedUser, 'OS Log??stica', 'Exclus??o de OS', `OS ${row.numero_os} | ${row.cliente}`, '', req.params.id]);
+                    [loggedUser, 'OS Logística', 'Exclus??o de OS', `OS ${row.numero_os} | ${row.cliente}`, '', req.params.id]);
             }
             res.json({ ok: true });
         });
@@ -15706,7 +15706,7 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
 
 // GET /api/logistica/os/:id/historico ??? Hist??rico de altera????es de uma OS espec??fica
 app.get('/api/logistica/os/:id/historico', authenticateToken, (req, res) => {
-    db.all(`SELECT a.* FROM auditoria a WHERE a.programa = 'OS Log??stica' AND a.registro_id = ?
+    db.all(`SELECT a.* FROM auditoria a WHERE a.programa = 'OS Logística' AND a.registro_id = ?
             ORDER BY a.data_hora DESC LIMIT 100`,
         [req.params.id], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -16001,7 +16001,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                 const limiteMax = dataAte || dataDe || new Date().toISOString().split('T')[0];
                 if (dataInicio && dataInicio > limiteMax) return false;
 
-                // L??gica de Manuten????o Quinzenal (Semana sim, Semana n??o)
+                // Lógica de Manuten????o Quinzenal (Semana sim, Semana n??o)
                 if (r.manutencao_quinzenal === 1 && r.primeira_manutencao) {
                     const deStr = dataDe || new Date().toISOString().split('T')[0];
                     const msPerDay = 24 * 60 * 60 * 1000;
@@ -16224,7 +16224,7 @@ app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, re
 });
 
 
-// POST - finalizar manuten????o com dados de conclus??o (km, custo, fornecedor, obs)
+// POST - finalizar manuten????o com dados de conclusão (km, custo, fornecedor, obs)
 app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, async (req, res) => {
     const vid = req.params.id;
     const { km_na_manutencao, custo, fornecedor, observacoes } = req.body;
@@ -17275,7 +17275,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     if (!cliente_nome || (!cliente_email && !cliente_whatsapp)) return res.status(400).json({ error: 'Nome e E-mail ou WhatsApp s??o obrigat??rios.' });
 
     // Token placeholder ??nico para satisfazer a constraint NOT NULL + UNIQUE
-    // O token real s?? ?? gerado quando a Log??stica processar via /enviar
+    // O token real s?? ?? gerado quando a Logística processar via /enviar
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
@@ -17302,7 +17302,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
             const novoId = this.lastID;
 
-            // Inserir notifica????o para a Log??stica (popup)
+            // Inserir notifica????o para a Logística (popup)
             db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                 ['nova_solicitacao', JSON.stringify({
                     cliente_nome,
@@ -17334,7 +17334,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     </div>
                     <div style="padding:24px;">
                         <h2 style="color:#7048e8;text-align:center;margin-top:0;">???? Nova Solicita????o de Credenciamento</h2>
-                        <p>Uma nova solicita????o foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda a????o da Log??stica.</p>
+                        <p>Uma nova solicita????o foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda a????o da Logística.</p>
                         <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #7048e8;">
                             <p style="margin:4px 0;"><strong>Cliente / Obra:</strong> ${cliente_nome}</p>
                             ${os ? `<p style="margin:4px 0;"><strong>OS:</strong> ${os}</p>` : ''}
@@ -17351,7 +17351,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             res.json({ message: 'Solicita????o criada com sucesso.', id: novoId });
 
 
-            // --- Enviar e-mail de notifica????o para equipe de Log??stica ---
+            // --- Enviar e-mail de notifica????o para equipe de Logística ---
             // Busca tanto em colaboradores quanto em usu??rios que tenham a tag logistica
             db.all(`
                 SELECT c.email_corporativo, c.email as c_email, u.email as u_email
@@ -17407,7 +17407,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             </div>
                             <div style="padding: 20px;">
                                 <h2 style="color: #7048e8; text-align: center; margin-top: 0;">???? Nova Solicita????o de Credenciamento</h2>
-                                <p>Uma nova solicita????o de credenciamento foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda a????o da Log??stica.</p>
+                                <p>Uma nova solicita????o de credenciamento foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda a????o da Logística.</p>
                                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
                                     <table style="width:100%; border-collapse:collapse;">
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569; width: 40%;">Cliente / Obra:</td><td style="padding:4px 8px;">${cliente_nome}</td></tr>
@@ -17437,9 +17437,9 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         html: htmlMail,
                         attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                     }).then(() => {
-                        console.log('[Credenciamento Comercial] E-mail de notifica????o enviado para Log??stica:', destinatarios.join(', '));
+                        console.log('[Credenciamento Comercial] E-mail de notifica????o enviado para Logística:', destinatarios.join(', '));
                     }).catch(emailErr => {
-                        console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Log??stica:', emailErr.message);
+                        console.error('[Credenciamento Comercial] Erro ao enviar e-mail para Logística:', emailErr.message);
                     });
                 }
             }
@@ -17483,7 +17483,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     </div>
                     <div style="padding:24px 20px;">
                         <p>Ol??, <strong>${cliente_nome}</strong>!</p>
-                        <p>Sua solicita????o de credenciamento foi recebida e encaminhada ao nosso setor de <strong>Log??stica</strong>. Em breve enviaremos os documentos da equipe alocada para o seu projeto.</p>
+                        <p>Sua solicita????o de credenciamento foi recebida e encaminhada ao nosso setor de <strong>Logística</strong>. Em breve enviaremos os documentos da equipe alocada para o seu projeto.</p>
 
                         <div style="background:#f8fafc; border-left:4px solid #7048e8; border-radius:6px; padding:16px; margin:20px 0;">
                             <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">???? Documentos Solicitados</h3>
@@ -17495,7 +17495,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>???? Observa????es:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
 
                         <p style="margin-top:24px;">Em caso de d??vidas, entre em contato com nossa equipe.</p>
-                        <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>Am??rica Rental ??? Log??stica</strong></p>
+                        <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>Am??rica Rental ??? Logística</strong></p>
                     </div>
                     <div style="background:#f1f5f9; padding:12px; text-align:center; font-size:11px; color:#94a3b8;">
                         Esta mensagem foi enviada automaticamente pelo Sistema Am??rica Rental.
@@ -17613,7 +17613,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 textoCopia = textoCopia.trim();
 
                 if (finalTipoEnvio === 'whatsapp') {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Log??stica processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Log??stica' })]);
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados, whatsapp: finalWhatsapp, tipo_envio: finalTipoEnvio });
                 } else {
                     if (cred.cliente_email && cred.cliente_email.includes('@')) {
@@ -17644,7 +17644,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                                     <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
                                     ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Ve??culos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
                                 </div>
-                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio cont??m apenas os dados solicitados, sem anexos adicionais.</i></p>
+                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
                             </div>`;
                         } else {
                             emailHtml = `
@@ -17687,7 +17687,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                         });
                     }
 
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Log??stica enviou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Log??stica' })]);
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia: textoCopia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
                 }
             }
@@ -17904,7 +17904,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 if (envTipo === 'whatsapp') {
                     // WhatsApp: s?? envia dados copiados, sem link (documentos PDF apenas por e-mail)
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Log??stica gerou os dados de credenciamento da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Log??stica' })]);
+                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística gerou os dados de credenciamento da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     return res.json({ ok: true, message: 'Dados gerados com sucesso.', texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
                 } else {
                     // Se for e-mail, pode ter sido escolhido apenas_dados ou n??o. Em ambos os casos, envia o e-mail.
@@ -17924,7 +17924,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                                 <p style="margin:0 0 4px 0;">OS: <b>${os || '-'}</b></p>
                                 <hr style="border:none; border-top:1px solid #e2e8f0; margin:12px 0;">
                                 ${emailBodyDados}
-                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio cont??m apenas os dados solicitados, sem anexos adicionais.</i></p>
+                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
                                 <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
                                 <p style="color: #999; font-size: 11px; text-align: center;">Este ?? um e-mail autom??tico do Sistema Am??rica Rental, por favor n??o responda.</p>
                             </div>
@@ -17933,7 +17933,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     
                     try {
                         await sendMailHelper(mailOptions);
-                        db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Log??stica enviou o credenciamento da OS ${os || '-'} para o cliente ${cliente_nome}.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Log??stica' })]);
+                        db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística enviou o credenciamento da OS ${os || '-'} para o cliente ${cliente_nome}.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                         res.json({ ok: true, message: 'E-mail de credenciamento enviado com sucesso!', link: apenas_dados ? null : link, texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
                     } catch (mailErr) {
                         res.status(500).json({ error: 'Erro ao enviar e-mail: ' + mailErr.message });
@@ -18584,7 +18584,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         db.all(`SELECT id, departamento FROM colaboradores`, [], (errDept, allColabs) => {
             const deptMap = {};
             (allColabs || []).forEach(c => deptMap[c.id] = c.departamento);
-            const opSectors = ['Ajudante Geral', 'Ajudante P??tio', 'Lideran??a', 'Log??stica', 'Manuten????o', 'Motorista'];
+            const opSectors = ['Ajudante Geral', 'Ajudante P??tio', 'Lideran??a', 'Logística', 'Manuten????o', 'Motorista'];
             let rows = [];
             const seenManual = new Set();
             (rawRows || []).forEach(card => {
@@ -18620,7 +18620,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
             });
             const deptFilter = reqContext === 'rh' ? '' : "AND departamento NOT IN ('ESCRIT??RIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')";
             const deptFilterC = reqContext === 'rh' ? '' : "AND c.departamento NOT IN ('ESCRIT??RIO', 'RH', 'Comercial', 'Financeiro', 'Administrativo', 'Diretoria')";
-        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'F??rias') ${deptFilter} AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
+        db.all(`SELECT id, nome_completo, ferias_programadas_inicio, ferias_programadas_fim FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') ${deptFilter} AND ferias_programadas_inicio IS NOT NULL AND ferias_programadas_fim IS NOT NULL AND ferias_programadas_inicio != ''`, [], (errColab, colabs) => {
             if (errColab) return res.json(rows || []);
 
             const feriasCards = [];
@@ -18636,7 +18636,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                         is_auto: true,
                         data: dataStr,
                         tipo: 'ferias',
-                        titulo: 'F??rias: ' + c.nome_completo.split(' ')[0],
+                        titulo: 'Férias: ' + c.nome_completo.split(' ')[0],
                         descricao: 'Per??odo de f??rias agendado para ' + c.nome_completo,
                         horario: '',
                         setor: 'logistica',
@@ -18655,7 +18655,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     AND d.atestado_tipo = 'dias'
                     AND d.atestado_inicio IS NOT NULL 
                     AND d.atestado_fim IS NOT NULL
-                    AND c.status IN ('Ativo', 'Afastado', 'F??rias') ${deptFilterC}`, [], (errAtest, atestados) => {
+                    AND c.status IN ('Ativo', 'Afastado', 'Férias') ${deptFilterC}`, [], (errAtest, atestados) => {
 
                 const afastadoCards = [];
                 if (!errAtest) {
@@ -18684,7 +18684,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     });
                 }
 
-                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'F??rias') ${deptFilter} AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
+                db.all(`SELECT id, nome_completo, aso_exame_data FROM colaboradores WHERE status IN ('Ativo', 'Afastado', 'Férias') ${deptFilter} AND aso_exame_data IS NOT NULL AND aso_exame_data != ''`, [], (errAso, asoColabs) => {
                     const asoCards = [];
                     if (!errAso) {
                         (asoColabs || []).forEach(c => {
@@ -18713,7 +18713,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                     db.all(`SELECT f.colaborador_id, f.data_falta, f.turno, c.nome_completo
                             FROM faltas f
                             JOIN colaboradores c ON f.colaborador_id = c.id
-                            WHERE c.status IN ('Ativo', 'Afastado', 'F??rias') ${deptFilterC}`, [], (errFaltas, faltasRows) => {
+                            WHERE c.status IN ('Ativo', 'Afastado', 'Férias') ${deptFilterC}`, [], (errFaltas, faltasRows) => {
                         const faltaCards = [];
                         if (!errFaltas) {
                             (faltasRows || []).forEach(f => {
@@ -18762,7 +18762,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
 });
         });
 
-// GET ??? Escala operacional: retorna colaboradores ativos do operacional com dados de escala e aus??ncias no per??odo
+// GET ??? Escala operacional: retorna colaboradores ativos do operacional com dados de escala e aus??ncias no período
 app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
@@ -18772,16 +18772,16 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
-            FROM colaboradores WHERE status IN ('Ativo','Afastado','F??rias')
+            FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento NOT IN (${excStr})
             AND (tipo_contrato IS NULL OR tipo_contrato != 'Intermitente')
             ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // Coletar aus??ncias no per??odo (f??rias, atestados, faltas)
+        // Coletar aus??ncias no período (f??rias, atestados, faltas)
         const promises = [];
 
-        // F??rias
+        // Férias
         promises.push(new Promise(resolve => {
             const ids = (colabs || []).map(c => c.id);
             if (!ids.length) return resolve([]);
@@ -19050,11 +19050,11 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 app.get('/api/rh/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
-    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Log??stica', 'Manuten????o', 'RH', 'Supervis??o', 'Ajudante Geral', 'Ajudante P??tio', 'Lideran??a', 'Motorista'];
+    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Manuten????o', 'RH', 'Supervis??o', 'Ajudante Geral', 'Ajudante P??tio', 'Lideran??a', 'Motorista'];
     const incStr = INCL.map(() => '?').join(',');
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
-            FROM colaboradores WHERE status IN ('Ativo','Afastado','F??rias')
+            FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
             AND departamento IN (${incStr})
             AND (tipo_contrato IS NULL OR tipo_contrato != 'Intermitente')
             ORDER BY nome_completo ASC`, INCL, (err, colabs) => {
@@ -19341,7 +19341,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     let motivo = '';
                     let data_fim = null;
 
-                    // Status do sistema (F??rias, Afastado no campo status)
+                    // Status do sistema (Férias, Afastado no campo status)
                     const statusSistema = (c.status || '').toLowerCase();
                     const hojeDate = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
                     const hojeStr = hojeDate.getFullYear() + '-' + String(hojeDate.getMonth() + 1).padStart(2, '0') + '-' + String(hojeDate.getDate()).padStart(2, '0');
@@ -19354,7 +19354,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                             // Data da rota ?? DEPOIS das f??rias, ent??o est?? dispon??vel
                         } else {
                             status = 'ferias';
-                            motivo = 'Em F??rias (status cadastro)';
+                            motivo = 'Em Férias (status cadastro)';
                         }
                     } else if (statusSistema === 'afastado') {
                         if (data <= hojeStr) {
@@ -19363,15 +19363,15 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         }
                     }
 
-                    // F??rias programadas por per??odo
+                    // Férias programadas por período
                     if (c.ferias_programadas_inicio && c.ferias_programadas_fim) {
                         if (data >= c.ferias_programadas_inicio && data <= c.ferias_programadas_fim) {
                             status = 'ferias';
-                            motivo = 'F??rias programadas';
+                            motivo = 'Férias programadas';
                         }
                     }
 
-                    // Atestado no per??odo (armazena a data fim para exibi????o)
+                    // Atestado no período (armazena a data fim para exibi????o)
                     if (atestSet[c.id] !== undefined && atestSet[c.id] !== null) {
                         const fimAtestado = atestSet[c.id];
                         const fimFmt = fimAtestado
@@ -19390,7 +19390,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         const tipoAgenda = agendaMap.get(c.id);
                         if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Aus??ncia lan??ada na Agenda'; }
                         else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Aus??ncia lan??ada na Agenda'; }
-                        else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'F??rias lan??adas na Agenda Log??stica'; }
+                        else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
                         else if (tipoAgenda === 'terapia' && status === 'disponivel') { status = 'terapia'; motivo = 'Terapia agendada para hoje'; }
                     }
 
@@ -19412,7 +19412,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         }
                     }
 
-                    // Avisos da Agenda Log??stica (n??o alteram status, apenas adicionam aviso)
+                    // Avisos da Agenda Logística (n??o alteram status, apenas adicionam aviso)
                     const avisosColab = avisoMap.has(c.id) ? avisoMap.get(c.id) : [];
 
                     result[nomeKey] = { status, motivo, nome: c.nome_completo, data_fim, avisos: avisosColab };
@@ -19438,7 +19438,7 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
                 if (row) dispararAcoesAgenda(row).catch(() => { });
             });
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [criado_por, (setor === 'rh' ? 'Agenda RH' : 'Agenda Log??stica'), 'Cria????o de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
+                [criado_por, (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Cria????o de Card', null, `Card: ${titulo || ''} (${data})`, insertedId]);
             res.json({ id: insertedId, ok: true });
         }
     );
@@ -19480,7 +19480,7 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
             function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                    [req.user ? req.user.username : '', (setor === 'rh' ? 'Agenda RH' : 'Agenda Log??stica'), 'Edi????o de Card', ca, cu, req.params.id]);
+                    [req.user ? req.user.username : '', (setor === 'rh' ? 'Agenda RH' : 'Agenda Logística'), 'Edi????o de Card', ca, cu, req.params.id]);
                 res.json({ ok: true });
             }
         );
@@ -19492,14 +19492,14 @@ app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [req.user ? req.user.username : '', 'Agenda Log??stica', 'Exclus??o de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
+            [req.user ? req.user.username : '', 'Agenda Logística', 'Exclus??o de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
         res.json({ ok: true });
     });
 });
 
 // GET ??? hist??rico de auditoria para agenda (log??stica ou RH)
 app.get('/api/logistica/agenda-auditoria', authenticateToken, (req, res) => {
-    const programa = req.query.programa || 'Agenda Log??stica';
+    const programa = req.query.programa || 'Agenda Logística';
     db.all(
         `SELECT a.*, la.titulo as card_titulo, la.data as card_data, la.referente_ids as card_referente_ids
          FROM auditoria a
@@ -19583,7 +19583,7 @@ async function dispararAcoesAgenda(card) {
         referente_ids.forEach(colab_id => {
             db.get('SELECT id FROM faltas WHERE colaborador_id = ? AND data_falta = ?', [colab_id, card.data], (errChk, existente) => {
                 if (errChk || existente) return; // j?? existe, n??o duplicar
-                const obsBase = card.descricao || 'Falta registrada via Agenda da Log??stica';
+                const obsBase = card.descricao || 'Falta registrada via Agenda da Logística';
                 const obsFinal = obsBase + (card.criado_por ? ' (Criado por: ' + card.criado_por + ')' : '');
                 db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
                     [colab_id, card.data, 'Dia todo', obsFinal, 'N??o'],
@@ -19615,8 +19615,8 @@ async function dispararAcoesAgenda(card) {
                                     <img src="cid:empresa-logo" alt="Am??rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">?????? Aviso de Falta (Agenda Log??stica)</h2>
-                                    <p>Uma falta foi registrada via Agenda da Log??stica:</p>
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">?????? Aviso de Falta (Agenda Logística)</h2>
+                                    <p>Uma falta foi registrada via Agenda da Logística:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Colaborador(es):</strong> ${nomes}</p>
                                         <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '???'}</p>
@@ -19655,7 +19655,7 @@ async function dispararAcoesAgenda(card) {
                         <img src="cid:logo-agenda" style="max-height:60px;" alt="Am??rica Rental">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color:#2d9e5f;margin-top:0;">???? Agenda Log??stica ??? ${tipo_label}</h2>
+                        <h2 style="color:#2d9e5f;margin-top:0;">???? Agenda Logística ??? ${tipo_label}</h2>
                         <p>Ol??, <strong>${c.nome_completo}</strong>!</p>
                         <p>Voc?? foi marcado como respons??vel em um item da agenda do dia <strong>${dataFmt}</strong>.</p>
                         <div style="background:#f0fdf4;border-left:4px solid #2d9e5f;border-radius:8px;padding:16px;margin:16px 0;">
@@ -20118,7 +20118,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         }
 
-        // L??gica de Notifica????o de Estoque M??nimo
+        // Lógica de Notifica????o de Estoque M??nimo
         try {
             if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
                 const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque m??nimo. Quantidade Atual: ${quantidade_atual}.`;
@@ -20137,7 +20137,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                                 </div>
                                 <div style="padding:24px;">
                                     <h2 style="color:#e67700;text-align:center;margin-top:0;">???? Estoque M??nimo Atingido</h2>
-                                    <p>Um item do estoque atingiu a quantidade m??nima ap??s ajuste manual:</p>
+                                    <p>Um item do estoque atingiu a quantidade m??nima após ajuste manual:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
@@ -21329,8 +21329,8 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 });
 
 // ?????? GET /api/treinamento-presenca/colaboradores ??????????????????????????????????????????????????????????????????????????????????????????
-// Retorna lista de colaboradores com seus treinamentos aplic??veis (por depto)
-// e o status de conclus??o de cada treinamento
+// Retorna lista de colaboradores com seus treinamentos aplicáveis (por depto)
+// e o status de conclusão de cada treinamento
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
     SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
@@ -21362,7 +21362,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
         const agora = new Date();
 
         const resultado = colabs.map(c => {
-          // Treinamentos aplic??veis: departamento 'Todos' ou cont??m o depto do colaborador
+          // Treinamentos aplicáveis: departamento 'Todos' ou contém o depto do colaborador
           const aplicaveis = treinamentos.filter(t => {
             if (!t.departamento || t.departamento === 'Todos') return true;
             const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
@@ -21640,7 +21640,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const usuarioId = req.user?.id || 0;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
 
-  // Fun????o auxiliar: registra na trilha de auditoria ap??s sucesso
+  // Fun????o auxiliar: registra na trilha de auditoria após sucesso
   const registrarAuditoria = (presencaId) => {
     try {
       const crypto = require('crypto');
@@ -21899,7 +21899,7 @@ async function syncBase64ToR2() {
 
 // Rodar a cada 15 minutos (era 5min) ??? reduz carga no Render Starter
 setInterval(syncBase64ToR2, 15 * 60 * 1000);
-// E 2 minutos ap??s a inicializa????o do servidor (era 10s)
+// E 2 minutos após a inicializa????o do servidor (era 10s)
 setTimeout(syncBase64ToR2, 2 * 60 * 1000);
 // ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
@@ -23295,7 +23295,7 @@ app.listen(PORT, () => {
         }
     });
     // ------------------------------------------------------------------
-    // ?????? Migra????o autom??tica: adicionar colunas novas a frota_manutencoes ??????????????????
+    // ?????? Migra????o automática: adicionar colunas novas a frota_manutencoes ??????????????????
     const colsMigration = [
         { col: 'servico_catalogo_id', def: 'INTEGER' },
         { col: 'criticidade', def: 'TEXT' },
@@ -23395,7 +23395,7 @@ app.listen(PORT, () => {
         });
     });
 
-    // ?????? Migra????o autom??tica: marcar multas antigas existentes ??????????????????????????????????????????????????????
+    // ?????? Migra????o automática: marcar multas antigas existentes ??????????????????????????????????????????????????????
     // Atualiza multas j?? cadastradas cujo AIT est?? na lista AITS_ANTIGAS e que
     // ainda n??o estejam com status 'Antiga'.
     const aitsArr = [...AITS_ANTIGAS];
@@ -24845,7 +24845,7 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
       const data = await sigorReq('/cancelarManifesto', 'POST', payload);
       console.log('[MTR CANCEL] Resposta SIGOR:', JSON.stringify(data));
 
-      // Sucesso: data.erro === false e data.mensagem cont??m "sucesso"
+      // Sucesso: data.erro === false e data.mensagem contém "sucesso"
       if (data.erro === false || (data.mensagem && data.mensagem.toLowerCase().includes('sucesso'))) {
         db.run('UPDATE mtr_local SET status = ? WHERE id = ?', ['Cancelado', row.id]);
         return res.json({ mensagem: 'MTR cancelada com sucesso' });
@@ -24918,7 +24918,7 @@ console.log('[MONACO] Endpoints webhook registrados: /token /notificacao /multa 
 
 // ?????? CRON JOB MTR (A CADA 1 HORA) ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 setInterval(async () => {
-    console.log('[CRON-MTR] Iniciando sincroniza????o autom??tica de MTRs...');
+    console.log('[CRON-MTR] Iniciando sincroniza????o automática de MTRs...');
     db.all('SELECT * FROM mtr_local WHERE status NOT IN ("Cancelado", "Recebido")', [], async (err, rows) => {
         if (err || !rows) return;
         let atualizados = 0;
@@ -24940,7 +24940,7 @@ setInterval(async () => {
             } catch(e) {}
         }
         if (atualizados > 0) {
-            console.log(`[CRON-MTR] Sincroniza????o autom??tica concluiu com ${atualizados} atualiza????es.`);
+            console.log(`[CRON-MTR] Sincroniza????o automática concluiu com ${atualizados} atualiza????es.`);
         }
     });
 }, 60 * 60 * 1000);

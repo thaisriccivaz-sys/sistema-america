@@ -1111,6 +1111,11 @@ let _filtroStatus = 'Ativos';
         renderizar();
     };
 
+    window.filtrarPresencaStatus = function (val) {
+        _filtroStatus = val;
+        renderizar();
+    };
+
     // ── Init ──────────────────────────────────────────────────────────────────
     window.initPresencaTreinamento = function () {
         carregarDados();
