@@ -92,13 +92,26 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
         </div>
     `;
 
-    categories.forEach(cat => {
-        html += `<div class="category-title">${cat}</div>`;
-        html += `<table>
+    html += `
+        <div style="background:#f8fafc;border-radius:10px;padding:0.75rem 1.25rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span style="font-size:0.75rem;font-weight:700;color:#475569;margin-right:4px;">LEGENDA:</span>
+            <span style="background:#dc2626;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">1 Muito Ruim</span>
+            <span style="background:#ea580c;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">2 Ruim</span>
+            <span style="background:#ca8a04;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">3 Médio</span>
+            <span style="background:#65a30d;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">4 Bom</span>
+            <span style="background:#16a34a;color:#fff;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">5 Muito Bom</span>
+        </div>
+    `;
+
+    categories.forEach((cat, catIdx) => {
+        html += `<div class="category-title" style="background:#1e3a5f;color:#fff;padding:0.6rem 1rem;border-radius:8px;font-weight:700;font-size:0.85rem;letter-spacing:0.5px;margin-bottom:0.75rem;">${cat}</div>`;
+        html += `<div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:600px;">
             <thead>
                 <tr>
-                    <th style="width: 55%;">Critério Avaliado</th>
-                    <th style="width: 15%; text-align:center;">Nota (1 a 5)</th>
+                    <th style="width: 50%; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Critério Avaliado</th>
+                    <th style="width: 25%; text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1 a 5)</th>
+                    <th style="width: 25%; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                 </tr>
             </thead>
             <tbody>
@@ -106,34 +119,59 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
         
         questions[cat].forEach((q, idx) => {
             if (!q || !q.trim()) return;
-            const val = (savedAnswers[cat] && savedAnswers[cat][idx]) ? savedAnswers[cat][idx] : '';
+            const nota = (savedAnswers[cat] && savedAnswers[cat][idx]) ? parseInt(savedAnswers[cat][idx]) : 0;
+            let obsVal = '';
+            if (savedAnswers.__obs__ && savedAnswers.__obs__[cat] && savedAnswers.__obs__[cat][idx]) {
+                obsVal = savedAnswers.__obs__[cat][idx];
+            }
             
+            const scoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
+            const scoreLabels = ['', '1', '2', '3', '4', '5'];
+
+            let botoesNota = '';
+            if (isFinalizado) {
+                const cor = nota >= 1 && nota <= 5 ? scoreColors[nota] : '#94a3b8';
+                const label = nota >= 1 && nota <= 5 ? scoreLabels[nota] : '-';
+                botoesNota = `
+                    <input type="hidden" class="nota-input" data-cat="${cat}" data-idx="${idx}" id="nota-${catIdx}-${idx}" value="${nota}">
+                    <span style="display:inline-block;width:36px;height:36px;border-radius:50%;background:${cor};color:#fff;font-weight:800;font-size:1rem;line-height:36px;text-align:center;">${label}</span>
+                `;
+            } else {
+                botoesNota = `<input type="hidden" class="nota-input" data-cat="${cat}" data-idx="${idx}" id="nota-${catIdx}-${idx}" value="${nota}">
+                <div style="display:flex;gap:4px;justify-content:center;">` +
+                [1,2,3,4,5].map(n => {
+                    const cor = scoreColors[n];
+                    const selected = nota === n ? `box-shadow:0 0 0 3px ${cor}50;transform:scale(1.15);` : 'opacity:0.4;';
+                    return `<button type="button" onclick="selecionarPublicNotaDesempenho(${catIdx}, ${idx}, ${n})" 
+                        id="btn-nota-${catIdx}-${idx}-${n}"
+                        style="width:34px;height:34px;border-radius:50%;background:${cor};color:#fff;border:2px solid ${cor};font-weight:800;font-size:0.85rem;cursor:pointer;transition:all 0.15s;${selected}">${n}</button>`;
+                }).join('') +
+                `</div>`;
+            }
+
             html += `
                 <tr>
-                    <td>${q}</td>
-                    <td style="text-align:center;">
-                        <select class="form-control" data-cat="${cat}" data-idx="${idx}" required ${isFinalizado ? 'disabled' : ''}>
-                            <option value="">Selecione...</option>
-                            <option value="1" ${val == '1' ? 'selected' : ''}>1 - Ruim</option>
-                            <option value="2" ${val == '2' ? 'selected' : ''}>2 - Regular</option>
-                            <option value="3" ${val == '3' ? 'selected' : ''}>3 - Bom</option>
-                            <option value="4" ${val == '4' ? 'selected' : ''}>4 - Muito Bom</option>
-                            <option value="5" ${val == '5' ? 'selected' : ''}>5 - Excelente</option>
-                        </select>
+                    <td style="padding:8px 12px;border:1px solid #e2e8f0;color:#334155;">${q}</td>
+                    <td style="padding:8px 12px;border:1px solid #e2e8f0;text-align:center;">
+                        ${botoesNota}
+                    </td>
+                    <td style="padding:8px 12px;border:1px solid #e2e8f0;">
+                        <input type="text" class="obs-input" data-cat="${cat}" data-idx="${idx}" value="${obsVal}" ${isFinalizado ? 'disabled' : ''}
+                            style="width:100%;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.85rem;outline:none;box-sizing:border-box;${isFinalizado ? 'background:#f8fafc;' : ''}">
                     </td>
                 </tr>
             `;
         });
         
-        html += `</tbody></table>`;
+        html += `</tbody></table></div>`;
     });
 
     // Observações Gerais
-    const obsVal = savedAnswers.__obs__ || '';
+    const obsGeraisVal = savedAnswers.__obs_gerais__ || '';
     html += `
         <div class="category-title">Observações Gerais</div>
         <div style="margin-bottom: 2rem;">
-            <textarea id="observacoes_gerais" class="form-control" rows="4" placeholder="Adicione comentários ou observações sobre o desempenho do colaborador..." ${isFinalizado ? 'disabled' : ''}>${obsVal}</textarea>
+            <textarea id="observacoes_gerais" class="form-control" rows="4" placeholder="Adicione comentários ou observações sobre o desempenho do colaborador..." ${isFinalizado ? 'disabled' : ''}>${obsGeraisVal}</textarea>
         </div>
     `;
 
@@ -168,8 +206,8 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
             
             // Verificar se todas as selects obrigatórias foram preenchidas
             let allFilled = true;
-            formEl.querySelectorAll('select[required]').forEach(sel => {
-                if (!sel.value) allFilled = false;
+            formEl.querySelectorAll('.nota-input').forEach(input => {
+                if (!input.value || input.value === '0') allFilled = false;
             });
             
             if (!allFilled) {
@@ -204,16 +242,27 @@ async function saveDesempenho(token, acao, isFinalizar) {
     }
 
     const respostas = {};
-    document.querySelectorAll('#form-desempenho-publico select[data-cat]').forEach(sel => {
-        const cat = sel.getAttribute('data-cat');
-        const idx = sel.getAttribute('data-idx');
+    const obs = {};
+
+    document.querySelectorAll('.nota-input').forEach(input => {
+        const cat = input.getAttribute('data-cat');
+        const idx = input.getAttribute('data-idx');
         if (!respostas[cat]) respostas[cat] = {};
-        respostas[cat][idx] = sel.value;
+        respostas[cat][idx] = input.value;
     });
 
-    const obs = document.getElementById('observacoes_gerais').value;
-    if (obs.trim()) {
-        respostas.__obs__ = obs;
+    document.querySelectorAll('.obs-input').forEach(input => {
+        const cat = input.getAttribute('data-cat');
+        const idx = input.getAttribute('data-idx');
+        if (!obs[cat]) obs[cat] = {};
+        obs[cat][idx] = input.value;
+    });
+
+    respostas.__obs__ = obs;
+
+    const obsGerais = document.getElementById('observacoes_gerais').value;
+    if (obsGerais.trim()) {
+        respostas.__obs_gerais__ = obsGerais;
     }
 
     const responsavelNome = document.getElementById('responsavel_nome').value;
@@ -287,3 +336,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 });
+
+const _publicDesempenhoScoreColors = ['', '#dc2626', '#ea580c', '#ca8a04', '#65a30d', '#16a34a'];
+window.selecionarPublicNotaDesempenho = function(catIdx, idx, nota) {
+    const hidden = document.getElementById(`nota-${catIdx}-${idx}`);
+    if (hidden) hidden.value = nota;
+    for (let n = 1; n <= 5; n++) {
+        const btn = document.getElementById(`btn-nota-${catIdx}-${idx}-${n}`);
+        if (!btn) continue;
+        if (n === nota) {
+            btn.style.opacity = '1';
+            btn.style.boxShadow = `0 0 0 3px ${_publicDesempenhoScoreColors[n]}50`;
+            btn.style.transform = 'scale(1.15)';
+        } else {
+            btn.style.opacity = '0.4';
+            btn.style.boxShadow = '';
+            btn.style.transform = '';
+        }
+    }
+};
