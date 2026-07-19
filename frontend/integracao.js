@@ -418,8 +418,8 @@ function renderCiForm(template) {
         window.ciCheckEmpty();
     } else {
         mapGrupos.forEach((acts, gName) => {
-            const firstWithGrpResp = acts.find(a => a.grupo_responsavel_user_id);
-            const gResp = firstWithGrpResp ? firstWithGrpResp.grupo_responsavel_user_id : null;
+            const firstWithGrpResp = acts.find(a => a.grupo_responsavel_user_id || a.grupo_responsavel_depto_id);
+            const gResp = firstWithGrpResp ? (firstWithGrpResp.grupo_responsavel_user_id ? 'user_' + firstWithGrpResp.grupo_responsavel_user_id : 'depto_' + firstWithGrpResp.grupo_responsavel_depto_id) : null;
             const grpEl = window.ciAdicionarGrupo(gName, false, gResp);
             acts.forEach(a => {
                 window.ciAdicionarAcaoNoGrupo(grpEl, a);
@@ -546,7 +546,8 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
         </div>
     `;
 
-    if (a.responsavel_user_id) div.querySelector('.cia-responsavel').value = a.responsavel_user_id;
+    if (a.responsavel_user_id) div.querySelector('.cia-responsavel').value = 'user_' + a.responsavel_user_id;
+    else if (a.responsavel_depto_id) div.querySelector('.cia-responsavel').value = 'depto_' + a.responsavel_depto_id;
     if (!isTodos) {
         div.querySelectorAll('.ci-depto-chk').forEach(chk => {
             if (deptoArray.includes(String(chk.value))) chk.checked = true;
