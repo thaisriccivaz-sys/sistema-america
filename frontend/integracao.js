@@ -306,8 +306,9 @@ function renderCiForm(template) {
         deptosFiltrados = ciDeptos.filter(d => (d.tipo || '').toLowerCase() === tipoTemplate);
     }
 
-    const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + 
-        ciUsuarios.map(u => `<option value="${u.id}">${u.nome||u.username}</option>`).join('');
+    const baseUOpts = ciUsuarios.map(u => `<option value="${u.id}">${u.nome||u.username}</option>`).join('');
+    const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + baseUOpts;
+    window._ciUOpts_raw = baseUOpts;
 
     const deptoCbsHtml = deptosFiltrados.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
 
@@ -389,7 +390,9 @@ function renderCiForm(template) {
         window.ciCheckEmpty();
     } else {
         mapGrupos.forEach((acts, gName) => {
-            const grpEl = window.ciAdicionarGrupo(gName, false);
+            const firstWithGrpResp = acts.find(a => a.grupo_responsavel_user_id);
+            const gResp = firstWithGrpResp ? firstWithGrpResp.grupo_responsavel_user_id : null;
+            const grpEl = window.ciAdicionarGrupo(gName, false, gResp);
             acts.forEach(a => {
                 window.ciAdicionarAcaoNoGrupo(grpEl, a);
             });
@@ -399,7 +402,7 @@ function renderCiForm(template) {
     window.ciAtualizarNumeracao();
 }
 
-window.ciAdicionarGrupo = function(nome, updateNum = true) {
+window.ciAdicionarGrupo = function(nome, updateNum = true, respId = null) {
     if (!nome || typeof nome !== 'string') nome = '';
     const container = document.getElementById('ci-grupos-container');
     const div = document.createElement('div');
@@ -413,6 +416,11 @@ window.ciAdicionarGrupo = function(nome, updateNum = true) {
                 <input type="text" class="cig-nome" value="${nome.replace(/"/g, '&quot;')}" placeholder="Nome do Grupo (Ex: Treinamentos)" style="flex:1; max-width:400px; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; font-weight:600; outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
+                <select class="cig-responsavel" title="Responsável por todo o grupo (aplicado a ações sem responsável)" style="padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; outline:none; background:#fff; max-width:150px;">
+                    <option value="">— Sem Resp. Grupo —</option>
+                    ${window._ciUOpts_raw}
+                </select>
+                <div style="width:1px; height:20px; background:#cbd5e1; margin:0 2px;"></div>
                 <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), -1)" title="Mover para cima" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
                 <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), 1)" title="Mover para baixo" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
                 <div style="width:1px; height:20px; background:#cbd5e1; margin:0 4px;"></div>
@@ -429,6 +437,7 @@ window.ciAdicionarGrupo = function(nome, updateNum = true) {
             </button>
         </div>
     `;
+    if (respId) div.querySelector('.cig-responsavel').value = respId;
     container.appendChild(div);
     window.ciCheckEmpty();
     if (updateNum) window.ciAtualizarNumeracao();
@@ -645,6 +654,7 @@ window.ciSalvarTemplate = async function() {
 
     document.querySelectorAll('.ci-grupo-block').forEach((grp) => {
         const grupoNome = grp.querySelector('.cig-nome').value.trim() || 'Geral';
+        const grupoResp = grp.querySelector('.cig-responsavel')?.value;
         
         const acoesNode = grp.querySelectorAll('.ci-acao-item');
         if (acoesNode.length === 0) {
@@ -675,7 +685,8 @@ window.ciSalvarTemplate = async function() {
                 responsavel_user_id: resp || null,
                 departamentos: deptos,
                 condicao: cond || null,
-                ordem: ordemCounter++
+                ordem: ordemCounter++,
+                grupo_responsavel_user_id: grupoResp || null
             });
         });
     });

@@ -22507,7 +22507,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 for (const a of acoesFiltradas) {
                     await new Promise((resolve, reject) =>
                         db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom) VALUES (?, NULL, 'pendente', ?, ?, ?, 1)`,
-                            [processoId, a.responsavel_user_id || null, a.titulo, a.descricao || null],
+                            [processoId, a.responsavel_user_id || a.grupo_responsavel_user_id || null, a.titulo, a.descricao || null],
                             err => err ? reject(err) : resolve()));
                 }
                 passosAplicaveis = acoesFiltradas; // para e-mail
@@ -22535,7 +22535,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
         for (const a of acoesCustom) {
             await new Promise((resolve, reject) =>
                 db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom) VALUES (?, NULL, 'pendente', ?, ?, ?, 1)`,
-                    [processoId, a.responsavel_user_id || null, a.titulo, a.descricao || null],
+                    [processoId, a.responsavel_user_id || a.grupo_responsavel_user_id || null, a.titulo, a.descricao || null],
                     err => err ? reject(err) : resolve())
             );
         }
@@ -22848,9 +22848,18 @@ db.serialize(() => {
 db.serialize(() => {
     db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo TEXT", [], err => {
         if (err && !err.message.includes("duplicate column name")) {
-            console.error("Erro ao adicionar coluna grupo:", err);
+            console.error("[DB] Erro ao adicionar coluna grupo:", err.message);
         } else if (!err) {
             console.log("[DB] Coluna 'grupo' adicionada em integ_template_acoes");
+        }
+    });
+    
+    // PATCH: Add 'grupo_responsavel_user_id'
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo_responsavel_user_id INTEGER", [], err => {
+        if (err && !err.message.includes("duplicate column name")) {
+            console.error("[DB] Erro ao adicionar coluna grupo_responsavel_user_id:", err.message);
+        } else if (!err) {
+            console.log("[DB] Coluna 'grupo_responsavel_user_id' adicionada em integ_template_acoes");
         }
     });
 });
@@ -22974,7 +22983,7 @@ app.post('/api/integ/templates/seed', async (req, res) => {
 app.get('/api/integ/templates', authenticateToken, (req, res) => {
     db.all(`SELECT t.*,
             (SELECT COUNT(*) FROM integ_template_acoes a WHERE a.template_id=t.id AND a.ativo=1) as total_acoes,
-            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo)) FROM (SELECT titulo, grupo FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
+            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id)) FROM (SELECT titulo, grupo FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
             FROM integ_templates t WHERE t.ativo=1 ORDER BY t.tipo_key, t.nome`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -23022,8 +23031,8 @@ app.post('/api/integ/templates', authenticateToken, async (req, res) => {
                 ? (a.departamentos.includes('todos') ? 'todos' : JSON.stringify(a.departamentos))
                 : (a.departamentos || 'todos');
             await new Promise((resolve, reject) =>
-                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo) VALUES (?,?,?,?,?,?,?,?)`,
-                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null],
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo, grupo_responsavel_user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
+                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null, a.grupo_responsavel_user_id || null],
                     err => err ? reject(err) : resolve()));
         }
         res.json({ ok: true, id: tid });
