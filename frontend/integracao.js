@@ -350,7 +350,7 @@ function renderCiForm(template) {
                             ${deptosFiltrados.map(d => `<option value="${d.id}">${d.nome}</option>`).join('')}
                         </select>
                     </div>
-                    <button onclick="window.ciAdicionarGrupo()" style="background:#e0f2fe;color:#0369a1;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;transition:background 0.2s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
+                    <button type="button" onclick="window.ciAdicionarGrupo(null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;transition:background 0.2s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
                         <i class="ph ph-folder-plus"></i> Adicionar Grupo
                     </button>
                 </div>
@@ -399,7 +399,8 @@ function renderCiForm(template) {
     window.ciAtualizarNumeracao();
 }
 
-window.ciAdicionarGrupo = function(nome = '', updateNum = true) {
+window.ciAdicionarGrupo = function(nome, updateNum = true) {
+    if (!nome || typeof nome !== 'string') nome = '';
     const container = document.getElementById('ci-grupos-container');
     const div = document.createElement('div');
     div.className = 'ci-grupo-block';
@@ -412,11 +413,11 @@ window.ciAdicionarGrupo = function(nome = '', updateNum = true) {
                 <input type="text" class="cig-nome" value="${nome.replace(/"/g, '&quot;')}" placeholder="Nome do Grupo (Ex: Treinamentos)" style="flex:1; max-width:400px; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; font-weight:600; outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
-                <button onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), -1)" title="Mover para cima" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
-                <button onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), 1)" title="Mover para baixo" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
+                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), -1)" title="Mover para cima" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
+                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), 1)" title="Mover para baixo" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
                 <div style="width:1px; height:20px; background:#cbd5e1; margin:0 4px;"></div>
-                <button onclick="window.ciAdicionarAcaoNoGrupo(this.closest('.ci-grupo-block'))" style="background:#dbeafe; color:#1e40af; border:none; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;"><i class="ph ph-plus"></i> Ação</button>
-                <button onclick="if(confirm('Excluir este grupo e todas as ações?')) { this.closest('.ci-grupo-block').remove(); window.ciAtualizarNumeracao(); window.ciCheckEmpty(); }" style="background:#fee2e2; color:#dc2626; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-trash"></i></button>
+                <button type="button" onclick="window.ciAdicionarAcaoNoGrupo(this.closest('.ci-grupo-block'), null)" style="background:#dbeafe; color:#1e40af; border:none; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;"><i class="ph ph-plus"></i> Ação</button>
+                <button type="button" onclick="if(confirm('Excluir este grupo e todas as ações?')) { this.closest('.ci-grupo-block').remove(); window.ciAtualizarNumeracao(); window.ciCheckEmpty(); }" style="background:#fee2e2; color:#dc2626; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-trash"></i></button>
             </div>
         </div>
         <div class="cig-acoes-lista" style="display:flex; flex-direction:column; gap:0.75rem;">
@@ -429,7 +430,10 @@ window.ciAdicionarGrupo = function(nome = '', updateNum = true) {
     return div;
 };
 
-window.ciAdicionarAcaoNoGrupo = function(grupoEl, a = {}) {
+window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
+    if (!a || a instanceof Event) a = {};
+    if (!grupoEl) { console.error('grupoEl é nulo'); alert('Erro interno: Bloco do grupo não encontrado.'); return; }
+    try {
     const lista = grupoEl.querySelector('.cig-acoes-lista');
     const div = document.createElement('div');
     div.className = 'ci-acao-item';
@@ -455,9 +459,9 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a = {}) {
                 </div>
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
-                <button onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), -1)" title="Subir Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
-                <button onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), 1)" title="Descer Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
-                <button onclick="this.closest('.ci-acao-item').remove(); window.ciAtualizarNumeracao();" title="Remover" style="background:#fee2e2; color:#dc2626; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer; margin-left:4px;"><i class="ph ph-trash"></i></button>
+                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), -1)" title="Subir Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
+                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), 1)" title="Descer Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
+                <button type="button" onclick="this.closest('.ci-acao-item').remove(); window.ciAtualizarNumeracao();" title="Remover" style="background:#fee2e2; color:#dc2626; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer; margin-left:4px;"><i class="ph ph-trash"></i></button>
             </div>
         </div>
         
@@ -499,6 +503,10 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a = {}) {
 
     lista.appendChild(div);
     window.ciAtualizarNumeracao();
+    } catch (e) {
+        console.error('Erro ao adicionar acao:', e);
+        alert('Erro ao adicionar ação: ' + e.message);
+    }
 };
 
 window.ciMoverElemento = function(el, direcao) {
