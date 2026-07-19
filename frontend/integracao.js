@@ -16,6 +16,7 @@ let ciTemplates = [];
 let ciEditingId = null;
 let ciUsuarios = [];
 let ciDeptos = [];
+let ciTreinamentos = [];
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 window.atualizarBadgeIntegracao = async function() {
@@ -161,15 +162,17 @@ window.loadConfIntegracao = async function() {
     
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const [tplRes, uRes, dRes] = await Promise.all([
+        const [tplRes, uRes, dRes, trRes] = await Promise.all([
             fetch('/api/integ/templates', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/usuarios',        { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/departamentos',   { headers: { 'Authorization': `Bearer ${token}` } })
+            fetch('/api/departamentos',   { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/treinamentos',    { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         if (tplRes.ok) ciTemplates = await tplRes.json();
         if (uRes.ok) ciUsuarios = await uRes.json();
         if (dRes.ok) ciDeptos = await dRes.json();
+        if (trRes.ok) ciTreinamentos = await trRes.json();
 
         window.renderConfIntegLista();
     } catch (e) {
@@ -306,9 +309,34 @@ function renderCiForm(template) {
         deptosFiltrados = ciDeptos.filter(d => (d.tipo || '').toLowerCase() === tipoTemplate);
     }
 
-    const baseUOpts = ciUsuarios.map(u => `<option value="${u.id}">${u.nome||u.username}</option>`).join('');
+    // Remover duplicatas de ciUsuarios e criar options com prefixo user_
+    const unicos = [];
+    const nomesVistos = new Set();
+    for (const u of ciUsuarios) {
+        const n = (u.nome || u.username).trim();
+        if (!nomesVistos.has(n)) {
+            nomesVistos.add(n);
+            unicos.push(u);
+        }
+    }
+    const userOpts = unicos.map(u => `<option value="user_${u.id}">${u.nome||u.username}</option>`).join('');
+    
+    // Criar options para departamentos com prefixo depto_
+    const deptOpts = ciDeptos.map(d => `<option value="depto_${d.id}">${d.nome}</option>`).join('');
+    
+    const baseUOpts = `
+        <optgroup label="Colaboradores Específicos">
+            ${userOpts}
+        </optgroup>
+        <optgroup label="Responsáveis de Departamentos">
+            ${deptOpts}
+        </optgroup>
+    `;
     const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + baseUOpts;
     window._ciUOpts_raw = baseUOpts;
+    
+    const treinInteg = ciTreinamentos.filter(t => t.is_integracao);
+    window._ciTreinOpts = `<option value="">Nenhum</option>` + treinInteg.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
 
     const deptoCbsHtml = deptosFiltrados.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
 
@@ -671,6 +699,7 @@ window.ciSalvarTemplate = async function() {
             const desc = item.querySelector('.cia-descricao').value.trim();
             const resp = item.querySelector('.cia-responsavel').value;
             const cond = item.querySelector('.cia-condicao').value;
+            const treinId = item.querySelector('.cia-treinamento').value;
             
             const todosCb = item.querySelector('.cia-depto-todos');
             let deptos = 'todos';
@@ -683,11 +712,14 @@ window.ciSalvarTemplate = async function() {
                 titulo,
                 grupo: grupoNome,
                 descricao: desc || null,
-                responsavel_user_id: resp || null,
+                responsavel_user_id: (resp && resp.startsWith('user_') ? resp.split('_')[1] : null),
+                responsavel_depto_id: (resp && resp.startsWith('depto_') ? resp.split('_')[1] : null),
                 departamentos: deptos,
                 condicao: cond || null,
+                treinamento_id: treinId ? parseInt(treinId) : null,
                 ordem: ordemCounter++,
-                grupo_responsavel_user_id: grupoResp || null
+                grupo_responsavel_user_id: (grupoResp && grupoResp.startsWith('user_') ? grupoResp.split('_')[1] : null),
+                grupo_responsavel_depto_id: (grupoResp && grupoResp.startsWith('depto_') ? grupoResp.split('_')[1] : null)
             });
         });
     });

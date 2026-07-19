@@ -560,10 +560,11 @@
 
             // 1. Cria o treinamento
             const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+            const is_integracao = el('novo-treinamento-is-integracao') && el('novo-treinamento-is-integracao').checked ? 1 : 0;
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas, tipo: tipoAtual })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas, tipo: tipoAtual, is_integracao })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             const novoTrein = await r.json();
@@ -855,6 +856,7 @@
         el('editar-treinamento-nome').value = t.nome || '';
         el('editar-treinamento-desc').value = t.descricao || '';
         if (el('editar-treinamento-validade')) el('editar-treinamento-validade').value = t.validade_dias || 0;
+        if (el('editar-treinamento-is-integracao')) el('editar-treinamento-is-integracao').checked = !!t.is_integracao;
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
 
         // Carrega capa existente
@@ -923,10 +925,11 @@
             const validade_dias = parseInt((el('editar-treinamento-validade') || {}).value || '0', 10) || 0;
             const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
 
+            const is_integracao = el('editar-treinamento-is-integracao') && el('editar-treinamento-is-integracao').checked ? 1 : 0;
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias, tipo: tipoAtual })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias, tipo: tipoAtual, is_integracao })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -940,6 +943,7 @@
                 _cache[idx].descricao   = desc || '';
                 _cache[idx].departamento = departamento;
                 _cache[idx].capa_url    = capa_url;
+                _cache[idx].is_integracao = is_integracao;
             }
 
             // Se o modal de detalhe estiver aberto para este treinamento, atualiza o header

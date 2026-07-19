@@ -20790,13 +20790,13 @@ app.get('/api/debug2-treinamentos', (req, res) => {
 
 // ?????? POST /api/treinamentos ??? Cria treinamento ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0 } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome ?? obrigat??rio.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim()],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo, is_integracao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       const newId = this.lastID;
@@ -20823,11 +20823,11 @@ app.post('/api/treinamentos', authenticateToken, (req, res) => {
 });
 // ?????? PUT /api/treinamentos/:id ??? Atualiza treinamento ???????????????????????????????????????????????????????????????????????????
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, tipo } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, tipo, is_integracao } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome ?? obrigat??rio.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', parseInt(is_integracao) ? 1 : 0, req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento n??o encontrado.' });
@@ -22506,9 +22506,18 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                     } catch { return true; }
                 });
                 for (const a of acoesFiltradas) {
+                    let respFinalId = a.responsavel_user_id;
+                    if (!respFinalId && a.responsavel_depto_id) {
+                        respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                    }
+                    if (!respFinalId && a.grupo_responsavel_user_id) respFinalId = a.grupo_responsavel_user_id;
+                    if (!respFinalId && a.grupo_responsavel_depto_id) {
+                        respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.grupo_responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                    }
+                    
                     await new Promise((resolve, reject) =>
-                        db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom) VALUES (?, NULL, 'pendente', ?, ?, ?, 1)`,
-                            [processoId, a.responsavel_user_id || a.grupo_responsavel_user_id || null, a.titulo, a.descricao || null],
+                        db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom, treinamento_id) VALUES (?, NULL, 'pendente', ?, ?, ?, 1, ?)`,
+                            [processoId, respFinalId || null, a.titulo, a.descricao || null, a.treinamento_id || null],
                             err => err ? reject(err) : resolve()));
                 }
                 passosAplicaveis = acoesFiltradas; // para e-mail
@@ -22863,6 +22872,15 @@ db.serialize(() => {
             console.log("[DB] Coluna 'grupo_responsavel_user_id' adicionada em integ_template_acoes");
         }
     });
+    
+    // PATCH: Responsável por Departamento
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN responsavel_depto_id INTEGER", [], err => {});
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo_responsavel_depto_id INTEGER", [], err => {});
+    
+    // PATCH: Treinamentos na Integração
+    db.run("ALTER TABLE treinamentos ADD COLUMN is_integracao INTEGER DEFAULT 0", [], err => {});
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN treinamento_id INTEGER", [], err => {});
+    db.run("ALTER TABLE integracao_passos_status ADD COLUMN treinamento_id INTEGER", [], err => {});
 });
 
 
@@ -22984,7 +23002,7 @@ app.post('/api/integ/templates/seed', async (req, res) => {
 app.get('/api/integ/templates', authenticateToken, (req, res) => {
     db.all(`SELECT t.*,
             (SELECT COUNT(*) FROM integ_template_acoes a WHERE a.template_id=t.id AND a.ativo=1) as total_acoes,
-            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id)) FROM (SELECT titulo, grupo, grupo_responsavel_user_id FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
+            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id, 'responsavel_depto_id', responsavel_depto_id, 'grupo_responsavel_depto_id', grupo_responsavel_depto_id, 'treinamento_id', treinamento_id)) FROM (SELECT titulo, grupo, grupo_responsavel_user_id, responsavel_depto_id, grupo_responsavel_depto_id, treinamento_id FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
             FROM integ_templates t WHERE t.ativo=1 ORDER BY t.tipo_key, t.nome`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -23032,8 +23050,8 @@ app.post('/api/integ/templates', authenticateToken, async (req, res) => {
                 ? (a.departamentos.includes('todos') ? 'todos' : JSON.stringify(a.departamentos))
                 : (a.departamentos || 'todos');
             await new Promise((resolve, reject) =>
-                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo, grupo_responsavel_user_id) VALUES (?,?,?,?,?,?,?,?,?)`,
-                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null, a.grupo_responsavel_user_id || null],
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo, grupo_responsavel_user_id, responsavel_depto_id, grupo_responsavel_depto_id, treinamento_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null, a.grupo_responsavel_user_id || null, a.responsavel_depto_id || null, a.grupo_responsavel_depto_id || null, a.treinamento_id || null],
                     err => err ? reject(err) : resolve()));
         }
         res.json({ ok: true, id: tid });
