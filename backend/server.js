@@ -22302,6 +22302,7 @@ function _condicaoAplicavel(colab, condicao) {
     const transporte = (colab.meio_transporte || '').toLowerCase();
     if (condicao === 'vt') return transporte.includes('vt') || transporte.includes('vale transporte') || transporte.includes('vale-transporte');
     if (condicao === 'vc') return transporte.includes('vc') || transporte.includes('combustivel') || transporte.includes('combustível') || transporte.includes('vale combust');
+    if (condicao === 'terapia') return (colab.terapia_participa || '').toLowerCase() === 'sim';
     return true;
 }
 

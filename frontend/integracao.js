@@ -503,6 +503,7 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
                     <option value="">Nenhuma (Sempre exigir)</option>
                     <option value="vt" ${a.condicao==='vt'?'selected':''}>Somente se usar VT</option>
                     <option value="vc" ${a.condicao==='vc'?'selected':''}>Somente se usar VC</option>
+                    <option value="terapia" ${a.condicao==='terapia'?'selected':''}>Somente se usar Terapia</option>
                 </select>
             </div>
         </div>
