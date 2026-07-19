@@ -22508,11 +22508,19 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 for (const a of acoesFiltradas) {
                     let respFinalId = a.responsavel_user_id;
                     if (!respFinalId && a.responsavel_depto_id) {
-                        respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        if (parseInt(a.responsavel_depto_id) === -1) {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [colab.departamento_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        } else {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        }
                     }
                     if (!respFinalId && a.grupo_responsavel_user_id) respFinalId = a.grupo_responsavel_user_id;
                     if (!respFinalId && a.grupo_responsavel_depto_id) {
-                        respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.grupo_responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        if (parseInt(a.grupo_responsavel_depto_id) === -1) {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [colab.departamento_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        } else {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.grupo_responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        }
                     }
                     
                     await new Promise((resolve, reject) =>

@@ -328,7 +328,10 @@ function renderCiForm(template) {
         <optgroup label="Colaboradores Específicos">
             ${userOpts}
         </optgroup>
-        <optgroup label="Responsáveis de Departamentos">
+        <optgroup label="Dinâmicos">
+<option value="depto_-1">Gestor do Departamento do Colaborador</option>
+</optgroup>
+<optgroup label="Responsáveis de Departamentos">
             ${deptOpts}
         </optgroup>
     `;
