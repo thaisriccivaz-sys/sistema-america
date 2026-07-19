@@ -21400,12 +21400,13 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
           });
 
           return {
-            id: c.id,
-            nome_completo: c.nome_completo,
-            departamento: c.departamento,
-            departamento_tipo: c.departamento_tipo,
-            cargo: c.cargo,
-            foto_path: c.foto_path,
+id: c.id,
+nome_completo: c.nome_completo,
+departamento: c.departamento,
+departamento_tipo: c.departamento_tipo,
+cargo: c.cargo,
+status: c.status,
+foto_path: c.foto_path,
             foto_base64: c.foto_base64,
             treinamentos: treinamentosComStatus,
             total: treinamentosComStatus.length,
