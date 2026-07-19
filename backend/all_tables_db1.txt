@@ -1,0 +1,4 @@
+colaboradores
+sqlite_sequence
+integ_templates
+integ_template_acoes

@@ -1,4 +1,36 @@
-// =============================================================================
+
+# -*- coding: utf-8 -*-
+"""
+FASE 4 — FRONTEND
+Reescreve o integracao.js para usar a estrutura de templates de integração
+e adapta o index.html.
+"""
+f_html = r'C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\cadastro-colaboradores\frontend\index.html'
+f_js = r'C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\cadastro-colaboradores\frontend\integracao.js'
+
+with open(f_html, 'r', encoding='utf-8') as fh:
+    html = fh.read()
+
+OLD_START = '                <section id="view-conf-integracao" class="content-view">'
+OLD_END   = '<!-- VIEW: FACULDADE -->'
+idx_start = html.find(OLD_START)
+idx_end   = html.find(OLD_END)
+
+NEW_HTML = '''                <section id="view-conf-integracao" class="content-view">
+                    <div id="conf-integ-container">
+                        <!-- Renderizado dinamicamente pelo integracao.js -->
+                    </div>
+                </section>
+
+'''
+
+html = html[:idx_start] + NEW_HTML + html[idx_end:]
+
+with open(f_html, 'w', encoding='utf-8') as fh:
+    fh.write(html)
+print("OK: index.html atualizado")
+
+JS_CODE = r"""// =============================================================================
 // MÓDULO DE INTEGRAÇÃO DE COLABORADORES
 // =============================================================================
 
@@ -6,7 +38,6 @@ const INTEG_STATUS = {
     pendente:   { label: 'Pendente',        color: '#f59e0b', bg: '#fffbeb', icon: 'ph-clock' },
     feito:      { label: 'Feito',           color: '#059669', bg: '#ecfdf5', icon: 'ph-check-circle' },
     nao_aplica: { label: 'Não se aplica',   color: '#94a3b8', bg: '#f8fafc', icon: 'ph-x-circle' },
-    aguardando_experiencia: { label: 'Aguard. Aprovação (Exp.)', color: '#0f4c81', bg: '#eff6ff', icon: 'ph-lock' },
 };
 
 let _integProcessosData = [];
@@ -17,7 +48,6 @@ let ciTemplates = [];
 let ciEditingId = null;
 let ciUsuarios = [];
 let ciDeptos = [];
-let ciTreinamentos = [];
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 window.atualizarBadgeIntegracao = async function() {
@@ -120,11 +150,6 @@ window.abrirProcessoIntegracao = async function(processoId) {
         const badges = [];
         if (data.tipo_departamento) badges.push(`<span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:.78rem;">${data.tipo_departamento}</span>`);
         document.getElementById('modal-integ-badges').innerHTML = badges.join('');
-        const totalPassos = data.passos ? data.passos.length : 0;
-        const concluidos = (data.passos||[]).filter(p => p.status === "feito" || p.status === "nao_aplica").length;
-        const pct = totalPassos > 0 ? Math.round((concluidos / totalPassos) * 100) : 0;
-        const pctContainer = document.getElementById("modal-integ-pct");
-        if (pctContainer) pctContainer.innerHTML = `Progresso (Suas Responsabilidades): ${pct}% <div style="margin-top:5px;width:100%;height:8px;background:rgba(255,255,255,0.3);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#fff;border-radius:4px;transition:width .5s;"></div></div>`;
         
         const passos = data.passos || [];
         let html = '';
@@ -135,15 +160,8 @@ window.abrirProcessoIntegracao = async function(processoId) {
                 const stInfo = INTEG_STATUS[p.status]||INTEG_STATUS.pendente; const isPendente = p.status==='pendente';
                 html += `<div id="passo-row-${p.id}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:${stInfo.bg};border:1px solid ${stInfo.color}30;transition:all .2s;">
                     <div style="padding-top:2px;"><i class="ph ${stInfo.icon}" style="color:${stInfo.color};font-size:1.2rem;"></i></div>
-                    <div style="flex:1;"><div style="font-size:.9rem;font-weight:${isPendente?'600':'400'};color:${(isPendente || p.status==='aguardando_experiencia')?'#0f172a':'#94a3b8'};${p.status==='feito'?'text-decoration:line-through;':''}">${p.titulo}</div>${p.descricao?`<div style="font-size:.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>`:''} ${p.responsavel_nome?`<div style="font-size:.75rem;color:#64748b;margin-top:3px;"><i class="ph ph-user"></i> ${p.responsavel_nome}</div>`:''} ${p.feito_em?`<div style="font-size:.73rem;color:#059669;margin-top:2px;"><i class="ph ph-check"></i> Feito em ${new Date(p.feito_em).toLocaleDateString('pt-BR')}</div>`:''}</div>
-                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
-    <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;font-weight:600;cursor:pointer;color:#334155;">
-        <input type="checkbox" style="width:18px;height:18px;cursor:pointer;" 
-            ${(!isPendente && p.status !== 'aguardando_experiencia') ? 'checked' : ''} 
-            onchange="window.marcarPassoIntegCheckbox(this, ${p.id}, ${processoId}, '${p.status}')">
-        Feito
-    </label>
-</div>
+                    <div style="flex:1;"><div style="font-size:.9rem;font-weight:${isPendente?'600':'400'};color:${isPendente?'#0f172a':'#94a3b8'};${p.status==='feito'?'text-decoration:line-through;':''}">${p.titulo}</div>${p.descricao?`<div style="font-size:.78rem;color:#94a3b8;margin-top:2px;">${p.descricao}</div>`:''} ${p.responsavel_nome?`<div style="font-size:.75rem;color:#64748b;margin-top:3px;"><i class="ph ph-user"></i> ${p.responsavel_nome}</div>`:''} ${p.feito_em?`<div style="font-size:.73rem;color:#059669;margin-top:2px;"><i class="ph ph-check"></i> Feito em ${new Date(p.feito_em).toLocaleDateString('pt-BR')}</div>`:''}</div>
+                    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">${isPendente?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'feito')" style="background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-check"></i> Marcar Feito</button><button onclick="window.marcarPassoInteg(${p.id},${processoId},'nao_aplica')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;"><i class="ph ph-x"></i> Não se aplica</button>`:p.status!=='pendente'?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'pendente')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;">Desfazer</button>`:''}</div>
                 </div>`;
             });
         }
@@ -175,17 +193,15 @@ window.loadConfIntegracao = async function() {
     
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const [tplRes, uRes, dRes, trRes] = await Promise.all([
+        const [tplRes, uRes, dRes] = await Promise.all([
             fetch('/api/integ/templates', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/usuarios',        { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/departamentos',   { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/treinamentos',    { headers: { 'Authorization': `Bearer ${token}` } })
+            fetch('/api/departamentos',   { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         if (tplRes.ok) ciTemplates = await tplRes.json();
         if (uRes.ok) ciUsuarios = await uRes.json();
         if (dRes.ok) ciDeptos = await dRes.json();
-        if (trRes.ok) ciTreinamentos = await trRes.json();
 
         window.renderConfIntegLista();
     } catch (e) {
@@ -222,25 +238,7 @@ window.renderConfIntegLista = function() {
                 <div style="padding:1rem 1.2rem;">
                     <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#475569;">${t.descricao || '<em>Sem descrição</em>'}</p>
                     <div style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem;padding-top:0.5rem;border-top:1px solid #f1f5f9;">
-                        
-<div style="width:100%;">
-    <span style="background:#e0f2fe;color:#0369a1;font-size:0.8rem;padding:3px 10px;border-radius:999px;font-weight:600;display:inline-block;margin-bottom:0.8rem;"><i class="ph ph-list-checks"></i> ${t.total_acoes || 0} ações configuradas</span>
-    ${(() => {
-        try {
-            const acoes = JSON.parse(t.acoes_json || '[]');
-            if (acoes.length === 0) return '';
-            let html = '<ul style="list-style-type:none;padding:0;margin:0;font-size:0.75rem;color:#475569;display:grid;gap:4px;">';
-            acoes.slice(0, 5).forEach(a => {
-                const groupBadge = a.grupo ? `<span style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 4px;font-size:0.65rem;margin-right:4px;">${a.grupo}</span>` : '';
-                html += `<li style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><i class="ph ph-check" style="color:#10b981;"></i> ${groupBadge}${a.titulo}</li>`;
-            });
-            if (acoes.length > 5) html += `<li style="color:#94a3b8;font-style:italic;">+ ${acoes.length - 5} outras ações...</li>`;
-            html += '</ul>';
-            return html;
-        } catch(e) { return ''; }
-    })()}
-</div>
-
+                        <span style="background:#e0f2fe;color:#0369a1;font-size:0.8rem;padding:3px 10px;border-radius:999px;font-weight:600;"><i class="ph ph-list-checks"></i> ${t.total_acoes || 0} ações configuradas</span>
                     </div>
                 </div>
             </div>`;
@@ -314,50 +312,16 @@ window.ciAbrirFormEditar = async function (id) {
 function renderCiForm(template) {
     const container = document.getElementById('conf-integ-container');
     const acoes = template.acoes || [];
-    const tipoTemplate = (template.tipo_key || 'todos').toLowerCase();
 
-    // 1. Filtrar Departamentos pelo tipo do template
-    let deptosFiltrados = ciDeptos;
-    if (tipoTemplate !== 'todos') {
-        deptosFiltrados = ciDeptos.filter(d => (d.tipo || '').toLowerCase() === tipoTemplate);
-    }
+    // Gerar opções de usuário
+    const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + 
+        ciUsuarios.map(u => `<option value="${u.id}">${u.nome||u.username}</option>`).join('');
 
-    // Remover duplicatas de ciUsuarios e criar options com prefixo user_
-    const unicos = [];
-    const nomesVistos = new Set();
-    for (const u of ciUsuarios) {
-        const n = (u.nome || u.username).trim();
-        if (!nomesVistos.has(n)) {
-            nomesVistos.add(n);
-            unicos.push(u);
-        }
-    }
-    const userOpts = unicos.map(u => `<option value="user_${u.id}">${u.nome||u.username}</option>`).join('');
-    
-    // Criar options para departamentos com prefixo depto_
-    const deptOpts = ciDeptos.map(d => `<option value="depto_${d.id}">${d.nome}</option>`).join('');
-    
-    const baseUOpts = `
-        <optgroup label="Colaboradores Específicos">
-            ${userOpts}
-        </optgroup>
-        <optgroup label="Dinâmicos">
-<option value="depto_-1">Gestor do Departamento do Colaborador</option>
-</optgroup>
-<optgroup label="Responsáveis de Departamentos">
-            ${deptOpts}
-        </optgroup>
-    `;
-    const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + baseUOpts;
-    window._ciUOpts_raw = baseUOpts;
-    
-    const treinInteg = ciTreinamentos.filter(t => t.is_integracao);
-    window._ciTreinOpts = `<option value="">Nenhum</option>` + treinInteg.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
-
-    const deptoCbsHtml = deptosFiltrados.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
+    // Gerar checkboxes de departamento (template helper for JS)
+    const deptoCbsHtml = ciDeptos.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
 
     container.innerHTML = `
-        <div style="padding:1.5rem; max-width: 100%; margin: 0 auto;">
+        <div style="padding:1.5rem; max-width: 1000px; margin: 0 auto;">
             <!-- CABEÇALHO DO FORM -->
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
                 <button onclick="window.renderConfIntegLista()" style="background:#f1f5f9;border:none;color:#475569;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;">
@@ -384,27 +348,18 @@ function renderCiForm(template) {
                 </div>
             </div>
 
-            <!-- HEADER DE AÇÕES -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:1rem;">
+            <!-- LISTA DE AÇÕES -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                 <h3 style="margin:0;font-size:1.1rem;color:#0f172a;"><i class="ph ph-list-checks" style="color:#0f4c81;"></i> Ações do Template</h3>
-                <div style="display:flex;align-items:center;gap:0.75rem;">
-                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.3rem 0.5rem;display:flex;align-items:center;gap:0.5rem;">
-                        <i class="ph ph-funnel" style="color:#64748b;"></i>
-                        <select id="ci-filtro-depto" onchange="window.ciFiltrarAcoesPorDepto()" style="border:none;background:transparent;font-size:0.85rem;color:#475569;outline:none;width:200px;">
-                            <option value="todos">— Filtrar Departamentos —</option>
-                            ${deptosFiltrados.map(d => `<option value="${d.id}">${d.nome}</option>`).join('')}
-                        </select>
-                    </div>
-                    <button type="button" onclick="window.ciAdicionarGrupo(null)" style="background:#e0f2fe;color:#0369a1;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;transition:background 0.2s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
-                        <i class="ph ph-folder-plus"></i> Adicionar Grupo
-                    </button>
-                </div>
+                <button onclick="window.ciAdicionarAcao()" style="background:#e0f2fe;color:#0369a1;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;transition:background 0.2s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
+                    <i class="ph ph-plus"></i> Adicionar Ação
+                </button>
             </div>
 
-            <div id="ci-grupos-container">
-                <!-- Grupos serão inseridos aqui -->
+            <div id="ci-acoes-container">
+                <!-- Ações serão inseridas aqui via JS -->
             </div>
-            <div id="ci-empty-acoes" style="text-align:center;padding:2rem;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px; display:none;">Nenhum grupo adicionado. Clique em "Adicionar Grupo".</div>
+            ${acoes.length === 0 ? '<div id="ci-empty-acoes" style="text-align:center;padding:2rem;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;">Nenhuma ação adicionada. Clique em "Adicionar Ação".</div>' : '<div id="ci-empty-acoes" style="display:none;"></div>'}
 
             <!-- BOTÕES DE SALVAR -->
             <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;padding-top:1.5rem;border-top:1.5px solid #e2e8f0;">
@@ -418,87 +373,21 @@ function renderCiForm(template) {
         </div>
     `;
 
+    // Armazenar os HTMLs básicos para uso no adicionar ação
     window._ciUOpts = uOpts;
     window._ciDeptoCbs = deptoCbsHtml;
 
-    // Agrupar ações existentes
-    const mapGrupos = new Map();
+    // Renderizar ações existentes
+    const acoesContainer = document.getElementById('ci-acoes-container');
     acoes.forEach(a => {
-        const gName = a.grupo || 'Geral';
-        if (!mapGrupos.has(gName)) mapGrupos.set(gName, []);
-        mapGrupos.get(gName).push(a);
+        acoesContainer.appendChild(ciCriarElementoAcao(a));
     });
-
-    const gruposContainer = document.getElementById('ci-grupos-container');
-    if (mapGrupos.size === 0) {
-        window.ciCheckEmpty();
-    } else {
-        mapGrupos.forEach((acts, gName) => {
-            const firstWithGrpResp = acts.find(a => a.grupo_responsavel_user_id || a.grupo_responsavel_depto_id);
-            const gResp = firstWithGrpResp ? (firstWithGrpResp.grupo_responsavel_user_id ? 'user_' + firstWithGrpResp.grupo_responsavel_user_id : 'depto_' + firstWithGrpResp.grupo_responsavel_depto_id) : null;
-            const grpEl = window.ciAdicionarGrupo(gName, false, gResp);
-            acts.forEach(a => {
-                window.ciAdicionarAcaoNoGrupo(grpEl, a);
-            });
-        });
-    }
-    
-    window.ciAtualizarNumeracao();
 }
 
-window.ciAdicionarGrupo = function(nome, updateNum = true, respId = null) {
-    if (!nome || typeof nome !== 'string') nome = '';
-    const container = document.getElementById('ci-grupos-container');
-    const div = document.createElement('div');
-    div.className = 'ci-grupo-block';
-    div.style.cssText = 'background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:1.2rem; margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.05);';
-    
-    div.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.8rem; border-bottom:1px solid #e2e8f0;">
-            <div style="display:flex; align-items:center; gap:0.5rem; flex:1;">
-                <input type="text" class="cig-num" onchange="window.ciReordenarGrupoPorInput(this)" style="background:#0f4c81; color:#fff; font-weight:700; font-size:1rem; padding:4px 10px; border-radius:6px; width:45px; text-align:center; border:none; outline:none;">
-                <input type="text" class="cig-nome" value="${nome.replace(/"/g, '&quot;')}" placeholder="Nome do Grupo (Ex: Treinamentos)" ${nome.toLowerCase().includes('treinamentos') ? 'readonly' : ''} style="flex:1; max-width:400px; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; font-weight:600; outline:none; ${nome.toLowerCase().includes('treinamentos') ? 'background:#e2e8f0; color:#475569; border-color:#cbd5e1;' : ''}" onfocus="if(!this.readOnly) this.style.borderColor='#0f4c81'" onblur="if(!this.readOnly) this.style.borderColor='#d1d5db'">
-            </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                <select class="cig-responsavel" title="Responsável por todo o grupo (aplicado a ações sem responsável)" style="padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; outline:none; background:#fff; max-width:150px;">
-                    <option value="">— Sem Resp. Grupo —</option>
-                    ${window._ciUOpts_raw}
-                </select>
-                <div style="width:1px; height:20px; background:#cbd5e1; margin:0 2px;"></div>
-                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), -1)" title="Mover para cima" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
-                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-grupo-block'), 1)" title="Mover para baixo" style="background:#e2e8f0; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
-                <div style="width:1px; height:20px; background:#cbd5e1; margin:0 4px;"></div>
-                <button type="button" onclick="window.ciAdicionarAcaoNoGrupo(this.closest('.ci-grupo-block'), null)" style="background:#dbeafe; color:#1e40af; border:none; padding:0.4rem 0.8rem; border-radius:6px; font-size:0.8rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;"><i class="ph ph-plus"></i> Ação</button>
-                <button type="button" onclick="if(confirm('Excluir este grupo e todas as ações?')) { this.closest('.ci-grupo-block').remove(); window.ciAtualizarNumeracao(); window.ciCheckEmpty(); }" style="background:#fee2e2; color:#dc2626; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer;"><i class="ph ph-trash"></i></button>
-            </div>
-        </div>
-        <div class="cig-acoes-lista" style="display:flex; flex-direction:column; gap:0.75rem;">
-            <!-- Ações aqui -->
-        </div>
-        <div style="margin-top:1rem; text-align:center;">
-            <button type="button" onclick="window.ciAdicionarAcaoNoGrupo(this.closest('.ci-grupo-block'), null)" style="background:#f8fafc; color:#64748b; border:1.5px dashed #cbd5e1; padding:0.5rem 1.5rem; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.background='#f1f5f9';this.style.borderColor='#94a3b8';this.style.color='#475569'" onmouseout="this.style.background='#f8fafc';this.style.borderColor='#cbd5e1';this.style.color='#64748b'">
-                <i class="ph ph-plus"></i> Adicionar nova Ação aqui
-            </button>
-        </div>
-    `;
-    if (respId) div.querySelector('.cig-responsavel').value = respId;
-    container.appendChild(div);
-    window.ciCheckEmpty();
-    if (updateNum) window.ciAtualizarNumeracao();
-    return div;
-};
-
-window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
-    if (!a || a instanceof Event) a = {};
-    const grupoNomeAcao = (grupoEl && grupoEl.querySelector('.cig-nome')) ? grupoEl.querySelector('.cig-nome').value.toLowerCase() : '';
-    const isTreinamentosAcao = grupoNomeAcao.includes('treinamentos');
-    const displayTrein = isTreinamentosAcao ? 'block' : 'none';
-    if (!grupoEl) { console.error('grupoEl é nulo'); alert('Erro interno: Bloco do grupo não encontrado.'); return; }
-    try {
-    const lista = grupoEl.querySelector('.cig-acoes-lista');
+function ciCriarElementoAcao(a = {}) {
     const div = document.createElement('div');
     div.className = 'ci-acao-item';
-    div.style.cssText = 'background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; position:relative;';
+    div.style.cssText = 'background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);position:relative;';
     
     let isTodos = (!a.departamentos || a.departamentos === 'todos');
     let deptoArray = [];
@@ -507,160 +396,59 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a) {
     }
 
     div.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:0.75rem;">
-            <div style="display:flex; align-items:center; gap:0.5rem; flex:1;">
-                <input type="text" class="cia-num" onchange="window.ciReordenarPorInput(this)" style="color:#0f4c81; font-weight:700; font-size:0.9rem; width:40px; border:1px solid transparent; background:transparent; text-align:center; outline:none; border-radius:4px; padding:2px;" onfocus="this.style.border='1px solid #cbd5e1';this.style.background='#fff'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'">
-                <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-                    <div>
-                        <input type="text" class="cia-titulo" value="${(a.titulo||'').replace(/"/g,'&quot;')}" placeholder="Título da Ação *" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
-                    </div>
-                    <div>
-                        <input type="text" class="cia-descricao" value="${(a.descricao||'').replace(/"/g,'&quot;')}" placeholder="Descrição..." style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
-                    </div>
-                </div>
+        <button onclick="this.closest('.ci-acao-item').remove(); window.ciCheckEmpty();" style="position:absolute;top:1rem;right:1rem;background:#fee2e2;color:#dc2626;border:none;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover ação"><i class="ph ph-trash"></i></button>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding-right:40px;margin-bottom:0.75rem;">
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Título da Ação *</label>
+                <input type="text" class="cia-titulo" value="${(a.titulo||'').replace(/"/g,'&quot;')}" placeholder="Ex: Entregar crachá" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
             </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), -1)" title="Subir Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-up"></i></button>
-                <button type="button" onclick="window.ciMoverElemento(this.closest('.ci-acao-item'), 1)" title="Descer Ação" style="background:#f1f5f9; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer;"><i class="ph ph-caret-down"></i></button>
-                <button type="button" onclick="this.closest('.ci-acao-item').remove(); window.ciAtualizarNumeracao();" title="Remover" style="background:#fee2e2; color:#dc2626; border:none; width:26px; height:26px; border-radius:4px; cursor:pointer; margin-left:4px;"><i class="ph ph-trash"></i></button>
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Descrição</label>
+                <input type="text" class="cia-descricao" value="${(a.descricao||'').replace(/"/g,'&quot;')}" placeholder="Instruções adicionais..." style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
             </div>
         </div>
-        
-        <div style="display:grid; grid-template-columns:1fr 200px 200px; gap:1.5rem; padding-left:45px; align-items:start;">
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:1rem;">
             <div>
-                <label style="display:block; font-size:0.7rem; font-weight:600; color:#64748b; margin-bottom:4px;">Atribuir a Departamentos</label>
-                <div style="border:1px solid #cbd5e1; border-radius:6px; padding:0.4rem; background:#f8fafc; max-height:180px; overflow-y:auto;">
-                    <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.75rem; font-weight:600; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid #e2e8f0;">
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:4px;">Atribuir a Departamentos</label>
+                <div style="border:1px solid #cbd5e1;border-radius:6px;padding:0.5rem;background:#f8fafc;max-height:80px;overflow-y:auto;">
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;font-weight:600;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #e2e8f0;">
                         <input type="checkbox" class="cia-depto-todos" ${isTodos ? 'checked' : ''} onchange="window.ciToggleTodosDeptos(this)"> Todos os Departamentos
                     </label>
-                    <div class="cia-depto-lista" style="${isTodos ? 'opacity:0.4;pointer-events:none;' : ''} display:flex; flex-wrap:wrap; gap:8px;">
+                    <div class="cia-depto-lista" style="${isTodos ? 'opacity:0.4;pointer-events:none;' : ''} display:flex;flex-wrap:wrap;gap:8px;">
                         ${window._ciDeptoCbs}
                     </div>
                 </div>
             </div>
             <div>
-                <label style="display:block; font-size:0.7rem; font-weight:600; color:#64748b; margin-bottom:2px;">Responsável</label>
-                <select class="cia-responsavel" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; outline:none;">
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Responsável</label>
+                <select class="cia-responsavel" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
                     ${window._ciUOpts}
                 </select>
             </div>
             <div>
-                <label style="display:block; font-size:0.7rem; font-weight:600; color:#64748b; margin-bottom:2px;">Condição / Exigência</label>
-                <select class="cia-condicao" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; outline:none;">
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Condição / Exigência</label>
+                <select class="cia-condicao" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
                     <option value="">Nenhuma (Sempre exigir)</option>
                     <option value="vt" ${a.condicao==='vt'?'selected':''}>Somente se usar VT</option>
                     <option value="vc" ${a.condicao==='vc'?'selected':''}>Somente se usar VC</option>
-                    <option value="terapia" ${a.condicao==='terapia'?'selected':''}>Somente se usar Terapia</option>
-                        <option value="experiencia_aprovado" ${a.condicao==='experiencia_aprovado'?'selected':''}>Somente se Aprovado na Experiência</option>
                 </select>
             </div>
-                <div style="flex:1; display:${displayTrein};">
-                    <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:0.25rem;">Treinamento Vinculado</label>
-                    <select class="cia-treinamento" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;">
-                        ${window._ciTreinOpts}
-                    </select>
-                </div>
         </div>
     `;
 
-    if (a.responsavel_user_id) div.querySelector('.cia-responsavel').value = 'user_' + a.responsavel_user_id;
-    else if (a.responsavel_depto_id) div.querySelector('.cia-responsavel').value = 'depto_' + a.responsavel_depto_id;
+    // Sincronizar selects
+    if (a.responsavel_user_id) div.querySelector('.cia-responsavel').value = a.responsavel_user_id;
+    
+    // Sincronizar checkboxes de depto
     if (!isTodos) {
         div.querySelectorAll('.ci-depto-chk').forEach(chk => {
             if (deptoArray.includes(String(chk.value))) chk.checked = true;
         });
     }
 
-    lista.appendChild(div);
-    window.ciAtualizarNumeracao();
-    } catch (e) {
-        console.error('Erro ao adicionar acao:', e);
-        alert('Erro ao adicionar ação: ' + e.message);
-    }
-};
-
-window.ciMoverElemento = function(el, direcao) {
-    const parent = el.parentNode;
-    if (direcao === -1 && el.previousElementSibling) {
-        parent.insertBefore(el, el.previousElementSibling);
-    } else if (direcao === 1 && el.nextElementSibling) {
-        parent.insertBefore(el, el.nextElementSibling.nextElementSibling);
-    }
-    window.ciAtualizarNumeracao();
-};
-
-window.ciAtualizarNumeracao = function() {
-    const grupos = document.querySelectorAll('.ci-grupo-block');
-    grupos.forEach((g, gIdx) => {
-        const numGrp = gIdx + 1;
-        const inputGrp = g.querySelector('.cig-num');
-        if (inputGrp) inputGrp.value = numGrp;
-        
-        const acoes = g.querySelectorAll('.ci-acao-item');
-        acoes.forEach((a, aIdx) => {
-            const inputAcao = a.querySelector('.cia-num');
-            if (inputAcao) inputAcao.value = `${numGrp}.${aIdx + 1}`;
-        });
-    });
-};
-
-window.ciReordenarPorInput = function(input) {
-    const newVal = input.value.trim();
-    const parts = newVal.split('.');
-    if (parts.length !== 2) { window.ciAtualizarNumeracao(); return; }
-    
-    const targetGroupNum = parseInt(parts[0]) - 1;
-    const targetIdx = parseInt(parts[1]) - 1;
-    
-    const item = input.closest('.ci-acao-item');
-    const grupos = Array.from(document.querySelectorAll('.ci-grupo-block'));
-    
-    if (targetGroupNum >= 0 && targetGroupNum < grupos.length) {
-        const targetGroup = grupos[targetGroupNum];
-        const targetList = targetGroup.querySelector('.cig-acoes-lista');
-        const items = Array.from(targetList.children);
-        
-        if (targetList === item.parentNode) {
-            const currentIdx = items.indexOf(item);
-            if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
-                if (targetIdx > currentIdx) {
-                    targetList.insertBefore(item, items[targetIdx].nextElementSibling);
-                } else {
-                    targetList.insertBefore(item, items[targetIdx]);
-                }
-            } else {
-                targetList.appendChild(item);
-            }
-        } else {
-            if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
-                targetList.insertBefore(item, items[targetIdx]);
-            } else {
-                targetList.appendChild(item);
-            }
-        }
-    }
-    
-    window.ciAtualizarNumeracao();
-};
-
-window.ciReordenarGrupoPorInput = function(input) {
-    const targetIdx = parseInt(input.value.trim()) - 1;
-    const item = input.closest('.ci-grupo-block');
-    const parentList = item.parentNode;
-    const items = Array.from(parentList.querySelectorAll('.ci-grupo-block'));
-    const currentIdx = items.indexOf(item);
-    
-    if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
-        if (targetIdx > currentIdx) {
-            parentList.insertBefore(item, items[targetIdx].nextElementSibling);
-        } else {
-            parentList.insertBefore(item, items[targetIdx]);
-        }
-    } else if (!isNaN(targetIdx) && targetIdx >= items.length) {
-        parentList.appendChild(item);
-    }
-    window.ciAtualizarNumeracao();
-};
+    return div;
+}
 
 window.ciToggleTodosDeptos = function(cb) {
     const lista = cb.closest('div').querySelector('.cia-depto-lista');
@@ -685,14 +473,27 @@ window.ciSyncDeptos = function(cb) {
     }
 };
 
+window.ciAdicionarAcao = function() {
+    const container = document.getElementById('ci-acoes-container');
+    container.appendChild(ciCriarElementoAcao());
+    window.ciCheckEmpty();
+    // Scroll to bottom
+    const newEl = container.lastElementChild;
+    if (newEl) newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
 window.ciCheckEmpty = function() {
-    const container = document.getElementById('ci-grupos-container');
+    const container = document.getElementById('ci-acoes-container');
     const emptyMsg = document.getElementById('ci-empty-acoes');
     if (container && emptyMsg) {
         if (container.children.length === 0) emptyMsg.style.display = 'block';
         else emptyMsg.style.display = 'none';
     }
 };
+
+// ============================================================
+// SALVAR E EXCLUIR TEMPLATE
+// ============================================================
 
 window.ciSalvarTemplate = async function() {
     const nome = document.getElementById('ci-nome')?.value.trim();
@@ -706,48 +507,29 @@ window.ciSalvarTemplate = async function() {
 
     const acoes = [];
     let hasError = false;
-    let ordemCounter = 1;
 
-    document.querySelectorAll('.ci-grupo-block').forEach((grp) => {
-        const grupoNome = grp.querySelector('.cig-nome').value.trim() || 'Geral';
-        const grupoResp = grp.querySelector('.cig-responsavel')?.value;
+    document.querySelectorAll('.ci-acao-item').forEach((item, index) => {
+        const titulo = item.querySelector('.cia-titulo').value.trim();
+        if (!titulo) { hasError = true; return; }
         
-        const acoesNode = grp.querySelectorAll('.ci-acao-item');
-        if (acoesNode.length === 0) {
-            alert(`O grupo "${grupoNome}" está vazio! Adicione pelo menos uma ação dentro dele ou exclua-o (lixeira vermelha) para poder salvar.`);
-            hasError = true;
-            return;
+        const desc = item.querySelector('.cia-descricao').value.trim();
+        const resp = item.querySelector('.cia-responsavel').value;
+        const cond = item.querySelector('.cia-condicao').value;
+        
+        const todosCb = item.querySelector('.cia-depto-todos');
+        let deptos = 'todos';
+        if (!todosCb.checked) {
+            const marcados = Array.from(item.querySelectorAll('.ci-depto-chk:checked')).map(c => c.value);
+            if (marcados.length > 0) deptos = marcados;
         }
-        
-        acoesNode.forEach((item) => {
-            const titulo = item.querySelector('.cia-titulo').value.trim();
-            if (!titulo) { hasError = true; return; }
-            
-            const desc = item.querySelector('.cia-descricao').value.trim();
-            const resp = item.querySelector('.cia-responsavel').value;
-            const cond = item.querySelector('.cia-condicao').value;
-            const treinId = item.querySelector('.cia-treinamento').value;
-            
-            const todosCb = item.querySelector('.cia-depto-todos');
-            let deptos = 'todos';
-            if (!todosCb.checked) {
-                const marcados = Array.from(item.querySelectorAll('.ci-depto-chk:checked')).map(c => c.value);
-                if (marcados.length > 0) deptos = marcados;
-            }
 
-            acoes.push({
-                titulo,
-                grupo: grupoNome,
-                descricao: desc || null,
-                responsavel_user_id: (resp && resp.startsWith('user_') ? resp.split('_')[1] : null),
-                responsavel_depto_id: (resp && resp.startsWith('depto_') ? resp.split('_')[1] : null),
-                departamentos: deptos,
-                condicao: cond || null,
-                treinamento_id: treinId ? parseInt(treinId) : null,
-                ordem: ordemCounter++,
-                grupo_responsavel_user_id: (grupoResp && grupoResp.startsWith('user_') ? grupoResp.split('_')[1] : null),
-                grupo_responsavel_depto_id: (grupoResp && grupoResp.startsWith('depto_') ? grupoResp.split('_')[1] : null)
-            });
+        acoes.push({
+            titulo,
+            descricao: desc || null,
+            responsavel_user_id: resp || null,
+            departamentos: deptos,
+            condicao: cond || null,
+            ordem: index + 1
         });
     });
 
@@ -781,27 +563,9 @@ window.ciSalvarTemplate = async function() {
         window.loadConfIntegracao();
     } catch(e) {
         alert('Erro: ' + e.message);
-        const btn = document.querySelector('button[onclick="window.ciSalvarTemplate()"]');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Template'; }
     }
 };
 
-window.ciFiltrarAcoesPorDepto = function() {
-    const filterId = document.getElementById('ci-filtro-depto').value;
-    document.querySelectorAll('.ci-acao-item').forEach(item => {
-        if (filterId === 'todos') {
-            item.style.display = 'block';
-            return;
-        }
-        const isTodos = item.querySelector('.cia-depto-todos').checked;
-        if (isTodos) {
-            item.style.display = 'block';
-            return;
-        }
-        const hasDepto = Array.from(item.querySelectorAll('.ci-depto-chk:checked')).some(c => c.value === filterId);
-        item.style.display = hasDepto ? 'block' : 'none';
-    });
-};
 window.ciExcluirTemplate = async function(id, nome) {
     if (!confirm(`Excluir o template "${nome}"? Isso não afeta os processos de integração já iniciados.`)) return;
     try {
@@ -836,80 +600,8 @@ document.addEventListener('DOMContentLoaded', () => {
     s.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} .ph-spin{animation:spin 1s linear infinite;}';
     document.head.appendChild(s);
 })();
+"""
 
-window.ciFiltrarAcoesPorDepto = function() {
-    const filterId = document.getElementById('ci-filtro-depto').value;
-    document.querySelectorAll('.ci-acao-item').forEach(item => {
-        if (filterId === 'todos') {
-            item.style.display = 'block';
-            return;
-        }
-        const isTodos = item.querySelector('.cia-depto-todos').checked;
-        if (isTodos) {
-            item.style.display = 'block';
-            return;
-        }
-        const hasDepto = Array.from(item.querySelectorAll('.ci-depto-chk:checked')).some(c => c.value === filterId);
-        item.style.display = hasDepto ? 'block' : 'none';
-    });
-};
-
-
-// --- VERIFICAÇÃO AUTOMÁTICA DE PENDÊNCIAS ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Delay to let login happen
-    setTimeout(window.verificarPendenciasIntegracao, 3000);
-});
-
-window.verificarPendenciasIntegracao = async function() {
-    try {
-        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        if (!token) return;
-        const res = await fetch('/api/integracao/processos', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        let totalPendentes = 0;
-        data.forEach(p => {
-            if (p.pendentes) totalPendentes += parseInt(p.pendentes);
-        });
-        
-        if (totalPendentes > 0) {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    title: 'Ações de Integração',
-                    html: `Você possui <b>${totalPendentes}</b> ações de integração pendentes!<br><br><button onclick="Swal.close(); window.switchMenu('integracao')" style="padding: 8px 12px; background: #0f4c81; color: white; border: none; border-radius: 4px; cursor: pointer;">Acessar Integração</button>`,
-                    icon: 'info',
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 15000,
-                    timerProgressBar: true
-                });
-            }
-        }
-    } catch (e) {
-        console.error("Erro ao verificar pendencias de integracao", e);
-    }
-};
-
-window.marcarPassoIntegCheckbox = async function(checkbox, passoStatusId, processoId, currentStatus) {
-    const isChecked = checkbox.checked;
-    const newStatus = isChecked ? 'feito' : 'pendente';
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    checkbox.disabled = true;
-    try {
-        const res = await fetch(`/api/integracao/passos-status/${passoStatusId}`, { method:'PUT', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify({status: newStatus}) });
-        if (!res.ok) { const d=await res.json(); throw new Error(d.error||'Erro'); }
-        await window.abrirProcessoIntegracao(processoId);
-        window.renderIntegracaoLista();
-        if(window.atualizarBadgeIntegracao) window.atualizarBadgeIntegracao();
-    } catch(e) {
-        alert(e.message);
-        checkbox.checked = !isChecked; // revert
-    } finally {
-        checkbox.disabled = false;
-    }
-};
+with open(f_js, 'w', encoding='utf-8') as fh:
+    fh.write(JS_CODE)
+print("OK: integracao.js reescrito")

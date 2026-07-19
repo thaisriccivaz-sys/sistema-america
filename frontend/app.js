@@ -815,10 +815,10 @@ const TAB_META = {
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
-    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
-    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
-    'treinamento-materiais-terapia': { color: '#0e7490', icon: 'ph-books', title: 'Palestras' },
-    'treinamento-presenca-terapia': { color: '#0e7490', icon: 'ph-list-numbers', title: 'Listas' },
+    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
+    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
+    'treinamento-materiais-terapia': { color: '#0e7490', icon: 'ph-books', title: 'Materiais Palestras' },
+    'treinamento-presenca-terapia': { color: '#0e7490', icon: 'ph-list-numbers', title: 'Presença Palestras' },
     // Diretoria - Laranja
     'usuarios-permissoes': { color: '#d9480f', icon: 'ph-users-three', title: 'Usuários e Permissões' },
     'cargos': { color: '#d9480f', icon: 'ph-briefcase', title: 'Cargos' },
@@ -862,8 +862,8 @@ const TAB_META = {
     'administrativo-senhas': { color: '#e67700', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     'administrativo-protocolos': { color: '#e67700', icon: 'ph-file-text', title: 'Protocolos' },
     // Treinamento - Azul Turquesa
-    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais' },
-    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presenças' },
+    'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
+    'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
     'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
     'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' }
 };

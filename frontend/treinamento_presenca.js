@@ -7,6 +7,7 @@
     let _dados = [];
     let _filtroDepto = '';
     let _filtroTipoDepto = '';
+let _filtroStatus = 'Ativos';
     let _filtroBusca = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
@@ -71,10 +72,10 @@
             const h1 = view.querySelector('h1');
             const p = view.querySelector('p');
             if (tipoAtual === 'terapia') {
-                if (h1) h1.textContent = 'Presença Pales.';
+                if (h1) h1.textContent = 'Presença Palestras';
                 if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
             } else {
-                if (h1) h1.textContent = 'Presença Trein.';
+                if (h1) h1.textContent = 'Presença Treinamento';
                 if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
             }
         }

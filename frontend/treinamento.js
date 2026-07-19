@@ -160,13 +160,13 @@
                 const p = view.querySelector('p');
                 const btnNovo = view.querySelector('button[onclick="window.abrirModalNovoTreinamento()"]');
                 if (tipoAtual === 'terapia') {
-                    if (h1) h1.textContent = 'Materiais de Palestras';
+                    if (h1) h1.textContent = 'Materiais Pales.';
                     if (p) p.textContent = 'Gerencie palestras e materiais de terapia.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Palestra';
                     el('filtro-treinamento-busca').placeholder = 'Buscar palestra...';
                     if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Palestras Cadastradas';
                 } else {
-                    if (h1) h1.textContent = 'Materiais de Treinamento';
+                    if (h1) h1.textContent = 'Materiais Trein.';
                     if (p) p.textContent = 'Gerencie apresentações, vídeos, PDFs e outros materiais de treinamento.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Novo Treinamento';
                     el('filtro-treinamento-busca').placeholder = 'Buscar treinamento...';

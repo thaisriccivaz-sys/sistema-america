@@ -3193,7 +3193,14 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                     db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [newColabId, _novoStatusComp]);
                     // Popup in-app para cada usu??rio inscrito
                     const _nomeCB = nomeOriginal || 'Colaborador';
-                    const _msgComp = `Novo colaborador administrativo cadastrado: ${_nomeCB} (${_novoDeptComp}) ??? Situa????o: ${_novoStatusComp}. Verifique se precisa de computador.`;
+                    const _novoRawAdmissao = data.data_admissao;
+                    let _novoAdmissao = '-';
+                    if (_novoRawAdmissao) {
+                        const parts = _novoRawAdmissao.split('-');
+                        if (parts.length === 3) _novoAdmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        else _novoAdmissao = _novoRawAdmissao;
+                    }
+                    const _msgComp = `Novo colaborador administrativo cadastrado: ${_nomeCB} (${_novoDeptComp}) — Situação: ${_novoStatusComp}. Verifique se precisa de computador.`;
                     db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCN, rowsCN) => {
                         if (!errCN && rowsCN) rowsCN.forEach(r => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
@@ -3203,22 +3210,23 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                     // E-mail
                     const _logoPathCp = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                     sendEmailParaNotificados('computador_controle', {
-                        subject: `???? Novo Colaborador Administrativo ??? ${_nomeCB} ??? Verificar Computador`,
+                        subject: `💻 Novo Colaborador Administrativo — ${_nomeCB} — Verificar Computador`,
                         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                             <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                <img src="cid:empresa-logo" alt="Am??rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                             </div>
                             <div style="padding:24px;">
-                                <h2 style="color:#6366f1;text-align:center;margin-top:0;">???? Novo Colaborador Administrativo</h2>
+                                <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Novo Colaborador Administrativo</h2>
                                 <p>Um novo colaborador administrativo foi cadastrado no sistema e pode precisar de um computador:</p>
                                 <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
                                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_nomeCB}</p>
                                     <p style="margin:4px 0;"><strong>Departamento:</strong> ${_novoDeptComp || '-'}</p>
                                     <p style="margin:4px 0;"><strong>Cargo:</strong> ${data.cargo || '-'}</p>
-                                    <p style="margin:4px 0;"><strong>Situa????o:</strong> <span style="color:#6366f1;font-weight:700;">${_novoStatusComp}</span></p>
+                                    <p style="margin:4px 0;"><strong>Data de Admissão:</strong> ${_novoAdmissao}</p>
+                                    <p style="margin:4px 0;"><strong>Situação:</strong> <span style="color:#6366f1;font-weight:700;">${_novoStatusComp}</span></p>
                                 </div>
-                                <p>Acesse o m??dulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribui????o de equipamento.</p>
-                                <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notifica????o ?? enviada apenas uma vez por colaborador.</i></p>
+                                <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
                             </div>
                         </div>`,
                         attachments: [{ filename: 'logo-header.png', path: _logoPathCp, cid: 'empresa-logo' }]
@@ -3942,6 +3950,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
                         const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                         const _puCargo = data.cargo || oldColab.cargo || '-';
+                        const _puRawAdmissao = data.data_admissao || oldColab.data_admissao;
+                        let _puAdmissao = '-';
+                        if (_puRawAdmissao) {
+                            const parts = _puRawAdmissao.split('-');
+                            if (parts.length === 3) _puAdmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            else _puAdmissao = _puRawAdmissao;
+                        }
                         const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situação "${_puStatusNovo}" — verifique necessidade de computador.`;
                         // Popup in-app
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCNP, rowsCNP) => {
@@ -3953,23 +3968,24 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         // E-mail
                         const _logoPathPu = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                         sendEmailParaNotificados('computador_controle', {
-                            subject: `???? Colaborador Administrativo Ativo ??? ${_puNome} ??? Verificar Computador`,
+                            subject: `💻 Colaborador Administrativo Ativo — ${_puNome} — Verificar Computador`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                    <img src="cid:empresa-logo" alt="Am??rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color:#6366f1;text-align:center;margin-top:0;">???? Colaborador Administrativo com Nova Situa????o</h2>
-                                    <p>Um colaborador administrativo atingiu um status que pode requerer atribui????o de computador:</p>
+                                    <h2 style="color:#6366f1;text-align:center;margin-top:0;">💻 Colaborador Administrativo com Nova Situação</h2>
+                                    <p>Um colaborador administrativo atingiu um status que pode requerer atribuição de computador:</p>
                                     <div style="background:#eef2ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6366f1;">
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_puNome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${_puDept || '-'}</p>
                                         <p style="margin:4px 0;"><strong>Cargo:</strong> ${_puCargo}</p>
-                                        <p style="margin:4px 0;"><strong>Situa????o anterior:</strong> ${_puStatusVelho || '-'}</p>
-                                        <p style="margin:4px 0;"><strong>Nova situa????o:</strong> <span style="color:#6366f1;font-weight:700;">${_puStatusNovo}</span></p>
+                                        <p style="margin:4px 0;"><strong>Data de Admissão:</strong> ${_puAdmissao}</p>
+                                        <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${_puStatusVelho || '-'}</p>
+                                        <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#6366f1;font-weight:700;">${_puStatusNovo}</span></p>
                                     </div>
-                                    <p>Acesse o m??dulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribui????o de equipamento.</p>
-                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notifica????o ?? enviada apenas uma vez por colaborador.</i></p>
+                                    <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
+                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação é enviada apenas uma vez por colaborador.</i></p>
                                 </div>
                             </div>`,
                             attachments: [{ filename: 'logo-header.png', path: _logoPathPu, cid: 'empresa-logo' }]
@@ -21000,7 +21016,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
           try {
               const info = await new Promise((resolve, reject) => {
                   db.get(`
-                      SELECT t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
+                      SELECT t.id AS treinamento_id, c.id AS colaborador_id, t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
                       FROM treinamento_pesquisa_respostas r
                       JOIN treinamentos t ON t.id = r.treinamento_id
                       JOIN colaboradores c ON c.id = r.colaborador_id
@@ -21021,7 +21037,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
 
                   if (configs.length > 0) {
                       const msg = `O colaborador ${info.colaborador_nome} respondeu ?? pesquisa do treinamento ${info.treinamento_nome}.`;
-                      const dadosStr = JSON.stringify({ treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
+                      const dadosStr = JSON.stringify({ treinamento_id: info.treinamento_id, colaborador_id: info.colaborador_id, treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
                       
                       // Inserir notifica????o no sistema (para popup via polling no frontend)
                       for (const cfg of configs) {
@@ -21324,7 +21340,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
+    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo, is_integracao
     FROM treinamentos
     WHERE IFNULL(status, 'ativo') = 'ativo'
     ORDER BY nome ASC

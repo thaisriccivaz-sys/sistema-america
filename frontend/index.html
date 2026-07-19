@@ -29,7 +29,10 @@
     <script src="estoque.js?v=202606272305" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1780956700456" defer></script>
-    <style>.swal2-container { z-index: 99999 !important; }</style>
+    <style>
+.bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
+.fav-btn, .btn-favorite { display: none !important; }
+.swal2-container { z-index: 99999 !important; }</style>
 </head>
 
 <body>
@@ -323,28 +326,37 @@
                 </div>
             </div>
 
-            <!-- Treinamento - Azul Turquesa -->
+            <!-- Treinamentos -->
             <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
-                <button class="dept-btn" title="Treinamento">
+                <button class="dept-btn" title="Treinamentos">
                     <i class="ph ph-graduation-cap"></i>
                     <span>Treiname.</span>
                 </button>
                 <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-graduation-cap"></i> Treinamento
-                    </div>
+                    <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-graduation-cap"></i> Treinamentos</div>
                     <a href="#" class="nav-item" data-target="treinamento-materiais"
-                                onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
-                                Materiais de Treinamento</a>
-                            <a href="#" class="nav-item" data-target="treinamento-presenca"
-                                onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
-                                Presença Trein.</a>
-                            
-                            <a href="#" class="nav-item" data-target="treinamento-materiais-terapia"
-                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-materiais-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
-                                Materiais de Palestras</a>
-                            <a href="#" class="nav-item" data-target="treinamento-presenca-terapia"
-                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-presenca-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-list-numbers"></i>
-                                Presença Pales.</a>
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
+                        Materiais Trein.</a>
+                    <a href="#" class="nav-item" data-target="treinamento-presenca"
+                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
+                        Presença Trein.</a>
+                </div>
+            </div>
+
+            <!-- Palestras -->
+            <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
+                <button class="dept-btn" title="Palestras">
+                    <i class="ph ph-users-three"></i>
+                    <span>Palestras</span>
+                </button>
+                <div class="dept-submenu">
+                    <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-users-three"></i> Palestras</div>
+                    <a href="#" class="nav-item" data-target="treinamento-materiais-terapia"
+                        onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-materiais-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
+                        Materiais Pales.</a>
+                    <a href="#" class="nav-item" data-target="treinamento-presenca-terapia"
+                        onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-presenca-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-list-numbers"></i>
+                        Presença Pales.</a>
                 </div>
             </div>
 
@@ -1316,6 +1328,7 @@
                                     </button>
                                 </div>
                                 <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;" id="modal-integ-badges"></div>
+<div id="modal-integ-pct" style="margin-top:1rem;font-size:1rem;font-weight:700;"></div>
                             </div>
                             <div style="padding:1.5rem;" id="modal-integ-passos-container">
                                 <!-- Passos renderizados via JS -->
@@ -5147,6 +5160,12 @@
                     <option value="">Todos os tipos</option>
                     <option value="Administrativo">Administrativo</option>
                     <option value="Operacional">Operacional</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status</label>
+                <select id="pres-filtro-status" class="form-control" style="width:100%;" onchange="window.filtrarPresencaStatus(this.value)">
+                    <option value="Ativos">Ativos</option>
                     <option value="Desligados">Desligados</option>
                 </select>
             </div>
@@ -6030,6 +6049,9 @@
         </div>
     </div>
     <style>
+.bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
+.fav-btn, .btn-favorite { display: none !important; }
+
         @keyframes spin {
             from {
                 transform: rotate(0deg);
