@@ -22844,6 +22844,18 @@ db.serialize(() => {
         ativo INTEGER NOT NULL DEFAULT 1
     )`);
 
+// PATCH: Add 'grupo' column to integ_template_acoes
+db.serialize(() => {
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo TEXT", [], err => {
+        if (err && !err.message.includes("duplicate column name")) {
+            console.error("Erro ao adicionar coluna grupo:", err);
+        } else if (!err) {
+            console.log("[DB] Coluna 'grupo' adicionada em integ_template_acoes");
+        }
+    });
+});
+
+
     // Seed: 2 templates padrão
     db.get('SELECT COUNT(*) as cnt FROM integ_templates', [], (err, row) => {
         if (err || (row && row.cnt > 0)) return;
@@ -23009,8 +23021,8 @@ app.post('/api/integ/templates', authenticateToken, async (req, res) => {
                 ? (a.departamentos.includes('todos') ? 'todos' : JSON.stringify(a.departamentos))
                 : (a.departamentos || 'todos');
             await new Promise((resolve, reject) =>
-                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem) VALUES (?,?,?,?,?,?,?)`,
-                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0],
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo) VALUES (?,?,?,?,?,?,?,?)`,
+                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null],
                     err => err ? reject(err) : resolve()));
         }
         res.json({ ok: true, id: tid });
