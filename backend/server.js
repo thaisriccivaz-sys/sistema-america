@@ -14809,7 +14809,7 @@ function verificarDesempenhosPendentes() {
                    (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
-            WHERE c.status = 'Ativo' AND (c.nao_admitido IS NULL OR c.nao_admitido = 0)`, [expectedAno, expectedTrim], async (err, rows) => {
+            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
         if (err) { console.error('[Desempenho CRON]', err.message); return; }
 
         for (const r of rows) {
