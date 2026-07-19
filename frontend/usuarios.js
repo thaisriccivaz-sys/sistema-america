@@ -63,10 +63,10 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'assinaturas-adm', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
     { modulo: 'Administrativo', pagina_id: 'administrativo-protocolos', pagina_nome: 'Protocolos', icone: 'ph-file-text' },
     // Módulo Treinamentos
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Conteúdos (Terapia)', icone: 'ph-books' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Listas (Terapia)', icone: 'ph-list-numbers' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais Trein.', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presença Trein.', icone: 'ph-check-square' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
     { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },
