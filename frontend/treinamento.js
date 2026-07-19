@@ -160,7 +160,7 @@
                 const p = view.querySelector('p');
                 const btnNovo = view.querySelector('button[onclick="window.abrirModalNovoTreinamento()"]');
                 if (tipoAtual === 'terapia') {
-                    if (h1) h1.textContent = 'Materiais para Palestras';
+                    if (h1) h1.textContent = 'Materiais de Palestras';
                     if (p) p.textContent = 'Gerencie palestras e materiais de terapia.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Palestra';
                     el('filtro-treinamento-busca').placeholder = 'Buscar palestra...';

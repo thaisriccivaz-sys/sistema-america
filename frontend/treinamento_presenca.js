@@ -71,10 +71,10 @@
             const h1 = view.querySelector('h1');
             const p = view.querySelector('p');
             if (tipoAtual === 'terapia') {
-                if (h1) h1.textContent = 'Palestras listas';
+                if (h1) h1.textContent = 'Presença Pales.';
                 if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
             } else {
-                if (h1) h1.textContent = 'Treinamentos - Presença';
+                if (h1) h1.textContent = 'Presença Trein.';
                 if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
             }
         }
