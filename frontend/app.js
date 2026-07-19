@@ -521,6 +521,7 @@ function showView(viewId) {
 const BREADCRUMB_MAP = {
     // Telas principais
     'integracao': { path: 'Integração', code: 'RHAD06' },
+    'conf-integracao': { path: 'Diretoria → Conf. Integração', code: 'DIR007' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
     'pagamentos-massa': { path: 'Envio de Documentos em Massa', code: 'RHPG01' },
     'dashboard': { path: 'Dashboard', code: 'RH001' },
@@ -12893,9 +12894,10 @@ window.resetAdmissao = function () {
 window.finalizarAdmissao = async function () {
     if (!viewedColaborador) return;
 
-    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passará para o status "Em Integração".`)) return;
+    if (!confirm(`Confirmar a admissão definitiva de ${viewedColaborador.nome_completo}?\n\nO colaborador passará para o status "Em Integração" e os responsáveis serão notificados.`)) return;
 
     try {
+        // Atualizar status na admissão
         await apiPut(`/colaboradores/${viewedColaborador.id}`, {
             status: 'Em Integração',
             admissao_status: 'Concluída'
@@ -12903,19 +12905,36 @@ window.finalizarAdmissao = async function () {
 
         // Atualizar o objeto local
         viewedColaborador.status = 'Em Integração';
-        if (viewedColaborador) viewedColaborador.status = 'Em Integração';
+
+        // Disparar processo de integração (cria passos + envia e-mails)
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token');
+            const integRes = await fetch(`/api/integracao/iniciar/${viewedColaborador.id}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+            const integData = await integRes.json();
+            if (integData.ok) {
+                console.log(`[INTEGRAÇÃO] Processo iniciado: ${integData.processo_id}, passos: ${integData.passos_criados}`);
+                // Atualizar badge imediatamente
+                if (typeof window.atualizarBadgeIntegracao === 'function') {
+                    setTimeout(() => window.atualizarBadgeIntegracao(), 1000);
+                }
+            }
+        } catch(integErr) {
+            console.warn('[INTEGRAÇÃO] Aviso ao iniciar processo de integração:', integErr.message);
+        }
 
         // Toast de sucesso
         if (typeof admissaoToast === 'function') {
-            admissaoToast(`✅ ${viewedColaborador.nome_completo} admitido com sucesso! Agora em Integração.`, 'success');
+            admissaoToast(`✅ ${viewedColaborador.nome_completo} admitido com sucesso! Processo de integração iniciado.`, 'success');
         } else {
-            alert('Admissão realizada com sucesso! O colaborador agora está Em Integração.');
+            alert('Admissão realizada com sucesso! O processo de integração foi iniciado e os responsáveis notificados.');
         }
 
         // Navegar para módulo de integração
         setTimeout(() => {
             if (typeof navigateTo === 'function') navigateTo('integracao');
-            // Recarregar lista de colaboradores para refletir o novo status
             if (typeof loadColaboradores === 'function') loadColaboradores();
         }, 800);
     } catch (e) {
