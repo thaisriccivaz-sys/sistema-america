@@ -22317,7 +22317,7 @@ function _condicaoAplicavel(colab, condicao) {
     return true;
 }
 
-function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador, passos, baseUrl }) {
+function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador, passos, baseUrl, dataAdmissao }) {
     const apiBase = baseUrl || (process.env.BASE_URL || 'https://sistema-america.onrender.com');
     const logoUrl = `${apiBase}/assets/logo-header.png`;
     const gruposMap = { todos: 'Geral', administrativo: 'Administrativo', motorista: 'Motorista', operacional: 'Operacional', acompanhamento: 'Acompanhamento' };
@@ -22356,6 +22356,7 @@ function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador,
           <tr><td style="padding:14px 18px;">
             <p style="margin:0 0 4px;color:#334155;font-size:0.9rem;"><strong>Colaborador:</strong> ${nomeColaborador}</p>
             <p style="margin:0;color:#334155;font-size:0.9rem;"><strong>Cargo:</strong> ${cargoColaborador}</p>
+            <p style="margin:4px 0 0;color:#334155;font-size:0.9rem;"><strong>Data de Admissão:</strong> ${dataAdmissao ? new Date(dataAdmissao).toLocaleDateString('pt-BR', {timeZone:'UTC'}) : 'Não informada'}</p>
           </td></tr>
         </table>
         <p style="color:#334155;font-size:0.9rem;font-weight:700;margin:0 0 8px;">Suas atividades pendentes:</p>
@@ -22436,7 +22437,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
     try {
         const colab = await new Promise((resolve, reject) =>
             db.get(`SELECT c.*, d.tipo as tipo_departamento FROM colaboradores c
-                    LEFT JOIN departamentos d ON d.id = c.departamento_id
+                    LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                     WHERE c.id = ?`, [colaboradorId], (e, r) => e ? reject(e) : resolve(r))
         );
         if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -22592,7 +22593,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
                 await sendMailHelper({
                     to: resp.email,
                     subject: `🤝 Integração: ${colab.nome_completo} — Atividades Pendentes`,
-                    html: gerarEmailIntegracaoHTML({ respNome: resp.nome, nomeColaborador: colab.nome_completo, cargoColaborador: colab.cargo || '', passos: resp.passos, baseUrl })
+                    html: gerarEmailIntegracaoHTML({ respNome: resp.nome, nomeColaborador: colab.nome_completo, cargoColaborador: colab.cargo || '', passos: resp.passos, baseUrl, dataAdmissao: colab.data_admissao })
                 });
             } catch(mailErr) {
                 console.error('[INTEGRAÇÃO] Erro ao enviar e-mail para', resp.email, mailErr.message);
@@ -22619,7 +22620,7 @@ app.get('/api/integracao/processos', authenticateToken, (req, res) => {
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id) as total
                FROM integracao_processos p
                JOIN colaboradores c ON c.id = p.colaborador_id
-               LEFT JOIN departamentos d ON d.id = c.departamento_id
+               LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                WHERE p.status != 'concluido'
                ORDER BY p.criado_em DESC`;
         params = [];
@@ -22630,7 +22631,7 @@ app.get('/api/integracao/processos', authenticateToken, (req, res) => {
                       (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.responsavel_user_id = ?) as total
                FROM integracao_processos p
                JOIN colaboradores c ON c.id = p.colaborador_id
-               LEFT JOIN departamentos d ON d.id = c.departamento_id
+               LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                JOIN integracao_passos_status ips ON ips.processo_id = p.id AND ips.responsavel_user_id = ?
                WHERE p.status != 'concluido'
                ORDER BY p.criado_em DESC`;
@@ -22651,7 +22652,7 @@ app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
                    d.tipo as tipo_departamento
             FROM integracao_processos p
             JOIN colaboradores c ON c.id = p.colaborador_id
-            LEFT JOIN departamentos d ON d.id = c.departamento_id
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             WHERE p.id = ?`, [processoId], (err, processo) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!processo) return res.status(404).json({ error: 'Processo não encontrado' });
