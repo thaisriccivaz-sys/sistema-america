@@ -3942,7 +3942,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
                         const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                         const _puCargo = data.cargo || oldColab.cargo || '-';
-                        const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situa????o "${_puStatusNovo}" ??? verifique necessidade de computador.`;
+                        const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situação "${_puStatusNovo}" — verifique necessidade de computador.`;
                         // Popup in-app
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCNP, rowsCNP) => {
                             if (!errCNP && rowsCNP) rowsCNP.forEach(r => {
@@ -22611,7 +22611,7 @@ app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req
 // ── API: Listar processos ─────────────────────────────────────────────────────
 app.get('/api/integracao/processos', authenticateToken, (req, res) => {
     const userId = req.user && req.user.id;
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin');
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
     let sql, params;
     if (isAdmin) {
         sql = `SELECT p.*, c.nome_completo, c.cargo, c.foto_base64, c.departamento, c.meio_transporte,
@@ -22647,7 +22647,7 @@ app.get('/api/integracao/processos', authenticateToken, (req, res) => {
 app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
     const processoId = req.params.id;
     const userId = req.user && req.user.id;
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin');
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
     db.get(`SELECT p.*, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.meio_transporte,
                    d.tipo as tipo_departamento
             FROM integracao_processos p
@@ -22719,7 +22719,7 @@ app.put('/api/integracao/passos-status/:id', authenticateToken, (req, res) => {
 // ── API: Badge — pendências do usuário logado ─────────────────────────────────
 app.get('/api/integracao/notificacoes/count', authenticateToken, (req, res) => {
     const userId = req.user && req.user.id;
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin');
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
     const sql = isAdmin
         ? `SELECT COUNT(*) as cnt FROM integracao_passos_status ps
            JOIN integracao_processos p ON p.id = ps.processo_id
