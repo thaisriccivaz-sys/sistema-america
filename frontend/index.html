@@ -1338,196 +1338,124 @@
 
 <!-- VIEW: CONF. INTEGRAÇÃO -->
                 <section id="view-conf-integracao" class="content-view">
-                    <!-- Header fixo -->
-                    <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1.25rem 0;margin-top:-1.5rem;margin-bottom:0;border-bottom:1px solid var(--border-color);">
-                        <div style="display:flex;align-items:center;gap:1.2rem;">
-                            <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#d9480f,#f59e0b);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.6rem;">
-                                <i class="ph ph-sliders-horizontal"></i>
-                            </div>
-                            <div>
-                                <h1 style="margin:0;font-size:1.5rem;font-weight:700;color:#0f172a;">Configuração de Integração</h1>
-                                <p style="margin:2px 0 0;color:#64748b;font-size:0.88rem;">Templates padrão e templates personalizados por departamento.</p>
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:10px;align-items:center;" id="conf-integ-header-actions">
-                            <!-- botões dinâmicos por aba -->
-                        </div>
-                    </div>
-
-                    <!-- Tab Nav -->
-                    <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.5rem;margin-top:1rem;">
-                        <button id="tab-btn-ci-padrao" onclick="window.switchConfIntegTab('padrao')"
-                            style="padding:10px 22px;border:none;background:none;font-size:0.9rem;font-weight:600;cursor:pointer;color:var(--primary-color);border-bottom:2px solid var(--primary-color);margin-bottom:-2px;display:flex;align-items:center;gap:6px;transition:all .2s;">
-                            <i class="ph ph-list-checks"></i> Templates Padrão
-                        </button>
-                        <button id="tab-btn-ci-depto" onclick="window.switchConfIntegTab('depto')"
-                            style="padding:10px 22px;border:none;background:none;font-size:0.9rem;font-weight:500;cursor:pointer;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-2px;display:flex;align-items:center;gap:6px;transition:all .2s;">
-                            <i class="ph ph-buildings"></i> Templates por Departamento
-                        </button>
-                    </div>
-
-                    <!-- ===== TAB 1: Templates Padrão ===== -->
-                    <div id="panel-ci-padrao">
-                        <div id="conf-integ-secoes">
-                            <div style="text-align:center;padding:3rem;color:#94a3b8;">
-                                <i class="ph ph-spinner" style="font-size:2rem;"></i><br>Carregando...
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ===== TAB 2: Templates por Departamento ===== -->
-                    <div id="panel-ci-depto" style="display:none;">
-                        <div id="conf-depto-lista">
-                            <div style="text-align:center;padding:3rem;color:#94a3b8;">
-                                <i class="ph ph-spinner" style="font-size:2rem;"></i><br>Carregando...
-                            </div>
+                    <div id="conf-integ-main-container">
+                        <!-- Renderizado por integracao.js → loadConfIntegracao() -->
+                        <div style="padding:3rem;text-align:center;color:#94a3b8;">
+                            <i class="ph ph-spinner-gap" style="font-size:2rem;"></i>
+                            <p style="margin-top:0.75rem;">Carregando configurações...</p>
                         </div>
                     </div>
                 </section>
 
-                <!-- Modal: Novo/Editar Passo Padrão -->
-                <div id="modal-conf-integ-passo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
-                    <div style="background:#fff;border-radius:16px;padding:0;width:100%;max-width:540px;box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;">
-                        <div style="background:linear-gradient(135deg,#059669,#0f4c81);padding:1.25rem 1.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;">
-                            <h3 style="margin:0;font-weight:700;" id="modal-conf-integ-title">Novo Passo Padrão</h3>
-                            <button onclick="window.fecharModalPasso()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <!-- Modal: Nova/Editar Categoria de Integração -->
+                <div id="modal-integ-categoria" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;">
+                        <div style="background:linear-gradient(135deg,#0f4c81,#1d6fb8);padding:1.25rem 1.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;font-weight:700;" id="modal-ic-title">Nova Categoria</h3>
+                            <button onclick="window.fecharModalCategoria()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                                 <i class="ph ph-x"></i>
                             </button>
                         </div>
-                        <form id="form-conf-integ-passo" onsubmit="window.salvarPasso(event)" style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
-                            <input type="hidden" id="conf-passo-id">
+                        <form id="form-integ-categoria" onsubmit="window.salvarCategoria(event)" style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                            <input type="hidden" id="ic-id">
                             <div class="input-group">
-                                <label>Título do Passo *</label>
-                                <input type="text" id="conf-passo-titulo" placeholder="Ex: Configurar ponto eletrônico" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.95rem;">
+                                <label>Nome da Categoria *</label>
+                                <input type="text" id="ic-nome" placeholder="Ex: Documentação, TI, Benefícios..." required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.95rem;">
                             </div>
                             <div class="input-group">
-                                <label>Descrição</label>
-                                <textarea id="conf-passo-descricao" rows="2" placeholder="Detalhes sobre como executar esta atividade..." style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;resize:vertical;"></textarea>
-                            </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                                <div class="input-group">
-                                    <label>Grupo *</label>
-                                    <select id="conf-passo-grupo" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                                        <option value="todos">Para Todos</option>
-                                        <option value="administrativo">Administrativo</option>
-                                        <option value="motorista">Motorista</option>
-                                        <option value="operacional">Operacional</option>
-                                        <option value="acompanhamento">Acompanhamento</option>
-                                    </select>
-                                </div>
-                                <div class="input-group">
-                                    <label>Condição</label>
-                                    <select id="conf-passo-condicao" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                                        <option value="">Sem condição (sempre)</option>
-                                        <option value="vt">Somente VT (Vale Transporte)</option>
-                                        <option value="vc">Somente VC (Vale Combustível)</option>
-                                    </select>
+                                <label>Cor</label>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#0f4c81" style="accent-color:#0f4c81;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#0f4c81;"></span> Azul</label>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#7c3aed" style="accent-color:#7c3aed;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#7c3aed;"></span> Roxo</label>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#059669" style="accent-color:#059669;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#059669;"></span> Verde</label>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#d97706" style="accent-color:#d97706;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#d97706;"></span> Âmbar</label>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#dc2626" style="accent-color:#dc2626;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#dc2626;"></span> Vermelho</label>
+                                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="ic-cor" value="#0891b2" style="accent-color:#0891b2;"> <span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:#0891b2;"></span> Ciano</label>
                                 </div>
                             </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                                <div class="input-group">
-                                    <label>Responsável</label>
-                                    <select id="conf-passo-responsavel" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                                        <option value="">— Nenhum —</option>
-                                    </select>
-                                </div>
-                                <div class="input-group">
-                                    <label>Ordem</label>
-                                    <input type="number" id="conf-passo-ordem" value="0" min="0" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                                </div>
+                            <div class="input-group">
+                                <label>Ordem</label>
+                                <input type="number" id="ic-ordem" value="0" min="0" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
                             </div>
                             <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.5rem;">
-                                <button type="button" onclick="window.fecharModalPasso()" class="btn btn-secondary">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" style="background:#059669;border-color:#059669;display:flex;align-items:center;gap:6px;">
-                                    <i class="ph ph-floppy-disk"></i> Salvar Passo
+                                <button type="button" onclick="window.fecharModalCategoria()" class="btn btn-secondary">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" style="background:#0f4c81;border-color:#0f4c81;display:flex;align-items:center;gap:6px;">
+                                    <i class="ph ph-floppy-disk"></i> Salvar
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
 
-                <!-- Modal: Novo/Editar Template por Departamento -->
-                <div id="modal-template-depto" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;overflow-y:auto;">
-                    <div style="background:#fff;border-radius:16px;width:100%;max-width:680px;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;margin:2rem auto;">
-                        <div style="background:linear-gradient(135deg,#7c3aed,#0f4c81);padding:1.25rem 1.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;">
-                            <h3 style="margin:0;font-weight:700;" id="modal-td-title">Novo Template de Departamento</h3>
-                            <button onclick="window.fecharModalTemplateDepto()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <!-- Modal: Nova/Editar Ação de Integração -->
+                <div id="modal-integ-acao" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.55);z-index:9999;align-items:flex-start;justify-content:center;overflow-y:auto;">
+                    <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;margin:2rem auto;">
+                        <div style="background:linear-gradient(135deg,#059669,#0f4c81);padding:1.25rem 1.5rem;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;font-weight:700;" id="modal-ia-title">Nova Ação</h3>
+                            <button onclick="window.fecharModalAcao()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                                 <i class="ph ph-x"></i>
                             </button>
                         </div>
-                        <form id="form-template-depto" onsubmit="window.salvarTemplateDepto(event)" style="padding:1.5rem;display:flex;flex-direction:column;gap:1.25rem;">
-                            <input type="hidden" id="td-id">
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                                <div class="input-group">
-                                    <label>Nome do Template *</label>
-                                    <input type="text" id="td-nome" placeholder="Ex: Integração Logística" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.95rem;">
-                                </div>
-                                <div class="input-group">
-                                    <label>Departamento</label>
-                                    <select id="td-departamento" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                                        <option value="">— Todos os departamentos —</option>
-                                    </select>
-                                </div>
+                        <form id="form-integ-acao" onsubmit="window.salvarAcao(event)" style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+                            <input type="hidden" id="ia-id">
+                            <div class="input-group">
+                                <label>Título da Ação *</label>
+                                <input type="text" id="ia-titulo" placeholder="Ex: Configurar acesso ao sistema" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.95rem;">
                             </div>
                             <div class="input-group">
                                 <label>Descrição</label>
-                                <textarea id="td-descricao" rows="2" placeholder="Descreva o objetivo deste template..." style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;resize:vertical;"></textarea>
+                                <textarea id="ia-descricao" rows="2" placeholder="Detalhes sobre como executar..." style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;resize:vertical;"></textarea>
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                                <div class="input-group">
+                                    <label>Categoria *</label>
+                                    <select id="ia-categoria" required style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                                        <option value="">— Selecione —</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>Condição</label>
+                                    <select id="ia-condicao" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                                        <option value="">Sem condição (sempre)</option>
+                                        <option value="vt">Somente VT</option>
+                                        <option value="vc">Somente VC</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <!-- Grupos padrão incluídos -->
+                            <!-- Departamentos -->
                             <div>
-                                <label style="font-weight:600;font-size:0.88rem;color:#374151;display:block;margin-bottom:0.75rem;">
-                                    <i class="ph ph-list-checks" style="color:#7c3aed;"></i> Grupos Padrão Incluídos
+                                <label style="font-weight:600;font-size:0.88rem;color:#374151;display:block;margin-bottom:0.5rem;">
+                                    <i class="ph ph-buildings" style="color:#0f4c81;"></i> Departamentos
                                 </label>
-                                <p style="font-size:0.82rem;color:#64748b;margin:0 0 0.75rem;">Selecione quais grupos de ações padrão serão incluídas automaticamente neste template:</p>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;" id="td-grupos-checkboxes">
-                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#374151;transition:all .15s;">
-                                        <input type="checkbox" name="td-grupo" value="todos" style="accent-color:#7c3aed;width:16px;height:16px;">
-                                        <i class="ph ph-users" style="color:#0f4c81;"></i> Para Todos
+                                <p style="font-size:0.8rem;color:#64748b;margin:0 0 0.6rem;">Para quais departamentos esta ação se aplica?</p>
+                                <div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;">
+                                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;font-size:0.88rem;font-weight:600;color:#0f172a;">
+                                        <input type="checkbox" id="ia-depto-todos" value="todos" style="accent-color:#0f4c81;width:15px;height:15px;" onchange="window.toggleTodosDeptos(this)">
+                                        Todos os departamentos
                                     </label>
-                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#374151;transition:all .15s;">
-                                        <input type="checkbox" name="td-grupo" value="administrativo" style="accent-color:#7c3aed;width:16px;height:16px;">
-                                        <i class="ph ph-desktop" style="color:#7c3aed;"></i> Administrativo
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#374151;transition:all .15s;">
-                                        <input type="checkbox" name="td-grupo" value="motorista" style="accent-color:#7c3aed;width:16px;height:16px;">
-                                        <i class="ph ph-truck" style="color:#d97706;"></i> Motorista
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#374151;transition:all .15s;">
-                                        <input type="checkbox" name="td-grupo" value="operacional" style="accent-color:#7c3aed;width:16px;height:16px;">
-                                        <i class="ph ph-hard-hat" style="color:#059669;"></i> Operacional
-                                    </label>
-                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:0.9rem;color:#374151;transition:all .15s;">
-                                        <input type="checkbox" name="td-grupo" value="acompanhamento" style="accent-color:#7c3aed;width:16px;height:16px;">
-                                        <i class="ph ph-calendar-check" style="color:#dc2626;"></i> Acompanhamento
-                                    </label>
+                                    <div id="ia-deptos-lista" style="display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid #e2e8f0;">
+                                        <!-- preenchido via JS -->
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Ações exclusivas do departamento -->
-                            <div>
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-                                    <label style="font-weight:600;font-size:0.88rem;color:#374151;">
-                                        <i class="ph ph-star" style="color:#d97706;"></i> Ações Exclusivas do Departamento
-                                    </label>
-                                    <button type="button" onclick="window.addAcaoCustom()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:5px;">
-                                        <i class="ph ph-plus"></i> Adicionar Ação
-                                    </button>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                                <div class="input-group">
+                                    <label>Responsável</label>
+                                    <select id="ia-responsavel" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
+                                        <option value="">— Nenhum —</option>
+                                    </select>
                                 </div>
-                                <p style="font-size:0.82rem;color:#64748b;margin:0 0 0.75rem;">Ações específicas que só aparecem para este departamento:</p>
-                                <div id="td-acoes-lista" style="display:flex;flex-direction:column;gap:0.6rem;">
-                                    <!-- linhas dinâmicas -->
-                                </div>
-                                <div id="td-acoes-empty" style="text-align:center;padding:1.5rem;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:10px;font-size:0.88rem;">
-                                    <i class="ph ph-plus-circle" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>
-                                    Nenhuma ação exclusiva. Clique em "Adicionar Ação" para incluir.
+                                <div class="input-group">
+                                    <label>Ordem</label>
+                                    <input type="number" id="ia-ordem" value="0" min="0" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
                                 </div>
                             </div>
-
-                            <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid #e2e8f0;margin-top:0.5rem;">
-                                <button type="button" onclick="window.fecharModalTemplateDepto()" class="btn btn-secondary">Cancelar</button>
-                                <button type="submit" class="btn btn-primary" style="background:#7c3aed;border-color:#7c3aed;display:flex;align-items:center;gap:6px;">
-                                    <i class="ph ph-floppy-disk"></i> Salvar Template
+                            <div style="display:flex;gap:1rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid #e2e8f0;margin-top:0.25rem;">
+                                <button type="button" onclick="window.fecharModalAcao()" class="btn btn-secondary">Cancelar</button>
+                                <button type="submit" class="btn btn-primary" style="background:#059669;border-color:#059669;display:flex;align-items:center;gap:6px;">
+                                    <i class="ph ph-floppy-disk"></i> Salvar Ação
                                 </button>
                             </div>
                         </form>
