@@ -26001,3 +26001,10 @@ console.log('[EMAILS] M??dulo de E-mails Corporativos carregado.');
 
 
 
+
+// LIMPEZA TEMPORÁRIA DE ENCODING
+db.serialize(() => {
+    db.run("DELETE FROM departamentos WHERE nome LIKE '%?%'", [], err => {
+        if (!err) console.log('[DB] Limpeza de departamentos com caracteres especiais (?) concluída.');
+    });
+});
