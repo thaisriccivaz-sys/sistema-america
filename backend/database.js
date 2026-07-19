@@ -722,8 +722,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                     UNIQUE(colaborador_id, ano, trimestre, tipo),
                                     FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
                                 )
-                            `);
+                            `, () => {
+                                db.run("ALTER TABLE avaliacoes ADD COLUMN situacao TEXT DEFAULT 'finalizado'", () => {});
+                                db.run("ALTER TABLE avaliacoes ADD COLUMN responsavel_nome TEXT", () => {});
+                            });
                         });
+                    } else {
+                        // Table already exists, just try to alter
+                        db.run("ALTER TABLE avaliacoes ADD COLUMN situacao TEXT DEFAULT 'finalizado'", () => {});
+                        db.run("ALTER TABLE avaliacoes ADD COLUMN responsavel_nome TEXT", () => {});
                     }
                 });
 

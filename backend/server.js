@@ -14795,14 +14795,14 @@ function verificarDesempenhosPendentes() {
                    d.responsavel_id,
                    (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
-                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ?) as has_avaliation
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
             WHERE c.status = 'Ativo' AND (c.nao_admitido IS NULL OR c.nao_admitido = 0)`, [expectedAno, expectedTrim], async (err, rows) => {
         if (err) { console.error('[Desempenho CRON]', err.message); return; }
 
         for (const r of rows) {
-            // Se já tem avaliação para este trimestre, pula
+            // Se já tem avaliação finalizada para este trimestre, pula
             if (r.has_avaliation > 0) continue;
 
             const emailDestino = r.resp_email;
@@ -14811,7 +14811,13 @@ function verificarDesempenhosPendentes() {
                 continue;
             }
 
-            const link = `https://sistema-america.onrender.com/?colaborador_id=${r.id}&aba=avaliacao&autoOpenDesempenho=1&ano=${expectedAno}&trimestre=${expectedTrim}`;
+            const tokenPayload = jwt.sign({
+                colab_id: r.id,
+                ano: expectedAno,
+                trimestre: expectedTrim
+            }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias de validade
+            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
+            const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
             const managerName = (r.resp_nome || 'Gestor').split(' ')[0];
             const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
             
@@ -14897,7 +14903,13 @@ app.get('/api/desempenho/test-email', async (req, res) => {
             db.get(`SELECT id, nome_completo, departamento FROM colaboradores WHERE LOWER(nome_completo) LIKE ? AND status = 'Ativo' LIMIT 1`, [`%${target}%`], async (err, r) => {
                 if (err || !r) return;
                 
-                const link = `https://sistema-america.onrender.com/?colaborador_id=${r.id}&aba=avaliacao&autoOpenDesempenho=1&ano=${expectedAno}&trimestre=${expectedTrim}`;
+                const tokenPayload = jwt.sign({
+                    colab_id: r.id,
+                    ano: expectedAno,
+                    trimestre: expectedTrim
+                }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias
+                const baseUrl = req.protocol + '://' + req.get('host');
+                const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
                 const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
                 
                 const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -22064,6 +22076,94 @@ app.post('/api/assinaturas/gerar-manual', authenticateToken, (req, res) => {
         });
     });
 });
+
+
+// --- AVALIAÇÃO DE DESEMPENHO PÚBLICA ---
+app.get('/api/desempenho/publico', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        
+        db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colabId], (err2, colab) => {
+            if (err2 || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            
+            db.get(`SELECT * FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err3, avaliacao) => {
+                if (err3) return res.status(500).json({ error: 'Erro ao buscar avaliação' });
+                
+                res.json({
+                    colaborador: colab,
+                    ano: ano,
+                    trimestre: trimestre,
+                    avaliacao: avaliacao || null
+                });
+            });
+        });
+    });
+});
+
+app.post('/api/desempenho/publico/rascunho', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        const respostasJson = req.body.respostas_json;
+        const responsavelNome = req.body.responsavel_nome || null;
+        
+        db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
+            if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+            if (exist) {
+                db.run(`UPDATE avaliacoes SET respostas_json = ?, situacao = 'iniciado', responsavel_nome = ? WHERE id = ?`, [respostasJson, responsavelNome, exist.id], (err3) => {
+                    if (err3) return res.status(500).json({ error: 'Erro ao atualizar rascunho' });
+                    res.json({ success: true, message: 'Rascunho atualizado' });
+                });
+            } else {
+                db.run(`INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'iniciado', ?)`, [colabId, ano, trimestre, respostasJson, responsavelNome], (err3) => {
+                    if (err3) return res.status(500).json({ error: 'Erro ao criar rascunho' });
+                    res.json({ success: true, message: 'Rascunho criado' });
+                });
+            }
+        });
+    });
+});
+
+app.post('/api/desempenho/publico/finalizar', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        const respostasJson = req.body.respostas_json;
+        const responsavelNome = req.body.responsavel_nome || null;
+        
+        db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
+            if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+            if (exist) {
+                db.run(`UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`, [respostasJson, responsavelNome, exist.id], (err3) => {
+                    if (err3) return res.status(500).json({ error: 'Erro ao finalizar avaliação' });
+                    res.json({ success: true, message: 'Avaliação finalizada' });
+                });
+            } else {
+                db.run(`INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`, [colabId, ano, trimestre, respostasJson, responsavelNome], (err3) => {
+                    if (err3) return res.status(500).json({ error: 'Erro ao criar avaliação' });
+                    res.json({ success: true, message: 'Avaliação criada e finalizada' });
+                });
+            }
+        });
+    });
+});
+
 
 app.listen(PORT, () => {
 
