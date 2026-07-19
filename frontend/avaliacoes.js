@@ -86,7 +86,7 @@ window.renderAvaliacaoTab = async function(container) {
             1: 'Janeiro (1º Trim.)',
             2: 'Abril (2º Trim.)',
             3: 'Julho (3º Trim.)',
-            4: 'Dezembro (4º Trim.)'
+            4: 'Setembro (4º Trim.)'
         };
 
         // Action Steps
@@ -95,7 +95,7 @@ window.renderAvaliacaoTab = async function(container) {
         const anoAtual = dateRightNow.getFullYear();
         const mesAtual = dateRightNow.getMonth() + 1; // 1 a 12
 
-        const maxTrim = tipo === 'experiencia' ? 1 : 3;
+        const maxTrim = tipo === 'experiencia' ? 1 : 4;
         for (let t=1; t<=maxTrim; t++) {
             // Todos os trimestres ficam liberados para preenchimento a pedido do usuário
             const hasData = trimestersOverall[t] !== null;
@@ -231,7 +231,7 @@ window.renderAvaliacaoTab = async function(container) {
             ];
             const legendLabelsTrim = { 1: '1º Trimestre', 2: '2º Trimestre', 3: '3º Trimestre', 4: '4º Trimestre' };
 
-            const maxDatasetTrim = tipo === 'experiencia' ? 1 : 3;
+            const maxDatasetTrim = tipo === 'experiencia' ? 1 : 4;
             const trimsArray = Array.from({length: maxDatasetTrim}, (_, i) => i + 1);
 
             trimsArray.forEach(t => {
@@ -290,10 +290,10 @@ window.renderAvaliacaoTab = async function(container) {
                 chartBar = new Chart(ctxBar, {
                     type: 'line',
                     data: {
-                        labels: [trimestreToMonth[1], trimestreToMonth[2], trimestreToMonth[3]],
+                        labels: [trimestreToMonth[1], trimestreToMonth[2], trimestreToMonth[3], trimestreToMonth[4]],
                         datasets: [{ 
                             label: 'Média Geral', 
-                            data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3]], 
+                            data: [trimestersOverall[1], trimestersOverall[2], trimestersOverall[3], trimestersOverall[4]], 
                             borderColor: '#10b981', 
                             backgroundColor: 'rgba(16, 185, 129, 0.2)',
                             borderWidth: 3,
@@ -355,7 +355,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const questions = AVALIACAO_QUESTIONS[tipo][groupKey];
     const categories = Object.keys(questions);
     
-    const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Dezembro (4º Trim.)'};
+    const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Setembro (4º Trim.)'};
 
     let globalTotalQ_init = 0;
     let globalAnsQ_init = 0;
