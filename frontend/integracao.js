@@ -312,7 +312,7 @@ function renderCiForm(template) {
     const deptoCbsHtml = deptosFiltrados.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
 
     container.innerHTML = `
-        <div style="padding:1.5rem; max-width: 1000px; margin: 0 auto;">
+        <div style="padding:1.5rem; max-width: 100%; margin: 0 auto;">
             <!-- CABEÇALHO DO FORM -->
             <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
                 <button onclick="window.renderConfIntegLista()" style="background:#f1f5f9;border:none;color:#475569;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;">
@@ -408,7 +408,7 @@ window.ciAdicionarGrupo = function(nome = '', updateNum = true) {
     div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.8rem; border-bottom:1px solid #e2e8f0;">
             <div style="display:flex; align-items:center; gap:0.5rem; flex:1;">
-                <span class="cig-num" style="background:#0f4c81; color:#fff; font-weight:700; font-size:1rem; padding:4px 10px; border-radius:6px;"></span>
+                <input type="text" class="cig-num" onchange="window.ciReordenarGrupoPorInput(this)" style="background:#0f4c81; color:#fff; font-weight:700; font-size:1rem; padding:4px 10px; border-radius:6px; width:45px; text-align:center; border:none; outline:none;">
                 <input type="text" class="cig-nome" value="${nome.replace(/"/g, '&quot;')}" placeholder="Nome do Grupo (Ex: Treinamentos)" style="flex:1; max-width:400px; padding:0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:1rem; font-weight:600; outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
             </div>
             <div style="display:flex; align-items:center; gap:0.5rem;">
@@ -444,7 +444,7 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a = {}) {
     div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:0.75rem;">
             <div style="display:flex; align-items:center; gap:0.5rem; flex:1;">
-                <span class="cia-num" style="color:#0f4c81; font-weight:700; font-size:0.9rem; min-width:35px;"></span>
+                <input type="text" class="cia-num" onchange="window.ciReordenarPorInput(this)" style="color:#0f4c81; font-weight:700; font-size:0.9rem; width:40px; border:1px solid transparent; background:transparent; text-align:center; outline:none; border-radius:4px; padding:2px;" onfocus="this.style.border='1px solid #cbd5e1';this.style.background='#fff'" onblur="this.style.border='1px solid transparent';this.style.background='transparent'">
                 <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                     <div>
                         <input type="text" class="cia-titulo" value="${(a.titulo||'').replace(/"/g,'&quot;')}" placeholder="Título da Ação *" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none;">
@@ -461,10 +461,10 @@ window.ciAdicionarAcaoNoGrupo = function(grupoEl, a = {}) {
             </div>
         </div>
         
-        <div style="display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:1rem; padding-left:45px;">
+        <div style="display:grid; grid-template-columns:1fr 200px 200px; gap:1.5rem; padding-left:45px; align-items:start;">
             <div>
                 <label style="display:block; font-size:0.7rem; font-weight:600; color:#64748b; margin-bottom:4px;">Atribuir a Departamentos</label>
-                <div style="border:1px solid #cbd5e1; border-radius:6px; padding:0.4rem; background:#f8fafc; max-height:70px; overflow-y:auto;">
+                <div style="border:1px solid #cbd5e1; border-radius:6px; padding:0.4rem; background:#f8fafc; max-height:180px; overflow-y:auto;">
                     <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.75rem; font-weight:600; margin-bottom:4px; padding-bottom:4px; border-bottom:1px solid #e2e8f0;">
                         <input type="checkbox" class="cia-depto-todos" ${isTodos ? 'checked' : ''} onchange="window.ciToggleTodosDeptos(this)"> Todos os Departamentos
                     </label>
@@ -515,15 +515,57 @@ window.ciAtualizarNumeracao = function() {
     const grupos = document.querySelectorAll('.ci-grupo-block');
     grupos.forEach((g, gIdx) => {
         const numGrp = gIdx + 1;
-        const spanGrp = g.querySelector('.cig-num');
-        if (spanGrp) spanGrp.textContent = numGrp;
+        const inputGrp = g.querySelector('.cig-num');
+        if (inputGrp) inputGrp.value = numGrp;
         
         const acoes = g.querySelectorAll('.ci-acao-item');
         acoes.forEach((a, aIdx) => {
-            const spanAcao = a.querySelector('.cia-num');
-            if (spanAcao) spanAcao.textContent = `${numGrp}.${aIdx + 1}`;
+            const inputAcao = a.querySelector('.cia-num');
+            if (inputAcao) inputAcao.value = `${numGrp}.${aIdx + 1}`;
         });
     });
+};
+
+window.ciReordenarPorInput = function(input) {
+    const newVal = input.value.trim();
+    const parts = newVal.split('.');
+    if (parts.length !== 2) { window.ciAtualizarNumeracao(); return; }
+    
+    const targetIdx = parseInt(parts[1]) - 1;
+    const item = input.closest('.ci-acao-item');
+    const parentList = item.parentNode;
+    const items = Array.from(parentList.children);
+    const currentIdx = items.indexOf(item);
+    
+    if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
+        if (targetIdx > currentIdx) {
+            parentList.insertBefore(item, items[targetIdx].nextElementSibling);
+        } else {
+            parentList.insertBefore(item, items[targetIdx]);
+        }
+    } else if (!isNaN(targetIdx) && targetIdx >= items.length) {
+        parentList.appendChild(item);
+    }
+    window.ciAtualizarNumeracao();
+};
+
+window.ciReordenarGrupoPorInput = function(input) {
+    const targetIdx = parseInt(input.value.trim()) - 1;
+    const item = input.closest('.ci-grupo-block');
+    const parentList = item.parentNode;
+    const items = Array.from(parentList.querySelectorAll('.ci-grupo-block'));
+    const currentIdx = items.indexOf(item);
+    
+    if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < items.length) {
+        if (targetIdx > currentIdx) {
+            parentList.insertBefore(item, items[targetIdx].nextElementSibling);
+        } else {
+            parentList.insertBefore(item, items[targetIdx]);
+        }
+    } else if (!isNaN(targetIdx) && targetIdx >= items.length) {
+        parentList.appendChild(item);
+    }
+    window.ciAtualizarNumeracao();
 };
 
 window.ciToggleTodosDeptos = function(cb) {
