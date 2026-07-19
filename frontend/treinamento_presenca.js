@@ -117,14 +117,22 @@ let _filtroStatus = 'Ativos';
         const tipoDepto = _filtroTipoDepto;
 
         let lista = _dados;
+        const statusFiltro = _filtroStatus || 'Ativos';
+
         if (depto) lista = lista.filter(c => c.departamento === depto);
+        if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
         
-        if (tipoDepto === 'Desligados') {
-            lista = lista.filter(c => c.status === 'Desligado');
+        // Filtro de Status: Ocultar Iniciado/Aguardando e aplicar seleção
+        if (statusFiltro === 'Desligados') {
+            lista = lista.filter(c => (c.status || '').toLowerCase() === 'desligado');
         } else {
-            lista = lista.filter(c => c.status !== 'Desligado');
-            if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
+            // Ativos (inclui Ativo, Afastado e Férias, case-insensitive)
+            lista = lista.filter(c => {
+                const s = (c.status || '').toLowerCase();
+                return s === 'ativo' || s === 'afastado' || s === 'férias' || s === 'ferias';
+            });
         }
+        
         if (busca) lista = lista.filter(c =>
             (c.nome_completo || '').toLowerCase().includes(busca) ||
             (c.cargo || '').toLowerCase().includes(busca)
