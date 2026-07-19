@@ -2,34 +2,26 @@
 // MÓDULO DE INTEGRAÇÃO DE COLABORADORES
 // =============================================================================
 
-// ── Constantes ────────────────────────────────────────────────────────────────
-const INTEG_GRUPOS = {
-    todos:         { label: 'Para Todos',    color: '#0f4c81', bg: '#eff6ff',  icon: 'ph-users' },
-    administrativo:{ label: 'Administrativo',color: '#7c3aed', bg: '#f5f3ff',  icon: 'ph-desktop' },
-    motorista:     { label: 'Motorista',     color: '#d97706', bg: '#fffbeb',  icon: 'ph-truck' },
-    operacional:   { label: 'Operacional',   color: '#059669', bg: '#ecfdf5',  icon: 'ph-hard-hat' },
-    acompanhamento:{ label: 'Acompanhamento',color: '#dc2626', bg: '#fef2f2',  icon: 'ph-calendar-check' },
-};
 const INTEG_STATUS = {
     pendente:   { label: 'Pendente',        color: '#f59e0b', bg: '#fffbeb', icon: 'ph-clock' },
     feito:      { label: 'Feito',           color: '#059669', bg: '#ecfdf5', icon: 'ph-check-circle' },
     nao_aplica: { label: 'Não se aplica',   color: '#94a3b8', bg: '#f8fafc', icon: 'ph-x-circle' },
 };
-const INTEG_CONDICAO_LABELS = { vt: 'Somente VT', vc: 'Somente VC' };
 
-let _integProcessosData  = [];
-let _integFiltroStatus   = 'todos';
-let _ciCategorias        = [];
-let _ciAcoes             = [];
-let _ciUsuarios          = [];
-let _ciDeptos            = [];
-let _ciFiltroDepto       = '';
-let _ciFiltroTexto       = '';
+let _integProcessosData = [];
+let _integFiltroStatus = 'todos';
+
+// Dados de Configuração (Templates)
+let ciTemplates = [];
+let ciEditingId = null;
+let ciUsuarios = [];
+let ciDeptos = [];
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 window.atualizarBadgeIntegracao = async function() {
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        if (!token) return;
         const res = await fetch('/api/integracao/notificacoes/count', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) return;
         const data = await res.json();
@@ -55,9 +47,9 @@ window.atualizarBadgeIntegracao = async function() {
 window.loadIntegracaoProcessos = async function() {
     const lista = document.getElementById('integracao-processos-lista');
     if (!lista) return;
-    lista.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-spinner-gap" style="font-size:2rem;animation:spin 1s linear infinite;"></i><p style="margin-top:.5rem;">Carregando...</p></div>`;
+    lista.innerHTML = `<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-spinner-gap ph-spin" style="font-size:2rem;"></i><p style="margin-top:.5rem;">Carregando...</p></div>`;
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/integracao/processos', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Erro ao buscar processos');
         _integProcessosData = await res.json();
@@ -107,7 +99,6 @@ window.renderIntegracaoLista = function() {
     }).join('');
 };
 
-// ── Modal Processo ────────────────────────────────────────────────────────────
 window.abrirProcessoIntegracao = async function(processoId) {
     const modal = document.getElementById('modal-integracao-processo');
     if (!modal) return;
@@ -115,9 +106,9 @@ window.abrirProcessoIntegracao = async function(processoId) {
     document.getElementById('modal-integ-nome').textContent = 'Carregando...';
     document.getElementById('modal-integ-cargo').textContent = '';
     document.getElementById('modal-integ-badges').innerHTML = '';
-    document.getElementById('modal-integ-passos-container').innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner-gap" style="font-size:1.5rem;"></i></div>`;
+    document.getElementById('modal-integ-passos-container').innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-spinner-gap ph-spin" style="font-size:1.5rem;"></i></div>`;
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch(`/api/integracao/processos/${processoId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Erro ao buscar processo');
         const data = await res.json();
@@ -127,14 +118,12 @@ window.abrirProcessoIntegracao = async function(processoId) {
         const badges = [];
         if (data.tipo_departamento) badges.push(`<span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:.78rem;">${data.tipo_departamento}</span>`);
         document.getElementById('modal-integ-badges').innerHTML = badges.join('');
-        const gruposPassos = {};
-        (data.passos||[]).forEach(p => { const g = p.grupo||'todos'; if (!gruposPassos[g]) gruposPassos[g]=[]; gruposPassos[g].push(p); });
-        const gruposOrdem = ['todos','administrativo','motorista','operacional','acompanhamento'];
-        let html = ''; let temPassos = false;
-        gruposOrdem.forEach(grupo => {
-            const passos = gruposPassos[grupo]; if (!passos||!passos.length) return; temPassos = true;
-            const gInfo = INTEG_GRUPOS[grupo]||{label:grupo,color:'#64748b',bg:'#f8fafc',icon:'ph-list'};
-            html += `<div style="margin-bottom:1.5rem;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid ${gInfo.color}30;"><i class="ph ${gInfo.icon}" style="color:${gInfo.color};font-size:1rem;"></i><strong style="color:${gInfo.color};font-size:.9rem;">${gInfo.label}</strong><span style="margin-left:auto;font-size:.75rem;color:#94a3b8;">${passos.filter(p=>p.status==='feito').length}/${passos.length} feitos</span></div>`;
+        
+        const passos = data.passos || [];
+        let html = '';
+        if (passos.length === 0) {
+            html = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-clipboard-text" style="font-size:2rem;"></i><p style="margin-top:.5rem;">Nenhum passo configurado.</p></div>`;
+        } else {
             passos.forEach(p => {
                 const stInfo = INTEG_STATUS[p.status]||INTEG_STATUS.pendente; const isPendente = p.status==='pendente';
                 html += `<div id="passo-row-${p.id}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:${stInfo.bg};border:1px solid ${stInfo.color}30;transition:all .2s;">
@@ -143,9 +132,7 @@ window.abrirProcessoIntegracao = async function(processoId) {
                     <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">${isPendente?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'feito')" style="background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-check"></i> Marcar Feito</button><button onclick="window.marcarPassoInteg(${p.id},${processoId},'nao_aplica')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;"><i class="ph ph-x"></i> Não se aplica</button>`:p.status!=='pendente'?`<button onclick="window.marcarPassoInteg(${p.id},${processoId},'pendente')" style="background:none;color:#94a3b8;border:1px solid #e2e8f0;padding:4px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;white-space:nowrap;">Desfazer</button>`:''}</div>
                 </div>`;
             });
-            html += `</div>`;
-        });
-        if (!temPassos) html = `<div style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-clipboard-text" style="font-size:2rem;"></i><p style="margin-top:.5rem;">Nenhum passo configurado.</p></div>`;
+        }
         document.getElementById('modal-integ-passos-container').innerHTML = html;
     } catch(e) {
         document.getElementById('modal-integ-passos-container').innerHTML = `<div style="color:#ef4444;text-align:center;padding:2rem;">Erro: ${e.message}</div>`;
@@ -153,7 +140,7 @@ window.abrirProcessoIntegracao = async function(processoId) {
 };
 
 window.marcarPassoInteg = async function(passoStatusId, processoId, status) {
-    const token = window.currentToken || localStorage.getItem('erp_token');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     try {
         const res = await fetch(`/api/integracao/passos-status/${passoStatusId}`, { method:'PUT', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify({status}) });
         if (!res.ok) { const d=await res.json(); throw new Error(d.error||'Erro'); }
@@ -164,349 +151,401 @@ window.marcarPassoInteg = async function(passoStatusId, processoId, status) {
 };
 
 // =============================================================================
-// CONF. INTEGRAÇÃO — NOVO LAYOUT (igual ao de Avaliações)
+// CONF. INTEGRAÇÃO — TEMPLATES POR TIPO DE COLABORADOR
 // =============================================================================
 
 window.loadConfIntegracao = async function() {
-    const container = document.getElementById('conf-integ-main-container');
+    const container = document.getElementById('conf-integ-container');
     if (!container) return;
-    container.innerHTML = `<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-spinner-gap" style="font-size:2rem;animation:spin 1s linear infinite;"></i><p style="margin-top:.75rem;">Carregando...</p></div>`;
+    container.innerHTML = `<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-spinner-gap ph-spin" style="font-size:2rem;"></i><p style="margin-top:.75rem;">Carregando templates...</p></div>`;
+    
     try {
-        const token = window.currentToken || localStorage.getItem('erp_token');
-        const [catRes, acaoRes, userRes, deptoRes] = await Promise.all([
-            fetch('/api/integ/categorias',  { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/integ/acoes',        { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/usuarios',           { headers: { 'Authorization': `Bearer ${token}` } }),
-            fetch('/api/departamentos',      { headers: { 'Authorization': `Bearer ${token}` } }),
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const [tplRes, uRes, dRes] = await Promise.all([
+            fetch('/api/integ/templates', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/usuarios',        { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/departamentos',   { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        _ciCategorias = catRes.ok  ? await catRes.json()  : [];
-        _ciAcoes      = acaoRes.ok ? await acaoRes.json() : [];
-        _ciUsuarios   = userRes.ok ? await userRes.json() : [];
-        _ciDeptos     = deptoRes.ok? await deptoRes.json(): [];
-        window.renderConfIntegLayout();
-    } catch(e) {
-        container.innerHTML = `<div style="padding:2rem;text-align:center;color:#ef4444;"><i class="ph ph-warning-circle" style="font-size:2rem;"></i><p>${e.message}</p><button onclick="window.loadConfIntegracao()" style="margin-top:8px;padding:6px 14px;border:none;background:#0f4c81;color:#fff;border-radius:6px;cursor:pointer;">Tentar novamente</button></div>`;
+
+        if (tplRes.ok) ciTemplates = await tplRes.json();
+        if (uRes.ok) ciUsuarios = await uRes.json();
+        if (dRes.ok) ciDeptos = await dRes.json();
+
+        window.renderConfIntegLista();
+    } catch (e) {
+        container.innerHTML = `<div style="padding:2rem;text-align:center;color:#ef4444;"><i class="ph ph-warning-circle" style="font-size:2rem;"></i><p>${e.message}</p></div>`;
     }
 };
 
-window.renderConfIntegLayout = function() {
-    const container = document.getElementById('conf-integ-main-container');
+window.renderConfIntegLista = function() {
+    const container = document.getElementById('conf-integ-container');
     if (!container) return;
 
-    // Filtrar ações
-    const deptoId = _ciFiltroDepto;
-    const texto   = (_ciFiltroTexto || '').toLowerCase();
-    const acoesFiltradas = _ciAcoes.filter(a => {
-        if (texto && !a.titulo.toLowerCase().includes(texto) && !(a.descricao||'').toLowerCase().includes(texto)) return false;
-        if (!deptoId) return true;
-        if (!a.departamentos || a.departamentos === 'todos') return true;
-        try { const d = JSON.parse(a.departamentos); return d.includes(deptoId) || d.includes('todos'); } catch { return true; }
-    });
-
-    // Agrupar por categoria
-    const catMap = {};
-    _ciCategorias.forEach(c => catMap[c.id] = { ...c, acoes: [] });
-    acoesFiltradas.forEach(a => { if (catMap[a.categoria_id]) catMap[a.categoria_id].acoes.push(a); });
-    const semCategoria = acoesFiltradas.filter(a => !a.categoria_id || !catMap[a.categoria_id]);
-
-    // Opções do select de departamentos
-    const deptoOpts = [`<option value="">Todos os departamentos</option>`,
-        ..._ciDeptos.map(d => `<option value="${d.id}" ${d.id == deptoId ? 'selected':''}>${d.nome}</option>`)
-    ].join('');
+    let cardsHtml = '';
+    if (ciTemplates.length === 0) {
+        cardsHtml = `<div style="grid-column: 1/-1; background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:12px;padding:3rem;text-align:center;color:#94a3b8;">
+            <i class="ph ph-cards" style="font-size:3rem;display:block;margin-bottom:1rem;"></i>
+            <h3 style="margin:0 0 0.5rem;color:#475569;">Nenhum Template Criado</h3>
+            <p style="margin:0 0 1.5rem;font-size:0.9rem;">Crie templates de integração para definir as ações padrão por tipo de colaborador.</p>
+            <button onclick="window.ciAbrirFormNovo()" style="background:#0f4c81;color:#fff;border:none;padding:0.6rem 1.4rem;border-radius:8px;font-weight:600;cursor:pointer;"><i class="ph ph-plus"></i> Criar Primeiro Template</button>
+        </div>`;
+    } else {
+        cardsHtml = ciTemplates.map(t => {
+            return `
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.05)'">
+                <div style="background:#eff6ff;border-bottom:1.5px solid #e2e8f0;padding:1.2rem;display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <h3 style="margin:0 0 4px;font-weight:700;color:#0f172a;font-size:1.1rem;">${t.nome}</h3>
+                        <span style="font-size:0.75rem;color:#64748b;">Chave (Tipo): <code style="background:#e2e8f0;padding:2px 6px;border-radius:4px;">${t.tipo_key}</code></span>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button onclick="window.ciAbrirFormEditar(${t.id})" title="Editar" style="background:#0f4c81;color:#fff;border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'"><i class="ph ph-pencil-simple"></i></button>
+                        <button onclick="window.ciExcluirTemplate(${t.id},'${t.nome.replace(/'/g, "\\'")}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+                <div style="padding:1rem 1.2rem;">
+                    <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#475569;">${t.descricao || '<em>Sem descrição</em>'}</p>
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem;padding-top:0.5rem;border-top:1px solid #f1f5f9;">
+                        <span style="background:#e0f2fe;color:#0369a1;font-size:0.8rem;padding:3px 10px;border-radius:999px;font-weight:600;"><i class="ph ph-list-checks"></i> ${t.total_acoes || 0} ações configuradas</span>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
 
     container.innerHTML = `
         <div style="padding:1.5rem;">
-            <!-- CABEÇALHO -->
+            <!-- CABEÇALHO DA TELA -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
                 <div style="display:flex;align-items:center;gap:1rem;">
-                    <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#d9480f,#f59e0b);display:flex;align-items:center;justify-content:center;">
-                        <i class="ph ph-sliders-horizontal" style="font-size:1.8rem;color:#fff;"></i>
+                    <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#0f4c81,#1d6fb8);display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-cards" style="font-size:1.8rem;color:#fff;"></i>
                     </div>
                     <div>
-                        <h2 style="margin:0;font-size:1.4rem;color:#0f172a;">Configuração de Integração</h2>
-                        <p style="margin:2px 0 0;color:#64748b;font-size:.85rem;">Categorias e ações do plano de integração por departamento</p>
+                        <h2 style="margin:0;font-size:1.4rem;color:#0f172a;">Templates de Integração</h2>
+                        <p style="margin:2px 0 0;color:#64748b;font-size:0.85rem;">Defina os planos de integração por tipo de colaborador</p>
                     </div>
                 </div>
-                <div style="display:flex;gap:.75rem;align-items:center;">
-                    <button onclick="window.abrirModalCategoria()" style="background:#f1f5f9;color:#0f4c81;border:1px solid #bfdbfe;padding:.65rem 1.2rem;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.88rem;transition:all .2s;" onmouseenter="this.style.background='#dbeafe'" onmouseleave="this.style.background='#f1f5f9'">
-                        <i class="ph ph-folder-plus"></i> Nova Categoria
-                    </button>
-                    <button onclick="window.abrirModalAcao()" style="background:linear-gradient(135deg,#059669,#0f9b70);color:#fff;border:none;padding:.65rem 1.4rem;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.95rem;box-shadow:0 4px 12px rgba(5,150,105,.3);transition:transform .1s;" onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform='scale(1)'">
-                        <i class="ph ph-plus-circle"></i> Nova Ação
+                <div style="display:flex; gap:0.75rem; align-items:center;">
+                    <button onclick="window.ciAbrirFormNovo()" style="background:linear-gradient(135deg,#0f4c81,#1d6fb8);color:#fff;border:none;padding:0.65rem 1.4rem;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;font-size:0.95rem;box-shadow:0 4px 12px rgba(15,76,129,0.35);transition:transform 0.1s;" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'">
+                        <i class="ph ph-plus-circle"></i> Novo Template
                     </button>
                 </div>
             </div>
 
-            <!-- FILTRO -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.75rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
-                <i class="ph ph-funnel" style="color:#64748b;font-size:1.1rem;"></i>
-                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px;">
-                    <label style="font-size:.85rem;font-weight:600;color:#374151;white-space:nowrap;">Departamento:</label>
-                    <select onchange="window.filtrarConfInteg(this.value, null)" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;color:#334155;flex:1;">${deptoOpts}</select>
+            <!-- AVISO INFORMATIVO -->
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:0.9rem 1.2rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:0.75rem;">
+                <i class="ph ph-info" style="color:#3b82f6;font-size:1.3rem;flex-shrink:0;margin-top:1px;"></i>
+                <div style="font-size:0.87rem;color:#1e3a5f;line-height:1.5;">
+                    <strong>Como funciona:</strong> Crie templates para os tipos de departamento (ex: Administrativo, Operacional). 
+                    A chave <code>tipo_key</code> faz a ligação automática quando um novo colaborador é admitido. 
+                    Você pode configurar quem é responsável por cada ação e para quais departamentos específicos ela se aplica.
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px;">
-                    <input type="text" placeholder="Buscar ação..." value="${_ciFiltroTexto}" oninput="window.filtrarConfInteg(null, this.value)" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.88rem;color:#334155;flex:1;">
-                </div>
-                ${deptoId || _ciFiltroTexto ? `<button onclick="window.filtrarConfInteg('','')" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:7px 12px;border-radius:8px;font-size:.82rem;cursor:pointer;white-space:nowrap;"><i class="ph ph-x"></i> Limpar</button>` : ''}
-                <span style="font-size:.8rem;color:#94a3b8;white-space:nowrap;">${acoesFiltradas.length} ação${acoesFiltradas.length!==1?'ões':''}</span>
             </div>
 
-            <!-- CATEGORIAS -->
-            ${_ciCategorias.map(cat => {
-                const acoesCat = catMap[cat.id]?.acoes || [];
-                const bg = cat.cor + '18';
-                return `
-                <div style="margin-bottom:2rem;">
-                    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #e2e8f0;">
-                        <div style="width:12px;height:12px;border-radius:50%;background:${cat.cor};flex-shrink:0;"></div>
-                        <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;">${cat.nome}</h3>
-                        <span style="background:${cat.cor};color:#fff;font-size:.75rem;font-weight:700;padding:2px 10px;border-radius:999px;">${acoesCat.length} ação${acoesCat.length!==1?'ões':''}</span>
-                        <div style="margin-left:auto;display:flex;gap:6px;">
-                            <button onclick="window.abrirModalAcao(null,${cat.id})" title="Adicionar ação nesta categoria" style="background:${cat.cor}20;color:${cat.cor};border:1px solid ${cat.cor}40;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.78rem;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Ação</button>
-                            <button onclick="window.abrirModalCategoria(${cat.id})" title="Editar categoria" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.8rem;"><i class="ph ph-pencil-simple"></i></button>
-                            <button onclick="window.excluirCategoria(${cat.id},'${(cat.nome||'').replace(/'/g,"\\'")}')" title="Excluir categoria" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.8rem;"><i class="ph ph-trash"></i></button>
-                        </div>
-                    </div>
-                    ${acoesCat.length === 0
-                        ? `<div style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:12px;padding:1.5rem;text-align:center;color:#94a3b8;font-size:.88rem;"><i class="ph ph-clipboard" style="font-size:2rem;display:block;margin-bottom:.4rem;"></i>Nenhuma ação${deptoId?' para este filtro':' ainda'}. <a href="#" onclick="event.preventDefault();window.abrirModalAcao(null,${cat.id})" style="color:${cat.cor};font-weight:600;">Adicionar</a></div>`
-                        : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;">${acoesCat.map(a => renderAcaoCard(a, cat)).join('')}</div>`
-                    }
-                </div>`;
-            }).join('')}
-
-            <!-- Ações sem categoria -->
-            ${semCategoria.length > 0 ? `
-            <div style="margin-bottom:2rem;">
-                <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #e2e8f0;">
-                    <div style="width:12px;height:12px;border-radius:50%;background:#94a3b8;"></div>
-                    <h3 style="margin:0;font-size:1rem;font-weight:700;color:#0f172a;">Sem Categoria</h3>
-                    <span style="background:#94a3b8;color:#fff;font-size:.75rem;font-weight:700;padding:2px 10px;border-radius:999px;">${semCategoria.length}</span>
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;">${semCategoria.map(a => renderAcaoCard(a, {cor:'#94a3b8',nome:''})).join('')}</div>
-            </div>` : ''}
-
-            ${_ciCategorias.length === 0 && _ciAcoes.length === 0 ? `
-            <div style="background:#f8fafc;border:2px dashed #e2e8f0;border-radius:16px;padding:3rem;text-align:center;color:#94a3b8;">
-                <i class="ph ph-sliders-horizontal" style="font-size:3rem;display:block;margin-bottom:1rem;"></i>
-                <p style="font-weight:600;font-size:1rem;margin:0 0 .5rem;">Nenhuma categoria criada ainda.</p>
-                <p style="font-size:.85rem;margin:0 0 1rem;">Crie categorias para organizar as ações de integração.</p>
-                <button onclick="window.abrirModalCategoria()" style="background:#0f4c81;color:#fff;border:none;padding:.65rem 1.4rem;border-radius:8px;cursor:pointer;font-weight:600;"><i class="ph ph-folder-plus"></i> Criar primeira categoria</button>
-            </div>` : ''}
-        </div>`;
+            <!-- GRID DE TEMPLATES -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1.5rem;">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
 };
 
-function renderAcaoCard(a, cat) {
-    const cor = cat.cor || '#94a3b8';
-    const bg  = cor + '15';
-    let deptoLabel = 'Todos';
-    if (a.departamentos && a.departamentos !== 'todos') {
-        try {
-            const ids = JSON.parse(a.departamentos);
-            const nomes = ids.map(id => { const d = _ciDeptos.find(x => String(x.id) === String(id)); return d ? d.nome : `#${id}`; });
-            deptoLabel = nomes.join(', ') || 'Todos';
-        } catch { deptoLabel = a.departamentos; }
+// ============================================================
+// FORMULÁRIO DE CRIAÇÃO/EDIÇÃO
+// ============================================================
+
+window.ciAbrirFormNovo = function () {
+    ciEditingId = null;
+    renderCiForm({ nome: '', tipo_key: '', descricao: '', acoes: [] });
+};
+
+window.ciAbrirFormEditar = async function (id) {
+    const container = document.getElementById('conf-integ-container');
+    container.innerHTML = `<div style="padding:3rem;text-align:center;color:#94a3b8;"><i class="ph ph-spinner-gap ph-spin" style="font-size:2rem;"></i><p>Carregando template...</p></div>`;
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/integ/templates/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error('Erro ao carregar template');
+        const t = await res.json();
+        ciEditingId = id;
+        renderCiForm(t);
+    } catch(e) {
+        alert('Erro: ' + e.message);
+        window.renderConfIntegLista();
     }
-    const condBadge = a.condicao ? `<span style="font-size:.7rem;background:#fef9c3;color:#854d0e;padding:1px 6px;border-radius:20px;">${INTEG_CONDICAO_LABELS[a.condicao]||a.condicao}</span>` : '';
-    const safeNome = (a.titulo||'').replace(/'/g, "\\'");
-    return `<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.05);transition:box-shadow .2s;" onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,.05)'">
-        <div style="background:${bg};border-bottom:1.5px solid #e2e8f0;padding:.9rem 1.1rem;display:flex;justify-content:space-between;align-items:flex-start;">
-            <div style="flex:1;min-width:0;">
-                <p style="margin:0;font-weight:700;color:#0f172a;font-size:.95rem;margin-bottom:3px;">${a.titulo} ${condBadge}</p>
-                ${a.descricao ? `<p style="margin:0;font-size:.78rem;color:#64748b;">${a.descricao}</p>` : ''}
+};
+
+function renderCiForm(template) {
+    const container = document.getElementById('conf-integ-container');
+    const acoes = template.acoes || [];
+
+    // Gerar opções de usuário
+    const uOpts = `<option value="">— Nenhum (RH/Geral) —</option>` + 
+        ciUsuarios.map(u => `<option value="${u.id}">${u.nome||u.username}</option>`).join('');
+
+    // Gerar checkboxes de departamento (template helper for JS)
+    const deptoCbsHtml = ciDeptos.map(d => `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;white-space:nowrap;"><input type="checkbox" value="${d.id}" class="ci-depto-chk" onchange="window.ciSyncDeptos(this)"> ${d.nome}</label>`).join('');
+
+    container.innerHTML = `
+        <div style="padding:1.5rem; max-width: 1000px; margin: 0 auto;">
+            <!-- CABEÇALHO DO FORM -->
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+                <button onclick="window.renderConfIntegLista()" style="background:#f1f5f9;border:none;color:#475569;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="ph ph-arrow-left"></i> Voltar
+                </button>
+                <h2 style="margin:0;font-size:1.3rem;color:#0f172a;">${ciEditingId ? 'Editar Template de Integração' : 'Novo Template de Integração'}</h2>
             </div>
-            <div style="display:flex;gap:6px;flex-shrink:0;margin-left:8px;">
-                <button onclick="window.abrirModalAcao(${a.id})" title="Editar" style="background:${cor};color:#fff;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'"><i class="ph ph-pencil-simple"></i></button>
-                <button onclick="window.excluirAcao(${a.id},'${safeNome}')" title="Excluir" style="background:#ef4444;color:#fff;border:none;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .2s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'"><i class="ph ph-trash"></i></button>
+
+            <!-- DADOS DO TEMPLATE -->
+            <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem;">
+                    <div>
+                        <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Nome do Template *</label>
+                        <input id="ci-nome" type="text" value="${(template.nome || '').replace(/"/g, '&quot;')}" placeholder="Ex: Integração Administrativo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
+                    </div>
+                    <div>
+                        <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Tipo (Chave) *</label>
+                        <input id="ci-tipo_key" type="text" value="${(template.tipo_key || '').replace(/"/g, '&quot;')}" placeholder="Ex: administrativo" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
+                    </div>
+                </div>
+                <div>
+                    <label style="display:block;font-weight:600;font-size:0.85rem;color:#374151;margin-bottom:4px;">Descrição</label>
+                    <input id="ci-descricao" type="text" value="${(template.descricao || '').replace(/"/g, '&quot;')}" placeholder="Descrição breve deste template" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;outline:none;" onfocus="this.style.borderColor='#0f4c81'" onblur="this.style.borderColor='#d1d5db'">
+                </div>
+            </div>
+
+            <!-- LISTA DE AÇÕES -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h3 style="margin:0;font-size:1.1rem;color:#0f172a;"><i class="ph ph-list-checks" style="color:#0f4c81;"></i> Ações do Template</h3>
+                <button onclick="window.ciAdicionarAcao()" style="background:#e0f2fe;color:#0369a1;border:none;padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;transition:background 0.2s;" onmouseover="this.style.background='#bae6fd'" onmouseout="this.style.background='#e0f2fe'">
+                    <i class="ph ph-plus"></i> Adicionar Ação
+                </button>
+            </div>
+
+            <div id="ci-acoes-container">
+                <!-- Ações serão inseridas aqui via JS -->
+            </div>
+            ${acoes.length === 0 ? '<div id="ci-empty-acoes" style="text-align:center;padding:2rem;color:#94a3b8;border:2px dashed #e2e8f0;border-radius:12px;">Nenhuma ação adicionada. Clique em "Adicionar Ação".</div>' : '<div id="ci-empty-acoes" style="display:none;"></div>'}
+
+            <!-- BOTÕES DE SALVAR -->
+            <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;padding-top:1.5rem;border-top:1.5px solid #e2e8f0;">
+                <button onclick="window.renderConfIntegLista()" style="background:#f1f5f9;border:none;color:#475569;padding:0.65rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600;">
+                    Cancelar
+                </button>
+                <button onclick="window.ciSalvarTemplate()" style="background:linear-gradient(135deg,#0f4c81,#1d6fb8);color:#fff;border:none;padding:0.65rem 1.8rem;border-radius:8px;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:0.6rem;font-size:0.95rem;box-shadow:0 4px 12px rgba(15,76,129,0.3);">
+                    <i class="ph ph-floppy-disk"></i> Salvar Template
+                </button>
             </div>
         </div>
-        <div style="padding:.75rem 1.1rem;">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.8rem;color:#64748b;">
-                <i class="ph ph-buildings"></i>
-                <span style="background:${cor}20;color:${cor};padding:2px 8px;border-radius:999px;font-weight:600;font-size:.75rem;">${deptoLabel}</span>
-                ${a.responsavel_nome ? `<span style="color:#94a3b8;">· <i class="ph ph-user"></i> ${a.responsavel_nome}</span>` : ''}
-            </div>
-        </div>
-    </div>`;
+    `;
+
+    // Armazenar os HTMLs básicos para uso no adicionar ação
+    window._ciUOpts = uOpts;
+    window._ciDeptoCbs = deptoCbsHtml;
+
+    // Renderizar ações existentes
+    const acoesContainer = document.getElementById('ci-acoes-container');
+    acoes.forEach(a => {
+        acoesContainer.appendChild(ciCriarElementoAcao(a));
+    });
 }
 
-window.filtrarConfInteg = function(deptoId, texto) {
-    if (deptoId !== null) _ciFiltroDepto = deptoId || '';
-    if (texto  !== null) _ciFiltroTexto = texto  || '';
-    window.renderConfIntegLayout();
-};
+function ciCriarElementoAcao(a = {}) {
+    const div = document.createElement('div');
+    div.className = 'ci-acao-item';
+    div.style.cssText = 'background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);position:relative;';
+    
+    let isTodos = (!a.departamentos || a.departamentos === 'todos');
+    let deptoArray = [];
+    if (!isTodos) {
+        try { deptoArray = JSON.parse(a.departamentos); } catch(e) {}
+    }
 
-// ── Modal Categoria ───────────────────────────────────────────────────────────
-window.abrirModalCategoria = function(id) {
-    const cat = id ? _ciCategorias.find(c => c.id === id) : null;
-    document.getElementById('ic-id').value        = cat ? cat.id : '';
-    document.getElementById('ic-nome').value      = cat ? cat.nome : '';
-    document.getElementById('ic-ordem').value     = cat ? cat.ordem : '0';
-    document.getElementById('modal-ic-title').textContent = cat ? 'Editar Categoria' : 'Nova Categoria';
-    // Marcar cor
-    const cor = cat ? cat.cor : '#0f4c81';
-    document.querySelectorAll('input[name="ic-cor"]').forEach(r => r.checked = r.value === cor);
-    const modal = document.getElementById('modal-integ-categoria');
-    if (modal) { modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center'; }
-};
+    div.innerHTML = `
+        <button onclick="this.closest('.ci-acao-item').remove(); window.ciCheckEmpty();" style="position:absolute;top:1rem;right:1rem;background:#fee2e2;color:#dc2626;border:none;width:30px;height:30px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'" title="Remover ação"><i class="ph ph-trash"></i></button>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding-right:40px;margin-bottom:0.75rem;">
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Título da Ação *</label>
+                <input type="text" class="cia-titulo" value="${(a.titulo||'').replace(/"/g,'&quot;')}" placeholder="Ex: Entregar crachá" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
+            </div>
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Descrição</label>
+                <input type="text" class="cia-descricao" value="${(a.descricao||'').replace(/"/g,'&quot;')}" placeholder="Instruções adicionais..." style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:1rem;">
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:4px;">Atribuir a Departamentos</label>
+                <div style="border:1px solid #cbd5e1;border-radius:6px;padding:0.5rem;background:#f8fafc;max-height:80px;overflow-y:auto;">
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.8rem;font-weight:600;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #e2e8f0;">
+                        <input type="checkbox" class="cia-depto-todos" ${isTodos ? 'checked' : ''} onchange="window.ciToggleTodosDeptos(this)"> Todos os Departamentos
+                    </label>
+                    <div class="cia-depto-lista" style="${isTodos ? 'opacity:0.4;pointer-events:none;' : ''} display:flex;flex-wrap:wrap;gap:8px;">
+                        ${window._ciDeptoCbs}
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Responsável</label>
+                <select class="cia-responsavel" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
+                    ${window._ciUOpts}
+                </select>
+            </div>
+            <div>
+                <label style="display:block;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:2px;">Condição / Exigência</label>
+                <select class="cia-condicao" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;outline:none;">
+                    <option value="">Nenhuma (Sempre exigir)</option>
+                    <option value="vt" ${a.condicao==='vt'?'selected':''}>Somente se usar VT</option>
+                    <option value="vc" ${a.condicao==='vc'?'selected':''}>Somente se usar VC</option>
+                </select>
+            </div>
+        </div>
+    `;
 
-window.fecharModalCategoria = function() {
-    const m = document.getElementById('modal-integ-categoria'); if (m) m.style.display = 'none';
-};
+    // Sincronizar selects
+    if (a.responsavel_user_id) div.querySelector('.cia-responsavel').value = a.responsavel_user_id;
+    
+    // Sincronizar checkboxes de depto
+    if (!isTodos) {
+        div.querySelectorAll('.ci-depto-chk').forEach(chk => {
+            if (deptoArray.includes(String(chk.value))) chk.checked = true;
+        });
+    }
 
-window.salvarCategoria = async function(e) {
-    e.preventDefault();
-    const token = window.currentToken || localStorage.getItem('erp_token');
-    const id    = document.getElementById('ic-id').value;
-    const cor   = document.querySelector('input[name="ic-cor"]:checked')?.value || '#0f4c81';
-    const body  = { id: id ? parseInt(id) : undefined, nome: document.getElementById('ic-nome').value.trim(), cor, ordem: parseInt(document.getElementById('ic-ordem').value) || 0 };
-    try {
-        const res = await fetch('/api/integ/categorias', { method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify(body) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro');
-        window.fecharModalCategoria();
-        await window.loadConfIntegracao();
-        if (typeof showToast === 'function') showToast('Categoria salva!', 'success');
-    } catch(err) { alert('Erro: ' + err.message); }
-};
+    return div;
+}
 
-window.excluirCategoria = async function(id, nome) {
-    if (!confirm(`Excluir a categoria "${nome}"? As ações vinculadas ficarão sem categoria.`)) return;
-    const token = window.currentToken || localStorage.getItem('erp_token');
-    try {
-        const res = await fetch(`/api/integ/categorias/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
-        if (!res.ok) throw new Error('Erro ao excluir');
-        await window.loadConfIntegracao();
-        if (typeof showToast === 'function') showToast('Categoria excluída.', 'info');
-    } catch(e) { alert('Erro: ' + e.message); }
-};
-
-// ── Modal Ação ────────────────────────────────────────────────────────────────
-window.abrirModalAcao = function(id, categoriaIdPreset) {
-    const acao = id ? _ciAcoes.find(a => a.id === id) : null;
-
-    document.getElementById('ia-id').value        = acao ? acao.id : '';
-    document.getElementById('ia-titulo').value    = acao ? acao.titulo : '';
-    document.getElementById('ia-descricao').value = acao ? (acao.descricao || '') : '';
-    document.getElementById('ia-condicao').value  = acao ? (acao.condicao || '') : '';
-    document.getElementById('ia-ordem').value     = acao ? (acao.ordem || 0) : '0';
-    document.getElementById('modal-ia-title').textContent = acao ? 'Editar Ação' : 'Nova Ação';
-
-    // Select de categoria
-    const selCat = document.getElementById('ia-categoria');
-    selCat.innerHTML = '<option value="">— Sem categoria —</option>';
-    _ciCategorias.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id; opt.textContent = c.nome;
-        if (acao ? c.id == acao.categoria_id : c.id == categoriaIdPreset) opt.selected = true;
-        selCat.appendChild(opt);
-    });
-
-    // Select de responsável
-    const selResp = document.getElementById('ia-responsavel');
-    selResp.innerHTML = '<option value="">— Nenhum —</option>';
-    _ciUsuarios.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id; opt.textContent = u.nome || u.username;
-        if (acao && acao.responsavel_user_id == u.id) opt.selected = true;
-        selResp.appendChild(opt);
-    });
-
-    // Departamentos
-    const listaEl = document.getElementById('ia-deptos-lista');
-    listaEl.innerHTML = _ciDeptos.map(d => {
-        let checked = false;
-        if (acao) {
-            if (!acao.departamentos || acao.departamentos === 'todos') checked = false;
-            else { try { checked = JSON.parse(acao.departamentos).includes(String(d.id)); } catch { checked = false; } }
-        }
-        return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;color:#374151;padding:3px 0;">
-            <input type="checkbox" class="ia-depto-cb" value="${d.id}" ${checked ? 'checked' : ''} style="accent-color:#0f4c81;width:14px;height:14px;" onchange="window.syncTodosDepto()">
-            ${d.nome}
-        </label>`;
-    }).join('');
-
-    // Marcar "Todos" se for todos
-    const todosEl = document.getElementById('ia-depto-todos');
-    todosEl.checked = !acao || !acao.departamentos || acao.departamentos === 'todos';
-    if (todosEl.checked) listaEl.style.opacity = '0.4';
-    else listaEl.style.opacity = '1';
-
-    const modal = document.getElementById('modal-integ-acao');
-    if (modal) { modal.style.display = 'flex'; modal.style.alignItems = 'flex-start'; modal.style.justifyContent = 'center'; }
-};
-
-window.fecharModalAcao = function() {
-    const m = document.getElementById('modal-integ-acao'); if (m) m.style.display = 'none';
-};
-
-window.toggleTodosDeptos = function(cb) {
-    const lista = document.getElementById('ia-deptos-lista');
+window.ciToggleTodosDeptos = function(cb) {
+    const lista = cb.closest('div').querySelector('.cia-depto-lista');
     if (cb.checked) {
         lista.style.opacity = '0.4';
-        document.querySelectorAll('.ia-depto-cb').forEach(c => c.checked = false);
+        lista.style.pointerEvents = 'none';
+        lista.querySelectorAll('input').forEach(chk => chk.checked = false);
     } else {
         lista.style.opacity = '1';
+        lista.style.pointerEvents = 'auto';
     }
 };
 
-window.syncTodosDepto = function() {
-    const algumMarcado = [...document.querySelectorAll('.ia-depto-cb')].some(c => c.checked);
-    const todosEl = document.getElementById('ia-depto-todos');
-    if (algumMarcado) {
-        todosEl.checked = false;
-        document.getElementById('ia-deptos-lista').style.opacity = '1';
+window.ciSyncDeptos = function(cb) {
+    const wrapper = cb.closest('div').parentElement;
+    const todosCb = wrapper.querySelector('.cia-depto-todos');
+    const marcados = wrapper.querySelectorAll('.ci-depto-chk:checked').length;
+    if (marcados > 0 && todosCb.checked) {
+        todosCb.checked = false;
+        wrapper.querySelector('.cia-depto-lista').style.opacity = '1';
+        wrapper.querySelector('.cia-depto-lista').style.pointerEvents = 'auto';
     }
 };
 
-window.salvarAcao = async function(e) {
-    e.preventDefault();
-    const token = window.currentToken || localStorage.getItem('erp_token');
-    const id    = document.getElementById('ia-id').value;
+window.ciAdicionarAcao = function() {
+    const container = document.getElementById('ci-acoes-container');
+    container.appendChild(ciCriarElementoAcao());
+    window.ciCheckEmpty();
+    // Scroll to bottom
+    const newEl = container.lastElementChild;
+    if (newEl) newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
 
-    // Coletar departamentos
-    const todosEl = document.getElementById('ia-depto-todos');
-    let departamentos;
-    if (todosEl.checked) {
-        departamentos = 'todos';
-    } else {
-        const marcados = [...document.querySelectorAll('.ia-depto-cb:checked')].map(c => c.value);
-        departamentos = marcados.length > 0 ? marcados : 'todos';
+window.ciCheckEmpty = function() {
+    const container = document.getElementById('ci-acoes-container');
+    const emptyMsg = document.getElementById('ci-empty-acoes');
+    if (container && emptyMsg) {
+        if (container.children.length === 0) emptyMsg.style.display = 'block';
+        else emptyMsg.style.display = 'none';
+    }
+};
+
+// ============================================================
+// SALVAR E EXCLUIR TEMPLATE
+// ============================================================
+
+window.ciSalvarTemplate = async function() {
+    const nome = document.getElementById('ci-nome')?.value.trim();
+    const tipo_key = document.getElementById('ci-tipo_key')?.value.trim().toLowerCase();
+    const descricao = document.getElementById('ci-descricao')?.value.trim();
+
+    if (!nome || !tipo_key) {
+        alert('Nome e Tipo são obrigatórios.');
+        return;
     }
 
-    const body = {
-        id: id ? parseInt(id) : undefined,
-        titulo:              document.getElementById('ia-titulo').value.trim(),
-        descricao:           document.getElementById('ia-descricao').value.trim(),
-        categoria_id:        document.getElementById('ia-categoria').value || null,
-        condicao:            document.getElementById('ia-condicao').value || null,
-        responsavel_user_id: document.getElementById('ia-responsavel').value || null,
-        ordem:               parseInt(document.getElementById('ia-ordem').value) || 0,
-        departamentos,
+    const acoes = [];
+    let hasError = false;
+
+    document.querySelectorAll('.ci-acao-item').forEach((item, index) => {
+        const titulo = item.querySelector('.cia-titulo').value.trim();
+        if (!titulo) { hasError = true; return; }
+        
+        const desc = item.querySelector('.cia-descricao').value.trim();
+        const resp = item.querySelector('.cia-responsavel').value;
+        const cond = item.querySelector('.cia-condicao').value;
+        
+        const todosCb = item.querySelector('.cia-depto-todos');
+        let deptos = 'todos';
+        if (!todosCb.checked) {
+            const marcados = Array.from(item.querySelectorAll('.ci-depto-chk:checked')).map(c => c.value);
+            if (marcados.length > 0) deptos = marcados;
+        }
+
+        acoes.push({
+            titulo,
+            descricao: desc || null,
+            responsavel_user_id: resp || null,
+            departamentos: deptos,
+            condicao: cond || null,
+            ordem: index + 1
+        });
+    });
+
+    if (hasError) {
+        alert('Preencha o título de todas as ações.');
+        return;
+    }
+
+    const payload = {
+        id: ciEditingId,
+        nome,
+        tipo_key,
+        descricao: descricao || null,
+        acoes
     };
-    if (!body.titulo) return alert('Informe o título da ação.');
 
-    const btn = e.target.querySelector('button[type="submit"]');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
     try {
-        const res = await fetch('/api/integ/acoes', { method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify(body) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Erro');
-        window.fecharModalAcao();
-        await window.loadConfIntegracao();
-        if (typeof showToast === 'function') showToast('Ação salva!', 'success');
-    } catch(err) { alert('Erro: ' + err.message); }
-    finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Ação'; } }
+        const btn = document.querySelector('button[onclick="window.ciSalvarTemplate()"]');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
+
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/integ/templates', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Erro ao salvar');
+
+        if (typeof showToast === 'function') showToast('Template salvo com sucesso!', 'success');
+        window.loadConfIntegracao();
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
 };
 
-window.excluirAcao = async function(id, nome) {
-    if (!confirm(`Excluir a ação "${nome}"?`)) return;
-    const token = window.currentToken || localStorage.getItem('erp_token');
+window.ciExcluirTemplate = async function(id, nome) {
+    if (!confirm(`Excluir o template "${nome}"? Isso não afeta os processos de integração já iniciados.`)) return;
     try {
-        const res = await fetch(`/api/integ/acoes/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} });
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/integ/templates/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Erro ao excluir');
-        await window.loadConfIntegracao();
-        if (typeof showToast === 'function') showToast('Ação excluída.', 'info');
-    } catch(e) { alert('Erro: ' + e.message); }
+        
+        if (typeof showToast === 'function') showToast('Template excluído.', 'info');
+        window.loadConfIntegracao();
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
 };
 
 // ── Hook de navegação ─────────────────────────────────────────────────────────
@@ -526,15 +565,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('integ-spin-style')) return;
     const s = document.createElement('style');
     s.id = 'integ-spin-style';
-    s.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+    s.textContent = '@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}} .ph-spin{animation:spin 1s linear infinite;}';
     document.head.appendChild(s);
 })();
-
-// Compatibilidade retroativa
-window.loadIntegracaoColabs = function() { window.loadIntegracaoProcessos?.(); };
-window.filtrarConfIntegGrupo = function() {};
-window.renderConfIntegTabela = function() {};
-window.switchConfIntegTab = function() {};
-window.abrirModalNovoPasso = function() { window.abrirModalAcao?.(); };
-window.fecharModalPasso = function() { window.fecharModalAcao?.(); };
-window.salvarPasso = function(e) { window.salvarAcao?.(e); };
