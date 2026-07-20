@@ -561,6 +561,7 @@
             // 1. Cria o treinamento
             const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
             const is_integracao = el('novo-treinamento-is-integracao') && el('novo-treinamento-is-integracao').checked ? 1 : 0;
+            const data_treinamento = (el('novo-treinamento-data') || {}).value || '';
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -856,6 +857,7 @@
         el('editar-treinamento-nome').value = t.nome || '';
         el('editar-treinamento-desc').value = t.descricao || '';
         if (el('editar-treinamento-validade')) el('editar-treinamento-validade').value = t.validade_dias || 0;
+        if (el('editar-treinamento-data')) el('editar-treinamento-data').value = t.data_treinamento || '';
         if (el('editar-treinamento-is-integracao')) el('editar-treinamento-is-integracao').checked = !!t.is_integracao;
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
 
@@ -926,6 +928,7 @@
             const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
 
             const is_integracao = el('editar-treinamento-is-integracao') && el('editar-treinamento-is-integracao').checked ? 1 : 0;
+            const data_treinamento = (el('editar-treinamento-data') || {}).value || '';
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },

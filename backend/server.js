@@ -20682,6 +20682,8 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
   criado_por  TEXT DEFAULT ''
 )`);
+
+db.run("ALTER TABLE treinamentos ADD COLUMN data_treinamento TEXT DEFAULT ''", (err) => { if (err && !err.message.includes("duplicate column name")) console.error(err); });
 db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("MigraÃ§Ã£o (treinamentos.tipo):", err.message);
@@ -20828,13 +20830,13 @@ app.get('/api/debug2-treinamentos', (req, res) => {
 
 // ?????? POST /api/treinamentos ??? Cria treinamento ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0 } = req.body || {};
+  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0, data_treinamento = '' } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome Ã© obrigatÃ³rio.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo, is_integracao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo, is_integracao, data_treinamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0, (data_treinamento || '').trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       const newId = this.lastID;
@@ -20864,7 +20866,7 @@ app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
   const { nome, descricao, departamento, capa_url, validade_dias, tipo, is_integracao } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome Ã© obrigatÃ³rio.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ? WHERE id = ?`,
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ?, data_treinamento = ? WHERE id = ?`,
     [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', parseInt(is_integracao) ? 1 : 0, req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -22171,21 +22173,21 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
                     : [respostasJson, responsavelNome, idToUpdate];
 
                 db.run(query, params, (err3) => {
-                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliaï¿½ï¿½o' : 'Erro ao finalizar avaliaï¿½ï¿½o' });
                     
-                    // Disparar email de notificação
+                    // Disparar email de notificaï¿½ï¿½o
                     db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
                         if (!err4 && colab) {
                             sendEmailParaNotificados('formulario_desempenho', {
-                                subject: `Avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
+                                subject: `Avaliaï¿½ï¿½o de Desempenho Preenchida - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliação de Desempenho Preenchida</h2>
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliaï¿½ï¿½o de Desempenho Preenchida</h2>
                                     </div>
                                     <div style="padding:20px;background:#f9fafb;color:#333;">
-                                        <p>Olá,</p>
-                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
-                                        <p>Responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p>Olï¿½,</p>
+                                        <p>A avaliaï¿½ï¿½o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Responsï¿½vel pela avaliaï¿½ï¿½o: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
                                             <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
@@ -22195,7 +22197,7 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
                         }
                     });
 
-                    res.json({ success: true, message: isInsert ? 'Avaliação criada e finalizada' : 'Avaliação finalizada' });
+                    res.json({ success: true, message: isInsert ? 'Avaliaï¿½ï¿½o criada e finalizada' : 'Avaliaï¿½ï¿½o finalizada' });
                 });
             };
 
@@ -22233,21 +22235,21 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
                     : [respostasJson, responsavelNome, idToUpdate];
 
                 db.run(query, params, (err3) => {
-                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliaï¿½ï¿½o' : 'Erro ao finalizar avaliaï¿½ï¿½o' });
                     
-                    // Disparar email de notificação
+                    // Disparar email de notificaï¿½ï¿½o
                     db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
                         if (!err4 && colab) {
                             sendEmailParaNotificados('formulario_desempenho', {
-                                subject: `Avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
+                                subject: `Avaliaï¿½ï¿½o de Desempenho Preenchida - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliação de Desempenho Preenchida</h2>
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliaï¿½ï¿½o de Desempenho Preenchida</h2>
                                     </div>
                                     <div style="padding:20px;background:#f9fafb;color:#333;">
-                                        <p>Olá,</p>
-                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
-                                        <p>Responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p>Olï¿½,</p>
+                                        <p>A avaliaï¿½ï¿½o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Responsï¿½vel pela avaliaï¿½ï¿½o: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
                                             <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
@@ -22257,7 +22259,7 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
                         }
                     });
 
-                    res.json({ success: true, message: isInsert ? 'Avaliação criada e finalizada' : 'Avaliação finalizada' });
+                    res.json({ success: true, message: isInsert ? 'Avaliaï¿½ï¿½o criada e finalizada' : 'Avaliaï¿½ï¿½o finalizada' });
                 });
             };
 
@@ -26183,17 +26185,17 @@ db.serialize(() => {
         if (err) return;
         let updatedCount = 0;
         const keyMapping = {
-            'Rotina e Carga de Trabalho': 'Organização e Rotina de Trabalho',
-            'Processos e Organização': 'Processos e Fluxo de Trabalho',
+            'Rotina e Carga de Trabalho': 'Organizaï¿½ï¿½o e Rotina de Trabalho',
+            'Processos e Organizaï¿½ï¿½o': 'Processos e Fluxo de Trabalho',
             'Treinamentos e Desenvolvimento': 'Crescimento e Desenvolvimento',
             'Crescimento e Oportunidades': 'Crescimento e Desenvolvimento',
-            'Valorização e Reconhecimento': 'Satisfação e Motivação',
-            'Liderança Supervisor Pátio (Joca)': 'Comunicação e Liderança',
-            'Liderança Gerente (Jefferson)': 'Comunicação e Liderança',
-            'Liderança Supervisor Escritório (Edson)': 'Comunicação e Liderança',
-            'Liderança Supervisora (Thais)': 'Comunicação e Liderança',
-            'Comunicação': 'Comunicação e Liderança',
-            'Liderança': 'Comunicação e Liderança'
+            'Valorizaï¿½ï¿½o e Reconhecimento': 'Satisfaï¿½ï¿½o e Motivaï¿½ï¿½o',
+            'Lideranï¿½a Supervisor Pï¿½tio (Joca)': 'Comunicaï¿½ï¿½o e Lideranï¿½a',
+            'Lideranï¿½a Gerente (Jefferson)': 'Comunicaï¿½ï¿½o e Lideranï¿½a',
+            'Lideranï¿½a Supervisor Escritï¿½rio (Edson)': 'Comunicaï¿½ï¿½o e Lideranï¿½a',
+            'Lideranï¿½a Supervisora (Thais)': 'Comunicaï¿½ï¿½o e Lideranï¿½a',
+            'Comunicaï¿½ï¿½o': 'Comunicaï¿½ï¿½o e Lideranï¿½a',
+            'Lideranï¿½a': 'Comunicaï¿½ï¿½o e Lideranï¿½a'
         };
         const tx = db.prepare("UPDATE avaliacoes SET respostas_json = ? WHERE id = ?");
         rows.forEach(row => {

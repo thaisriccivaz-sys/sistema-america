@@ -6105,7 +6105,19 @@
                             <input type="checkbox" id="editar-treinamento-is-integracao" value="1"> Pertence à Integração do colaborador?
                         </label>
                     </div>
+                    
                     <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data do Treinamento / Palestra (Opcional)</label>
+                        <input type="date" id="novo-treinamento-data" class="form-control" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data do Treinamento / Palestra (Opcional)</label>
+                        <input type="date" id="editar-treinamento-data" class="form-control" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                    </div>
+<div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
                         <div id="editar-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
                             <!-- Checkboxes injetados pelo JS -->
@@ -6120,7 +6132,7 @@
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
                             <div style="position:relative;display:inline-block;width:100%;">
-                                <img id="editar-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <img id="editar-capa-preview" src="" alt="Capa" style="max-width:200px;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
                                 <button type="button" onclick="window._editarCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
                             </div>
                         </div>
@@ -6271,7 +6283,7 @@
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="novo-capa-preview-wrap" style="display:none;margin-bottom:8px;">
                             <div style="position:relative;display:inline-block;">
-                                <img id="novo-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <img id="novo-capa-preview" src="" alt="Capa" style="max-width:200px;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
                                 <button type="button" onclick="window._novoCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
                             </div>
                         </div>
