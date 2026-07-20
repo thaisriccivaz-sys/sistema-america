@@ -14333,7 +14333,11 @@ app.put('/api/logistica/notificacoes/:id/lida', authenticateToken, (req, res) =>
 app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
     db.get(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                   ) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
                    ef.id as form_id, ef.situacao
             FROM colaboradores c
@@ -14406,8 +14410,12 @@ function verificarExperienciasVencendo() {
 
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
-                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE (id = d.responsavel_id OR (d.responsavel_id IS NULL AND TRIM(LOWER(nome_completo)) = TRIM(LOWER(d.responsavel_nome)))) LIMIT 1),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE (id = d.responsavel_id OR (d.responsavel_id IS NULL AND TRIM(LOWER(nome_completo)) = TRIM(LOWER(d.responsavel_nome)))) LIMIT 1),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER(COALESCE((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id), d.responsavel_nome))) LIMIT 1)
+                   ) as resp_email,
+                   COALESCE((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id), d.responsavel_nome) as resp_nome,
                    ef.id as form_id, ef.notificacao_15d_enviada, ef.situacao
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
@@ -14820,7 +14828,11 @@ function verificarDesempenhosPendentes() {
 
     db.all(`SELECT c.id, c.nome_completo, c.departamento,
                    d.responsavel_id,
-                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                   ) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
                    (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
             FROM colaboradores c
@@ -22148,16 +22160,49 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
         
         db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
             if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+
+            const finalizarAvaliacao = (idToUpdate, isInsert) => {
+                const query = isInsert 
+                    ? `INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`
+                    : `UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`;
+                
+                const params = isInsert 
+                    ? [colabId, ano, trimestre, respostasJson, responsavelNome]
+                    : [respostasJson, responsavelNome, idToUpdate];
+
+                db.run(query, params, (err3) => {
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
+                    
+                    // Disparar email de notificação
+                    db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
+                        if (!err4 && colab) {
+                            sendEmailParaNotificados('formulario_desempenho', {
+                                subject: `Avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliação de Desempenho Preenchida</h2>
+                                    </div>
+                                    <div style="padding:20px;background:#f9fafb;color:#333;">
+                                        <p>Olá,</p>
+                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p style="margin-top:20px;text-align:center;">
+                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                        </p>
+                                    </div>
+                                </div>`
+                            });
+                        }
+                    });
+
+                    res.json({ success: true, message: isInsert ? 'Avaliação criada e finalizada' : 'Avaliação finalizada' });
+                });
+            };
+
             if (exist) {
-                db.run(`UPDATE avaliacoes SET respostas_json = ?, situacao = 'iniciado', responsavel_nome = ? WHERE id = ?`, [respostasJson, responsavelNome, exist.id], (err3) => {
-                    if (err3) return res.status(500).json({ error: 'Erro ao atualizar rascunho' });
-                    res.json({ success: true, message: 'Rascunho atualizado' });
-                });
+                finalizarAvaliacao(exist.id, false);
             } else {
-                db.run(`INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'iniciado', ?)`, [colabId, ano, trimestre, respostasJson, responsavelNome], (err3) => {
-                    if (err3) return res.status(500).json({ error: 'Erro ao criar rascunho' });
-                    res.json({ success: true, message: 'Rascunho criado' });
-                });
+                finalizarAvaliacao(null, true);
             }
         });
     });
@@ -22177,16 +22222,49 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
         
         db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
             if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+
+            const finalizarAvaliacao = (idToUpdate, isInsert) => {
+                const query = isInsert 
+                    ? `INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`
+                    : `UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`;
+                
+                const params = isInsert 
+                    ? [colabId, ano, trimestre, respostasJson, responsavelNome]
+                    : [respostasJson, responsavelNome, idToUpdate];
+
+                db.run(query, params, (err3) => {
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
+                    
+                    // Disparar email de notificação
+                    db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
+                        if (!err4 && colab) {
+                            sendEmailParaNotificados('formulario_desempenho', {
+                                subject: `Avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avaliação de Desempenho Preenchida</h2>
+                                    </div>
+                                    <div style="padding:20px;background:#f9fafb;color:#333;">
+                                        <p>Olá,</p>
+                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p style="margin-top:20px;text-align:center;">
+                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                        </p>
+                                    </div>
+                                </div>`
+                            });
+                        }
+                    });
+
+                    res.json({ success: true, message: isInsert ? 'Avaliação criada e finalizada' : 'Avaliação finalizada' });
+                });
+            };
+
             if (exist) {
-                db.run(`UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`, [respostasJson, responsavelNome, exist.id], (err3) => {
-                    if (err3) return res.status(500).json({ error: 'Erro ao finalizar avaliaÃ§Ã£o' });
-                    res.json({ success: true, message: 'AvaliaÃ§Ã£o finalizada' });
-                });
+                finalizarAvaliacao(exist.id, false);
             } else {
-                db.run(`INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`, [colabId, ano, trimestre, respostasJson, responsavelNome], (err3) => {
-                    if (err3) return res.status(500).json({ error: 'Erro ao criar avaliaÃ§Ã£o' });
-                    res.json({ success: true, message: 'AvaliaÃ§Ã£o criada e finalizada' });
-                });
+                finalizarAvaliacao(null, true);
             }
         });
     });
@@ -26097,5 +26175,63 @@ console.log('[EMAILS] M??dulo de E-mails Corporativos carregado.');
 db.serialize(() => {
     db.run("DELETE FROM departamentos WHERE nome LIKE '%?%'", [], err => {
         if (!err) console.log('[DB] Limpeza de departamentos com caracteres especiais (?) concluÃ­da.');
+    });
+});
+// MIGRACAO DE CHAVES DA PESQUISA DE SATISFACAO
+db.serialize(() => {
+    db.all("SELECT id, respostas_json FROM avaliacoes WHERE tipo = 'satisfacao' AND respostas_json IS NOT NULL AND respostas_json != ''", [], (err, rows) => {
+        if (err) return;
+        let updatedCount = 0;
+        const keyMapping = {
+            'Rotina e Carga de Trabalho': 'Organização e Rotina de Trabalho',
+            'Processos e Organização': 'Processos e Fluxo de Trabalho',
+            'Treinamentos e Desenvolvimento': 'Crescimento e Desenvolvimento',
+            'Crescimento e Oportunidades': 'Crescimento e Desenvolvimento',
+            'Valorização e Reconhecimento': 'Satisfação e Motivação',
+            'Liderança Supervisor Pátio (Joca)': 'Comunicação e Liderança',
+            'Liderança Gerente (Jefferson)': 'Comunicação e Liderança',
+            'Liderança Supervisor Escritório (Edson)': 'Comunicação e Liderança',
+            'Liderança Supervisora (Thais)': 'Comunicação e Liderança',
+            'Comunicação': 'Comunicação e Liderança',
+            'Liderança': 'Comunicação e Liderança'
+        };
+        const tx = db.prepare("UPDATE avaliacoes SET respostas_json = ? WHERE id = ?");
+        rows.forEach(row => {
+            try {
+                const respostas = JSON.parse(row.respostas_json);
+                let changed = false;
+                const targetObj = respostas.scores ? respostas.scores : respostas;
+                const newTargetObj = {};
+                Object.keys(targetObj).forEach(oldKey => {
+                    if (oldKey === '__obs__' || oldKey === '__status__' || oldKey === 'info_adicional' || oldKey === 'topicos') {
+                        newTargetObj[oldKey] = targetObj[oldKey]; return;
+                    }
+                    let mappedKey = keyMapping[oldKey] || oldKey;
+                    if (newTargetObj[mappedKey]) {
+                        if (Array.isArray(targetObj[oldKey]) && Array.isArray(newTargetObj[mappedKey])) {
+                            newTargetObj[mappedKey] = newTargetObj[mappedKey].concat(targetObj[oldKey]);
+                        } else if (typeof targetObj[oldKey] === 'object' && typeof newTargetObj[mappedKey] === 'object' && !Array.isArray(targetObj[oldKey])) {
+                             newTargetObj[mappedKey].pontos = (newTargetObj[mappedKey].pontos || 0) + (targetObj[oldKey].pontos || 0);
+                             newTargetObj[mappedKey].max = (newTargetObj[mappedKey].max || 0) + (targetObj[oldKey].max || 0);
+                        }
+                    } else {
+                        newTargetObj[mappedKey] = targetObj[oldKey];
+                    }
+                    if (mappedKey !== oldKey) changed = true;
+                });
+                if (changed) {
+                    if (respostas.scores) respostas.scores = newTargetObj;
+                    else {
+                        Object.keys(respostas).forEach(k => { if (k !== '__obs__' && k !== '__status__' && k !== 'info_adicional' && k !== 'topicos') delete respostas[k]; });
+                        Object.assign(respostas, newTargetObj);
+                    }
+                    tx.run(JSON.stringify(respostas), row.id);
+                    updatedCount++;
+                }
+            } catch (e) {}
+        });
+        tx.finalize(() => {
+            if (updatedCount > 0) console.log("[MIGRATION] Chaves de satisfacao migradas: " + updatedCount);
+        });
     });
 });

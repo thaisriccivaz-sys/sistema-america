@@ -7,6 +7,7 @@ const TIPOS_NOTIFICACAO = [
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
     { id: 'aviso_equipes', nome: 'Aviso de Equipe Desfalcada', icone: 'ph-users-three' },
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
+    { id: 'formulario_desempenho', nome: 'Avaliação de Desempenho Preenchida', icone: 'ph-chart-line-up' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },

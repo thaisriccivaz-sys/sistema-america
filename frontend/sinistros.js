@@ -611,6 +611,7 @@ window._sinPreencherDadosVeiculo = function() {
     var dados = [];
     if (v.placa)              dados.push({ label: 'Placa',          value: v.placa });
     if (v.marca_modelo_versao)dados.push({ label: 'Modelo',         value: v.marca_modelo_versao });
+    if (v.ano_modelo)         dados.push({ label: 'Ano Modelo',     value: v.ano_modelo });
     if (v.ano_fabricacao)     dados.push({ label: 'Ano Fabricação', value: v.ano_fabricacao });
     if (v.renavam)            dados.push({ label: 'Renavam',        value: v.renavam });
     if (v.cor_predominante)   dados.push({ label: 'Cor',            value: v.cor_predominante });

@@ -3063,77 +3063,102 @@
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top: 2rem;">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                            <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
-                                <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
-                                <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                    <div style="position:relative;">
-                                        <i class="ph ph-hash"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-os-com-cred" class="form-control"
-                                            placeholder="OS" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 80px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-user"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-cliente-com-cred" class="form-control"
-                                            placeholder="Cliente" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-map-pin"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-endereco-com-cred" class="form-control"
-                                            placeholder="Endereço" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-envelope-simple"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-email-com-cred" class="form-control"
-                                            placeholder="E-mail" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
+                    <!-- Tabs Credenciamento -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                        <button id="tab-btn-cred-docs" class="tab-btn active" onclick="switchComercialCredTab('docs')" style="padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-weight: bold; color: #7048e8; border-bottom: 2px solid #7048e8;">Documentos Colaboradores</button>
+                        <button id="tab-btn-cred-licencas" class="tab-btn" onclick="switchComercialCredTab('licencas')" style="padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-weight: normal; color: #64748b; border-bottom: 2px solid transparent;">Licenças</button>
+                    </div>
+
+                    <!-- TAB: Documentos Colaboradores -->
+                    <div id="comercial-cred-tab-docs" style="display:block;">
+                        <div class="card" style="margin-top: 1rem;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
+                                    <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
+                                    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                        <div style="position:relative;">
+                                            <i class="ph ph-hash"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-os-com-cred" class="form-control"
+                                                placeholder="OS" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 80px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-user"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-cliente-com-cred" class="form-control"
+                                                placeholder="Cliente" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-map-pin"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-endereco-com-cred" class="form-control"
+                                                placeholder="Endereço" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-envelope-simple"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-email-com-cred" class="form-control"
+                                                placeholder="E-mail" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
                                     </div>
                                 </div>
+                                <button class="btn btn-danger"
+                                    style="display: none; padding: 4px 12px; font-size: 12px; margin-right: 8px;"
+                                    onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar
+                                    Lista</button>
+                                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;"
+                                    onclick="window.carregarHistoricoComCred()">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
                             </div>
-                            <button class="btn btn-danger"
-                                style="display: none; padding: 4px 12px; font-size: 12px; margin-right: 8px;"
-                                onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar
-                                Lista</button>
-                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;"
-                                onclick="window.carregarHistoricoComCred()">
-                                <i class="ph ph-arrows-clockwise"></i> Atualizar
-                            </button>
+                            <div class="table-responsive"
+                                style="max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
+                                    <thead
+                                        style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <tr>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('os')">OS <i
+                                                    class="ph ph-arrows-down-up"></i></th>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('cliente')">
+                                                Cliente / Obra <i class="ph ph-arrows-down-up"></i></th>
+                                            <th>Colaboradores (Qtd Max)</th>
+                                            <th>Veículos (Qtd Max)</th>
+                                            <th>Licenças</th>
+                                            <th>Data Limite</th>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('data')">
+                                                Status <i class="ph ph-arrows-down-up"></i></th>
+                                            <th style="text-align:right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-comercial-cred">
+                                        <tr>
+                                            <td colspan="6" style="text-align:center; color:#94a3b8; padding:2rem;">
+                                                Carregando histórico...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="table-responsive"
-                            style="max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
-                            <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
-                                <thead
-                                    style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                    <tr>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('os')">OS <i
-                                                class="ph ph-arrows-down-up"></i></th>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('cliente')">
-                                            Cliente / Obra <i class="ph ph-arrows-down-up"></i></th>
-                                        <th>Colaboradores (Qtd Max)</th>
-                                        <th>Veículos (Qtd Max)</th>
-                                        <th>Licenças</th>
-                                        <th>Data Limite</th>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('data')">
-                                            Status <i class="ph ph-arrows-down-up"></i></th>
-                                        <th style="text-align:right;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-comercial-cred">
-                                    <tr>
-                                        <td colspan="6" style="text-align:center; color:#94a3b8; padding:2rem;">
-                                            Carregando histórico...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    </div>
+
+                    <!-- TAB: Licenças -->
+                    <div id="comercial-cred-tab-licencas" style="display:none;">
+                        <div class="card" style="margin-top: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                <h3><i class="ph ph-seal-check"></i> Nossas Licenças e Destinadores</h3>
+                                <div style="display:flex; gap: 10px;">
+                                    <button class="btn btn-outline" onclick="window.baixarLicencasSelecionadasCred()"><i class="ph ph-download-simple"></i> Baixar Selecionadas</button>
+                                    <button class="btn btn-primary" style="background-color: #7048e8; border-color: #7048e8;" onclick="window.enviarEmailLicencasSelecionadasCred()"><i class="ph ph-envelope-simple"></i> Enviar por E-mail</button>
+                                </div>
+                            </div>
+                            <div id="licencas-cred-list" style="display:flex; flex-direction:column; gap:10px;">
+                                <p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>
+                            </div>
                         </div>
                     </div>
                 </section>

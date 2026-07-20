@@ -644,3 +644,157 @@ window.copiarDadosComercial = function(id) {
         alert('Dados do credenciamento copiados para a área de transferência!');
     }
 };
+
+// --- Lógica das Abas (Credenciamento / Licenças) ---
+window.switchComercialCredTab = function(tab) {
+    // Buttons
+    const btnDocs = document.getElementById('tab-btn-cred-docs');
+    const btnLics = document.getElementById('tab-btn-cred-licencas');
+    
+    if (btnDocs) btnDocs.classList.toggle('active', tab === 'docs');
+    if (btnLics) btnLics.classList.toggle('active', tab === 'licencas');
+    
+    if (tab === 'docs') {
+        if (btnDocs) {
+            btnDocs.style.fontWeight = 'bold';
+            btnDocs.style.color = '#7048e8';
+            btnDocs.style.borderBottom = '2px solid #7048e8';
+        }
+        if (btnLics) {
+            btnLics.style.fontWeight = 'normal';
+            btnLics.style.color = '#64748b';
+            btnLics.style.borderBottom = '2px solid transparent';
+        }
+        
+        document.getElementById('comercial-cred-tab-docs').style.display = 'block';
+        document.getElementById('comercial-cred-tab-licencas').style.display = 'none';
+    } else {
+        if (btnLics) {
+            btnLics.style.fontWeight = 'bold';
+            btnLics.style.color = '#7048e8';
+            btnLics.style.borderBottom = '2px solid #7048e8';
+        }
+        if (btnDocs) {
+            btnDocs.style.fontWeight = 'normal';
+            btnDocs.style.color = '#64748b';
+            btnDocs.style.borderBottom = '2px solid transparent';
+        }
+        
+        document.getElementById('comercial-cred-tab-docs').style.display = 'none';
+        document.getElementById('comercial-cred-tab-licencas').style.display = 'block';
+        
+        window.carregarLicencasCred();
+    }
+};
+
+window.carregarLicencasCred = async function() {
+    const container = document.getElementById('licencas-cred-list');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>';
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const todas = Array.isArray(data) ? data : [];
+
+        // Agrupar por empresa
+        const grupos = {};
+        todas.forEach(l => {
+            let emp = (l.empresa || 'Outras').trim();
+            if (!grupos[emp]) grupos[emp] = [];
+            grupos[emp].push(l);
+        });
+
+        if (todas.length === 0) {
+            container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Nenhuma licença encontrada.</p>';
+            return;
+        }
+
+        let html = '';
+        for (const [emp, lics] of Object.entries(grupos)) {
+            html += `<div style="margin-bottom: 10px;">
+                        <h4 style="margin-bottom: 5px; color: #334155;">${emp}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px;">`;
+            lics.forEach(l => {
+                html += `
+                    <label style="display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; background:#f8fafc;">
+                        <input type="checkbox" class="chk-licenca-cred" value="${l.id}">
+                        <span style="font-size:13px; font-weight:500;">${l.nome}</span>
+                        ${l.validade ? `<span style="font-size:11px; color:#64748b; margin-left:auto;">Val: ${l.validade.split('-').reverse().join('/')}</span>` : ''}
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<p style="color:#dc2626; font-size:13px;">Erro ao carregar licenças.</p>';
+    }
+};
+
+window.baixarLicencasSelecionadasCred = async function() {
+    const selecionados = Array.from(document.querySelectorAll('.chk-licenca-cred:checked')).map(cb => cb.value);
+    if (selecionados.length === 0) {
+        alert('Selecione pelo menos uma licença para baixar.');
+        return;
+    }
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/baixar-lote', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selecionados })
+        });
+        
+        if (!res.ok) throw new Error('Erro ao baixar lote');
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'licencas_selecionadas.zip';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao baixar licenças.');
+    }
+};
+
+window.enviarEmailLicencasSelecionadasCred = async function() {
+    const selecionados = Array.from(document.querySelectorAll('.chk-licenca-cred:checked')).map(cb => cb.value);
+    if (selecionados.length === 0) {
+        alert('Selecione pelo menos uma licença para enviar.');
+        return;
+    }
+    
+    const email = prompt('Digite o e-mail de destino:');
+    if (!email) return;
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/enviar-email-lote', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selecionados, email: email })
+        });
+        
+        if (!res.ok) throw new Error('Erro ao enviar e-mail');
+        
+        alert('E-mail enviado com sucesso!');
+        document.querySelectorAll('.chk-licenca-cred:checked').forEach(cb => cb.checked = false);
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao enviar e-mail.');
+    }
+};

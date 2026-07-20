@@ -374,7 +374,7 @@ window.logSinAbrirModalNovo = function() {
                                 <!-- Observações -->
                                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;flex:1;">
                                     <p style="margin:0 0 8px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-note-pencil" style="color:#6366f1;"></i> Observações</p>
-                                    <textarea id="log-sin-observacoes" class="form-control" rows="8" placeholder="Descreva os detalhes do sinistro, informações adicionais, notas importantes..." style="resize:vertical; min-height:180px;"></textarea>
+                                    <textarea id="log-sin-observacoes" class="form-control" rows="8" placeholder="Descreva os detalhes do sinistro, informações adicionais, notas importantes..." style="width:100%; box-sizing:border-box; resize:vertical; min-height:180px;"></textarea>
                                 </div>
 
                                 <!-- Aviso RH -->
