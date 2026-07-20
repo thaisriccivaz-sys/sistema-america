@@ -113,8 +113,7 @@ window.renderAvaliacaoTab = async function(container) {
                 }
                 let totalQ = 0, ansQ = 0;
                 categories.forEach(cat => {
-                    totalQ += questions[cat].length;
-                    if (res[cat]) Object.values(res[cat]).forEach(v => { if (v) ansQ++; });
+                    questions[cat].forEach((q, i) => { if (q && q.trim()) { totalQ++; if (res[cat] && res[cat][i]) ansQ++; } });
                 });
                 perc = totalQ > 0 ? Math.round((ansQ/totalQ)*100) : 0;
             }
