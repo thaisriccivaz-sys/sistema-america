@@ -10289,6 +10289,15 @@ function _renderPrecificacaoBaseLayout() {
     `;
 
     _renderActivePrecSubTab();
+
+    // Rolagem imediata e precisa para fixar o header (prop-toolbar-precificacao)
+    setTimeout(() => {
+        const toolbar = document.getElementById('prop-toolbar-precificacao');
+        if (toolbar) {
+            const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: targetY });
+        }
+    }, 50);
 }
 
 window._switchPrecSubTab = function(tab) {
@@ -13473,6 +13482,15 @@ function _renderModelosContratoBaseLayout() {
     if (window._activeModel) {
         window.selecionarModeloContrato(window._activeModel.id);
     }
+
+    // Rolagem imediata e precisa para fixar o header (prop-toolbar-modelos)
+    setTimeout(() => {
+        const toolbar = document.getElementById('prop-toolbar-modelos');
+        if (toolbar) {
+            const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: targetY });
+        }
+    }, 50);
 }
 
 window.switchModelosSubtab = function(subtab) {
