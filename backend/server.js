@@ -9759,8 +9759,10 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
 
             db.all(
                 `SELECT c.id, c.nome_completo, c.departamento, c.cargo,
-                        c.foto_path, c.foto_base64, c.data_admissao, c.status
+                        c.foto_path, c.foto_base64, c.data_admissao, c.status,
+                        (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
                  FROM colaboradores c
+                 LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                  WHERE c.status != 'Desligado'
                  ORDER BY c.nome_completo ASC`,
                 [],

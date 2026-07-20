@@ -432,7 +432,10 @@
                     </div>
                 </div>
             </td>
-            <td style="color:#64748b;font-size:.82rem;">${c.departamento || '—'}</td>
+            <td style="color:#64748b;font-size:.82rem;">
+                <div style="font-weight:bold;color:#334155;">${c.departamento || '—'}</div>
+                ${c.responsavel_nome ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:2px;">${c.responsavel_nome}</div>` : ''}
+            </td>
             ${periodos.map(p => {
                 const key = `${p.ano}-T${p.trimestre}`;
                 const ps = c.pesquisas?.[key];
