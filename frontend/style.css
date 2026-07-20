@@ -1406,3 +1406,105 @@ body {
 .licenca-btn-del:hover { background: #fee2e2; }
 .licenca-btn-upload { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
 .licenca-btn-upload:hover { background: #dcfce7; }
+
+/* Days of the week as colored buttons (labels) */
+.day-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+    box-sizing: border-box;
+    background: #fff;
+    border-width: 1.5px;
+    border-style: solid;
+}
+
+.day-btn input[type="checkbox"] {
+    display: none;
+}
+
+/* Day individual colors - Unselected & Selected states */
+.day-btn-seg {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+.day-btn-seg:has(input:checked) {
+    background: #ef4444;
+    color: #fff;
+}
+
+.day-btn-ter {
+    border-color: #f97316;
+    color: #f97316;
+}
+.day-btn-ter:has(input:checked) {
+    background: #f97316;
+    color: #fff;
+}
+
+.day-btn-qua {
+    border-color: #d97706;
+    color: #d97706;
+}
+.day-btn-qua:has(input:checked) {
+    background: #d97706;
+    color: #fff;
+}
+
+.day-btn-qui {
+    border-color: #16a34a;
+    color: #16a34a;
+}
+.day-btn-qui:has(input:checked) {
+    background: #16a34a;
+    color: #fff;
+}
+
+.day-btn-sex {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+.day-btn-sex:has(input:checked) {
+    background: #2563eb;
+    color: #fff;
+}
+
+.day-btn-sab {
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
+.day-btn-sab:has(input:checked) {
+    background: #7c3aed;
+    color: #fff;
+}
+
+.day-btn-dom {
+    border-color: #db2777;
+    color: #db2777;
+}
+.day-btn-dom:has(input:checked) {
+    background: #db2777;
+    color: #fff;
+}
+
+/* Orange container badge for calendar icon */
+.calendar-badge {
+    background: #fbbf24; /* yellow/orange */
+    color: #fff;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    margin-right: 4px;
+}
+

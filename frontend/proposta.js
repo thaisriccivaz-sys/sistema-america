@@ -1945,20 +1945,22 @@ function _renderFormPropostaInt() {
 
                             <!-- Manutenção e Dias -->
                             <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                                <i class="ph ph-wrench" style="color:#7048e8; font-size:0.9rem;"></i>
+                                <span class="calendar-badge" style="background:#f59e0b; color:#fff; border-radius:6px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; font-size:1rem; margin-right:4px;">
+                                    <i class="ph ph-calendar-check"></i>
+                                </span>
                                 <select id="prop-qtd-manutencoes" onchange="window.classificarRegiaoEDias()" style="border:1px solid #cbd5e1; border-radius:4px; padding:2px; font-size:0.72rem; color:#475569; font-weight:700; background:#fff; cursor:pointer; font-family:'Inter',sans-serif; outline:none; margin-right:4px;">
                                     <option value="1">1 Manut./Semana</option>
                                     <option value="2">2 Manut./Semana</option>
                                     <option value="3">3 Manut./Semana</option>
                                 </select>
-                                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-size:0.75rem; color:#475569; font-weight:600; font-family:'Inter',sans-serif;">
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-seg" value="Segunda" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Seg</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-ter" value="Terça" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Ter</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qua" value="Quarta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qua</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-qui" value="Quinta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Qui</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sex" value="Sexta" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sex</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-sab" value="Sábado" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Sáb</label>
-                                    <label style="display:inline-flex; align-items:center; gap:2px; cursor:pointer;"><input type="checkbox" id="chk-dia-dom" value="Domingo" style="cursor:pointer;" onchange="window.atualizarDiasManutencaoObs()"> Dom</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; font-family:'Inter',sans-serif;">
+                                    <label class="day-btn day-btn-seg"><input type="checkbox" id="chk-dia-seg" value="Segunda" onchange="window.atualizarDiasManutencaoObs()">Seg</label>
+                                    <label class="day-btn day-btn-ter"><input type="checkbox" id="chk-dia-ter" value="Terça" onchange="window.atualizarDiasManutencaoObs()">Ter</label>
+                                    <label class="day-btn day-btn-qua"><input type="checkbox" id="chk-dia-qua" value="Quarta" onchange="window.atualizarDiasManutencaoObs()">Qua</label>
+                                    <label class="day-btn day-btn-qui"><input type="checkbox" id="chk-dia-qui" value="Quinta" onchange="window.atualizarDiasManutencaoObs()">Qui</label>
+                                    <label class="day-btn day-btn-sex"><input type="checkbox" id="chk-dia-sex" value="Sexta" onchange="window.atualizarDiasManutencaoObs()">Sex</label>
+                                    <label class="day-btn day-btn-sab"><input type="checkbox" id="chk-dia-sab" value="Sábado" onchange="window.atualizarDiasManutencaoObs()">Sáb</label>
+                                    <label class="day-btn day-btn-dom"><input type="checkbox" id="chk-dia-dom" value="Domingo" onchange="window.atualizarDiasManutencaoObs()">Dom</label>
                                 </div>
                             </div>
                         </div>
