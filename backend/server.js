@@ -20738,7 +20738,7 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   criado_por  TEXT DEFAULT ''
 )`);
 
-db.run("ALTER TABLE treinamentos ADD COLUMN data_treinamento TEXT DEFAULT ''", (err) => { if (err && !err.message.includes("duplicate column name")) console.error(err); });
+db.run("ALTER TABLE treinamentos ADD COLUMN data_treinamento TEXT DEFAULT ''", (err) => { if (err && !err.message.includes("duplicate column name", (err) => {})) console.error(err); });
 db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("Migração (treinamentos.tipo):", err.message);
@@ -21388,7 +21388,7 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
             db.run(`INSERT OR REPLACE INTO treinamento_presenca_v2 (id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
                     SELECT id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome FROM treinamento_presenca`);
             db.run(`DROP TABLE treinamento_presenca`);
-            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`);
+            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`, (err) => {});
             db.run('COMMIT', (err) => {
                 if (err) console.error('[PRESENÇA] Erro na migração de constraint:', err.message);
                 else console.log('[PRESENÇA] Migração de constraint concluída com sucesso!');
@@ -21888,8 +21888,8 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
 
 
 // ?????? Migration: Add pesquisa columns to assinaturas_auditoria ??????????????????????????????????????????
-try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`); } catch(_) {}
-try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`); } catch(_) {}
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`, (err) => {}); } catch(_) {}
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`, (err) => {}); } catch(_) {}
 
 
 // ?????? Job: Migração Ass??ncrona de Imagens Base64 para Cloudflare R2 ?????????????????????????????????
@@ -22371,9 +22371,9 @@ db.serialize(() => {
     )`);
 
     // Migration: colunas para passos custom (templates por departamento)
-    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN titulo TEXT`);
-    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN descricao_custom TEXT`);
-    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN is_custom INTEGER DEFAULT 0`);
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN titulo TEXT`, (err) => {});
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN descricao_custom TEXT`, (err) => {});
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN is_custom INTEGER DEFAULT 0`, (err) => {});
 
     // Novas tabelas: Templates por Departamento
     db.run(`CREATE TABLE IF NOT EXISTS integracao_templates (
@@ -23468,7 +23468,7 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
                     }
 
                     const BASE_UPLOAD_PATH = process.env.BASE_UPLOAD_PATH || path.join(__dirname, '..', 'uploads');
-                    const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\/g, '/');
+                    const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\\\/g, '/');
 
                     const dataIso = novaValidade; // assumindo formato YYYY-MM-DD
                     
@@ -25721,18 +25721,18 @@ db.all("PRAGMA table_info(computadores)", (err, rows) => {
     if (!err && rows && rows.length > 0) {
         const hasLivre = rows.some(r => r.name === 'colaborador_livre');
         if (!hasLivre) {
-            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT", (err) => {});
         }
         const hasRam = rows.some(r => r.name === 'ram_1');
         if (!hasRam) {
-            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0");
+            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0", (err) => {});
         }
         const hasEmail = rows.some(r => r.name === 'email_vinculado');
         if (!hasEmail) {
-            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT", (err) => {});
         }
     }
 });
