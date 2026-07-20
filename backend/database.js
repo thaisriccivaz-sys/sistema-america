@@ -592,6 +592,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 )
             `);
+            // Tabela de Tokens para Upload Externo de CND
+            db.run(`
+                CREATE TABLE IF NOT EXISTS cnd_upload_tokens (
+                    token TEXT PRIMARY KEY,
+                    cnd_nome TEXT NOT NULL,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
 
             // Tabelas de Notificações de Diretoria e Logística
             db.run(`
