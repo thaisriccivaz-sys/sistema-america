@@ -23490,6 +23490,60 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
     });
 });
 
+
+// ============================================================================
+// API PUBLICA DE TESTE - CNDs (REMOVER DEPOIS)
+// ============================================================================
+app.get('/api/public/test-cnd-email', async (req, res) => {
+    try {
+        console.log('[TEST] Forçando envio de e-mails CND...');
+        const cndNomes = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista'];
+        const placeholders = cndNomes.map(()=>'?').join(',');
+        
+        // Pega as vencidas
+        db.all(`SELECT * FROM licencas WHERE nome IN (${placeholders}) AND validade <= date('now')`, cndNomes, async (errCnd, cndsVencidas) => {
+            if (errCnd) return res.status(500).json({ error: errCnd.message });
+            
+            if (cndsVencidas.length > 0) {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_cnds'", [], async (errN, rowsN) => {
+                    if (errN || !rowsN || rowsN.length === 0) return res.json({ msg: 'Ninguém configurado para receber' });
+                    
+                    const requireCrypto = require('crypto');
+                    const urlFrontend = process.env.URL_FRONTEND || 'https://sistema.americarental.com.br';
+
+                    for (const cnd of cndsVencidas) {
+                        const token = requireCrypto.randomBytes(24).toString('hex');
+                        
+                        await new Promise(r => db.run('DELETE FROM cnd_upload_tokens WHERE cnd_nome = ?', [cnd.nome], r));
+                        await new Promise(r => db.run('INSERT INTO cnd_upload_tokens (token, cnd_nome) VALUES (?, ?)', [token, cnd.nome], r));
+
+                        const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
+                        
+                        const htmlMail = `
+                            <p><strong>[TESTE MANUAL]</strong> A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade}).</p>
+                            <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
+                            <div style="text-align:center; margin: 30px 0;">
+                                <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>
+                            </div>
+                            <p style="font-size:12px; color:#94a3b8;">*Este link expira assim que o envio for concluído com sucesso.</p>
+                        `;
+
+                        sendEmailParaNotificados('atualizacao_cnds', {
+                            subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
+                            html: htmlMail
+                        });
+                    }
+                    res.json({ success: true, message: 'E-mails de teste enviados para as CNDs vencidas!' });
+                });
+            } else {
+                res.json({ success: false, message: 'Não há CNDs vencidas no sistema no momento. Altere a validade de alguma CND para hoje ou antes e tente novamente.' });
+            }
+        });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
