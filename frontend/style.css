@@ -1409,15 +1409,14 @@ body {
 
 /* Days of the week as colored buttons (labels) */
 .day-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
     height: 28px;
     min-width: 44px;
     padding: 0;
     margin: 0;
-    line-height: 1;
+    line-height: 25px; /* Centra o texto verticalmente para altura de 28px e borda 1.5px */
     text-align: center;
+    vertical-align: middle;
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 700;
