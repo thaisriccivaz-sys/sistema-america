@@ -879,11 +879,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
                 
-                // Migration para aplicar os departamentos corretos aos grupos existentes
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Administrativo","Comercial","Financeiro","Logística","RH","Supervisão"]' WHERE grupo = 'Escritório'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Manutenção"]' WHERE grupo = 'Manutenção'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Limpeza"]' WHERE grupo = 'Limpeza'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Ajudante Geral","Ajudante Pátio","Motorista","Liderança"]' WHERE grupo IN ('Ajudante, Liderança e Motorista', 'Ajudante Geral e Liderança', 'Ajudante Pátio e Liderança')`);
                 // Cria tabela de templates excluídos para não recriar templates que foram apagados
                 db.run('CREATE TABLE IF NOT EXISTS epi_templates_excluidos (grupo TEXT PRIMARY KEY)', () => {
                     // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes e ignora excluídos)
