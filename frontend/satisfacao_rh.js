@@ -359,8 +359,8 @@
     function grupoFromDeptCargo(dept, cargo) {
         const d = (dept || '').toLowerCase();
         const c = (cargo || '').toLowerCase();
-        if (c.includes('motorista') || d.includes('motorista') || d.includes('logística') || d.includes('logistica')) return 'motorista';
-        if (d.includes('manutencao') || d.includes('manutenção')) return 'manutencao';
+        if (c.includes('motorista') || d.includes('motorista') || c.includes('ajudante') || d.includes('ajudante')) return 'motorista';
+        if (d.includes('manutencao') || d.includes('manutenção') || c.includes('manutencao') || c.includes('manutenção')) return 'manutencao';
         return 'escritorio';
     }
 
