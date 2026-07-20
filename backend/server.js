@@ -14922,7 +14922,7 @@ cron.schedule('0 8 * * *', () => {
                         if (errN || !rowsN || rowsN.length === 0) return;
                         
                         const requireCrypto = require('crypto');
-                        const urlFrontend = process.env.URL_FRONTEND || 'https://sistema.americarental.com.br';
+                        const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
 
                         for (const cnd of cndsVencidas) {
                             const token = requireCrypto.randomBytes(24).toString('hex');
@@ -23509,7 +23509,7 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
                     if (errN || !rowsN || rowsN.length === 0) return res.json({ msg: 'Ninguém configurado para receber' });
                     
                     const requireCrypto = require('crypto');
-                    const urlFrontend = process.env.URL_FRONTEND || 'https://sistema.americarental.com.br';
+                    const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
 
                     for (const cnd of cndsVencidas) {
                         const token = requireCrypto.randomBytes(24).toString('hex');
