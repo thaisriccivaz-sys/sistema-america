@@ -14933,7 +14933,7 @@ cron.schedule('0 8 * * *', () => {
                             const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
                             
                             const htmlMail = `
-                                <p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade}).</p>
+                                <p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
                                 <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
                                 <div style="text-align:center; margin: 30px 0;">
                                     <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>
@@ -23520,7 +23520,7 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
                         const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
                         
                         const htmlMail = `
-                            <p><strong>[TESTE MANUAL]</strong> A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade}).</p>
+                            <p><strong>[TESTE MANUAL]</strong> A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
                             <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
                             <div style="text-align:center; margin: 30px 0;">
                                 <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>
