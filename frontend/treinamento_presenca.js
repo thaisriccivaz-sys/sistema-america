@@ -178,7 +178,7 @@ let _filtroStatus = 'Ativos';
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
-                const valStr = t.validade_dias > 0 ? `<br>Válido por ${t.validade_dias} meses` : '';
+                const valStr = '';
                 const respStr = t.respondido_em ? `<br>Respondido: ${fmtData(t.respondido_em)}` : '';
                 const encodedId = `${c.id},${t.id}`;
                 
