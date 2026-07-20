@@ -14932,14 +14932,16 @@ cron.schedule('0 8 * * *', () => {
 
                             const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
                             
-                            const htmlMail = `
-                                <p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
-                                <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
-                                <div style="text-align:center; margin: 30px 0;">
-                                    <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>
-                                </div>
-                                <p style="font-size:12px; color:#94a3b8;">*Este link expira assim que o envio for concluído com sucesso.</p>
-                            `;
+                            const htmlMail = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+<div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
+<div style="padding:1.5rem 2rem;">
+<h2 style="color:#0e7490;margin-top:0;text-align:center;">Atualização de Documento</h2>
+
+<p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
+<p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
+<div style="text-align:center; margin: 30px 0;"><a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a></div>
+<p style="font-size:12px; color:#94a3b8; text-align:center;">*Este link expira assim que o envio for concluído com sucesso.</p>
+</div><hr style="border:none;border-top:1px solid #eee;margin:0;"><div style="padding: 1rem 2rem; background: #f8fafc;"><p style="color:#999;font-size:11px; text-align:center; margin:0;">Este é um e-mail automático, por favor não responda.</p></div></div>`;
 
                             sendEmailParaNotificados('atualizacao_cnds', {
                                 subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
@@ -23473,7 +23475,7 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
                     const dataIso = novaValidade; // assumindo formato YYYY-MM-DD
                     
                     // Update
-                    const sql = "UPDATE licencas SET file_name = ?, file_path = ?, file_data = NULL, validade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+                    const sql = "UPDATE licencas SET file_name = ?, file_path = ?, validade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
                     db.run(sql, [fileName, relPath, dataIso, licRow.id], function(errUpd) {
                         if (errUpd) return res.status(500).json({ error: errUpd.message });
                         db.run('DELETE FROM cnd_upload_tokens WHERE token = ?', [token]); // apaga token
@@ -23519,14 +23521,7 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
 
                         const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
                         
-                        const htmlMail = `
-                            <p><strong>[TESTE MANUAL]</strong> A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
-                            <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
-                            <div style="text-align:center; margin: 30px 0;">
-                                <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>
-                            </div>
-                            <p style="font-size:12px; color:#94a3b8;">*Este link expira assim que o envio for concluído com sucesso.</p>
-                        `;
+                        const htmlMail = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n                                <div style="background:#fff;padding:0;">\n                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;">\n                                </div>\n                                <div style="padding:1.5rem 2rem;">\n                                    <h2 style="color:#0e7490;margin-top:0;text-align:center;">Atualização de Documento</h2>\n                                    <p style="color: #d9480f; font-weight: bold;">[TESTE MANUAL]</p>\n                                    <p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>\n                                    <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>\n                                    <div style="text-align:center; margin: 30px 0;">\n                                        <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>\n                                    </div>\n                                    <p style="font-size:12px; color:#94a3b8; text-align:center;">*Este link expira assim que o envio for concluído com sucesso.</p>\n                                </div>\n                                <hr style="border:none;border-top:1px solid #eee;margin:0;">\n                                <div style="padding: 1rem 2rem; background: #f8fafc;">\n                                    <p style="color:#999;font-size:11px; text-align:center; margin:0;">Este é um e-mail automático, por favor não responda.</p>\n                                </div>\n                            </div>`;
 
                         sendEmailParaNotificados('atualizacao_cnds', {
                             subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
