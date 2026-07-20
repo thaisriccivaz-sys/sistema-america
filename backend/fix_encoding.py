@@ -1,30 +1,34 @@
 # -*- coding: utf-8 -*-
-import re
 
 js_file = r'C:\A\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\Documentos - America Rental\Diretoria\Teste Sistema\cadastro-colaboradores\backend\server.js'
+
 with open(js_file, 'r', encoding='utf-8', errors='ignore') as f:
-    js = f.read()
+    content = f.read()
 
 replacements = {
-    'F??rias': 'Férias',
-    'Distribui????o': 'Distribuição',
-    'Log??stica': 'Logística',
-    'per??odo': 'período',
-    'per??odos': 'períodos',
-    '1?? e 2??': '1º e 2º',
-    'autom??tica': 'automática',
-    'L??gica': 'Lógica',
-    't??rmino': 'término',
-    'ap??s': 'após',
-    'aplic??veis': 'aplicáveis',
-    'cont??m': 'contém',
-    'conclus??o': 'conclusão',
-    'lan??adas': 'lançadas',
+    'autom??tico': 'automático',
+    'Satisfa????o': 'Satisfação',
+    'participa????o': 'participação',
+    'Atualiza????o': 'Atualização',
+    'confirma????o': 'confirmação',
+    'edi????o': 'edição',
+    'suspens??o': 'suspensão',
+    'advert??ncia': 'advertência',
+    'Rodap??': 'Rodapé',
+    'est?? ': 'está ',
+    'est??o': 'estão',
+    'v??lido': 'válido',
+    'Este à um': 'Este é um',
+    'nàs!': 'nós!',
+    'a????o': 'ação'
 }
 
-for old, new in replacements.items():
-    js = js.replace(old, new)
+for bad, good in replacements.items():
+    content = content.replace(bad, good)
+    # also handle capitalized/lowercase variations if any
+    content = content.replace(bad.lower(), good.lower())
 
 with open(js_file, 'w', encoding='utf-8') as f:
-    f.write(js)
-print("Fixed encoding corruptions in server.js")
+    f.write(content)
+
+print("Fixed encoding errors in server.js")
