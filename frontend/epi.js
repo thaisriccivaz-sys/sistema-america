@@ -136,7 +136,7 @@ window._criarFichaEpi = async function(colabId, templateId) {
     const t = epiTemplates.find(x => x.id === templateId);
     if (!t) { showToast && showToast('Template não encontrado.', 'error'); return; }
     try {
-        const res = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, {
+        const res = await fetch(`/api/colaboradores/${colabId}/epi-fichas?_t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
             body: JSON.stringify({
@@ -161,13 +161,13 @@ window._criarFichaEpi = async function(colabId, templateId) {
 window._verFichaEpiPDF = async function(fichaId, colabId) {
     const token = window.currentToken || localStorage.getItem('erp_token') || '';
     try {
-        const res = await fetch(`/api/epi-fichas/${fichaId}/entregas`, { headers: { Authorization: 'Bearer ' + token } });
+        const res = await fetch(`/api/epi-fichas/${fichaId}/entregas?_t=${Date.now()}`, { headers: { Authorization: 'Bearer ' + token } });
         const entregas = res.ok ? await res.json() : [];
         // Busca dados do colaborador
         const colabRes = await fetch(`/api/colaboradores/${colabId}`, { headers: { Authorization: 'Bearer ' + token } });
         const colab = colabRes.ok ? await colabRes.json() : window.viewedColaborador;
         // Busca dados da ficha
-        const fichasRes = await fetch(`/api/colaboradores/${colabId}/epi-fichas`, { headers: { Authorization: 'Bearer ' + token } });
+        const fichasRes = await fetch(`/api/colaboradores/${colabId}/epi-fichas?_t=${Date.now()}`, { headers: { Authorization: 'Bearer ' + token } });
         const fichas = fichasRes.ok ? await fichasRes.json() : [];
         const ficha = fichas.find(f => f.id === fichaId);
         if (!ficha) { if (typeof showToast === 'function') showToast('Ficha não encontrada.', 'error'); return; }
@@ -204,7 +204,7 @@ window.restaurarAjudante = async function() {
 
 async function loadEpiTemplates() {
     try {
-        const res = await fetch(`${API_URL}/epi-templates`, {
+        const res = await fetch(`${API_URL}/epi-templates?_t=${Date.now()}`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         epiTemplates = await res.json();
@@ -217,7 +217,7 @@ async function loadEpiTemplates() {
 
 async function loadDeptList() {
     try {
-        const res = await fetch(`${API_URL}/departamentos`, {
+        const res = await fetch(`${API_URL}/departamentos?_t=${Date.now()}`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         const depts = await res.json();
