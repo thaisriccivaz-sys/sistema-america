@@ -26454,3 +26454,60 @@ app.delete('/api/administrativo/protocolos/:id/anexos/:fileIndex', authenticateT
         }
     });
 });
+
+app.post('/api/licencas/baixar-lote', authenticateToken, (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido' });
+    
+    const placeholders = ids.map(() => '?').join(',');
+    db.all(`SELECT * FROM licencas WHERE id IN (${placeholders})`, ids, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!rows || rows.length === 0) return res.status(404).json({ error: 'Nenhuma licença encontrada' });
+        
+        try {
+            const AdmZip = require('adm-zip');
+            const zip = new AdmZip();
+            let addedCount = 0;
+            
+            rows.forEach(row => {
+                let absPath = '';
+                if (row.file_path) {
+                    absPath = path.resolve(__dirname, '..', '..', row.file_path);
+                    if (!fs.existsSync(absPath) && typeof BASE_UPLOAD_PATH !== 'undefined') {
+                        absPath = path.join(BASE_UPLOAD_PATH, row.file_path);
+                    }
+                }
+                
+                if (!absPath || !fs.existsSync(absPath)) {
+                    if (typeof LICENCAS_UPLOAD_PATH !== 'undefined') {
+                        const empresaDir = path.join(LICENCAS_UPLOAD_PATH, (row.empresa || 'GERAL').toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                        const finalPath = path.join(empresaDir, row.file_name || '');
+                        if (fs.existsSync(finalPath)) absPath = finalPath;
+                    }
+                }
+                
+                if (absPath && fs.existsSync(absPath)) {
+                    let ext = path.extname(absPath);
+                    if (!ext && row.file_name) ext = path.extname(row.file_name);
+                    if (!ext) ext = '.pdf';
+                    
+                    const safeEmp = (row.empresa || 'GERAL').replace(/[^a-zA-Z0-9]/g, '_');
+                    const safeName = (row.nome || 'Licenca').replace(/[^a-zA-Z0-9]/g, '_');
+                    const zipName = `${safeEmp}-${safeName}${ext}`;
+                    zip.addLocalFile(absPath, "", zipName);
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount === 0) return res.status(404).json({ error: 'Nenhum arquivo físico encontrado para as licenças selecionadas' });
+            
+            const zipBuffer = zip.toBuffer();
+            res.set('Content-Type', 'application/zip');
+            res.set('Content-Disposition', 'attachment; filename="licencas_selecionadas.zip"');
+            res.send(zipBuffer);
+        } catch(e) {
+            console.error('Erro ao gerar ZIP:', e);
+            res.status(500).json({ error: 'Erro ao gerar ZIP' });
+        }
+    });
+});
