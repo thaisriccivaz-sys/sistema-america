@@ -458,101 +458,90 @@
             </td>
         </tr>
         <tr class="sat-history-row" style="display:none;background:#f8fafc;">
-            <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
-                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
-                    <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Respostas (Notas)</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${periodos.map(p => {
-                                const key = `${p.ano}-T${p.trimestre}`;
-                                const ps = c.pesquisas?.[key];
-                                if (!ps || !ps.respondido) return '';
-                                
-                                let respostasObj = ps.respostas;
-                                if (typeof respostasObj === 'string') {
-                                    try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
-                                }
-                                
-                                let catAverages = [];
-                                if (respostasObj && typeof respostasObj === 'object') {
-                                    const grupo = window.matchTemplateGroup('desempenho', c.departamento, c.cargo);
-                                    const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
-                                    
-                                    const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
-                                    
-                                    if (hasArrays) {
-                                        Object.entries(respostasObj).forEach(([cat, notas]) => {
-                                            if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                            if (Array.isArray(notas)) {
-                                                const questions = perguntasGroup ? perguntasGroup[cat] : null;
-                                                
-                                                let qHtml = '';
-                                                notas.forEach((n, idx) => {
-                                                    let qText = (questions && questions[idx]) ? questions[idx] : `Pergunta ${idx+1}`;
-                                                    if (qText.length > 60) qText = qText.substring(0, 60) + '...';
-                                                    const nText = (n !== null && n !== undefined) ? n : '-';
-                                                    qHtml += `<li style="margin-bottom:3px;line-height:1.2;">${qText}: <strong style="color:#0ea5e9;">${nText}</strong></li>`;
-                                                });
-                                                
-                                                catAverages.push(`<div style="margin-bottom:8px;">
-                                                    <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
-                                                    <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
-                                                        ${qHtml}
-                                                    </ul>
-                                                </div>`);
-                                            }
+            <td colspan="100%" style="padding:0.75rem 1.5rem 1rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem 1.25rem;">
+                    <div style="font-weight:700;font-size:0.85rem;color:#334155;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem;">
+                        <i class="ph ph-chart-line-up" style="color:#7c3aed;"></i> Histórico de Respostas por Período
+                    </div>
+                    ${(() => {
+                        const grupo = window.matchTemplateGroup('desempenho', c.departamento, c.cargo);
+                        const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
+
+                        const blocos = periodos.map(p => {
+                            const key = `${p.ano}-T${p.trimestre}`;
+                            const ps = c.pesquisas?.[key];
+                            if (!ps || !ps.respondido) return '';
+
+                            let respostasObj = ps.respostas;
+                            if (typeof respostasObj === 'string') {
+                                try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
+                            }
+
+                            let corpoHtml = '';
+
+                            if (respostasObj && typeof respostasObj === 'object') {
+                                const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
+
+                                if (hasArrays) {
+                                    Object.entries(respostasObj).forEach(([cat, notas]) => {
+                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                        if (!Array.isArray(notas)) return;
+                                        const questions = perguntasGroup ? perguntasGroup[cat] : null;
+                                        let rowsHtml = '';
+                                        notas.forEach((n, idx) => {
+                                            const qText = (questions && questions[idx]) ? questions[idx] : 'Pergunta ' + (idx + 1);
+                                            const nVal = (n !== null && n !== undefined) ? n : '—';
+                                            const nColor = typeof n === 'number' ? scoreColor(n) : '#475569';
+                                            const nBg   = typeof n === 'number' ? scoreBg(n)   : 'transparent';
+                                            rowsHtml += `
+                                            <div style="display:flex;align-items:flex-start;gap:0.6rem;padding:5px 0;border-bottom:1px solid #f1f5f9;">
+                                                <span style="flex:1;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</span>
+                                                <span style="flex-shrink:0;min-width:32px;text-align:center;font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;background:${nBg};color:${nColor};">${nVal}</span>
+                                            </div>`;
                                         });
-                                    } else if (respostasObj.scores) {
-                                        Object.entries(respostasObj.scores).forEach(([cat, media]) => {
-                                            if (media !== null && media !== undefined) {
-                                                const m = parseFloat(media);
-                                                if (!isNaN(m)) {
-                                                    catAverages.push(`<div style="margin-bottom:8px;">
-                                                        <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
-                                                        <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
-                                                            <li style="margin-bottom:3px;line-height:1.2;"><i style="color:#94a3b8;">Formulário antigo (notas detalhadas não salvas)</i> — Média: <strong style="color:#0ea5e9;">${m.toFixed(1)}</strong></li>
-                                                        </ul>
-                                                    </div>`);
-                                                }
-                                            }
-                                        });
-                                    }
+                                        corpoHtml += `
+                                        <div style="margin-bottom:10px;">
+                                            <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
+                                            ${rowsHtml}
+                                        </div>`;
+                                    });
+                                } else if (respostasObj.scores) {
+                                    Object.entries(respostasObj.scores).forEach(([cat, media]) => {
+                                        if (media === null || media === undefined) return;
+                                        const m = parseFloat(media);
+                                        if (isNaN(m)) return;
+                                        corpoHtml += `
+                                        <div style="margin-bottom:10px;">
+                                            <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
+                                            <div style="display:flex;align-items:center;gap:0.6rem;padding:5px 0;border-bottom:1px solid #f1f5f9;">
+                                                <span style="flex:1;font-size:0.78rem;color:#94a3b8;font-style:italic;">Formulário antigo — notas detalhadas não salvas</span>
+                                                <span style="flex-shrink:0;min-width:32px;text-align:center;font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;background:${scoreBg(m)};color:${scoreColor(m)};">${m.toFixed(1)}</span>
+                                            </div>
+                                        </div>`;
+                                    });
                                 }
-                                
-                                return `<tr>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${periodLabel(p)}</td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
-                                    </td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        ${catAverages.join('') || '<span style="color:#94a3b8;font-style:italic;">Sem detalhes</span>'}
-                                    </td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <button
-                                            data-colab-id="${c.id}"
-                                            data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                                            data-respostas="${ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : ''}"
-                                            data-ano="${p.ano}"
-                                            data-trim="${p.trimestre}"
-                                            onclick="window.${'_desOpenFormBtn'}(this, true)"
-                                            style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
-                                            <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
-                                        </button>
-                                    </td>
-                                </tr>`;
-                            }).filter(x => x).join('') || '<tr><td colspan="4" style="text-align:center;padding:1rem;color:#94a3b8;font-style:italic;">Nenhum formulário preenchido nos períodos anteriores.</td></tr>'}
-                        </tbody>
-                    </table>
+                            }
+
+                            if (!corpoHtml) return '';
+
+                            return `
+                            <div style="margin-bottom:1rem;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                                <div style="background:#f8fafc;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;">
+                                    <span style="font-weight:700;font-size:0.8rem;color:#334155;">${periodLabel(p)}</span>
+                                    <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};font-size:0.78rem;font-weight:800;">
+                                        Média: ${fmtScore(ps.media)}
+                                    </span>
+                                </div>
+                                <div style="padding:10px 14px;">
+                                    ${corpoHtml}
+                                </div>
+                            </div>`;
+                        }).filter(x => x);
+
+                        return blocos.length > 0
+                            ? blocos.join('')
+                            : '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário preenchido nos períodos anteriores.</div>';
+                    })()}
                 </div>
             </td>
         </tr></tbody>`;
