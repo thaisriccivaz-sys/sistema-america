@@ -661,7 +661,7 @@ window.switchComercialCredTab = function(tab) {
             btnDocs.style.borderBottom = '2px solid #7048e8';
         }
         if (btnLics) {
-            btnLics.style.fontWeight = 'normal';
+            btnLics.style.fontWeight = 'bold';
             btnLics.style.color = '#64748b';
             btnLics.style.borderBottom = '2px solid transparent';
         }
@@ -675,7 +675,7 @@ window.switchComercialCredTab = function(tab) {
             btnLics.style.borderBottom = '2px solid #7048e8';
         }
         if (btnDocs) {
-            btnDocs.style.fontWeight = 'normal';
+            btnDocs.style.fontWeight = 'bold';
             btnDocs.style.color = '#64748b';
             btnDocs.style.borderBottom = '2px solid transparent';
         }
