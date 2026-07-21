@@ -156,10 +156,16 @@ async function loadColaboradoresCred() {
         const data = await res.json();
 
         // Mostrar todos os colaboradores não desligados
-        credenciamentoState.colaboradores = (data || []).filter(c => {
+        let colabsList = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s !== 'desligado';
+            const dep = (c.departamento || '').toLowerCase();
+            const depTipo = (c.departamento_tipo || '').toLowerCase();
+            const excludedDeps = ['comercial', 'processo', 'financeiro', 'rh', 'administrativo', 'diretoria'];
+            const isExcluded = excludedDeps.some(ex => dep.includes(ex) || depTipo.includes(ex));
+            return s !== 'desligado' && !isExcluded;
         });
+        colabsList.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
+        credenciamentoState.colaboradores = colabsList;
 
         renderListaColabsCred();
     } catch (e) {
@@ -1468,10 +1474,16 @@ window.solDocsProximo = async function() {
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         // Mostrar todos os colaboradores não desligados
-        _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
+        let _docsColabs = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s !== 'desligado';
+            const dep = (c.departamento || '').toLowerCase();
+            const depTipo = (c.departamento_tipo || '').toLowerCase();
+            const excludedDeps = ['comercial', 'processo', 'financeiro', 'rh', 'administrativo', 'diretoria'];
+            const isExcluded = excludedDeps.some(ex => dep.includes(ex) || depTipo.includes(ex));
+            return s !== 'desligado' && !isExcluded;
         });
+        _docsColabs.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
+        _solDocState.colaboradores = _docsColabs;
 
 
 
