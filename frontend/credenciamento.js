@@ -160,10 +160,11 @@ async function loadColaboradoresCred() {
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
             const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
             const dept = (c.departamento || '').toLowerCase().trim();
-            // Operacional (qualquer depto) + Logística + Supervisão
+            // Operacional (qualquer depto) + Logística + Supervisão + Liderança
             const isLogistica = dept.includes('logística') || dept.includes('logistica');
             const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
-            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
+            const isLideranca = dept.includes('liderança') || dept.includes('lideranca');
+            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao || isLideranca);
         });
 
 
