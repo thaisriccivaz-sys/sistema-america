@@ -532,19 +532,6 @@
             icon.style.transform = 'rotate(0deg)';
         }
     };
-
-    window._satToggleHistory = function(btn) {
-        const tbody = btn.closest('tbody');
-        const historyRow = tbody.querySelector('.sat-history-row');
-        const icon = btn.querySelector('i');
-        if (historyRow.style.display === 'none') {
-            historyRow.style.display = 'table-row';
-            icon.style.transform = 'rotate(90deg)';
-        } else {
-            historyRow.style.display = 'none';
-            icon.style.transform = 'rotate(0deg)';
-        }
-    };
 /* ── FILTER & SORT ──────────────────────────────────────── */
     function getFilteredColabs() {
         let colabs = (_colabs.colaboradores || []).slice();
@@ -602,7 +589,7 @@
         const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._satOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
     };
 
-    window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
+    window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}, isReadonly = false, ano = null, trim = null) {
         if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
             alert('Erro: Perguntas de satisfação não carregadas.');
             return;
@@ -709,7 +696,7 @@
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
                             <button type="button" onclick="window._satCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
-                            ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit"`} style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>
+                            ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>`}
                         </div>
                     </form>
                 </div>
@@ -730,8 +717,8 @@
         const submitBtn = document.getElementById('sat-btn-submit');
         
         // current quarter
-        const currentYear = new Date().getFullYear();
-        const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
+        const currentYear = refAno || new Date().getFullYear();
+        const currentQ = refTrim || Math.floor(new Date().getMonth() / 3) + 1;
         
         // build respostas_json — salva como arrays para compatibilidade com backend
         const respostas = { __obs__: {} };
