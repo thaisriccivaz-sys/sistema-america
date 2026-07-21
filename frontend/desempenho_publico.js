@@ -100,9 +100,9 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
             <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:600px;">
             <thead>
                 <tr>
-                    <th style="width: 50%; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Critério Avaliado</th>
-                    <th style="width: 25%; text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1 a 5)</th>
-                    <th style="width: 25%; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
+                    <th style="width: 40%; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Critério Avaliado</th>
+                    <th style="width: 220px; text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1 a 5)</th>
+                    <th style="width: auto; text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                 </tr>
             </thead>
             <tbody>
@@ -158,7 +158,7 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
     });
 
     // Observações Gerais
-    const obsGeraisVal = savedAnswers.__obs_gerais__ || '';
+    const obsGeraisVal = savedAnswers.__obs_gerais__ || (savedAnswers.__obs__ && savedAnswers.__obs__.info_adicional) || '';
     html += `
         <div class="category-title">Observações Gerais</div>
         <div style="margin-bottom: 2rem;">

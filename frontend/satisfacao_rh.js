@@ -576,7 +576,7 @@
                 const obsStr = (obsSaved[idx] ?? obsSaved[String(idx)]) || '';
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
-                    <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
+                    <div style="width:30%; min-width:250px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
                     <div style="flex:1; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                         <div style="display:flex; gap:0.35rem; flex-shrink:0;">
                 `;
@@ -612,7 +612,7 @@
             catIdx++;
         });
 
-        const infoAdic = (saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '';
+        const infoAdic = saved.__obs_gerais__ ? saved.__obs_gerais__ : ((saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '');
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
@@ -677,7 +677,7 @@
         }
         
         const infoAdicional = form.elements['info_adicional']?.value;
-        if (infoAdicional) respostas.__obs__.info_adicional = infoAdicional.trim();
+        if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
         
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
