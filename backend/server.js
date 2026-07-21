@@ -26428,3 +26428,29 @@ db.serialize(() => {
         });
     });
 });
+
+app.delete('/api/administrativo/protocolos/:id/anexos/:fileIndex', authenticateToken, (req, res) => {
+    const protocoloId = req.params.id;
+    const fileIndex = parseInt(req.params.fileIndex, 10);
+    
+    db.get("SELECT arquivos_json FROM administrativo_protocolos WHERE id = ?", [protocoloId], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let arquivos = [];
+        try { arquivos = JSON.parse(row.arquivos_json || '[]'); } catch(e) {}
+        
+        if (fileIndex >= 0 && fileIndex < arquivos.length) {
+            arquivos.splice(fileIndex, 1);
+            db.run(
+                "UPDATE administrativo_protocolos SET arquivos_json = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+                [JSON.stringify(arquivos), protocoloId],
+                (updateErr) => {
+                    if (updateErr) return res.status(500).json({ error: updateErr.message });
+                    res.json({ message: 'Arquivo excluído com sucesso', arquivos });
+                }
+            );
+        } else {
+            res.status(400).json({ error: 'Índice de arquivo inválido' });
+        }
+    });
+});
