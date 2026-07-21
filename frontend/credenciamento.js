@@ -164,7 +164,7 @@ async function loadColaboradoresCred() {
             const isLogistica = dept.includes('logística') || dept.includes('logistica');
             const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
             const isLideranca = dept.includes('liderança') || dept.includes('lideranca');
-            const isOperacional = dept.includes('operacional');
+            const isOperacional = dept.includes('operacional') || deptTipo === 'operacional';
             const isTransporte = dept.includes('transporte') || dept.includes('frota');
             return isActive && (isLogistica || isSupervisao || isLideranca || isOperacional || isTransporte);
         });
@@ -794,20 +794,20 @@ window.abrirModalCumprirSolicitacao = function(id) {
         veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
     };
     
-    const maxColabsText = window._credLimites.colabs === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.colabs})`;
-    const maxVeicsText = window._credLimites.veics === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.veics})`;
+    const maxColabsText = window._credLimites.colabs === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.colabs})</span>`;
+    const maxVeicsText = window._credLimites.veics === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.veics})</span>`;
     
     const spanColabs = document.getElementById('cred-limit-colabs-span');
-    if (spanColabs) spanColabs.textContent = maxColabsText;
+    if (spanColabs) spanColabs.innerHTML = maxColabsText;
     
     const spanVeics = document.getElementById('cred-limit-veics-span');
-    if (spanVeics) spanVeics.textContent = maxVeicsText;
+    if (spanVeics) spanVeics.innerHTML = maxVeicsText;
     
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span');
-    if (spanModalColabs) spanModalColabs.textContent = maxColabsText;
+    if (spanModalColabs) spanModalColabs.innerHTML = maxColabsText;
     
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span');
-    if (spanModalVeics) spanModalVeics.textContent = maxVeicsText;
+    if (spanModalVeics) spanModalVeics.innerHTML = maxVeicsText;
 
     // Limpar seleções anteriores
     credenciamentoState.selecionadosColabs = [];
