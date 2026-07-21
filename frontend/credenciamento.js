@@ -906,20 +906,20 @@ window.mudarTipoEnvioLogistica = function() {
         if(gEmail) gEmail.style.display = 'block';
         if(gWhats) gWhats.style.display = 'none';
         
-        if(iconeDesc) iconeDesc.className = 'ph ph-envelope-simple';
-        if(tituloDesc) tituloDesc.textContent = 'Enviar Credenciamento';
-        if(txtDesc) txtDesc.textContent = 'Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-paper-plane-right';
-        if(txtBtn) txtBtn.textContent = 'Gerar e Enviar E-mail';
+        if(iconeDesc) iconeDesc.className = 'ph ph-file-zip';
+        if(tituloDesc) tituloDesc.textContent = 'Baixar ZIP para E-mail';
+        if(txtDesc) txtDesc.textContent = 'Um arquivo ZIP com os documentos será baixado para que você possa enviá-lo por e-mail ao cliente.';
+        if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
+        if(txtBtn) txtBtn.textContent = 'Baixar documentos';
     } else {
         if(gEmail) gEmail.style.display = 'none';
         if(gWhats) gWhats.style.display = 'block';
         
         if(iconeDesc) iconeDesc.className = 'ph ph-whatsapp-logo';
-        if(tituloDesc) tituloDesc.textContent = 'Gerar para WhatsApp';
-        if(txtDesc) txtDesc.textContent = 'Um link de credenciamento será gerado. Você poderá enviá-lo diretamente pelo WhatsApp do cliente selecionado.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-whatsapp-logo';
-        if(txtBtn) txtBtn.textContent = 'Gerar para WhatsApp';
+        if(tituloDesc) tituloDesc.textContent = 'Baixar ZIP para WhatsApp';
+        if(txtDesc) txtDesc.textContent = 'Um arquivo ZIP com os documentos será baixado para que você possa enviá-lo pelo WhatsApp do cliente.';
+        if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
+        if(txtBtn) txtBtn.textContent = 'Baixar documentos';
     }
 }
 

@@ -17664,19 +17664,9 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
                 // Construir texto_copia para o WhatsApp (sem link)
-                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n`;
+                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n\nSeguem dados dos colaboradores para credenciamento, em anexo documentos solicitados.\n`;
                 if (colabsEnriquecidos && colabsEnriquecidos.length > 0) {
-                    textoCopia += `\n????*Equipe:*\n`;
-                    colabsEnriquecidos.forEach(c => {
-                        const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
-                        textoCopia += `- ${c.nome || c.nome_completo}\n`;
-                        if (c.cargo) textoCopia += `  Cargo: ${c.cargo}\n`;
-                        if (c.cpf) textoCopia += `  CPF: ${c.cpf}\n`;
-                        if (isMotorista && c.cnh) textoCopia += `  CNH: ${c.cnh}\n`;
-                    });
-                }
-                if (veiculos && veiculos.length > 0) {
-                    textoCopia += `\n????*Veículos:*\n`;
+                    textoCopia += `\n*Veículos:*\n`;
                     veiculos.forEach(v => {
                         textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
                     });
@@ -17720,7 +17710,10 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         const addLocalFileIfExists = (filePath, nameInZip) => {
             const absolutePath = path.resolve(__dirname, '..', '..', filePath);
             if (fs.existsSync(absolutePath)) {
-                zip.addLocalFile(absolutePath, nameInZip.split('/')[0], nameInZip.split('/')[1] || undefined);
+                const parts = nameInZip.split('/');
+                const fileName = parts.pop();
+                const folderPath = parts.join('/');
+                zip.addLocalFile(absolutePath, folderPath, fileName);
                 hasFiles = true;
             }
         };
