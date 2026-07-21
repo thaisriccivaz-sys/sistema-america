@@ -158,7 +158,7 @@ async function loadColaboradoresCred() {
         // Mostrar todos os colaboradores não desligados
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s !== 'desligado' && s !== '';
+            return s !== 'desligado';
         });
 
         renderListaColabsCred();
@@ -1470,7 +1470,7 @@ window.solDocsProximo = async function() {
         // Mostrar todos os colaboradores não desligados
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            return s !== 'desligado' && s !== '';
+            return s !== 'desligado';
         });
 
 
