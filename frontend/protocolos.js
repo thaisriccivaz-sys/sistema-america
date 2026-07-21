@@ -355,19 +355,47 @@ function renderizarAnexos(arquivosJson) {
         return;
     }
     
-    div.innerHTML = anexos.map(a => {
+    div.innerHTML = anexos.map((a, i) => {
         return `
             <div style="display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px;">
                 <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
                     <i class="ph ph-file" style="color: #64748b; font-size: 1.2rem;"></i>
                     <span style="font-size: 0.85rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="${escapeHtml(a.nome_original)}">${escapeHtml(a.nome_original)}</span>
                 </div>
-                <a href="${a.url}" target="_blank" class="btn-icon" style="color: #3b82f6; text-decoration: none;" title="Visualizar">
-                    <i class="ph ph-download-simple"></i>
-                </a>
+                <div style="display: flex; gap: 4px;">
+                    <a href="${a.url}" target="_blank" class="btn-icon" style="color: #3b82f6; text-decoration: none;" title="Visualizar">
+                        <i class="ph ph-download-simple"></i>
+                    </a>
+                    <button class="btn-icon" style="color: #ef4444; border:none; background:none; cursor:pointer;" title="Excluir" onclick="excluirAnexoProtocolo(${i})">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
+}
+
+async function excluirAnexoProtocolo(fileIndex) {
+    if (!currentProtocoloId) return;
+    if (!confirm('Deseja realmente excluir este anexo?')) return;
+    
+    try {
+        const res = await apiFetch(`/api/administrativo/protocolos/${currentProtocoloId}/anexos/${fileIndex}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Erro ao excluir anexo');
+        
+        const data = await res.json();
+        const p = protocolosAdministrativosList.find(x => x.id === currentProtocoloId);
+        if (p) {
+            p.arquivos_json = JSON.stringify(data.arquivos);
+            renderizarAnexos(p.arquivos_json);
+        }
+        showToast('Anexo excluído', 'success');
+    } catch(e) {
+        console.error(e);
+        showToast('Erro ao excluir anexo', 'error');
+    }
 }
 
 async function uploadAnexoProtocolo(event) {
