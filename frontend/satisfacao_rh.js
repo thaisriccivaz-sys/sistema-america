@@ -483,27 +483,45 @@
                                     const grupo = window.matchTemplateGroup('satisfacao', c.departamento, c.cargo);
                                     const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao ? window.AVALIACAO_QUESTIONS.satisfacao[grupo] : null;
                                     
-                                    Object.entries(respostasObj).forEach(([cat, notas]) => {
-                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                        if (Array.isArray(notas)) {
-                                            const questions = perguntasGroup ? perguntasGroup[cat] : null;
-                                            
-                                            let qHtml = '';
-                                            notas.forEach((n, idx) => {
-                                                let qText = (questions && questions[idx]) ? questions[idx] : `Pergunta ${idx+1}`;
-                                                if (qText.length > 60) qText = qText.substring(0, 60) + '...';
-                                                const nText = (n !== null && n !== undefined) ? n : '-';
-                                                qHtml += `<li style="margin-bottom:3px;line-height:1.2;">${qText}: <strong style="color:#0ea5e9;">${nText}</strong></li>`;
-                                            });
-                                            
-                                            catAverages.push(`<div style="margin-bottom:8px;">
-                                                <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
-                                                <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
-                                                    ${qHtml}
-                                                </ul>
-                                            </div>`);
-                                        }
-                                    });
+                                    const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
+                                    
+                                    if (hasArrays) {
+                                        Object.entries(respostasObj).forEach(([cat, notas]) => {
+                                            if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                            if (Array.isArray(notas)) {
+                                                const questions = perguntasGroup ? perguntasGroup[cat] : null;
+                                                
+                                                let qHtml = '';
+                                                notas.forEach((n, idx) => {
+                                                    let qText = (questions && questions[idx]) ? questions[idx] : `Pergunta ${idx+1}`;
+                                                    if (qText.length > 60) qText = qText.substring(0, 60) + '...';
+                                                    const nText = (n !== null && n !== undefined) ? n : '-';
+                                                    qHtml += `<li style="margin-bottom:3px;line-height:1.2;">${qText}: <strong style="color:#0ea5e9;">${nText}</strong></li>`;
+                                                });
+                                                
+                                                catAverages.push(`<div style="margin-bottom:8px;">
+                                                    <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
+                                                    <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
+                                                        ${qHtml}
+                                                    </ul>
+                                                </div>`);
+                                            }
+                                        });
+                                    } else if (respostasObj.scores) {
+                                        Object.entries(respostasObj.scores).forEach(([cat, media]) => {
+                                            if (media !== null && media !== undefined) {
+                                                const m = parseFloat(media);
+                                                if (!isNaN(m)) {
+                                                    catAverages.push(`<div style="margin-bottom:8px;">
+                                                        <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
+                                                        <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
+                                                            <li style="margin-bottom:3px;line-height:1.2;"><i style="color:#94a3b8;">Formulário antigo (notas detalhadas não salvas)</i> — Média: <strong style="color:#0ea5e9;">${m.toFixed(1)}</strong></li>
+                                                        </ul>
+                                                    </div>`);
+                                                }
+                                            }
+                                        });
+                                    }
                                 }
                                 
                                 return `<tr>
