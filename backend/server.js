@@ -22087,11 +22087,17 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
                COALESCE(p.email_exibicao, c.email_corporativo) as email_exibicao,
                COALESCE(p.dept_exibicao, c.departamento) as dept_exibicao,
                COALESCE(p.cargo_exibicao, c.cargo) as cargo_exibicao,
-               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
-        FROM colaboradores c
+               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id        FROM colaboradores c
         JOIN departamentos d ON c.departamento = d.nome
         LEFT JOIN assinatura_templates t ON t.is_active = 1
-        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
+        LEFT JOIN (
+            SELECT p1.* FROM assinaturas_pendentes p1
+            INNER JOIN (
+                SELECT colaborador_id, template_id, MAX(id) as max_id 
+                FROM assinaturas_pendentes 
+                GROUP BY colaborador_id, template_id
+            ) pm ON p1.id = pm.max_id
+        ) p ON c.id = p.colaborador_id AND p.template_id = t.id
         WHERE d.tipo = 'Administrativo'
           AND LOWER(TRIM(c.departamento)) NOT LIKE '%limpeza%'
           AND c.status != 'Desligado'
