@@ -38,16 +38,7 @@ window.renderPublicDesempenhoForm = function(colab, ano, trimestre, avaliacao, t
         </div>
     `;
 
-    const dpt = (colab.departamento || colab.cargo || '').toLowerCase();
-    let groupKey = 'geral';
-    if (dpt.includes('lideran') || dpt.includes('líder') || dpt.includes('lider') || dpt.includes('gerent')) {
-        groupKey = 'lideranca';
-    }
-
-    // fallback caso a chave não exista no window.AVALIACAO_QUESTIONS
-    if (!window.AVALIACAO_QUESTIONS.desempenho[groupKey]) {
-        groupKey = 'geral';
-    }
+    const groupKey = window.matchTemplateGroup('desempenho', colab.departamento, colab.cargo);
 
     const questions = window.AVALIACAO_QUESTIONS.desempenho[groupKey];
     const categories = Object.keys(questions);

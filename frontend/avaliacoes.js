@@ -10,13 +10,10 @@ window.renderAvaliacaoTab = async function(container) {
     const dept = viewedColaborador.departamento || viewedColaborador.cargo || '';
 
     // Identificar qual grupo usar para satisfação e desempenho (auto-detectado pelo departamento)
-    let defaultSatisfacao = 'escritorio';
-    let defaultDesempenho = 'geral';
-    let defaultExperiencia = 'motorista';
-    const dLower = dept.toLowerCase();
-    if (dLower.includes('motorista') || dLower.includes('ajudante')) { defaultSatisfacao = 'motorista'; defaultExperiencia = dLower.includes('ajudante') ? 'ajudante' : 'motorista'; }
-    else if (dLower.includes('manuten')) defaultSatisfacao = 'manutencao';
-    if (dLower.includes('lideran') || dLower.includes('líder') || dLower.includes('lider')) defaultDesempenho = 'lideranca';
+    
+    let defaultSatisfacao = window.matchTemplateGroup('satisfacao', dept, '');
+    let defaultDesempenho = window.matchTemplateGroup('desempenho', dept, '');
+    let defaultExperiencia = window.matchTemplateGroup('experiencia', dept, '');
 
     // Montar lista de grupos disponíveis por tipo
     const groupOptionsSatisfacao = Object.keys(AVALIACAO_QUESTIONS.satisfacao);

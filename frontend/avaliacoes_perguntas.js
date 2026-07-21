@@ -375,4 +375,50 @@ window.AVALIACAO_QUESTIONS = {
             ]
         }
     }
-};
+};
+
+window.matchTemplateGroup = function(tipo, dept, cargo) {
+    if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS[tipo]) return null;
+    const groups = Object.keys(window.AVALIACAO_QUESTIONS[tipo]);
+    if (groups.length === 0) return null;
+
+    const d = (dept || '').trim().toLowerCase();
+    const c = (cargo || '').trim().toLowerCase();
+
+    // 1. Tentar match EXATO
+    if (d && groups.includes(d)) return d;
+    if (c && groups.includes(c)) return c;
+
+    // 2. Tentar match PARCIAL nas chaves customizadas
+    for (let g of groups) {
+        const gClean = g.replace(/_/g, ' ').toLowerCase();
+        if (d && (d.includes(gClean) || gClean.includes(d))) return g;
+        if (c && (c.includes(gClean) || gClean.includes(c))) return g;
+    }
+
+    // 3. Fallbacks globais legados
+    if (tipo === 'desempenho') {
+        if (groups.includes('lideranca') && (d.includes('lideran') || d.includes('líder') || d.includes('lider') || c.includes('lideran') || c.includes('líder') || c.includes('lider') || c.includes('supervis') || c.includes('gerent') || c.includes('direto'))) {
+            return 'lideranca';
+        }
+        if (groups.includes('geral')) return 'geral';
+    }
+
+    if (tipo === 'satisfacao') {
+        const isMotorista = c.includes('motorista') || d.includes('motorista') || c.includes('ajudante') || d.includes('ajudante');
+        if (isMotorista && groups.includes('motorista')) return 'motorista';
+        const isManut = c.includes('manutencao') || c.includes('manutenção') || d.includes('manutencao') || d.includes('manutenção');
+        if (isManut && groups.includes('manutencao')) return 'manutencao';
+        if (groups.includes('escritorio')) return 'escritorio';
+        if (groups.includes('geral')) return 'geral';
+    }
+
+    if (tipo === 'experiencia') {
+        const isAjudante = c.includes('ajudante') || d.includes('ajudante');
+        if (isAjudante && groups.includes('ajudante')) return 'ajudante';
+        const isMotorista = c.includes('motorista') || d.includes('motorista');
+        if (isMotorista && groups.includes('motorista')) return 'motorista';
+    }
+
+    return groups[0];
+};
