@@ -9624,7 +9624,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
     const tipoAval = req.params.tipo || 'satisfacao';
     // Buscar as 4 últimas combinações distintas de ano+trimestre para o tipo
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? AND trimestre != 4 ORDER BY ano DESC, trimestre DESC LIMIT 3`,
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
         [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -9751,7 +9751,7 @@ app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
 app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => {
     const tipoAval = req.params.tipo || 'satisfacao';
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? AND trimestre != 4 ORDER BY ano DESC, trimestre DESC LIMIT 3`,
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
         [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
