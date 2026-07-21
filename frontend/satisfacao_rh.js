@@ -319,71 +319,8 @@
                             </div>
                         </td>
                     `).join('')}
-        
-        </tr>
-        <tr class="sat-history-row" style="display:none;background:#f8fafc;">
-            <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
-                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
-                    <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Notas por Categoria</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${periodos.map(p => {
-                                const key = `${p.ano}-T${p.trimestre}`;
-                                const ps = c.pesquisas?.[key];
-                                if (!ps || !ps.respondido) return '';
-                                
-                                let catAverages = [];
-                                if (ps.respostas && typeof ps.respostas === 'object') {
-                                    Object.entries(ps.respostas).forEach(([cat, notas]) => {
-                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                        if (Array.isArray(notas)) {
-                                            const validNotas = notas.filter(n => n !== null && n !== undefined).map(n => parseFloat(n)).filter(n => !isNaN(n));
-                                            if (validNotas.length > 0) {
-                                                const media = validNotas.reduce((a,b)=>a+b,0) / validNotas.length;
-                                                catAverages.push(`<span style="display:inline-block;background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;margin:2px;font-size:0.75rem;">${cat}: <strong>${media.toFixed(1)}</strong></span>`);
-                                            }
-                                        }
-                                    });
-                                }
-                                
-                                return `<tr>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${periodLabel(p)}</td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
-                                    </td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        ${catAverages.join('') || '<span style="color:#94a3b8;font-style:italic;">Sem detalhes</span>'}
-                                    </td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <button
-                                            data-colab-id="${c.id}"
-                                            data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                                            data-respostas="${ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : ''}"
-                                            data-ano="${p.ano}"
-                                            data-trim="${p.trimestre}"
-                                            onclick="window.${'_satOpenFormBtn'}(this, true)"
-                                            style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
-                                            <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
-                                        </button>
-                                    </td>
-                                </tr>`;
-                            }).filter(x => x).join('') || '<tr><td colspan="4" style="text-align:center;padding:1rem;color:#94a3b8;font-style:italic;">Nenhum formulário preenchido nos períodos anteriores.</td></tr>'}
-                        </tbody>
-                    </table>
-                </div>
-            </td>
-        </tr></tbody>`;
-    });
+                </tr>`;
+            });
 
             // Linha de média do grupo por período
             const groupAvgs = periodos.map(p => {
@@ -516,7 +453,69 @@
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
             </td>
-        </tr>`;
+        </tr>
+        <tr class="sat-history-row" style="display:none;background:#f8fafc;">
+            <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
+                    <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
+                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
+                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Notas por Categoria</th>
+                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${periodos.map(p => {
+                                const key = `${p.ano}-T${p.trimestre}`;
+                                const ps = c.pesquisas?.[key];
+                                if (!ps || !ps.respondido) return '';
+                                
+                                let catAverages = [];
+                                if (ps.respostas && typeof ps.respostas === 'object') {
+                                    Object.entries(ps.respostas).forEach(([cat, notas]) => {
+                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                        if (Array.isArray(notas)) {
+                                            const validNotas = notas.filter(n => n !== null && n !== undefined).map(n => parseFloat(n)).filter(n => !isNaN(n));
+                                            if (validNotas.length > 0) {
+                                                const media = validNotas.reduce((a,b)=>a+b,0) / validNotas.length;
+                                                catAverages.push(`<span style="display:inline-block;background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;margin:2px;font-size:0.75rem;">${cat}: <strong>${media.toFixed(1)}</strong></span>`);
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                return `<tr>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${periodLabel(p)}</td>
+                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
+                                    </td>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        ${catAverages.join('') || '<span style="color:#94a3b8;font-style:italic;">Sem detalhes</span>'}
+                                    </td>
+                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        <button
+                                            data-colab-id="${c.id}"
+                                            data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
+                                            data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
+                                            data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
+                                            data-respostas="${ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : ''}"
+                                            data-ano="${p.ano}"
+                                            data-trim="${p.trimestre}"
+                                            onclick="window.${'_satOpenFormBtn'}(this, true)"
+                                            style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
+                                            <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
+                                        </button>
+                                    </td>
+                                </tr>`;
+                            }).filter(x => x).join('') || '<tr><td colspan="4" style="text-align:center;padding:1rem;color:#94a3b8;font-style:italic;">Nenhum formulário preenchido nos períodos anteriores.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr></tbody>`;
     }
 
     
