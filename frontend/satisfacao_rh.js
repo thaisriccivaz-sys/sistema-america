@@ -458,98 +458,160 @@
             <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
                 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
                     <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Respostas (Notas)</th>
-                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${periodos.map(p => {
-                                const key = `${p.ano}-T${p.trimestre}`;
-                                const ps = c.pesquisas?.[key];
-                                if (!ps || !ps.respondido) return '';
-                                
-                                let respostasObj = ps.respostas;
-                                if (typeof respostasObj === 'string') {
-                                    try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
+                    ${(() => {
+                        const grupo = window.matchTemplateGroup('satisfacao', c.departamento, c.cargo);
+                        const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao ? window.AVALIACAO_QUESTIONS.satisfacao[grupo] : null;
+
+                        if (!perguntasGroup) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário ou template de perguntas encontrado.</div>';
+                        }
+
+                        // Process periods data
+                        const periodosData = periodos.map(p => {
+                            const key = `${p.ano}-T${p.trimestre}`;
+                            const ps = c.pesquisas?.[key];
+                            if (!ps || !ps.respondido) return { ...p, notas: {}, media: null, hasDetails: false, psRaw: ps };
+
+                            let respostasObj = ps.respostas;
+                            if (typeof respostasObj === 'string') {
+                                try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
+                            }
+
+                            let notas = {};
+                            let hasDetails = false;
+                            
+                            if (respostasObj && typeof respostasObj === 'object') {
+                                const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
+                                if (hasArrays) {
+                                    hasDetails = true;
+                                    Object.entries(respostasObj).forEach(([cat, notasArr]) => {
+                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                        if (Array.isArray(notasArr)) {
+                                            if (!notas[cat]) notas[cat] = {};
+                                            notasArr.forEach((n, idx) => {
+                                                notas[cat][idx] = n;
+                                            });
+                                        }
+                                    });
                                 }
+                            }
+
+                            return { ...p, notas, media: ps.media, hasDetails, psRaw: ps, respostasRaw: respostasObj };
+                        });
+
+                        const hasAnyResponse = periodosData.some(pd => pd.media !== null);
+                        if (!hasAnyResponse) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário preenchido nos períodos anteriores.</div>';
+                        }
+
+                        // Build Table Header
+                        let theadHtml = `<tr>
+                            <th style="text-align:left;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:50%;">Perguntas</th>`;
+                        
+                        periodos.forEach(p => {
+                            theadHtml += `<th style="text-align:center;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:12%;">${periodLabel(p)}</th>`;
+                        });
+                        theadHtml += '</tr>';
+
+                        let tbodyHtml = '';
+
+                        Object.entries(perguntasGroup).forEach(([cat, questions]) => {
+                            if (!questions || questions.length === 0) return;
+                            
+                            // Category Header Row
+                            tbodyHtml += `<tr>
+                                <td colspan="${periodos.length + 1}" style="padding:10px 12px 4px 12px;">
+                                    <div style="font-weight:800;font-size:0.75rem;text-transform:uppercase;letter-spacing:.05em;color:#7c3aed;">${cat}</div>
+                                </td>
+                            </tr>`;
+
+                            // Questions Rows
+                            questions.forEach((qText, idx) => {
+                                if (!qText || !qText.trim()) return;
                                 
-                                let catAverages = [];
-                                if (respostasObj && typeof respostasObj === 'object') {
-                                    const grupo = window.matchTemplateGroup('satisfacao', c.departamento, c.cargo);
-                                    const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao ? window.AVALIACAO_QUESTIONS.satisfacao[grupo] : null;
-                                    
-                                    const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
-                                    
-                                    if (hasArrays) {
-                                        Object.entries(respostasObj).forEach(([cat, notas]) => {
-                                            if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                            if (Array.isArray(notas)) {
-                                                const questions = perguntasGroup ? perguntasGroup[cat] : null;
-                                                
-                                                let qHtml = '';
-                                                notas.forEach((n, idx) => {
-                                                    let qText = (questions && questions[idx]) ? questions[idx] : `Pergunta ${idx+1}`;
-                                                    if (qText.length > 60) qText = qText.substring(0, 60) + '...';
-                                                    const nText = (n !== null && n !== undefined) ? n : '-';
-                                                    qHtml += `<li style="margin-bottom:3px;line-height:1.2;">${qText}: <strong style="color:#0ea5e9;">${nText}</strong></li>`;
-                                                });
-                                                
-                                                catAverages.push(`<div style="margin-bottom:8px;">
-                                                    <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
-                                                    <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
-                                                        ${qHtml}
-                                                    </ul>
-                                                </div>`);
+                                tbodyHtml += `<tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:6px 12px;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</td>`;
+                                
+                                periodosData.forEach(pd => {
+                                    let nVal = '—';
+                                    let nColor = '#cbd5e1'; // light gray for empty
+                                    let nBg = 'transparent';
+
+                                    if (pd.media !== null) {
+                                        if (pd.hasDetails && pd.notas[cat] && pd.notas[cat][idx] !== undefined) {
+                                            const v = pd.notas[cat][idx];
+                                            nVal = (v !== null && v !== undefined) ? v : '—';
+                                            const m = parseFloat(v);
+                                            if (!isNaN(m)) {
+                                                nColor = scoreColor(m);
+                                                nBg = scoreBg(m);
+                                            } else {
+                                                nColor = '#475569';
                                             }
-                                        });
-                                    } else if (respostasObj.scores) {
-                                        Object.entries(respostasObj.scores).forEach(([cat, media]) => {
-                                            if (media !== null && media !== undefined) {
-                                                const m = parseFloat(media);
-                                                if (!isNaN(m)) {
-                                                    catAverages.push(`<div style="margin-bottom:8px;">
-                                                        <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
-                                                        <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
-                                                            <li style="margin-bottom:3px;line-height:1.2;"><i style="color:#94a3b8;">Formulário antigo (notas detalhadas não salvas)</i> — Média: <strong style="color:#0ea5e9;">${m.toFixed(1)}</strong></li>
-                                                        </ul>
-                                                    </div>`);
-                                                }
-                                            }
-                                        });
+                                        } else if (!pd.hasDetails) {
+                                            // Resposta existe mas sem detalhes
+                                            nVal = '<span style="font-size:0.7rem;color:#94a3b8;" title="Sem detalhes">S/D</span>';
+                                        }
                                     }
-                                }
+
+                                    const pillStyle = nVal !== '—' && nVal.indexOf('<span') === -1 ? `background:${nBg};color:${nColor};font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;display:inline-block;min-width:28px;` : `color:#cbd5e1;`;
+                                    
+                                    tbodyHtml += `<td style="text-align:center;padding:6px 12px;">
+                                        <span style="${pillStyle}">${nVal}</span>
+                                    </td>`;
+                                });
                                 
-                                return `<tr>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${periodLabel(p)}</td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
-                                    </td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        ${catAverages.join('') || '<span style="color:#94a3b8;font-style:italic;">Sem detalhes</span>'}
-                                    </td>
-                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
-                                        <button
-                                            data-colab-id="${c.id}"
-                                            data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
-                                            data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                                            data-respostas="${ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : ''}"
-                                            data-ano="${p.ano}"
-                                            data-trim="${p.trimestre}"
-                                            onclick="window.${'_satOpenFormBtn'}(this, true)"
-                                            style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
-                                            <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
-                                        </button>
-                                    </td>
-                                </tr>`;
-                            }).filter(x => x).join('') || '<tr><td colspan="4" style="text-align:center;padding:1rem;color:#94a3b8;font-style:italic;">Nenhum formulário preenchido nos períodos anteriores.</td></tr>'}
-                        </tbody>
-                    </table>
+                                tbodyHtml += '</tr>';
+                            });
+                        });
+
+                        // Medias row at the bottom
+                        tbodyHtml += `<tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+                            <td style="text-align:right;padding:10px 12px;font-weight:700;font-size:0.8rem;color:#334155;">Média Geral:</td>`;
+                        periodosData.forEach(pd => {
+                            if (pd.media !== null) {
+                                tbodyHtml += `<td style="text-align:center;padding:10px 12px;">
+                                    <span class="score-pill" style="background:${scoreBg(pd.media)};color:${scoreColor(pd.media)};font-size:0.8rem;font-weight:800;">${fmtScore(pd.media)}</span>
+                                </td>`;
+                            } else {
+                                 tbodyHtml += `<td style="text-align:center;padding:10px 12px;color:#cbd5e1;">—</td>`;
+                            }
+                        });
+                        tbodyHtml += '</tr>';
+
+                        // Ações row
+                        tbodyHtml += `<tr>
+                            <td style="text-align:right;padding:10px 12px;font-weight:600;font-size:0.75rem;color:#64748b;">Ações:</td>`;
+                        periodosData.forEach(pd => {
+                            if (pd.media !== null) {
+                                tbodyHtml += `<td style="text-align:center;padding:10px 12px;">
+                                    <button
+                                        data-colab-id="${c.id}"
+                                        data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
+                                        data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
+                                        data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
+                                        data-respostas="${pd.psRaw.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(pd.psRaw.respostas)))) : ''}"
+                                        data-ano="${pd.ano}"
+                                        data-trim="${pd.trimestre}"
+                                        onclick="window._satOpenFormBtn(this, true)"
+                                        style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
+                                        <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
+                                    </button>
+                                </td>`;
+                            } else {
+                                 tbodyHtml += `<td style="text-align:center;padding:10px 12px;color:#cbd5e1;"></td>`;
+                            }
+                        });
+                        tbodyHtml += '</tr>';
+
+                        return `
+                        <div style="border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <thead>${theadHtml}</thead>
+                                <tbody>${tbodyHtml}</tbody>
+                            </table>
+                        </div>`;
+                    })()}
                 </div>
             </td>
         </tr></tbody>`;
