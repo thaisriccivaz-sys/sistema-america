@@ -480,30 +480,37 @@
                             let corpoHtml = '';
 
                             if (respostasObj && typeof respostasObj === 'object') {
-                                const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
+                                const isGrouped = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && typeof respostasObj[k] === 'object' && respostasObj[k] !== null);
 
-                                if (hasArrays) {
-                                    Object.entries(respostasObj).forEach(([cat, notas]) => {
+                                if (isGrouped) {
+                                    Object.entries(respostasObj).forEach(([cat, notasObj]) => {
                                         if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                        if (!Array.isArray(notas)) return;
+                                        if (typeof notasObj !== 'object' || notasObj === null) return;
+                                        
                                         const questions = perguntasGroup ? perguntasGroup[cat] : null;
                                         let rowsHtml = '';
-                                        notas.forEach((n, idx) => {
+                                        
+                                        Object.entries(notasObj).forEach(([idxStr, n]) => {
+                                            const idx = parseInt(idxStr, 10);
                                             const qText = (questions && questions[idx]) ? questions[idx] : 'Pergunta ' + (idx + 1);
                                             const nVal = (n !== null && n !== undefined) ? n : '—';
-                                            const nColor = typeof n === 'number' ? scoreColor(n) : '#475569';
-                                            const nBg   = typeof n === 'number' ? scoreBg(n)   : 'transparent';
+                                            const m = parseFloat(n);
+                                            const nColor = !isNaN(m) ? scoreColor(m) : '#475569';
+                                            const nBg   = !isNaN(m) ? scoreBg(m) : 'transparent';
+                                            
                                             rowsHtml += `
                                             <div style="display:flex;align-items:flex-start;gap:0.6rem;padding:5px 0;border-bottom:1px solid #f1f5f9;">
                                                 <span style="flex:1;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</span>
                                                 <span style="flex-shrink:0;min-width:32px;text-align:center;font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;background:${nBg};color:${nColor};">${nVal}</span>
                                             </div>`;
                                         });
-                                        corpoHtml += `
-                                        <div style="margin-bottom:10px;">
-                                            <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
-                                            ${rowsHtml}
-                                        </div>`;
+                                        if (rowsHtml) {
+                                            corpoHtml += `
+                                            <div style="margin-bottom:10px;">
+                                                <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
+                                                ${rowsHtml}
+                                            </div>`;
+                                        }
                                     });
                                 } else if (respostasObj.scores) {
                                     Object.entries(respostasObj.scores).forEach(([cat, media]) => {
@@ -522,7 +529,9 @@
                                 }
                             }
 
-                            if (!corpoHtml) return '';
+                            if (!corpoHtml) {
+                                corpoHtml = '<div style="color:#94a3b8;font-style:italic;font-size:0.85rem;padding:0.5rem 0;">Detalhes indisponíveis para este formulário. A média geral está preservada.</div>';
+                            }
 
                             return `
                             <div style="margin-bottom:1rem;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
