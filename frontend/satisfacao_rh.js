@@ -319,8 +319,71 @@
                             </div>
                         </td>
                     `).join('')}
-                </tr>`;
-            });
+        
+        </tr>
+        <tr class="sat-history-row" style="display:none;background:#f8fafc;">
+            <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
+                    <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
+                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
+                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Notas por Categoria</th>
+                                <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${periodos.map(p => {
+                                const key = `${p.ano}-T${p.trimestre}`;
+                                const ps = c.pesquisas?.[key];
+                                if (!ps || !ps.respondido) return '';
+                                
+                                let catAverages = [];
+                                if (ps.respostas && typeof ps.respostas === 'object') {
+                                    Object.entries(ps.respostas).forEach(([cat, notas]) => {
+                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                        if (Array.isArray(notas)) {
+                                            const validNotas = notas.filter(n => n !== null && n !== undefined).map(n => parseFloat(n)).filter(n => !isNaN(n));
+                                            if (validNotas.length > 0) {
+                                                const media = validNotas.reduce((a,b)=>a+b,0) / validNotas.length;
+                                                catAverages.push(`<span style="display:inline-block;background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;margin:2px;font-size:0.75rem;">${cat}: <strong>${media.toFixed(1)}</strong></span>`);
+                                            }
+                                        }
+                                    });
+                                }
+                                
+                                return `<tr>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#334155;">${periodLabel(p)}</td>
+                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
+                                    </td>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        ${catAverages.join('') || '<span style="color:#94a3b8;font-style:italic;">Sem detalhes</span>'}
+                                    </td>
+                                    <td style="text-align:center;padding:8px;border-bottom:1px solid #f1f5f9;">
+                                        <button
+                                            data-colab-id="${c.id}"
+                                            data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
+                                            data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
+                                            data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
+                                            data-respostas="${ps.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(ps.respostas)))) : ''}"
+                                            data-ano="${p.ano}"
+                                            data-trim="${p.trimestre}"
+                                            onclick="window.${'_satOpenFormBtn'}(this, true)"
+                                            style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
+                                            <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
+                                        </button>
+                                    </td>
+                                </tr>`;
+                            }).filter(x => x).join('') || '<tr><td colspan="4" style="text-align:center;padding:1rem;color:#94a3b8;font-style:italic;">Nenhum formulário preenchido nos períodos anteriores.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr></tbody>`;
+    });
 
             // Linha de média do grupo por período
             const groupAvgs = periodos.map(p => {
@@ -418,9 +481,7 @@
         const lastP = lastKey ? c.pesquisas?.[lastKey] : null;
         const isNaoAdmitidoLast = lastP?.nao_admitido;
 
-        return `<tr>
-            <td>
-                <div class="sat-avatar-cell">
+        return `<tbody class="sat-colab-group"><tr>\n            <td>\n                <div class="sat-avatar-cell">\n                    <button class="btn-sat-toggle-history" onclick="window._satToggleHistory(this)" style="background:transparent;border:none;cursor:pointer;padding:0.2rem;margin-right:0.5rem;display:flex;align-items:center;justify-content:center;color:#64748b;transition:transform 0.2s;"><i class="ph ph-caret-right" style="font-size:1.1rem;font-weight:bold;"></i></button>
                     ${avatarHTML(c)}
                     <div>
                         <div style="font-weight:600;color:#1e293b;font-size:.83rem;" title="${c.nome_completo}">${c.nome_completo.length > 15 ? c.nome_completo.substring(0, 15) + '...' : c.nome_completo}</div>
@@ -458,7 +519,33 @@
         </tr>`;
     }
 
-    /* ── FILTER & SORT ──────────────────────────────────────── */
+    
+    window._satToggleHistory = function(btn) {
+        const tbody = btn.closest('tbody');
+        const historyRow = tbody.querySelector('.sat-history-row');
+        const icon = btn.querySelector('i');
+        if (historyRow.style.display === 'none') {
+            historyRow.style.display = 'table-row';
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            historyRow.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    };
+
+    window._satToggleHistory = function(btn) {
+        const tbody = btn.closest('tbody');
+        const historyRow = tbody.querySelector('.sat-history-row');
+        const icon = btn.querySelector('i');
+        if (historyRow.style.display === 'none') {
+            historyRow.style.display = 'table-row';
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            historyRow.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    };
+/* ── FILTER & SORT ──────────────────────────────────────── */
     function getFilteredColabs() {
         let colabs = (_colabs.colaboradores || []).slice();
         if (_searchText) {
@@ -499,7 +586,7 @@
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._satOpenFormBtn = function(btn) {
+    window._satOpenFormBtn = function(btn, isReadonly = false) {
         const id = parseInt(btn.dataset.colabId, 10);
         const nome = btn.dataset.colabNome;
         const cargo = btn.dataset.colabCargo;
@@ -512,7 +599,7 @@
                 try { saved = JSON.parse(decodeURIComponent(escape(atob(raw)))); } catch(e) { saved = {}; }
             }
         } catch(e) { saved = {}; }
-        window._satOpenForm(id, nome, cargo, dept, saved);
+        const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._satOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
     };
 
     window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
@@ -555,7 +642,7 @@
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
                     </style>
-                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}')">`;
+                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}', ${ano}, ${trim})">`;
 
         let catIdx = 0;
         Object.keys(perguntasGroup).forEach(topico => {
@@ -588,15 +675,16 @@
                     const c = qColors[v]; const bg = bgColors[v];
                     const isChecked = (val != null && parseInt(val) === v);
                     const checkedAttr = isChecked ? 'checked' : '';
+                    const disabledAttr = isReadonly ? 'disabled' : '';
                     const btnBg = isChecked ? c : '#fff';
                     const btnColor = isChecked ? '#fff' : c;
                     const btnBorder = isChecked ? c : '#cbd5e1';
                     html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
-                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} style="position:absolute; opacity:0; pointer-events:none;">
+                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} ${disabledAttr} style="position:absolute; opacity:0; pointer-events:none;">
                         <div class="sat-rbtn" data-color="${c}" data-bg="${c}" data-group="av_${catIdx}_${idx}"
                              style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:2px solid ${btnBorder}; background:${btnBg}; color:${btnColor}; transition:all 0.15s; cursor:pointer;"
-                             onclick="(function(el){var grp=el.dataset.group; document.querySelectorAll('.sat-rbtn[data-group=\''+grp+'\']').forEach(function(b){b.style.background='#fff';b.style.color=b.dataset.color;b.style.borderColor='#cbd5e1';}); el.style.background=el.dataset.bg; el.style.color='#fff'; el.style.borderColor=el.dataset.color; var inp=el.previousElementSibling; if(inp)inp.checked=true;})(this)">
+                             onclick="(function(el){if(isReadonly)return;var grp=el.dataset.group; document.querySelectorAll('.sat-rbtn[data-group=\''+grp+'\']').forEach(function(b){b.style.background='#fff';b.style.color=b.dataset.color;b.style.borderColor='#cbd5e1';}); el.style.background=el.dataset.bg; el.style.color='#fff'; el.style.borderColor=el.dataset.color; var inp=el.previousElementSibling; if(inp)inp.checked=true;})(this)">
                             ${v}
                         </div>
                     </label>`;
@@ -604,7 +692,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" ${isReadonly ? 'disabled' : ''} placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -616,12 +704,12 @@
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
-                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
+                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
                             <button type="button" onclick="window._satCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
-                            <button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>
+                            ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit"`} style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>
                         </div>
                     </form>
                 </div>
@@ -636,7 +724,7 @@
         if (overlay) overlay.remove();
     };
 
-    window._satSubmitForm = async function(e, colabId, grupo) {
+    window._satSubmitForm = async function(e, colabId, grupo, refAno, refTrim) {
         e.preventDefault();
         const form = e.target;
         const submitBtn = document.getElementById('sat-btn-submit');
