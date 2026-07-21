@@ -615,6 +615,68 @@ const BREADCRUMB_MAP = {
     'administrativo-protocolos': { path: 'Protocolos', code: 'ADM006' },
 };
 
+/* ── PERMISSÕES DO PRONTUÁRIO DIGITAL ──────────────────────────────────── */
+// Mapa: pagina_id no banco → data-tab no DOM
+const PRONTUARIO_TAB_MAP = {
+    'prontuario-checklist':   '00.CheckList',
+    'prontuario-ficha':       '01_FICHA_CADASTRAL',
+    'prontuario-pagamentos':  'Pagamentos',
+    'prontuario-aso':         'ASO',
+    'prontuario-epi':         'Ficha de EPI',
+    'prontuario-atestados':   'Atestados',
+    'prontuario-contratos':   'Contratos',
+    'prontuario-avaliacao':   'Avaliação',
+    'prontuario-ocorrencias': 'Advertências',
+    'prontuario-faculdade':   'Faculdade',
+    'prontuario-certificados':'Certificados',
+    'prontuario-dependentes': 'Dependentes',
+    'prontuario-multas':      'Multas',
+    'prontuario-sinistros':   'Sinistros',
+    'prontuario-rescisao':    'Rescisão',
+};
+
+/**
+ * Aplica permissões nas abas do prontuário digital.
+ * Oculta abas sem permissão; retorna o primeiro <li> permitido.
+ * Se isTopAdmin → mostra todas.
+ */
+window.aplicarPermissoesProntuario = function () {
+    const perms = window.activeUserPerms || {};
+    const isAdmin = window.isTopAdmin;
+
+    // Selecionar todos os <li> do prontuário (exceto os permanentemente ocultos por outra lógica)
+    const allTabs = document.querySelectorAll('#tabs-list li[data-tab]');
+    let firstAllowed = null;
+
+    allTabs.forEach(li => {
+        const dataTab = li.getAttribute('data-tab');
+
+        // Abas sem correspondência no mapa (NRs, Terapia, Treinamento, Conjuge, Fotos)
+        // mantêm o style original — não tocamos nelas aqui
+        const permId = Object.keys(PRONTUARIO_TAB_MAP).find(k => PRONTUARIO_TAB_MAP[k] === dataTab);
+        if (!permId) return; // aba não controlada por permissão — deixa como está
+
+        // Aba Rescisão é também controlada pelo status do colaborador (só Desligado)
+        // — esse controle já existe em openProntuario(); aqui só controlamos permissão
+        if (isAdmin) {
+            li.classList.remove('perm-hidden');
+            if (!li.style.cssText.includes('display:none') && !firstAllowed) firstAllowed = li;
+            return;
+        }
+
+        if (perms[permId]) {
+            li.classList.remove('perm-hidden');
+            li.style.removeProperty('display'); // remove ocultação anterior de permissão
+            if (!firstAllowed) firstAllowed = li;
+        } else {
+            li.classList.add('perm-hidden');
+            li.style.setProperty('display', 'none', 'important');
+        }
+    });
+
+    return firstAllowed;
+};
+
 window.carregarPermissoesOnline = async function () {
     if (!currentUser || !currentToken) return;
 
@@ -662,6 +724,15 @@ window.carregarPermissoesOnline = async function () {
         if (mapPerms['usuarios-permissoes']) {
             mapPerms['certificado-digital'] = true;
         }
+
+        // Unificar colaboradores-total e colaboradores-parcial:
+        // Ambos liberam o item de navegação 'colaboradores', mas parcial restringe edição
+        if (mapPerms['colaboradores-total'] || mapPerms['colaboradores-parcial']) {
+            mapPerms['colaboradores'] = true;
+        }
+        // Expõe se é acesso parcial para a tela de colaboradores usar
+        window.isColaboradoresParcial = mapPerms['colaboradores-parcial'] && !mapPerms['colaboradores-total'];
+
         window.activeUserPerms = mapPerms;
 
         // Percorre todos os botões de navegação (.nav-item)
@@ -1254,6 +1325,7 @@ function setupNavigation() {
 
     const btnNovoColab = document.getElementById('btn-novo-colab');
     if (btnNovoColab) {
+        if (window.isColaboradoresParcial) { btnNovoColab.style.setProperty('display','none','important'); }
         btnNovoColab.addEventListener('click', () => {
             resetFormColaborador();
             window._openColaboradorTab(null, null);
@@ -3607,7 +3679,7 @@ function renderTabelaColaboradores(lista) {
                             <td>${statusHtml}</td>
                             <td style="text-align:right;padding-right:1rem;">
                                 <div style="display:flex;gap:0.4rem;justify-content:flex-end;">
-                                    <button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>
+                                    ${window.isColaboradoresParcial ? '' : `<button class="btn btn-warning btn-sm" onclick="editColaborador(${c.id})" title="Editar" style="padding:0.4rem;width:32px;height:32px;justify-content:center;"><i class="ph ph-pencil-simple"></i></button>`}
                                     <button class="btn btn-primary btn-sm" onclick="openProntuario(${c.id},'${(c.nome_completo || '').replace(/'/g, "\\'")}','${(c.cargo || '').replace(/'/g, "\\'")}','${c.cpf || ''}','${c.sexo || ''}','${c.data_admissao || ''}','${c.status || ''}','${c.rg_tipo || 'RG'}')" title="Prontuário" style="padding:0.4rem;width:32px;height:32px;justify-content:center;background:#2563eb;"><i class="ph ph-folder-open"></i></button>
                                     
                                 </div>

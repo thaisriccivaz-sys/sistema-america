@@ -5,7 +5,8 @@
 const TELAS_SISTEMA = [
     // Módulo RH (Ordem exata do menu lateral)
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard', icone: 'ph-squares-four' },
-    { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'colaboradores-total',     pagina_nome: 'Colaboradores (Total — Editar/Criar)', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'colaboradores-parcial',    pagina_nome: 'Colaboradores (Parcial — Só Prontuário)', icone: 'ph-folder-open' },
     { modulo: 'RH', pagina_id: 'satisfacao-rh',          pagina_nome: 'Satisfação', icone: 'ph-smiley' },
     { modulo: 'RH', pagina_id: 'desempenho-rh',          pagina_nome: 'Desempenho', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
@@ -35,6 +36,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'prontuario-dependentes', pagina_nome: 'Dependentes', icone: 'ph-users' },
     { modulo: 'RH', pagina_id: 'prontuario-multas', pagina_nome: 'Multas', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'prontuario-sinistros', pagina_nome: 'Sinistros', icone: 'ph-warning' },
+    { modulo: 'RH', pagina_id: 'prontuario-rescisao', pagina_nome: 'Rescisão', icone: 'ph-file-x' },
     // Módulo Logística
     { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
@@ -569,7 +571,7 @@ const MENU_HIERARQUIA = [
             {
                 titulo: 'Telas',
                 telas: [
-                    'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
+                    'dashboard', 'colaboradores-total', 'colaboradores-parcial', 'assinaturas-digitais', 'ferias', 'experiencia',
                     'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa',
                     'rh-logistica-sinistros', 'rh-logistica-multas'
                 ]
@@ -587,7 +589,7 @@ const MENU_HIERARQUIA = [
                     'prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso',
                     'prontuario-epi', 'prontuario-atestados', 'prontuario-contratos', 'prontuario-avaliacao',
                     'prontuario-ocorrencias', 'prontuario-faculdade', 'prontuario-certificados', 'prontuario-dependentes',
-                    'prontuario-multas', 'prontuario-sinistros'
+                    'prontuario-multas', 'prontuario-sinistros', 'prontuario-rescisao'
                 ]
             }
         ]
