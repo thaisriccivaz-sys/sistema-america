@@ -5786,45 +5786,11 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     } else {
-        // Slot fixo NR1 para a aba Certificados (upload-only, equivale ao credenciamento NR1)
-        if (tabId === 'Certificados') {
-            const _normC = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-            const nr1Doc = filteredDocs.find(d =>
-                _normC(d.document_type).includes('nr1') ||
-                _normC(d.document_type).includes('nr 1') ||
-                _normC(d.document_type).includes('ordem de servico') ||
-                _normC(d.document_type).includes('ordem de servi')
-            );
-            if (nr1Doc) {
-                listContainer.appendChild(createDocSlot(tabId, nr1Doc.document_type, nr1Doc));
-            } else {
-                const nr1Wrapper = document.createElement('div');
-                nr1Wrapper.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #16a34a; border-radius:8px; background:#f0fdf4; gap:0.75rem; margin-bottom:0.5rem;';
-                nr1Wrapper.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                        <span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">NR-1</span>
-                        <div>
-                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">NR1 / Ordem de Serviço</span>
-                            <div style="font-size:0.75rem; color:#16a34a; margin-top:1px;">Documento exigido no credenciamento — faça o upload do PDF</div>
-                        </div>
-                    </div>
-                    <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
-                        <i class="ph ph-upload-simple"></i> Anexar PDF
-                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, 'NR1', 'Certificados')">
-                    </label>`;
-                listContainer.appendChild(nr1Wrapper);
-            }
-        }
-
         const form = createDynamicUploadForm(tabId, `Adicionar doc. em ${tabTitle.replace(/^\d+\.\s*/, '')}`);
         listContainer.appendChild(form);
         listContainer.appendChild(document.createElement('hr'));
-        filteredDocs.filter(d => {
-            if (tabId !== 'Certificados') return true;
-            // Já mostrou NR1 no slot fixo — não duplicar
-            const _n = (s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim())(d.document_type);
-            return !(_n.includes('nr1') || _n.includes('nr 1') || _n.includes('ordem de servico') || _n.includes('ordem de servi'));
-        }).forEach(d => {
+        filteredDocs.forEach(d => {
+
             listContainer.appendChild(createDocSlot(tabId, d.document_type, d));
         });
     }
