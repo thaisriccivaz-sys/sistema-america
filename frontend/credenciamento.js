@@ -154,22 +154,12 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
-        
+
+        // Mostrar todos os colaboradores não desligados
         credenciamentoState.colaboradores = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            const dept = (c.departamento || '').toLowerCase().trim();
-            // Apenas Operacional, Logística, Supervisão, Liderança, Transporte
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
-            const isLideranca = dept.includes('liderança') || dept.includes('lideranca');
-            const isOperacional = dept.includes('operacional') || deptTipo === 'operacional';
-            const isTransporte = dept.includes('transporte') || dept.includes('frota');
-            return isActive && (isLogistica || isSupervisao || isLideranca || isOperacional || isTransporte);
+            return s !== 'desligado' && s !== '';
         });
-
-
 
         renderListaColabsCred();
     } catch (e) {
@@ -905,22 +895,17 @@ window.mudarTipoEnvioLogistica = function() {
     if (tipo === 'email') {
         if(gEmail) gEmail.style.display = 'block';
         if(gWhats) gWhats.style.display = 'none';
-        
-        if(iconeDesc) iconeDesc.className = 'ph ph-file-zip';
-        if(tituloDesc) tituloDesc.textContent = 'Baixar ZIP para E-mail';
-        if(txtDesc) txtDesc.textContent = 'Um arquivo ZIP com os documentos será baixado para que você possa enviá-lo por e-mail ao cliente.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
-        if(txtBtn) txtBtn.textContent = 'Baixar documentos';
     } else {
         if(gEmail) gEmail.style.display = 'none';
         if(gWhats) gWhats.style.display = 'block';
-        
-        if(iconeDesc) iconeDesc.className = 'ph ph-whatsapp-logo';
-        if(tituloDesc) tituloDesc.textContent = 'Baixar ZIP para WhatsApp';
-        if(txtDesc) txtDesc.textContent = 'Um arquivo ZIP com os documentos será baixado para que você possa enviá-lo pelo WhatsApp do cliente.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
-        if(txtBtn) txtBtn.textContent = 'Baixar documentos';
     }
+    
+    // Sempre o mesmo título/descrição independente do tipo
+    if(iconeDesc) iconeDesc.className = 'ph ph-file-zip';
+    if(tituloDesc) tituloDesc.textContent = 'Baixar documentos em ZIP';
+    if(txtDesc) txtDesc.textContent = '⚠️ Os documentos dos colaboradores são sigilosos e devem ser compartilhados com responsabilidade, conforme a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018). Repasse apenas ao destinatário autorizado.';
+    if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
+    if(txtBtn) txtBtn.textContent = 'Baixar documentos';
 }
 
 window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message) {
@@ -1470,15 +1455,10 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Operacional (qualquer depto) + Logística + Supervisão
+        // Mostrar todos os colaboradores não desligados
         _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            const dept = (c.departamento || '').toLowerCase().trim();
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
-            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
+            return s !== 'desligado' && s !== '';
         });
 
 
