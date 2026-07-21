@@ -14867,9 +14867,9 @@ function verificarDesempenhosPendentes() {
                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                 </div>
                 <div style="padding:24px;">
-                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Avaliação de Desempenho Pendente</h2>
+                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
                     <p>Olá <strong>${managerName}</strong>,</p>
-                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}?? Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
                     <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
                     <div style="text-align:center;margin:30px 0;">
                         <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
@@ -15015,9 +15015,9 @@ app.get('/api/desempenho/test-email', async (req, res) => {
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">???? Avaliação de Desempenho Pendente</h2>
+                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
                         <p>Olá <strong>Thais</strong>,</p>
-                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}?? Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
                         <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
                         <div style="text-align:center;margin:30px 0;">
                             <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
