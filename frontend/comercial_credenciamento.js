@@ -19,7 +19,7 @@ window._historicoComCredDados = [];
 window._historicoComCredSort = { col: 'data', dir: 'asc' };
 
 // Empresas fixas sempre exibidas como abas
-const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
+const EMPRESAS_LICENCAS = ['América Rental', 'BRK', 'Attend Ambiental'];
 
 // Alterna aba ativa no painel de licenças (apenas show/hide — checkboxes ficam no DOM)
 
