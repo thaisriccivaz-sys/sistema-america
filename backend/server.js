@@ -17398,13 +17398,13 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             const _logoPathCred = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
             const dtLimiteCred = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
             sendEmailParaNotificados('nova_solicitacao_credenciamento', {
-                        subject: `???? Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                        subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                     </div>
                     <div style="padding:24px;">
-                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">???? Nova Solicitação de Credenciamento</h2>
+                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
                         <p>Uma nova solicitação foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda ação da Logística.</p>
                         <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #7048e8;">
                             <p style="margin:4px 0;"><strong>Cliente / Obra:</strong> ${cliente_nome}</p>
@@ -17477,7 +17477,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                                 <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
                             </div>
                             <div style="padding: 20px;">
-                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">???? Nova Solicitação de Credenciamento</h2>
+                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
                                 <p>Uma nova solicitação de credenciamento foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda ação da Logística.</p>
                                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #7048e8;">
                                     <table style="width:100%; border-collapse:collapse;">
@@ -17504,7 +17504,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                     sendMailHelper({
                         to: destinatarios.join(', '),
-                        subject: `???? Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                        subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
                         html: htmlMail,
                         attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                     }).then(() => {
