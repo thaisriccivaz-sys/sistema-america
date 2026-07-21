@@ -448,7 +448,8 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         
         let acoes = '';
         if (cred.status === 'solicitado') {
-            acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
+            acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>
+                     <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px; color:#ef4444; border-color:#fca5a5;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'" onclick="window.excluirSolicitacaoCredenciamento('${cred.id}')" title="Excluir Solicitação"><i class="ph ph-trash"></i></button>`;
         } else if (cred.tipo_envio === 'whatsapp') {
             acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosComercial('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i></button>`;
         } else if (cred.token) {
@@ -796,5 +797,23 @@ window.enviarEmailLicencasSelecionadasCred = async function() {
     } catch (e) {
         console.error(e);
         alert('Erro ao enviar e-mail.');
+    }
+};
+
+
+window.excluirSolicitacaoCredenciamento = async function(id) {
+    if (!confirm('Tem certeza que deseja excluir esta solicitação de credenciamento? Esta ação não pode ser desfeita.')) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/comercial/credenciamento/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir solicitação');
+        
+        window.carregarHistoricoComCred();
+    } catch (e) {
+        alert(e.message);
     }
 };

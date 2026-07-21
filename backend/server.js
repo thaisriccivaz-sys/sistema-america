@@ -26511,3 +26511,11 @@ app.post('/api/licencas/baixar-lote', authenticateToken, (req, res) => {
         }
     });
 });
+
+app.delete('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM logistica_credenciamentos WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Credenciamento não encontrado' });
+        res.json({ message: 'Credenciamento excluído com sucesso' });
+    });
+});
