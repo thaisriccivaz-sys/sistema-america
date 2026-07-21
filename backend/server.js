@@ -2075,7 +2075,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
         // Query 2: Documentos do prontu??rio (ASO, EPI, etc.) ??? sem coluna assinafy_sent_at/signed_at para compatibilidade
         const docRows = await dbAll(`
             SELECT d.id, d.document_type AS nome_documento, d.assinafy_status, d.assinafy_id,
-                   d.colaborador_id,
+                   d.colaborador_id, d.tab_name,
                    c.nome_completo AS colaborador_nome,
                    c.departamento  AS colaborador_departamento,
                    c.cargo         AS colaborador_cargo,

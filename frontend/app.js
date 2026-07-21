@@ -4730,6 +4730,25 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
         tabConjuge.style.display = 'none'; // Aba de Cônjuge extinta nativamente (migrado para Passo 4)
     }
 
+    // Exibir aba Rescisão APENAS para colaboradores Desligados
+    const tabRescisao = document.getElementById('tab-rescisao');
+    if (tabRescisao) {
+        const effStatus = getEffectiveStatus(viewedColaborador || { status });
+        if (effStatus === 'Desligado') {
+            tabRescisao.style.removeProperty('display');
+            tabRescisao.style.setProperty('display', 'flex', 'important');
+            // Bind click event (re-bind to avoid duplicates)
+            tabRescisao.onclick = null;
+            tabRescisao.addEventListener('click', (e) => {
+                document.querySelectorAll('#tabs-list li').forEach(t => t.classList.remove('active'));
+                tabRescisao.classList.add('active');
+                window.renderTabContent('Rescisão', 'Rescisão');
+            });
+        } else {
+            tabRescisao.style.setProperty('display', 'none', 'important');
+        }
+    }
+
     // Aplica permissões de abas do prontuário e seleciona a primeira aba permitida
     let firstAllowed = null;
     if (window.aplicarPermissoesProntuario) {
@@ -5451,6 +5470,12 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
             window.renderSinistrosTab(listContainer);
         } else {
             listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de sinistros não carregado. Tente recarregar a página.</div>';
+        }
+    } else if (tabId === 'Rescisão') {
+        if (typeof window.renderRescisaoTab === 'function') {
+            window.renderRescisaoTab(listContainer);
+        } else {
+            listContainer.innerHTML = '<div class="alert alert-warning"><i class="ph ph-warning"></i> Módulo de rescisão não carregado. Tente recarregar a página.</div>';
         }
     } else if (tabId === 'Contratos') {
 
@@ -10121,6 +10146,105 @@ window._avaliarRegraGerador = function (g, colab, deptNome) {
     }
 
     return true;
+};
+
+// ===== ABA RESCISÃO (PRONTUÁRIO DIGITAL) =====
+// Renderiza a aba de Rescisão para colaboradores desligados
+window.renderRescisaoTab = async function (container) {
+    if (!viewedColaborador || !container) return;
+    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando documentos de rescisão...</p>';
+    try {
+        const safeGet = async (url) => {
+            try {
+                const r = await apiGet(url);
+                return Array.isArray(r) ? r : (r ? [r] : []);
+            } catch (e) { return []; }
+        };
+        const [assinaturas, docs] = await Promise.all([
+            safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
+            safeGet(`/colaboradores/${viewedColaborador.id}/documentos`)
+        ]);
+
+        // Filtrar somente documentos da aba RESCISAO
+        const rescisaoDocs = docs.filter(d => d.tab_name === 'RESCISAO');
+        rescisaoDocs.sort((a, b) => b.id - a.id);
+
+        // Montar HTML da aba
+        container.innerHTML = `
+        <div style="padding:1rem 0 0.5rem 0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:1rem 1.25rem;">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <div style="background:#b91c1c;color:#fff;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;">
+                        <i class="ph ph-file-x" style="font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;color:#7f1d1d;font-size:1rem;">Documentos de Rescisão</div>
+                        <div style="font-size:0.8rem;color:#b91c1c;">Anexe e envie os documentos para assinatura do colaborador desligado</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <label class="btn" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;padding:0.45rem 1rem;background:#b91c1c;color:#fff;border:none;border-radius:8px;font-weight:600;margin:0;">
+                        <i class="ph ph-upload-simple"></i> Anexar Documento
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadRescisaoDoc(this)">
+                    </label>
+                </div>
+            </div>
+            <div id="rescisao-docs-list">
+                ${rescisaoDocs.length === 0
+                    ? `<div style="text-align:center;padding:2.5rem 1rem;color:#94a3b8;">
+                           <i class="ph ph-file-dashed" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;"></i>
+                           Nenhum documento de rescisão anexado ainda.<br>
+                           <span style="font-size:0.8rem;">Use o botão "Anexar Documento" para adicionar.</span>
+                       </div>`
+                    : window.buildContratosSignatureRows(assinaturas, rescisaoDocs, viewedColaborador)
+                }
+            </div>
+        </div>`;
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-warning"><i class="ph ph-warning"></i> Erro ao carregar documentos de rescisão: ${e.message}</div>`;
+    }
+};
+
+// Upload de documento para a aba RESCISAO
+window.uploadRescisaoDoc = async function (input) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    input.value = '';
+
+    // Usar o nome real do arquivo (sem extensão) como tipo do documento
+    const docType = file.name.replace(/\.[^/.]+$/, '');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'RESCISAO');
+    formData.append('document_type', docType);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    // Não define assinafy_status: o usuário escolhe "Exige Assinatura? Sim/Não" após o upload
+
+    try {
+        const res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Falha ao anexar documento de rescisão');
+        if (typeof showToast !== 'undefined') showToast('Documento de rescisão anexado com sucesso!', 'success');
+        await loadDocumentosList();
+        await window._reloadRescisaoContainer();
+    } catch (err) {
+        alert('Erro: ' + err.message);
+    }
+};
+
+// Helper: recarrega o container da aba Rescisão se ela estiver ativa
+window._reloadRescisaoContainer = async function () {
+    const rescisaoList = document.getElementById('rescisao-docs-list');
+    const ct = document.getElementById('docs-list-container') || document.getElementById('tab-dynamic-content');
+    if (ct && rescisaoList) {
+        await window.renderRescisaoTab(ct);
+    }
 };
 
 window.renderContratosAvulso = async function (container, searchTerm = '') {
@@ -16737,6 +16861,7 @@ window.filtrarAssinaturas = function () {
             </td>
             <td style="padding:0.75rem 1rem;">
                 <div style="font-weight:600;color:#334155;">${d.nome_documento || '—'}</div>
+                ${d.tab_name === 'RESCISAO' ? '<span style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;border-radius:10px;padding:1px 7px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;margin-top:2px;"><i class="ph ph-file-x"></i> Rescisão</span>' : ''}
             </td>
             <td style="padding:0.75rem 1rem;text-align:center;">${statusBadge}</td>
             <td style="padding:0.75rem 1rem;color:#475569;white-space:nowrap;">${fmtDate(d.enviado_em)}</td>
