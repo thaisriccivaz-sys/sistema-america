@@ -467,89 +467,132 @@
                         const grupo = window.matchTemplateGroup('desempenho', c.departamento, c.cargo);
                         const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
 
-                        const blocos = periodos.map(p => {
+                        if (!perguntasGroup) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário ou template de perguntas encontrado.</div>';
+                        }
+
+                        // Process periods data
+                        const periodosData = periodos.map(p => {
                             const key = `${p.ano}-T${p.trimestre}`;
                             const ps = c.pesquisas?.[key];
-                            if (!ps || !ps.respondido) return '';
+                            if (!ps || !ps.respondido) return { ...p, notas: {}, media: null, hasDetails: false };
 
                             let respostasObj = ps.respostas;
                             if (typeof respostasObj === 'string') {
                                 try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
                             }
 
-                            let corpoHtml = '';
-
+                            let notas = {};
+                            let hasDetails = false;
+                            
                             if (respostasObj && typeof respostasObj === 'object') {
                                 const isGrouped = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && typeof respostasObj[k] === 'object' && respostasObj[k] !== null);
-
                                 if (isGrouped) {
+                                    hasDetails = true;
                                     Object.entries(respostasObj).forEach(([cat, notasObj]) => {
                                         if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
                                         if (typeof notasObj !== 'object' || notasObj === null) return;
-                                        
-                                        const questions = perguntasGroup ? perguntasGroup[cat] : null;
-                                        let rowsHtml = '';
+                                        if (!notas[cat]) notas[cat] = {};
                                         
                                         Object.entries(notasObj).forEach(([idxStr, n]) => {
                                             const idx = parseInt(idxStr, 10);
-                                            const qText = (questions && questions[idx]) ? questions[idx] : 'Pergunta ' + (idx + 1);
-                                            const nVal = (n !== null && n !== undefined) ? n : '—';
-                                            const m = parseFloat(n);
-                                            const nColor = !isNaN(m) ? scoreColor(m) : '#475569';
-                                            const nBg   = !isNaN(m) ? scoreBg(m) : 'transparent';
-                                            
-                                            rowsHtml += `
-                                            <div style="display:flex;align-items:flex-start;gap:0.6rem;padding:5px 0;border-bottom:1px solid #f1f5f9;">
-                                                <span style="flex:1;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</span>
-                                                <span style="flex-shrink:0;min-width:32px;text-align:center;font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;background:${nBg};color:${nColor};">${nVal}</span>
-                                            </div>`;
+                                            notas[cat][idx] = n;
                                         });
-                                        if (rowsHtml) {
-                                            corpoHtml += `
-                                            <div style="margin-bottom:10px;">
-                                                <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
-                                                ${rowsHtml}
-                                            </div>`;
-                                        }
-                                    });
-                                } else if (respostasObj.scores) {
-                                    Object.entries(respostasObj.scores).forEach(([cat, media]) => {
-                                        if (media === null || media === undefined) return;
-                                        const m = parseFloat(media);
-                                        if (isNaN(m)) return;
-                                        corpoHtml += `
-                                        <div style="margin-bottom:10px;">
-                                            <div style="font-weight:700;font-size:0.76rem;text-transform:uppercase;letter-spacing:.04em;color:#7c3aed;margin-bottom:4px;">${cat}</div>
-                                            <div style="display:flex;align-items:center;gap:0.6rem;padding:5px 0;border-bottom:1px solid #f1f5f9;">
-                                                <span style="flex:1;font-size:0.78rem;color:#94a3b8;font-style:italic;">Formulário antigo — notas detalhadas não salvas</span>
-                                                <span style="flex-shrink:0;min-width:32px;text-align:center;font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;background:${scoreBg(m)};color:${scoreColor(m)};">${m.toFixed(1)}</span>
-                                            </div>
-                                        </div>`;
                                     });
                                 }
                             }
 
-                            if (!corpoHtml) {
-                                corpoHtml = '<div style="color:#94a3b8;font-style:italic;font-size:0.85rem;padding:0.5rem 0;">Detalhes indisponíveis para este formulário. A média geral está preservada.</div>';
+                            return { ...p, notas, media: ps.media, hasDetails };
+                        });
+
+                        const hasAnyResponse = periodosData.some(pd => pd.media !== null);
+                        if (!hasAnyResponse) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário preenchido nos períodos anteriores.</div>';
+                        }
+
+                        // Build Table Header
+                        let theadHtml = `<tr>
+                            <th style="text-align:left;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:50%;">Perguntas</th>`;
+                        
+                        periodos.forEach(p => {
+                            theadHtml += `<th style="text-align:center;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:12%;">${periodLabel(p)}</th>`;
+                        });
+                        theadHtml += '</tr>';
+
+                        let tbodyHtml = '';
+
+                        Object.entries(perguntasGroup).forEach(([cat, questions]) => {
+                            if (!questions || questions.length === 0) return;
+                            
+                            // Category Header Row
+                            tbodyHtml += `<tr>
+                                <td colspan="${periodos.length + 1}" style="padding:10px 12px 4px 12px;">
+                                    <div style="font-weight:800;font-size:0.75rem;text-transform:uppercase;letter-spacing:.05em;color:#7c3aed;">${cat}</div>
+                                </td>
+                            </tr>`;
+
+                            // Questions Rows
+                            questions.forEach((qText, idx) => {
+                                if (!qText || !qText.trim()) return;
+                                
+                                tbodyHtml += `<tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:6px 12px;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</td>`;
+                                
+                                periodosData.forEach(pd => {
+                                    let nVal = '—';
+                                    let nColor = '#cbd5e1'; // light gray for empty
+                                    let nBg = 'transparent';
+
+                                    if (pd.media !== null) {
+                                        if (pd.hasDetails && pd.notas[cat] && pd.notas[cat][idx] !== undefined) {
+                                            const v = pd.notas[cat][idx];
+                                            nVal = (v !== null && v !== undefined) ? v : '—';
+                                            const m = parseFloat(v);
+                                            if (!isNaN(m)) {
+                                                nColor = scoreColor(m);
+                                                nBg = scoreBg(m);
+                                            } else {
+                                                nColor = '#475569';
+                                            }
+                                        } else if (!pd.hasDetails) {
+                                            // Resposta existe mas sem detalhes
+                                            nVal = '<span style="font-size:0.7rem;color:#94a3b8;" title="Sem detalhes">S/D</span>';
+                                        }
+                                    }
+
+                                    // If empty but has details in other categories? or just empty
+                                    const pillStyle = nVal !== '—' && nVal.indexOf('<span') === -1 ? `background:${nBg};color:${nColor};font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;display:inline-block;min-width:28px;` : `color:#cbd5e1;`;
+                                    
+                                    tbodyHtml += `<td style="text-align:center;padding:6px 12px;">
+                                        <span style="${pillStyle}">${nVal}</span>
+                                    </td>`;
+                                });
+                                
+                                tbodyHtml += '</tr>';
+                            });
+                        });
+
+                        // Medias row at the bottom
+                        tbodyHtml += `<tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+                            <td style="text-align:right;padding:10px 12px;font-weight:700;font-size:0.8rem;color:#334155;">Média Geral:</td>`;
+                        periodosData.forEach(pd => {
+                            if (pd.media !== null) {
+                                tbodyHtml += `<td style="text-align:center;padding:10px 12px;">
+                                    <span class="score-pill" style="background:${scoreBg(pd.media)};color:${scoreColor(pd.media)};font-size:0.8rem;font-weight:800;">${fmtScore(pd.media)}</span>
+                                </td>`;
+                            } else {
+                                 tbodyHtml += `<td style="text-align:center;padding:10px 12px;color:#cbd5e1;">—</td>`;
                             }
+                        });
+                        tbodyHtml += '</tr>';
 
-                            return `
-                            <div style="margin-bottom:1rem;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-                                <div style="background:#f8fafc;padding:7px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;">
-                                    <span style="font-weight:700;font-size:0.8rem;color:#334155;">${periodLabel(p)}</span>
-                                    <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};font-size:0.78rem;font-weight:800;">
-                                        Média: ${fmtScore(ps.media)}
-                                    </span>
-                                </div>
-                                <div style="padding:10px 14px;">
-                                    ${corpoHtml}
-                                </div>
-                            </div>`;
-                        }).filter(x => x);
-
-                        return blocos.length > 0
-                            ? blocos.join('')
-                            : '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário preenchido nos períodos anteriores.</div>';
+                        return `
+                        <div style="border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <thead>${theadHtml}</thead>
+                                <tbody>${tbodyHtml}</tbody>
+                            </table>
+                        </div>`;
                     })()}
                 </div>
             </td>
