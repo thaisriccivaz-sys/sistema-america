@@ -463,7 +463,7 @@
                             <tr>
                                 <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Período</th>
                                 <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Média Geral</th>
-                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Notas por Categoria</th>
+                                <th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Respostas (Notas)</th>
                                 <th style="text-align:center;padding:8px;border-bottom:1px solid #e2e8f0;color:#64748b;">Visualizar</th>
                             </tr>
                         </thead>
@@ -473,16 +473,35 @@
                                 const ps = c.pesquisas?.[key];
                                 if (!ps || !ps.respondido) return '';
                                 
+                                let respostasObj = ps.respostas;
+                                if (typeof respostasObj === 'string') {
+                                    try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
+                                }
+                                
                                 let catAverages = [];
-                                if (ps.respostas && typeof ps.respostas === 'object') {
-                                    Object.entries(ps.respostas).forEach(([cat, notas]) => {
+                                if (respostasObj && typeof respostasObj === 'object') {
+                                    const grupo = window.matchTemplateGroup('satisfacao', c.departamento, c.cargo);
+                                    const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao ? window.AVALIACAO_QUESTIONS.satisfacao[grupo] : null;
+                                    
+                                    Object.entries(respostasObj).forEach(([cat, notas]) => {
                                         if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
                                         if (Array.isArray(notas)) {
-                                            const validNotas = notas.filter(n => n !== null && n !== undefined).map(n => parseFloat(n)).filter(n => !isNaN(n));
-                                            if (validNotas.length > 0) {
-                                                const media = validNotas.reduce((a,b)=>a+b,0) / validNotas.length;
-                                                catAverages.push(`<span style="display:inline-block;background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 6px;border-radius:4px;margin:2px;font-size:0.75rem;">${cat}: <strong>${media.toFixed(1)}</strong></span>`);
-                                            }
+                                            const questions = perguntasGroup ? perguntasGroup[cat] : null;
+                                            
+                                            let qHtml = '';
+                                            notas.forEach((n, idx) => {
+                                                let qText = (questions && questions[idx]) ? questions[idx] : `Pergunta ${idx+1}`;
+                                                if (qText.length > 60) qText = qText.substring(0, 60) + '...';
+                                                const nText = (n !== null && n !== undefined) ? n : '-';
+                                                qHtml += `<li style="margin-bottom:3px;line-height:1.2;">${qText}: <strong style="color:#0ea5e9;">${nText}</strong></li>`;
+                                            });
+                                            
+                                            catAverages.push(`<div style="margin-bottom:8px;">
+                                                <div style="font-weight:600;color:#334155;margin-bottom:4px;">${cat}</div>
+                                                <ul style="margin:0;padding-left:16px;font-size:0.75rem;color:#475569;list-style-type:circle;">
+                                                    ${qHtml}
+                                                </ul>
+                                            </div>`);
                                         }
                                     });
                                 }
