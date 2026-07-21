@@ -488,14 +488,23 @@ function atualizarResumoColabs() {
         list.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum colaborador selecionado.</p>';
         return;
     }
-    list.innerHTML = credenciamentoState.selecionadosColabs.map(idStr => {
+    let html = credenciamentoState.selecionadosColabs.map(idStr => {
         const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
         if (!c) return '';
-        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
+        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; margin-bottom:6px; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
             <span style="font-size:14px; font-weight:500; color:#334155;">${c.nome_completo}</span>
             <i class="ph ph-trash" style="color:#ef4444; cursor:pointer;" onclick="removerCredColab('${idStr}')" title="Remover"></i>
         </div>`;
     }).join('');
+
+    const max = window._credLimites ? window._credLimites.colabs : -1;
+    if (max !== -1 && credenciamentoState.selecionadosColabs.length > max) {
+        html += `<div style="margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-warning-circle" style="font-size:16px;"></i>
+            Atenção: A solicitação limitou a ${max} colaborador(es), mas você selecionou ${credenciamentoState.selecionadosColabs.length}.
+        </div>`;
+    }
+    list.innerHTML = html;
 }
 
 // ── Resumo de veículos selecionados ───────────────────────────────────────────
@@ -506,14 +515,23 @@ function atualizarResumoVeiculos() {
         list.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum veículo selecionado.</p>';
         return;
     }
-    list.innerHTML = credenciamentoState.selecionadosVeic.map(idStr => {
+    let html = credenciamentoState.selecionadosVeic.map(idStr => {
         const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
         if (!v) return '';
-        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
+        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; margin-bottom:6px; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
             <span style="font-size:14px; font-weight:500; color:#334155;"><b>${v.placa}</b> — ${v.marca_modelo_versao || ''}</span>
             <i class="ph ph-trash" style="color:#ef4444; cursor:pointer;" onclick="removerCredVeic('${idStr}')" title="Remover"></i>
         </div>`;
     }).join('');
+
+    const max = window._credLimites ? window._credLimites.veics : -1;
+    if (max !== -1 && credenciamentoState.selecionadosVeic.length > max) {
+        html += `<div style="margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-warning-circle" style="font-size:16px;"></i>
+            Atenção: A solicitação limitou a ${max} veículo(s), mas você selecionou ${credenciamentoState.selecionadosVeic.length}.
+        </div>`;
+    }
+    list.innerHTML = html;
 }
 
 // ── Validação de vencimentos antes de enviar ──────────────────────────────────
