@@ -602,10 +602,22 @@ async function validarVencimentosCredenciamento() {
                         continue;
                     }
 
-                    const docFound = (docs || []).find(d => {
+                    const matchingDocs = (docs || []).filter(d => {
                         const val = mapDocTypeToValue(d.document_type);
                         return val === reqDoc;
                     });
+                    
+                    // Ordenar para pegar o mais recente (maior vencimento ou maior ID)
+                    matchingDocs.sort((a, b) => {
+                        if (a.vencimento && b.vencimento) {
+                            return new Date(b.vencimento) - new Date(a.vencimento);
+                        }
+                        if (a.vencimento) return -1;
+                        if (b.vencimento) return 1;
+                        return b.id - a.id;
+                    });
+                    
+                    const docFound = matchingDocs[0];
 
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
