@@ -17708,53 +17708,50 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         const fs = require('fs');
 
         const addLocalFileIfExists = (filePath, nameInZip) => {
-                    textoCopia += `\n*Veículos:*\n`;
-                    veiculos.forEach(v => {
-                        textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
-                    });
-                }
-                textoCopia = textoCopia.trim();
-
-                // Notificar o solicitante (Comercial)
-                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", 
-                    [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                
-                // Sempre retornar o texto de cópia, pois agora o envio é manual (download zip e copy text)
-                res.json({ message: 'Credenciamento processado com sucesso.', texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados });
-            }
-        );
-        }); // fechamento fetchAndEnrich
-    });
-});
-
-// Baixar ZIP dos documentos do credenciamento
-app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], async (err, cred) => {
-        if (err || !cred) return res.status(404).send('Credenciamento não encontrado');
-
-        const AdmZip = require('adm-zip');
-        const zip = new AdmZip();
-        let hasFiles = false;
-
-        let colabsIds = [];
-        let veicIds = [];
-        let docsExigidos = [];
-        let licencasSolicitadas = [];
-
-        try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
-        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
-        try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
-        try { licencasSolicitadas = JSON.parse(cred.licencas_ids || '[]'); } catch (e) {}
-
-        const path = require('path');
-        const fs = require('fs');
-
-        const addLocalFileIfExists = (filePath, nameInZip) => {
             const absolutePath = path.resolve(__dirname, '..', '..', filePath);
             if (fs.existsSync(absolutePath)) {
                 const parts = nameInZip.split('/');
                 const fileName = parts.pop();
                 const folderPath = parts.join('/');
+                zip.addLocalFile(absolutePath, folderPath, fileName);
+                hasFiles = true;
+            }
+        };
+
+        const addBase64IfExists = (base64Data, filenameInZip) => {
+            if (base64Data) {
+                const b64 = base64Data.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
+                zip.addFile(filenameInZip, Buffer.from(b64, 'base64'));
+                hasFiles = true;
+            }
+        };
+
+        // 1. Licenças
+        if (licencasSolicitadas.length > 0) {
+            const lics = await new Promise(resolve => db.all(`SELECT * FROM frota_licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
+            lics.forEach(lic => {
+                if (lic.file_path) {
+                    addLocalFileIfExists(lic.file_path, `Licencas/${lic.file_name || ('Licenca_'+lic.id+'.pdf')}`);
+                }
+            });
+        }
+
+        // 2. Veículos (CRLV)
+        if (veicIds.length > 0) {
+            const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veiculos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            veics.forEach(v => {
+                addBase64IfExists(v.crlv_base64, `Veiculos/${v.placa}_${v.crlv_filename || 'CRLV.pdf'}`);
+            });
+        }
+
+        // 3. Colaboradores (Documentos)
+        if (colabsIds.length > 0) {
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            
+            for (const colab of colabs) {
+                const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
+                
+                if (docsExigidos.includes('foto_colaborador')) {
                     if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/Foto.png`);
                     else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/Foto.png`); // Assuming png extension
                 }
