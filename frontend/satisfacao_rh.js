@@ -481,14 +481,21 @@
                             let hasDetails = false;
                             
                             if (respostasObj && typeof respostasObj === 'object') {
-                                const hasArrays = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && Array.isArray(respostasObj[k]));
-                                if (hasArrays) {
+                                const isGrouped = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && typeof respostasObj[k] === 'object' && respostasObj[k] !== null);
+                                if (isGrouped) {
                                     hasDetails = true;
-                                    Object.entries(respostasObj).forEach(([cat, notasArr]) => {
+                                    Object.entries(respostasObj).forEach(([cat, notasObj]) => {
                                         if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
-                                        if (Array.isArray(notasArr)) {
-                                            if (!notas[cat]) notas[cat] = {};
-                                            notasArr.forEach((n, idx) => {
+                                        if (typeof notasObj !== 'object' || notasObj === null) return;
+                                        if (!notas[cat]) notas[cat] = {};
+                                        
+                                        if (Array.isArray(notasObj)) {
+                                            notasObj.forEach((n, idx) => {
+                                                notas[cat][idx] = n;
+                                            });
+                                        } else {
+                                            Object.entries(notasObj).forEach(([idxStr, n]) => {
+                                                const idx = parseInt(idxStr, 10);
                                                 notas[cat][idx] = n;
                                             });
                                         }
