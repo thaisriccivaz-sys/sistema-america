@@ -17683,87 +17683,129 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 }
                 textoCopia = textoCopia.trim();
 
-                if (finalTipoEnvio === 'whatsapp') {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados, whatsapp: finalWhatsapp, tipo_envio: finalTipoEnvio });
-                } else {
-                    if (cred.cliente_email && cred.cliente_email.includes('@')) {
-                        // Build HTML...
-                        let htmlCols = (colaboradores || []).map(c => {
-                            const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
-                            const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
-                            const cargoInfo = c.cargo ? ` - Cargo: ${c.cargo}` : '';
-                            return `<li><b>${c.nome || c.nome_completo}</b>${cargoInfo}${cpfInfo}${cnhInfo}</li>`;
-                        }).join('');
-                        let htmlVeics = (veiculos || []).map(v => {
-                            return `<li><b>${v.placa}</b> - ${v.modelo || v.marca_modelo_versao}</li>`;
-                        }).join('');
-
-                        let emailHtml = '';
-                        if (cred.apenas_dados) {
-                            emailHtml = `
-                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                                <div style="text-align: center; margin-bottom: 0;">
-                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
-                                </div>
-                                <h2 style="color: #2d9e5f; text-align: center;">Dados do Credenciamento</h2>
-                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
-                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
-                                
-                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
-                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
-                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
-                                </div>
-                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
-                            </div>`;
-                        } else {
-                            emailHtml = `
-                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                                <div style="text-align: center; margin-bottom: 0;">
-                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
-                                </div>
-                                <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
-                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
-                                <p>Os documentos e certificados da equipe alocada para sua obra/evento foram liberados e estão disponíveis para download.</p>
-                                
-                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
-                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
-                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
-                                </div>
-
-                                <div style="text-align: center; margin: 30px 0;">
-                                    <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                                Acessar Prontu??rios e Documentos
-                                    </a>
-                                </div>
-                                <p style="text-align: center; font-size: 12px; color: #999;">
-                                    <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
-                                </p>
-                            </div>`;
-                        }
-
-                        const mailOptions = {
-                            from: `"América Rental - Sistema" <${process.env.EMAIL_USER}>`,
-                            to: cred.cliente_email,
-                            subject: `Credenciamento de Equipe - América Rental`,
-                            html: emailHtml
-                        };
-
-                        sendMailHelper(mailOptions).then(() => {
-                            console.log('E-mail de credenciamento enviado com sucesso.');
-                        }).catch(error => {
-                            console.error('Erro ao enviar e-mail de credenciamento:', error.message);
-                        });
-                    }
-
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia: textoCopia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
-                }
+                // Notificar o solicitante (Comercial)
+                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", 
+                    [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                
+                // Sempre retornar o texto de cópia, pois agora o envio é manual (download zip e copy text)
+                res.json({ message: 'Credenciamento processado com sucesso.', texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados });
             }
         );
         }); // fechamento fetchAndEnrich
+    });
+});
+
+// Baixar ZIP dos documentos do credenciamento
+app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], async (err, cred) => {
+        if (err || !cred) return res.status(404).send('Credenciamento não encontrado');
+
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip();
+        let hasFiles = false;
+
+        let colabsIds = [];
+        let veicIds = [];
+        let docsExigidos = [];
+        let licencasSolicitadas = [];
+
+        try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
+        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
+        try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
+        try { licencasSolicitadas = JSON.parse(cred.licencas_ids || '[]'); } catch (e) {}
+
+        const path = require('path');
+        const fs = require('fs');
+
+        const addLocalFileIfExists = (filePath, nameInZip) => {
+            const absolutePath = path.resolve(__dirname, '..', '..', filePath);
+            if (fs.existsSync(absolutePath)) {
+                zip.addLocalFile(absolutePath, nameInZip.split('/')[0], nameInZip.split('/')[1] || undefined);
+                hasFiles = true;
+            }
+        };
+
+        const addBase64IfExists = (base64Data, filenameInZip) => {
+            if (base64Data) {
+                const b64 = base64Data.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
+                zip.addFile(filenameInZip, Buffer.from(b64, 'base64'));
+                hasFiles = true;
+            }
+        };
+
+        // 1. Licenças
+        if (licencasSolicitadas.length > 0) {
+            const lics = await new Promise(resolve => db.all(`SELECT * FROM frota_licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
+            lics.forEach(lic => {
+                if (lic.file_path) {
+                    addLocalFileIfExists(lic.file_path, `Licencas/${lic.file_name || ('Licenca_'+lic.id+'.pdf')}`);
+                }
+            });
+        }
+
+        // 2. Veículos (CRLV)
+        if (veicIds.length > 0) {
+            const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veiculos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            veics.forEach(v => {
+                addBase64IfExists(v.crlv_base64, `Veiculos/${v.placa}_${v.crlv_filename || 'CRLV.pdf'}`);
+            });
+        }
+
+        // 3. Colaboradores (Documentos)
+        if (colabsIds.length > 0) {
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            
+            for (const colab of colabs) {
+                const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
+                
+                if (docsExigidos.includes('foto_colaborador')) {
+                    if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/Foto.png`);
+                    else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/Foto.png`); // Assuming png extension
+                }
+
+                // Buscar documentos da tabela documentos
+                const docs = await new Promise(resolve => db.all(`SELECT * FROM documentos WHERE colaborador_id = ?`, [colab.id], (err, rows) => resolve(rows || [])));
+                
+                docs.forEach(doc => {
+                    const docTypeLower = (doc.document_type || '').toLowerCase();
+                    let isRequired = false;
+                    
+                    if (docsExigidos.includes('cnh') && (docTypeLower.includes('cnh') || docTypeLower.includes('habilita'))) isRequired = true;
+                    if (docsExigidos.includes('cpf') && docTypeLower.includes('cpf')) isRequired = true;
+                    if (docsExigidos.includes('aso') && docTypeLower.includes('aso')) isRequired = true;
+                    if (docsExigidos.includes('ficha_registro') && (docTypeLower.includes('ficha de registro') || docTypeLower.includes('registro'))) isRequired = true;
+                    if (docsExigidos.includes('treinamento') && (docTypeLower.includes('vacina') || docTypeLower.includes('treinamento'))) isRequired = true;
+                    if (docsExigidos.includes('epi') && docTypeLower.includes('epi')) isRequired = true;
+                    if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') || docTypeLower.includes('social'))) isRequired = true;
+                    if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv'))) isRequired = true;
+                    
+                    if (isRequired) {
+                        const filePath = doc.signed_file_path || doc.file_path;
+                        if (filePath) {
+                            addLocalFileIfExists(filePath, `${folderName}/${doc.file_name}`);
+                        }
+                    }
+                });
+
+                // Buscar Ficha EPI ativa se EPI exigido
+                if (docsExigidos.includes('epi')) {
+                    const epi = await new Promise(resolve => db.get(`SELECT ficha_pdf_path FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = 'ativa' ORDER BY id DESC LIMIT 1`, [colab.id], (err, row) => resolve(row)));
+                    if (epi && epi.ficha_pdf_path) {
+                        addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/Ficha_EPI.pdf`);
+                    }
+                }
+            }
+        }
+
+        if (!hasFiles) {
+            // Retorna um zip vazio com um readme
+            zip.addFile('README.txt', Buffer.from('Nenhum documento encontrado para este credenciamento.'));
+        }
+
+        const zipBuffer = zip.toBuffer();
+        res.set('Content-Type', 'application/zip');
+        res.set('Content-Disposition', `attachment; filename="Credenciamento_${cred.os || cred.id}.zip"`);
+        res.send(zipBuffer);
     });
 });
 

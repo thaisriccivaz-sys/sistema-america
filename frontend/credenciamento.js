@@ -715,10 +715,38 @@ window.gerarEnviarCredenciamento = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar credenciamento.');
 
-        if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
-            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
+        if (solId) {
+            try {
+                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
+                    headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` }
+                });
+                if (zipRes.ok) {
+                    const blob = await zipRes.blob();
+                    const urlBlob = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = urlBlob;
+                    const disposition = zipRes.headers.get('Content-Disposition');
+                    let filename = `Credenciamento_${solId}.zip`;
+                    if (disposition && disposition.indexOf('filename=') !== -1) {
+                        filename = disposition.split('filename=')[1].replace(/["']/g, '');
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(urlBlob);
+                    a.remove();
+                }
+            } catch (err) { console.error('Erro ZIP:', err); }
+            
+            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, 'Credenciamento atendido! O ZIP com os documentos será baixado.');
         } else {
-            alert('✅ Credenciamento gerado e e-mail enviado com sucesso!');
+            // Comercial criando
+            if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
+                window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
+            } else {
+                alert('✅ Credenciamento gerado com sucesso!');
+            }
         }
 
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
@@ -809,10 +837,18 @@ window.abrirModalCumprirSolicitacao = function(id) {
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span');
     if (spanModalVeics) spanModalVeics.innerHTML = maxVeicsText;
 
-    // Limpar seleções anteriores
+    // Limpar ou restaurar seleções anteriores
     credenciamentoState.selecionadosColabs = [];
     credenciamentoState.selecionadosVeic = [];
     credenciamentoState.selecionadosLicencas = [];
+    
+    if (dados && dados.colaboradores_ids) {
+        try { credenciamentoState.selecionadosColabs = JSON.parse(dados.colaboradores_ids).map(c => String(c.id)); } catch(e){}
+    }
+    if (dados && dados.veiculos_ids) {
+        try { credenciamentoState.selecionadosVeic = JSON.parse(dados.veiculos_ids).map(v => String(v.id)); } catch(e){}
+    }
+    
     atualizarResumoColabs();
     atualizarResumoVeiculos();
     atualizarResumoLicencas();
@@ -1138,7 +1174,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.tipo_envio === 'whatsapp' ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosCredenciamento('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i> Copiar Dados</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : ''))}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender / Baixar ZIP</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar / Baixar Novamente</button>`}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
