@@ -160,11 +160,13 @@ async function loadColaboradoresCred() {
             const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
             const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
             const dept = (c.departamento || '').toLowerCase().trim();
-            // Operacional (qualquer depto) + Logística + Supervisão + Liderança
+            // Apenas Operacional, Logística, Supervisão, Liderança, Transporte
             const isLogistica = dept.includes('logística') || dept.includes('logistica');
             const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
             const isLideranca = dept.includes('liderança') || dept.includes('lideranca');
-            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao || isLideranca);
+            const isOperacional = dept.includes('operacional');
+            const isTransporte = dept.includes('transporte') || dept.includes('frota');
+            return isActive && (isLogistica || isSupervisao || isLideranca || isOperacional || isTransporte);
         });
 
 
@@ -497,14 +499,15 @@ function atualizarResumoColabs() {
         </div>`;
     }).join('');
 
+    let warning = '';
     const max = window._credLimites ? window._credLimites.colabs : -1;
     if (max !== -1 && credenciamentoState.selecionadosColabs.length > max) {
-        html += `<div style="margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+        warning = `<div style="margin-bottom:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
             <i class="ph ph-warning-circle" style="font-size:16px;"></i>
             Atenção: A solicitação limitou a ${max} colaborador(es), mas você selecionou ${credenciamentoState.selecionadosColabs.length}.
         </div>`;
     }
-    list.innerHTML = html;
+    list.innerHTML = warning + html;
 }
 
 // ── Resumo de veículos selecionados ───────────────────────────────────────────
@@ -524,14 +527,15 @@ function atualizarResumoVeiculos() {
         </div>`;
     }).join('');
 
+    let warning = '';
     const max = window._credLimites ? window._credLimites.veics : -1;
     if (max !== -1 && credenciamentoState.selecionadosVeic.length > max) {
-        html += `<div style="margin-top:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+        warning = `<div style="margin-bottom:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
             <i class="ph ph-warning-circle" style="font-size:16px;"></i>
             Atenção: A solicitação limitou a ${max} veículo(s), mas você selecionou ${credenciamentoState.selecionadosVeic.length}.
         </div>`;
     }
-    list.innerHTML = html;
+    list.innerHTML = warning + html;
 }
 
 // ── Validação de vencimentos antes de enviar ──────────────────────────────────
@@ -615,8 +619,14 @@ async function validarVencimentosCredenciamento() {
 
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
-                    } else if (reqDoc !== 'cpf' && docFound.vencimento && new Date(docFound.vencimento + 'T12:00:00') < hoje) {
-                        erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${docFound.vencimento.split('-').reverse().join('/')}). Contacte o setor de RH.`);
+                    } else if (reqDoc !== 'cpf' && docFound.vencimento) {
+                        let dataVencimento = new Date(docFound.vencimento + 'T12:00:00');
+                        if (reqDoc === 'aso') {
+                            dataVencimento.setFullYear(dataVencimento.getFullYear() + 1);
+                        }
+                        if (dataVencimento < hoje) {
+                            erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${dataVencimento.toLocaleDateString('pt-BR')}). Contacte o setor de RH.`);
+                        }
                     }
                 }
             }
