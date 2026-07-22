@@ -137,7 +137,7 @@ const DOCS_DISPONIVEIS = [
     "EPI", "Gerador Bloqueio Farmacia e mercado", "Gerador Desconto folha",
     "Gerador Sorteio", "Intermitente", "NR01", "NR18", "Pedido Abertura de Conta",
     "Terapia", "Termo de Acordo de Desligamento", "Termo de Confidencialidade",
-    "Termo de Responsabilidade Bilhete unico", "Termo de Responsabilidade Cracha",
+    "Termo de Responsabilidade Bilhete Único", "Termo de Responsabilidade Cracha",
     "Termo de Responsabilidade de Celulares", "Termo de Responsabilidade de Chaves",
     "Termo de Responsabilidade de Notebook", "Termo de Responsabilidade entrega de kit veicular",
     "Termo de Responsabilidade Veículo"
@@ -5592,7 +5592,7 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
         }
 
-        fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+        fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
         if (_isCasado) {
             fixed.push('CPF do Cônjuge');
         }
@@ -12750,7 +12750,7 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
     }
 
-    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho');
+    fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
     if (_isCasado) {
         fixed.push('CPF do Cônjuge');
     }
