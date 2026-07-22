@@ -5854,7 +5854,16 @@ async function renderCargoDocsChecklist(container) {
                 ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check"></i> Anexado</span>`
                 : `<span style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning"></i> Pendente</span>`;
             
-            const tabBadge = `<span style="background:#f1f5f9;color:#475569;border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${item.tabLabel}</span>`;
+            let badgeBg = '#f1f5f9';
+            let badgeColor = '#475569';
+            if (item.tabLabel === 'Ficha Cadastral') {
+                badgeBg = '#fef9c3';
+                badgeColor = '#854d0e';
+            } else if (item.tabLabel === 'Contratos') {
+                badgeBg = '#dbeafe';
+                badgeColor = '#1e40af';
+            }
+            const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${item.tabLabel}</span>`;
             
             const fileInfo = hasdoc && item.found.file_name
                 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-file"></i> ${item.found.file_name}</div>`
