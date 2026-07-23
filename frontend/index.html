@@ -3,6 +3,7 @@
 <html lang="pt-BR">
 
 <head>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -80,6 +81,8 @@
                             Lembrar usuário e senha
                         </label>
                     </div>
+                    <!-- Turnstile Widget -->
+                    <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" style="margin-bottom: 1rem; display: flex; justify-content: center;"></div>
                     <button type="submit" class="btn btn-primary btn-block">Entrar</button>
                     <div id="login-error" class="error-msg"></div>
                 </form>
