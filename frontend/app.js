@@ -215,6 +215,12 @@ if (formLogin) {
         const rememberMe = document.getElementById('login-remember')?.checked;
         const errorMsg = document.getElementById('login-error');
         if (errorMsg) errorMsg.textContent = '';
+        
+        const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        if (!turnstileToken) {
+            if (errorMsg) errorMsg.textContent = 'Por favor, confirme que você não é um robô.';
+            return;
+        }
 
         // Salvar ou remover credenciais
         if (rememberMe) {
@@ -232,7 +238,7 @@ if (formLogin) {
             const res = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usernameInp, password: passwordInp })
+                body: JSON.stringify({ username: usernameInp, password: passwordInp, turnstileToken: turnstileToken })
             });
             const data = await res.json();
 
@@ -280,8 +286,11 @@ if (formLogin) {
             showView('app-shell');
             window.navigateInitialPage();
         } catch (err) {
+            console.error(err);
             if (errorMsg) errorMsg.textContent = err.message;
-            else alert(err.message);
+            if (window.turnstile) {
+                turnstile.reset();
+            }
         } finally {
             btnSubmit.innerHTML = oldText;
             btnSubmit.disabled = false;

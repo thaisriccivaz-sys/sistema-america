@@ -2349,8 +2349,31 @@ const loginLimiter = rateLimit({
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 
-app.post('/api/auth/login', loginLimiter, (req, res) => {
-    const { username, password } = req.body;
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+    const { username, password, turnstileToken } = req.body;
+
+    const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
+    if (!turnstileToken) {
+        return res.status(401).json({ error: 'Validação de robô (Turnstile) ausente.' });
+    }
+    try {
+        const formData = new URLSearchParams();
+        formData.append('secret', TURNSTILE_SECRET_KEY);
+        formData.append('response', turnstileToken);
+        
+        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: formData
+        });
+        const cfData = await cfRes.json();
+        if (!cfData.success) {
+            return res.status(401).json({ error: 'Validação de robô falhou.' });
+        }
+    } catch (e) {
+        console.error('Turnstile validation error:', e);
+        return res.status(500).json({ error: 'Erro interno ao validar CAPTCHA.' });
+    }
+
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
         if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
