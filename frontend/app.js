@@ -10594,12 +10594,12 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
             // Slot vazio: exibe linha para anexar
             combinedHtml += `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #64748b; border-radius:8px; background:#f8fafc; gap:0.75rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
                 <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                    <span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Upload</span>
+                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
                     <div>
                         <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:1px;">Anexe o PDF da Ficha de Registro para envio à assinatura</div>
+                        <div style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando upload</div>
                     </div>
                 </div>
                 <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
@@ -11495,7 +11495,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
         const _signedStr = formatDate(doc.assinafy_signed_at || doc.upload_date);
 
         let statusBadge = '', leftIconMarkup = '', sendBtn = '', actionUX = '';
-        const borderBgColor = isSigned
+        let borderBgColor = isSigned
             ? 'border:1px solid #bbf7d0; background:#f0fdf4;'
             : isPending
                 ? 'border:1px solid #bfdbfe; background:#eff6ff;'
@@ -11523,8 +11523,15 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            const isFicha = _docName.toLowerCase().includes('ficha de registro');
+            if (isFicha) {
+                borderBgColor = 'border:1px solid #c026d3; background:#fdf4ff;';
+                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#c026d3;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span></div><span style="color:#c026d3;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            } else {
+                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+                statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            }
             const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
                 <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">

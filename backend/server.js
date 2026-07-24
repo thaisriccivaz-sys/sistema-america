@@ -3984,13 +3984,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 });
                 sendEmailParaNotificados('celular_controle', {
-                    subject: `???? Novo Participante de Celular Corporativo ??? ${nomeColab}`,
+                    subject: `📱 Novo Participante - Celular Corporativo - ${nomeColab}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">???? Novo Participante ??? Celular Corporativo</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📱 Novo Participante - Celular Corporativo</h2>
                             <p>Um colaborador foi marcado para receber celular corporativo:</p>
                             <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
@@ -4019,13 +4019,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 });
                 sendEmailParaNotificados('celular_controle', {
-                    subject: `???? Mudan??a de Situação ??? Celular Corporativo ??? ${nomeColab2}`,
+                    subject: `⚠️ Mudança de Situação - Celular Corporativo - ${nomeColab2}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">???? Mudan??a de Situação ??? Celular Corporativo</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Mudança de Situação - Celular Corporativo</h2>
                             <p>Um colaborador com Celular Corporativo teve sua situação alterada:</p>
                             <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab2}</p>
