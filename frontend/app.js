@@ -10583,35 +10583,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             allExistingDocs.forEach(d => docsUsados.add(d.id));
         }
 
-        for (const g of autoGeradores) {
-            const docMatch = _findDocForGerador(g);
-            if (!docMatch) {
-                // Gerador pendente: renderiza a linha de perfil aguardando geração
-                const escNome = (g.nome || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                combinedHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
-                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                        <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
-                        <div>
-                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
-                        </div>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
-                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
-                        </label>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
-                        </label>
-                    </div>
-                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
-                    </div>
-                </div>`;
-            }
-        }
+
 
         // ── Slots obrigatórios pós-admissão (azul) — ficam ANTES da Ficha de Registro ──
         DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
@@ -10674,6 +10646,35 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             </div>`;
         }
 
+        for (const g of autoGeradores) {
+            const docMatch = _findDocForGerador(g);
+            if (!docMatch) {
+                // Gerador pendente: renderiza a linha de perfil aguardando geração
+                const escNome = (g.nome || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                combinedHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
+                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
+                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                            <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                        </label>
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
+                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
+                        </label>
+                    </div>
+                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
+                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
+                    </div>
+                </div>`;
+            }
+        }
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -11576,6 +11577,35 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
     if (docs.length === 0) {
         return '';
     }
+
+    const DOCS_OBR_LIST = [
+        'termo responsabilidade salario familia',
+        'termo de consentimento lgpd',
+        'ficha de salario familia',
+        'ficha de empregado',
+        'declaracao encargos de familia para fins de ir',
+        'contrato de experiencia',
+        'autorizacao de pagamento atraves deposito bancario',
+        'acordo de prorrogacao de horas trabalhadas',
+        'acordo de compensacao de horas trabalhadas'
+    ];
+    const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    
+    // Order: Obrigatórios and Ficha de Registro (azuis) first
+    docs.sort((a, b) => {
+        const nameA = a.document_type || a.file_name || '';
+        const nameB = b.document_type || b.file_name || '';
+        
+        const isFichaA = nameA.toLowerCase().includes('ficha de registro');
+        const isObrA = DOCS_OBR_LIST.includes(_normDoc(nameA)) || isFichaA;
+        
+        const isFichaB = nameB.toLowerCase().includes('ficha de registro');
+        const isObrB = DOCS_OBR_LIST.includes(_normDoc(nameB)) || isFichaB;
+        
+        if (isObrA && !isObrB) return -1;
+        if (!isObrA && isObrB) return 1;
+        return 0;
+    });
 
     let html = '';
     docs.forEach(doc => {
