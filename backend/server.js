@@ -447,6 +447,66 @@ ENCODING_FIXES.forEach(({ de, para }) => {
 });
 
 
+// MIGRATION: Corrigir nomes de cargos e departamentos com encoding quebrado
+const CARGOS_ENCODING_FIXES = [
+    { de: 'Ajudante P??tio', para: 'Ajudante P\u00e1tio' },
+    { de: 'Sup. P??tio', para: 'Sup. P\u00e1tio' },
+    { de: 'Aux. Log??stica', para: 'Aux. Log\u00edstica' },
+    { de: 'Ass. Log??stica 1', para: 'Ass. Log\u00edstica 1' },
+    { de: 'Ass. Log??stica 2', para: 'Ass. Log\u00edstica 2' },
+    { de: 'Sup. Log??stica', para: 'Sup. Log\u00edstica' },
+    { de: 'Ger. Log??stica', para: 'Ger. Log\u00edstica' },
+    { de: 'Lid. Log??stica', para: 'Lid. Log\u00edstica' },
+    { de: 'Manuten????o', para: 'Manuten\u00e7\u00e3o' }
+];
+
+CARGOS_ENCODING_FIXES.forEach(({ de, para }) => {
+    // Para Cargos
+    db.get("SELECT id, nome FROM cargos WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id, nome FROM cargos WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                db.run("UPDATE cargos SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("UPDATE colaboradores SET cargo = ? WHERE TRIM(cargo) = ?", [para, de]);
+                        console.log(`[CARGOS FIX] Renomeado: "${de}" → "${para}"`);
+                    }
+                });
+            } else if (existeErrado && existeCorreto) {
+                db.run("UPDATE colaboradores SET cargo = ? WHERE TRIM(cargo) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("DELETE FROM cargos WHERE id = ?", [existeErrado.id], (err2) => {
+                            if (!err2) console.log(`[CARGOS FIX] Removido duplicado e atualizado colaboradores: "${de}" → "${para}"`);
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // Para Departamentos
+    db.get("SELECT id, nome FROM departamentos WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id, nome FROM departamentos WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                db.run("UPDATE departamentos SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("UPDATE colaboradores SET departamento = ? WHERE TRIM(departamento) = ?", [para, de]);
+                        console.log(`[DEPT FIX] Renomeado: "${de}" → "${para}"`);
+                    }
+                });
+            } else if (existeErrado && existeCorreto) {
+                db.run("UPDATE colaboradores SET departamento = ? WHERE TRIM(departamento) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("DELETE FROM departamentos WHERE id = ?", [existeErrado.id], (err2) => {
+                            if (!err2) console.log(`[DEPT FIX] Removido duplicado e atualizado colaboradores: "${de}" → "${para}"`);
+                        });
+                    }
+                });
+            }
+        });
+    });
+});
+
+
 // Recarregar configurações do sistema (ex: certificado)
 db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
     if (!err && rows) {
@@ -1065,13 +1125,13 @@ const cargosDeptosSync = [
     ['Vendedor', 'Comercial'], ['Sup. Comercial', 'Comercial'],
     ['Aux. Logística', 'Logística'], ['Ass. Logística 1', 'Logística'],
     ['Ass. Logística 2', 'Logística'], ['Sup. Logística', 'Logística'],
-    ['Sup. P??tio', 'Logística'], ['Ger. Logística', 'Logística'],
+    ['Sup. Pátio', 'Logística'], ['Ger. Logística', 'Logística'],
     ['Lid. Logística', 'Logística'], ['Aux. Financeiro', 'Financeiro'],
     ['Ass. Financeiro 1', 'Financeiro'], ['Ass. Financeiro 2', 'Financeiro'],
     ['Sup. Financeiro', 'Financeiro'], ['Aux. RH', 'RH'], ['Ass. RH 1', 'RH'],
     ['Ass. RH 2', 'RH'], ['Ana. RH Jr.', 'RH'], ['Ana. RH Pl.', 'RH'],
     ['Ana. RH Sr.', 'RH'], ['Cor. de Processos', 'Administrativo'],
-    ['Motorista', 'Motorista'], ['Ajudante P??tio', 'Ajudante P??tio'],
+    ['Motorista', 'Motorista'], ['Ajudante Pátio', 'Ajudante Pátio'],
     ['Ajudante Geral', 'Ajudante Geral'], ['Manutenção', 'Manutenção'],
     ['Ajudante Limpeza', 'Limpeza']
 ];
