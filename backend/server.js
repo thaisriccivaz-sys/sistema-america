@@ -384,31 +384,62 @@ sinistroNomes.forEach(nome => {
 // Formato da regra JSON:
 // { dropdown_todos: bool, visivel_automatico: bool, condicao: 'campo=valor'|null, departamentos: ['Nome1']|null }
 const REGRAS_VISIBILIDADE = [
-    { nome: 'Autorização de Desconto em Folha', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Contrato Academia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'academia_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Faculdade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'faculdade_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Intermitente', regra: { dropdown_todos: false, visivel_automatico: true, condicao: 'tipo_contrato=Intermitente', departamentos: null } },
-    { nome: 'Ordem de Serviço NR01', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Ajudante Geral', 'Ajudante de P??tio', 'Liderança', 'Limpeza', 'Manutenção', 'Motoristas'] } },
-    { nome: 'Responsabilidade Bilhete ??nico', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null } },
-    { nome: 'Responsabilidade Celular', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'celular_participa=Sim', departamentos: null } },
-    { nome: 'Responsabilidade Chaves', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'chaves_participa=Sim', departamentos: null } },
-    { nome: 'Termo de Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Sim', departamentos: null } },
-    { nome: 'Termo de NÃO Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Nao', departamentos: null } },
-    { nome: 'Acordo Individual Benef??cios', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Autorização de Uso de Imagem', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Bloqueio de Farm??cia e Mercado', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Compartilhamento de Dados', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Recebimento de Regimento Interno', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Regras Sorteio Final de Ano', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Responsabilidade Equipamento', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Administrativo'] } },
-    { nome: 'Responsabilidade Veículo', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Motoristas', 'Liderança'] } },
-    { nome: 'Termo de Confidencialidade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Autorização de Desconto em Folha', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Academia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'academia_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Faculdade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'faculdade_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Intermitente', regra: { dropdown_todos: false, visivel_automatico: true, condicao: 'tipo_contrato=Intermitente', departamentos: null, tipos_departamento: null } },
+    { nome: 'Ordem de Serviço NR01', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Ajudante Geral', 'Ajudante de Pátio', 'Liderança', 'Limpeza', 'Manutenção', 'Motoristas'], tipos_departamento: null } },
+    { nome: 'Responsabilidade Bilhete Único', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null, tipos_departamento: null } },
+    { nome: 'Responsabilidade Celular', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'celular_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Responsabilidade Chaves', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'chaves_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Termo de Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Termo de NÃO Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Nao', departamentos: null, tipos_departamento: null } },
+    { nome: 'Acordo Individual Benefícios', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Autorização de Uso de Imagem', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Bloqueio de Farmácia e Mercado', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Compartilhamento de Dados', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Recebimento de Regimento Interno', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Regras Sorteio Final de Ano', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    // Responsabilidade Equipamento: apenas para colaboradores de departamento TIPO Administrativo
+    { nome: 'Responsabilidade Equipamento', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: ['Administrativo'] } },
+    { nome: 'Responsabilidade Veículo', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Motoristas', 'Liderança'], tipos_departamento: null } },
+    { nome: 'Termo de Confidencialidade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    // NR1: apenas para colaboradores de departamento TIPO Operacional
+    { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: ['Operacional'] } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
         [JSON.stringify(regra), nome]);
+});
+
+// MIGRATION: Corrigir nomes de geradores com encoding quebrado (??nico, Autoriza????o, etc.)
+const ENCODING_FIXES = [
+    { de: 'Responsabilidade Bilhete ??nico',   para: 'Responsabilidade Bilhete \u00danico' },
+    { de: 'Acordo Individual Benef??cios',      para: 'Acordo Individual Benef\u00edcios' },
+    { de: 'Bloqueio de Farm??cia e Mercado',    para: 'Bloqueio de Farm\u00e1cia e Mercado' },
+    { de: 'Autoriza????o de Desconto em Folha', para: 'Autoriza\u00e7\u00e3o de Desconto em Folha' },
+    { de: 'Autoriza????o de Uso de Imagem',     para: 'Autoriza\u00e7\u00e3o de Uso de Imagem' },
+    { de: 'Solicita????o de VT',               para: 'Solicita\u00e7\u00e3o de VT' },
+    { de: 'Responsabilidade Bilhete Un\u0301ico', para: 'Responsabilidade Bilhete \u00danico' },
+];
+ENCODING_FIXES.forEach(({ de, para }) => {
+    // Renomear o registro com nome quebrado para o nome correto
+    db.get("SELECT id FROM geradores WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id FROM geradores WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                // Renomear: nome errado → nome correto
+                db.run("UPDATE geradores SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) console.log(`[ENCODING FIX] Renomeado: "${de}" → "${para}"`);
+                });
+            } else if (existeErrado && existeCorreto) {
+                // Ambos existem: apagar o duplicado com encoding errado
+                db.run("DELETE FROM geradores WHERE TRIM(nome) = ?", [de], (err) => {
+                    if (!err) console.log(`[ENCODING FIX] Removido duplicado: "${de}"`);
+                });
+            }
+        });
+    });
 });
 
 
@@ -880,11 +911,9 @@ db.run(`ALTER TABLE config_notificacoes ADD COLUMN email_override TEXT`, (err) =
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
-
     'Termo de Interesse Terapia',
-    'Responsabilidade Bilhete ??nico',
+    'Responsabilidade Bilhete Único',
     'Responsabilidade Celular',
-
     'Contrato Faculdade',
     'Contrato Academia',
     // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
@@ -9308,27 +9337,27 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
 
         const PROTECTED_NAMES = [
             'autorização de desconto em folha',
-            'ordem de servi??o nr01',
+            'ordem de serviço nr01',
             'termo de não interesse terapia',
             'termo de interesse terapia',
             'responsabilidade chaves',
             'termo de responsabilidade de chaves',
             'responsabilidade celular',
-            'responsabilidade bilhete ??nico',
+            'responsabilidade bilhete único',
             'contrato faculdade',
             'contrato academia',
-            'acordo de aux??lio-combust??vel',
+            'acordo de auxílio-combustível',
             'contrato intermitente',
             'responsabilidade equipamento',
             'responsabilidade veículo'
         ];
 
         const originalName = (row.nome || '').trim();
-        const u = originalName.toLowerCase();
+        const u = originalName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
         const BAD_EXACT_NAMES = [
             'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
-            'ORDEM DE SERVI??O NR01'
+            'ORDEM DE SERVIÇO NR01'
         ];
 
         if (!BAD_EXACT_NAMES.includes(originalName) && PROTECTED_NAMES.some(pn => u.includes(pn))) {

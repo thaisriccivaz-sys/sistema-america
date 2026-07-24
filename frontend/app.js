@@ -10258,12 +10258,20 @@ window._reloadContratosContainer = async function () {
 
 // === SUB-ABA OUTROS CONTRATOS ===
 // Helper: avalia se um gerador deve aparecer automaticamente para o colaborador
-window._avaliarRegraGerador = function (g, colab, deptNome) {
+// deptObj: objeto completo do departamento (com .nome e .tipo)
+window._avaliarRegraGerador = function (g, colab, deptNome, deptObj) {
     if (g.is_sinistro_only) return false;
     let regra = {};
     try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch (e) { }
 
     if (!regra.visivel_automatico) return false;
+
+    // Verificar restrição por TIPO de departamento (Operacional / Administrativo)
+    if (regra.tipos_departamento && regra.tipos_departamento.length > 0) {
+        const tipoDept = ((deptObj && deptObj.tipo) || '').toLowerCase().trim();
+        const matchTipo = regra.tipos_departamento.some(t => t.toLowerCase().trim() === tipoDept);
+        if (!matchTipo) return false;
+    }
 
     // Verificar restrição de departamento (ou cargo/tipo)
     if (regra.departamentos && regra.departamentos.length > 0) {
@@ -10427,6 +10435,8 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
         );
         const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
+        // tipo do departamento: 'Operacional' ou 'Administrativo'
+        const deptTipo = deptObj ? (deptObj.tipo || '') : '';
 
         // Nomes que NUNCA devem aparecer em Outros Contratos
         const EXCLUIDOS_FIXOS = [
@@ -10450,7 +10460,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
 
         // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
         let autoGeradores = geradoresElegiveis.filter(g =>
-            window._avaliarRegraGerador(g, c, deptNome)
+            window._avaliarRegraGerador(g, c, deptNome, deptObj)
         );
 
         // FALLBACK: se nenhum gerador tem regras seeded ainda, usa mapa legado de perfil
@@ -10474,7 +10484,10 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Termo de Confidencialidade', cond: true },
                 { nome: 'Solicitação de VT', cond: true },
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
-                { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
+                // Responsabilidade Equipamento: somente tipo Administrativo
+                { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
+                // NR1: somente tipo Operacional
+                { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -12235,6 +12248,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
             const empDeptId = colab.departamento;
             const deptObj = (departamentos || []).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
             const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
+            const deptTipo = deptObj ? (deptObj.tipo || '') : '';
 
             const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento', 'autorizacao de desconto em folha de pagamento', 'autorizar desconto', 'termo de responsabilidade de chaves'];
             const isExcluido = (g) => {
@@ -12243,7 +12257,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
             };
 
             const geradoresElegiveis = (geradores || []).filter(g => !isExcluido(g));
-            let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome));
+            let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome, deptObj));
 
             if (geradoresElegiveis.length > 0 && !geradoresElegiveis.some(g => g.visibilidade_regra)) {
                 // Legacy Map Fallback
@@ -12266,7 +12280,10 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Termo de Confidencialidade', cond: true },
                     { nome: 'Solicitação de VT', cond: true },
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
-                    { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
+                    // Responsabilidade Equipamento: somente tipo Administrativo
+                    { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
+                    // NR1: somente tipo Operacional
+                    { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
