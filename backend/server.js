@@ -20437,39 +20437,49 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 
 // Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos)
 app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    const enderecos = req.body.enderecos || [];
-    
-    db.serialize(() => {
-        const enderecoIds = enderecos.map(e => e.endereco_id);
-        const placeholders = enderecoIds.map(() => '?').join(',');
+    try {
+        const { id } = req.params;
+        const enderecos = req.body.enderecos || [];
         
-        const deleteQuery = enderecoIds.length > 0 
-            ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
-            : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
-        
-        const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
-        
-        db.run(deleteQuery, deleteParams, (err) => {
-            if (err) return res.status(500).json({ error: err.message });
+        db.serialize(() => {
+            const enderecoIds = enderecos.map(e => e.endereco_id);
+            const placeholders = enderecoIds.map(() => '?').join(',');
             
-            const stmt = db.prepare(`
-                INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
-                    quantidade = EXCLUDED.quantidade,
-                    quantidade_minima = EXCLUDED.quantidade_minima,
-                    quantidade_maxima = EXCLUDED.quantidade_maxima
-            `);
+            const deleteQuery = enderecoIds.length > 0 
+                ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
+                : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
             
-            enderecos.forEach(e => {
-                stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0]);
+            const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
+            
+            db.run(deleteQuery, deleteParams, (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                try {
+                    const stmt = db.prepare(`
+                        INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                            quantidade = EXCLUDED.quantidade,
+                            quantidade_minima = EXCLUDED.quantidade_minima,
+                            quantidade_maxima = EXCLUDED.quantidade_maxima
+                    `);
+                    
+                    enderecos.forEach(e => {
+                        stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0]);
+                    });
+                    
+                    stmt.finalize();
+                    res.json({ success: true });
+                } catch (eStmt) {
+                    console.error('[ESTOQUE SYNC] Erro interno:', eStmt.message);
+                    if (!res.headersSent) res.status(500).json({ error: 'Erro ao sincronizar endereços.' });
+                }
             });
-            
-            stmt.finalize();
-            res.json({ success: true });
         });
-    });
+    } catch (e) {
+        console.error('[ESTOQUE SYNC] Erro fatal:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
