@@ -11331,7 +11331,7 @@ window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
     formData.append('document_type', docType);
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
-    formData.append('assinafy_status', 'NAO_EXIGE');
+    formData.append('assinafy_status', '');
 
     try {
         var res = await fetch(API_URL + '/documentos', {
