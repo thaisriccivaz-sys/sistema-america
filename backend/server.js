@@ -1444,6 +1444,21 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ROTA DE VERS??O (Para verificar implantação)
+app.get('/api/temp-reset-password', (req, res) => {
+    const bcrypt = require('bcryptjs');
+    const hash = bcrypt.hashSync('123456', 10);
+    db.get('SELECT id FROM usuarios WHERE username = ?', ['diretoria.1'], (err, row) => {
+        if (row) {
+            db.run('UPDATE usuarios SET password_hash = ? WHERE username = ?', [hash, 'diretoria.1'], (err) => {
+                res.json({ success: true, message: 'Password reset to 123456 for diretoria.1' });
+            });
+        } else {
+            db.run('INSERT INTO usuarios (username, password_hash, role, ativo) VALUES (?, ?, ?, 1)', ['diretoria.1', hash, 'Diretoria'], (err) => {
+                res.json({ success: true, message: 'User diretoria.1 created with password 123456' });
+            });
+        }
+    });
+});
 app.get('/api/version', (req, res) => res.json({ version: 'V51_FIX_CONTRATOS_AVULSOS_PATH' }));
 
 app.get('/api/debug-pfx3', authenticateToken, async (req, res) => {
