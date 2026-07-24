@@ -5841,8 +5841,13 @@ async function renderCargoDocsChecklist(container) {
         if (viewedColaborador) {
             const c = viewedColaborador;
             const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-            const deptNome = (c.departamento || c.setor || '').toLowerCase();
-            const deptTipo = (c.departamento_tipo || '').toLowerCase();
+            const empDeptId = c.departamento;
+            const deptObj = typeof departamentos !== 'undefined' ? departamentos.find(d =>
+                String(d.id) === String(empDeptId) ||
+                String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+            ) : null;
+            const deptNome = deptObj ? deptObj.nome.toLowerCase() : String(empDeptId || '').toLowerCase();
+            const deptTipo = deptObj ? (deptObj.tipo || '').toLowerCase() : '';
 
             // Mapa de geradores de perfil (mesmo que o da aba Contratos)
             const PERFIL_MAP = [
