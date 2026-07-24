@@ -10552,6 +10552,29 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             allExistingDocs.push(fichaRegistroDoc);
         }
 
+        // Documentos obrigatórios pós-admissão (azul)
+        const DOCS_OBRIGATORIOS_POS = [
+            'Termo responsabilidade salário família',
+            'Termo de consentimento lgpd',
+            'Ficha de salário família',
+            'Ficha de empregado',
+            'Declaração encargos de família para fins de ir',
+            'Contrato de experiência',
+            'Autorização de pagamento através depósito bancário',
+            'Acordo de prorrogação de horas trabalhadas',
+            'Acordo de compensação de horas trabalhadas'
+        ];
+
+        const docsObrigatoriosEncontrados = {};
+        DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
+            const normPadrao = _normFR(nomePadrao);
+            const found = docs.find(d => _normFR(d.document_type) === normPadrao);
+            docsObrigatoriosEncontrados[nomePadrao] = found || null;
+            if (found && !allExistingDocs.some(d => d.id === found.id)) {
+                allExistingDocs.push(found);
+            }
+        });
+
         // Ordena descending por ID
         allExistingDocs.sort((a, b) => b.id - a.id);
 
@@ -10608,6 +10631,30 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 </label>
             </div>`;
         }
+
+        // -- Slots obrigatorios pos-admissao (azul) --
+        DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
+            const docEncontrado = docsObrigatoriosEncontrados[nomePadrao];
+            if (!docEncontrado) {
+                const escapedNome = nomePadrao.replace(/'/g, "\\'");
+                combinedHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">${nomePadrao}</span>
+                            <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório pós-admissão — aguardando upload</div>
+                        </div>
+                    </div>
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, '${escapedNome}')">
+                    </label>
+                </div>`; 
+            } else {
+                docsUsados.add(docEncontrado.id);
+            }
+        });
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -11524,17 +11571,36 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
             const isFicha = _docName.toLowerCase().includes('ficha de registro');
+            const DOCS_OBR_LIST = [
+                'termo responsabilidade salario familia',
+                'termo de consentimento lgpd',
+                'ficha de salario familia',
+                'ficha de empregado',
+                'declaracao encargos de familia para fins de ir',
+                'contrato de experiencia',
+                'autorizacao de pagamento atraves deposito bancario',
+                'acordo de prorrogacao de horas trabalhadas',
+                'acordo de compensacao de horas trabalhadas'
+            ];
+            const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const isObrigatorio = DOCS_OBR_LIST.includes(_normDoc(_docName));
+
             if (isFicha) {
                 borderBgColor = 'border:1px solid #c026d3; background:#fdf4ff;';
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#c026d3;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
                 statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span></div><span style="color:#c026d3;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            } else if (isObrigatorio) {
+                borderBgColor = 'border:1px solid #2563eb; background:#eff6ff;';
+                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             } else {
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
                 statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             }
+            const _dividerColor = isObrigatorio ? '#bfdbfe' : isFicha ? '#f0abfc' : '#fde047';
             const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
-                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid ${_dividerColor}; padding-left: 1rem; margin-right:5px;">
                     <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
                     <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
                         <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
