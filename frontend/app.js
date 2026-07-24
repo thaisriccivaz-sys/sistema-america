@@ -5769,15 +5769,6 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
         }
         fixedDocsList.forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
-                if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {
-                    const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
-                    if (meio === 'vale transporte') {
-                        const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'Não aplicável para usuários de Vale Transporte.';
-                        listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
-                        return;
-                    }
-                }
                 if (tabId === 'Contratos' && docType === 'Contrato faculdade') {
                     const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'Não';
                     if (participa === 'Não') {
@@ -5805,86 +5796,136 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
     }
 }
 async function renderCargoDocsChecklist(container) {
-    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando checklist de contratos...</p>';
+    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando checklist...</p>';
 
     try {
-        // Get all mandatory docs from Contratos tab
-        const contratosObrig = (window.getFixedDocsForTab ? window.getFixedDocsForTab('Contratos') : []) || [];
-        
-        // Get all mandatory docs from Ficha Cadastral
-        const fichaObrig = getFichaCadastralDocs ? getFichaCadastralDocs() : [];
-        
-        // Helper: normalize string for matching
         const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        
-        // Helper: find if a doc exists in currentDocs for a given tab & type
-        const findDoc = (docName, tabName) => {
-            const n = norm(docName);
-            return currentDocs.find(d => 
-                d.tab_name === tabName && norm(d.document_type) === n
-            );
-        };
-        
-        // Build combined list: { docName, tab, tabLabel, tabDataTab }
-        const fichaItems = fichaObrig.map(d => ({
-            docName: d,
-            tab: '01_FICHA_CADASTRAL',
+
+        // ── Ficha Cadastral (amarelo) ──────────────────────────────────────────
+        const fichaObrig = getFichaCadastralDocs ? getFichaCadastralDocs() : [];
+        const fichaItems = fichaObrig.map(docName => ({
+            docName,
+            color: 'amarelo',
             tabLabel: 'Ficha Cadastral',
             tabDataTab: '01_FICHA_CADASTRAL',
-            found: findDoc(d, '01_FICHA_CADASTRAL')
+            found: currentDocs.find(d =>
+                (d.tab_name === '01_FICHA_CADASTRAL') && norm(d.document_type) === norm(docName)
+            )
         }));
-        
-        const contratosItems = contratosObrig.map(d => ({
-            docName: d,
-            tab: 'CONTRATOS',
+
+        // ── Contratos: obrigatórios azuis (pós-admissão + Ficha de Registro) ──
+        const DOCS_OBRIGATORIOS_POS = [
+            'Termo responsabilidade salário família',
+            'Termo de consentimento lgpd',
+            'Ficha de salário família',
+            'Ficha de empregado',
+            'Declaração encargos de família para fins de IR',
+            'Contrato de experiência',
+            'Autorização de pagamento através depósito bancário',
+            'Acordo de prorrogação de horas trabalhadas',
+            'Acordo de compensação de horas trabalhadas',
+            'Ficha de Registro'
+        ];
+        const azulItems = DOCS_OBRIGATORIOS_POS.map(docName => ({
+            docName,
+            color: 'azul',
             tabLabel: 'Contratos',
             tabDataTab: 'Contratos',
-            found: findDoc(d, 'CONTRATOS')
+            found: currentDocs.find(d =>
+                (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS' || d.tab_name === '01_FICHA_CADASTRAL') &&
+                norm(d.document_type) === norm(docName)
+            )
         }));
-        
-        const allItems = [...fichaItems, ...contratosItems];
+
+        // ── Contratos: perfil roxo (auto-geradores pelo perfil do colaborador) ─
+        let roxoItems = [];
+        if (viewedColaborador) {
+            const c = viewedColaborador;
+            const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const deptNome = (c.departamento || c.setor || '').toLowerCase();
+            const deptTipo = (c.departamento_tipo || '').toLowerCase();
+
+            // Mapa de geradores de perfil (mesmo que o da aba Contratos)
+            const PERFIL_MAP = [
+                { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
+                { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Celular', cond: deNorm(c.celular_participa) === 'sim' },
+                { nome: 'Responsabilidade Chaves', cond: deNorm(c.chaves_participa) === 'sim' },
+                { nome: 'Contrato Faculdade', cond: deNorm(c.faculdade_participa) === 'sim' },
+                { nome: 'Contrato Academia', cond: deNorm(c.academia_participa) === 'sim' },
+                { nome: 'Contrato Intermitente', cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                { nome: 'Acordo Individual Benefícios', cond: true },
+                { nome: 'Autorização de Uso de Imagem', cond: true },
+                { nome: 'Compartilhamento de Dados', cond: true },
+                { nome: 'Recebimento de Regimento Interno', cond: true },
+                { nome: 'Regras Sorteio Final de Ano', cond: true },
+                { nome: 'Termo de Confidencialidade', cond: true },
+                { nome: 'Solicitação de VT', cond: true },
+                { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
+                { nome: 'Responsabilidade Equipamento', cond: deptTipo === 'administrativo' },
+                { nome: 'NR1', cond: deptTipo === 'operacional' },
+            ];
+
+            roxoItems = PERFIL_MAP
+                .filter(m => m.cond)
+                .map(m => ({
+                    docName: m.nome,
+                    color: 'roxo',
+                    tabLabel: 'Contratos',
+                    tabDataTab: 'Contratos',
+                    found: currentDocs.find(d =>
+                        (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') &&
+                        norm(d.document_type) === norm(m.nome)
+                    )
+                }));
+        }
+
+        // ── Combinar: Azuis primeiro, depois Roxos, depois Ficha Cadastral ─────
+        const allItems = [...azulItems, ...roxoItems, ...fichaItems];
         const pendentes = allItems.filter(i => !i.found);
         const ok = allItems.filter(i => i.found);
-        
+
         const countOk = ok.length;
         const countTotal = allItems.length;
         const pct = countTotal > 0 ? Math.round((countOk / countTotal) * 100) : 100;
         const barColor = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
-        
+
         const renderItem = (item) => {
             const hasdoc = !!item.found;
-            const docKey = item.docName.replace(/[^a-zA-Z0-9]/g, '_');
-            
+
             const statusIcon = hasdoc
                 ? `<i class="ph ph-check-circle" style="color:#16a34a;font-size:1.3rem;flex-shrink:0;"></i>`
                 : `<i class="ph ph-x-circle" style="color:#dc2626;font-size:1.3rem;flex-shrink:0;"></i>`;
-            
+
             const statusBadge = hasdoc
                 ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check"></i> Anexado</span>`
                 : `<span style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning"></i> Pendente</span>`;
-            
-            let badgeBg = '#f1f5f9';
-            let badgeColor = '#475569';
-            if (item.tabLabel === 'Ficha Cadastral') {
-                badgeBg = '#fef9c3';
-                badgeColor = '#854d0e';
-            } else if (item.tabLabel === 'Contratos') {
-                badgeBg = '#dbeafe';
-                badgeColor = '#1e40af';
+
+            let badgeBg, badgeColor, badgeBorder, tabLabelDisplay;
+            if (item.color === 'amarelo') {
+                badgeBg = '#fef9c3'; badgeColor = '#854d0e'; badgeBorder = '#fde047';
+                tabLabelDisplay = 'Ficha Cadastral';
+            } else if (item.color === 'roxo') {
+                badgeBg = '#fdf4ff'; badgeColor = '#7e22ce'; badgeBorder = '#f0abfc';
+                tabLabelDisplay = 'Perfil';
+            } else {
+                badgeBg = '#eff6ff'; badgeColor = '#1e40af'; badgeBorder = '#bfdbfe';
+                tabLabelDisplay = 'Obrigatório';
             }
-            const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${item.tabLabel}</span>`;
-            
+            const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${tabLabelDisplay}</span>`;
+
             const fileInfo = hasdoc && item.found.file_name
                 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-file"></i> ${item.found.file_name}</div>`
                 : '';
-            
+
             const cursor = hasdoc ? 'default' : 'pointer';
             const hoverStyle = hasdoc ? '' : 'class="checklist-item-hover"';
             const clickAttr = hasdoc ? '' : `onclick="window._checklistGoToTab('${item.tabDataTab}', '${item.tabLabel}')"`;
             const hintText = hasdoc ? '' : `<div style="font-size:0.72rem;color:#9333ea;margin-top:3px;"><i class="ph ph-arrow-right"></i> Clique para ir até ${item.tabLabel} e anexar</div>`;
-            
+
             return `
-            <div ${hoverStyle} ${clickAttr} 
+            <div ${hoverStyle} ${clickAttr}
                 style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.85rem;border-radius:8px;margin-bottom:0.4rem;
                        background:${hasdoc ? '#f8fffe' : '#fff5f5'};
                        border:1.5px solid ${hasdoc ? '#a7f3d0' : '#fecaca'};
@@ -5901,7 +5942,7 @@ async function renderCargoDocsChecklist(container) {
                 ${statusBadge}
             </div>`;
         };
-        
+
         const pendHTML = pendentes.length > 0
             ? `<div style="margin-bottom:1.25rem;">
                 <div style="font-size:0.8rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem;">
@@ -5910,7 +5951,7 @@ async function renderCargoDocsChecklist(container) {
                 ${pendentes.map(renderItem).join('')}
               </div>`
             : '';
-        
+
         const okHTML = ok.length > 0
             ? `<div style="margin-bottom:1rem;">
                 <div style="font-size:0.8rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem;">
@@ -5919,7 +5960,7 @@ async function renderCargoDocsChecklist(container) {
                 ${ok.map(renderItem).join('')}
               </div>`
             : '';
-        
+
         container.innerHTML = `
             <style>
               .checklist-item-hover:hover { background:#ffeaea !important; border-color:#f87171 !important; transform:translateX(2px); }
@@ -5927,7 +5968,7 @@ async function renderCargoDocsChecklist(container) {
             <div style="margin-bottom:1.5rem;padding:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
                     <div>
-                        <span style="font-size:1rem;font-weight:700;color:#1e293b;"><i class="ph ph-clipboard-text"></i> Documentos Obrigatórios — Contratos</span>
+                        <span style="font-size:1rem;font-weight:700;color:#1e293b;"><i class="ph ph-clipboard-text"></i> Checklist de Documentos</span>
                         <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">${countOk} de ${countTotal} documentos anexados</div>
                     </div>
                     <span style="font-size:1.6rem;font-weight:800;color:${barColor};">${pct}%</span>
@@ -10558,7 +10599,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             'Termo de consentimento lgpd',
             'Ficha de salário família',
             'Ficha de empregado',
-            'Declaração encargos de família para fins de ir',
+            'Declaração encargos de família para fins de IR',
             'Contrato de experiência',
             'Autorização de pagamento através depósito bancário',
             'Acordo de prorrogação de horas trabalhadas',
