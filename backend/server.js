@@ -422,6 +422,10 @@ const ENCODING_FIXES = [
     { de: 'Autoriza????o de Uso de Imagem',     para: 'Autoriza\u00e7\u00e3o de Uso de Imagem' },
     { de: 'Solicita????o de VT',               para: 'Solicita\u00e7\u00e3o de VT' },
     { de: 'Responsabilidade Bilhete Un\u0301ico', para: 'Responsabilidade Bilhete \u00danico' },
+    // Termo de NÃO Interesse Terapia — variações com encoding quebrado
+    { de: 'Termo de N??O Interesse Terapia',   para: 'Termo de N\u00c3O Interesse Terapia' },
+    { de: 'Termo de N\u00c3\u00c3O Interesse Terapia', para: 'Termo de N\u00c3O Interesse Terapia' },
+    { de: 'Termo de NAO Interesse Terapia',    para: 'Termo de N\u00c3O Interesse Terapia' },
 ];
 ENCODING_FIXES.forEach(({ de, para }) => {
     // Renomear o registro com nome quebrado para o nome correto
