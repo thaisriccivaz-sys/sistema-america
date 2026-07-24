@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -1253,7 +1254,13 @@ async function uploadDocToOneDrive(docId) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
+if (!process.env.SECRET_KEY) {
+    console.error('\n\n🚨 ERRO CRÍTICO: A variável de ambiente SECRET_KEY não está definida!');
+    console.error('🚨 O servidor NÃO pode iniciar sem ela. Adicione SECRET_KEY no painel do Render.');
+    console.error('🚨 Use um valor longo e aleatório (ex: openssl rand -hex 32)\n');
+    process.exit(1);
+}
+const SECRET_KEY = process.env.SECRET_KEY;
 
 // Configuração de Armazenamento (Din??mico para Render/Linux ou Disco Persistente)
 const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
@@ -1408,7 +1415,32 @@ const storage = multer.diskStorage({
         cb(null, finalFilename);
     }
 });
-const upload = multer({ storage: storage });
+// 🔒 Extensões permitidas no upload de documentos
+const ALLOWED_MIMETYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'video/mp4',
+    'video/mpeg',
+    'video/quicktime',
+];
+
+const uploadFileFilter = (req, file, cb) => {
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}. Apenas PDF, imagens, documentos Word/Excel e vídeos são aceitos.`), false);
+    }
+};
+
+const upload = multer({ storage: storage, fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } }); // Limite de 30MB por arquivo
 
 const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
@@ -1428,7 +1460,7 @@ app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     
-    // Permite domínios locais, o dom??nio oficial, domínios do Render e o BASE_URL configurado
+    // Permite domínios locais, o domínio oficial, domínios do Render e o BASE_URL configurado
     if (
         allowedOrigins.includes(origin) || 
         origin.endsWith('.onrender.com') ||
@@ -1437,8 +1469,14 @@ app.use(cors({
       return callback(null, true);
     }
     
-    return callback(new Error('Acesso bloqueado por CORS (Seguran??a)'), false);
+    return callback(new Error('Acesso bloqueado por CORS (Segurança)'), false);
   }
+}));
+
+// 🔒 Cabeçalhos de segurança HTTP (helmet)
+app.use(helmet({
+    contentSecurityPolicy: false, // Desabilitado pois o frontend usa inline scripts/styles
+    crossOriginEmbedderPolicy: false // Necessário para embeds de PDF/iframe
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
