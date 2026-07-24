@@ -2430,14 +2430,7 @@ app.get('/api/cbo', (req, res) => {
     res.json(results);
 });
 
-app.post('/api/auth/setup', (req, res) => {
-    const { username, password } = req.body;
-    const hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO usuarios (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'RH'], function (err) {
-        if (err) return res.status(400).json({ error: 'Erro ao criar admin' });
-        res.json({ message: 'Admin criado com sucesso' });
-    });
-});
+
 
 // --- ROTAS DE DASHBOARD ---
 app.get('/api/dashboard', authenticateToken, (req, res) => {
@@ -11982,11 +11975,6 @@ app.post('/api/internal/trigger-notif-test', (req, res) => {
 });
 
 
-app.get('/api/wipe-credenciamentos', (req, res) => {
-    db.run('DELETE FROM credenciamentos', (err) => {
-        res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
-    });
-});
 
 // ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // WEBHOOKS ??? Gerenciamento e Disparo
@@ -15426,11 +15414,6 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-app.get('/api/limpar-os-teste', (req, res) => {
-    db.run("DELETE FROM os_logistica");
-    db.run("DELETE FROM os_videos");
-    res.json({ ok: true, message: "Base de OS Logística resetada para testes." });
-});
 
 // GET /api/logistica/os/agenda-endereco
 // Busca OS de manutenção pelo endereço (exata e parcial).
@@ -19818,37 +19801,7 @@ async function dispararAcoesAgenda(card) {
         }
     );
 }
-app.get('/api/frota/force-dedup', (req, res) => {
-    const db = require('./database');
-    db.run(`DELETE FROM frota_categorias_manutencao WHERE id NOT IN (SELECT MIN(id) FROM frota_categorias_manutencao GROUP BY nome)`);
-    db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
-    
-    setTimeout(() => {
-        db.all('SELECT COUNT(*) as c FROM frota_categorias_manutencao', [], (err, rows1) => {
-            db.all('SELECT COUNT(*) as s FROM frota_servicos_catalogo', [], (err, rows2) => {
-                res.json({ 
-                    success: true, 
-                    dedup_only: true, 
-                    categorias: rows1[0].c,
-                    servicos: rows2[0].s
-                });
-            });
-        });
-    }, 1000);
-});
 
-app.get('/api/frota/force-seed', (req, res) => {
-    const db = require('./database');
-    const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]];
-    cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c));
-    const servicos = [ [1,'Troca de ??leo do motor','KM/Tempo',10000,'km','Alta',1,1,1,0,1], [1,'Troca do filtro de ??leo','KM',10000,'km','Alta',0.5,1,1,0,1], [1,'Troca do filtro de ar','KM',20000,'km','Media',0.5,0,0,0,1], [1,'Troca do filtro de combust??vel','KM',20000,'km','Media',0.5,0,0,0,1], [1,'Troca do filtro cabine/ar-cond.','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1], [1,'Troca de correia dentada','KM/Tempo',60000,'km','Critica',3,1,1,1,1], [1,'Troca da correia auxiliar','KM',40000,'km','Alta',1,1,1,0,1], [1,'Verificação de vazamentos','Inspecao',5000,'km','Alta',0.5,0,0,0,1], [1,'Limpeza de bicos injetores','KM',40000,'km','Media',2,1,0,0,1], [1,'Regulagem de v??lvulas','KM',40000,'km','Alta',3,1,1,0,1], [1,'Troca do l??quido de arrefecimento','Tempo',24,'meses','Alta',1,1,1,0,1], [2,'Troca de pastilhas de freio','KM',20000,'km','Alta',1.5,1,1,1,1], [2,'Troca de lonas','KM',30000,'km','Alta',2,1,1,1,1], [2,'Troca de disco de freio','KM',40000,'km','Alta',2,1,1,1,1], [2,'Sangria do sistema de freio','Tempo',12,'meses','Alta',1,1,1,0,1], [2,'Troca de fluido de freio','Tempo',12,'meses','Alta',1,1,1,0,1], [2,'Regulagem de freio','Inspecao',10000,'km','Alta',0.5,0,0,0,1], [2,'Verificação de mangueiras','Inspecao',5000,'km','Alta',0.5,0,0,0,1], [3,'Rodízio de pneus','KM',10000,'km','Media',1,0,0,0,1], [3,'Alinhamento','KM',10000,'km','Media',1,0,0,0,1], [3,'Balanceamento','KM',10000,'km','Media',1,0,0,0,1], [3,'Calibragem','Inspecao',1000,'km','Baixa',0.25,0,0,0,1], [3,'Troca de pneus','KM',60000,'km','Alta',2,1,1,1,1], [4,'Troca de amortecedores','KM',80000,'km','Alta',3,1,1,0,1], [4,'Troca de pivàs','KM',60000,'km','Alta',2,1,1,0,1], [4,'Troca de buchas','KM',40000,'km','Media',2,1,0,0,1], [4,'Lubrificação de suspensão','Tempo',6,'meses','Baixa',0.5,0,0,0,1], [5,'Troca de ??leo do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1], [5,'Troca de filtro do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1], [5,'Troca de kit embreagem','KM',80000,'km','Alta',4,1,1,1,1], [5,'Troca de ??leo diferencial','KM',40000,'km','Alta',1.5,1,1,0,1], [6,'Teste de bateria','Tempo',6,'meses','Media',0.5,0,0,0,1], [6,'Troca de bateria','Tempo',24,'meses','Alta',0.5,0,0,0,1], [6,'Verificação el??trica geral','Inspecao',10000,'km','Media',1,0,0,0,1], [7,'Higienização do ar-cond.','Tempo',6,'meses','Baixa',1,0,0,0,1], [7,'Recarga de gàs','Tempo',12,'meses','Media',1,0,0,0,1], [7,'Troca de filtro cabine','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1], [8,'Troca de ??leo hidr??ulico','Horimetro',250,'horas','Alta',2,1,1,1,1], [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,0,1], [8,'Lubrificação de bomba','Horimetro',100,'horas','Alta',0.5,0,0,0,1], [8,'Revisão de bomba de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1], [8,'Verificação de mangotes','Inspecao',100,'horas','Alta',0.5,0,0,0,1], [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,0,1], [9,'Revisão do motor de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1], [9,'Troca de ??leo do motor de suc????o','Horimetro',250,'horas','Alta',1,1,1,0,1], [9,'Troca de filtro do motor de suc????o','Horimetro',100,'horas','Alta',0.5,1,1,0,1], [9,'Revisão da bomba de vácuo','Horimetro',500,'horas','Critica',4,1,1,1,1], [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,0,1], [9,'Inspe????o estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1], [9,'Verificação de v??lvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1], [9,'Verificação do sistema hidr??ulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1], [10,'Inspe????o estrutural','Tempo',6,'meses','Alta',2,0,0,0,1], [10,'Pintura preventiva','Tempo',24,'meses','Baixa',8,0,0,0,1], [10,'Verificação de ferrugem','Inspecao',3,'meses','Media',0.5,0,0,0,1], [11,'Extintor','Validade',12,'meses','Critica',0.25,0,1,1,1], [11,'Tacógrafo','Tempo',12,'meses','Critica',1,0,1,0,1], [11,'Licenciamento','Anual',12,'meses','Critica',0.5,0,1,0,1], [11,'Inspe????o ambiental','Tempo',12,'meses','Alta',1,0,1,0,1] ];
-    db.serialize(() => {
-        servicos.forEach(s => db.run('INSERT OR IGNORE INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao) VALUES(?,?,?,?,?,?,?,?,?,?,?)', s));
-        db.run(`DELETE FROM frota_categorias_manutencao WHERE id NOT IN (SELECT MIN(id) FROM frota_categorias_manutencao GROUP BY nome)`);
-        db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
-    });
-    setTimeout(() => res.json({ success: true, dedup: true, serialized: true }), 1000);
-});
 
 // ============================================================================
 // CONTROLE DE ESTOQUE
@@ -20023,85 +19976,7 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/api/trigger-rescue', (req, res) => {
-    try {
-        db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", (err, row) => {
-            if (err) return res.status(500).send("Err 1: " + err.message);
-            
-            let geralId;
-            if (row) {
-                geralId = row.id;
-                runMigration(geralId);
-            } else {
-                db.run("INSERT INTO estoque_enderecos (nome) VALUES ('Geral')", function(errI) {
-                    if (errI) return res.status(500).send("Err 2: " + errI.message);
-                    geralId = this.lastID;
-                    runMigration(geralId);
-                });
-            }
-        });
 
-        function runMigration(geralId) {
-            db.all("SELECT id, quantidade_atual, quantidade_minima, quantidade_maxima FROM estoque", (err, produtos) => {
-                if (err) return res.status(500).send("Err 3: " + err.message);
-                
-                db.serialize(() => {
-                    db.run("BEGIN TRANSACTION");
-                    let processados = 0;
-                    
-                    if (produtos.length === 0) {
-                        db.run("COMMIT");
-                        return res.send("No products to migrate.");
-                    }
-
-                    produtos.forEach(p => {
-                        db.all("SELECT * FROM estoque_saldo_por_endereco WHERE estoque_id = ?", [p.id], (err2, saldos) => {
-                            if (err2) {
-                                console.error("Err 4: " + err2.message);
-                                processados++;
-                                return;
-                            }
-                            
-                            const origMin = p.quantidade_minima || 0;
-                            const origMax = p.quantidade_maxima || 0;
-                            const origQtd = p.quantidade_atual || 0;
-
-                            const checkDone = () => {
-                                processados++;
-                                if (processados === produtos.length) {
-                                    db.run("COMMIT", () => {
-                                        res.send("Migration finished successfully.");
-                                    });
-                                }
-                            };
-
-                            if (!saldos || saldos.length === 0) {
-                                db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`, 
-                                    [p.id, geralId, origQtd, origMin, origMax], checkDone);
-                            } else {
-                                let hasAnyMinMax = saldos.some(s => s.quantidade_minima > 0 || s.quantidade_maxima > 0);
-                                if (!hasAnyMinMax && (origMin > 0 || origMax > 0)) {
-                                    let saldoGeral = saldos.find(s => s.endereco_id === geralId);
-                                    if (saldoGeral) {
-                                        db.run(`UPDATE estoque_saldo_por_endereco SET quantidade_minima = ?, quantidade_maxima = ? WHERE estoque_id = ? AND endereco_id = ?`,
-                                            [origMin, origMax, p.id, geralId], checkDone);
-                                    } else {
-                                        db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`,
-                                            [p.id, geralId, 0, origMin, origMax], checkDone);
-                                    }
-                                } else {
-                                    checkDone();
-                                }
-                            }
-                        });
-                    });
-                });
-            });
-        }
-    } catch (e) {
-        res.status(500).send("Error triggering rescue: " + e.message);
-    }
-});
 
 app.get('/api/estoque', authenticateToken, (req, res) => {
 
@@ -20772,18 +20647,7 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
 });
 
 
-app.get('/api/fix-thais', (req, res) => {
-    db.serialize(() => {
-        // Apaga apenas os departamentos duplicados (mantendo o ID original / mais antigo, ex: ID 1)
-        db.run("DELETE FROM departamentos WHERE id NOT IN (SELECT MIN(id) FROM departamentos GROUP BY LOWER(TRIM(nome)))", function(err) {
-            if (err) {
-                console.error("Error cleaning depts:", err);
-                return res.status(500).send("Erro ao limpar departamentos: " + err.message);
-            }
-            res.send(`Limpeza concluida! ${this.changes || 0} departamentos duplicados apagados (mantivemos o original de menor ID). Os formulários NÃO foram apagados. Pode fechar esta aba e atualizar o sistema.`);
-        });
-    });
-});
+
 
 // Integração Control iD (RHID)
 try {
@@ -23199,64 +23063,7 @@ db.get(`SELECT id FROM integ_templates WHERE tipo_key = 'operacional'`, [], (err
     });
 });
 
-// ── POST /api/integ/templates/seed ──────────────────────────────────────────
-app.post('/api/integ/templates/seed', async (req, res) => {
-    try {
-        const seedData = {
-            administrativo: [
-                { titulo: 'Cartão de Vale Transporte', descricao: 'Providenciar e entregar cartão VT ao colaborador', condicao: 'vt', ordem: 1 },
-                { titulo: 'Cartão de VR (Vale Refeição)', descricao: 'Providenciar e entregar cartão de Vale Refeição', condicao: null, ordem: 2 },
-                { titulo: 'Cartão VC (Vale Combustível)', descricao: 'Providenciar e entregar cartão de Vale Combustível', condicao: 'vc', ordem: 3 },
-                { titulo: 'Montagem de kit de boas-vindas', descricao: 'Preparar e entregar kit de boas-vindas ao colaborador', condicao: null, ordem: 4 },
-                { titulo: 'Configurar ponto eletrônico', descricao: 'Cadastrar colaborador no sistema de ponto eletrônico', condicao: null, ordem: 5 },
-                { titulo: 'Acesso aos sistemas (TI)', descricao: 'Configurar e-mail, acessos e sistemas necessários ao cargo', condicao: null, ordem: 6 },
-                { titulo: 'Apresentação da empresa', descricao: 'Apresentar história, valores e cultura da América Rental', condicao: null, ordem: 7 },
-                { titulo: 'Apresentação do time', descricao: 'Apresentar o colaborador à equipe e ao gestor direto', condicao: null, ordem: 8 },
-                { titulo: 'Treinamentos específicos do cargo', descricao: 'Realizar treinamentos obrigatórios e específicos da função', condicao: null, ordem: 9 },
-                { titulo: 'Entrega de crachá', descricao: 'Providenciar e entregar crachá de identificação', condicao: null, ordem: 10 },
-                { titulo: 'Assinatura de documentos admissionais', descricao: 'Garantir assinatura de todos os documentos necessários', condicao: null, ordem: 11 },
-                { titulo: 'Acompanhamento 30 dias', descricao: 'Realizar check-in após 30 dias de trabalho', condicao: null, ordem: 12 },
-            ],
-            operacional: [
-                { titulo: 'Cartão de Vale Transporte', descricao: 'Providenciar e entregar cartão VT ao colaborador', condicao: 'vt', ordem: 1 },
-                { titulo: 'Cartão de VR (Vale Refeição)', descricao: 'Providenciar e entregar cartão de Vale Refeição', condicao: null, ordem: 2 },
-                { titulo: 'Montagem de kit de boas-vindas', descricao: 'Preparar e entregar kit de boas-vindas ao colaborador', condicao: null, ordem: 3 },
-                { titulo: 'Configurar ponto eletrônico', descricao: 'Cadastrar colaborador no sistema de ponto eletrônico', condicao: null, ordem: 4 },
-                { titulo: 'Entrega de EPIs', descricao: 'Entregar equipamentos de proteção individual obrigatórios', condicao: null, ordem: 5 },
-                { titulo: 'Treinamentos de NR', descricao: 'Realizar treinamentos obrigatórios (NR10, NR35, etc.)', condicao: null, ordem: 6 },
-                { titulo: 'Apresentação da empresa', descricao: 'Apresentar história, valores e cultura da América Rental', condicao: null, ordem: 7 },
-                { titulo: 'Apresentação do time', descricao: 'Apresentar o colaborador à equipe e ao gestor direto', condicao: null, ordem: 8 },
-                { titulo: 'Entrega de crachá', descricao: 'Providenciar e entregar crachá de identificação', condicao: null, ordem: 9 },
-                { titulo: 'Assinatura de documentos admissionais', descricao: 'Garantir assinatura de todos os documentos necessários', condicao: null, ordem: 10 },
-                { titulo: 'Acompanhamento 30 dias', descricao: 'Realizar check-in após 30 dias de trabalho', condicao: null, ordem: 11 },
-            ],
-        };
 
-        const templateNames = {
-            administrativo: 'Integração Administrativo',
-            operacional:    'Integração Operacional',
-        };
-
-        for (const [tipo, acoes] of Object.entries(seedData)) {
-            const tid = await new Promise((resolve, reject) => {
-                db.run(`INSERT INTO integ_templates (nome, tipo_key) VALUES (?, ?)`, [templateNames[tipo], tipo], function(err) {
-                    if (err) reject(err); else resolve(this.lastID);
-                });
-            });
-            for (const a of acoes) {
-                await new Promise((resolve, reject) => {
-                    db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, condicao, ordem) VALUES (?, ?, ?, ?, ?)`,
-                        [tid, a.titulo, a.descricao, a.condicao, a.ordem], function(err) {
-                        if (err) reject(err); else resolve();
-                    });
-                });
-            }
-        }
-        res.json({ ok: true, msg: 'Seed executado com sucesso' });
-    } catch(e) {
-        res.status(500).json({ error: e.message });
-    }
-});
 
 // ── GET /api/integ/templates ──────────────────────────────────────────────────
 app.get('/api/integ/templates', authenticateToken, (req, res) => {
@@ -25281,7 +25088,7 @@ setInterval(async () => {
     });
 }, 60 * 60 * 1000);
 
-app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'); const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]]; let errors = []; cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c, (err) => { if(err) errors.push(err.message); })); setTimeout(() => res.json({ success: true, errors }), 1000); });
+
 
 // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // MÓDULO: PROPOSTAS COMERCIAIS
