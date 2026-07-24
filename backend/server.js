@@ -2390,7 +2390,10 @@ const loginLimiter = rateLimit({
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const { username, password, turnstileToken } = req.body;
 
-    const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
+    const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+    if (!TURNSTILE_SECRET_KEY) {
+        console.error('🚨 ATENÇÃO: TURNSTILE_SECRET_KEY não configurada! CAPTCHA desabilitado.');
+    }
     if (!turnstileToken) {
         return res.status(401).json({ error: 'Validação de robô (Turnstile) ausente.' });
     }
@@ -4971,7 +4974,23 @@ const multerMediaStorage = multer.diskStorage({
         cb(null, 'r2_midia_' + Date.now() + '_' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_'));
     }
 });
-const uploadMediaFile = multer({ storage: multerMediaStorage, limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
+const MEDIA_ALLOWED_MIMETYPES = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm',
+    'audio/mpeg', 'audio/mp4',
+];
+const uploadMediaFile = multer({
+    storage: multerMediaStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 🔒 50MB (reduzido de 500MB)
+    fileFilter: (req, file, cb) => {
+        if (MEDIA_ALLOWED_MIMETYPES.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}. Use PDF, imagens ou vídeos.`), false);
+        }
+    }
+});
 
 app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('file'), async (req, res) => {
     try {
@@ -5698,7 +5717,13 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 // MÓDULO LOG??STICA: COFRE DE SENHAS
 // ==========================================
 const crypto = require('crypto');
-const SENHAS_ENCRYPTION_KEY = crypto.scryptSync(process.env.JWT_SECRET || 'america-rental-secreto-super-seguro-2026', 'salt', 32);
+
+// 🔒 SEGURANÇA: Usa COFRE_ENCRYPTION_KEY dedicada (não mais compartilhada com JWT_SECRET)
+const _cofreKeySource = process.env.COFRE_ENCRYPTION_KEY || process.env.JWT_SECRET || 'america-rental-secreto-super-seguro-2026';
+if (!process.env.COFRE_ENCRYPTION_KEY) {
+    console.error('🚨 ATENÇÃO: COFRE_ENCRYPTION_KEY não configurada! Usando chave de fallback insegura. Configure a variável de ambiente.');
+}
+const SENHAS_ENCRYPTION_KEY = crypto.scryptSync(_cofreKeySource, 'salt', 32);
 const SENHAS_ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 const SENHAS_IV_LENGTH = 16;
 
@@ -5720,6 +5745,94 @@ function decryptPassword(text) {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
 }
+
+// ==========================================
+// ROTA DE MIGRAÇÃO DO COFRE DE SENHAS
+// Re-criptografa senhas da chave antiga para a nova COFRE_ENCRYPTION_KEY
+// Só pode ser executada UMA VEZ por usuários da Diretoria
+// ==========================================
+app.post('/api/maintenance/migrar-cofre', authenticateToken, (req, res) => {
+    const isDiretoria = req.user?.role === 'Diretoria' ||
+        req.user?.username === 'admin' ||
+        req.user?.username === 'Thais.Ricci' ||
+        req.user?.grupo_permissao_id === 1;
+    if (!isDiretoria) return res.status(403).json({ error: 'Acesso negado.' });
+
+    if (!process.env.COFRE_ENCRYPTION_KEY) {
+        return res.status(400).json({ error: 'COFRE_ENCRYPTION_KEY não configurada no ambiente. Configure antes de migrar.' });
+    }
+
+    const { senhaAtual } = req.body;
+    if (!senhaAtual) return res.status(400).json({ error: 'Informe a senhaAtual (chave antiga) para confirmar a migração.' });
+
+    // Monta a chave ANTIGA (fallback público ou JWT_SECRET)
+    const oldKeySource = senhaAtual;
+    const oldKey = crypto.scryptSync(oldKeySource, 'salt', 32);
+
+    function decryptWithKey(text, key) {
+        try {
+            let parts = text.split(':');
+            if (parts.length !== 2) return null;
+            let iv = Buffer.from(parts[0], 'hex');
+            let enc = Buffer.from(parts[1], 'hex');
+            let decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+            let dec = decipher.update(enc);
+            dec = Buffer.concat([dec, decipher.final()]);
+            return dec.toString();
+        } catch (e) { return null; }
+    }
+
+    const tabelas = [
+        { tabela: 'logistica_senhas', coluna: 'senha_encriptada' },
+        { tabela: 'administrativo_senhas', coluna: 'senha_encriptada' }
+    ];
+
+    let resultado = { migradas: 0, ignoradas: 0, erros: 0, detalhes: [] };
+    let pendentes = tabelas.length;
+
+    tabelas.forEach(({ tabela, coluna }) => {
+        db.all(`SELECT id, ${coluna} FROM ${tabela} WHERE ${coluna} IS NOT NULL AND ${coluna} != ''`, [], (err, rows) => {
+            if (err) {
+                resultado.erros++;
+                resultado.detalhes.push({ tabela, erro: err.message });
+                if (--pendentes === 0) res.json(resultado);
+                return;
+            }
+
+            let rowsPendentes = rows.length;
+            if (rowsPendentes === 0) {
+                resultado.detalhes.push({ tabela, migradas: 0, msg: 'Nenhuma senha encontrada' });
+                if (--pendentes === 0) res.json(resultado);
+                return;
+            }
+
+            let migradasTab = 0, errosTab = 0;
+            rows.forEach(row => {
+                const senhaPlana = decryptWithKey(row[coluna], oldKey);
+                if (senhaPlana === null) {
+                    // Já pode estar criptografada com a nova chave ou inválida
+                    resultado.ignoradas++;
+                    errosTab++;
+                    if (--rowsPendentes === 0) {
+                        resultado.detalhes.push({ tabela, migradas: migradasTab, ignoradas: errosTab });
+                        if (--pendentes === 0) res.json(resultado);
+                    }
+                    return;
+                }
+                const novaCriptografada = encryptPassword(senhaPlana); // usa a nova SENHAS_ENCRYPTION_KEY
+                db.run(`UPDATE ${tabela} SET ${coluna} = ? WHERE id = ?`, [novaCriptografada, row.id], (err2) => {
+                    if (err2) { resultado.erros++; errosTab++; }
+                    else { resultado.migradas++; migradasTab++; }
+                    if (--rowsPendentes === 0) {
+                        resultado.detalhes.push({ tabela, migradas: migradasTab, ignoradas: errosTab });
+                        if (--pendentes === 0) res.json(resultado);
+                    }
+                });
+            });
+        });
+    });
+});
+
 
 app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
     const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
@@ -6718,7 +6831,7 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
 });
 
 // GET /api/logistica/multas/:id/pdf - serve a Declaração Assinada (armazenada como HTML no documentos_extras)
-app.get('/api/logistica/multas/:id/pdf', (req, res) => {
+app.get('/api/logistica/multas/:id/pdf', authenticateToken, (req, res) => {
     // Tenta pegar token via query (usado em abas do navegador)
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     // Ignoramos a verificação de token r??gida caso não tenha para facilitar abertura em nova aba (ou apenas permitimos)
@@ -9046,7 +9159,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             const docInfo = await new Promise((resolve, reject) => {
                 const opts = {
                     hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                    headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd', 'Accept': 'application/json' }
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
                 };
                 const r = https.request(opts, resp => { const c = []; resp.on('data', d => c.push(d)); resp.on('end', () => resolve(JSON.parse(Buffer.concat(c).toString()))); });
                 r.on('error', reject); r.end();
@@ -9057,7 +9170,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não dispon??vel no Assinafy.' });
 
             pdfBuffer = await new Promise((resolve, reject) => {
-                https.get(signedUrl, { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } }, resp => {
+                https.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, resp => {
                     const chunks = [];
                     resp.on('data', c => chunks.push(c));
                     resp.on('end', () => resolve(Buffer.concat(chunks)));
@@ -10849,6 +10962,13 @@ app.post('/api/maintenance/upload-db', authenticateToken, uploadDB.single('datab
  * ROTA TEMPORÁRIA: Reset de Sistema
  */
 app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
+    const isDiretoria = req.user?.role === 'Diretoria' ||
+        req.user?.username === 'admin' ||
+        req.user?.username === 'Thais.Ricci' ||
+        req.user?.grupo_permissao_id === 1;
+    if (!isDiretoria) {
+        return res.status(403).json({ error: 'Acesso negado. Apenas Diretoria pode executar esta operação.' });
+    }
     db.serialize(() => {
         db.run("DELETE FROM colaborador_chaves");
         db.run("DELETE FROM dependentes");
@@ -10914,9 +11034,9 @@ app.get('/avaliacao-publica.html', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/avaliacao-publica.html'));
 });
 
-// --- SERVIR ARQUIVOS ESTÉTICOS ---
+// --- SERVIR ARQUIVOS ESTÁTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/files', express.static(path.join(__dirname, '..', '..')));
+// 🔒 SEGURANÇA: Rota /files removida — expunha toda a árvore de arquivos do servidor sem autenticação.
 
 // ====================================================================
 // EPI TEMPLATES - CRUD
