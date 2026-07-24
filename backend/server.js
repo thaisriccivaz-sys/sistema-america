@@ -26028,6 +26028,28 @@ app.post('/api/computadores', authenticateToken, (req, res) => {
 });
 
 // ?????? PUT: atualizar computador ??????
+// PATCH: Devolver computador (apenas limpa colaborador e marca como Devolvido)
+app.patch('/api/computadores/:id/devolver', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    db.get(`SELECT * FROM computadores WHERE id=?`, [id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Computador não encontrado' });
+        db.run(
+            `UPDATE computadores SET status='Devolvido', colaborador_id=NULL, colaborador_livre=NULL, data_atribuicao=NULL, updated_at=datetime('now','-3 hours') WHERE id=?`,
+            [id],
+            function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Registra no histórico
+                const obsHist = 'Equipamento devolvido';
+                db.run(
+                    `INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao) VALUES (?, ?, ?, ?, ?)`,
+                    [id, row.colaborador_id, row.colaborador_livre, 'Devolvido', obsHist]
+                );
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
     const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao } = req.body;
     db.get(`SELECT colaborador_id, colaborador_livre, status FROM computadores WHERE id=?`, [req.params.id], (errOld, rowOld) => {

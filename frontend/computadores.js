@@ -776,13 +776,13 @@
 
     window.computadoresDevolver = async function (id, nome) {
         if (!confirm('Tem certeza que deseja devolver o computador de ' + nome + '? Ele ficará disponível.')) return;
-        try { 
-            await fetch('/api/computadores/' + id, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() },
-                body: JSON.stringify({ status: 'Devolvido', colaborador_id: null, colaborador_livre: '', data_atribuicao: '' })
+        try {
+            var resp = await fetch(_baseUrl() + '/computadores/' + id + '/devolver', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok() }
             });
-            await loadAll(); 
+            if (!resp.ok) { var d = await resp.json().catch(function(){return{};}); throw new Error(d.error || resp.status); }
+            await loadAll();
         }
         catch (e) { alert('Erro ao devolver: ' + (e.message || e)); }
     };

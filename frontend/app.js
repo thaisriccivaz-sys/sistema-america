@@ -10613,30 +10613,12 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             }
         }
 
-        // ── Slot especial: Ficha de Registro (upload-only, não gerado por template) ──
-        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
-            // Slot vazio: exibe linha para anexar
-            combinedHtml += `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
-                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                    <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
-                    <div>
-                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
-                        <div style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando upload</div>
-                    </div>
-                </div>
-                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
-                    <i class="ph ph-upload-simple"></i> Anexar PDF
-                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, 'Ficha de Registro')">
-                </label>
-            </div>`;
-        }
-
-        // -- Slots obrigatorios pos-admissao (azul) --
+        // ── Slots obrigatórios pós-admissão (azul) — ficam ANTES da Ficha de Registro ──
         DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
             const docEncontrado = docsObrigatoriosEncontrados[nomePadrao];
             if (!docEncontrado) {
                 const escapedNome = nomePadrao.replace(/'/g, "\\'");
+                const _idSlot = 'slot-obr-' + nomePadrao.replace(/[^a-z0-9]/gi, '-');
                 combinedHtml += `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
                     <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
@@ -10646,15 +10628,52 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório pós-admissão — aguardando upload</div>
                         </div>
                     </div>
+                    <div style="display:flex; align-items:center; gap:0.75rem; border-left:1px solid #bfdbfe; padding-left:1rem;">
+                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
+                            <input type="radio" name="req-ass-obr-${_idSlot}" value="sim"> Sim
+                        </label>
+                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
+                            <input type="radio" name="req-ass-obr-${_idSlot}" value="nao"> Não
+                        </label>
+                    </div>
                     <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
                         <i class="ph ph-upload-simple"></i> Anexar PDF
-                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, '${escapedNome}')">
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, '${escapedNome}', '${_idSlot}')">
                     </label>
-                </div>`; 
+                </div>`;
             } else {
                 docsUsados.add(docEncontrado.id);
             }
         });
+
+        // ── Slot especial: Ficha de Registro (upload-only, azul) ──
+        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
+            combinedHtml += `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
+                        <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório — aguardando upload</div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left:1px solid #bfdbfe; padding-left:1rem;">
+                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
+                        <input type="radio" name="req-ass-obr-ficha-registro" value="sim"> Sim
+                    </label>
+                    <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
+                        <input type="radio" name="req-ass-obr-ficha-registro" value="nao"> Não
+                    </label>
+                </div>
+                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                    <i class="ph ph-upload-simple"></i> Anexar PDF
+                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Ficha de Registro', 'ficha-registro')">
+                </label>
+            </div>`;
+        }
+
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -11403,6 +11422,53 @@ window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
     }
 };
 
+// Upload de documento obrigatório pós-admissão lendo a seleção de assinatura antes de enviar
+window.uploadContratoExternoComTipoAssinatura = async function (input, docType, slotId) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    input.value = '';
+
+    // Lê a seleção de Sim/Não do radio correspondente ao slot
+    var radioSelecionado = document.querySelector('input[name="req-ass-obr-' + slotId + '"]:checked');
+    var reqAssinatura = radioSelecionado ? radioSelecionado.value : null;
+
+    if (!reqAssinatura) {
+        await Swal.fire({
+            icon: 'warning',
+            title: 'Selecione antes de anexar',
+            text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de anexar o PDF.',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#2563eb'
+        });
+        return;
+    }
+
+    var assinafyStatus = (reqAssinatura === 'sim') ? '' : 'NAO_EXIGE';
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', docType);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', assinafyStatus);
+
+    try {
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+        if (typeof showToast !== 'undefined') showToast(docType + ' anexado com sucesso!', 'success');
+        await window._reloadContratosContainer();
+    } catch (err) {
+        alert('Erro: ' + err.message);
+    }
+};
+
+
 window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
@@ -11585,11 +11651,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const isObrigatorio = DOCS_OBR_LIST.includes(_normDoc(_docName));
 
-            if (isFicha) {
-                borderBgColor = 'border:1px solid #c026d3; background:#fdf4ff;';
-                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#c026d3;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
-                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span></div><span style="color:#c026d3;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            } else if (isObrigatorio) {
+            if (isObrigatorio || isFicha) {
                 borderBgColor = 'border:1px solid #2563eb; background:#eff6ff;';
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
                 statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
@@ -11597,7 +11659,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
                 statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             }
-            const _dividerColor = isObrigatorio ? '#bfdbfe' : isFicha ? '#f0abfc' : '#fde047';
+            const _dividerColor = (isObrigatorio || isFicha) ? '#bfdbfe' : '#fde047';
             const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
                 <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid ${_dividerColor}; padding-left: 1rem; margin-right:5px;">
