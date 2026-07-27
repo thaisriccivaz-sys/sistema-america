@@ -17988,7 +17988,7 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
 
         // 1. Licenças
         if (licencasSolicitadas.length > 0) {
-            const lics = await new Promise(resolve => db.all(`SELECT * FROM frota_licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
+            const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
             lics.forEach(lic => {
                 if (lic.file_path) {
                     addLocalFileIfExists(lic.file_path, `Licencas/${lic.file_name || ('Licenca_'+lic.id+'.pdf')}`);
