@@ -7437,19 +7437,19 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                                 });
                                                 
                                                 sendEmailParaNotificados('nova_ocorrencia', {
-                                                    subject: '🚨 Nova Ocorrência Registrada',
+                                                    subject: '🚨 Nova Ocorr\u00eancia Registrada',
                                                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                                         </div>
                                                         <div style="padding:24px;">
-                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">🚨 Nova Ocorrência Registrada</h2>
-                                                            <p style="text-align:center;">Uma nova ocorrência disciplinar foi inserida no sistema.</p>
+                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">🚨 Nova Ocorr&ecirc;ncia Registrada</h2>
+                                                            <p style="text-align:center;">Uma nova ocorr&ecirc;ncia disciplinar foi inserida no sistema.</p>
                                                             <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #d9480f;">
                                                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                                             </div>
                                                             <div style="text-align:center;margin-top:20px;">
-                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar prontuário Digital</a>
+                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontu&aacute;rio Digital</a>
                                                             </div>
                                                             <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
                                                         </div>
