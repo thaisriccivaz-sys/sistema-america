@@ -17959,7 +17959,10 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
         try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
         try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
-        try { licencasSolicitadas = JSON.parse(cred.licencas_ids || '[]'); } catch (e) {}
+        try { 
+            const parsedLics = JSON.parse(cred.licencas_ids || '[]'); 
+            licencasSolicitadas = parsedLics.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+        } catch (e) {}
 
         const path = require('path');
         const fs = require('fs');
