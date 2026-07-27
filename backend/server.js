@@ -17887,7 +17887,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
     // Buscar cnh e dados do banco para enriquecer os colaboradores antes de salvar
     const fetchAndEnrich = (callback) => {
         if (colabIds.length === 0) return callback(colaboradores || []);
-        db.all(`SELECT id, nome_completo, cpf, cnh, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cnh_numero as cnh, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return callback(colaboradores || []);
             const enriched = (colaboradores || []).map(c => {
                 const cData = (colabRows || []).find(r => r.id === c.id);
@@ -17959,10 +17959,24 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
         try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
         try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
-        try { 
-            const parsedLics = JSON.parse(cred.licencas_ids || '[]'); 
-            licencasSolicitadas = parsedLics.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
-        } catch (e) {}
+
+        // Prioridade: licencas passadas via query param (selecionadas pelo usuário na tela)
+        // Fallback: o que está salvo no banco (licencas_ids)
+        if (req.query.licencas_ids) {
+            try {
+                const fromQuery = JSON.parse(decodeURIComponent(req.query.licencas_ids));
+                licencasSolicitadas = fromQuery.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+                console.log(`[ZIP] Licencas via query param: ${JSON.stringify(licencasSolicitadas)}`);
+            } catch (e) { console.warn('[ZIP] Erro ao parsear licencas_ids do query param:', e.message); }
+        }
+
+        if (licencasSolicitadas.length === 0) {
+            try { 
+                const parsedLics = JSON.parse(cred.licencas_ids || '[]'); 
+                licencasSolicitadas = parsedLics.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+                console.log(`[ZIP] Licencas do banco (fallback): ${JSON.stringify(licencasSolicitadas)}`);
+            } catch (e) {}
+        }
 
         const path = require('path');
         const fs = require('fs');
@@ -18354,7 +18368,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     };
 
     if (colabIds.length > 0) {
-        db.all(`SELECT id, nome_completo, cpf, cnh, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cnh_numero as cnh, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
@@ -18514,7 +18528,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const colabFotoPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
             const placeholders = colabIds.map(() => '?').join(',');
-            db.all(`SELECT id, cpf, cnh, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
+            db.all(`SELECT id, cpf, cnh_numero as cnh, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
                 resolve(rows || []);
             });
         });

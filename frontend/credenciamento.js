@@ -739,7 +739,10 @@ window.gerarEnviarCredenciamento = async function() {
 
         if (solId) {
             try {
-                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
+                // Passa as licenças selecionadas diretamente na URL para garantir que
+                // o ZIP sempre reflita o que o usuário selecionou na tela
+                const licencasParam = encodeURIComponent(JSON.stringify(payload.licencas || []));
+                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip?licencas_ids=${licencasParam}`, {
                     headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` }
                 });
                 if (zipRes.ok) {
