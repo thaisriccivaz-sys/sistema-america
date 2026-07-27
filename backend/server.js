@@ -18030,7 +18030,19 @@ const _handleDownloadZip = async (req, res) => {
             lics.forEach(lic => {
                 if (!lic.file_path) return;
                 console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
-                const zipName = `Licencas/${lic.file_name || ('Licenca_' + lic.id + '.pdf')}`;
+                const empresaSafe = (lic.empresa || 'Empresa')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+                    .replace(/\s+/g, '')                               // remove espaços
+                    .replace(/[^a-zA-Z0-9]/g, '');                    // remove caracteres especiais
+                const ext = path.extname(lic.file_name || '.pdf') || '.pdf';
+                const nomeSafe = (lic.nome || path.basename(lic.file_name || 'Licenca', ext))
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9]/g, '_')
+                    .replace(/_+/g, '_')
+                    .replace(/^_|_$/g, '')
+                    .toUpperCase();
+                const zipName = `Licencas/${empresaSafe}_${nomeSafe}${ext}`;
+
                 // Estrategia multi-caminho para encontrar o arquivo no disco
                 const candidatos = [
                     lic.file_path, // se for absoluto
