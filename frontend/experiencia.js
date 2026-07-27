@@ -869,9 +869,9 @@ async function openExperienciaModal(colaboradorId) {
                 </div>
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                     <thead><tr>
-                        <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
+                        <th style="width:35%;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
                         <th style="width:240px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1-5)</th>
-                        <th style="width:200px;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
+                        <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                     </tr></thead>
                     <tbody>
         `;
@@ -1227,9 +1227,9 @@ window.renderPublicExpForm = function(colab, form, token, templateBanco) {
                 <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:600px;">
                     <thead><tr>
-                        <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
+                        <th style="width:35%;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Pontos Avaliados</th>
                         <th style="width:240px;text-align:center;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Nota (1-5)</th>
-                        <th style="width:200px;text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
+                        <th style="text-align:left;padding:8px 12px;background:#f1f5f9;color:#475569;font-weight:600;border:1px solid #e2e8f0;">Obs.</th>
                     </tr></thead>
                     <tbody>
         `;
