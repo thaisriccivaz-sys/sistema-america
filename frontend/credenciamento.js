@@ -697,12 +697,26 @@ window.gerarEnviarCredenciamento = async function() {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
             return { id: parseInt(idStr), placa: v ? v.placa : idStr, modelo: v ? v.marca_modelo_versao : '' };
         }),
-        licencas: Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked')).map(cb => ({
-            id: cb.value,
-            nome: cb.dataset.nome || '',
-            empresa: cb.dataset.empresa || '',
-            validade: cb.dataset.validade || null
-        })),
+        licencas: (() => {
+            // Coleta dos dois sistemas de checkboxes de licenças:
+            // 1. Modal antigo (#cred-licencas-quadro) com name="cred_licencas"
+            // 2. Novo painel com abas (#cred-licencas-empresas) que não tem name
+            const fromOldModal = Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked'));
+            const fromNewPanel = Array.from(document.querySelectorAll('#cred-licencas-empresas input[type="checkbox"]:checked'));
+            const todos = [...fromOldModal, ...fromNewPanel];
+            // Deduplica por id
+            const vistos = new Set();
+            return todos.filter(cb => {
+                if (vistos.has(cb.value)) return false;
+                vistos.add(cb.value);
+                return true;
+            }).map(cb => ({
+                id: cb.value,
+                nome: cb.dataset.nome || '',
+                empresa: cb.dataset.empresa || '',
+                validade: cb.dataset.validade || null
+            }));
+        })(),
         docs_exigidos: Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value)
     };
 
