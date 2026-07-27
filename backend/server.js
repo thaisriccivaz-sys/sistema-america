@@ -17968,13 +17968,25 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         const fs = require('fs');
 
         const addLocalFileIfExists = (filePath, nameInZip) => {
-            const absolutePath = path.resolve(__dirname, '..', '..', filePath);
+            // Suporta caminhos absolutos e relativos (ao repo e ao disco persistente)
+            let absolutePath;
+            if (path.isAbsolute(filePath)) {
+                absolutePath = filePath;
+            } else {
+                absolutePath = path.resolve(__dirname, '..', '..', filePath);
+                if (!fs.existsSync(absolutePath)) {
+                    // Fallback: relativo ao diretório pai do storage (disco persistente)
+                    absolutePath = path.resolve(BASE_PATH, '..', filePath);
+                }
+            }
             if (fs.existsSync(absolutePath)) {
                 const parts = nameInZip.split('/');
                 const fileName = parts.pop();
                 const folderPath = parts.join('/');
                 zip.addLocalFile(absolutePath, folderPath, fileName);
                 hasFiles = true;
+            } else {
+                console.warn('[ZIP] Arquivo nao encontrado:', filePath, '->', absolutePath);
             }
         };
 
@@ -17986,12 +17998,37 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
             }
         };
 
-        // 1. Licenças
+        // 1. Licencas
         if (licencasSolicitadas.length > 0) {
             const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
+            console.log(`[ZIP] Licencas solicitadas: ${JSON.stringify(licencasSolicitadas)} | Encontradas no DB: ${lics.length}`);
             lics.forEach(lic => {
-                if (lic.file_path) {
-                    addLocalFileIfExists(lic.file_path, `Licencas/${lic.file_name || ('Licenca_'+lic.id+'.pdf')}`);
+                if (!lic.file_path) return;
+                console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
+                const zipName = `Licencas/${lic.file_name || ('Licenca_' + lic.id + '.pdf')}`;
+                // Estrategia multi-caminho para encontrar o arquivo no disco
+                const candidatos = [
+                    lic.file_path, // se for absoluto
+                    path.resolve(__dirname, '..', '..', lic.file_path), // relativo ao repo
+                    path.resolve(BASE_PATH, '..', lic.file_path), // relativo ao diretorio pai do storage
+                    path.join(LICENCAS_UPLOAD_PATH, path.basename(lic.file_path)), // direto na pasta LICENCAS
+                ];
+                let found = false;
+                for (const candidato of candidatos) {
+                    try {
+                        if (fs.existsSync(candidato)) {
+                            console.log(`[ZIP] Licenca encontrada em: ${candidato}`);
+                            const parts = zipName.split('/');
+                            const fn = parts.pop();
+                            zip.addLocalFile(candidato, parts.join('/'), fn);
+                            hasFiles = true;
+                            found = true;
+                            break;
+                        }
+                    } catch(e) {}
+                }
+                if (!found) {
+                    console.warn(`[ZIP] Licenca NAO ENCONTRADA id=${lic.id}. Caminhos tentados: ${candidatos.join(' | ')}`);
                 }
             });
         }
