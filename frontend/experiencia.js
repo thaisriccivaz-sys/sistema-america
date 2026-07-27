@@ -818,7 +818,7 @@ async function openExperienciaModal(colaboradorId) {
 
     let modalHtml = `
     <div id="modal-experiencia-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;">
-        <div style="background:#fff;border-radius:16px;width:100%;max-width:820px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.25);">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:98%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.25);">
             <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:10;border-radius:16px 16px 0 0;">
                 <div>
                     <h2 style="margin:0;font-size:1.25rem;font-weight:700;color:#0f172a;">${formularioDef.titulo}</h2>
