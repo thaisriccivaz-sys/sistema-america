@@ -141,10 +141,14 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         window.mudarTipoEnvioComercial();
         const chkDados = document.getElementById('solic-apenas-dados');
         if (chkDados) chkDados.checked = false;
-        document.getElementById('solic-endereco-instalacao').value = '';
-        document.getElementById('solic-qtd-colabs').value = 0;
-        document.getElementById('solic-qtd-veiculos').value = 0;
-        document.getElementById('solic-data-limite').value = '';
+        const endInstEl = document.getElementById('solic-endereco-instalacao');
+        if (endInstEl) endInstEl.value = '';
+        const qtdColabsEl = document.getElementById('solic-qtd-colabs');
+        if (qtdColabsEl) qtdColabsEl.value = 0;
+        const qtdVeicsEl = document.getElementById('solic-qtd-veiculos');
+        if (qtdVeicsEl) qtdVeicsEl.value = 0;
+        const dataLimiteEl = document.getElementById('solic-data-limite');
+        if (dataLimiteEl) dataLimiteEl.value = '';
         const obs = document.getElementById('solic-observacoes'); if (obs) obs.value = '';
         document.querySelectorAll('#solic-docs-exigidos input[type="checkbox"]').forEach(c => c.checked = false);
         await _carregarLicencasAgrupadas([]);

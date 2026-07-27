@@ -17943,7 +17943,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
 });
 
 // Baixar ZIP dos documentos do credenciamento
-app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (req, res) => {
+// Aceita tanto GET (licencas_ids como query param) quanto POST (licencas no body)
+const _handleDownloadZip = async (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], async (err, cred) => {
         if (err || !cred) return res.status(404).send('Credenciamento não encontrado');
 
@@ -17960,9 +17961,15 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
         try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
 
-        // Prioridade: licencas passadas via query param (selecionadas pelo usuário na tela)
-        // Fallback: o que está salvo no banco (licencas_ids)
-        if (req.query.licencas_ids) {
+        // Prioridade 1: licencas no body do POST
+        const bodyLicencas = req.body && req.body.licencas;
+        if (Array.isArray(bodyLicencas) && bodyLicencas.length > 0) {
+            licencasSolicitadas = bodyLicencas.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+            console.log(`[ZIP] Licencas via body POST: ${JSON.stringify(licencasSolicitadas)}`);
+        }
+
+        // Prioridade 2: licencas via query param (GET)
+        if (licencasSolicitadas.length === 0 && req.query.licencas_ids) {
             try {
                 const fromQuery = JSON.parse(decodeURIComponent(req.query.licencas_ids));
                 licencasSolicitadas = fromQuery.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
@@ -17970,6 +17977,7 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
             } catch (e) { console.warn('[ZIP] Erro ao parsear licencas_ids do query param:', e.message); }
         }
 
+        // Prioridade 3 (fallback): o que está salvo no banco
         if (licencasSolicitadas.length === 0) {
             try { 
                 const parsedLics = JSON.parse(cred.licencas_ids || '[]'); 
@@ -17977,6 +17985,9 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
                 console.log(`[ZIP] Licencas do banco (fallback): ${JSON.stringify(licencasSolicitadas)}`);
             } catch (e) {}
         }
+
+        console.log(`[ZIP] FINAL licencasSolicitadas para o ZIP: ${JSON.stringify(licencasSolicitadas)}`);
+
 
         const path = require('path');
         const fs = require('fs');
@@ -18118,7 +18129,9 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, (re
         res.set('Content-Disposition', `attachment; filename="Credenciamento_${cred.os || cred.id}.zip"`);
         res.send(zipBuffer);
     });
-});
+};
+app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
+app.post('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;

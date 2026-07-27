@@ -739,11 +739,14 @@ window.gerarEnviarCredenciamento = async function() {
 
         if (solId) {
             try {
-                // Passa as licenças selecionadas diretamente na URL para garantir que
-                // o ZIP sempre reflita o que o usuário selecionou na tela
-                const licencasParam = encodeURIComponent(JSON.stringify(payload.licencas || []));
-                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip?licencas_ids=${licencasParam}`, {
-                    headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` }
+                // Usa POST para enviar as licenças selecionadas no body (mais confiável que query param)
+                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ licencas: payload.licencas || [] })
                 });
                 if (zipRes.ok) {
                     const blob = await zipRes.blob();
