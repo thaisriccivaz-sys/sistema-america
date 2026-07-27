@@ -18034,9 +18034,16 @@ const _handleDownloadZip = async (req, res) => {
                 // Estrategia multi-caminho para encontrar o arquivo no disco
                 const candidatos = [
                     lic.file_path, // se for absoluto
+                    // CORREÇÃO PRINCIPAL: o file_path é relativo à raiz do filesystem
+                    // (foi salvo como path.relative('/', filePath)), então '/' + file_path é o caminho absoluto correto
+                    path.join('/', lic.file_path),
+                    // Inverso matemático de como foi salvo: path.relative(path.join(BASE,'..','..'), filePath)
+                    path.resolve(BASE_UPLOAD_PATH, '..', '..', lic.file_path),
                     path.resolve(__dirname, '..', '..', lic.file_path), // relativo ao repo
                     path.resolve(BASE_PATH, '..', lic.file_path), // relativo ao diretorio pai do storage
-                    path.join(LICENCAS_UPLOAD_PATH, path.basename(lic.file_path)), // direto na pasta LICENCAS
+                    path.join(LICENCAS_UPLOAD_PATH, path.basename(lic.file_path)), // direto na pasta LICENCAS (sem subpasta empresa)
+                    // Tenta encontrar dentro da pasta LICENCAS com subpasta empresa extraída do path
+                    path.join(LICENCAS_UPLOAD_PATH, lic.file_path.split('/').slice(-2).join('/')),
                 ];
                 let found = false;
                 for (const candidato of candidatos) {
