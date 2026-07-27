@@ -790,7 +790,9 @@ window._credSolicitacaoId = null;
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span'); if (spanModalColabs) spanModalColabs.textContent = '(Ilimitado)';
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span'); if (spanModalVeics) spanModalVeics.textContent = '(Ilimitado)'; // ID da solicitação sendo cumprida (ou null para novo)
 
-window.abrirModalNovoCredenciamento = function() {
+window.abrirModalNovoCredenciamento = async function() {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
     window._credSolicitacaoId = null;
     // Limpar campos e seleções
     const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = '';
@@ -819,15 +821,18 @@ window.abrirModalNovoCredenciamento = function() {
 };
 
 // ── Cumprir uma Solicitação existente (botão Adicionar na tabela da Logística) ─
-window.abrirModalCumprirSolicitacao = function(id) {
+window.abrirModalCumprirSolicitacao = async function(id) {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
+
     // Pega os dados da solicitação do histórico já carregado
     const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
     
     window._credSolicitacaoId = id;
 
     window._credLimites = {
-        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
-        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
+        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados && dados.qtd_max_colaboradores ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
+        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados && dados.qtd_max_veiculos ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
     };
     
     const maxColabsText = window._credLimites.colabs === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.colabs})</span>`;
