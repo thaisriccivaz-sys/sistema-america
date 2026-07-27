@@ -18089,12 +18089,32 @@ const _handleDownloadZip = async (req, res) => {
         if (colabsIds.length > 0) {
             const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
             
+            // Mapeamento de categoria → label amigável para o nome do arquivo
+            const docCategoryLabel = {
+                'cnh':             'CNH',
+                'cpf':             'CPF',
+                'aso':             'ASO',
+                'ficha_registro':  'Ficha_Registro',
+                'treinamento':     'Carteira_Vacinacao',
+                'epi':             'EPI',
+                'contrato_esocial':'Contrato_eSocial',
+                'nr1':             'NR1',
+                'foto_colaborador':'Foto',
+            };
+
             for (const colab of colabs) {
+                // Nome limpo do colaborador para usar no nome do arquivo
+                const nomeColabSafe = (colab.nome_completo || 'Colaborador')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9 ]/g, '')
+                    .trim()
+                    .replace(/\s+/g, '_');
+
                 const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
                 
                 if (docsExigidos.includes('foto_colaborador')) {
-                    if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/Foto.png`);
-                    else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/Foto.png`); // Assuming png extension
+                    if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/${nomeColabSafe}_Foto.png`);
+                    else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`);
                 }
 
                 // Buscar documentos da tabela documentos
@@ -18104,25 +18124,27 @@ const _handleDownloadZip = async (req, res) => {
                 docs.forEach(doc => {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
                     const tabName = doc.tab_name || '';
-                    let isRequired = false;
+                    let matchedCategory = null;
                     
-                    if (docsExigidos.includes('cnh') && (docTypeLower.includes('cnh') || docTypeLower.includes('habilita'))) isRequired = true;
-                    if (docsExigidos.includes('cpf') && docTypeLower.includes('cpf')) isRequired = true;
-                    if (docsExigidos.includes('aso') && docTypeLower.includes('aso')) isRequired = true;
-                    if (docsExigidos.includes('ficha_registro') && (docTypeLower.includes('ficha de registro') || docTypeLower.includes('registro'))) isRequired = true;
-                    if (docsExigidos.includes('treinamento') && (docTypeLower.includes('vacina') || docTypeLower.includes('treinamento'))) isRequired = true;
-                    if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') isRequired = true;
-                    // NR1: somente da aba CONTRATOS; Contrato eSocial: somente da aba FICHA CADASTRAL
-                    if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') isRequired = true;
-                    if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') isRequired = true;
+                    if (docsExigidos.includes('cnh') && (docTypeLower.includes('cnh') || docTypeLower.includes('habilita'))) matchedCategory = 'cnh';
+                    else if (docsExigidos.includes('cpf') && docTypeLower.includes('cpf')) matchedCategory = 'cpf';
+                    else if (docsExigidos.includes('aso') && docTypeLower.includes('aso')) matchedCategory = 'aso';
+                    else if (docsExigidos.includes('ficha_registro') && (docTypeLower.includes('ficha de registro') || docTypeLower.includes('registro'))) matchedCategory = 'ficha_registro';
+                    else if (docsExigidos.includes('treinamento') && (docTypeLower.includes('vacina') || docTypeLower.includes('treinamento'))) matchedCategory = 'treinamento';
+                    else if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
+                    else if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') matchedCategory = 'contrato_esocial';
+                    else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
                     
-                    if (isRequired) {
+                    if (matchedCategory) {
                         const filePath = doc.signed_file_path || doc.file_path;
                         if (filePath) {
                             const normalizedPath = filePath.replace(/\\/g, '/');
                             if (!addedFilePaths.has(normalizedPath)) {
                                 addedFilePaths.add(normalizedPath);
-                                addLocalFileIfExists(filePath, `${folderName}/${doc.file_name}`);
+                                const ext = path.extname(doc.file_name || '.pdf') || '.pdf';
+                                const label = docCategoryLabel[matchedCategory] || matchedCategory.toUpperCase();
+                                const nomeArquivo = `${nomeColabSafe}_${label}${ext}`;
+                                addLocalFileIfExists(filePath, `${folderName}/${nomeArquivo}`);
                             }
                         }
                     }
@@ -18132,11 +18154,12 @@ const _handleDownloadZip = async (req, res) => {
                 if (docsExigidos.includes('epi')) {
                     const epi = await new Promise(resolve => db.get(`SELECT ficha_pdf_path FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = 'ativa' ORDER BY id DESC LIMIT 1`, [colab.id], (err, row) => resolve(row)));
                     if (epi && epi.ficha_pdf_path) {
-                        addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/Ficha_EPI.pdf`);
+                        addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/${nomeColabSafe}_Ficha_EPI.pdf`);
                     }
                 }
             }
         }
+
 
         if (!hasFiles) {
             // Retorna um zip vazio com um readme
