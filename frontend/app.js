@@ -14277,7 +14277,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
                 } else if (notif.tipo === 'nova_ocorrencia') {
-                    const nomeStr = notif.mensagem.replace(/^Uma nova ocorrência foi registrada no prontuário do colaborador:\s*/i, '').trim();
+                    const nomeStr = notif.mensagem.replace(/^Uma nova ocorr[ê\?\?]{1,3}ncia foi registrada no prontu[á\?\?]{1,3}rio do colaborador:\s*/i, '').trim();
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> Ocorrência Registrada

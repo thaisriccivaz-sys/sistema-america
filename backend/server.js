@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -750,7 +750,7 @@ db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-// Tabela de anexos de ocorr??ncias (documentos do prontuário - aba Advertências)
+// Tabela de anexos de ocorrências (documentos do prontuário - aba Advertências)
 db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ocorrencia_id INTEGER NOT NULL,
@@ -1846,7 +1846,7 @@ async function pollAdmissaoAssinaturas() {
                 // Tentar sincronizar com OneDrive diretamente da memória (sem salvar em disco)
                 let onedriveOk = false;
                 // Regra de OneDrive por subtipo de Advertência:
-                //  Ocorr??ncia / Verbal -> não sincroniza no poll (já sincronizou após testemunhas ou nunca)
+                //  ocorrência / Verbal -> não sincroniza no poll (já sincronizou após testemunhas ou nunca)
                 //  Escrita / Suspensão -> sobrescreve após assinatura do colaborador
                 const _tipoSimplesP = (doc.document_type || '').split('###')[1] || '';
                 const _skipOneDriveP = /ocorr|verbal/i.test(_tipoSimplesP);
@@ -2203,7 +2203,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             WHERE aa.assinafy_id IS NOT NULL
         `, []);
 
-        // Query 2: Documentos do prontu??rio (ASO, EPI, etc.) ??? sem coluna assinafy_sent_at/signed_at para compatibilidade
+        // Query 2: Documentos do prontuário (ASO, EPI, etc.) ??? sem coluna assinafy_sent_at/signed_at para compatibilidade
         const docRows = await dbAll(`
             SELECT d.id, d.document_type AS nome_documento, d.assinafy_status, d.assinafy_id,
                    d.colaborador_id, d.tab_name,
@@ -4692,7 +4692,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
-        // Ocorrencia: "13/04/2026 as 13:30" ou "Ocorr??ncia: Comunicação: 11/05/2026 às 11:30"
+        // Ocorrencia: "13/04/2026 as 13:30" ou "ocorrência: Comunicação: 11/05/2026 às 11:30"
         let dataHoraStr = '';
         const matOc = cleanText.match(/Ocorr[e??]ncia.*?(\d{2}\/\d{2}\/\d{4})\s+[a??]s?\s+(\d{2}:\d{2})/i)
             || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
@@ -4701,7 +4701,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
         // Natureza
         let natureza = '';
-        // Captura o que vem logo após Naturezas da Ocorr??ncia... até encontrar Dados da Ocorr??ncia ou Crime Consumado
+        // Captura o que vem logo após Naturezas da ocorrência... até encontrar Dados da ocorrência ou Crime Consumado
         const matN = cleanText.match(/Naturezas? da Ocorr[e??]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
         if (matN && matN[1].trim().length > 3) {
             natureza = matN[1].trim();
@@ -4885,10 +4885,10 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                                             <div style="padding:24px;">
                                                 <h2 style="color:#059669;margin-top:0;">?????? Novo Sinistro Registrado</h2>
                                                 <p>Olá!</p>
-                                                <p>Um novo boletim de ocorr??ncia de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
+                                                <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
                                                 <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
                                                     <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
-                                                    <p style="margin:4px 0;"><strong>Data da Ocorr??ncia:</strong> ${body.data_hora || 'N/A'}</p>
+                                                    <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
                                                     <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
                                                     <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
                                                 </div>
@@ -5291,7 +5291,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         // Remove "(se houver)" se existir
         htmlFinal = htmlFinal.replace(/\s*\(se\s+houver\)/gi, '');
 
-        // 1. Data e hora da ocorr??ncia
+        // 1. Data e hora da ocorrência
         // Remove "//"
         htmlFinal = htmlFinal.replace(/(Data[^:]*ocorr[^:]*:[\s\S]{0,80}?)\/\//gi, '$1');
         // Primeiro blank -> Data
@@ -5311,7 +5311,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             );
         }
 
-        // 2. Natureza da ocorr??ncia (filtrando "Crime Consumado")
+        // 2. Natureza da ocorrência (filtrando "Crime Consumado")
         let orgNatureza = sin.natureza || '';
         let naturezaFormatada = orgNatureza.replace(/Crime Consumado\s*-?\s*/gi, '').trim();
         htmlFinal = htmlFinal.replace(
@@ -5319,7 +5319,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             `$1<strong>${naturezaFormatada}</strong>`
         );
 
-        // 3. Boletim de Ocorr??ncia
+        // 3. Boletim de ocorrência
         htmlFinal = htmlFinal.replace(
             /(Boletim[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.numero_boletim || ''}</strong>`
@@ -6578,7 +6578,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                         data_limite: data_limite || oldData.data_limite,
                     };
 
-                    // Se for Cobrada - Pz. Perdido, anexa no prontu??rio criando registro na tabela multas
+                    // Se for Cobrada - Pz. Perdido, anexa no prontuário criando registro na tabela multas
                     if (status === 'Cobrada - Pz. Perdido' && finalMotorista && finalMotorista != -1) {
                         const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
                         const valorOriginal = parseFloat(numericStr) || 0;
@@ -6603,8 +6603,8 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 finalParcelas
                             ],
                             function(errInsert) {
-                                if (errInsert) console.error('[NotificarRHAuto] Erro ao anexar Cobrada - Pz Perdido no prontu??rio:', errInsert.message);
-                                else console.log(`[NotificarRHAuto] Multa anexada ao prontu??rio. ID=${this.lastID}`);
+                                if (errInsert) console.error('[NotificarRHAuto] Erro ao anexar Cobrada - Pz Perdido no prontuário:', errInsert.message);
+                                else console.log(`[NotificarRHAuto] Multa anexada ao prontuário. ID=${this.lastID}`);
                             }
                         );
                     }
@@ -6613,7 +6613,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                         .then((result) => { res.json({ ok: true, emailEnviado: true }); })
                         .catch(errEmail => { res.status(500).json({ error: 'Salvo, mas o e-mail não foi enviado: ' + errEmail.message }); });
 
-                // Rec. Indeferida: envia APENAS popup (sem e-mail) + insere no prontu??rio do colaborador
+                // Rec. Indeferida: envia APENAS popup (sem e-mail) + insere no prontuário do colaborador
                 } else if (status && status === 'Rec. Indeferida' && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
@@ -6626,7 +6626,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     const finalHora = hora_infracao || oldData.hora_infracao;
                     const finalLocal = local_infracao || oldData.local_infracao;
 
-                    // 1. Insere no prontu??rio (tabela multas) se motorista válido
+                    // 1. Insere no prontuário (tabela multas) se motorista válido
                     if (finalMotorista && finalMotorista != -1) {
                         const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
                         const valorOriginal = parseFloat(numericStr) || 0;
@@ -6651,8 +6651,8 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 finalParcelas
                             ],
                             function(errInsert) {
-                                if (errInsert) console.error('[RecIndeferida] Erro ao inserir no prontu??rio:', errInsert.message);
-                                else console.log(`[RecIndeferida] Multa inserida no prontu??rio. ID=${this.lastID}`);
+                                if (errInsert) console.error('[RecIndeferida] Erro ao inserir no prontuário:', errInsert.message);
+                                else console.log(`[RecIndeferida] Multa inserida no prontuário. ID=${this.lastID}`);
                             }
                         );
                     }
@@ -6660,7 +6660,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     // 2. Envia popup (sem e-mail) para usuários configurados com tipo 'multa_rec_indeferida'
                     db.get('SELECT nome_completo, nome FROM colaboradores WHERE id = ?', [finalMotorista], (errColab, colab) => {
                         const nomeColab = (colab && (colab.nome_completo || colab.nome)) || 'Colaborador não identificado';
-                        const msgNotif = `Recurso Indeferido: Multa AIT ${finalAit || 'S/N'} ??? ${nomeColab}. Multa enviada ao prontu??rio.`;
+                        const msgNotif = `Recurso Indeferido: Multa AIT ${finalAit || 'S/N'} ??? ${nomeColab}. Multa enviada ao prontuário.`;
                         const dadosNotif = JSON.stringify({ ait: finalAit, motorista: nomeColab, status: 'Rec. Indeferida', multa_id: req.params.id });
 
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'multa_rec_indeferida'", [], (errN, rowsN) => {
@@ -7149,7 +7149,7 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
                         return res.download(rowDoc.file_path, rowDoc.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
                     } else {
                         return res.status(404).json({
-                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontu??rio Digital ??? Ficha Cadastral para fazer o upload da CNH.`
+                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital ??? Ficha Cadastral para fazer o upload da CNH.`
                         });
                     }
                 });
@@ -7175,7 +7175,7 @@ app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
             if (!err3 && rowDoc && rowDoc.file_path && require('fs').existsSync(rowDoc.file_path)) {
                 return res.download(rowDoc.file_path, rowDoc.file_name || `Doc_Pessoal_${encodeURIComponent(row.nome_completo)}.pdf`);
             } else {
-                return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontu??rio Digital para anexar.`);
+                return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital para anexar.`);
             }
         });
     });
@@ -7251,7 +7251,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
     }
 
 
-    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorr??ncia', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS'];
+    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS'];
     const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
 
     if (isMultiplo) {
@@ -7429,7 +7429,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                     if (!errC && colab) {
                                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_ocorrencia'", [], (errN, rowsN) => {
                                             if (!errN && rowsN && rowsN.length > 0) {
-                                                const msg = `Uma nova ocorr??ncia foi registrada no prontu??rio do colaborador: ${colab.nome_completo}`;
+                                                const msg = `Uma nova ocorrência foi registrada no prontuário do colaborador: ${colab.nome_completo}`;
                                                 const dadosStr = JSON.stringify({ colaborador_id, document_id: newDocId, tipo_ocorrencia: _tipoSimples, colaborador_nome: colab.nome_completo });
                                                 rowsN.forEach(c => {
                                                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
@@ -7437,19 +7437,19 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                                 });
                                                 
                                                 sendEmailParaNotificados('nova_ocorrencia', {
-                                                    subject: '???? Nova Ocorr??ncia Registrada',
+                                                    subject: '🚨 Nova Ocorrência Registrada',
                                                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                                         </div>
                                                         <div style="padding:24px;">
-                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">???? Nova Ocorr??ncia Registrada</h2>
-                                                            <p style="text-align:center;">Uma nova ocorr??ncia disciplinar foi inserida no sistema.</p>
+                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">🚨 Nova Ocorrência Registrada</h2>
+                                                            <p style="text-align:center;">Uma nova ocorrência disciplinar foi inserida no sistema.</p>
                                                             <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #d9480f;">
                                                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                                             </div>
                                                             <div style="text-align:center;margin-top:20px;">
-                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontu??rio Digital</a>
+                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar prontuário Digital</a>
                                                             </div>
                                                             <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
                                                         </div>
@@ -8099,7 +8099,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
     });
 });
 
-// POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontu??rio digital + Assinafy)
+// POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontuário digital + Assinafy)
 app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
     const { htmlContent, colaborador_id, mes, ano } = req.body;
     if (!htmlContent || !colaborador_id || !mes || !ano) return res.status(400).json({ error: 'Par??metros inválidos' });
@@ -11581,7 +11581,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             // Grava Histórico de Sa??da
                             db.run(
                                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [item.id, count, 'Sa??da', registrado_por || 'Sistema', 'Baixa Prontu??rio Colaborador', enderecoId || null, enderecoNome || null],
+                                [item.id, count, 'Sa??da', registrado_por || 'Sistema', 'Baixa prontuário Colaborador', enderecoId || null, enderecoNome || null],
                                 () => {}
                             );
                         } else {
@@ -12340,7 +12340,7 @@ app.post('/api/webhooks/testar/:id', authenticateToken, (req, res) => {
 // ?????? ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ????????????????????????????????????????????????????????????????????????????????????????????????????????????
 const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// GET /api/ocorrencias/:id/anexos ??? lista anexos da ocorr??ncia
+// GET /api/ocorrencias/:id/anexos ??? lista anexos da ocorrência
 app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
     db.all('SELECT id, nome_arquivo, mime_type, tamanho, url, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
         [req.params.id], (err, rows) => {
@@ -13350,7 +13350,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
 
                 res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
-                // Notificação de Nova Multa no Prontu??rio
+                // Notificação de Nova Multa no prontuário
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuario'", [], (err, rowsC) => {
                     if (!err && rowsC && rowsC.length > 0) {
                         const colabNome = colab.nome_completo || colab.nome || 'Colaborador';
@@ -13372,7 +13372,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                                     <h3 style="color:#1e293b;margin:0;">AM??RICA RENTAL EQUIPAMENTOS</h3>
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no Prontu??rio</h2>
+                                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no prontuário</h2>
                                     <p>Uma nova multa foi incluída no prontuário do colaborador abaixo:</p>
                                     <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                                         <p><strong>Colaborador:</strong> ${colabNome}</p>
@@ -18404,7 +18404,7 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
                         <p>Abaixo está o link para acesso aos documentos da equipe alocada para sua obra/evento.</p>
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                                Acessar Prontu??rios e Documentos
+                                Acessar prontuários e Documentos
                             </a>
                         </div>
                         <p style="text-align: center; font-size: 12px; color: #999;">
