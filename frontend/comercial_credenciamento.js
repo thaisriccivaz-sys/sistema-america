@@ -185,15 +185,16 @@ window.fecharModalSolicitarCredenciamento = function() {
 }
 
 window.mudarTipoEnvioComercial = function() {
-    const tipo = document.getElementById('solic-tipo-envio').value;
+    const tipoEnvioElem = document.getElementById('solic-tipo-envio');
+    const tipo = tipoEnvioElem ? tipoEnvioElem.value : 'email';
     const gEmail = document.getElementById('grupo-solic-email');
     const gWhats = document.getElementById('grupo-solic-whatsapp');
     if (tipo === 'email') {
-        gEmail.style.display = 'block';
-        gWhats.style.display = 'none';
+        if (gEmail) gEmail.style.display = 'block';
+        if (gWhats) gWhats.style.display = 'none';
     } else {
-        gEmail.style.display = 'none';
-        gWhats.style.display = 'block';
+        if (gEmail) gEmail.style.display = 'none';
+        if (gWhats) gWhats.style.display = 'block';
     }
 }
 

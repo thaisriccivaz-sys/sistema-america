@@ -900,7 +900,8 @@ window.fecharModalNovoCredenciamento = function() {
 };
 
 window.mudarTipoEnvioLogistica = function() {
-    const tipo = document.getElementById('cred-tipo-envio').value;
+    const tipoEnvioElem = document.getElementById('cred-tipo-envio');
+    const tipo = tipoEnvioElem ? tipoEnvioElem.value : 'email';
     const gEmail = document.getElementById('grupo-cred-email');
     const gWhats = document.getElementById('grupo-cred-whatsapp');
     
