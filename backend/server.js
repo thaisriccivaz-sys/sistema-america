@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -17875,7 +17875,7 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, res) => {
-    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp } = req.body;
+    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp, licencas } = req.body;
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
     const veicIds = (veiculos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
 
@@ -17911,8 +17911,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
         const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
         const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
-            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, licencas_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
+            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(licencas || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
