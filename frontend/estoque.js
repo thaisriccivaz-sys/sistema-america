@@ -731,9 +731,10 @@ window.renderEstoqueHistorico = async function() {
             let raw = h.data_hora || "";
             if (raw && !raw.includes("T")) raw = raw.replace(" ","T") + "Z";
             const dt = new Date(raw);
-            const tipoColor = h.tipo === "Entrada" ? "#16a34a" : (h.tipo === "Saida" ? "#ef4444" : "#eab308");
-            const tipoBg    = h.tipo === "Entrada" ? "#f0fdf4" : (h.tipo === "Saida" ? "#fef2f2" : "#fefce8");
-            const sinal     = h.tipo === "Saida" ? "-" : "+";
+            const tipoNorm = (h.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+            const tipoColor = tipoNorm === "ENTRADA" ? "#16a34a" : (tipoNorm === "SAIDA" ? "#ef4444" : "#eab308");
+            const tipoBg    = tipoNorm === "ENTRADA" ? "#f0fdf4" : (tipoNorm === "SAIDA" ? "#fef2f2" : "#fefce8");
+            const sinal     = tipoNorm === "SAIDA" ? "-" : "+";
             const endHtml   = h.endereco_nome
                 ? '<span style="display:inline-flex;align-items:center;gap:3px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:600;"><i class="ph ph-map-pin" style="font-size:0.75rem;"></i>' + h.endereco_nome + '</span>'
                 : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
