@@ -11607,99 +11607,17 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             `SELECT DISTINCT ee.tipo_notificacao FROM estoque_saldo_por_endereco s
              JOIN estoque_enderecos ee ON s.endereco_id = ee.id
              WHERE s.estoque_id = ? AND s.quantidade > 0 AND ee.tipo_notificacao != '' AND ee.tipo_notificacao IS NOT NULL`,
-            [id], (errT, tiposRows) => {
+            [item.id], (errT, tiposRows) => {
                 const tiposSet = new Set((tiposRows || []).map(r => r.tipo_notificacao));
                 const tiposNotif = tiposSet.size > 0 ? Array.from(tiposSet) : ['compra']; // fallback: compra
                 tiposNotif.forEach(tipoNotif => {
                     const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
-                    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = '${dbTipo}'`, [], (errCR, rowsCR) => {
+                    const subjectPrefix = tipoNotif === 'reposicao' ? 'Mínimo para Reposição Atingido' : 'Estoque Mínimo Atingido';
+                    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = ?`, [dbTipo], (errCR, rowsCR) => {
                         if (!errCR && rowsCR && rowsCR.length > 0) {
                             rowsCR.forEach(c => {
                                 db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
                             });
-                        }
-                    });
-                });
-            }
-        );
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                                if (!errC && rowsC && rowsC.length > 0) {
-                                    rowsC.forEach(c => {
-                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                                    });
-                                    const qIds = rowsC.map(r => r.usuario_id).join(',');
-                                    db.all(`
-                                        SELECT u.email as user_email, c.email_corporativo as colab_email
-                                        FROM usuarios u
-                                        LEFT JOIN colaboradores c ON u.nome = c.nome_completo
-                                        WHERE u.id IN (${qIds})
-                                    `, [], (errU, users) => {
-                                        if (!errU && users && users.length > 0) {
-                                            const emailsArray = users.map(u => u.colab_email || u.user_email).filter(e => e && e.trim() !== '');
-                                            if (emailsArray.length > 0) {
-                                                const emails = [...new Set(emailsArray)].join(',');
-                                                const _logoPath8 = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-
-                                                // IIFE async para permitir await ao baixar a foto do R2
-                                                (async () => {
-                                                    let fotoHtml = '';
-                                                    let fotoAttachment = null;
-
-                                                    // Tenta embutir a foto como CID inline para evitar bloqueio do Outlook
-                                                    if (item.foto_url && item.foto_url.startsWith('http')) {
-                                                        try {
-                                                            const https = require('https');
-                                                            const http = require('http');
-                                                            const fotoBuffer = await new Promise((resolve, reject) => {
-                                                                const mod = item.foto_url.startsWith('https') ? https : http;
-                                                                mod.get(item.foto_url, (resp) => {
-                                                                    const chunks = [];
-                                                                    resp.on('data', c => chunks.push(c));
-                                                                    resp.on('end', () => resolve(Buffer.concat(chunks)));
-                                                                    resp.on('error', reject);
-                                                                }).on('error', reject);
-                                                            });
-                                                            const contentType = item.foto_url.endsWith('.png') ? 'image/png' : (item.foto_url.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
-                                                            const fotoExt = contentType.split('/')[1].replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + fotoExt, content: fotoBuffer, contentType, cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        } catch(eFoto) {
-                                                            console.warn('[ESTOQUE] Não foi poss??vel baixar foto do R2 para CID:', eFoto.message);
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
-                                                        const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                                                        if (_fm) {
-                                                            const _fext = (_fm[1].split('/')[1] || 'jpg').replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + _fext, content: Buffer.from(_fm[2], 'base64'), cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    }
-
-                                                    const mailOptions = {
-                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                                                        to: emails,
-                                                        subject: 'ALERTA DE ESTOQUE M??NIMO - America Rental',
-                                                        html: `
-                                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                                <div style="text-align: center; margin-bottom: 20px;">
-                                                                    <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
-                                                                </div>
-                                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque M??nimo</h2>
-                                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                                ${fotoHtml}
-                                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
-                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade M??nima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Máxima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_maxima || '-'}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">A Adquirir</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #16a34a; font-weight: bold;">${item.quantidade_maxima ? Math.max(0, item.quantidade_maxima - newQtd) : '-'}</td></tr>
-                                                                </table>
-                                                                <p>Por favor, providencie a reposi????o o mais breve poss??vel.</p>
-                                                            </div>
-                                                        `,
-                                                        attachments: [
                                                             { filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' },
                                                             ...(fotoAttachment ? [fotoAttachment] : [])
                                                         ]

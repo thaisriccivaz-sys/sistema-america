@@ -246,7 +246,7 @@ window.renderEstoqueTable = async function() {
                 // Endereço
                 rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
                 // Tipo
-                rows += '<td style="vertical-align:middle;">' + tipoCell + '</td>';
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
                 
                 // Ações
                 if (primeiraLinha) {
