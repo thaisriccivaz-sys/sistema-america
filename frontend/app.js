@@ -15596,7 +15596,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
     document.body.appendChild(overlay);
-    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null; window._enderecoPorEpi = {};
     setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
 };
 
@@ -15724,8 +15724,28 @@ window._setEpiQty = async function (epi, qty) {
         let swalStyleEl = document.getElementById('swal-epi-zindex-fix');
         if (!swalStyleEl) { swalStyleEl = document.createElement('style'); swalStyleEl.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl); }
         swalStyleEl.textContent = '.swal2-container { z-index: 999999 !important; }';
-        const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null});
+        const sizeResult = await Swal.fire({
+            title:'Qual tamanho?',
+            html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>{b.style.background='#f1f5f9';b.style.color='#374151';});this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: '<i class="ph ph-x"></i> Fechar',
+            confirmButtonColor: '#1e3a5f',
+            cancelButtonColor: '#64748b',
+            preConfirm: () => {
+                const v = document.getElementById('swal-size-val').value;
+                if (!v) { Swal.showValidationMessage('Selecione um tamanho!'); return false; }
+                return v;
+            }
+        });
         if (swalStyleEl) swalStyleEl.textContent = '';
+        // Se fechou sem confirmar (clicou Fechar ou ESC): NÃO adiciona o produto
+        if (!sizeResult.isConfirmed) {
+            window._assinQtds[epi] = prevQty; // restaura quantidade anterior (0)
+            window._renderEpiGrid(document.getElementById('epi-filtro-input')?.value||'');
+            return;
+        }
+        const tamanho = sizeResult.value;
         if(tamanho){
             const baseEpi = epi.replace(/\s*\(TAM.*?\)/g, '');
             const nomeComTamanho = `${baseEpi} (TAM ${tamanho})`;
@@ -15822,6 +15842,65 @@ window._assinNextStep = async function () {
                 { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         }
+
+        // --- Seleção de endereço de estoque (igual ao prontuário) ---
+        try {
+            window._enderecoPorEpi = {};
+            const episSel = Object.entries(window._assinQtds||{}).filter(([,q])=>q>0).map(([nome])=>nome);
+            const endResp = await fetch(`${API_URL}/estoque/enderecos-disponiveis-epi`, {
+                method: 'POST',
+                headers: {'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json'},
+                body: JSON.stringify({ epis: episSel })
+            }).catch(()=>null);
+            if (endResp && endResp.ok) {
+                const endData = await endResp.json().catch(()=>({}));
+                // endData: { [nomeEpi]: { matchId, matchNome, enderecos: [{id, nome, quantidade}] } }
+                const perguntas = [];
+                for (const nomeOriginal of episSel) {
+                    const epiData = endData[nomeOriginal];
+                    const ends = (epiData && epiData.enderecos) ? epiData.enderecos : [];
+                    if (ends.length === 1) {
+                        window._enderecoPorEpi[nomeOriginal] = { id: ends[0].id, nome: ends[0].nome };
+                    } else if (ends.length > 1) {
+                        perguntas.push({ nomeEpi: nomeOriginal, ends });
+                    }
+                }
+                if (perguntas.length > 0) {
+                    let html = '<div style="max-height:320px;overflow-y:auto;">';
+                    perguntas.forEach((p, idx) => {
+                        html += `<div style="margin-bottom:12px;"><label style="font-weight:bold;font-size:0.9rem;">${p.nomeEpi}</label><select id="swal-epi-end-${idx}" class="swal2-select" style="display:flex;width:100%;margin:4px 0;">`;
+                        p.ends.forEach(e => { html += `<option value="${e.id}">${e.nome} (Saldo: ${e.quantidade})</option>`; });
+                        html += `</select></div>`;
+                    });
+                    html += '</div>';
+                    let swalEndStyle = document.getElementById('swal-epi-zindex-fix');
+                    if (!swalEndStyle) { swalEndStyle = document.createElement('style'); swalEndStyle.id='swal-epi-zindex-fix'; document.head.appendChild(swalEndStyle); }
+                    swalEndStyle.textContent = '.swal2-container { z-index: 999999 !important; }';
+                    const swalRes = await Swal.fire({
+                        title: 'Selecione o Endereço',
+                        html,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#1e3a5f',
+                        preConfirm: () => {
+                            const resMap = {};
+                            perguntas.forEach((p, idx) => {
+                                const sel = document.getElementById(`swal-epi-end-${idx}`);
+                                const opt = sel.options[sel.selectedIndex];
+                                resMap[p.nomeEpi] = { id: parseInt(opt.value), nome: opt.text.split(' (')[0] };
+                            });
+                            return resMap;
+                        }
+                    });
+                    if (swalEndStyle) swalEndStyle.textContent = '';
+                    if (!swalRes.isConfirmed) return;
+                    Object.assign(window._enderecoPorEpi, swalRes.value);
+                }
+            }
+        } catch(e) { console.error('[EPI] Erro ao buscar endereços:', e); }
+        // --- fim seleção de endereço ---
+
         window._assinStep('selfie'); return;
     }
     if(step===2){
@@ -15835,7 +15914,7 @@ window._assinNextStep = async function () {
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
             const episParaDevolver = Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }));
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver, endereco_por_epi:window._enderecoPorEpi||{}}),signal:controller.signal});
 
             if (res.ok && window._assinSelfieBase64) {
                  try {
