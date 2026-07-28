@@ -15634,7 +15634,7 @@ window._requiresAgendarDevolucao = function(epi) {
 window._assinRetornosConfirmados = window._assinRetornosConfirmados || {};
 // Armazena EPIs que precisam ser devolvidos com data prevista { epiNome: 'dd/mm/yyyy' }
 window._assinEmprestimos = window._assinEmprestimos || {};
-window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
+window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(e.includes('COLETE REFLETIVO')) return false; if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
 
 window._setEpiQty = async function (epi, qty) {
     const prevQty = (window._assinQtds||{})[epi]||0;
