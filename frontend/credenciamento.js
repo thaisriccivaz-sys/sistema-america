@@ -1168,18 +1168,9 @@ window._renderizarTabelaHistorico = function(dados) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (expirado) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
-        } else if (cred.tipo_envio === 'whatsapp') {
-            // WhatsApp: sempre verde ao ser enviado (sem link para rastrear acesso)
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-whatsapp-logo"></i> Enviado</span>`;
-        } else if (cred.acessado_em) {
-            // E-mail: verde quando o link foi acessado
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-eye"></i> Visualizado</span>`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Aguardando</span>`;
         } else {
-            // E-mail: azul quando enviado mas ainda não acessado
-            statusBadge = `<span style="color:#2563eb; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Enviado</span>`;
         }
 
         return `
@@ -1203,7 +1194,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender / Baixar ZIP</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar / Baixar Novamente</button>`}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-download-simple"></i> Atender</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar</button>`}
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; border-color:#f87171; color:#ef4444;" onclick="window.excluirCredenciamento('${cred.id}')" title="Excluir"><i class="ph ph-trash"></i></button>
             </td>
         </tr>
