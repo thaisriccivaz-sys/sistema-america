@@ -10118,7 +10118,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const exames = (colab.cargo || '').toLowerCase().includes('motorista')
             ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
-            : 'Exame Padr??o';
+            : 'Exame Padrão';
 
         // Formatar data: YYYY-MM-DD to DD/MM/YYYY
         const [y, m, d] = data_exame.split('-');
@@ -10151,7 +10151,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        à IMPORTANTE:<br>Apàs o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        ⚠️ IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
