@@ -405,12 +405,9 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
     }
 
     if (tipo === 'satisfacao') {
-        const isMotorista = c.includes('motorista') || d.includes('motorista') || c.includes('ajudante') || d.includes('ajudante');
-        if (isMotorista && groups.includes('motorista')) return 'motorista';
-        const isManut = c.includes('manutencao') || c.includes('manutenção') || d.includes('manutencao') || d.includes('manutenção');
-        if (isManut && groups.includes('manutencao')) return 'manutencao';
-        if (groups.includes('escritorio')) return 'escritorio';
-        if (groups.includes('geral')) return 'geral';
+        // Para satisfacao, SEM fallback: retornar null quando nenhum template do banco bate.
+        // O formulario exibira mensagem orientando o admin a cadastrar o template.
+        return null;
     }
 
     if (tipo === 'experiencia') {
@@ -420,5 +417,6 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
         if (isMotorista && groups.includes('motorista')) return 'motorista';
     }
 
-    return groups[0];
+    // Nenhum match encontrado
+    return null;
 };

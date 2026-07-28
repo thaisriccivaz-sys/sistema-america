@@ -530,6 +530,15 @@ window.gaExcluirTemplate = async function (id, nome, mapKey) {
 // ============================================================
 function gaSyncAvaliacaoQuestions() {
     if (typeof AVALIACAO_QUESTIONS === 'undefined') return;
+    if (gaTemplates.length === 0) return;
+
+    // Para satisfacao: limpar chaves vindas do arquivo antes de aplicar as do banco,
+    // evitando que grupos antigos (motorista, manutencao, escritorio) sirvam de fallback errado.
+    const tiposSatisfacao = new Set(gaTemplates.filter(t => t.tipo === 'satisfacao').map(t => t.tipo));
+    if (tiposSatisfacao.has('satisfacao')) {
+        AVALIACAO_QUESTIONS.satisfacao = {};
+    }
+
     gaTemplates.forEach(t => {
         try {
             const cats = JSON.parse(t.categorias_json);
