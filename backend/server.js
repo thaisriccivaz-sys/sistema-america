@@ -11590,7 +11590,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                             // Grava Histórico de Sa??da
                             db.run(
                                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [item.id, count, 'Sa??da', registrado_por || 'Sistema', 'Baixa prontuário Colaborador', enderecoId || null, enderecoNome || null],
+                                [item.id, count, 'Saida', registrado_por || 'Sistema', 'Baixa prontu\u00e1rio Colaborador', enderecoId || null, enderecoNome || null],
                                 () => {}
                             );
                         } else {
@@ -11722,7 +11722,11 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 
                     Object.values(epiContagem).forEach(({ count, original }) => {
                         const originalNome = original.trim();
-                        const nomeNormalizado = originalNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                        // Preprocessar: converte "(TAM 38)" → "38" para alinhar com nomes do estoque
+                        const nomePreprocessado = originalNome
+                            .replace(/\(TAM\s+([^)]+)\)/gi, ' $1 ')
+                            .replace(/\s+/g, ' ').trim();
+                        const nomeNormalizado = nomePreprocessado.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                         
                         console.log(`[ESTOQUE] Tentando baixar EPI entregue: "${nomeNormalizado}" (Sexo Colab: ${isFeminino?'F':(isMasculino?'M':'-')})`);
 
@@ -20446,7 +20450,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Obter dados antigos
@@ -20488,10 +20492,11 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         });
 
-        // Grava histórico se houver diferen??a de quantidade
+        // Grava histórico se houver diferença de quantidade e skip_history não foi solicitado
+        // (skip_history=true quando sync-enderecos irá gravar histórico por endereço)
         const diferenca = quantidade_atual - oldRow.quantidade_atual;
-        if (diferenca !== 0) {
-            const tipo = diferenca > 0 ? 'Entrada' : 'Sa??da';
+        if (diferenca !== 0 && !skip_history) {
+            const tipo = diferenca > 0 ? 'Entrada' : 'Saida';
             db.run(
                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
                 [id, Math.abs(diferenca), tipo, usuario, 'Ajuste Manual'],
@@ -20652,41 +20657,65 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
     try {
         const { id } = req.params;
         const enderecos = req.body.enderecos || [];
+        const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
         
-        db.serialize(() => {
-            const enderecoIds = enderecos.map(e => e.endereco_id);
-            const placeholders = enderecoIds.map(() => '?').join(',');
+        // 1. Busca quantidades antigas ANTES de alterar
+        db.all('SELECT endereco_id, quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [id], (errQ, oldSaldos) => {
+            const oldMap = {};
+            (oldSaldos || []).forEach(s => { oldMap[s.endereco_id] = s.quantidade; });
             
-            const deleteQuery = enderecoIds.length > 0 
-                ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
-                : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
-            
-            const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
-            
-            db.run(deleteQuery, deleteParams, (err) => {
-                if (err) return res.status(500).json({ error: err.message });
+            db.serialize(() => {
+                const enderecoIds = enderecos.map(e => e.endereco_id);
+                const placeholders = enderecoIds.map(() => '?').join(',');
                 
-                try {
-                    const stmt = db.prepare(`
-                        INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
-                            quantidade = EXCLUDED.quantidade,
-                            quantidade_minima = EXCLUDED.quantidade_minima,
-                            quantidade_maxima = EXCLUDED.quantidade_maxima,
-                            tipo_estoque = EXCLUDED.tipo_estoque
-                    `);
+                const deleteQuery = enderecoIds.length > 0 
+                    ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
+                    : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
+                
+                const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
+                
+                db.run(deleteQuery, deleteParams, (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
                     
-                    enderecos.forEach(e => {
-                        stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
-                    });
-                    
-                    stmt.finalize();
-                    res.json({ success: true });
-                } catch (eStmt) {
-                    console.error('[ESTOQUE SYNC] Erro interno:', eStmt.message);
-                    if (!res.headersSent) res.status(500).json({ error: 'Erro ao sincronizar endereços.' });
-                }
+                    try {
+                        const stmt = db.prepare(`
+                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                                quantidade = EXCLUDED.quantidade,
+                                quantidade_minima = EXCLUDED.quantidade_minima,
+                                quantidade_maxima = EXCLUDED.quantidade_maxima,
+                                tipo_estoque = EXCLUDED.tipo_estoque
+                        `);
+                        
+                        enderecos.forEach(e => {
+                            stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
+                        });
+                        
+                        stmt.finalize(() => {
+                            // 2. Grava histórico por endereço para quantidades que mudaram
+                            enderecos.forEach(e => {
+                                const oldQtd = (oldMap[e.endereco_id] !== undefined) ? (oldMap[e.endereco_id] || 0) : 0;
+                                const newQtd = parseInt(e.quantidade) || 0;
+                                const diff = newQtd - oldQtd;
+                                if (diff !== 0) {
+                                    db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [e.endereco_id], (errE, rowE) => {
+                                        const endNome = rowE ? rowE.nome : null;
+                                        db.run(
+                                            'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                            [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, 'Edi\u00e7\u00e3o de Estoque', e.endereco_id, endNome],
+                                            () => {}
+                                        );
+                                    });
+                                }
+                            });
+                            res.json({ success: true });
+                        });
+                    } catch (eStmt) {
+                        console.error('[ESTOQUE SYNC] Erro interno:', eStmt.message);
+                        if (!res.headersSent) res.status(500).json({ error: 'Erro ao sincronizar endereços.' });
+                    }
+                });
             });
         });
     } catch (e) {
@@ -20774,7 +20803,7 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
                 const endNome = rowE ? rowE.nome : null;
                 db.run(
                     'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [id, qtd, 'Sa??da', usuario, motivo || 'Baixa Manual', endereco_id || null, endNome],
+                    [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', endereco_id || null, endNome],
                     () => {}
                 );
             });
@@ -20799,7 +20828,7 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
 
     const isEntrada = qtdRaw > 0;
     const qtdAbs    = Math.abs(qtdRaw);
-    const tipo      = isEntrada ? 'Entrada' : 'Sa??da';
+    const tipo      = isEntrada ? 'Entrada' : 'Saida';
     const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Sa??da de produtos');
 
     db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
@@ -20954,7 +20983,11 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
             const episUnicos = [...new Set(epis)];
 
             episUnicos.forEach(originalNome => {
-                const nomeNormalizado = (originalNome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                // Preprocessar: converte "(TAM 38)" → "38" para alinhar com nomes do estoque
+                const nomePreprocessado = (originalNome || '').trim()
+                    .replace(/\(TAM\s+([^)]+)\)/gi, ' $1 ')
+                    .replace(/\s+/g, ' ').trim();
+                const nomeNormalizado = nomePreprocessado.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                 let match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
                 
                 if (!match) {

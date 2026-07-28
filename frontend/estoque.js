@@ -105,7 +105,7 @@ window.renderEstoqueTable = async function() {
         }
 
         if (data.length === 0) {
-            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
+            table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
             return;
         }
 
@@ -204,19 +204,20 @@ window.renderEstoqueTable = async function() {
 
                 // Endereço badge
                 let endCell;
+                let tipoCell;
                 if (!s) {
                     endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
+                    tipoCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                 } else {
                     const tipoEstoque = s.tipo_estoque || 'matriz';
-                    const tipoBadge = tipoEstoque === 'reposicao'
-                        ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:600;margin-left:4px;">🔄 Reposição</span>'
-                        : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:600;margin-left:4px;">🏢 Matriz</span>';
+                    tipoCell = tipoEstoque === 'reposicao'
+                        ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
+                        : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
                     endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                        '</span>' + tipoBadge;
+                        '</span>';
                 }
-
 
                 // Separador entre linhas do mesmo produto
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
@@ -236,12 +237,6 @@ window.renderEstoqueTable = async function() {
                     rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
                             '</td>';
-
-                    // Placas
-                    const hasPlacas = item.placas_vinculadas && item.placas_vinculadas.trim().length > 0;
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle; max-width:200px; overflow:hidden; text-overflow:ellipsis;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                (hasPlacas ? (window.formatarPlacas(item.placas_vinculadas) || '<span style="color:#94a3b8;font-style:italic;">-</span>') : '<span style="color:#94a3b8;font-style:italic;">-</span>') +
-                            '</td>';
                 }
                 
                 // Qtd. Atual
@@ -250,6 +245,8 @@ window.renderEstoqueTable = async function() {
                 rows += '<td style="vertical-align:middle;">' + minMaxCell + '</td>';
                 // Endereço
                 rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
+                // Tipo
+                rows += '<td style="vertical-align:middle;">' + tipoCell + '</td>';
                 
                 // Ações
                 if (primeiraLinha) {
@@ -264,7 +261,7 @@ window.renderEstoqueTable = async function() {
         table.innerHTML = rows;
     } catch (e) {
         console.error(e);
-        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
+        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
     }
 };
 
@@ -552,7 +549,7 @@ window.salvarEstoque = async function(e) {
         const res = await fetch(url, {
             method,
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...payload, skip_history: (method === 'PUT' && linhasValidas.length > 0) })
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Erro ao salvar"); }
         const result = await res.json();
@@ -744,17 +741,20 @@ window.renderEstoqueHistorico = async function() {
             let raw = h.data_hora || "";
             if (raw && !raw.includes("T")) raw = raw.replace(" ","T") + "Z";
             const dt = new Date(raw);
-            const tipoNorm = (h.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-            const tipoColor = tipoNorm === "ENTRADA" ? "#16a34a" : (tipoNorm === "SAIDA" ? "#ef4444" : "#eab308");
-            const tipoBg    = tipoNorm === "ENTRADA" ? "#f0fdf4" : (tipoNorm === "SAIDA" ? "#fef2f2" : "#fefce8");
-            const sinal     = tipoNorm === "SAIDA" ? "-" : "+";
+            const tipoNorm = (h.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g,'');
+            const isSaida  = tipoNorm === 'SAIDA' || tipoNorm.startsWith('SAI');
+            const isEntrad = tipoNorm === 'ENTRADA' || tipoNorm.startsWith('ENT');
+            const tipoDisplay = isEntrad ? 'Entrada' : (isSaida ? 'Sa\u00edda' : (h.tipo || 'Ajuste'));
+            const tipoColor = isEntrad ? "#16a34a" : (isSaida ? "#ef4444" : "#eab308");
+            const tipoBg    = isEntrad ? "#f0fdf4" : (isSaida ? "#fef2f2" : "#fefce8");
+            const sinal     = isSaida  ? "-" : "+";
             const endHtml   = h.endereco_nome
                 ? '<span style="display:inline-flex;align-items:center;gap:3px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:600;"><i class="ph ph-map-pin" style="font-size:0.75rem;"></i>' + h.endereco_nome + '</span>'
                 : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
             tr.innerHTML =
                 '<td><div style="font-weight:500;">' + dt.toLocaleDateString("pt-BR") + '</div><div style="font-size:0.8em;color:#64748b;">' + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) + '</div></td>' +
                 '<td><div style="font-weight:600;color:#1e293b;">' + h.estoque_nome + '</div><div style="margin-top:2px;">' + endHtml + '</div></td>' +
-                '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + h.tipo + '</span></td>' +
+                '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + tipoDisplay + '</span></td>' +
                 '<td style="font-weight:700;color:' + tipoColor + '">' + sinal + h.quantidade + '</td>' +
                 '<td>' + (h.usuario || "-") + '</td>';
             table.appendChild(tr);
