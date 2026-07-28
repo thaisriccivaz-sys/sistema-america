@@ -1782,7 +1782,7 @@ async function loadDepartamentos() {
             <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
             <td>${responsavel}</td>
             <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
+                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}','${(d.nome_aso||'').replace(/\'/g,"\\\\\'")}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
@@ -1793,10 +1793,12 @@ async function loadDepartamentos() {
     });
 }
 
-window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual) {
+window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual, nomeAsoAtual) {
     document.getElementById('edit-departamento-id').value = id;
     document.getElementById('edit-departamento-nome').value = nomeAtual;
     document.getElementById('edit-departamento-tipo').value = tipoAtual || 'Operacional';
+    const asoEl = document.getElementById('edit-departamento-aso');
+    if (asoEl) asoEl.value = nomeAsoAtual || '';
     await carregarOpcoesResponsavel('edit-departamento-responsavel', responsavelIdAtual);
     document.getElementById('modal-editar-departamento').style.display = 'flex';
 }
@@ -1809,11 +1811,12 @@ document.getElementById('form-editar-departamento')?.addEventListener('submit', 
     const selectResp = document.getElementById('edit-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    const nome_aso = document.getElementById('edit-departamento-aso')?.value.trim() || null;
 
     const res = await fetch(`${API_URL}/departamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-        body: JSON.stringify({ nome: nome, tipo, responsavel_id, responsavel_nome })
+        body: JSON.stringify({ nome: nome, tipo, responsavel_id, responsavel_nome, nome_aso })
     });
     const data = await res.json();
     if (data.error) alert(data.error);
@@ -1842,10 +1845,13 @@ document.getElementById('form-departamento')?.addEventListener('submit', async (
     const selectResp = document.getElementById('novo-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    const nome_aso = document.getElementById('novo-departamento-aso')?.value.trim() || null;
 
     if (!nome) return;
-    await apiPost('/departamentos', { nome, tipo, responsavel_id, responsavel_nome });
+    await apiPost('/departamentos', { nome, tipo, responsavel_id, responsavel_nome, nome_aso });
     document.getElementById('novo-departamento-nome').value = '';
+    const asoNovoEl = document.getElementById('novo-departamento-aso');
+    if (asoNovoEl) asoNovoEl.value = '';
     loadDepartamentos();
 });
 

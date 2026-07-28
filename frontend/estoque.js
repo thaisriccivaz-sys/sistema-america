@@ -157,9 +157,22 @@ window.renderEstoqueTable = async function() {
             // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
             const linhasEndereco = saldos.length > 0 ? saldos : [null];
 
-            linhasEndereco.forEach(function(s, idx) {
+            // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
+            let linhasParaRenderizar = linhasEndereco;
+            if (tipoFilter && tipoFilter !== 'sem_tipo') {
+                const filtroAtivo = linhasEndereco.filter(s => {
+                    if (!s) return false;
+                    const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
+                    if (!endObj || endObj.tipo_notificacao !== tipoFilter) return false;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    return minRef > 0 && (parseInt(s.quantidade) || 0) < minRef;
+                });
+                if (filtroAtivo.length > 0) linhasParaRenderizar = filtroAtivo;
+            }
+
+            linhasParaRenderizar.forEach(function(s, idx) {
                 const primeiraLinha = idx === 0;
-                const ultimaLinha  = idx === linhasEndereco.length - 1;
+                const ultimaLinha  = idx === linhasParaRenderizar.length - 1;
 
                 // Cor/estado deste endereço
                 let lowEnd = false;
@@ -208,24 +221,24 @@ window.renderEstoqueTable = async function() {
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
                 const bgRow = lowEnd ? 'background:#fff5f5;' : '';
 
-                const rowSpanAttr = linhasEndereco.length > 1 && primeiraLinha ? ' rowspan="' + linhasEndereco.length + '"' : '';
+                const rowSpanAttr = linhasParaRenderizar.length > 1 && primeiraLinha ? ' rowspan="' + linhasParaRenderizar.length + '"' : '';
 
                 rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
                 
                 // Nome + foto
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>' +
                             '</td>';
                             
                     // Categoria
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
                             '</td>';
 
                     // Placas
                     const hasPlacas = item.placas_vinculadas && item.placas_vinculadas.trim().length > 0;
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle; max-width:200px; overflow:hidden; text-overflow:ellipsis;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle; max-width:200px; overflow:hidden; text-overflow:ellipsis;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (hasPlacas ? (window.formatarPlacas(item.placas_vinculadas) || '<span style="color:#94a3b8;font-style:italic;">-</span>') : '<span style="color:#94a3b8;font-style:italic;">-</span>') +
                             '</td>';
                 }
@@ -239,7 +252,7 @@ window.renderEstoqueTable = async function() {
                 
                 // Ações
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 acoesBtns +
                             '</td>';
                 }
@@ -825,13 +838,18 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
 
     const optsProdutos = produtos.map(p => `<option value="${p.id}">${p.nome} (Total: ${p.quantidade_atual})</option>`).join('');
 
+    // Gerar lista de produtos para busca rápida
+    const produtosJSON = JSON.stringify(produtos.map(p => ({ id: p.id, nome: p.nome, quantidade_atual: p.quantidade_atual })));
+
     let html = `<div style="text-align:left;">
         <div style="margin-bottom:12px;">
             <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Produto *</label>
-            <select id="swal-global-produto" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                <option value="">Selecione o produto</option>
-                ${optsProdutos}
-            </select>
+            <input type="text" id="swal-global-produto-busca" placeholder="Digite para buscar o produto..." autocomplete="off"
+                style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            <div id="swal-global-produto-lista" style="max-height:180px;overflow-y:auto;border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;background:#fff;display:none;">
+            </div>
+            <input type="hidden" id="swal-global-produto" value="">
+            <div id="swal-global-produto-selecionado" style="display:none;margin-top:6px;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:0.85rem;color:#15803d;font-weight:600;"></div>
         </div>
         <div style="margin-bottom:12px;">
             <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Endereço *</label>
@@ -862,18 +880,26 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
         cancelButtonText: 'Cancelar',
         confirmButtonColor: corBtn,
         didOpen: () => {
-            const selProd = document.getElementById('swal-global-produto');
+            const allProdutos = JSON.parse(document.getElementById('swal-global-produto').dataset.produtos || produtosJSON);
+            // Armazenar os produtos no elemento hidden para acesso posterior
+            document.getElementById('swal-global-produto').dataset.produtos = produtosJSON;
+
+            const inputBusca = document.getElementById('swal-global-produto-busca');
+            const listaProdutos = document.getElementById('swal-global-produto-lista');
+            const hiddenProduto = document.getElementById('swal-global-produto');
+            const labelSelecionado = document.getElementById('swal-global-produto-selecionado');
             const selEnd = document.getElementById('swal-global-endereco');
             const hint = document.getElementById('swal-global-endereco-hint');
-            
-            selProd.addEventListener('change', async (e) => {
-                const pId = e.target.value;
+
+            // Função para carregar endereços ao selecionar produto
+            async function carregarEnderecosProduto(pId, prodNome, prodQtd) {
+                hiddenProduto.value = pId;
+                labelSelecionado.textContent = prodNome + ' (Total: ' + prodQtd + ')';
+                labelSelecionado.style.display = 'block';
+                inputBusca.value = '';
+                listaProdutos.style.display = 'none';
+
                 selEnd.innerHTML = '<option value="">Selecione o endereço</option>';
-                if (!pId) {
-                    selEnd.disabled = true;
-                    return;
-                }
-                
                 selEnd.disabled = true;
                 hint.style.display = 'block';
 
@@ -895,7 +921,6 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                         }).join('');
                     } else {
                         let avail = saldos.filter(s => s.quantidade > 0);
-                        // Filtra para garantir que o usuário só pode dar saída de endereços que ele tem acesso
                         avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
                         if (avail.length === 0) {
                             optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
@@ -908,7 +933,59 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                 } catch(err) {
                     hint.style.display = 'none';
                 }
+            }
+
+            // Renderiza lista filtrada
+            function renderListaProdutos(texto) {
+                const t = texto.trim().toLowerCase();
+                const filtrados = t ? allProdutos.filter(p => p.nome.toLowerCase().includes(t)) : allProdutos;
+                if (filtrados.length === 0) {
+                    listaProdutos.innerHTML = '<div style="padding:10px 14px;color:#94a3b8;font-size:0.85rem;">Nenhum produto encontrado</div>';
+                } else {
+                    listaProdutos.innerHTML = filtrados.map(p =>
+                        `<div data-id="${p.id}" data-nome="${p.nome}" data-qtd="${p.quantidade_atual}"
+                            style="padding:8px 14px;cursor:pointer;font-size:0.88rem;border-bottom:1px solid #f1f5f9;
+                            transition:background 0.15s;"
+                            onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+                            <span style="font-weight:600;color:#1e293b;">${p.nome}</span>
+                            <span style="color:#94a3b8;font-size:0.8rem;margin-left:6px;">(Total: ${p.quantidade_atual})</span>
+                        </div>`
+                    ).join('');
+                    // Evento de clique nos itens da lista
+                    listaProdutos.querySelectorAll('[data-id]').forEach(el => {
+                        el.addEventListener('click', () => {
+                            carregarEnderecosProduto(el.dataset.id, el.dataset.nome, el.dataset.qtd);
+                        });
+                    });
+                }
+                listaProdutos.style.display = 'block';
+            }
+
+            // Listener no campo de busca
+            inputBusca.addEventListener('input', (e) => {
+                const t = e.target.value.trim();
+                if (!t) {
+                    listaProdutos.style.display = 'none';
+                    return;
+                }
+                renderListaProdutos(t);
             });
+
+            // Mostrar lista ao focar
+            inputBusca.addEventListener('focus', (e) => {
+                if (e.target.value.trim()) renderListaProdutos(e.target.value);
+            });
+
+            // Fechar lista ao clicar fora
+            document.addEventListener('click', function fecharLista(ev) {
+                if (!listaProdutos.contains(ev.target) && ev.target !== inputBusca) {
+                    listaProdutos.style.display = 'none';
+                    document.removeEventListener('click', fecharLista);
+                }
+            });
+
+            // Foco automático
+            setTimeout(() => inputBusca.focus(), 100);
         },
         preConfirm: () => {
             const pId = document.getElementById('swal-global-produto').value;

@@ -321,6 +321,7 @@ db.run(`
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
 db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
+    db.run("ALTER TABLE departamentos ADD COLUMN nome_aso TEXT", () => {}); // migracao: campo ASO para e-mail IACI
     // Excluir permanentemente o departamento duplicado 'Recursos Humanos' (ID 1136)
     db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Recursos Humanos')");
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
@@ -7804,21 +7805,21 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
-    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function (err) {
+    const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome, nome_aso) VALUES (?, ?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null], function (err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ error: `J?? existe um departamento com o nome "${nome}".` });
+                return res.status(400).json({ error: `Já existe um departamento com o nome "${nome}".` });
             }
             return res.status(400).json({ error: err.message });
         }
-        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null });
+        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null, nome_aso: nome_aso || null });
     });
 });
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
-    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, req.params.id], function (updateErr) {
+    const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ?, nome_aso = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null, req.params.id], function (updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
     });
@@ -10115,21 +10116,27 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
 
-        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const exames = (colab.cargo || '').toLowerCase().includes('motorista')
-            ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
-            : 'Exame Padrão';
+        // Buscar nome ASO do departamento (campo específico para o e-mail da IACI)
+        db.get('SELECT nome_aso FROM departamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND nome_aso IS NOT NULL AND nome_aso != ""',
+            [colab.departamento || ''],
+            (errDept, deptRow) => {
+                const nomeDeptEmail = (deptRow && deptRow.nome_aso) ? deptRow.nome_aso : (colab.departamento || '-');
 
-        // Formatar data: YYYY-MM-DD to DD/MM/YYYY
-        const [y, m, d] = data_exame.split('-');
-        const dataFormatada = `${d}/${m}/${y}`;
-        const tipoExameStr = tipo_exame || 'Admissional';
+                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                const exames = (colab.cargo || '').toLowerCase().includes('motorista')
+                    ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
+                    : 'Exame Padrão';
 
-        const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao) 
-            ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>` 
-            : '';
+                // Formatar data: YYYY-MM-DD to DD/MM/YYYY
+                const [y, m, d] = data_exame.split('-');
+                const dataFormatada = `${d}/${m}/${y}`;
+                const tipoExameStr = tipo_exame || 'Admissional';
 
-        const htmlContent = `
+                const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao)
+                    ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>`
+                    : '';
+
+                const htmlContent = `
             <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px;">
@@ -10143,7 +10150,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                     <p><strong>CPF:</strong> ${colab.cpf}</p>
                     <p><strong>Função Atual:</strong> ${colab.cargo || '-'}</p>
                     ${novaFuncaoHtml}
-                    <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
+                    <p><strong>Departamento:</strong> ${nomeDeptEmail}</p>
                 </div>
 
                 <p><strong>Exames a serem realizados:</strong><br>
@@ -10213,8 +10220,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 );
             });
         });
-    });
-});
+            } // fim deptRow callback
+        ); // fim db.get departamento
+    }); // fim db.get colaborador
+}); // fim app.post /api/send-aso-email
 
 /**
  * Envio de Atestado para a Contabilidade (eSocial)

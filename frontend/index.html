@@ -1174,15 +1174,15 @@
                     </div>
                     <div class="card mb-4 p-4">
                         <form id="form-departamento"
-                            style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
-                            <div style="flex:2;min-width:180px;">
+                            style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;align-items:flex-end;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome
                                     do Departamento</label>
                                 <input type="text" id="novo-departamento-nome" placeholder="Ex: Logística"
                                     style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:2/3;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
                                 <select id="novo-departamento-tipo"
@@ -1191,7 +1191,7 @@
                                     <option value="Administrativo">Administrativo</option>
                                 </select>
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Responsável</label>
                                 <select id="novo-departamento-responsavel"
@@ -1199,8 +1199,17 @@
                                     <option value="">Nenhum</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
-                                    class="ph ph-plus"></i> Adicionar Depto</button>
+                            <div style="grid-column:2/3;">
+                                <label
+                                    style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                                <input type="text" id="novo-departamento-aso" placeholder="Ex: Setor de Logistica"
+                                    title="Nome específico do departamento usado no e-mail de solicitação de ASO para a IACI"
+                                    style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#eff6ff;">
+                            </div>
+                            <div style="grid-column:1/-1;display:flex;justify-content:flex-end;">
+                                <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
+                                        class="ph ph-plus"></i> Adicionar Depto</button>
+                            </div>
                         </form>
                     </div>
                     <div class="card">
@@ -5605,7 +5614,7 @@
     <div id="modal-editar-departamento" class="modal"
         style="display:none; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.5);">
         <div class="modal-content"
-            style="max-width: 450px; background:#fff; border-radius:12px; overflow:hidden; width: 100%;">
+            style="max-width: 480px; background:#fff; border-radius:12px; overflow:visible; width: 100%; max-height:92vh; display:flex; flex-direction:column;">
             <div class="modal-header"
                 style="background:#f8fafc; padding:1.25rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:1.2rem; color:#1e293b;">Editar Departamento</h3>
@@ -5613,7 +5622,7 @@
                     onclick="document.getElementById('modal-editar-departamento').style.display='none'"
                     style="cursor:pointer; font-size:1.5rem; color:#94a3b8;">&times;</span>
             </div>
-            <div class="modal-body" style="padding:1.25rem;">
+            <div class="modal-body" style="padding:1.25rem; overflow-y:auto; flex:1;">
                 <form id="form-editar-departamento">
                     <input type="hidden" id="edit-departamento-id">
                     <div class="input-group mb-3">
@@ -5639,6 +5648,15 @@
                             style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
                             <option value="">Nenhum</option>
                         </select>
+                    </div>
+                    <div class="input-group mb-4">
+                        <label
+                            style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                        <input type="text" id="edit-departamento-aso"
+                            placeholder="Nome específico para o e-mail de ASO"
+                            title="Será usado no campo Departamento do e-mail de solicitação de exame enviado para a IACI"
+                            style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;background:#eff6ff;">
+                        <small style="color:#64748b;font-size:0.75rem;margin-top:4px;display:block;">Se preenchido, este nome aparecerá no campo Departamento do e-mail enviado para a IACI.</small>
                     </div>
                     <div style="display:flex; gap:1rem; justify-content:flex-end;">
                         <button type="button" class="btn btn-secondary"
