@@ -20389,7 +20389,8 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Upload da foto para R2 se dispon??vel
@@ -20444,7 +20445,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Obter dados antigos
