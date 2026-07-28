@@ -532,9 +532,6 @@ function gaSyncAvaliacaoQuestions() {
     if (typeof AVALIACAO_QUESTIONS === 'undefined') return;
     gaTemplates.forEach(t => {
         try {
-            // Nunca sobrescreve perguntas de satisfacao: elas vêm sempre do arquivo
-            // avaliacoes_perguntas.js que é mantido atualizado pela equipe.
-            if (t.tipo === 'satisfacao') return;
             const cats = JSON.parse(t.categorias_json);
             if (!AVALIACAO_QUESTIONS[t.tipo]) AVALIACAO_QUESTIONS[t.tipo] = {};
             // Suportar chave múltipla (comma-separated departments)
