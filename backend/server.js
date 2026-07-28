@@ -20221,6 +20221,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     // Seed: criar endereço 'Geral' se não existir
     db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
 });
 
@@ -20667,16 +20668,17 @@ app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
                 
                 try {
                     const stmt = db.prepare(`
-                        INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
                             quantidade = EXCLUDED.quantidade,
                             quantidade_minima = EXCLUDED.quantidade_minima,
-                            quantidade_maxima = EXCLUDED.quantidade_maxima
+                            quantidade_maxima = EXCLUDED.quantidade_maxima,
+                            tipo_estoque = EXCLUDED.tipo_estoque
                     `);
                     
                     enderecos.forEach(e => {
-                        stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0]);
+                        stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
                     });
                     
                     stmt.finalize();
@@ -20909,7 +20911,8 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
 // Obter todos os saldos por endereço (para todos os itens de uma vez - usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(
-        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, e.id as endereco_id, e.nome as endereco_nome
+        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque,
+                e.id as endereco_id, e.nome as endereco_nome, e.tipo_notificacao
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
          ORDER BY e.nome ASC`,
@@ -20920,10 +20923,12 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
                 if (!map[r.estoque_id]) map[r.estoque_id] = [];
                 map[r.estoque_id].push({ 
                     endereco_id: r.endereco_id, 
-                    nome: r.endereco_nome, 
+                    nome: r.endereco_nome,
+                    tipo_notificacao: r.tipo_notificacao || '',
                     quantidade: r.quantidade,
                     quantidade_minima: r.quantidade_minima,
-                    quantidade_maxima: r.quantidade_maxima
+                    quantidade_maxima: r.quantidade_maxima,
+                    tipo_estoque: r.tipo_estoque || 'matriz'
                 });
             });
             res.json(map);

@@ -95,15 +95,11 @@ window.renderEstoqueTable = async function() {
                 const saldos = saldosMap[i.id] || [];
                 if (tipoFilter === "sem_tipo") {
                     if (saldos.length === 0) return true;
-                    return saldos.every(s => {
-                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
-                        return !endObj || !endObj.tipo_notificacao;
-                    });
+                    return saldos.every(s => !s.tipo_estoque || s.tipo_estoque === 'matriz');
                 } else {
-                    return saldos.some(s => {
-                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
-                        return endObj && endObj.tipo_notificacao === tipoFilter;
-                    });
+                    // tipoFilter: 'reposicao' ou 'compra'
+                    const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
+                    return saldos.some(s => (s.tipo_estoque || 'matriz') === tipoEsperado);
                 }
             });
         }
@@ -160,10 +156,10 @@ window.renderEstoqueTable = async function() {
             // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
             let linhasParaRenderizar = linhasEndereco;
             if (tipoFilter && tipoFilter !== 'sem_tipo') {
+                const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
                 const filtroAtivo = linhasEndereco.filter(s => {
                     if (!s) return false;
-                    const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
-                    if (!endObj || endObj.tipo_notificacao !== tipoFilter) return false;
+                    if ((s.tipo_estoque || 'matriz') !== tipoEsperado) return false;
                     const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
                     return minRef > 0 && (parseInt(s.quantidade) || 0) < minRef;
                 });
@@ -211,11 +207,16 @@ window.renderEstoqueTable = async function() {
                 if (!s) {
                     endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
                 } else {
+                    const tipoEstoque = s.tipo_estoque || 'matriz';
+                    const tipoBadge = tipoEstoque === 'reposicao'
+                        ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:600;margin-left:4px;">🔄 Reposição</span>'
+                        : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:600;margin-left:4px;">🏢 Matriz</span>';
                     endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
-                        '</span>';
+                        '</span>' + tipoBadge;
                 }
+
 
                 // Separador entre linhas do mesmo produto
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
@@ -356,6 +357,7 @@ window._renderLinhasEndereco = function() {
         const opcoesEnd = window._estoqueEnderecos.map(e =>
             '<option value="' + e.id + '"' + (e.id === linha.endereco_id ? ' selected' : '') + '>' + e.nome + '</option>'
         ).join('');
+        const tipoAtual = linha.tipo_estoque || 'matriz';
         return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:2px;">' +
             // Linha 1: ícone + select endereço + botão remover
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
@@ -368,6 +370,15 @@ window._renderLinhasEndereco = function() {
                     'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover">' +
                     '<i class="ph ph-trash"></i>' +
                 '</button>' +
+            '</div>' +
+            // Linha 1b: Tipo de Estoque
+            '<div style="margin-bottom:6px;">' +
+                '<label style="display:block;font-size:0.72rem;font-weight:600;color:#7c3aed;margin-bottom:2px;">Tipo de Estoque</label>' +
+                '<select onchange="window._enderecoLinhas[' + idx + '].tipo_estoque = this.value" ' +
+                    'style="width:100%;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                    '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Estoque Matriz (Pedido de Compra)</option>' +
+                    '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Estoque de Reposição (Pedido de Reposição)</option>' +
+                '</select>' +
             '</div>' +
             // Linha 2: Qtd Atual | Qtd Mínima | Qtd Máxima
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
@@ -396,7 +407,7 @@ window._renderLinhasEndereco = function() {
 };
 
 window._adicionarLinhaEndereco = function() {
-    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0 });
+    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0, tipo_estoque: 'matriz' });
     window._renderLinhasEndereco();
 };
 
@@ -487,7 +498,8 @@ window.editarEstoque = async function(item) {
                 endereco_id:       s.endereco_id,
                 quantidade:        s.quantidade,
                 quantidade_minima: s.quantidade_minima || 0,
-                quantidade_maxima: s.quantidade_maxima || 0
+                quantidade_maxima: s.quantidade_maxima || 0,
+                tipo_estoque:      s.tipo_estoque || 'matriz'
             }));
         }
     } catch(e) { console.warn("[editarEstoque] erro ao carregar saldos:", e.message); }
@@ -556,7 +568,8 @@ window.salvarEstoque = async function(e) {
                         endereco_id:       l.endereco_id,
                         quantidade:        l.quantidade,
                         quantidade_minima: l.quantidade_minima || 0,
-                        quantidade_maxima: l.quantidade_maxima || 0
+                        quantidade_maxima: l.quantidade_maxima || 0,
+                        tipo_estoque:      l.tipo_estoque || 'matriz'
                     }))
                 })
             });
