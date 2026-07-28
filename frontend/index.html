@@ -28,6 +28,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20260716v5" defer></script>
     <script src="estoque.js?v=202606272305" defer></script>
+    <script src="chamados.js?v=20260728v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1780956700456" defer></script>
     <style>
@@ -440,6 +441,15 @@
                     <div class="user-info">
                         <span id="logged-user-name">Usuário</span>
                     </div>
+                    <!-- 🔴 Botão de Chamados -->
+                    <div style="position:relative;display:flex;align-items:center;margin:0 6px;">
+                        <button id="btn-abrir-chamados" onclick="window.abrirTelaChamados()" title="Chamados do Sistema"
+                            style="background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:8px;transition:background 0.15s;"
+                            onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
+                            <i class="ph ph-gear-six" style="font-size:1.5rem;color:#dc2626;"></i>
+                        </button>
+                        <span id="chamados-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65rem;font-weight:800;justify-content:center;align-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(220,38,38,0.5);">0</span>
+                    </div>
                     <div class="user-avatar" id="user-avatar-container" title="Foto do colaborador">
                         <img id="user-avatar-img" src="" alt=""
                             style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
@@ -463,6 +473,8 @@
                 style="display:none; gap:2px; background:#f1f5f9; padding:6px 12px 0 12px; border-bottom:2px solid #cbd5e1; overflow-x:auto; flex-wrap:nowrap; align-items:flex-end; min-height:38px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: hidden;">
                 <!-- Tabs geradas pelo app.js -->
             </div>
+            <!-- Chamados Screen (overlay fixo) -->
+            <div id="content-chamados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:#f8fafc;overflow-y:auto;"></div>
 
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">

@@ -509,6 +509,28 @@ async function carregarFotoUsuarioTopbar() {
 
 window.carregarFotoUsuarioTopbar = carregarFotoUsuarioTopbar;
 
+// ── Sistema de Chamados: abrir/fechar overlay ────────────────
+window.abrirTelaChamados = function() {
+    const el = document.getElementById('content-chamados');
+    if (!el) return;
+    el.style.display = 'block';
+    // Injeta barra superior com botão fechar se ainda não existir
+    if (!document.getElementById('chamados-topbar')) {
+        const bar = document.createElement('div');
+        bar.id = 'chamados-topbar';
+        bar.style.cssText = 'position:sticky;top:0;z-index:10;background:#fff;border-bottom:1.5px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+        bar.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><i class="ph ph-ticket" style="color:#dc2626;font-size:1.2rem;"></i><span style="font-weight:700;color:#0f172a;font-size:0.95rem;">Chamados do Sistema</span></div>' +
+            '<button onclick="window.fecharTelaChamados()" title="Fechar" style="background:none;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 12px;cursor:pointer;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ph ph-x"></i> Fechar</button>';
+        el.insertBefore(bar, el.firstChild);
+    }
+    if (typeof window.initChamados === 'function') window.initChamados();
+};
+
+window.fecharTelaChamados = function() {
+    const el = document.getElementById('content-chamados');
+    if (el) el.style.display = 'none';
+};
+
 function showView(viewId) {
     document.querySelectorAll('.view-section').forEach(el => {
         el.classList.remove('active');

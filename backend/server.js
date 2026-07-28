@@ -26428,6 +26428,36 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_historico (
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
 )`);
 
+// ===== SISTEMA DE CHAMADOS =====
+db.run(`CREATE TABLE IF NOT EXISTS chamados (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    tipo TEXT NOT NULL DEFAULT 'melhoria',
+    status TEXT NOT NULL DEFAULT 'Novo',
+    usuario_nome TEXT NOT NULL,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours')),
+    atualizado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS chamados_comentarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chamado_id INTEGER NOT NULL,
+    usuario_nome TEXT NOT NULL,
+    conteudo TEXT,
+    imagem_url TEXT,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS chamados_notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chamado_id INTEGER NOT NULL,
+    para_usuario TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    lido INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+
 // Migrar dados antigos se existirem em emails_corporativos
 db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails_corporativos WHERE colaborador_id IS NOT NULL OR responsavel_nome IS NOT NULL`, (err, rows) => {
     if (!err && rows && rows.length > 0) {
@@ -26828,5 +26858,169 @@ app.delete('/api/comercial/credenciamento/:id', authenticateToken, (req, res) =>
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Credenciamento não encontrado' });
         res.json({ message: 'Credenciamento excluído com sucesso' });
+    });
+});
+
+// ============================================================
+// ===== SISTEMA DE CHAMADOS ==================================
+// ============================================================
+
+const CHAMADOS_ADMIN = 'Thais.Ricci';
+
+// GET /api/chamados - listar chamados
+app.get('/api/chamados', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const sql = isAdmin
+        ? `SELECT * FROM chamados ORDER BY atualizado_em DESC`
+        : `SELECT * FROM chamados WHERE usuario_nome = ? ORDER BY atualizado_em DESC`;
+    const params = isAdmin ? [] : [usuario];
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/chamados - criar novo chamado
+app.post('/api/chamados', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const { titulo, descricao, tipo } = req.body;
+    if (!titulo) return res.status(400).json({ error: 'Título obrigatório' });
+    db.run(
+        `INSERT INTO chamados (titulo, descricao, tipo, status, usuario_nome) VALUES (?, ?, ?, 'Novo', ?)`,
+        [titulo, descricao || '', tipo || 'melhoria', usuario],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const chamadoId = this.lastID;
+            // Notificar admin sobre novo chamado
+            db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado')`,
+                [chamadoId, CHAMADOS_ADMIN]);
+            res.json({ id: chamadoId, success: true });
+        }
+    );
+});
+
+// GET /api/chamados/:id - detalhes do chamado + comentários
+app.get('/api/chamados/:id', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        db.all(`SELECT * FROM chamados_comentarios WHERE chamado_id = ? ORDER BY criado_em ASC`, [req.params.id], (err2, comentarios) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ...chamado, comentarios: comentarios || [] });
+        });
+    });
+});
+
+// PUT /api/chamados/:id/status - atualizar status
+app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const { status } = req.body;
+    const statusValidos = ['Novo', 'Aguardando Informações', 'Respondido', 'Finalizado'];
+    if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        db.run(
+            `UPDATE chamados SET status = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
+            [status, req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Notificações
+                if (chamado.usuario_nome !== CHAMADOS_ADMIN) {
+                    // Notificar o dono do chamado sobre mudança de status
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, chamado.usuario_nome]);
+                }
+                if (status === 'Respondido') {
+                    // Notificar admin que foi respondido
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
+                }
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// POST /api/chamados/:id/comentarios - adicionar comentário
+app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const { conteudo, imagem_base64 } = req.body;
+    if (!conteudo && !imagem_base64) return res.status(400).json({ error: 'Comentário vazio' });
+    
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], async (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+
+        // Upload imagem ao R2
+        let imagem_url = null;
+        if (imagem_base64 && imagem_base64.startsWith('data:')) {
+            try {
+                const mimeMatch = imagem_base64.match(/^data:([^;]+);base64,/);
+                const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+                const ext = extMap[mime] || 'png';
+                const buffer = Buffer.from(imagem_base64.split(',')[1], 'base64');
+                if (r2 && r2.isReady()) {
+                    const r2Key = `chamados/comentarios/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                    imagem_url = await r2.uploadToR2(r2Key, buffer, mime);
+                } else {
+                    imagem_url = imagem_base64; // fallback: salva base64
+                }
+            } catch(e) {
+                console.error('[CHAMADOS] Erro ao fazer upload da imagem:', e.message);
+            }
+        }
+
+        db.run(
+            `INSERT INTO chamados_comentarios (chamado_id, usuario_nome, conteudo, imagem_url) VALUES (?, ?, ?, ?)`,
+            [req.params.id, usuario, conteudo || '', imagem_url],
+            function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                // Auto-mudar status: se usuário comum comentar em chamado 'Aguardando Informações'
+                if (!isAdmin && chamado.status === 'Aguardando Informações') {
+                    db.run(`UPDATE chamados SET status = 'Respondido', atualizado_em = datetime('now','-3 hours') WHERE id = ?`, [req.params.id]);
+                    // Notificar admin sobre resposta
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
+                }
+
+                // Notificar dono do chamado se admin comentou
+                if (isAdmin && chamado.usuario_nome !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, chamado.usuario_nome]);
+                }
+
+                res.json({ id: this.lastID, success: true });
+            }
+        );
+    });
+});
+
+// GET /api/chamados/notificacoes/count - contar não-lidas
+app.get('/api/chamados/notificacoes/count', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.get(`SELECT COUNT(*) as total FROM chamados_notificacoes WHERE para_usuario = ? AND lido = 0`,
+        [usuario], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ count: row ? row.total : 0 });
+        });
+});
+
+// POST /api/chamados/notificacoes/marcar-lido - marcar todas como lidas
+app.post('/api/chamados/notificacoes/marcar-lido', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.run(`UPDATE chamados_notificacoes SET lido = 1 WHERE para_usuario = ? AND lido = 0`, [usuario], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
     });
 });
