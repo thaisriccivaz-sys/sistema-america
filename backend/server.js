@@ -27020,3 +27020,21 @@ app.post('/api/chamados/notificacoes/marcar-lido', authenticateToken, (req, res)
         res.json({ success: true });
     });
 });
+
+// Run one-time formatting on startup
+setTimeout(() => {
+    try {
+        db.all("SELECT id, nome FROM estoque", [], (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(row => {
+                if (row.nome) {
+                    const novoNome = row.nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
+                    if (novoNome !== row.nome) {
+                        db.run("UPDATE estoque SET nome = ? WHERE id = ?", [novoNome, row.id]);
+                    }
+                }
+            });
+            console.log("[ESTOQUE] Formatacao de nomes concluida.");
+        });
+    } catch(e) {}
+}, 5000);
