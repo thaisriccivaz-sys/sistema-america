@@ -414,6 +414,17 @@ window.navigateInitialPage = function () {
     const colabId = params.get('colaborador_id');
     const autoOpenDesempenho = params.get('autoOpenDesempenho');
     
+    const chamadoId = params.get('chamado_id');
+    if (chamadoId) {
+        navigateTo('chamados');
+        setTimeout(() => {
+            if (typeof window.verChamado === 'function') {
+                window.verChamado(chamadoId);
+            }
+        }, 500);
+        return;
+    }
+    
     if (colabId && autoOpenDesempenho) {
         navigateTo('colaboradores');
         setTimeout(() => {

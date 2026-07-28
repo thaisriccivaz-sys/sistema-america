@@ -18,8 +18,12 @@ function _token() {
 }
 
 function _isAdmin() {
-    if (!window.currentUser) return false;
-    return window.currentUser.username === ADMIN_CHAMADOS;
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return false;
+    try {
+        const user = JSON.parse(userStr);
+        return user.username === ADMIN_CHAMADOS;
+    } catch(e) { return false; }
 }
 
 function _headers() {
@@ -138,7 +142,7 @@ window.renderListaChamados = async function() {
         }
 
         container.innerHTML = dados.map(function(c) {
-            return '<div onclick="window.verChamado(' + c.id + ')" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;align-items:flex-start;gap:16px;" onmouseover="this.style.borderColor=\'#94a3b8\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.06)\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'">' +
+            return '<div onclick="window.open(\'?chamado_id=\' + ' + c.id + ', \'_blank\')" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;align-items:flex-start;gap:16px;" onmouseover="this.style.borderColor=\'#94a3b8\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.06)\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'">' +
                 '<div style="flex:1;min-width:0;">' +
                 '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' + _tipoBadge(c.tipo) + ' ' + _statusBadge(c.status) + '<span style="color:#94a3b8;font-size:0.72rem;margin-left:auto;">#' + c.id + '</span></div>' +
                 '<div style="font-weight:700;color:#0f172a;font-size:0.97rem;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _escHtml(c.titulo) + '</div>' +
