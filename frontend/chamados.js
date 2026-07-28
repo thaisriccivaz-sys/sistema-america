@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // ===== MODULO DE CHAMADOS (SUPPORT TICKETS) =================
 // ============================================================
 
@@ -19,7 +19,7 @@ function _token() {
 
 function _isAdmin() {
     if (!window.currentUser) return false;
-    return window.currentUser.username === ADMIN_CHAMADOS || window.isTopAdmin;
+    return window.currentUser.username === ADMIN_CHAMADOS;
 }
 
 function _headers() {
@@ -74,6 +74,9 @@ function _statusBadge(status) {
 }
 
 function _tipoBadge(tipo) {
+    if (tipo === 'urgente') {
+        return '<span style="background:#fef2f2;color:#b91c1c;border:1px solid #f87171;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:700;">🚨 Urgente</span>';
+    }
     if (tipo === 'correcao') {
         return '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:700;">\uD83D\uDC1B Corre\u00e7\u00e3o</span>';
     }
@@ -102,7 +105,7 @@ window.initChamados = async function() {
                 '<i class="ph ph-plus-circle"></i> Novo Chamado</button></div>' +
         '<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">' +
             '<select id="filtro-chamados-tipo" onchange="window.renderListaChamados()" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">' +
-                '<option value="">Todos os tipos</option><option value="melhoria">\u2728 Melhoria</option><option value="correcao">\uD83D\uDC1B Corre\u00e7\u00e3o</option></select>' +
+                '<option value="">Todos os tipos</option><option value="melhoria">\u2728 Melhoria</option><option value="correcao">\uD83D\uDC1B Corre\u00e7\u00e3o</option><option value="urgente">🚨 Urgente</option></select>' +
             '<select id="filtro-chamados-status" onchange="window.renderListaChamados()" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">' +
                 '<option value="">Todos os status</option><option value="Novo">Novo</option><option value="Aguardando Informa\u00e7\u00f5es">Aguardando Informa\u00e7\u00f5es</option><option value="Respondido">Respondido</option><option value="Finalizado">Finalizado</option></select>' +
             '<input id="filtro-chamados-busca" type="search" placeholder="Buscar chamado..." oninput="window.renderListaChamados()" style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.85rem;"></div>' +
@@ -260,6 +263,9 @@ window.abrirNovoChamado = async function() {
             '<label id="lbl-correcao" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;text-align:center;background:#fff;">' +
                 '<input type="radio" name="nctype" value="correcao" style="display:none;">' +
                 '<div style="font-size:1.3rem;">\uD83D\uDC1B</div><div style="font-weight:700;color:#dc2626;font-size:0.88rem;margin-top:4px;">Corre\u00e7\u00e3o</div></label>' +
+            '<label id="lbl-urgente" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;text-align:center;background:#fff;">' +
+                '<input type="radio" name="nctype" value="urgente" style="display:none;">' +
+                '<div style="font-size:1.3rem;">🚨</div><div style="font-weight:700;color:#b91c1c;font-size:0.88rem;margin-top:4px;">Urgente</div></label>' +
             '</div></div>' +
             '<div style="margin-bottom:14px;"><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">T\u00edtulo *</label>' +
             '<input type="text" id="nc-titulo" placeholder="Descreva em poucas palavras..." style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.9rem;"></div>' +
@@ -278,12 +284,17 @@ window.abrirNovoChamado = async function() {
                     document.getElementById('lbl-melhoria').style.background = '#fff';
                     document.getElementById('lbl-correcao').style.borderColor = '#e2e8f0';
                     document.getElementById('lbl-correcao').style.background = '#fff';
+                    document.getElementById('lbl-urgente').style.borderColor = '#e2e8f0';
+                    document.getElementById('lbl-urgente').style.background = '#fff';
                     if (inp.value === 'melhoria') {
                         document.getElementById('lbl-melhoria').style.borderColor = '#16a34a';
                         document.getElementById('lbl-melhoria').style.background = '#f0fdf4';
-                    } else {
+                    } else if (inp.value === 'correcao') {
                         document.getElementById('lbl-correcao').style.borderColor = '#dc2626';
                         document.getElementById('lbl-correcao').style.background = '#fef2f2';
+                    } else {
+                        document.getElementById('lbl-urgente').style.borderColor = '#b91c1c';
+                        document.getElementById('lbl-urgente').style.background = '#fef2f2';
                     }
                 });
             });
@@ -378,13 +389,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 window.initChamadosPolling = _startPolling;
 
+    // Voltar da lista -> fechar overlay; dentro de um chamado -> volta para a lista
+    window._fecharOuVoltar = function() {
+        if (_chamadoAtual) {
+            _chamadoAtual = null;
+            window.initChamados();
+        } else {
+            window.fecharTelaChamados();
+        }
+    };
+
 })();
-// Voltar da lista -> fechar overlay; dentro de um chamado -> volta para a lista
-window._fecharOuVoltar = function() {
-    if (_chamadoAtual) {
-        _chamadoAtual = null;
-        window.initChamados();
-    } else {
-        window.fecharTelaChamados();
-    }
-};
