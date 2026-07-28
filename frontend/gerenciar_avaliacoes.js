@@ -532,6 +532,9 @@ function gaSyncAvaliacaoQuestions() {
     if (typeof AVALIACAO_QUESTIONS === 'undefined') return;
     gaTemplates.forEach(t => {
         try {
+            // Nunca sobrescreve perguntas de satisfacao: elas vêm sempre do arquivo
+            // avaliacoes_perguntas.js que é mantido atualizado pela equipe.
+            if (t.tipo === 'satisfacao') return;
             const cats = JSON.parse(t.categorias_json);
             if (!AVALIACAO_QUESTIONS[t.tipo]) AVALIACAO_QUESTIONS[t.tipo] = {};
             // Suportar chave múltipla (comma-separated departments)
@@ -555,6 +558,7 @@ window._gaToast = function(msg, type = 'success') {
 
 // ============================================================
 // HOOK: Sincronizar templates ao inicializar o app
+// Obs: satisfacao nunca é sobrescrita aqui (ver gaSyncAvaliacaoQuestions)
 // ============================================================
 (async function gaBootstrap() {
     try {
@@ -564,6 +568,6 @@ window._gaToast = function(msg, type = 'success') {
             headers: { 'Authorization': 'Bearer ' + token }
         }).then(r => r.json()).catch(() => []);
         gaTemplates = Array.isArray(templates) ? templates : [];
-        gaSyncAvaliacaoQuestions();
+        gaSyncAvaliacaoQuestions(); // aplica apenas desempenho e experiencia
     } catch(e) { /* silencioso na carga inicial */ }
 })();
