@@ -1204,6 +1204,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
                 ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender / Baixar ZIP</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar / Baixar Novamente</button>`}
+                <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; border-color:#f87171; color:#ef4444;" onclick="window.excluirCredenciamento('${cred.id}')" title="Excluir"><i class="ph ph-trash"></i></button>
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
