@@ -201,7 +201,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
  * @param {object} db - instância do banco de dados
  * @param {number} itemId - ID do item no estoque
  * @param {string} itemNome - Nome do item
- * @param {string} itemDepto - Departamento do item
+ * @param {string} itemDepto - Departamento do item (não usado no email, mantido por compatibilidade)
  * @param {number} enderecoId - ID do endereço
  * @param {number} qtdAnterior - Quantidade antes da movimentação
  * @param {number} qtdAtual - Quantidade após a movimentação
@@ -212,45 +212,70 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
     if (!(minEnd > 0 && qtdAtual <= minEnd)) return;
 
     console.log('[ESTOQUE MINIMO] "' + itemNome + '" atingiu mínimo. qtdAnterior=' + qtdAnterior + ', qtdAtual=' + qtdAtual + ', min=' + minEnd + ', tipo=' + tipoNotifEnd);
-    const msg = 'ESTOQUE BAIXO: O item "' + itemNome + '" atingiu o estoque mínimo. Quantidade Atual: ' + qtdAtual + ' (Mínimo: ' + minEnd + ').';
-    const dadosStr = JSON.stringify({ item_id: itemId, nome: itemNome, quantidade_atual: qtdAtual, quantidade_minima: minEnd });
 
-    const tiposNotif = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? [tipoNotifEnd] : ['compra'];
+    // Busca o nome do endereço e a quantidade máxima do item para enriquecer a notificação
+    const buscarEnderecoEMaximo = (cb) => {
+        db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [enderecoId || 0], (errE, rowEnd) => {
+            const enderecoNome = rowEnd ? rowEnd.nome : null;
+            db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM, rowItem) => {
+                const qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
+                cb(enderecoNome, qtdMax);
+            });
+        });
+    };
 
-    tiposNotif.forEach(tipoNotif => {
-        const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
-
-        // 1. Inserir notificação de popup na tela para todos configurados
-        db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [dbTipo], (errCR, rowsCR) => {
-            if (!errCR && rowsCR && rowsCR.length > 0) {
-                rowsCR.forEach(c => {
-                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
-                });
-                console.log('[ESTOQUE MINIMO] Notificações inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
-            } else {
-                console.warn('[ESTOQUE MINIMO] Nenhum usuário configurado para tipo="' + dbTipo + '"');
-            }
+    buscarEnderecoEMaximo((enderecoNome, qtdMax) => {
+        const msg = 'ESTOQUE BAIXO: O item "' + itemNome + '" atingiu o estoque mínimo. Quantidade Atual: ' + qtdAtual + ' (Mínimo: ' + minEnd + ').';
+        const dadosStr = JSON.stringify({
+            item_id: itemId,
+            nome: itemNome,
+            quantidade_atual: qtdAtual,
+            quantidade_minima: minEnd,
+            quantidade_maxima: qtdMax,
+            endereco_nome: enderecoNome,
+            endereco_id: enderecoId
         });
 
-        // 2. Enviar e-mail usando a função central robusta com múltiplas estratégias de e-mail
-        const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposição' : 'Pedido de Compra';
-        const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
-            '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
-            '<h2 style="color:#dc2626;text-align:center;">&#9888; Estoque Mínimo Atingido</h2>' +
-            '<p>Um item do estoque atingiu ou está abaixo da quantidade mínima após <b>' + labelTipo + '</b>:</p>' +
-            '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
-            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Item</th><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">' + itemNome + '</td></tr>' +
-            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Departamento</th><td style="padding:8px;border:1px solid #e2e8f0;">' + (itemDepto || '—') + '</td></tr>' +
-            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Atual</th><td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
-            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #e2e8f0;">' + minEnd + '</td></tr>' +
-            '</table>' +
-            '<p style="color:#dc2626;font-weight:bold;">Por favor, providencie a reposição o mais breve possível.</p>' +
-            '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
+        const tiposNotif = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? [tipoNotifEnd] : ['compra'];
 
-        sendEmailParaNotificados(dbTipo, {
-            subject: 'Estoque Mínimo Atingido – ' + itemNome,
-            html: emailHtml
-        }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
+        tiposNotif.forEach(tipoNotif => {
+            const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
+
+            // 1. Inserir notificação de popup na tela para todos configurados
+            db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [dbTipo], (errCR, rowsCR) => {
+                if (!errCR && rowsCR && rowsCR.length > 0) {
+                    rowsCR.forEach(c => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
+                    });
+                    console.log('[ESTOQUE MINIMO] Notificações inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
+                } else {
+                    console.warn('[ESTOQUE MINIMO] Nenhum usuário configurado para tipo="' + dbTipo + '"');
+                }
+            });
+
+            // 2. Enviar e-mail com endereço e quantidades completas
+            const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposição' : 'Pedido de Compra';
+            const enderecoLabel = enderecoNome || '—';
+            const qtdMaxLabel = qtdMax !== null ? String(qtdMax) : '—';
+            const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
+                '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
+                '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque Mínimo Atingido</h2>' +
+                '<p>Um item do estoque atingiu ou está abaixo da quantidade mínima após <b>' + labelTipo + '</b>:</p>' +
+                '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Item</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;font-size:15px;">' + itemNome + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Endereço</th><td style="padding:8px;border:1px solid #fed7aa;">' + enderecoLabel + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Atual</th><td style="padding:8px;border:1px solid #fed7aa;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #fed7aa;">' + minEnd + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Máxima</th><td style="padding:8px;border:1px solid #fed7aa;">' + qtdMaxLabel + '</td></tr>' +
+                '</table>' +
+                '<p style="color:#ea580c;font-weight:bold;">Por favor, providencie a reposição o mais breve possível.</p>' +
+                '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
+
+            sendEmailParaNotificados(dbTipo, {
+                subject: 'Estoque Mínimo Atingido – ' + itemNome,
+                html: emailHtml
+            }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
+        });
     });
 }
 

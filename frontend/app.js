@@ -14208,7 +14208,9 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'estoque_minimo') {
-                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
+                    bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-shopping-cart'; titulo = 'Compra'; navTarget = 'estoque';
+                } else if (notif.tipo === 'estoque_reposicao') {
+                    bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-arrows-clockwise'; titulo = 'Reposição'; navTarget = 'estoque';
                 } else if (notif.tipo === 'novo_colaborador_equipe') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else if (notif.tipo === 'nova_ocorrencia') {
@@ -14274,20 +14276,24 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">${nomeStr}</div>
                         <div style="color:#64748b;font-size:0.85rem;">Um novo boletim de ocorrência foi anexado.</div>
                     `;
-                } else if (notif.tipo === 'estoque_minimo') {
+                } else if (notif.tipo === 'estoque_minimo' || notif.tipo === 'estoque_reposicao') {
                     const nomeProduto = dados.nome || (notif.mensagem || '').replace(/^ESTOQUE BAIXO:\s*/i, '').split('(')[0].trim();
                     const qtdAtual = dados.quantidade_atual !== undefined ? dados.quantidade_atual : '—';
                     const qtdMin   = dados.quantidade_minima !== undefined ? dados.quantidade_minima : '—';
+                    const qtdMax   = dados.quantidade_maxima !== undefined && dados.quantidade_maxima !== null ? dados.quantidade_maxima : '—';
+                    const endNome  = dados.endereco_nome || '';
                     contentHTML = `
-                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
                         </div>
-                        <div style="color:#475569;font-weight:700;font-size:0.97rem;margin-bottom:6px;letter-spacing:0.2px;">
+                        <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:6px;line-height:1.3;">
                             ${nomeProduto}
                         </div>
-                        <div style="display:flex;gap:12px;font-size:0.82rem;">
-                            <span style="color:#ef4444;font-weight:700;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
-                            <span style="color:#64748b;">Mínimo: ${qtdMin}</span>
+                        ${endNome ? `<div style="color:#94a3b8;font-size:0.78rem;margin-bottom:6px;"><i class="ph ph-map-pin"></i> ${endNome}</div>` : ''}
+                        <div style="display:flex;gap:10px;font-size:0.83rem;flex-wrap:wrap;">
+                            <span style="background:#fee2e2;color:#dc2626;font-weight:700;padding:2px 8px;border-radius:6px;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
+                            <span style="background:#fef3c7;color:#92400e;font-weight:600;padding:2px 8px;border-radius:6px;">Mín: ${qtdMin}</span>
+                            <span style="background:#dcfce7;color:#166534;font-weight:600;padding:2px 8px;border-radius:6px;">Máx: ${qtdMax}</span>
                         </div>
                     `;
                 } else if (notif.tipo === 'formulario_experiencia') {
