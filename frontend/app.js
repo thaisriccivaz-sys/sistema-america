@@ -5271,7 +5271,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
             <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
-            <div style="height:180px;"></div>
+            <div style="height:350px;"></div>
         </div>
     </div>`;
 }
