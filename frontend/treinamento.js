@@ -323,6 +323,9 @@
         const m = el('modal-novo-treinamento');
         if (m) { m.style.display = 'flex'; }
         _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
+        _carregarColaboradoresSelect('novo-treinamento-colaboradores', []);
+        const buscaEl = el('novo-trein-colab-busca');
+        if (buscaEl) buscaEl.value = '';
         window._novoCapaRemover(); // limpa capa anterior
         
         // Reset abas
@@ -525,6 +528,72 @@
         } catch(e) {}
     }
 
+    // Carrega colaboradores ativos no painel direito do modal
+    let _todosColabsTrein = []; // cache global de colaboradores para os modais
+
+    async function _carregarColaboradoresSelect(containerId, selecionados = []) {
+        const container = el(containerId);
+        if (!container) return;
+        try {
+            if (_todosColabsTrein.length === 0) {
+                const r = await api('/colaboradores');
+                if (!r.ok) return;
+                const todos = await r.json();
+                // Apenas ativos (excluir desligados)
+                _todosColabsTrein = (todos || []).filter(c =>
+                    !['Desligado', 'desligado', 'Demitido', 'demitido'].includes(c.status)
+                ).sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+            }
+            _renderColabsCheckboxes(containerId, selecionados);
+        } catch(e) { console.warn('[TREIN] Erro ao carregar colaboradores:', e); }
+    }
+
+    function _renderColabsCheckboxes(containerId, selecionados = [], filtro = '') {
+        const container = el(containerId);
+        if (!container) return;
+        const sel = Array.isArray(selecionados) ? selecionados.map(String) : [];
+        const lista = filtro
+            ? _todosColabsTrein.filter(c => c.nome_completo.toLowerCase().includes(filtro.toLowerCase()))
+            : _todosColabsTrein;
+        if (lista.length === 0) {
+            container.innerHTML = '<span style="color:#94a3b8;font-size:0.83rem;">' + (filtro ? 'Nenhum resultado.' : 'Nenhum colaborador ativo.') + '</span>';
+            return;
+        }
+        container.innerHTML = lista.map(c => {
+            const checked = sel.includes(String(c.id)) ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:0.9rem;">
+                <input type="checkbox" value="${c.id}" class="colab-avulso-checkbox" ${checked}> ${c.nome_completo}
+            </label>`;
+        }).join('');
+    }
+
+    // Filtro de busca (chamado pelo oninput do campo de busca)
+    window._filtrarColabsTrein = function(prefixo) {
+        const buscaId = prefixo + '-trein-colab-busca';
+        const containerId = prefixo + '-treinamento-colaboradores';
+        const filtro = (el(buscaId) || {}).value || '';
+        // Pega os já selecionados para não perder ao filtrar
+        const container = el(containerId);
+        const jaChecked = container
+            ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
+            : [];
+        _renderColabsCheckboxes(containerId, jaChecked, filtro);
+        // Reaplica seleção após re-render
+        if (container) {
+            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (jaChecked.includes(cb.value)) cb.checked = true;
+            });
+        }
+    };
+
+    // Helper: lê os IDs de colaboradores avulsos selecionados
+    function _getColabsAvulsosSelecionados(containerId) {
+        const container = el(containerId);
+        if (!container) return '';
+        const ids = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        return ids.join(',');
+    }
+
     window.fecharModalNovoTreinamento = function () {
         const m = el('modal-novo-treinamento');
         if (m) m.style.display = 'none';
@@ -543,6 +612,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('novo-treinamento-colaboradores');
         const validade_dias = parseInt((el('novo-treinamento-validade') || {}).value || '0', 10) || 0;
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
@@ -565,7 +635,7 @@
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas, tipo: tipoAtual, is_integracao })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, validade_dias, pesquisa_perguntas, tipo: tipoAtual, is_integracao })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             const novoTrein = await r.json();
@@ -860,6 +930,11 @@
         if (el('editar-treinamento-data')) el('editar-treinamento-data').value = t.data_treinamento || '';
         if (el('editar-treinamento-is-integracao')) el('editar-treinamento-is-integracao').checked = !!t.is_integracao;
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
+        // Carregar colaboradores avulsos já selecionados
+        const colabsAvulsosIds = (t.colaboradores_avulsos || '').split(',').filter(Boolean);
+        _carregarColaboradoresSelect('editar-treinamento-colaboradores', colabsAvulsosIds);
+        const buscaEl = el('editar-trein-colab-busca');
+        if (buscaEl) buscaEl.value = '';
 
         // Carrega capa existente
         _editarCapaFile = null;
@@ -904,6 +979,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('editar-treinamento-colaboradores');
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
@@ -932,7 +1008,7 @@
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias, tipo: tipoAtual, is_integracao })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, capa_url, validade_dias, tipo: tipoAtual, is_integracao, data_treinamento })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -945,6 +1021,7 @@
                 _cache[idx].nome        = nome;
                 _cache[idx].descricao   = desc || '';
                 _cache[idx].departamento = departamento;
+                _cache[idx].colaboradores_avulsos = colaboradores_avulsos;
                 _cache[idx].capa_url    = capa_url;
                 _cache[idx].is_integracao = is_integracao;
             }

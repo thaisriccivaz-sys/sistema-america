@@ -21033,6 +21033,11 @@ db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", 
     console.error("Migração (treinamentos.departamento):", err.message);
   }
 });
+db.run("ALTER TABLE treinamentos ADD COLUMN colaboradores_avulsos TEXT DEFAULT ''", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.colaboradores_avulsos):", err.message);
+  }
+});
 db.run("ALTER TABLE treinamentos ADD COLUMN capa_url TEXT DEFAULT ''", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("Migração (treinamentos.capa_url):", err.message);
@@ -21169,13 +21174,13 @@ app.get('/api/debug2-treinamentos', (req, res) => {
 
 // ?????? POST /api/treinamentos ??? Cria treinamento ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0, data_treinamento = '' } = req.body || {};
+  const { nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0, data_treinamento = '' } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo, is_integracao, data_treinamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0, (data_treinamento || '').trim()],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, colaboradores_avulsos, capa_url, validade_dias, tipo, is_integracao, data_treinamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (colaboradores_avulsos || ''), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0, (data_treinamento || '').trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       const newId = this.lastID;
@@ -21202,11 +21207,11 @@ app.post('/api/treinamentos', authenticateToken, (req, res) => {
 });
 // ?????? PUT /api/treinamentos/:id ??? Atualiza treinamento ???????????????????????????????????????????????????????????????????????????
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, tipo, is_integracao } = req.body || {};
+  const { nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, tipo, is_integracao, data_treinamento } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ?, data_treinamento = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', parseInt(is_integracao) ? 1 : 0, req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, colaboradores_avulsos = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ?, data_treinamento = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (colaboradores_avulsos || ''), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', parseInt(is_integracao) ? 1 : 0, (data_treinamento || ''), req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
