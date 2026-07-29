@@ -14969,6 +14969,19 @@ window.limparCanvasColaborador = function () {
 };
 
 window.salvarAssinaturaColaborador = async function () {
+    async function getHQCanvas2(canvasId) {
+        const src = document.getElementById(canvasId);
+        const dpr = window.devicePixelRatio || 1;
+        const scale = 3;
+        const off = document.createElement('canvas');
+        off.width = src.width * scale / dpr;
+        off.height = src.height * scale / dpr;
+        const ctx = off.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
+        return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
+    }
+
     if (!_epiSelfieBase64) {
         alert('É necessário tirar a selfie antes de assinar.'); return;
     }
