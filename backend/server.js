@@ -217,9 +217,16 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
     const buscarEnderecoEMaximo = (cb) => {
         db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [enderecoId || 0], (errE, rowEnd) => {
             const enderecoNome = rowEnd ? rowEnd.nome : null;
-            db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM, rowItem) => {
-                const qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
-                cb(enderecoNome, qtdMax);
+            db.get('SELECT quantidade_maxima FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [itemId, enderecoId || 0], (errM, rowItem) => {
+                let qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
+                if (qtdMax === null || qtdMax === 0) {
+                    db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM2, rowItem2) => {
+                        qtdMax = rowItem2 ? (rowItem2.quantidade_maxima || null) : null;
+                        cb(enderecoNome, qtdMax);
+                    });
+                } else {
+                    cb(enderecoNome, qtdMax);
+                }
             });
         });
     };

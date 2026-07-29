@@ -5162,6 +5162,7 @@ window.gerarAdvertencia = function () {
         </p>` : `
         <p style="margin-top:1rem; text-align:justify; color:#475569; font-size:0.92em;">
             Este registro é de caráter informativo e será arquivado no prontuário do colaborador.
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta ocorrência.
         </p>`}
     `;
 
@@ -5207,8 +5208,8 @@ window.gerarAdvertencia = function () {
 function buildAdvertenciaTemplate(data, logoSrc) {
     const isOcorrencia = data.isOcorrencia;
 
-    // Seção de assinaturas (não exibida para ocorrências)
-    const assinaturasHtml = !isOcorrencia ? `
+    // Seção de assinaturas (agora exibida para ocorrências também)
+    const assinaturasHtml = `
         <div style="margin-top:40px;">
             <div style="display:flex; gap:40px; justify-content:center;">
                 <div style="flex:1; text-align:center; max-width:220px;">
@@ -5231,7 +5232,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
                 </div>
             </div>
         </div>
-    ` : '';
+    `;
 
     return `<style>html,body{margin:0!important;padding:0!important;background:#fff!important;}*{box-sizing:border-box;}</style><div style="width:794px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; line-height:1.5; display:block;">
         <!-- LOGO BANNER - largura total sem margens -->
@@ -5270,7 +5271,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
             <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
-            ${!isOcorrencia ? '<div style="height:180px;"></div>' : ''}
+            <div style="height:180px;"></div>
         </div>
     </div>`;
 }
@@ -6411,10 +6412,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved) ? (() => {
+            ${(tabId === 'Advertências' && isSaved) ? (() => {
                 const _isOcorrDoc = (docType || '').includes('###Ocorr');
                 const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
-                if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
+                
                 return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
