@@ -27151,10 +27151,20 @@ app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) =>
                         [req.params.id, CHAMADOS_ADMIN]);
                 }
 
-                // Notificar dono do chamado se admin comentou
-                if (isAdmin && chamado.usuario_nome !== usuario) {
+                // Notificar o dono do chamado se não foi ele quem comentou
+                if (chamado.usuario_nome !== usuario) {
                     db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
                         [req.params.id, chamado.usuario_nome]);
+                }
+                // Notificar o atribuído se não foi ele quem comentou
+                if (chamado.atribuido_a && chamado.atribuido_a !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, chamado.atribuido_a]);
+                }
+                // Notificar o admin se não foi ele quem comentou
+                if (CHAMADOS_ADMIN !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
                 }
 
                 res.json({ id: this.lastID, success: true });
@@ -27173,10 +27183,33 @@ app.get('/api/chamados/notificacoes/count', authenticateToken, (req, res) => {
         });
 });
 
+// GET /api/chamados/notificacoes/por-chamado - contar não-lidas agrupadas por chamado
+app.get('/api/chamados/notificacoes/por-chamado', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.all(`SELECT chamado_id, COUNT(*) as qtd FROM chamados_notificacoes WHERE para_usuario = ? AND lido = 0 GROUP BY chamado_id`,
+        [usuario], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const result = {};
+            if (rows) {
+                rows.forEach(r => { result[r.chamado_id] = r.qtd; });
+            }
+            res.json(result);
+        });
+});
+
 // POST /api/chamados/notificacoes/marcar-lido - marcar todas como lidas
 app.post('/api/chamados/notificacoes/marcar-lido', authenticateToken, (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
     db.run(`UPDATE chamados_notificacoes SET lido = 1 WHERE para_usuario = ? AND lido = 0`, [usuario], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// POST /api/chamados/:id/marcar-lido - marcar lido para um chamado especifico
+app.post('/api/chamados/:id/marcar-lido', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.run(`UPDATE chamados_notificacoes SET lido = 1 WHERE chamado_id = ? AND para_usuario = ? AND lido = 0`, [req.params.id, usuario], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });

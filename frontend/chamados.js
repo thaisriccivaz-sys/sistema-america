@@ -97,10 +97,6 @@ window.initChamados = async function() {
     const el = document.getElementById('content-chamados');
     if (!el) return;
 
-    fetch(_apiBase() + '/chamados/notificacoes/marcar-lido', {
-        method: 'POST', headers: _headers()
-    }).then(() => window.atualizarBadgeChamados()).catch(() => {});
-
     el.innerHTML = '<div style="max-width:1100px;margin:0 auto;padding:24px 16px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">' +
             '<div><h1 style="margin:0;font-size:1.6rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:10px;"><i class="ph ph-ticket" style="color:#dc2626;font-size:1.4rem;"></i> Chamados</h1>' +
@@ -119,15 +115,22 @@ window.initChamados = async function() {
 };
 
 window._chamadosCache = [];
+window._notifsPorChamado = {};
 
 window.renderListaChamados = async function() {
     const container = document.getElementById('chamados-lista-container');
     if (!container) return;
     try {
-        const r = await fetch(_apiBase() + '/chamados', { headers: { 'Authorization': 'Bearer ' + _token() } });
-        if (!r.ok) throw new Error('Erro ao carregar chamados');
-        let dados = await r.json();
+        const [rChamados, rNotifs] = await Promise.all([
+            fetch(_apiBase() + '/chamados', { headers: { 'Authorization': 'Bearer ' + _token() } }),
+            fetch(_apiBase() + '/chamados/notificacoes/por-chamado', { headers: { 'Authorization': 'Bearer ' + _token() } })
+        ]);
+        if (!rChamados.ok) throw new Error('Erro ao carregar chamados');
+        let dados = await rChamados.json();
         window._chamadosCache = dados;
+        if (rNotifs.ok) {
+            window._notifsPorChamado = await rNotifs.json();
+        }
 
         const tipo = (document.getElementById('filtro-chamados-tipo') || {}).value || '';
         const status = (document.getElementById('filtro-chamados-status') || {}).value || '';
@@ -142,9 +145,11 @@ window.renderListaChamados = async function() {
         }
 
         container.innerHTML = dados.map(function(c) {
+            const notifs = window._notifsPorChamado[c.id] || 0;
+            const badgeHtml = notifs > 0 ? '<span style="background:#ef4444;color:#fff;border-radius:20px;padding:2px 8px;font-size:0.75rem;font-weight:700;margin-left:8px;"><i class="ph ph-bell"></i> ' + notifs + ' novas</span>' : '';
             return '<div onclick="window.verChamado(' + c.id + ')" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;align-items:flex-start;gap:16px;" onmouseover="this.style.borderColor=\'#94a3b8\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.06)\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.boxShadow=\'none\'">' +
                 '<div style="flex:1;min-width:0;">' +
-                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' + _tipoBadge(c.tipo) + ' ' + _statusBadge(c.status) + '<span style="color:#94a3b8;font-size:0.72rem;margin-left:auto;">#' + c.id + '</span></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' + _tipoBadge(c.tipo) + ' ' + _statusBadge(c.status) + badgeHtml + '<span style="color:#94a3b8;font-size:0.72rem;margin-left:auto;">#' + c.id + '</span></div>' +
                 '<div style="font-weight:700;color:#0f172a;font-size:0.97rem;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _escHtml(c.titulo) + '</div>' +
                 '<div style="color:#64748b;font-size:0.82rem;display:flex;gap:16px;flex-wrap:wrap;"><span><i class="ph ph-user"></i> ' + _escHtml(c.usuario_nome) + '</span>' + (c.atribuido_a ? '<span><i class="ph ph-user-check"></i> ' + _escHtml(c.atribuido_a) + '</span>' : '') + '<span><i class="ph ph-clock"></i> ' + _formatDate(c.criado_em) + '</span></div></div>' +
                 '<i class="ph ph-caret-right" style="color:#94a3b8;font-size:1.2rem;flex-shrink:0;margin-top:4px;"></i></div>';
@@ -164,6 +169,19 @@ window.verChamado = async function(id) {
         if (!r.ok) throw new Error('Erro ao carregar chamado');
         const c = await r.json();
         _chamadoAtual = c;
+
+        // Marcar notificações do chamado como lidas
+        if (window._notifsPorChamado && window._notifsPorChamado[id] > 0) {
+            fetch(_apiBase() + '/chamados/' + id + '/marcar-lido', { method: 'POST', headers: _headers() })
+                .then(() => {
+                    window._notifsPorChamado[id] = 0;
+                    window.atualizarBadgeChamados();
+                }).catch(() => {});
+        } else {
+            fetch(_apiBase() + '/chamados/' + id + '/marcar-lido', { method: 'POST', headers: _headers() })
+                .then(() => window.atualizarBadgeChamados()).catch(() => {});
+        }
+
         _renderDetalhe(c);
     } catch(e) {
         el.innerHTML = '<div style="padding:24px;"><button onclick="window._fecharOuVoltar()" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:0.9rem;"><i class="ph ph-arrow-left"></i> Voltar</button><div style="color:#ef4444;margin-top:20px;">' + _escHtml(e.message) + '</div></div>';
