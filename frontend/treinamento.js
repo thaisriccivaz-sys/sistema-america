@@ -323,7 +323,7 @@
         const m = el('modal-novo-treinamento');
         if (m) { m.style.display = 'flex'; }
         _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
-        _carregarColaboradoresSelect('novo-treinamento-colaboradores', []);
+        _carregarColaboradoresSelect('novo-treinamento-colaboradores', [], 'novo');
         const buscaEl = el('novo-trein-colab-busca');
         if (buscaEl) buscaEl.value = '';
         window._novoCapaRemover(); // limpa capa anterior
@@ -528,10 +528,12 @@
         } catch(e) {}
     }
 
-    // Carrega colaboradores ativos no painel direito do modal
-    let _todosColabsTrein = []; // cache global de colaboradores para os modais
+    // ── COLABORADORES AVULSOS ─────────────────────────────────────────────────
+    let _todosColabsTrein = []; // cache global de colaboradores (carregado uma vez)
+    // Sets em memória para guardar seleção independente do filtro/DOM
+    const _colabsSelecionados = { novo: new Set(), editar: new Set() };
 
-    async function _carregarColaboradoresSelect(containerId, selecionados = []) {
+    async function _carregarColaboradoresSelect(containerId, selecionados = [], prefixo = '') {
         const container = el(containerId);
         if (!container) return;
         try {
@@ -539,19 +541,22 @@
                 const r = await api('/colaboradores');
                 if (!r.ok) return;
                 const todos = await r.json();
-                // Apenas ativos (excluir desligados)
                 _todosColabsTrein = (todos || []).filter(c =>
                     !['Desligado', 'desligado', 'Demitido', 'demitido'].includes(c.status)
                 ).sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
             }
-            _renderColabsCheckboxes(containerId, selecionados);
+            // Inicializa o Set com os selecionados salvos no banco
+            if (prefixo && _colabsSelecionados[prefixo] !== undefined) {
+                _colabsSelecionados[prefixo] = new Set(selecionados.map(String));
+            }
+            _renderColabsCheckboxes(containerId, prefixo, '');
         } catch(e) { console.warn('[TREIN] Erro ao carregar colaboradores:', e); }
     }
 
-    function _renderColabsCheckboxes(containerId, selecionados = [], filtro = '') {
+    function _renderColabsCheckboxes(containerId, prefixo, filtro = '') {
         const container = el(containerId);
         if (!container) return;
-        const sel = Array.isArray(selecionados) ? selecionados.map(String) : [];
+        const sel = prefixo ? _colabsSelecionados[prefixo] : new Set();
         const lista = filtro
             ? _todosColabsTrein.filter(c => c.nome_completo.toLowerCase().includes(filtro.toLowerCase()))
             : _todosColabsTrein;
@@ -560,38 +565,37 @@
             return;
         }
         container.innerHTML = lista.map(c => {
-            const checked = sel.includes(String(c.id)) ? 'checked' : '';
+            const isChecked = sel.has(String(c.id));
             return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:0.9rem;">
-                <input type="checkbox" value="${c.id}" class="colab-avulso-checkbox" ${checked}> ${c.nome_completo}
+                <input type="checkbox" value="${c.id}" class="colab-avulso-checkbox"${isChecked ? ' checked' : ''}
+                    onchange="window._onColabCheckChange('${prefixo}', this)"> ${c.nome_completo}
             </label>`;
         }).join('');
     }
 
-    // Filtro de busca (chamado pelo oninput do campo de busca)
+    // Callback quando o usuário marca/desmarca um colaborador — atualiza o Set em memória
+    window._onColabCheckChange = function(prefixo, cb) {
+        if (!prefixo || !_colabsSelecionados[prefixo]) return;
+        if (cb.checked) {
+            _colabsSelecionados[prefixo].add(cb.value);
+        } else {
+            _colabsSelecionados[prefixo].delete(cb.value);
+        }
+    };
+
+    // Filtro de busca — usa o Set em memória, não depende do DOM para saber o que está selecionado
     window._filtrarColabsTrein = function(prefixo) {
         const buscaId = prefixo + '-trein-colab-busca';
         const containerId = prefixo + '-treinamento-colaboradores';
         const filtro = (el(buscaId) || {}).value || '';
-        // Pega os já selecionados para não perder ao filtrar
-        const container = el(containerId);
-        const jaChecked = container
-            ? Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
-            : [];
-        _renderColabsCheckboxes(containerId, jaChecked, filtro);
-        // Reaplica seleção após re-render
-        if (container) {
-            container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (jaChecked.includes(cb.value)) cb.checked = true;
-            });
-        }
+        _renderColabsCheckboxes(containerId, prefixo, filtro);
     };
 
-    // Helper: lê os IDs de colaboradores avulsos selecionados
-    function _getColabsAvulsosSelecionados(containerId) {
-        const container = el(containerId);
-        if (!container) return '';
-        const ids = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-        return ids.join(',');
+    // Helper: lê os IDs do Set em memória (não do DOM — garante que items filtrados não se percam)
+    function _getColabsAvulsosSelecionados(prefixo) {
+        const set = _colabsSelecionados[prefixo];
+        if (!set) return '';
+        return Array.from(set).join(',');
     }
 
     window.fecharModalNovoTreinamento = function () {
@@ -612,7 +616,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
-        const colaboradores_avulsos = _getColabsAvulsosSelecionados('novo-treinamento-colaboradores');
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('novo');
         const validade_dias = parseInt((el('novo-treinamento-validade') || {}).value || '0', 10) || 0;
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
@@ -649,7 +653,7 @@
                         await api('/treinamentos/' + novoTrein.id, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url: url, tipo: tipoAtual })
+                            body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, capa_url: url, validade_dias, tipo: tipoAtual, is_integracao, data_treinamento })
                         });
                     }
                 } catch (capaErr) {
@@ -932,7 +936,7 @@
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
         // Carregar colaboradores avulsos já selecionados
         const colabsAvulsosIds = (t.colaboradores_avulsos || '').split(',').filter(Boolean);
-        _carregarColaboradoresSelect('editar-treinamento-colaboradores', colabsAvulsosIds);
+        _carregarColaboradoresSelect('editar-treinamento-colaboradores', colabsAvulsosIds, 'editar');
         const buscaEl = el('editar-trein-colab-busca');
         if (buscaEl) buscaEl.value = '';
 
@@ -979,7 +983,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
-        const colaboradores_avulsos = _getColabsAvulsosSelecionados('editar-treinamento-colaboradores');
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('editar');
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
