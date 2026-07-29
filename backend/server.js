@@ -21698,7 +21698,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo, is_integracao
+    SELECT id, nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo, is_integracao
     FROM treinamentos
     WHERE IFNULL(status, 'ativo') = 'ativo'
     ORDER BY nome ASC
@@ -21720,11 +21720,17 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
         const agora = new Date();
 
         const resultado = colabs.map(c => {
-          // Treinamentos aplicáveis: departamento 'Todos' ou contém o depto do colaborador
+          // Treinamentos aplicáveis: departamento 'Todos' OU contém o depto do colaborador OU colaborador está na lista de avulsos
           const aplicaveis = treinamentos.filter(t => {
+            // 1. Todos os departamentos
             if (!t.departamento || t.departamento === 'Todos') return true;
+            // 2. Colaborador pertence a um dos departamentos selecionados
             const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
-            return deptos.includes((c.departamento || '').trim().toLowerCase());
+            if (deptos.includes((c.departamento || '').trim().toLowerCase())) return true;
+            // 3. Colaborador está na lista de avulsos
+            const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
+            if (avulsos.includes(String(c.id))) return true;
+            return false;
           });
 
           const treinamentosComStatus = aplicaveis.map(t => {
