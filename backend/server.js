@@ -8263,29 +8263,7 @@ app.post('/api/recibos/upload-pdf-colab',
             let bufferPDF = req.file.buffer;
             const nome = nomeArquivo || `Pagamentos_${colaborador_id}_${mes}${ano}.pdf`;
 
-            // ?????? Mesclar cart??o de ponto (igual ao fluxo anterior) ??????????????????????????????????????????
-            try {
-                const colab = await new Promise((resolve, reject) =>
-                    db.get('SELECT * FROM colaboradores WHERE id = ?', [Number(colaborador_id)], (e, r) => e ? reject(e) : resolve(r))
-                );
-                const historico = await new Promise(res =>
-                    db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?',
-                        [colaborador_id, mes, ano], (e, r) => res(r))
-                );
-                if (colab && historico && historico.apuracao_diaria) {
-                    const apuracao = JSON.parse(historico.apuracao_diaria);
-                    if (Array.isArray(apuracao) && apuracao.length > 0) {
-                        const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
-                        const { mergePdfPonto } = require('./cartao_ponto_generator');
-                        bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
-                        console.log(`[UPLOAD-PDF] Cart??o de ponto mesclado ??? colaborador ${colaborador_id}`);
-                    }
-                }
-            } catch (errPonto) {
-                console.error('[UPLOAD-PDF] Erro ao mesclar cart??o de ponto (continuando sem ele):', errPonto.message);
-                // Não interrompe ??? salva o recibo sem o cart??o de ponto
-            }
-            // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+
 
             const { docId, filePath: savedPath } = await pagamentosMassa.salvarDocumentoNoBanco({
                 colaboradorId: Number(colaborador_id),
@@ -8298,7 +8276,7 @@ app.post('/api/recibos/upload-pdf-colab',
                 basePath: BASE_UPLOAD_PATH,
             });
 
-            // Salvar cópia _base.pdf para permitir reconstru????o ao processar holerites sem duplicação
+            // Salvar cópia _base.pdf para reconstrução futura (sem ponto)
             try {
                 const path = require('path');
                 const fs = require('fs');
@@ -8381,15 +8359,6 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                     const { item, colab } = sublote[idx];
                     let bufferPDF = generatedPdfs[idx].buffer;
 
-                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, mes, ano], (e, r) => res(r)));
-                    if (historico && historico.apuracao_diaria) {
-                        try {
-                            const apuracao = JSON.parse(historico.apuracao_diaria);
-                            const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
-                            const { mergePdfPonto } = require('./cartao_ponto_generator');
-                            bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
-                        } catch(e) { console.error('[RECIBOS-LOTE] Erro merge ponto:', e.message); }
-                    }
 
                     const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
                     const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
