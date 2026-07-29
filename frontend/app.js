@@ -5270,8 +5270,8 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ASSINATURAS -->
-            ${assinaturasHtml}
+            <!-- Espaço para assinaturas digitais adicionadas pelo pdf-lib -->
+            <div style="height:30px;"></div>
         </div>
     </div>`;
 }
@@ -14670,7 +14670,7 @@ window.salvarAssinaturasTestemunhas = async function () {
         // ── Posicionamento na nova página de assinaturas ──
         // As testemunhas ficam no terço superior da página dedicada.
         const tImgH    = 55;  // altura da imagem de assinatura
-        const bottomMargin = 520; // posição Y (do rodapé) para bloco das testemunhas
+        const bottomMargin = pageHeight - 120; // posição Y no TOPO da página dedicada
         const t1CpfY   = bottomMargin;
         const t1NameY  = t1CpfY  + 14;
         const t1LineY  = t1NameY + 14;
