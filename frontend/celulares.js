@@ -567,7 +567,7 @@
         var fotoAtual=a&&a.foto_path?(a.foto_path.startsWith('http')?a.foto_path:base+'/'+a.foto_path):'';
         var ssel=a?('<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Status</label><select id="cel-ap-status" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="disponivel"'+(a.status==='disponivel'?' selected':'')+'>Disponivel</option><option value="em_uso"'+(a.status==='em_uso'?' selected':'')+'>Em Uso</option><option value="manutencao"'+(a.status==='manutencao'?' selected':'')+'>Manutencao</option></select></div>'):'';
         return '<div id="modal-celular-aparelho" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">'+
-            '<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">'+
+            '<div style="background:#fff;border-radius:16px;width:100%;max-width:800px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">'+
             '<div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;"><h3 style="margin:0;font-size:1rem;font-weight:700;"><i class="ph ph-device-mobile" style="color:#e67700;"></i> '+(a?'Editar Aparelho':'Novo Aparelho')+'</h3><button onclick="document.getElementById(\'modal-celular-aparelho\').style.display=\'none\'" style="background:none;border:none;cursor:pointer;font-size:1.25rem;color:#64748b;">&#215;</button></div>'+
             '<div style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:0.9rem;">'+
             // Foto do aparelho
@@ -592,6 +592,12 @@
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Situação</label><select id="cel-ap-ativo" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;"><option value="1"'+(a&&(a.ativo===1||a.ativo===undefined)?' selected':'')+'>Ativo</option><option value="0"'+(a&&a.ativo===0?' selected':'')+'>Inativo</option></select></div>'+
             '</div>'+
             '<div><label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px;">Observacao</label><textarea id="cel-ap-obs" rows="2" placeholder="Opcional..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;">'+(a?(a.observacao||''):'')+'</textarea></div>'+
+            (a ? '<div style="margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:1rem;">' +
+                 '<label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:8px;">Comentários</label>' +
+                 '<div id="cel-ap-comentarios-lista" style="max-height:200px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;">' + renderComentariosCelulares(a.comentarios) + '</div>' +
+                 '<div style="display:flex;gap:8px;"><textarea id="cel-ap-novo-comentario" rows="2" placeholder="Escreva um comentário..." style="flex:1;padding:0.5rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;box-sizing:border-box;resize:vertical;"></textarea>' +
+                 '<button onclick="window.celularesEnviarComentario(' + a.id + ')" style="background:#2563eb;color:#fff;border:none;padding:0 1rem;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem;white-space:nowrap;"><i class="ph ph-paper-plane-right"></i> Enviar</button></div>' +
+                 '</div>' : '') +
             '</div>'+
             '<div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;">'+ 
             '<div id="cel-ap-erro" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:0.6rem 0.9rem;font-size:0.82rem;font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-warning"></i> <span id="cel-ap-erro-msg"></span></div>'+
@@ -600,6 +606,53 @@
             '<button onclick="window.celularesSalvarAparelho()" style="background:#e67700;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:8px;cursor:pointer;font-weight:700;">Salvar</button>'+
             '</div></div></div></div>';
     }
+
+    function renderComentariosCelulares(comentariosJson) {
+        var comentarios = [];
+        try { comentarios = JSON.parse(comentariosJson || '[]'); } catch(_) {}
+        if (!comentarios.length) {
+            return '<div style="text-align:center;padding:1rem;color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum comentário ainda.</div>';
+        }
+        return comentarios.slice().reverse().map(function(cm) {
+            var dt = '';
+            try {
+                var d = new Date(cm.criado_em);
+                dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            } catch(_) {}
+            return '<div style="background:#f8fafc;border-radius:8px;padding:0.75rem;border-left:3px solid #6366f1;">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">' +
+                '<div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.7rem;font-weight:700;">' +
+                (cm.usuario_nome ? cm.usuario_nome.charAt(0).toUpperCase() : 'U') + '</div>' +
+                '<div><span style="font-size:0.8rem;font-weight:700;color:#0f172a;">' + (cm.usuario_nome || 'Usuário') + '</span>' +
+                '<span style="font-size:0.75rem;color:#94a3b8;margin-left:8px;">' + dt + '</span></div></div>' +
+                '<p style="margin:0;font-size:0.85rem;color:#334155;line-height:1.5;">' + (cm.texto || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' +
+                '</div>';
+        }).join('');
+    }
+
+    window.celularesEnviarComentario = async function(id) {
+        var el = document.getElementById('cel-ap-novo-comentario');
+        var texto = el ? el.value.trim() : '';
+        if (!texto) return alert('Digite um comentário');
+        try {
+            var resp = await fetch((typeof API_URL !== 'undefined' ? API_URL : '/api') + '/celulares/aparelhos/' + id + '/comentarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token')) },
+                body: JSON.stringify({ comentario: texto })
+            });
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Erro ao enviar comentário');
+            el.value = '';
+            var listEl = document.getElementById('cel-ap-comentarios-lista');
+            if (listEl) listEl.innerHTML = renderComentariosCelulares(JSON.stringify(data.comentarios));
+            if (_editandoAparelho && _editandoAparelho.id === id) {
+                _editandoAparelho.comentarios = JSON.stringify(data.comentarios);
+            }
+            var idx = _aparelhos.findIndex(function(a){return a.id===id});
+            if (idx>=0) { _aparelhos[idx].comentarios = JSON.stringify(data.comentarios); }
+        } catch(e) { alert('Erro: ' + e.message); }
+    };
+
     function renderModalChip() {
         var c=_editandoChip;
         var ops=['Claro','Vivo','TIM','Oi','Nextel','Algar','Sercomtel'].map(function(op){var sel=(c?c.operadora===op:op==='TIM')?' selected':'';return '<option value="'+op+'"'+sel+'>'+op+'</option>';}).join('');

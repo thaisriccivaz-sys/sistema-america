@@ -25672,6 +25672,33 @@ db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
 db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN ativo INTEGER DEFAULT 1`, (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.ativo:', err.message);
 });
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN comentarios TEXT DEFAULT '[]'`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.comentarios:', err.message);
+});
+
+app.post('/api/celulares/aparelhos/:id/comentarios', authenticateToken, (req, res) => {
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || 'Usuário') : 'Usuário';
+    const { comentario } = req.body;
+    if (!comentario) return res.status(400).json({ error: 'Comentário vazio' });
+    
+    db.get(`SELECT comentarios FROM celulares_aparelhos WHERE id=?`, [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Aparelho não encontrado' });
+        
+        let arr = [];
+        try { arr = JSON.parse(row.comentarios || '[]'); } catch(e) {}
+        arr.push({
+            usuario_nome: usuarioNome,
+            texto: comentario,
+            criado_em: new Date().toISOString()
+        });
+        
+        db.run(`UPDATE celulares_aparelhos SET comentarios=? WHERE id=?`, [JSON.stringify(arr), req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ok: true, comentarios: arr });
+        });
+    });
+});
 
 app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     const { imei1, imei2, modelo, patrimonio, cor, observacao, ativo } = req.body;
