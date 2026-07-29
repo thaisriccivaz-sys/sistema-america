@@ -197,6 +197,11 @@ function _renderDetalhe(c) {
                 '</div></div>';
         }).join('');
 
+    const userLogadoStr = localStorage.getItem('erp_user') || localStorage.getItem('user');
+    let userLogado = '';
+    try { userLogado = userLogadoStr ? JSON.parse(userLogadoStr).username : ''; } catch(e){}
+    const canManage = isAdmin || (c.atribuido_a && c.atribuido_a === userLogado);
+
     el.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:24px 16px;">' +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
             '<button onclick="window._fecharOuVoltar()" style="display:flex;align-items:center;gap:6px;background:none;border:1.5px solid #e2e8f0;color:#475569;border-radius:8px;padding:7px 14px;font-size:0.85rem;cursor:pointer;font-weight:600;"><i class="ph ph-arrow-left"></i> Voltar</button>' +
@@ -214,14 +219,14 @@ function _renderDetalhe(c) {
                 '<span><i class="ph ph-clock-clockwise"></i> Atualizado: ' + _formatDate(c.atualizado_em) + '</span>' +
             '</div>' +
         '</div>' +
-        (isAdmin ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+        (canManage ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
             '<span style="font-weight:700;color:#b45309;font-size:0.88rem;"><i class="ph ph-gear"></i> Status:</span>' +
             '<select id="select-status-chamado" style="border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;font-size:0.88rem;background:#fff;cursor:pointer;">' + statusOpts + '</select>' +
             '<button onclick="window.mudarStatusChamado(' + id + ')" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ph ph-check"></i> Salvar</button>' +
-            '<div style="width:1px;height:24px;background:#fcd34d;margin:0 4px;"></div>' +
+            (isAdmin ? '<div style="width:1px;height:24px;background:#fcd34d;margin:0 4px;"></div>' +
             '<span style="font-weight:700;color:#b45309;font-size:0.88rem;"><i class="ph ph-user-plus"></i> Atribuir a:</span>' +
             '<select id="select-atribuir-chamado" style="border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;font-size:0.88rem;background:#fff;cursor:pointer;"><option value="">Carregando...</option></select>' +
-            '<button onclick="window.atribuirChamado(' + id + ')" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ph ph-check"></i> Atribuir</button>' +
+            '<button onclick="window.atribuirChamado(' + id + ')" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ph ph-check"></i> Atribuir</button>' : '') +
         '</div>' : '') +
         '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px 24px;">' +
             '<h3 style="margin:0 0 20px;font-size:1rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;"><i class="ph ph-chat-dots" style="color:#2563eb;"></i> Coment\u00e1rios <span style="background:#eff6ff;color:#1d4ed8;border-radius:20px;padding:2px 10px;font-size:0.75rem;">' + (c.comentarios||[]).length + '</span></h3>' +

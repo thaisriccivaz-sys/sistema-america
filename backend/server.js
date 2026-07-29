@@ -27014,7 +27014,7 @@ app.get('/api/chamados/:id', authenticateToken, (req, res) => {
     db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
-        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado' });
         db.all(`SELECT * FROM chamados_comentarios WHERE chamado_id = ? ORDER BY criado_em ASC`, [req.params.id], (err2, comentarios) => {
             if (err2) return res.status(500).json({ error: err2.message });
             res.json({ ...chamado, comentarios: comentarios || [] });
@@ -27032,7 +27032,7 @@ app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
     db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
-        if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado podem alterar o status.' });
+        if (!isStrictAdmin && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado ou o responsável atribuído podem alterar o status.' });
         db.run(
             `UPDATE chamados SET status = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
             [status, req.params.id],
@@ -27115,7 +27115,7 @@ app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) =>
     db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], async (err, chamado) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
-        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado' });
 
         // Upload imagem ao R2
         let imagem_url = null;
