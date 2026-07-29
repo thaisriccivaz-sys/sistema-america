@@ -250,7 +250,12 @@ function _renderDetalhe(c) {
                     var selAtribuir = document.getElementById('select-atribuir-chamado');
                     if (!selAtribuir) return;
                     var opts = '<option value="">Ninguém (Não atribuído)</option>';
+                    var vistos = {};
                     usuarios.forEach(function(u) {
+                        if (u.ativo === 0) return; // Ignora inativos
+                        if (vistos[u.username]) return; // Evita duplicatas exatas
+                        vistos[u.username] = true;
+                        
                         var selected = (c.atribuido_a === u.username) ? ' selected' : '';
                         opts += '<option value="' + u.username + '"' + selected + '>' + _escHtml(u.nome) + ' (' + _escHtml(u.username) + ')</option>';
                     });
