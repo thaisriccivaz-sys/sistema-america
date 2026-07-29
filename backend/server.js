@@ -27056,6 +27056,28 @@ app.put('/api/chamados/:id/atribuir', authenticateToken, (req, res) => {
     });
 });
 
+// DELETE /api/chamados/:id - excluir chamado
+app.delete('/api/chamados/:id', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas o administrador pode excluir chamados.' });
+
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+
+        // Excluir notificações e comentários primeiro
+        db.run(`DELETE FROM chamados_notificacoes WHERE chamado_id = ?`, [req.params.id], (err2) => {
+            db.run(`DELETE FROM chamados_comentarios WHERE chamado_id = ?`, [req.params.id], (err3) => {
+                db.run(`DELETE FROM chamados WHERE id = ?`, [req.params.id], (err4) => {
+                    if (err4) return res.status(500).json({ error: err4.message });
+                    res.json({ success: true });
+                });
+            });
+        });
+    });
+});
+
 // POST /api/chamados/:id/comentarios - adicionar comentário
 app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';

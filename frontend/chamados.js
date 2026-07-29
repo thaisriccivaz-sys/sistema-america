@@ -201,6 +201,7 @@ function _renderDetalhe(c) {
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
             '<button onclick="window._fecharOuVoltar()" style="display:flex;align-items:center;gap:6px;background:none;border:1.5px solid #e2e8f0;color:#475569;border-radius:8px;padding:7px 14px;font-size:0.85rem;cursor:pointer;font-weight:600;"><i class="ph ph-arrow-left"></i> Voltar</button>' +
             '<span style="color:#94a3b8;font-size:0.85rem;">#' + c.id + '</span>' +
+            (isAdmin ? '<button onclick="window.excluirChamado(' + id + ')" style="margin-left:auto;display:flex;align-items:center;gap:6px;background:#fef2f2;border:1.5px solid #fca5a5;color:#dc2626;border-radius:8px;padding:7px 14px;font-size:0.85rem;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Excluir Chamado</button>' : '') +
         '</div>' +
         '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:20px;">' +
             '<div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' + _tipoBadge(c.tipo) + ' ' + _statusBadge(c.status) + '</div>' +
@@ -296,6 +297,31 @@ window.atribuirChamado = async function(id) {
         if (!r.ok) throw new Error(await r.text());
         Swal.fire({ icon: 'success', title: 'Chamado atribuído!', timer: 1500, showConfirmButton: false });
         window.verChamado(id);
+    } catch (e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.excluirChamado = async function(id) {
+    const confirm = await Swal.fire({
+        title: 'Excluir Chamado?',
+        text: 'Tem certeza que deseja apagar permanentemente este chamado?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, excluir!'
+    });
+    
+    if (!confirm.isConfirmed) return;
+
+    try {
+        var r = await fetch(_apiBase() + '/chamados/' + id, {
+            method: 'DELETE', headers: _headers()
+        });
+        if (!r.ok) throw new Error(await r.text());
+        Swal.fire({ icon: 'success', title: 'Excluído!', timer: 1500, showConfirmButton: false });
+        window.renderListaChamados();
     } catch (e) {
         Swal.fire('Erro', e.message, 'error');
     }
