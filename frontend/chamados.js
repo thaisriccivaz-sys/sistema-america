@@ -18,7 +18,7 @@ function _token() {
 }
 
 function _isAdmin() {
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem('erp_user') || localStorage.getItem('user');
     if (!userStr) return false;
     try {
         const user = JSON.parse(userStr);
