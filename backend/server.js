@@ -26967,8 +26967,8 @@ app.get('/api/chamados', authenticateToken, (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
     const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
     const sql = isAdmin
-        ? `SELECT * FROM chamados ORDER BY atualizado_em DESC`
-        : `SELECT * FROM chamados WHERE usuario_nome = ? OR atribuido_a = ? ORDER BY atualizado_em DESC`;
+        ? `SELECT * FROM chamados ORDER BY id DESC`
+        : `SELECT * FROM chamados WHERE usuario_nome = ? OR atribuido_a = ? ORDER BY id DESC`;
     const params = isAdmin ? [] : [usuario, usuario];
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -27032,7 +27032,7 @@ app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
     db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
-        if (!isStrictAdmin && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado ou o responsável atribuído podem alterar o status.' });
+        if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado podem alterar o status.' });
         db.run(
             `UPDATE chamados SET status = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
             [status, req.params.id],
@@ -27143,8 +27143,8 @@ app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) =>
             function(err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
-                // Auto-mudar status: se usuário comum comentar em chamado 'Aguardando Informações'
-                if (!isAdmin && chamado.status === 'Aguardando Informações') {
+                // Auto-mudar status: se usuário comum comentar, sempre vai para 'Respondido'
+                if (!isAdmin && chamado.status !== 'Respondido') {
                     db.run(`UPDATE chamados SET status = 'Respondido', atualizado_em = datetime('now','-3 hours') WHERE id = ?`, [req.params.id]);
                     // Notificar admin sobre resposta
                     db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
