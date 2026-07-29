@@ -146,7 +146,7 @@ window.renderListaChamados = async function() {
                 '<div style="flex:1;min-width:0;">' +
                 '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">' + _tipoBadge(c.tipo) + ' ' + _statusBadge(c.status) + '<span style="color:#94a3b8;font-size:0.72rem;margin-left:auto;">#' + c.id + '</span></div>' +
                 '<div style="font-weight:700;color:#0f172a;font-size:0.97rem;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _escHtml(c.titulo) + '</div>' +
-                '<div style="color:#64748b;font-size:0.82rem;display:flex;gap:16px;flex-wrap:wrap;"><span><i class="ph ph-user"></i> ' + _escHtml(c.usuario_nome) + '</span><span><i class="ph ph-clock"></i> ' + _formatDate(c.criado_em) + '</span></div></div>' +
+                '<div style="color:#64748b;font-size:0.82rem;display:flex;gap:16px;flex-wrap:wrap;"><span><i class="ph ph-user"></i> ' + _escHtml(c.usuario_nome) + '</span>' + (c.atribuido_a ? '<span><i class="ph ph-user-check"></i> ' + _escHtml(c.atribuido_a) + '</span>' : '') + '<span><i class="ph ph-clock"></i> ' + _formatDate(c.criado_em) + '</span></div></div>' +
                 '<i class="ph ph-caret-right" style="color:#94a3b8;font-size:1.2rem;flex-shrink:0;margin-top:4px;"></i></div>';
         }).join('');
     } catch(e) {
@@ -208,6 +208,7 @@ function _renderDetalhe(c) {
             (c.descricao ? '<p style="margin:0 0 12px;color:#475569;font-size:0.9rem;line-height:1.6;white-space:pre-wrap;">' + _escHtml(c.descricao) + '</p>' : '') +
             '<div style="display:flex;gap:16px;flex-wrap:wrap;color:#64748b;font-size:0.8rem;border-top:1px solid #f1f5f9;padding-top:12px;">' +
                 '<span><i class="ph ph-user"></i> Aberto por: <b>' + _escHtml(c.usuario_nome) + '</b></span>' +
+                (c.atribuido_a ? '<span><i class="ph ph-user-check"></i> Atribuído a: <b>' + _escHtml(c.atribuido_a) + '</b></span>' : '') +
                 '<span><i class="ph ph-calendar"></i> ' + _formatDate(c.criado_em) + '</span>' +
                 '<span><i class="ph ph-clock-clockwise"></i> Atualizado: ' + _formatDate(c.atualizado_em) + '</span>' +
             '</div>' +
@@ -216,6 +217,10 @@ function _renderDetalhe(c) {
             '<span style="font-weight:700;color:#b45309;font-size:0.88rem;"><i class="ph ph-gear"></i> Status:</span>' +
             '<select id="select-status-chamado" style="border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;font-size:0.88rem;background:#fff;cursor:pointer;">' + statusOpts + '</select>' +
             '<button onclick="window.mudarStatusChamado(' + id + ')" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ph ph-check"></i> Salvar</button>' +
+            '<div style="width:1px;height:24px;background:#fcd34d;margin:0 4px;"></div>' +
+            '<span style="font-weight:700;color:#b45309;font-size:0.88rem;"><i class="ph ph-user-plus"></i> Atribuir a:</span>' +
+            '<select id="select-atribuir-chamado" style="border:1.5px solid #fcd34d;border-radius:8px;padding:6px 12px;font-size:0.88rem;background:#fff;cursor:pointer;"><option value="">Carregando...</option></select>' +
+            '<button onclick="window.atribuirChamado(' + id + ')" style="background:#b45309;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;"><i class="ph ph-check"></i> Atribuir</button>' +
         '</div>' : '') +
         '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:20px 24px;">' +
             '<h3 style="margin:0 0 20px;font-size:1rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;"><i class="ph ph-chat-dots" style="color:#2563eb;"></i> Coment\u00e1rios <span style="background:#eff6ff;color:#1d4ed8;border-radius:20px;padding:2px 10px;font-size:0.75rem;">' + (c.comentarios||[]).length + '</span></h3>' +
@@ -238,6 +243,24 @@ function _renderDetalhe(c) {
     setTimeout(function() {
         var ta = document.getElementById('chamado-comentario-texto');
         if (ta) ta.focus();
+        if (isAdmin) {
+            fetch(_apiBase() + '/usuarios', { headers: _headers() })
+                .then(function(res) { return res.json(); })
+                .then(function(usuarios) {
+                    var selAtribuir = document.getElementById('select-atribuir-chamado');
+                    if (!selAtribuir) return;
+                    var opts = '<option value="">Ninguém (Não atribuído)</option>';
+                    usuarios.forEach(function(u) {
+                        var selected = (c.atribuido_a === u.username) ? ' selected' : '';
+                        opts += '<option value="' + u.username + '"' + selected + '>' + _escHtml(u.nome) + ' (' + _escHtml(u.username) + ')</option>';
+                    });
+                    selAtribuir.innerHTML = opts;
+                })
+                .catch(function() {
+                    var selAtribuir = document.getElementById('select-atribuir-chamado');
+                    if (selAtribuir) selAtribuir.innerHTML = '<option value="">Erro ao carregar usuários</option>';
+                });
+        }
     }, 100);
 }
 
@@ -249,10 +272,28 @@ window.mudarStatusChamado = async function(id) {
         var r = await fetch(_apiBase() + '/chamados/' + id + '/status', {
             method: 'PUT', headers: _headers(), body: JSON.stringify({ status: status })
         });
-        if (!r.ok) { var e = await r.json(); throw new Error(e.error || 'Erro'); }
+        if (!r.ok) throw new Error(await r.text());
         Swal.fire({ icon: 'success', title: 'Status atualizado!', timer: 1500, showConfirmButton: false });
         window.verChamado(id);
-    } catch(e) { Swal.fire('Erro', e.message, 'error'); }
+    } catch (e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
+};
+
+window.atribuirChamado = async function(id) {
+    var sel = document.getElementById('select-atribuir-chamado');
+    if (!sel) return;
+    var atribuido_a = sel.value;
+    try {
+        var r = await fetch(_apiBase() + '/chamados/' + id + '/atribuir', {
+            method: 'PUT', headers: _headers(), body: JSON.stringify({ atribuido_a: atribuido_a })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        Swal.fire({ icon: 'success', title: 'Chamado atribuído!', timer: 1500, showConfirmButton: false });
+        window.verChamado(id);
+    } catch (e) {
+        Swal.fire('Erro', e.message, 'error');
+    }
 };
 
 window.abrirNovoChamado = async function() {

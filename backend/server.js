@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -26506,6 +26506,7 @@ db.run(`CREATE TABLE IF NOT EXISTS chamados (
     criado_em DATETIME DEFAULT (datetime('now','-3 hours')),
     atualizado_em DATETIME DEFAULT (datetime('now','-3 hours'))
 )`);
+db.run(`ALTER TABLE chamados ADD COLUMN atribuido_a TEXT`, (err) => {});
 
 db.run(`CREATE TABLE IF NOT EXISTS chamados_comentarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26940,8 +26941,8 @@ app.get('/api/chamados', authenticateToken, (req, res) => {
     const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
     const sql = isAdmin
         ? `SELECT * FROM chamados ORDER BY atualizado_em DESC`
-        : `SELECT * FROM chamados WHERE usuario_nome = ? ORDER BY atualizado_em DESC`;
-    const params = isAdmin ? [] : [usuario];
+        : `SELECT * FROM chamados WHERE usuario_nome = ? OR atribuido_a = ? ORDER BY atualizado_em DESC`;
+    const params = isAdmin ? [] : [usuario, usuario];
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -26985,14 +26986,14 @@ app.get('/api/chamados/:id', authenticateToken, (req, res) => {
 // PUT /api/chamados/:id/status - atualizar status
 app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
-    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
     const { status } = req.body;
     const statusValidos = ['Novo', 'Aguardando Informações', 'Respondido', 'Finalizado'];
     if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
     db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
-        if (!isAdmin && chamado.usuario_nome !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado podem alterar o status.' });
         db.run(
             `UPDATE chamados SET status = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
             [status, req.params.id],
@@ -27008,6 +27009,34 @@ app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
                     // Notificar admin que foi respondido
                     db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
                         [req.params.id, CHAMADOS_ADMIN]);
+                }
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// PUT /api/chamados/:id/atribuir - atribuir a um usuário
+app.put('/api/chamados/:id/atribuir', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas o administrador de chamados pode atribuir.' });
+    
+    const { atribuido_a } = req.body;
+    
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        
+        db.run(
+            `UPDATE chamados SET atribuido_a = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
+            [atribuido_a, req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Notificar o usuário que recebeu o chamado
+                if (atribuido_a && atribuido_a !== chamado.usuario_nome) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado_atribuido')`,
+                        [req.params.id, atribuido_a]);
                 }
                 res.json({ success: true });
             }
