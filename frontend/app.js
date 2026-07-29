@@ -425,6 +425,16 @@ window.navigateInitialPage = function () {
         return;
     }
     
+    const abrirChamados = params.get('abrir_chamados');
+    if (abrirChamados) {
+        setTimeout(() => {
+            if (typeof window.abrirTelaChamados === 'function') {
+                window.abrirTelaChamados();
+            }
+        }, 500);
+        return;
+    }
+    
     if (colabId && autoOpenDesempenho) {
         navigateTo('colaboradores');
         setTimeout(() => {
