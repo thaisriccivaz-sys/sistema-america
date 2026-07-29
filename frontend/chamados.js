@@ -302,6 +302,26 @@ window.atribuirChamado = async function(id) {
 };
 
 window.abrirNovoChamado = async function() {
+    const isAdmin = _isAdmin();
+    
+    let atribuirHtml = '';
+    if (isAdmin) {
+        try {
+            var rUser = await fetch(_apiBase() + '/usuarios', { headers: _headers() });
+            var usuarios = await rUser.json();
+            var opts = '<option value="">Ninguém (Não atribuído)</option>';
+            var vistos = {};
+            usuarios.forEach(function(u) {
+                if (u.ativo === 0) return;
+                if (vistos[u.username]) return;
+                vistos[u.username] = true;
+                opts += '<option value="' + u.username + '">' + _escHtml(u.nome) + ' (' + _escHtml(u.username) + ')</option>';
+            });
+            atribuirHtml = '<div style="margin-top:14px;"><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">Atribuir a (opcional)</label>' +
+                           '<select id="nc-atribuido" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.9rem;">' + opts + '</select></div>';
+        } catch(e) {}
+    }
+
     var result = await Swal.fire({
         title: 'Novo Chamado',
         html: '<div style="text-align:left;">' +
@@ -309,18 +329,19 @@ window.abrirNovoChamado = async function() {
             '<div style="display:flex;gap:10px;">' +
             '<label id="lbl-melhoria" style="flex:1;border:2px solid #16a34a;border-radius:10px;padding:12px;cursor:pointer;text-align:center;background:#f0fdf4;">' +
                 '<input type="radio" name="nctype" value="melhoria" checked style="display:none;">' +
-                '<div style="font-size:1.3rem;">\u2728</div><div style="font-weight:700;color:#16a34a;font-size:0.88rem;margin-top:4px;">Melhoria</div></label>' +
+                '<div style="font-size:1.3rem;">✨</div><div style="font-weight:700;color:#16a34a;font-size:0.88rem;margin-top:4px;">Melhoria</div></label>' +
             '<label id="lbl-correcao" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;text-align:center;background:#fff;">' +
                 '<input type="radio" name="nctype" value="correcao" style="display:none;">' +
-                '<div style="font-size:1.3rem;">\uD83D\uDC1B</div><div style="font-weight:700;color:#dc2626;font-size:0.88rem;margin-top:4px;">Corre\u00e7\u00e3o</div></label>' +
+                '<div style="font-size:1.3rem;">🐛</div><div style="font-weight:700;color:#dc2626;font-size:0.88rem;margin-top:4px;">Correção</div></label>' +
             '<label id="lbl-urgente" style="flex:1;border:2px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;text-align:center;background:#fff;">' +
                 '<input type="radio" name="nctype" value="urgente" style="display:none;">' +
                 '<div style="font-size:1.3rem;">🚨</div><div style="font-weight:700;color:#b91c1c;font-size:0.88rem;margin-top:4px;">Urgente</div></label>' +
             '</div></div>' +
-            '<div style="margin-bottom:14px;"><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">T\u00edtulo *</label>' +
+            '<div style="margin-bottom:14px;"><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">Título *</label>' +
             '<input type="text" id="nc-titulo" placeholder="Descreva em poucas palavras..." style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.9rem;"></div>' +
-            '<div><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">Descri\u00e7\u00e3o (opcional)</label>' +
+            '<div><label style="font-weight:700;font-size:0.85rem;color:#475569;display:block;margin-bottom:6px;">Descrição (opcional)</label>' +
             '<textarea id="nc-desc" rows="4" placeholder="Detalhe o problema ou melhoria..." style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.9rem;resize:vertical;font-family:inherit;"></textarea></div>' +
+            atribuirHtml +
             '</div>',
         showCancelButton: true,
         confirmButtonText: 'Abrir Chamado',
@@ -355,8 +376,10 @@ window.abrirNovoChamado = async function() {
             var descricao = document.getElementById('nc-desc').value.trim();
             var tipoEl = document.querySelector('[name="nctype"]:checked');
             var tipo = tipoEl ? tipoEl.value : 'melhoria';
-            if (!titulo) { Swal.showValidationMessage('Informe o t\u00edtulo'); return false; }
-            return { titulo: titulo, descricao: descricao, tipo: tipo };
+            var atribuidoEl = document.getElementById('nc-atribuido');
+            var atribuido_a = atribuidoEl ? atribuidoEl.value : null;
+            if (!titulo) { Swal.showValidationMessage('Informe o título'); return false; }
+            return { titulo: titulo, descricao: descricao, tipo: tipo, atribuido_a: atribuido_a };
         }
     });
     if (!result.isConfirmed || !result.value) return;

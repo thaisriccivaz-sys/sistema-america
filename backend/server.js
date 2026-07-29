@@ -26952,17 +26952,29 @@ app.get('/api/chamados', authenticateToken, (req, res) => {
 // POST /api/chamados - criar novo chamado
 app.post('/api/chamados', authenticateToken, (req, res) => {
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
-    const { titulo, descricao, tipo } = req.body;
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    const { titulo, descricao, tipo, atribuido_a } = req.body;
     if (!titulo) return res.status(400).json({ error: 'Título obrigatório' });
+    
+    const assignedUser = (isStrictAdmin && atribuido_a) ? atribuido_a : null;
+    
     db.run(
-        `INSERT INTO chamados (titulo, descricao, tipo, status, usuario_nome) VALUES (?, ?, ?, 'Novo', ?)`,
-        [titulo, descricao || '', tipo || 'melhoria', usuario],
+        `INSERT INTO chamados (titulo, descricao, tipo, status, usuario_nome, atribuido_a) VALUES (?, ?, ?, 'Novo', ?, ?)`,
+        [titulo, descricao || '', tipo || 'melhoria', usuario, assignedUser],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             const chamadoId = this.lastID;
-            // Notificar admin sobre novo chamado
-            db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado')`,
-                [chamadoId, CHAMADOS_ADMIN]);
+            
+            if (usuario !== CHAMADOS_ADMIN) {
+                db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado')`,
+                    [chamadoId, CHAMADOS_ADMIN]);
+            }
+            
+            if (assignedUser && assignedUser !== usuario) {
+                db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado_atribuido')`,
+                    [chamadoId, assignedUser]);
+            }
+            
             res.json({ id: chamadoId, success: true });
         }
     );
