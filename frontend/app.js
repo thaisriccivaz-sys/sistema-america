@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -5270,8 +5270,8 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- Espaço para assinaturas digitais adicionadas pelo pdf-lib -->
-            <div style="height:30px;"></div>
+            <!-- Espaço reservado para as assinaturas -->
+            <div style="height:300px;"></div>
         </div>
     </div>`;
 }
@@ -5382,6 +5382,8 @@ window.anexarAdvertenciaAoProntuario = async function () {
         const pageH = pdf.internal.pageSize.getHeight();  // 297mm
         const imgData = canvas.toDataURL('image/jpeg', 0.98);
         const imgHeightMm = pageW * (canvas.height / canvas.width);
+
+        pdf.setProperties({ keywords: 'contentHeightMm:' + imgHeightMm });
 
         let posY = 0, page = 0;
         while (posY < imgHeightMm) {
@@ -14575,8 +14577,8 @@ window.abrirModalAssinaturaTestemunhas = async function (docId) {
 
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
 
-    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
-    const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
+    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas (excluindo Desligados)
+    const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '' && c.status !== 'Desligado');
     todos.sort((a, b) => (a.nome_completo || a.nome || '').localeCompare(b.nome_completo || b.nome || ''));
 
     let options = '<option value="">Selecione uma testemunha...</option>';
@@ -14643,12 +14645,26 @@ window.salvarAssinaturasTestemunhas = async function () {
         const { width: pageWidth, height: pageHeight } = refPage.getSize();
         const innerWidth = (pageWidth - 112) / 2 - 20;
 
-        // ── Adiciona UMA NOVA PÁGINA dedicada às assinaturas ──
-        // Isso garante que as assinaturas nunca sobreponham o texto,
-        // independente do tamanho do documento.
-        const sigPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        // Marca o PDF para que a etapa do colaborador saiba que há página dedicada
-        try { pdfDoc.setKeywords(['ASSINATURAS_SEPARADAS']); } catch(_) {}
+        let keywords = '';
+        try { keywords = pdfDoc.getKeywords() || ''; } catch(_) {}
+
+        let pageIndexToDraw = pages.length - 1;
+        let yFromTop = pageHeight - 160;
+
+        if (keywords.includes('contentHeightMm:')) {
+            const match = keywords.match(/contentHeightMm:([0-9.]+)/);
+            if (match) {
+                const totalH = parseFloat(match[1]);
+                const drawHMm = Math.max(0, totalH - 79 + 15);
+                pageIndexToDraw = Math.floor(drawHMm / 297);
+                yFromTop = (drawHMm % 297) * (72 / 25.4);
+            }
+        }
+
+        while (pdfDoc.getPageCount() <= pageIndexToDraw) {
+            pdfDoc.addPage([pageWidth, pageHeight]);
+        }
+        const sigPage = pdfDoc.getPages()[pageIndexToDraw];
 
         // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
@@ -14667,15 +14683,14 @@ window.salvarAssinaturasTestemunhas = async function () {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // ── Posicionamento na nova página de assinaturas ──
-        // As testemunhas ficam no terço superior da página dedicada.
+        // ── Posicionamento Dinâmico ──
         const tImgH    = 55;  // altura da imagem de assinatura
-        const bottomMargin = pageHeight - 120; // posição Y no TOPO da página dedicada
+        const t1LabelY = pageHeight - yFromTop;
+        const bottomMargin = t1LabelY - 95;
         const t1CpfY   = bottomMargin;
         const t1NameY  = t1CpfY  + 14;
         const t1LineY  = t1NameY + 14;
         const t1ImgY   = t1LineY + 6;
-        const t1LabelY = t1ImgY  + tImgH + 6;
 
         // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
@@ -14968,27 +14983,7 @@ window.salvarAssinaturaColaborador = async function () {
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
         // Usa SEMPRE a última página, igual às testemunhas
-        const lastPage = pages[pages.length - 1];
-        const { width: pgW, height: pgH } = lastPage.getSize();
-
-        // Captura de alta qualidade
-        async function getHQCanvas2(canvasId) {
-            const src = document.getElementById(canvasId);
-            const dpr = window.devicePixelRatio || 1;
-            const scale = 3;
-            const off = document.createElement('canvas');
-            off.width = src.width * scale / dpr;
-            off.height = src.height * scale / dpr;
-            const ctx = off.getContext('2d');
-            ctx.scale(scale, scale);
-            ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
-            return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
-        }
-
         // --- COLABORADOR ---
-        // Detecta se o PDF foi assinado no novo formato (página dedicada para assinaturas)
-        // No novo formato, testemunhas estão na faixa 520-630pt do rodapé da nova página.
-        // No formato antigo, testemunhas estão em 160-260pt do rodapé da última página.
         let pdfKeywords = '';
         try { pdfKeywords = pdfDoc.getKeywords() || ''; } catch(_) {}
         const hasSignaturePage = pdfKeywords.includes('ASSINATURAS_SEPARADAS');
@@ -14997,37 +14992,62 @@ window.salvarAssinaturaColaborador = async function () {
 
         let cImgH = 55;
         let cWidth = 280;
-        let cX = (pgW - cWidth) / 2;
+        
+        let pageIndexToDraw = pages.length - 1;
+        let pgH = 841.89; // Default A4 height
+        let pgW = 595.28; // Default A4 width
+        if (pages.length > 0) {
+            const size = pages[pages.length - 1].getSize();
+            pgW = size.width;
+            pgH = size.height;
+        }
 
+        let cX = (pgW - cWidth) / 2;
         if ((isAdvertenciaOuSuspensao || hasSignaturePage) && _epiSelfieBase64) {
             cWidth = 240;
             cX = 50; // Alinhado à esquerda
         }
 
-        // No novo formato: colaborador fica abaixo das testemunhas na página dedicada (~300pt do rodapé)
-        // No formato antigo: colaborador fica em 30pt do rodapé (imediatamente acima do rodapé)
-        const cCpfY   = hasSignaturePage ? 300 : 30;
+        let cCpfY = 30; // fallback
+        if (pdfKeywords.includes('contentHeightMm:')) {
+            const match = pdfKeywords.match(/contentHeightMm:([0-9.]+)/);
+            if (match) {
+                const totalH = parseFloat(match[1]);
+                const drawHMm = Math.max(0, totalH - 79 + 50); // Colaborador below Testemunhas
+                pageIndexToDraw = Math.floor(drawHMm / 297);
+                const yFromTop = (drawHMm % 297) * (72 / 25.4);
+                cCpfY = pgH - yFromTop - 95;
+            }
+        } else {
+            // Old format fallback
+            cCpfY = hasSignaturePage ? 300 : 30;
+        }
+
+        while (pdfDoc.getPageCount() <= pageIndexToDraw) {
+            pdfDoc.addPage([pgW, pgH]);
+        }
+        const sigPage = pdfDoc.getPages()[pageIndexToDraw];
+
         const cNameY  = cCpfY  + 14;
         const cLineY  = cNameY + 14;
         const cImgY   = cLineY + 6;
         const cLabelY = cImgY  + cImgH + 6;
 
         // Label
-        lastPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
         // Imagem da assinatura
         const png1Bytes = await getHQCanvas2('canvas-colaborador');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        lastPage.drawImage(png1Image, { x: cX, y: cImgY, width: cWidth, height: cImgH });
+        sigPage.drawImage(png1Image, { x: cX, y: cImgY, width: cWidth, height: cImgH });
 
         // Linha e textos
-        lastPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
-
+        sigPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
         const dateStrColab = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        lastPage.drawText(`Assinado em: ${dateStrColab}`, { x: cX, y: cCpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+        sigPage.drawText(`Assinado em: ${dateStrColab}`, { x: cX, y: cCpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
         
         if (doc.created_at || doc.data_inclusao) {
             const dtCriado = new Date(doc.created_at || doc.data_inclusao);
