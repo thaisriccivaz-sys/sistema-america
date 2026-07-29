@@ -26203,6 +26203,26 @@ app.post('/api/computadores/:id/foto-carregador', authenticateToken, multerCarre
     }
 });
 
+// DELETE: remover foto do carregador
+app.delete('/api/computadores/:id/foto-carregador', authenticateToken, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get(`SELECT carregador_foto_r2_key FROM computadores WHERE id=?`, [id], (e, rv) => e ? reject(e) : resolve(rv));
+        });
+        if (row && row.carregador_foto_r2_key && r2) {
+            try { await r2.deleteFromR2(row.carregador_foto_r2_key); } catch(_) {}
+        }
+        db.run(`UPDATE computadores SET carregador_foto_url=NULL, carregador_foto_r2_key=NULL WHERE id=?`, [id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        });
+    } catch(e) {
+        console.error('[Carregador Foto Delete]', e);
+        res.status(500).json({ error: 'Erro ao remover foto: ' + e.message });
+    }
+});
+
 // ♥♥♥♥♥ POST: criar computador ♥♥♥♥♥
 app.post('/api/computadores', authenticateToken, (req, res) => {
     const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes,

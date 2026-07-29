@@ -1,4 +1,4 @@
-// =============================================================
+﻿// =============================================================
 // MODULO COMPUTADORES CORPORATIVOS
 // Abas: Colaboradores | Computadores | E-mails
 // =============================================================
@@ -902,14 +902,39 @@
     };
 
     // ── Remover foto do carregador ──
-    window.compRemoverFotoCarregador = function () {
-        window._compFotoPendente = null;
+    window.compRemoverFotoCarregador = async function () {
+        if (!_editandoId) {
+            // Nova criacao: apenas limpa o preview local
+            window._compFotoPendente = null;
+            var preview = document.getElementById('carregador-foto-preview');
+            var img = document.getElementById('carregador-foto-img');
+            var status = document.getElementById('comp-foto-upload-status');
+            if (img) img.src = '';
+            if (preview) preview.style.display = 'none';
+            if (status) status.innerHTML = '';
+            return;
+        }
+        if (!confirm('Deseja remover a foto do carregador?')) return;
         var preview = document.getElementById('carregador-foto-preview');
         var img = document.getElementById('carregador-foto-img');
         var status = document.getElementById('comp-foto-upload-status');
-        if (img) img.src = '';
-        if (preview) preview.style.display = 'none';
-        if (status) status.innerHTML = '';
+        try {
+            var resp = await fetch(_baseUrl() + '/computadores/' + _editandoId + '/foto-carregador', {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + _tok() }
+            });
+            if (!resp.ok) throw new Error('Erro ' + resp.status);
+            // Atualiza o estado local
+            var comp = _computadores.find(function(x){ return x.id === _editandoId; });
+            if (comp) { comp.carregador_foto_url = null; comp.carregador_foto_r2_key = null; }
+            window._compFotoPendente = null;
+            if (img) img.src = '';
+            if (preview) preview.style.display = 'none';
+            if (status) status.innerHTML = '<span style="color:#16a34a;"><i class="ph ph-check-circle"></i> Foto removida com sucesso.</span>';
+            setTimeout(function(){ if(status) status.innerHTML = ''; }, 3000);
+        } catch(e) {
+            alert('Erro ao remover foto: ' + (e.message || e));
+        }
     };
 
     // ── Adicionar comentário a um computador ──
