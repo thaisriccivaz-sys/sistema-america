@@ -195,6 +195,65 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
     }
 }
 
+/**
+ * Utilitário GLOBAL: Verifica e notifica estoque mínimo por endereço.
+ * Dispara notificação de tela e e-mail sempre que qtdAtual <= minEnd.
+ * @param {object} db - instância do banco de dados
+ * @param {number} itemId - ID do item no estoque
+ * @param {string} itemNome - Nome do item
+ * @param {string} itemDepto - Departamento do item
+ * @param {number} enderecoId - ID do endereço
+ * @param {number} qtdAnterior - Quantidade antes da movimentação
+ * @param {number} qtdAtual - Quantidade após a movimentação
+ * @param {number} minEnd - Quantidade mínima configurada
+ * @param {string} tipoNotifEnd - Tipo de notificação: 'reposicao' ou 'compra'
+ */
+function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd) {
+    if (!(minEnd > 0 && qtdAtual <= minEnd)) return;
+
+    console.log('[ESTOQUE MINIMO] "' + itemNome + '" atingiu mínimo. qtdAnterior=' + qtdAnterior + ', qtdAtual=' + qtdAtual + ', min=' + minEnd + ', tipo=' + tipoNotifEnd);
+    const msg = 'ESTOQUE BAIXO: O item "' + itemNome + '" atingiu o estoque mínimo. Quantidade Atual: ' + qtdAtual + ' (Mínimo: ' + minEnd + ').';
+    const dadosStr = JSON.stringify({ item_id: itemId, nome: itemNome, quantidade_atual: qtdAtual, quantidade_minima: minEnd });
+
+    const tiposNotif = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? [tipoNotifEnd] : ['compra'];
+
+    tiposNotif.forEach(tipoNotif => {
+        const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
+
+        // 1. Inserir notificação de popup na tela para todos configurados
+        db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [dbTipo], (errCR, rowsCR) => {
+            if (!errCR && rowsCR && rowsCR.length > 0) {
+                rowsCR.forEach(c => {
+                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
+                });
+                console.log('[ESTOQUE MINIMO] Notificações inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
+            } else {
+                console.warn('[ESTOQUE MINIMO] Nenhum usuário configurado para tipo="' + dbTipo + '"');
+            }
+        });
+
+        // 2. Enviar e-mail usando a função central robusta com múltiplas estratégias de e-mail
+        const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposição' : 'Pedido de Compra';
+        const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
+            '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
+            '<h2 style="color:#dc2626;text-align:center;">&#9888; Estoque Mínimo Atingido</h2>' +
+            '<p>Um item do estoque atingiu ou está abaixo da quantidade mínima após <b>' + labelTipo + '</b>:</p>' +
+            '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
+            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Item</th><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">' + itemNome + '</td></tr>' +
+            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Departamento</th><td style="padding:8px;border:1px solid #e2e8f0;">' + (itemDepto || '—') + '</td></tr>' +
+            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Atual</th><td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
+            '<tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #e2e8f0;">' + minEnd + '</td></tr>' +
+            '</table>' +
+            '<p style="color:#dc2626;font-weight:bold;">Por favor, providencie a reposição o mais breve possível.</p>' +
+            '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
+
+        sendEmailParaNotificados(dbTipo, {
+            subject: 'Estoque Mínimo Atingido – ' + itemNome,
+            html: emailHtml
+        }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
+    });
+}
+
 const db = require('./database');
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
@@ -4685,7 +4744,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         const pdfData = await parser.getText();
         const text = pdfData.text || '';
         // Eliminar espacos duplicados para ajudar a regex
-        const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
+        const cleanText = text.replace(/[\n]+/g, ' ').replace(/\s+/g, ' ');
 
         // Boletim No: "FR6269-1/2026" ou "FR 6269-1/2026"
         let boletim = '';
@@ -11524,7 +11583,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                 console.error('[AUDITORIA EPI] Erro ao salvar log de assinatura:', errAudit);
             }
 
-            // Criar registros de empràstimo se houver equipamentos para devolver
+            // Criar registros de empréstimo se houver equipamentos para devolver
             if (Array.isArray(epis_para_devolver) && epis_para_devolver.length > 0) {
                 const dataEntregaFmt = data_entrega || new Date().toLocaleDateString('pt-BR');
                 epis_para_devolver.forEach(item => {
@@ -11532,7 +11591,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                     db.run(
                         `INSERT INTO epi_emprestimos (colaborador_id, entrega_id, epi_nome, data_entrega, data_devolucao_prevista) VALUES (?,?,?,?,?)`,
                         [colaborador_id, entregaId, item.nome, dataEntregaFmt, item.data_devolucao_prevista],
-                        (errEmp) => { if (errEmp) console.error('[EPI_EMPRESTIMOS] Erro ao registrar empràstimo:', errEmp.message); }
+                        (errEmp) => { if (errEmp) console.error('[EPI_EMPRESTIMOS] Erro ao registrar empréstimo:', errEmp.message); }
                     );
                 });
             }
@@ -11547,7 +11606,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                     const isFeminino = colabSexo === 'feminino';
                     const isMasculino = colabSexo === 'masculino';
 
-                    // AGRUPAR itens iguais para evitar condi????o de corrida:
+                    // AGRUPAR itens iguais para evitar condição de corrida:
                     const epiContagem = {};
                     epis_entregues.forEach(nome => {
                         if (!nome) return;
@@ -11556,6 +11615,11 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         epiContagem[key].count++;
                     });
 
+                    // HELPER: Delega para a função global notificarEstoqueMinimo
+                    function verificarENotificarEstoqueMinimoPorEndereco(itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd, fotoUrl, fotoBase64) {
+                        notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd);
+                    }
+
                     // Função central para processar a baixa de um item com quantidade total e endereço opcional
                 function processarBaixaEstoque(item, count, enderecoId, enderecoNome) {
                     if (!item || item.quantidade_atual < count) {
@@ -11563,153 +11627,39 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         count = item ? Math.max(0, item.quantidade_atual) : 0;
                         if (count === 0) return;
                     }
-                    const newQtd = item.quantidade_atual - count;
-                    // UPDATE atémico no total
-                    db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
-                        if (!errUpd) {
-                            console.log(`[ESTOQUE] Baixa de ${count}x "${item.nome}" efetuada (endereço: ${enderecoNome || 'Geral'}). Novo saldo: ${newQtd}.`);
-                            // Se tem endereço, debita do saldo por endereço
-                            if (enderecoId) {
-                                db.run(
-                                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                                    [count, item.id, enderecoId],
-                                    (errSaldo) => { if (errSaldo) console.error('[ESTOQUE] Erro ao debitar saldo por endereço:', errSaldo.message); }
-                                );
-                            } else {
-                                // Sem endereço específico: debita do 'Geral'
-                                db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
-                                    if (!errG && rowG) {
-                                        db.run(
-                                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                                            [count, item.id, rowG.id],
-                                            () => {}
-                                        );
-                                    }
-                                });
-                            }
-                            // Grava Histórico de Sa??da
-                            db.run(
-                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [item.id, count, 'Saida', registrado_por || 'Sistema', 'Baixa prontu\u00e1rio Colaborador', enderecoId || null, enderecoNome || null],
-                                () => {}
-                            );
+                    
+                    db.get('SELECT s.quantidade, s.quantidade_minima, ee.tipo_notificacao, ee.id as e_id FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ?', [item.id, enderecoId || 0], (errS, rowS) => {
+                        if (!rowS && !enderecoId) {
+                            // Tenta pegar o 'Geral'
+                            db.get("SELECT id, tipo_notificacao FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
+                                if (rowG) efetuarBaixa(rowG.id, rowG.tipo_notificacao, null);
+                                else efetuarBaixa(null, null, null);
+                            });
+                        } else if (rowS) {
+                            efetuarBaixa(rowS.e_id, rowS.tipo_notificacao, rowS);
                         } else {
-                            console.error(`[ESTOQUE] Erro ao baixar item ${item.id}:`, errUpd.message);
-                        }
-
-                        // Alerta de estoque mínimo
-                        if (!errUpd && newQtd < item.quantidade_minima && item.quantidade_atual >= item.quantidade_minima) {
-                            const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
-                            const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
-
-                            // Buscar tipo de notificação dos endereços onde o item tem saldo
-        db.all(
-            `SELECT DISTINCT ee.tipo_notificacao FROM estoque_saldo_por_endereco s
-             JOIN estoque_enderecos ee ON s.endereco_id = ee.id
-             WHERE s.estoque_id = ? AND s.quantidade > 0 AND ee.tipo_notificacao != '' AND ee.tipo_notificacao IS NOT NULL`,
-            [item.id], (errT, tiposRows) => {
-                const tiposSet = new Set((tiposRows || []).map(r => r.tipo_notificacao));
-                const tiposNotif = tiposSet.size > 0 ? Array.from(tiposSet) : ['compra']; // fallback: compra
-                tiposNotif.forEach(tipoNotif => {
-                    const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
-                    const subjectPrefix = tipoNotif === 'reposicao' ? 'Mínimo para Reposição Atingido' : 'Estoque Mínimo Atingido';
-                    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = ?`, [dbTipo], (errCR, rowsCR) => {
-                        if (!errCR && rowsCR && rowsCR.length > 0) {
-                            rowsCR.forEach(c => {
-                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
-                            });
-                            const qIds = rowsCR.map(r => r.usuario_id).join(',');
-                            db.all(`
-                                        SELECT u.email as user_email, c.email_corporativo as colab_email
-                                        FROM usuarios u
-                                        LEFT JOIN colaboradores c ON u.nome = c.nome_completo
-                                        WHERE u.id IN (${qIds})
-                                    `, [], (errU, users) => {
-                                        if (!errU && users && users.length > 0) {
-                                            const emailsArray = users.map(u => u.colab_email || u.user_email).filter(e => e && e.trim() !== '');
-                                            if (emailsArray.length > 0) {
-                                                const emails = [...new Set(emailsArray)].join(',');
-                                                const _logoPath8 = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-
-                                                // IIFE async para permitir await ao baixar a foto do R2
-                                                (async () => {
-                                                    let fotoHtml = '';
-                                                    let fotoAttachment = null;
-
-                                                    // Tenta embutir a foto como CID inline para evitar bloqueio do Outlook
-                                                    if (item.foto_url && item.foto_url.startsWith('http')) {
-                                                        try {
-                                                            const https = require('https');
-                                                            const http = require('http');
-                                                            const fotoBuffer = await new Promise((resolve, reject) => {
-                                                                const mod = item.foto_url.startsWith('https') ? https : http;
-                                                                mod.get(item.foto_url, (resp) => {
-                                                                    const chunks = [];
-                                                                    resp.on('data', c => chunks.push(c));
-                                                                    resp.on('end', () => resolve(Buffer.concat(chunks)));
-                                                                    resp.on('error', reject);
-                                                                }).on('error', reject);
-                                                            });
-                                                            const contentType = item.foto_url.endsWith('.png') ? 'image/png' : (item.foto_url.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
-                                                            const fotoExt = contentType.split('/')[1].replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + fotoExt, content: fotoBuffer, contentType, cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        } catch(eFoto) {
-                                                            console.warn('[ESTOQUE] Não foi poss??vel baixar foto do R2 para CID:', eFoto.message);
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
-                                                        const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                                                        if (_fm) {
-                                                            const _fext = (_fm[1].split('/')[1] || 'jpg').replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + _fext, content: Buffer.from(_fm[2], 'base64'), cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    }
-
-                                                    const mailOptions = {
-                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                                                        to: emails,
-                                                        subject: 'ALERTA DE ESTOQUE M??NIMO - America Rental',
-                                                        html: `
-                                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                                <div style="text-align: center; margin-bottom: 20px;">
-                                                                    <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
-                                                                </div>
-                                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque M??nimo</h2>
-                                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                                ${fotoHtml}
-                                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
-                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade M??nima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Máxima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_maxima || '-'}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">A Adquirir</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #16a34a; font-weight: bold;">${item.quantidade_maxima ? Math.max(0, item.quantidade_maxima - newQtd) : '-'}</td></tr>
-                                                                </table>
-                                                                <p>Por favor, providencie a reposi????o o mais breve poss??vel.</p>
-                                                            </div>
-                                                        `,
-                                                        attachments: [
-                                                            { filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' },
-                                                            ...(fotoAttachment ? [fotoAttachment] : [])
-                                                        ]
-                                                    };
-                                                    sendMailHelper(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
-                                                })().catch(e => console.error('[ESTOQUE] Erro async ao montar email:', e));
-                                            }
-
-                                        }
-                                    });
-                                }
-                            });
-                });
-            }
-        );
+                            efetuarBaixa(enderecoId, null, null);
                         }
                     });
+                    
+                    function efetuarBaixa(finalEnderecoId, tipoNotificacao, rowS) {
+                        const oldSaldo = rowS ? rowS.quantidade : 0;
+                        const minSaldo = rowS ? (rowS.quantidade_minima || item.quantidade_minima || 0) : (item.quantidade_minima || 0);
+                        
+                        db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
+                            if (!errUpd) {
+                                if (finalEnderecoId) {
+                                    db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?', [count, item.id, finalEnderecoId], () => {
+                                        const newSaldo = Math.max(0, oldSaldo - count);
+                                        verificarENotificarEstoqueMinimoPorEndereco(item.id, item.nome, item.departamento, finalEnderecoId, oldSaldo, newSaldo, minSaldo, tipoNotificacao, item.foto_url, item.foto_base64);
+                                    });
+                                }
+                                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [item.id, count, 'Saida', 'Sistema', 'Baixa prontuário Colaborador', finalEnderecoId, enderecoNome], () => {});
+                            }
+                        });
+                    }
                 }
-
+                
                 // Carregar todo o estoque para a memória
                 db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
                     if (errEstoque || !todosItens) return;
@@ -20786,23 +20736,21 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
         db.run('UPDATE estoque SET quantidade_atual = quantidade_atual - ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [qtd, id], (errU) => {
             if (errU) return res.status(500).json({ error: errU.message });
 
-            // Debita do endereço se informado
             if (endereco_id) {
-                db.run(
-                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                    [qtd, id, endereco_id], () => {}
-                );
+                db.get('SELECT s.quantidade, s.quantidade_minima, ee.tipo_notificacao, ee.nome as e_nome FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ?', [id, endereco_id], (errS, rowS) => {
+                    if (rowS) {
+                        const oldSaldo = rowS.quantidade;
+                        const minSaldo = rowS.quantidade_minima || item.quantidade_minima || 0;
+                        db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?', [qtd, id, endereco_id], () => {
+                            const newSaldo = Math.max(0, oldSaldo - qtd);
+                            notificarEstoqueMinimo(db, item.id, item.nome, item.departamento, endereco_id, oldSaldo, newSaldo, minSaldo, rowS.tipo_notificacao);
+                        });
+                        db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', endereco_id, rowS.e_nome], () => {});
+                    }
+                });
+            } else {
+                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', null, null], () => {});
             }
-
-            // Grava histórico
-            db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id || null], (errE, rowE) => {
-                const endNome = rowE ? rowE.nome : null;
-                db.run(
-                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', endereco_id || null, endNome],
-                    () => {}
-                );
-            });
 
             res.json({ success: true });
         });

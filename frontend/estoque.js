@@ -194,9 +194,9 @@ window.renderEstoqueTable = async function() {
                     const hasMax = s.quantidade_maxima > 0;
                     if (hasMin || hasMax) {
                         let parts = [];
-                        if (hasMin) parts.push('<span style="color:#64748b;font-size:0.8rem;">min ' + s.quantidade_minima + '</span>');
-                        if (hasMax) parts.push('<span style="color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>');
-                        minMaxCell = parts.join('<span style="color:#cbd5e1;margin:0 6px;">|</span>');
+                        if (hasMin) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">min ' + s.quantidade_minima + '</span>');
+                        if (hasMax) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>');
+                        minMaxCell = '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">' + parts.join('<span style="color:#cbd5e1;">|</span>') + '</div>';
                     } else {
                         minMaxCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                     }
@@ -242,7 +242,7 @@ window.renderEstoqueTable = async function() {
                 // Qtd. Atual
                 rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
                 // Min/Máx
-                rows += '<td style="vertical-align:middle;">' + minMaxCell + '</td>';
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
                 // Endereço
                 rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
                 // Tipo
@@ -1090,7 +1090,7 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
             html += `
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">
                     <input type="checkbox" class="estoque-placa-chk" value="${v.placa}" ${chk} onchange="window.verificarTodasPlacasEstoque()">
-                    <span>${v.placa} ${v.modelo ? ' - '+v.modelo : ''}</span>
+                    <span>${v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : ''}${v.placa}</span>
                 </label>
             `;
         });

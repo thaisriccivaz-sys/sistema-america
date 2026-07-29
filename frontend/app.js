@@ -958,7 +958,7 @@ const TAB_META = {
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     'logistica-itinerantes': { color: '#2d9e5f', icon: 'ph-map-pin-line', title: 'Clientes Itinerantes' },
     'logistica-agenda': { color: '#2d9e5f', icon: 'ph-calendar-check', title: 'Agenda' },
-    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Entrega de EPI' },
+    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Logística > Entrega de EPI' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
