@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -26056,6 +26056,27 @@ db.all("PRAGMA table_info(computadores)", (err, rows) => {
         if (!hasEmail) {
             db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT", (err) => {});
         }
+        const hasProcessador = rows.some(r => r.name === 'processador');
+        if (!hasProcessador) {
+            db.run("ALTER TABLE computadores ADD COLUMN processador TEXT", (err) => {});
+        }
+        const hasCarregador = rows.some(r => r.name === 'carregador_patrimonio');
+        if (!hasCarregador) {
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_patrimonio TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_tensao TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_corrente TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_potencia TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_conector TEXT", (err) => {});
+        }
+        const hasComentarios = rows.some(r => r.name === 'comentarios');
+        if (!hasComentarios) {
+            db.run("ALTER TABLE computadores ADD COLUMN comentarios TEXT", (err) => {});
+        }
+        const hasFotoCarregador = rows.some(r => r.name === 'carregador_foto_url');
+        if (!hasFotoCarregador) {
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_foto_url TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_foto_r2_key TEXT", (err) => {});
+        }
     }
 });
 
@@ -26078,7 +26099,7 @@ db.all(`SELECT id, colaborador_id, colaborador_livre, status, data_atribuicao, o
                 let stmt = db.prepare(`INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
                 rows.forEach(r => {
                     let acao = "Cadastro Inicial";
-                    if (r.colaborador_id || r.colaborador_livre) acao = "Atribu??do";
+                    if (r.colaborador_id || r.colaborador_livre) acao = "Atribuído";
                     stmt.run(r.id, r.colaborador_id, r.colaborador_livre, acao, r.observacoes || r.status, r.created_at || new Date().toISOString());
                 });
                 stmt.finalize();
@@ -26134,16 +26155,66 @@ app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
-// ?????? POST: criar computador ??????
+// ♥♥♥♥♥ PATCH: adicionar comentário ao computador ♥♥♥♥♥
+app.patch('/api/computadores/:id/comentario', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto || !String(texto).trim()) return res.status(400).json({ error: 'Texto do comentário obrigatório.' });
+    const nomeUsuario = req.user.nome || req.user.username || req.user.email || 'Usuário';
+    db.get(`SELECT comentarios FROM computadores WHERE id=?`, [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Computador não encontrado.' });
+        let comentarios = [];
+        try { comentarios = JSON.parse(row.comentarios || '[]'); } catch(_) { comentarios = []; }
+        comentarios.push({
+            id: Date.now(),
+            texto: String(texto).trim(),
+            usuario_nome: nomeUsuario,
+            criado_em: new Date().toISOString()
+        });
+        db.run(`UPDATE computadores SET comentarios=? WHERE id=?`, [JSON.stringify(comentarios), req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ok: true, comentarios });
+        });
+    });
+});
+
+// ♥♥♥♥♥ POST: upload foto do carregador para R2 ♥♥♥♥♥
+const multerCarregador = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/computadores/:id/foto-carregador', authenticateToken, multerCarregador.single('foto'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma foto enviada.' });
+    if (!r2) return res.status(500).json({ error: 'Armazenamento R2 não configurado.' });
+    const id = req.params.id;
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get(`SELECT carregador_foto_r2_key FROM computadores WHERE id=?`, [id], (e, rv) => e ? reject(e) : resolve(rv));
+        });
+        if (row && row.carregador_foto_r2_key) {
+            try { await r2.deleteFromR2(row.carregador_foto_r2_key); } catch(_) {}
+        }
+        const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+        const key = `computadores/carregadores/${id}_${Date.now()}.${ext}`;
+        const url = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+        db.run(`UPDATE computadores SET carregador_foto_url=?, carregador_foto_r2_key=? WHERE id=?`, [url, key, id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, url });
+        });
+    } catch(e) {
+        console.error('[Carregador Foto]', e);
+        res.status(500).json({ error: 'Erro ao fazer upload: ' + e.message });
+    }
+});
+
+// ♥♥♥♥♥ POST: criar computador ♥♥♥♥♥
 app.post('/api/computadores', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes,
+            processador, ram_1, ram_2, ssd, expansivel, email_vinculado,
+            carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector } = req.body;
     if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
     if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
 
     db.run(
-        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null],
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, email_vinculado, carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio||null, numero_serie||null, colaborador_id||null, colaborador_livre||null, status||'Reserva', data_atribuicao||null, senha_windows||null, observacoes||null, processador||null, ram_1||null, ram_2||null, ssd||null, expansivel?1:0, email_vinculado||null, carregador_patrimonio||null, carregador_tensao||null, carregador_corrente||null, carregador_potencia||null, carregador_conector||null],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             
@@ -26183,12 +26254,12 @@ app.patch('/api/computadores/:id/devolver', authenticateToken, (req, res) => {
 });
 
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao, carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector } = req.body;
     db.get(`SELECT colaborador_id, colaborador_livre, status FROM computadores WHERE id=?`, [req.params.id], (errOld, rowOld) => {
         db.run(
-            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
+            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, processador=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, carregador_patrimonio=?, carregador_tensao=?, carregador_corrente=?, carregador_potencia=?, carregador_conector=?, updated_at=datetime('now','-3 hours')
              WHERE id=?`,
-            [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
+            [tipo, modelo, patrimonio||null, numero_serie||null, colaborador_id||null, colaborador_livre||null, status||'Reserva', data_atribuicao||null, senha_windows||null, observacoes||null, processador||null, ram_1||null, ram_2||null, ssd||null, expansivel?1:0, email_vinculado||null, carregador_patrimonio||null, carregador_tensao||null, carregador_corrente||null, carregador_potencia||null, carregador_conector||null, req.params.id],
             function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 

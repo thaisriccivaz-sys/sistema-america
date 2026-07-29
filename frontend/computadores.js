@@ -491,14 +491,13 @@
             '</tr></thead><tbody>' + rows + '</tbody></table></div>';
     }
 
-    /* ─── Modal Computador ─── */
+
     function renderModal() {
         var c = _editandoId ? (_computadores.find(function (x) { return x.id === _editandoId; }) || {}) : {};
         var isEdit = !!_editandoId;
 
         var colabOptions = '<option value="">— Nenhum / Sem vínculo —</option>' +
             _colaboradores.map(function (col) {
-                // Verifica se o colaborador já tem computador atribuído (bloqueia adicionar 2º)
                 var jaTemComp = _computadores.some(function(cp) {
                     return String(cp.colaborador_id) === String(col.id) && cp.id !== _editandoId;
                 });
@@ -508,17 +507,23 @@
                 return '<option value="' + col.id + '"' + sel + disabled + '>' + label + '</option>';
             }).join('');
 
-        return '<div id="modal-computador" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.55);z-index:3000;align-items:center;justify-content:center;padding:1rem;">' +
-            '<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">' +
-            '<div style="padding:1.5rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">' +
+        return '<div id="modal-computador" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);z-index:3000;align-items:flex-start;justify-content:center;overflow-y:auto;">' +
+            '<div style="background:#f8fafc;width:100%;min-height:100vh;display:flex;flex-direction:column;">' +
+            '<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.06);">' +
             '<div style="display:flex;align-items:center;gap:0.75rem;">' +
-            '<div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">' +
-            '<i class="ph ph-desktop" style="color:#fff;font-size:1.2rem;"></i></div>' +
-            '<h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">' + (isEdit ? 'Editar Computador' : 'Novo Computador') + '</h3></div>' +
-            '<button onclick="window.computadoresCloseModal()" style="background:transparent;border:none;font-size:1.5rem;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button></div>' +
-            '<form id="form-computador" onsubmit="event.preventDefault();window.computadoresSalvar();" style="padding:1.5rem;display:flex;flex-direction:column;gap:1.1rem;">' +
-            fldSelect('comp-tipo', 'Tipo *', ['Notebook', 'All-In-One'], c.tipo || 'Notebook') +
+            '<div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;">' +
+            '<i class="ph ph-desktop" style="color:#fff;font-size:1.3rem;"></i></div>' +
+            '<div><h2 style="margin:0;font-size:1.2rem;font-weight:700;color:#0f172a;">' + (isEdit ? 'Editar Computador' : 'Novo Computador') + '</h2>' +
+            (isEdit ? '<p style="margin:0;font-size:0.78rem;color:#64748b;">ID #' + _editandoId + ' · ' + (c.modelo || '') + '</p>' : '') +
+            '</div></div>' +
+            '<button onclick="window.computadoresCloseModal()" style="background:#f1f5f9;border:none;border-radius:8px;width:36px;height:36px;cursor:pointer;color:#64748b;font-size:1.3rem;display:flex;align-items:center;justify-content:center;">&times;</button>' +
+            '</div>' +
+            '<form id="form-computador" onsubmit="event.preventDefault();window.computadoresSalvar();" style="flex:1;padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">' +
+            '<div style="display:flex;flex-direction:column;gap:1rem;">' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
+            fldSelect('comp-tipo', 'Tipo *', ['Notebook', 'All-In-One'], c.tipo || 'Notebook', 'onchange="window.compTipoChange()"') +
             fldInput('comp-modelo', 'Modelo *', c.modelo || '', 'Ex: Dell Inspiron 15') +
+            '</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
             fldInput('comp-patrimonio', 'Patrimônio', c.patrimonio || '', 'Ex: 00123') +
             fldInput('comp-serie', 'Nº de Série', c.numero_serie || '', 'Ex: SN-ABC123') +
@@ -526,18 +531,30 @@
             '<div>' +
             '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Colaborador Vinculado <span style="font-size:0.7rem;color:#94a3b8;">(1 por colaborador)</span></label>' +
             '<select id="comp-colaborador" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' + colabOptions + '</select>' +
-            '<input id="comp-colaborador-livre" type="text" value="' + (c.colaborador_livre || '').replace(/"/g, '&quot;') + '" placeholder="Ou digite o nome de alguém sem vínculo..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;margin-top:0.5rem;">' +
+            '<input id="comp-colaborador-livre" type="text" value="' + (c.colaborador_livre || '').replace(/"/g, '&quot;') + '" placeholder="Ou digite o nome de alguém sem vínculo..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;margin-top:0.5rem;box-sizing:border-box;">' +
             '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
             fldSelect('comp-status', 'Status *', ['Em uso', 'Reserva', 'Manutenção', 'Devolvido', 'Inativo'], c.status || 'Em uso') +
             fldInput('comp-data', 'Data de Atribuição', c.data_atribuicao || '', '', 'date') +
+            '</div>' +
             '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;"><i class="ph ph-lock-key"></i> Senha Windows</label>' +
             '<div style="position:relative;">' +
             '<input id="comp-senha" type="password" value="' + (c.senha_windows || '').replace(/"/g, '&quot;') + '" placeholder="Senha do Windows" autocomplete="new-password" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 2.5rem 0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;box-sizing:border-box;">' +
             '<button type="button" onclick="var i=document.getElementById(\'comp-senha\');var ic=this.querySelector(\'i\');if(i.type===\'password\'){i.type=\'text\';ic.className=\'ph ph-eye-slash\';}else{i.type=\'password\';ic.className=\'ph ph-eye\';}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;font-size:1.1rem;padding:4px;">' +
             '<i class="ph ph-eye"></i></button></div></div>' +
-            '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">' +
-            '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;color:#0f172a;"><i class="ph ph-cpu" style="margin-right:5px;color:#6366f1;"></i>Especificações</h4>' +
-            fldInput('comp-processador', 'Processador', c.processador || '', 'Ex: Intel Core i5') +
+            '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Observações</label>' +
+            '<textarea id="comp-obs" rows="3" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Observações adicionais...">' + (c.observacoes || '') + '</textarea></div>' +
+            '<div style="display:flex;gap:0.75rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid #e2e8f0;">' +
+            '<button type="button" onclick="window.computadoresCloseModal()" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:0.6rem 1.2rem;cursor:pointer;font-size:0.88rem;color:#64748b;font-weight:600;">Cancelar</button>' +
+            '<button type="submit" id="btn-salvar-computador" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:0.6rem 1.5rem;cursor:pointer;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;">' +
+            '<i class="ph ph-floppy-disk"></i> ' + (isEdit ? 'Salvar Alterações' : 'Cadastrar') + '</button>' +
+            '</div>' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:1rem;">' +
+            '<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:1.25rem;">' +
+            '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;font-weight:700;color:#1e40af;display:flex;align-items:center;gap:6px;">' +
+            '<i class="ph ph-cpu" style="font-size:1.1rem;"></i>Especificações do Computador</h4>' +
+            fldInput('comp-processador', 'Processador', c.processador || '', 'Ex: Intel Core i5 12ª Geração') +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
             fldInput('comp-ram1', 'Memória RAM 1', c.ram_1 || '', 'Ex: 8GB DDR4') +
             fldInput('comp-ram2', 'Memória RAM 2 (Opcional)', c.ram_2 || '', 'Ex: 8GB DDR4') +
@@ -548,15 +565,80 @@
             '<select id="comp-expansivel" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
             '<option value="0"' + (!c.expansivel ? ' selected' : '') + '>Não / Desconhecido</option>' +
             '<option value="1"' + (c.expansivel ? ' selected' : '') + '>Sim</option>' +
-            '</select></div></div></div>' +
-            '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">Observações</label>' +
-            '<textarea id="comp-obs" rows="3" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Observações adicionais...">' + (c.observacoes || '') + '</textarea></div>' +
-            '<div style="display:flex;gap:0.75rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid #f1f5f9;">' +
-            '<button type="button" onclick="window.computadoresCloseModal()" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:0.55rem 1.1rem;cursor:pointer;font-size:0.88rem;color:#64748b;font-weight:600;">Cancelar</button>' +
-            '<button type="submit" id="btn-salvar-computador" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;padding:0.55rem 1.4rem;cursor:pointer;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:0.4rem;">' +
-            '<i class="ph ph-floppy-disk"></i> ' + (isEdit ? 'Salvar Alterações' : 'Cadastrar') + '</button></div>' +
-            '</form></div></div>';
+            '</select></div></div>' +  // close expansivel + grid
+            '</div>' +  // close seção especificações
+
+            // ── Seção Carregador (laranja) — apenas Notebooks ──
+            '<div id="secao-carregador" style="display:' + ((c.tipo || 'Notebook') === 'Notebook' ? 'block' : 'none') + ';background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:1.25rem;">' +
+            '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;font-weight:700;color:#c2410c;display:flex;align-items:center;gap:6px;">' +
+            '<i class="ph ph-plugs" style="font-size:1.1rem;"></i>Carregador do Notebook</h4>' +
+            '<div style="margin-bottom:1rem;">' +
+            '<label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:6px;"><i class="ph ph-camera" style="margin-right:4px;"></i>Foto do Carregador</label>' +
+            '<div id="carregador-foto-preview" style="' + (c.carregador_foto_url ? '' : 'display:none;') + 'margin-bottom:8px;">' +
+            '<img id="carregador-foto-img" src="' + (c.carregador_foto_url || '') + '" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid #fed7aa;object-fit:contain;" alt="Foto do carregador">' +
+            '<button type="button" onclick="window.compRemoverFotoCarregador()" style="display:block;margin-top:4px;background:none;border:none;color:#dc2626;cursor:pointer;font-size:0.8rem;"><i class="ph ph-trash"></i> Remover foto</button></div>' +
+            '<label id="comp-foto-label" style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px dashed #f97316;border-radius:8px;padding:0.75rem;cursor:pointer;color:#c2410c;font-size:0.85rem;font-weight:600;justify-content:center;">' +
+            '<i class="ph ph-upload-simple" style="font-size:1.2rem;"></i>' +
+            (c.carregador_foto_url ? 'Substituir foto' : 'Clique para adicionar foto') +
+            '<input type="file" id="comp-foto-carregador" accept="image/*" style="display:none;" onchange="window.compPreviewFotoCarregador(this)"></label>' +
+            '<div id="comp-foto-upload-status" style="margin-top:6px;font-size:0.78rem;color:#64748b;"></div></div>' +
+            fldInput('comp-carregador-patrimonio', 'Nº Patrimônio do Carregador', c.carregador_patrimonio || '', 'Ex: 00456') +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
+            fldInput('comp-carregador-tensao', 'Tensão de Saída (V)', c.carregador_tensao || '', 'Ex: 19.5V') +
+            fldInput('comp-carregador-corrente', 'Corrente (A)', c.carregador_corrente || '', 'Ex: 3.34A') +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">' +
+            fldInput('comp-carregador-potencia', 'Potência (W)', c.carregador_potencia || '', 'Ex: 65W') +
+            fldInput('comp-carregador-conector', 'Conector (Plug)', c.carregador_conector || '', 'Ex: USB-C / Barrel 4.5mm') +
+            '</div></div>' +
+
+            // ── Seção Comentários (só em edição) ──
+            (isEdit ?
+            '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:1.25rem;">' +
+            '<h4 style="margin:0 0 1rem 0;font-size:0.9rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:6px;">' +
+            '<i class="ph ph-chat-circle-text" style="font-size:1.1rem;color:#6366f1;"></i>Comentários</h4>' +
+            '<div style="display:flex;gap:0.5rem;align-items:flex-end;margin-bottom:1rem;">' +
+            '<textarea id="comp-novo-comentario" rows="2" placeholder="Adicionar um comentário..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.75rem;font-size:0.85rem;resize:vertical;outline:none;box-sizing:border-box;"></textarea>' +
+            '<button type="button" onclick="window.computadoresAdicionarComentario(' + _editandoId + ')" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:0.55rem 0.9rem;cursor:pointer;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:4px;min-width:80px;justify-content:center;">' +
+            '<i class="ph ph-paper-plane-tilt"></i> Enviar</button></div>' +
+            '<div id="comp-comentarios-lista" style="display:flex;flex-direction:column;gap:0.75rem;max-height:300px;overflow-y:auto;">' +
+            renderComentariosComp(c.comentarios) +
+            '</div></div>'
+            :
+            '<div style="background:#fff;border:1.5px dashed #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center;color:#94a3b8;">' +
+            '<i class="ph ph-chat-circle" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>' +
+            '<p style="margin:0;font-size:0.85rem;">Comentários disponíveis após cadastrar o computador</p></div>'
+            ) +
+
+            '</div>' + // fim coluna direita
+            '</form>' +
+            '</div>' +  // fim modal body
+            '</div>'; // fim modal backdrop
     }
+
+    function renderComentariosComp(comentariosJson) {
+        var comentarios = [];
+        try { comentarios = JSON.parse(comentariosJson || '[]'); } catch(_) {}
+        if (!comentarios.length) {
+            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-size:0.85rem;font-style:italic;">Nenhum comentário ainda.</div>';
+        }
+        return comentarios.slice().reverse().map(function(cm) {
+            var dt = '';
+            try {
+                var d = new Date(cm.criado_em);
+                dt = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            } catch(_) {}
+            return '<div style="background:#f8fafc;border-radius:8px;padding:0.75rem;border-left:3px solid #6366f1;">' +
+                '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">' +
+                '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;">' +
+                (cm.usuario_nome ? cm.usuario_nome.charAt(0).toUpperCase() : 'U') + '</div>' +
+                '<div><span style="font-size:0.8rem;font-weight:700;color:#0f172a;">' + (cm.usuario_nome || 'Usuário') + '</span>' +
+                '<span style="font-size:0.75rem;color:#94a3b8;margin-left:8px;">' + dt + '</span></div></div>' +
+                '<p style="margin:0;font-size:0.85rem;color:#334155;line-height:1.5;">' + (cm.texto || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' +
+                '</div>';
+        }).join('');
+    }
+
 
     /* ─── Modais E-mail ─── */
     function renderModalEmail() {
@@ -662,9 +744,10 @@
         return '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">' + label + '</label>' +
             '<input id="' + id + '" type="' + type + '" value="' + String(value).replace(/"/g, '&quot;') + '" placeholder="' + (placeholder || '') + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;box-sizing:border-box;"></div>';
     }
-    function fldSelect(id, label, opts, selected) {
+    function fldSelect(id, label, opts, selected, extras) {
+        extras = extras || '';
         return '<div><label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:4px;">' + label + '</label>' +
-            '<select id="' + id + '" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
+            '<select id="' + id + '" ' + extras + ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.5rem 0.7rem;font-size:0.88rem;outline:none;background:#fff;">' +
             opts.map(function (o) { return '<option value="' + o + '"' + (o === selected ? ' selected' : '') + '>' + o + '</option>'; }).join('') +
             '</select></div>';
     }
@@ -741,6 +824,12 @@
         var ram_2 = (document.getElementById('comp-ram2') || {}).value || '';
         var ssd = (document.getElementById('comp-ssd') || {}).value || '';
         var expansivel = parseInt((document.getElementById('comp-expansivel') || {}).value || 0, 10);
+        // Campos do carregador
+        var carregador_patrimonio = (document.getElementById('comp-carregador-patrimonio') || {}).value || '';
+        var carregador_tensao = (document.getElementById('comp-carregador-tensao') || {}).value || '';
+        var carregador_corrente = (document.getElementById('comp-carregador-corrente') || {}).value || '';
+        var carregador_potencia = (document.getElementById('comp-carregador-potencia') || {}).value || '';
+        var carregador_conector = (document.getElementById('comp-carregador-conector') || {}).value || '';
 
         if (!tipo) return alert('Selecione o tipo do computador.');
         if (!modelo) return alert('Informe o modelo do computador.');
@@ -753,13 +842,33 @@
             if (jaTemOutro) return alert('Este colaborador já possui um computador atribuído. Cada colaborador pode ter apenas 1 computador.');
         }
 
-        var payload = { tipo, modelo, patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel };
+        var payload = { tipo, modelo, patrimonio, numero_serie, colaborador_id: colaborador_id || null, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector };
         var btn = document.getElementById('btn-salvar-computador');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
 
         try {
-            if (_editandoId) await _apiPut('/computadores/' + _editandoId, payload);
-            else await _apiPost('/computadores', payload);
+            var savedComp;
+            if (_editandoId) { savedComp = await _apiPut('/computadores/' + _editandoId, payload); }
+            else { savedComp = await _apiPost('/computadores', payload); }
+
+            // Se há foto pendente para upload e sabemos o ID, faz o upload agora
+            var fotoPendente = window._compFotoPendente;
+            if (fotoPendente) {
+                var compId = _editandoId || (savedComp && savedComp.id);
+                if (compId) {
+                    var fd = new FormData();
+                    fd.append('foto', fotoPendente);
+                    try {
+                        await fetch(_baseUrl() + '/computadores/' + compId + '/foto-carregador', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + _tok() },
+                            body: fd
+                        });
+                    } catch(fotoErr) { console.error('[Foto Carregador] Erro no upload:', fotoErr); }
+                    window._compFotoPendente = null;
+                }
+            }
+
             window.computadoresCloseModal();
             await loadAll();
         } catch (e) {
@@ -767,6 +876,71 @@
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
         }
     };
+
+    // ── Mudar tipo exibe/oculta seção carregador ──
+    window.compTipoChange = function () {
+        var tipo = (document.getElementById('comp-tipo') || {}).value || 'Notebook';
+        var sec = document.getElementById('secao-carregador');
+        if (sec) sec.style.display = tipo === 'Notebook' ? 'block' : 'none';
+    };
+
+    // ── Preview da foto do carregador ──
+    window.compPreviewFotoCarregador = function (input) {
+        if (!input.files || !input.files[0]) return;
+        var file = input.files[0];
+        window._compFotoPendente = file;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var preview = document.getElementById('carregador-foto-preview');
+            var img = document.getElementById('carregador-foto-img');
+            var status = document.getElementById('comp-foto-upload-status');
+            if (img) img.src = e.target.result;
+            if (preview) preview.style.display = 'block';
+            if (status) status.innerHTML = '<span style="color:#d97706;"><i class="ph ph-warning"></i> Foto selecionada. Salve o formulário para confirmar o upload.</span>';
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // ── Remover foto do carregador ──
+    window.compRemoverFotoCarregador = function () {
+        window._compFotoPendente = null;
+        var preview = document.getElementById('carregador-foto-preview');
+        var img = document.getElementById('carregador-foto-img');
+        var status = document.getElementById('comp-foto-upload-status');
+        if (img) img.src = '';
+        if (preview) preview.style.display = 'none';
+        if (status) status.innerHTML = '';
+    };
+
+    // ── Adicionar comentário a um computador ──
+    window.computadoresAdicionarComentario = async function (id) {
+        var textarea = document.getElementById('comp-novo-comentario');
+        var texto = textarea ? textarea.value.trim() : '';
+        if (!texto) { alert('Digite um comentário antes de enviar.'); return; }
+        var btn = document.querySelector('[onclick*="computadoresAdicionarComentario"]');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>'; }
+        try {
+            var resp = await fetch(_baseUrl() + '/computadores/' + id + '/comentario', {
+                method: 'PATCH',
+                headers: { 'Authorization': 'Bearer ' + _tok(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ texto: texto })
+            });
+            if (!resp.ok) { var d = await resp.json().catch(function(){return{};}); throw new Error(d.error || resp.status); }
+            var data = await resp.json();
+            if (textarea) textarea.value = '';
+            // Atualiza o estado local
+            var comp = _computadores.find(function(x){ return x.id === id; });
+            if (comp) comp.comentarios = JSON.stringify(data.comentarios);
+            // Atualiza a lista renderizada
+            var lista = document.getElementById('comp-comentarios-lista');
+            if (lista) lista.innerHTML = renderComentariosComp(JSON.stringify(data.comentarios));
+        } catch(e) {
+            alert('Erro ao adicionar comentário: ' + (e.message || e));
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Enviar'; }
+        }
+    };
+
 
     window.computadoresExcluir = async function (id, nome) {
         if (!confirm('Excluir o computador "' + nome + '"? Esta ação não pode ser desfeita.')) return;

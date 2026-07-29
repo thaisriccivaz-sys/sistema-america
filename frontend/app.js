@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -5210,7 +5210,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
 
     // Seção de assinaturas (agora exibida para ocorrências também)
     const assinaturasHtml = `
-        <div style="margin-top:40px;">
+        <div style="margin-top:20px;">
             <div style="display:flex; gap:40px; justify-content:center;">
                 <div style="flex:1; text-align:center; max-width:220px;">
                     <div style="border-top:1px solid #111; padding-top:6px; font-size:11px;">
@@ -5225,7 +5225,7 @@ function buildAdvertenciaTemplate(data, logoSrc) {
                     </div>
                 </div>
             </div>
-            <div style="margin-top:40px; text-align:center;">
+            <div style="margin-top:24px; text-align:center;">
                 <div style="display:inline-block; width:260px; border-top:1px solid #111; padding-top:6px; font-size:11px; text-align:center;">
                     <div>Nome do Colaborador: ${data.colaborador.NOME_COMPLETO}</div>
                     <div>CPF: ${data.colaborador.CPF}</div>
@@ -5270,8 +5270,8 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
-            <div style="height:350px;"></div>
+            <!-- ASSINATURAS -->
+            ${assinaturasHtml}
         </div>
     </div>`;
 }
@@ -14638,10 +14638,17 @@ window.salvarAssinaturasTestemunhas = async function () {
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
 
         const pages = pdfDoc.getPages();
-        // Usa SEMPRE a última página para as assinaturas das testemunhas
-        const sigPage = pages[pages.length - 1];
-        const { width: pageWidth, height: pageHeight } = sigPage.getSize();
+        // Captura dimensões da última página do documento
+        const refPage = pages[pages.length - 1];
+        const { width: pageWidth, height: pageHeight } = refPage.getSize();
         const innerWidth = (pageWidth - 112) / 2 - 20;
+
+        // ── Adiciona UMA NOVA PÁGINA dedicada às assinaturas ──
+        // Isso garante que as assinaturas nunca sobreponham o texto,
+        // independente do tamanho do documento.
+        const sigPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        // Marca o PDF para que a etapa do colaborador saiba que há página dedicada
+        try { pdfDoc.setKeywords(['ASSINATURAS_SEPARADAS']); } catch(_) {}
 
         // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
@@ -14660,11 +14667,10 @@ window.salvarAssinaturasTestemunhas = async function () {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // ── Posicionamento ancorado no RODAPÉ da última página ──
-        // TESTEMUNHAS ficam na faixa de ~150 a ~270pt do rodapé
-        // (abaixo delas ficará o bloco do Colaborador, em ~30 a ~130pt)
+        // ── Posicionamento na nova página de assinaturas ──
+        // As testemunhas ficam no terço superior da página dedicada.
         const tImgH    = 55;  // altura da imagem de assinatura
-        const bottomMargin = 160; // margem do rodapé para o bloco das testemunhas
+        const bottomMargin = 520; // posição Y (do rodapé) para bloco das testemunhas
         const t1CpfY   = bottomMargin;
         const t1NameY  = t1CpfY  + 14;
         const t1LineY  = t1NameY + 14;
@@ -14980,20 +14986,27 @@ window.salvarAssinaturaColaborador = async function () {
         }
 
         // --- COLABORADOR ---
-        // Testemunhas ocupam a faixa 160-260pt do rodapé.
-        // Colaborador fica na faixa 30-130pt do rodapé, sem sobreposição.
+        // Detecta se o PDF foi assinado no novo formato (página dedicada para assinaturas)
+        // No novo formato, testemunhas estão na faixa 520-630pt do rodapé da nova página.
+        // No formato antigo, testemunhas estão em 160-260pt do rodapé da última página.
+        let pdfKeywords = '';
+        try { pdfKeywords = pdfDoc.getKeywords() || ''; } catch(_) {}
+        const hasSignaturePage = pdfKeywords.includes('ASSINATURAS_SEPARADAS');
+
         const isAdvertenciaOuSuspensao = (doc.document_type && (doc.document_type.includes('Advertência') || doc.document_type.includes('Suspensão'))) || doc.tab_name === 'Advertências';
 
         let cImgH = 55;
         let cWidth = 280;
         let cX = (pgW - cWidth) / 2;
 
-        if (isAdvertenciaOuSuspensao && _epiSelfieBase64) {
+        if ((isAdvertenciaOuSuspensao || hasSignaturePage) && _epiSelfieBase64) {
             cWidth = 240;
             cX = 50; // Alinhado à esquerda
         }
 
-        const cCpfY   = 30;
+        // No novo formato: colaborador fica abaixo das testemunhas na página dedicada (~300pt do rodapé)
+        // No formato antigo: colaborador fica em 30pt do rodapé (imediatamente acima do rodapé)
+        const cCpfY   = hasSignaturePage ? 300 : 30;
         const cNameY  = cCpfY  + 14;
         const cLineY  = cNameY + 14;
         const cImgY   = cLineY + 6;
