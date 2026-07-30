@@ -297,7 +297,7 @@
                 </div>
             </td>
             <td style="padding:0.85rem 1rem;color:#475569;font-size:0.85rem;white-space:nowrap;">${anexos.length} arquivo${anexos.length !== 1 ? 's' : ''}</td>
-            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;" class="col-validade-trein"${(window._currentTreinamentoTipo === 'terapia') ? ' style="display:none"' : ''}>
+            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;${(window._currentTreinamentoTipo === 'terapia') ? 'display:none;' : ''}">
                 ${t.validade_dias && t.validade_dias > 0
                     ? `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 8px;font-size:0.78rem;font-weight:600;">⏰ ${t.validade_dias} meses</span>`
                     : `<span style="background:#f1f5f9;color:#94a3b8;border-radius:8px;padding:3px 8px;font-size:0.78rem;">Sem validade</span>`}
