@@ -7908,7 +7908,12 @@ app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
 app.get('/api/cargos/:id/anexos', authenticateToken, (req, res) => {
     db.all("SELECT * FROM cargo_anexos WHERE cargo_id = ? ORDER BY data_upload DESC", [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-844cb15b9c244c4fa56930ef899cfbc8.r2.dev';
+        const mapped = rows.map(r => ({
+            ...r,
+            url: r.r2_key.startsWith('http') ? r.r2_key : `${R2_PUBLIC_URL}/${r.r2_key}`
+        }));
+        res.json(mapped);
     });
 });
 
@@ -7924,7 +7929,11 @@ app.post('/api/cargos/:id/anexos', authenticateToken, multerUploadMemoria.single
             return res.status(400).json({ error: 'Apenas arquivos Word (.doc, .docx) são permitidos.' });
         }
 
-        const r2Key = `cargos/${cargoId}/anexos/${Date.now()}_${originalName}`;
+        // Corrige problemas de encoding limpando o nome do arquivo
+        const cleanName = Buffer.from(originalName, 'latin1').toString('utf8');
+        const safeName = cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.\-_]/g, "_");
+
+        const r2Key = `cargos/${cargoId}/anexos/${Date.now()}_${safeName}`;
         let publicUrl = '';
         if (typeof r2 !== 'undefined' && r2.isReady()) {
             publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
