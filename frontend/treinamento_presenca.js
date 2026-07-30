@@ -114,7 +114,7 @@
             const ativos = res.filter(t => (t.status || '').toLowerCase() !== 'arquivado');
             
             sel.innerHTML = '<option value="">Todos</option>' +
-                ativos.map(t => `<option value="${t.id}">${t.titulo}</option>`).join('');
+                ativos.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
         } catch (e) {
             console.error('[PRESENÇA]', e);
         }

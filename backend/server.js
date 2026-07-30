@@ -21999,6 +21999,7 @@ cargo: c.cargo,
 status: c.status,
 foto_path: c.foto_path,
             foto_base64: c.foto_base64,
+            tipo_contratacao: c.tipo_contratacao,
             treinamentos: treinamentosComStatus,
             total: treinamentosComStatus.length,
             concluidos: treinamentosComStatus.filter(t => t.concluido).length
