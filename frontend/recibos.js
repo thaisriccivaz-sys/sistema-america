@@ -15,6 +15,38 @@ let _recibosSortAsc     = true;
 // ─── Calendário de Feriados ───────────────────────────────────────────────────
 let _feriadosBrasil = {};
 
+// ─── Helper: Verifica se colaborador Intermitente tem valor TOTAL = R$ 0,00 ──────
+// Retorna true quando é Intermitente E todos os recibos (VR + VC/VT) somam zero.
+function _isIntermitenteZerado(c, s) {
+    if ((c.tipo_contrato || '').toLowerCase().indexOf('intermitente') === -1) return false;
+    const valorVR   = window._recibosValorVR || 35.00;
+    const dtrab     = (s && s.diasTrabalhados) || 0;
+    const dVR       = (s && s.diasVR != null && s.diasVR > 0) ? s.diasVR : dtrab;
+    const dExtra    = (s && s.diasExtra) || 0;
+    const folgas    = (s && s.folgasVR) || 0;
+    const faltas    = (s && s.faltasVR) || 0;
+    // VR
+    const diasBruto = (window._recibos_diasBruto && window._recibos_diasBruto > 0) ? window._recibos_diasBruto : dVR;
+    const brutoVR   = diasBruto * valorVR + dExtra * valorVR;
+    const descVR    = (folgas + faltas) * valorVR;
+    let totalVR     = Math.max(0, brutoVR - descVR);
+    if (s && s.valVREdit != null) totalVR = parseFloat(s.valVREdit);
+    // VC / VT
+    const mTransp   = (c.meio_transporte || '').toLowerCase();
+    let   valTransp = parseFloat(c.valor_transporte) || 0;
+    let   totalVCVT = 0;
+    if (_isVT(mTransp)) {
+        const vt = valTransp * 2;
+        const diasVT = Math.max(0, 30 - ((s && s.folgasVT) || 0) - ((s && s.faltasVT) || 0));
+        totalVCVT = s && s.valVTEdit != null ? parseFloat(s.valVTEdit) : diasVT * vt;
+    } else if (_isVC(mTransp)) {
+        const diariaVC = valTransp / 30;
+        const faltasVC = (s && s.faltasVT) || 0;
+        totalVCVT = s && s.valVTEdit != null ? parseFloat(s.valVTEdit) : Math.max(0, valTransp - faltasVC * diariaVC);
+    }
+    return (totalVR + totalVCVT) === 0;
+}
+
 /**
  * Busca feriados do ano e retorna a lista de datas ('YYYY-MM-DD').
  */
@@ -655,6 +687,8 @@ function _filtrarERendar() {
     const anoAt = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
 
     _recibosFiltrados = _recibosAllColabs.filter(c => {
+        // Ocultar colaboradores Intermitentes da listagem de recibos
+        if ((c.tipo_contrato || '').toLowerCase().indexOf('intermitente') !== -1) return false;
         const nomeC = _recNome(c).toLowerCase();
         if (nome   && !nomeC.includes(nome))               return false;
         if (dept   && c.departamento !== dept)             return false;
@@ -1971,8 +2005,21 @@ window.gerarRecibosEmMassa = async function () {
     const btnAnexar = document.getElementById('btn-anexar-massa');
     if (btnAnexar) btnAnexar.style.display = 'flex'; // Exibe o botão de anexar
 
+    // Filtrar intermitentes com valor total zero — eles não recebem recibos
+    const selsValidos = sels.filter(c => {
+        if (_isIntermitenteZerado(c, _recibosSelecoes[c.id])) {
+            console.info(`[Recibos] Intermitente ${_recNome(c)} ignorado — valor R$ 0,00.`);
+            return false;
+        }
+        return true;
+    });
+    if (!selsValidos.length) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Todos os colaboradores selecionados são intermitentes com valor R$ 0,00 e não receberão recibos.', 'info');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-printer"></i> Gerar Recibos Selecionados'; }
+        return;
+    }
     let corpo = '';
-    sels.forEach((c, idx) => {
+    selsValidos.forEach((c, idx) => {
         if (idx > 0) corpo += '<div class="pb"></div>';
         const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, folgas: 0, diasExtra: 0 };
         const m = (c.meio_transporte||'').toLowerCase();
@@ -1997,7 +2044,7 @@ window.gerarRecibosEmMassa = async function () {
 </style>
 </head><body>
 <div class="bar" style="background:#1e3a5f;color:#fff;padding:10px 24px;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:999;flex-wrap:wrap;">
-  <span style="font-weight:700;font-size:.95rem;">Recibos de Benefícios — ${mesNome}/${ano} · ${sels.length} colaborador${sels.length>1?'es':''}</span>
+  <span style="font-weight:700;font-size:.95rem;">Recibos de Benefícios — ${mesNome}/${ano} · ${selsValidos.length} colaborador${selsValidos.length>1?'es':''}</span>
   <button onclick="window.print()" style="background:#fff;color:#1e3a5f;border:none;padding:8px 24px;border-radius:6px;font-weight:700;cursor:pointer;font-size:.93rem;">🖨 Imprimir / Salvar PDF</button>
 </div>
 ${corpo}
@@ -2009,7 +2056,7 @@ ${corpo}
     win.document.close();
 
     // ── Registrar log de geração de recibos ──────────────────────────────
-    _recLog_registrar('recibos', mes, ano, sels.map(c => _recNome(c)));
+    _recLog_registrar('recibos', mes, ano, selsValidos.map(c => _recNome(c)));
     _recLog_renderizarPainel();
 };
 
@@ -2175,15 +2222,23 @@ window.anexarRecibosDocsMassa = async function () {
         pdfIframe.style.cssText = 'position:fixed;left:0;top:0;width:794px;height:1px;border:none;visibility:hidden;pointer-events:none;z-index:-1;';
         document.body.appendChild(pdfIframe);
 
-        for (let idx = 0; idx < sels.length; idx++) {
-            const c = sels[idx];
+        // Filtrar intermitentes com valor total zero antes de gerar PDFs
+        const selsParaAnexar = sels.filter(c => {
+            if (_isIntermitenteZerado(c, _recibosSelecoes[c.id])) {
+                console.info(`[AnexarMassa] Intermitente ${_recNome(c)} ignorado — valor R$ 0,00.`);
+                return false;
+            }
+            return true;
+        });
+        for (let idx = 0; idx < selsParaAnexar.length; idx++) {
+            const c = selsParaAnexar[idx];
             const s = _recibosSelecoes[c.id] || { diasTrabalhados: 0, diasVR: 0, faltas: 0, diasExtra: 0 };
             const m = (c.meio_transporte||'').toLowerCase();
 
             // Atualizar progresso
             const btnAn = document.getElementById('btn-anexar-massa');
-            if (btnAn) btnAn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Gerando PDF ${idx+1}/${sels.length}...`;
-            _recShowBannerAnexando(idx, sels.length);
+            if (btnAn) btnAn.innerHTML = `<i class="ph ph-spinner" style="animation:rec-spin 1s linear infinite;"></i> Gerando PDF ${idx+1}/${selsParaAnexar.length}...`;
+            _recShowBannerAnexando(idx, selsParaAnexar.length);
 
             try {
                 // Montar HTML do recibo
