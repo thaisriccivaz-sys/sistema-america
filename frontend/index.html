@@ -1040,6 +1040,30 @@
                                     </div>
                                 </div>
 
+                                <div id="cargo-anexos-section" style="margin-top: 1.5rem; display: none;">
+                                    <h4 style="font-size: 1rem; color: #475569; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                                        <i class="ph ph-file-word"></i> Anexos Word do Cargo
+                                    </h4>
+                                    
+                                    <div class="mb-3" style="display: flex; gap: 1rem; align-items: flex-end; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Título do Documento</label>
+                                            <input type="text" id="cargo-anexo-titulo" class="form-control" placeholder="Ex: Contrato de Trabalho">
+                                        </div>
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Arquivo Word (.doc, .docx)</label>
+                                            <input type="file" id="cargo-anexo-arquivo" class="form-control" accept=".doc,.docx" style="padding: 0.4rem;">
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="btn-upload-anexo-cargo" onclick="window.uploadAnexoCargo(event)" style="height: 42px; white-space: nowrap;">
+                                            <i class="ph ph-upload-simple"></i> Enviar Anexo
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="cargo-anexos-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <!-- Preenchido via JS -->
+                                    </div>
+                                </div>
+
                             </form>
                         </div>
                     </div>
@@ -5953,7 +5977,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260730v5"></script>
+    <script src="app.js?v=20260730v6"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"

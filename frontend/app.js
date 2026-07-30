@@ -1593,6 +1593,8 @@ window.toggleCargoView = async function (mode, id = null) {
             document.getElementById('cargo-input-name').value = '';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if (btnDelete) btnDelete.style.display = 'none';
+            const anexosSection = document.getElementById('cargo-anexos-section');
+            if (anexosSection) anexosSection.style.display = 'none';
             renderCargoChecklist(null);  // null = sem cargo ainda, checkboxes desabilitados
             document.getElementById('cargo-input-name').focus();
             // Garantir que o dropdown de departamentos esteja populado
@@ -1601,6 +1603,9 @@ window.toggleCargoView = async function (mode, id = null) {
             document.getElementById('manage-cargo-id').value = id;
             document.getElementById('cargo-form-label').textContent = 'Editar Cargo';
             if (btnDelete) btnDelete.style.display = 'block';
+            const anexosSection = document.getElementById('cargo-anexos-section');
+            if (anexosSection) anexosSection.style.display = 'block';
+            if (window.carregarAnexosCargo) window.carregarAnexosCargo(id);
 
             await populateCargoDeptoSelect();
             const res = await fetch(`${API_URL}/cargos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
@@ -1615,7 +1620,110 @@ window.toggleCargoView = async function (mode, id = null) {
             }
         }
     }
+    }
 }
+
+window.carregarAnexosCargo = async function(cargoId) {
+    const list = document.getElementById('cargo-anexos-list');
+    if (!list) return;
+    list.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem;">Carregando anexos...</p>';
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) throw new Error('Erro ao carregar anexos');
+        const anexos = await res.json();
+        
+        if (anexos.length === 0) {
+            list.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem; font-style:italic;">Nenhum documento Word anexado.</p>';
+            return;
+        }
+
+        list.innerHTML = anexos.map(a => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden;">
+                    <i class="ph ph-file-word" style="font-size: 1.5rem; color: #2563eb;"></i>
+                    <div style="overflow: hidden;">
+                        <div style="font-weight: 500; font-size: 0.95rem; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${a.titulo}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">${a.nome_arquivo} • ${new Date(a.data_upload).toLocaleDateString()}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.open('${a.r2_key.startsWith('http') ? a.r2_key : 'https://pub-844cb15b9c244c4fa56930ef899cfbc8.r2.dev/'+a.r2_key}', '_blank')" title="Baixar/Ver">
+                        <i class="ph ph-download-simple"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="window.excluirAnexoCargo(${cargoId}, ${a.id})" title="Excluir">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = '<p style="color:red; font-size:0.85rem;">Falha ao carregar anexos.</p>';
+    }
+};
+
+window.uploadAnexoCargo = async function(event) {
+    event.preventDefault();
+    const cargoId = document.getElementById('manage-cargo-id').value;
+    if (!cargoId) return showToast('Salve o cargo primeiro antes de anexar.', 'warning');
+
+    const tituloInput = document.getElementById('cargo-anexo-titulo');
+    const arquivoInput = document.getElementById('cargo-anexo-arquivo');
+    const btn = document.getElementById('btn-upload-anexo-cargo');
+    
+    if (!tituloInput.value.trim()) return showToast('Digite um título para o anexo.', 'warning');
+    if (!arquivoInput.files || arquivoInput.files.length === 0) return showToast('Selecione um arquivo Word.', 'warning');
+
+    const file = arquivoInput.files[0];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'doc' && ext !== 'docx') return showToast('Apenas arquivos .doc ou .docx são permitidos.', 'error');
+
+    const formData = new FormData();
+    formData.append('titulo', tituloInput.value.trim());
+    formData.append('arquivo', file);
+
+    const originalBtnHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro no upload');
+        
+        showToast('Anexo salvo com sucesso!', 'success');
+        tituloInput.value = '';
+        arquivoInput.value = '';
+        window.carregarAnexosCargo(cargoId);
+    } catch (e) {
+        console.error(e);
+        showToast(e.message, 'error');
+    } finally {
+        btn.innerHTML = originalBtnHTML;
+        btn.disabled = false;
+    }
+};
+
+window.excluirAnexoCargo = async function(cargoId, anexoId) {
+    if (!confirm('Deseja realmente excluir este anexo?')) return;
+    
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos/${anexoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!res.ok) throw new Error('Erro ao excluir');
+        showToast('Anexo removido.', 'success');
+        window.carregarAnexosCargo(cargoId);
+    } catch (e) {
+        console.error(e);
+        showToast('Erro ao remover anexo', 'error');
+    }
+};
 
 async function renderCargoChecklist(cargoId) {
     const checklist = document.getElementById('cargo-checklist-main');

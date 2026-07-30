@@ -418,6 +418,17 @@ db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KE
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
 });
 
+// MIGRATION: Anexos de Cargos (Word)
+db.run(`CREATE TABLE IF NOT EXISTS cargo_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cargo_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    nome_arquivo TEXT NOT NULL,
+    r2_key TEXT,
+    data_upload DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(cargo_id) REFERENCES cargos(id)
+)`);
+
 // MIGRATION: Assinaturas Admin Templates & Fila
 db.run(`CREATE TABLE IF NOT EXISTS assinatura_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7891,6 +7902,71 @@ app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
             }
             res.json({ ok: true, removed: this.changes > 0 });
         });
+});
+
+// --- CARGO ANEXOS (Word) ---
+app.get('/api/cargos/:id/anexos', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM cargo_anexos WHERE cargo_id = ? ORDER BY data_upload DESC", [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/cargos/:id/anexos', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
+    try {
+        const cargoId = req.params.id;
+        const titulo = req.body.titulo;
+        if (!titulo || !req.file) return res.status(400).json({ error: 'Título e arquivo são obrigatórios' });
+
+        const originalName = req.file.originalname;
+        const ext = originalName.split('.').pop().toLowerCase();
+        if (ext !== 'doc' && ext !== 'docx') {
+            return res.status(400).json({ error: 'Apenas arquivos Word (.doc, .docx) são permitidos.' });
+        }
+
+        const r2Key = `cargos/${cargoId}/anexos/${Date.now()}_${originalName}`;
+        let publicUrl = '';
+        if (typeof r2 !== 'undefined' && r2.isReady()) {
+            publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+        } else {
+            throw new Error("Serviço R2 indisponível.");
+        }
+
+        db.run("INSERT INTO cargo_anexos (cargo_id, titulo, r2_key, nome_arquivo) VALUES (?, ?, ?, ?)",
+            [cargoId, titulo, r2Key, originalName], function (err) {
+                if (err) throw err;
+                const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Cargos', 'Anexo Word Adicionado', '', titulo, cargoId]);
+                res.json({ ok: true, anexo: { id: this.lastID, titulo, r2_key: r2Key, nome_arquivo: originalName, data_upload: new Date().toISOString() } });
+            });
+    } catch (err) {
+        console.error("Erro no upload do anexo do cargo:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/cargos/:id/anexos/:anexoId', authenticateToken, (req, res) => {
+    const { id, anexoId } = req.params;
+    db.get("SELECT r2_key, titulo FROM cargo_anexos WHERE id = ? AND cargo_id = ?", [anexoId, id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Anexo não encontrado' });
+        
+        try {
+            if (typeof r2 !== 'undefined' && r2.isReady()) {
+                await r2.deleteFromR2(row.r2_key);
+            }
+        } catch (e) {
+            console.error("Falha ao excluir do R2:", e);
+        }
+
+        db.run("DELETE FROM cargo_anexos WHERE id = ?", [anexoId], function (errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Cargos', 'Anexo Word Removido', row.titulo, '', id]);
+            res.json({ ok: true });
+        });
+    });
 });
 
 // Departamentos
