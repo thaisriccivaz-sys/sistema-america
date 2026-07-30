@@ -6352,7 +6352,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         }
         vencimentoInputHtml = `
             <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b;">${tabId === 'ASO' ? 'Data do Exame' : 'Vencimento'}</label>
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b;">${tabId === 'ASO' ? 'Vencimento do ASO' : 'Vencimento'}</label>
                 <div style="display:flex; gap:0.25rem; align-items: center;">
                     <input type="date" id="venc-${tabId}-${safeDocType}" class="venc-input" value="${existingVencimento}"
                            style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; color: var(--text-main); width: 145px; height: 42px;">
@@ -6635,7 +6635,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
             </div>
             ${showVencimento ? `
             <div style="flex: 1; min-width: 140px;">
-                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">${tabId === 'ASO' ? 'Data do Exame (opcional)' : 'Vencimento (opcional)'}</label>
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">${tabId === 'ASO' ? 'Vencimento do ASO (opcional)' : 'Vencimento (opcional)'}</label>
                 <input type="date" id="dyn-doc-venc-${tabId}" class="form-control" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
             </div>
             ` : ''}

@@ -2701,23 +2701,6 @@ app.get('/api/dashboard', authenticateToken, (req, res) => {
     });
 });
 
-// DIAGNÓSTICO TEMPORÁRIO – remover após investigação
-app.get('/api/debug/aso', authenticateToken, (req, res) => {
-    db.all(
-        `SELECT d.id, d.tab_name, d.document_type, d.vencimento, c.nome_completo, c.status
-         FROM documentos d
-         JOIN colaboradores c ON c.id = d.colaborador_id
-         WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
-         ORDER BY c.nome_completo ASC
-         LIMIT 50`,
-        [],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ total: rows.length, rows });
-        }
-    );
-});
-
 app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
     try {
         const atestadosMes = await new Promise((resolve, reject) => {
