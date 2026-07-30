@@ -180,10 +180,10 @@ let _filtroStatus = 'Ativos';
             if (t.concluido) {
                 if (t.optou_nao_participar) {
                     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
-                        <i class="ph ph-warning" style="color:#f97316;font-size:1.1rem;flex-shrink:0;"></i>
+                        <i class="ph ph-check-circle" style="color:#3b82f6;font-size:1.1rem;flex-shrink:0;"></i>
                         <div style="flex:1;min-width:0;">
                             <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
-                            <div style="font-size:0.72rem;color:#f97316;">Optou não em ${fmtData(t.data_conclusao)}</div>
+                            <div style="font-size:0.72rem;color:#3b82f6;">Optou não em ${fmtData(t.data_conclusao)}</div>
                         </div>
                     </div>`;
                 }
