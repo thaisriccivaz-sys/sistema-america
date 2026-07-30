@@ -1509,6 +1509,11 @@ async function loadCargos() {
                         return resp ? `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-user"></i> ${resp}</span>` : '-';
                     })()}
                 </td>
+                <td style="text-align: center;">
+                    ${c.qtd_anexos > 0 
+                        ? `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:700;"><i class="ph ph-paperclip"></i> ${c.qtd_anexos}</span>`
+                        : `<span style="color:#94a3b8;font-size:0.85rem;">-</span>`}
+                </td>
                 <td style="text-align: right; gap:0.4rem; justify-content:flex-end; align-items:center; display: ${window.isTopAdmin ? "flex" : "none"};">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
                         <i class="ph ph-note-pencil"></i> Editar

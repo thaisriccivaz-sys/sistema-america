@@ -7752,7 +7752,13 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
 // Cargos
 app.get('/api/cargos', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM cargos ORDER BY nome ASC", [], (err, rows) => {
+    const query = `
+        SELECT c.*, 
+            (SELECT COUNT(*) FROM cargo_anexos ca WHERE ca.cargo_id = c.id) as qtd_anexos
+        FROM cargos c 
+        ORDER BY c.nome ASC
+    `;
+    db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
