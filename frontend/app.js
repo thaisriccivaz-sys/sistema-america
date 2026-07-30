@@ -6097,13 +6097,13 @@ async function renderCargoDocsChecklist(container) {
                 tabLabelDisplay = 'Ficha Cadastral';
             } else if (item.color === 'roxo') {
                 badgeBg = '#fdf4ff'; badgeColor = '#7e22ce'; badgeBorder = '#f0abfc';
-                tabLabelDisplay = 'Contratos';
+                tabLabelDisplay = 'Perfil';
             } else if (item.color === 'laranja') {
                 badgeBg = '#fff7ed'; badgeColor = '#ea580c'; badgeBorder = '#fdba74';
                 tabLabelDisplay = 'Cargo';
             } else {
                 badgeBg = '#eff6ff'; badgeColor = '#1e40af'; badgeBorder = '#bfdbfe';
-                tabLabelDisplay = 'Contabilidade';
+                tabLabelDisplay = 'Obrigatório';
             }
             const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${tabLabelDisplay}</span>`;
 
@@ -10826,10 +10826,9 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                     const an = cargoAnexos[0];
                     const escTitulo = (an.titulo || an.nome_arquivo || 'Documento').replace(/'/g, "&#39;");
                     const escObs = (an.observacoes || '').replace(/'/g, "&#39;");
+                    let titleAttr = escObs ? `title="Obs: ${escObs}"` : '';
                     acaoBotaoHtml = `
-                        let titleAttr = escObs ? `title="Obs: ${escObs}"` : '';
-                        acaoBotaoHtml = `
-                            <button type="button"
+                        <button type="button"
                                 ${titleAttr}
                                 onclick="window.vincularDescricaoAtividades(${an.id}, '${escTitulo}')"
                                 style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
