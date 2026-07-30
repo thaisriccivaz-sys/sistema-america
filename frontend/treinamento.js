@@ -260,7 +260,11 @@
                 <i class="ph ph-graduation-cap" style="color:#fff;font-size:1.5rem;"></i></div>`;
         }
 
-        const data = t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '—';
+        const isPalestra = (t.tipo === 'terapia');
+        const dataRaw = isPalestra ? (t.data_treinamento || '') : (t.criado_em || '');
+        const data = dataRaw
+            ? new Date(dataRaw.includes('T') ? dataRaw : dataRaw + 'T12:00:00').toLocaleDateString('pt-BR')
+            : '—';
         const desc = t.descricao ? `<div style="font-size:0.77rem;color:#64748b;margin-top:1px;max-width:380px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.descricao}</div>` : '';
         const nomeSafe = (t.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         
