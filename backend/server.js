@@ -21739,12 +21739,20 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
 
             // 4. Palestra com data definida: ocultar se data_treinamento < data_admissao do colaborador
             if (t.tipo === 'terapia' && t.data_treinamento && c.data_admissao) {
-              const dtPalestra  = new Date(t.data_treinamento);
-              const dtAdmissao  = new Date(c.data_admissao);
-              // Normaliza para comparar apenas data (sem hora)
-              dtPalestra.setHours(0, 0, 0, 0);
-              dtAdmissao.setHours(0, 0, 0, 0);
-              if (dtPalestra < dtAdmissao) return false;
+              // Converte data_treinamento (formato ISO: yyyy-mm-dd)
+              const dtPalestra = new Date(t.data_treinamento + 'T12:00:00');
+
+              // Converte data_admissao (pode ser dd/mm/yyyy ou yyyy-mm-dd)
+              let dtAdmissao;
+              const adm = String(c.data_admissao);
+              if (adm.includes('/')) {
+                const pts = adm.split('/');
+                dtAdmissao = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
+              } else {
+                dtAdmissao = new Date(adm + 'T12:00:00');
+              }
+
+              if (!isNaN(dtPalestra) && !isNaN(dtAdmissao) && dtPalestra < dtAdmissao) return false;
             }
 
             return true;
