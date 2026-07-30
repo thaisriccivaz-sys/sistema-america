@@ -2643,28 +2643,34 @@ async function loadDashboard() {
             const dataAtestados = (chartsData.faltasAgrupadasMes || []).map(d => d.atestados);
 
             chartAtestadosInst = new Chart(ctxAtestados, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
                     datasets: [
                         {
                             label: 'Faltas Injustificadas',
                             data: dataFaltas.length ? dataFaltas : [0],
+                            borderColor: '#fa5252',
                             backgroundColor: '#fa5252',
-                            borderRadius: 4
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: false
                         },
                         {
                             label: 'Atestados',
                             data: dataAtestados.length ? dataAtestados : [0],
+                            borderColor: '#228be6',
                             backgroundColor: '#228be6',
-                            borderRadius: 4
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: false
                         }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
-                    scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
                 }
             });
         }
