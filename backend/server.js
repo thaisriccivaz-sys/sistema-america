@@ -10250,7 +10250,11 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
             db.run('UPDATE colaboradores SET aso_email_enviado = ?, aso_exame_data = ? WHERE id = ?', [dataEnvioStr, dataAgendadaStr, colaborador_id], (err) => {
                 if (err) console.error('Erro ao salvar aso_email_enviado/aso_exame_data:', err);
 
-                const tipoASO = `ASO ${tipoExameStr}`;
+                // ASO Periódico e ASO Padrão são o mesmo quadro — sempre usa 'ASO Padrão'
+                const tipoExameNorm = tipoExameStr.toLowerCase().replace(/[áàãâä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i').replace(/[óòõôö]/g, 'o').replace(/[úùûü]/g, 'u');
+                const tipoASO = (tipoExameNorm === 'periodico' || tipoExameNorm === 'padrao' || tipoExameStr === 'Periódico' || tipoExameStr === 'Padrão')
+                    ? 'ASO Padrão'
+                    : `ASO ${tipoExameStr}`;
                 db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, year) VALUES (?, ?, ?, ?)`,
                     [colaborador_id, 'ASO', tipoASO, y],
                     function (insertErr) {

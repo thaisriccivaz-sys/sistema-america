@@ -6253,8 +6253,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
     }
 
-    const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
-        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
+    // Para a aba ASO, o vencimento já é exibido no campo de input à direita do card
+    // — não duplicar como texto abaixo do nome do arquivo
+    const vencInfoHtmlLine = (tabId === 'ASO') ? '' : vencInfoHtml;
+    const subInfoLine = (vencInfoHtmlLine || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtmlLine}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
     // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
