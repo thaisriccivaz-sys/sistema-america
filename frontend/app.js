@@ -2695,7 +2695,7 @@ async function loadDashboard() {
                         {
                             label: 'Dias Atestado',
                             data: ranking.length ? ranking.map(r => r.dias_atestado) : [0],
-                            backgroundColor: '#f59f00',
+                            backgroundColor: '#228be6',
                             borderRadius: 4
                         }
                     ]
