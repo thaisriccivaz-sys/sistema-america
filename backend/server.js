@@ -21893,7 +21893,7 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
     SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
-           c.data_admissao,
+           c.data_admissao, c.tipo_contratacao,
            d.tipo AS departamento_tipo
     FROM colaboradores c
     LEFT JOIN departamentos d ON c.departamento = d.nome

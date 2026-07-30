@@ -91,7 +91,8 @@
         try {
             const r = await api('/treinamento-presenca/colaboradores');
             if (!r.ok) throw new Error('Erro ao carregar');
-            _dados = await r.json();
+            const dadosApi = await r.json();
+            _dados = dadosApi.filter(c => (c.tipo_contratacao || '').toLowerCase() !== 'intermitente');
         } catch (e) {
             console.error('[PRESENÇA]', e);
             _dados = [];
