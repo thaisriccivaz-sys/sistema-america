@@ -10924,14 +10924,6 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório pós-admissão — aguardando upload</div>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; border-left:1px solid #bfdbfe; padding-left:1rem;">
-                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                            <input type="radio" name="req-ass-obr-${_idSlot}" value="sim"> Sim
-                        </label>
-                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                            <input type="radio" name="req-ass-obr-${_idSlot}" value="nao"> Não
-                        </label>
                     </div>
                     <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
                         <i class="ph ph-upload-simple"></i> Anexar PDF
@@ -10954,14 +10946,6 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                         <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório — aguardando upload</div>
                     </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:0.75rem; border-left:1px solid #bfdbfe; padding-left:1rem;">
-                    <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                    <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                        <input type="radio" name="req-ass-obr-ficha-registro" value="sim"> Sim
-                    </label>
-                    <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                        <input type="radio" name="req-ass-obr-ficha-registro" value="nao"> Não
-                    </label>
                 </div>
                 <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
                     <i class="ph ph-upload-simple"></i> Anexar PDF
@@ -10984,17 +10968,14 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
-                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end; gap:0.5rem;">
+                        <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#c026d3;border-color:#c026d3;padding:0.4rem 1rem;border-radius:6px;" onclick="window.previewContratoPerfilAssinado('${g.id}', '${escNome}')">
+                            <i class="ph ph-file-arrow-down"></i> Gerar
+                        </button>
+                        <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                            <i class="ph ph-upload-simple"></i> Anexar PDF
+                            <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoExternoComTipoAssinatura(this, '${escNome}', '${g.id}')">
                         </label>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
-                        </label>
-                    </div>
-                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
                     </div>
                 </div>`;
             }
