@@ -331,21 +331,33 @@
         // Reset abas
         window.mudarAbaNovoTreinamento('detalhes');
         
-        // Limpar perguntas de pesquisa e adicionar as padrão
+        // Limpar perguntas de pesquisa e adicionar as padrão (apenas para treinamento)
         const lista = el('novo-pesquisa-perguntas-lista');
         if (lista) {
             lista.innerHTML = '';
-            // Perguntas padrão
-            const perguntasPadrao = [
-                "O conteúdo do treinamento foi claro e de fácil compreensão?",
-                "O instrutor demonstrou domínio sobre os temas abordados?",
-                "A duração do treinamento foi adequada para o conteúdo apresentado?",
-                "Os materiais de apoio (slides, apostilas, etc.) foram úteis?",
-                "O treinamento contribuiu para o seu desenvolvimento profissional?"
-            ];
-            perguntasPadrao.forEach((p, idx) => {
-                _adicionarInputPerguntaNovo(p, idx);
-            });
+            const tipoModal = window._currentTreinamentoTipo || 'treinamento';
+            if (tipoModal === 'treinamento') {
+                // Perguntas padrão completas — apenas para treinamentos
+                const perguntasPadrao = [
+                    { tipo: 'escala', pergunta: 'O conteúdo apresentado foi claro e fácil de compreender?' },
+                    { tipo: 'escala', pergunta: 'O material disponibilizado (slides, apostilos, documentos etc.) contribuiu para o seu aprendizado?' },
+                    { tipo: 'escala', pergunta: 'Os exemplos e demonstrações facilitaram o entendimento do conteúdo?' },
+                    { tipo: 'escala', pergunta: 'O conteúdo é relevante para as atividades que você realiza no dia a dia?' },
+                    { tipo: 'escala', pergunta: 'Após este treinamento, você se sente mais preparado para aplicar esse conhecimento na prática?' },
+                    { tipo: 'escala', pergunta: 'A carga horária foi adequada para abordar o conteúdo proposto?' },
+                    { tipo: 'escala', pergunta: 'O ritmo do treinamento permitiu um bom acompanhamento do conteúdo?' },
+                    { tipo: 'escala', pergunta: 'Você vai aplicar o conteúdo mostrado nesse treinamento no seu trabalho do dia a dia?' },
+                    { tipo: 'escala', pergunta: 'De forma geral, qual sua satisfação com este treinamento?' },
+                    { tipo: 'texto', pergunta: 'O que você mais gostou neste treinamento?' },
+                    { tipo: 'texto', pergunta: 'O que poderia ser melhorado?' },
+                    { tipo: 'texto', pergunta: 'Existe algum tema relacionado que você gostaria que fosse aprofundado?' },
+                    { tipo: 'texto', pergunta: 'Como você pretende aplicar esse conhecimento na sua rotina?' },
+                ];
+                perguntasPadrao.forEach((p, idx) => {
+                    _adicionarInputPerguntaNovo(p, idx);
+                });
+            }
+            // Para terapia e palestra: lista fica vazia (sem perguntas padrão)
         }
 
         setTimeout(() => { const n = el('novo-treinamento-nome'); if (n) n.focus(); }, 80);
