@@ -1646,7 +1646,7 @@ window.carregarAnexosCargo = async function(cargoId) {
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.open('${a.r2_key.startsWith('http') ? a.r2_key : 'https://pub-844cb15b9c244c4fa56930ef899cfbc8.r2.dev/'+a.r2_key}', '_blank')" title="Baixar/Ver">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.open('${a.r2_key.startsWith('http') ? a.r2_key : API_URL + '/cargos/anexos/download?r2_key=' + encodeURIComponent(a.r2_key) + '&nome=' + encodeURIComponent(a.nome_arquivo) + '&token=' + currentToken}', '_blank')" title="Baixar/Ver">
                         <i class="ph ph-download-simple"></i>
                     </button>
                     <button type="button" class="btn btn-danger btn-sm" onclick="window.excluirAnexoCargo(${cargoId}, ${a.id})" title="Excluir">

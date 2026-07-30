@@ -7917,6 +7917,25 @@ app.get('/api/cargos/:id/anexos', authenticateToken, (req, res) => {
     });
 });
 
+app.get('/api/cargos/anexos/download', authenticateToken, async (req, res) => {
+    try {
+        const { r2_key, nome } = req.query;
+        if (!r2_key) return res.status(400).send('Chave R2 não fornecida');
+
+        const fileData = await r2.downloadStreamFromR2(r2_key);
+        
+        res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
+        if (fileData.contentLength) {
+            res.setHeader('Content-Length', fileData.contentLength);
+        }
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nome || 'anexo')}"`);
+        
+        fileData.stream.pipe(res);
+    } catch (e) {
+        res.status(404).send('Arquivo não encontrado no armazenamento.');
+    }
+});
+
 app.post('/api/cargos/:id/anexos', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         const cargoId = req.params.id;
