@@ -1830,10 +1830,11 @@ async function handleCargoFormSubmit() {
             document.getElementById('manage-cargo-id').value = res.id;
             await renderCargoChecklist(res.id);  // rerender com checkboxes habilitados
             alert('Cargo criado! Agora selecione os documentos exigidos.');
-            toggleCargoView('list');
+            loadCargos();
             return;
         }
         alert('Nome do cargo salvo!');
+        loadCargos();
         toggleCargoView('list');
     } catch (err) {
         console.error('Erro ao salvar cargo:', err);
