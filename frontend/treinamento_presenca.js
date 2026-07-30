@@ -178,6 +178,15 @@ let _filtroStatus = 'Ativos';
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
+                if (t.optou_nao_participar) {
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                        <i class="ph ph-warning" style="color:#f97316;font-size:1.1rem;flex-shrink:0;"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
+                            <div style="font-size:0.72rem;color:#f97316;">Optou por não participar em ${fmtData(t.data_conclusao)}</div>
+                        </div>
+                    </div>`;
+                }
                 const valStr = '';
                 const respStr = t.respondido_em ? `<br>Respondido: ${fmtData(t.respondido_em)}` : '';
                 const encodedId = `${c.id},${t.id}`;
@@ -470,22 +479,59 @@ let _filtroStatus = 'Ativos';
     };
 
     // ── Abrir modal de assinatura ─────────────────────────────────────────────
-    window.abrirAssinaturaTreinamento = function (colaboradorId, treinamentoId) {
+    window.abrirAssinaturaTreinamento = async function (colaboradorId, treinamentoId) {
         const colab = _dados.find(c => c.id === colaboradorId);
         const trein = colab && colab.treinamentos.find(t => t.id === treinamentoId);
         if (!colab || !trein) return;
 
-        _assinTreinamento = { colaborador: colab, treinamento: trein };
-        _selfieBase64 = '';
-        _assinaturaBase64 = '';
-        _passoAtual = 1;
+        const res = await Swal.fire({
+            title: 'Registro de Presença',
+            text: 'Como deseja registrar a presença deste colaborador?',
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: '<i class="ph ph-pen-nib"></i> Assinar Digitalmente',
+            confirmButtonColor: '#0e7490',
+            denyButtonText: '<i class="ph ph-user-minus"></i> Optou por não participar',
+            denyButtonColor: '#ea580c',
+            cancelButtonText: 'Cancelar'
+        });
 
-        if (trein.capa_url) {
-            // Mostra capa em fullscreen antes do modal de assinatura
-            _abrirCapaParaAssinatura(trein.capa_url, colab, trein);
-        } else {
-            // Sem capa: abre modal direto no passo 2 (assinatura)
-            _abrirModalAssinatura(2);
+        if (res.isConfirmed) {
+            _assinTreinamento = { colaborador: colab, treinamento: trein };
+            _selfieBase64 = '';
+            _assinaturaBase64 = '';
+            _passoAtual = 1;
+            
+            if (trein.capa_url) {
+                _abrirCapaParaAssinatura(trein.capa_url, colab, trein);
+            } else {
+                _abrirModalAssinatura(2);
+            }
+        } else if (res.isDenied) {
+            try {
+                const r = await api('/treinamento-presenca/assinar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        colaborador_id: colab.id,
+                        treinamento_id: trein.id,
+                        assinatura_base64: '',
+                        selfie_base64: '',
+                        instrutor_nome: typeof getInstrutorNome === 'function' ? getInstrutorNome() : '',
+                        gps_lat: '',
+                        gps_lon: '',
+                        dispositivo: navigator.userAgent,
+                        optou_nao_participar: true
+                    })
+                });
+                if (!r.ok) throw new Error(await r.text());
+                
+                Swal.fire({ title: 'Sucesso', text: 'Opção salva com sucesso.', icon: 'success', timer: 2000, showConfirmButton: false });
+                if (window.carregarTreinamentosPresenca) window.carregarTreinamentosPresenca();
+            } catch (err) {
+                Swal.fire('Erro', 'Ocorreu um erro ao registrar a opção: ' + err.message, 'error');
+            }
         }
     };
 

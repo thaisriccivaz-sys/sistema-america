@@ -21836,8 +21836,8 @@ function _extrairPublicId(url) {
 console.log('[TREINAMENTO] M??dulo de treinamentos carregado.');
 
 // ?????? MIGRA????O: colunas de assinatura/selfie na tabela treinamento_presenca ????????????
-['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome'].forEach(col => {
-  const type = col === 'colaborador_id' ? 'INTEGER' : "TEXT DEFAULT ''";
+['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome', 'optou_nao_participar'].forEach(col => {
+  const type = col === 'colaborador_id' ? 'INTEGER' : (col === 'optou_nao_participar' ? 'INTEGER DEFAULT 0' : "TEXT DEFAULT ''");
   db.run(`ALTER TABLE treinamento_presenca ADD COLUMN ${col} ${type}`, err => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error(`[PRESENÇA] Migração (${col}):`, err.message);
@@ -21897,7 +21897,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
     ORDER BY nome ASC
   `;
   const sqlPresencas = `
-    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca, tp.optou_nao_participar,
            (SELECT pr.respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em
     FROM treinamento_presenca tp
     WHERE tp.colaborador_id IS NOT NULL
@@ -22208,7 +22208,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const {
     colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,
-    gps_lat, gps_lon, dispositivo
+    gps_lat, gps_lon, dispositivo, optou_nao_participar
   } = req.body;
 
   if (!colaborador_id || !treinamento_id) {
@@ -22331,18 +22331,18 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
         db.run(
           `INSERT INTO treinamento_presenca
-             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_nao_participar)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0],
           function(err2) {
             if (err2) {
               // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
               db.run(
                 `UPDATE treinamento_presenca
                  SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
-                     data_conclusao = ?, instrutor_nome = ?
+                     data_conclusao = ?, instrutor_nome = ?, optou_nao_participar = ?
                  WHERE treinamento_id = ? AND usuario_id = ?`,
-                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, usuarioId],
+                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0, treinamento_id, usuarioId],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
                   db.get(
@@ -22370,7 +22370,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 // Busca registro completo (assinatura + selfie) para exibi????o pàs-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -22385,7 +22385,7 @@ app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', auth
 // Verifica se um colaborador já concluiu um treinamento específico
 app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
