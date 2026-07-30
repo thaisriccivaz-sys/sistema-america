@@ -1501,4 +1501,45 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+            // ── Auto-fix: corrigir cargos com nomes corrompidos (encoding Latin1→UTF8) ──────────────────────────────
+            // Cargos criados via import com encoding errado ficam com "????" no lugar de caracteres especiais.
+            // Esta rotina detecta e remove cargos duplicados corrompidos, mantendo apenas os corretos.
+            const correcoesNomesCargos = [
+                { corrompido: /Manuten..o/,   correto: 'Manutenção' },
+                { corrompido: /Manuten....o/,  correto: 'Manutenção' },
+                { corrompido: /Manuten.....o/, correto: 'Manutenção' },
+            ];
+
+            // Busca cargos cujo nome contém caracteres de substituição (? ou caracteres não-ASCII inválidos)
+            db.all("SELECT id, nome, departamento FROM cargos", [], (errCargos, todosCargos) => {
+                if (errCargos || !todosCargos) return;
+
+                const cargosParaExcluir = [];
+                todosCargos.forEach(c => {
+                    // Detecta nomes corrompidos: contêm sequências de ? ou bytes não-UTF8 visíveis como ?
+                    const temCorrupcao = /\?\?+|[\uFFFD]/.test(c.nome) || /\?{2,}/.test(c.nome);
+                    if (temCorrupcao) {
+                        // Verifica se existe um cargo equivalente correto (mesmo departamento, nome similar sem corrupção)
+                        const nomeBase = c.nome.replace(/\?+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        const temEquivalente = todosCargos.some(outro =>
+                            outro.id !== c.id &&
+                            outro.departamento === c.departamento &&
+                            !/\?\?+/.test(outro.nome) &&
+                            outro.nome.toLowerCase().replace(/\s+/g, ' ').trim().length > 3
+                        );
+                        if (temEquivalente) {
+                            cargosParaExcluir.push(c.id);
+                        }
+                    }
+                });
+
+                if (cargosParaExcluir.length > 0) {
+                    const placeholders = cargosParaExcluir.map(() => '?').join(',');
+                    db.run(`DELETE FROM cargos WHERE id IN (${placeholders})`, cargosParaExcluir, (errDel) => {
+                        if (!errDel) console.log(`[AUTO-FIX] Removidos ${cargosParaExcluir.length} cargos com nomes corrompidos:`, cargosParaExcluir);
+                        else console.error('[AUTO-FIX] Erro ao remover cargos corrompidos:', errDel.message);
+                    });
+                }
+            });
+
 module.exports = db;

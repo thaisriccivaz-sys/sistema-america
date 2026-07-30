@@ -54,20 +54,9 @@
 
     // ── Carregar dados ────────────────────────────────────────────────────────
     async function carregarDados() {
-        let tipoAtual = window._currentTreinamentoTipo || 'treinamento';
-        
-        // FORÇA o tipo baseado na aba ativa no DOM para evitar falhas de estado
-        const tabAtiva = document.querySelector('.app-top-tab.active');
-        if (tabAtiva) {
-            const onclickText = tabAtiva.getAttribute('onclick') || '';
-            if (onclickText.includes('treinamento-presenca-terapia')) {
-                tipoAtual = 'terapia';
-                window._currentTreinamentoTipo = 'terapia';
-            } else if (onclickText.includes('treinamento-presenca')) {
-                tipoAtual = 'treinamento';
-                window._currentTreinamentoTipo = 'treinamento';
-            }
-        }
+        // O tipo (treinamento ou terapia/palestra) é setado pelo navigateTo() em app.js
+        // antes de chamar initPresencaTreinamento(). Basta usar window._currentTreinamentoTipo.
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
 
         const view = document.getElementById('view-treinamento-presenca');
         if (view) {
@@ -75,7 +64,7 @@
             const p = view.querySelector('p');
             if (tipoAtual === 'terapia') {
                 if (h1) h1.textContent = 'Presença Palestras';
-                if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
+                if (p) p.textContent = 'Visualize e registre a presença em palestras por colaborador.';
             } else {
                 if (h1) h1.textContent = 'Presença Treinamento';
                 if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
@@ -91,8 +80,7 @@
         try {
             const r = await api('/treinamento-presenca/colaboradores');
             if (!r.ok) throw new Error('Erro ao carregar');
-            const dadosApi = await r.json();
-            _dados = dadosApi.filter(c => (c.tipo_contratacao || '').toLowerCase() !== 'intermitente');
+            _dados = await r.json();
         } catch (e) {
             console.error('[PRESENÇA]', e);
             _dados = [];
@@ -163,7 +151,11 @@
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
         
         lista = lista.map(c => {
-            let tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento').toLowerCase() === tipoAtual);
+            // Filtra por tipo (treinamento ou terapia/palestra) — case insensitive
+            let tr = (c.treinamentos || []).filter(t => {
+                const tTipo = (t.tipo || 'treinamento').toLowerCase();
+                return tTipo === tipoAtual.toLowerCase();
+            });
             
             if (_filtroTreinamento) {
                 tr = tr.filter(t => String(t.id) === String(_filtroTreinamento));
@@ -175,7 +167,7 @@
                 total: tr.length,
                 concluidos: tr.filter(x => x.concluido || x.optou_nao_participar).length
             };
-        }).filter(c => c.total > 0 || c.treinamentos.length > 0);
+        }).filter(c => c.total > 0);
         
         if (_filtroConclusao) {
             lista = lista.filter(c => {
@@ -190,10 +182,13 @@
         if (counter) counter.textContent = `${lista.length} colaborador(es)`;
 
         if (!lista.length) {
+            const msg = tipoAtual === 'terapia'
+                ? 'Nenhum colaborador com palestras cadastradas encontrado.'
+                : 'Nenhum colaborador com treinamentos cadastrados encontrado.';
             grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:#94a3b8;">
                 <i class="ph ph-users" style="font-size:3rem;display:block;margin-bottom:12px;color:#cbd5e1;"></i>
                 <p style="font-size:1rem;font-weight:600;color:#64748b;margin:0 0 4px;">Nenhum colaborador encontrado</p>
-                <p style="font-size:0.85rem;margin:0;">Ajuste os filtros ou cadastre treinamentos para os departamentos.</p>
+                <p style="font-size:0.85rem;margin:0;">${msg}</p>
             </div>`;
             return;
         }

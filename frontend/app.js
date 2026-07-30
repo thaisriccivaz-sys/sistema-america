@@ -1834,7 +1834,10 @@ async function handleCargoFormSubmit() {
             return;
         }
         alert('Nome do cargo salvo!');
-        loadCargos();
+        // Reseta o filtro para "Todos" para que cargos Inativos recém-salvos fiquem visíveis
+        const filtroStatusEl = document.getElementById('filtro-status-cargos');
+        if (filtroStatusEl) filtroStatusEl.value = 'Todos';
+        await loadCargos();
         toggleCargoView('list');
     } catch (err) {
         console.error('Erro ao salvar cargo:', err);
