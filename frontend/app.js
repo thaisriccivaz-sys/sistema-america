@@ -6053,8 +6053,20 @@ async function renderCargoDocsChecklist(container) {
                 }));
         }
 
-        // ── Combinar: Azuis primeiro, depois Roxos, depois Ficha Cadastral ─────
-        const allItems = [...azulItems, ...roxoItems, ...fichaItems];
+        // ── Descrição de Atividades (laranja) ──────────────────────────────────
+        const laranjaItems = [{
+            docName: 'Descrição de Atividades',
+            color: 'laranja',
+            tabLabel: 'Contratos',
+            tabDataTab: 'Contratos',
+            found: currentDocs.find(d =>
+                (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') &&
+                norm(d.document_type) === norm('Descrição de Atividades')
+            )
+        }];
+
+        // ── Combinar: Laranja primeiro, Azuis depois Roxos, depois Ficha Cadastral ─────
+        const allItems = [...laranjaItems, ...azulItems, ...roxoItems, ...fichaItems];
         const pendentes = allItems.filter(i => !i.found);
         const ok = allItems.filter(i => i.found);
 
@@ -6081,6 +6093,9 @@ async function renderCargoDocsChecklist(container) {
             } else if (item.color === 'roxo') {
                 badgeBg = '#fdf4ff'; badgeColor = '#7e22ce'; badgeBorder = '#f0abfc';
                 tabLabelDisplay = 'Perfil';
+            } else if (item.color === 'laranja') {
+                badgeBg = '#fff7ed'; badgeColor = '#ea580c'; badgeBorder = '#fdba74';
+                tabLabelDisplay = 'Cargo';
             } else {
                 badgeBg = '#eff6ff'; badgeColor = '#1e40af'; badgeBorder = '#bfdbfe';
                 tabLabelDisplay = 'Obrigatório';
