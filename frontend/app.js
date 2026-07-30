@@ -10807,14 +10807,14 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                     const escTitulo = (an.titulo || an.nome_arquivo || 'Documento').replace(/'/g, "&#39;");
                     const escObs = (an.observacoes || '').replace(/'/g, "&#39;");
                     acaoBotaoHtml = `
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.3rem;">
-                            ${escObs ? `<span style="font-size:0.72rem;color:#64748b;font-style:italic;max-width:200px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escObs}">Obs: ${escObs}</span>` : ''}
+                        let titleAttr = escObs ? `title="Obs: ${escObs}"` : '';
+                        acaoBotaoHtml = `
                             <button type="button"
+                                ${titleAttr}
                                 onclick="window.vincularDescricaoAtividades(${an.id}, '${escTitulo}')"
                                 style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
                                 <i class="ph ph-link"></i> Vincular: ${escTitulo}
-                            </button>
-                        </div>`;
+                            </button>`;
                 } else {
                     // 2+ anexos: botão abre modal
                     acaoBotaoHtml = `
@@ -10839,15 +10839,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:0.75rem;border-left:1px solid #fdba74;padding-left:1rem;">
-                        <span style="font-size:0.85rem;font-weight:600;color:#334155;white-space:nowrap;">Exige Assinatura?</span>
-                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                            <input type="radio" name="req-ass-obr-descricao-atividades" value="sim"> Sim
-                        </label>
-                        <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
-                            <input type="radio" name="req-ass-obr-descricao-atividades" value="nao"> Não
-                        </label>
-                    </div>
+
                     <div style="min-width:fit-content;">
                         ${acaoBotaoHtml}
                     </div>
@@ -11747,14 +11739,36 @@ window.uploadContratoExternoComTipoAssinatura = async function (input, docType, 
     var reqAssinatura = radioSelecionado ? radioSelecionado.value : null;
 
     if (!reqAssinatura) {
-        await Swal.fire({
-            icon: 'warning',
-            title: 'Selecione antes de anexar',
-            text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de anexar o PDF.',
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#2563eb'
-        });
-        return;
+        const radioExiste = document.querySelector('input[name="req-ass-obr-' + slotId + '"]');
+        if (!radioExiste) {
+            const result = await Swal.fire({
+                title: 'Exige Assinatura?',
+                text: 'Este documento exigirá assinatura digital pelo colaborador?',
+                icon: 'question',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Sim',
+                denyButtonText: 'Não',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ea580c',
+                denyButtonColor: '#64748b'
+            });
+            if (result.isDismissed) {
+                input.value = '';
+                return;
+            }
+            reqAssinatura = result.isConfirmed ? 'sim' : 'nao';
+        } else {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Selecione antes de anexar',
+                text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de anexar o PDF.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#2563eb'
+            });
+            input.value = '';
+            return;
+        }
     }
 
     var assinafyStatus = (reqAssinatura === 'sim') ? '' : 'NAO_EXIGE';
@@ -11797,19 +11811,22 @@ window.uploadContratoExternoComTipoAssinatura = async function (input, docType, 
 window.vincularDescricaoAtividades = async function (anexoId, titulo) {
     if (!viewedColaborador) return;
 
-    // Lê a seleção de Sim/Não do radio
-    const radioSel = document.querySelector('input[name="req-ass-obr-descricao-atividades"]:checked');
-    if (!radioSel) {
-        await Swal.fire({
-            icon: 'warning',
-            title: 'Selecione antes de vincular',
-            text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de vincular.',
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#0f766e'
-        });
-        return;
-    }
-    const reqAssinatura = radioSel.value; // 'sim' ou 'nao'
+    const result = await Swal.fire({
+        title: 'Exige Assinatura?',
+        text: 'Este documento de Descrição de Atividades exigirá assinatura digital pelo colaborador?',
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'Sim',
+        denyButtonText: 'Não',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ea580c',
+        denyButtonColor: '#64748b'
+    });
+    
+    if (result.isDismissed) return;
+    
+    const reqAssinatura = result.isConfirmed ? 'sim' : 'nao';
     const assinafyStatus = (reqAssinatura === 'sim') ? '' : 'NAO_EXIGE';
 
     // Mostra loading
@@ -11870,18 +11887,7 @@ window.vincularDescricaoAtividades = async function (anexoId, titulo) {
 window.abrirModalSelecaoAnexoCargo = async function () {
     if (!viewedColaborador) return;
 
-    // Lê a seleção de Sim/Não do radio ANTES de abrir o modal
-    const radioSel = document.querySelector('input[name="req-ass-obr-descricao-atividades"]:checked');
-    if (!radioSel) {
-        await Swal.fire({
-            icon: 'warning',
-            title: 'Selecione antes de escolher',
-            text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de escolher o documento.',
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: '#0f766e'
-        });
-        return;
-    }
+
 
     const cargoAnexos = window._cargoAnexosParaDA || [];
     if (cargoAnexos.length === 0) {
