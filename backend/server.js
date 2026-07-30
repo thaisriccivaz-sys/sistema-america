@@ -21892,33 +21892,54 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 // e o status de conclusão de cada treinamento
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
-    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
-           c.data_admissao, c.tipo_contratacao,
-           d.tipo AS departamento_tipo
+    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status,
+           IFNULL(c.foto_path, '') AS foto_path,
+           IFNULL(c.foto_base64, '') AS foto_base64,
+           IFNULL(c.data_admissao, '') AS data_admissao,
+           IFNULL(c.tipo_contratacao, '') AS tipo_contratacao,
+           IFNULL(d.tipo, '') AS departamento_tipo
     FROM colaboradores c
     LEFT JOIN departamentos d ON c.departamento = d.nome
     ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias,
-           IFNULL(tipo, 'treinamento') AS tipo, is_integracao, data_treinamento
+    SELECT id, nome, descricao,
+           IFNULL(departamento, 'Todos') AS departamento,
+           IFNULL(colaboradores_avulsos, '') AS colaboradores_avulsos,
+           IFNULL(capa_url, '') AS capa_url,
+           IFNULL(validade_dias, 0) AS validade_dias,
+           IFNULL(tipo, 'treinamento') AS tipo,
+           IFNULL(is_integracao, 0) AS is_integracao,
+           IFNULL(data_treinamento, '') AS data_treinamento
     FROM treinamentos
     WHERE IFNULL(status, 'ativo') = 'ativo'
     ORDER BY nome ASC
   `;
   const sqlPresencas = `
-    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca, tp.optou_nao_participar,
-           (SELECT pr.respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em
+    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
+           IFNULL(tp.optou_nao_participar, 0) AS optou_nao_participar,
+           pr.respondido_em
     FROM treinamento_presenca tp
+    LEFT JOIN treinamento_pesquisa_respostas pr
+      ON pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id
     WHERE tp.colaborador_id IS NOT NULL
   `;
 
   db.all(sqlColabs, [], (err, colabs) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('[PRESENÇA] Erro sqlColabs:', err.message);
+      return res.status(500).json({ error: err.message });
+    }
     db.all(sqlTrein, [], (err2, treinamentos) => {
-      if (err2) return res.status(500).json({ error: err2.message });
+      if (err2) {
+        console.error('[PRESENÇA] Erro sqlTrein:', err2.message);
+        return res.status(500).json({ error: err2.message });
+      }
       db.all(sqlPresencas, [], (err3, presencas) => {
-        if (err3) return res.status(500).json({ error: err3.message });
+        if (err3) {
+          console.error('[PRESENÇA] Erro sqlPresencas:', err3.message);
+          return res.status(500).json({ error: err3.message });
+        }
 
         const agora = new Date();
 
