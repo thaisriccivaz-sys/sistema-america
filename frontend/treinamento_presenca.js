@@ -7,8 +7,10 @@
     let _dados = [];
     let _filtroDepto = '';
     let _filtroTipoDepto = '';
-let _filtroStatus = 'Ativos';
+    let _filtroStatus = 'Ativos';
     let _filtroBusca = '';
+    let _filtroTreinamento = '';
+    let _filtroConclusao = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
     let _assinTreinamento = null; // { treinamento, colaborador }
@@ -95,7 +97,26 @@ let _filtroStatus = 'Ativos';
             _dados = [];
         }
         _popularFiltroDepto();
+        _popularFiltroTreinamentos();
         renderizar();
+    }
+
+    async function _popularFiltroTreinamentos() {
+        const sel = document.getElementById('pres-filtro-treinamento');
+        if (!sel) return;
+        
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        try {
+            const r = await api('/treinamentos?tipo=' + tipoAtual);
+            if (!r.ok) return;
+            const res = await r.json();
+            const ativos = res.filter(t => (t.status || '').toLowerCase() !== 'arquivado');
+            
+            sel.innerHTML = '<option value="">Todos</option>' +
+                ativos.map(t => `<option value="${t.id}">${t.titulo}</option>`).join('');
+        } catch (e) {
+            console.error('[PRESENÇA]', e);
+        }
     }
 
     function _popularFiltroDepto() {
@@ -141,14 +162,29 @@ let _filtroStatus = 'Ativos';
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
         
         lista = lista.map(c => {
-            const tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento') === tipoAtual);
+            let tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento') === tipoAtual);
+            
+            if (_filtroTreinamento) {
+                tr = tr.filter(t => String(t.treinamento_id) === String(_filtroTreinamento));
+            }
+            
             return {
                 ...c,
                 treinamentos: tr,
                 total: tr.length,
-                concluidos: tr.filter(x => x.concluido).length
+                concluidos: tr.filter(x => x.concluido || x.optou_nao_participar).length
             };
         }).filter(c => c.total > 0 || c.treinamentos.length > 0);
+        
+        if (_filtroConclusao) {
+            lista = lista.filter(c => {
+                if (c.total === 0) return false;
+                const isAllCompleted = c.concluidos === c.total;
+                if (_filtroConclusao === 'Concluido') return isAllCompleted;
+                if (_filtroConclusao === 'Pendente') return !isAllCompleted;
+                return true;
+            });
+        }
 
         if (counter) counter.textContent = `${lista.length} colaborador(es)`;
 
@@ -1159,6 +1195,16 @@ let _filtroStatus = 'Ativos';
 
     window.filtrarPresencaStatus = function (val) {
         _filtroStatus = val;
+        renderizar();
+    };
+
+    window.filtrarPresencaTreinamento = function (val) {
+        _filtroTreinamento = val;
+        renderizar();
+    };
+
+    window.filtrarPresencaConclusao = function (val) {
+        _filtroConclusao = val;
         renderizar();
     };
 

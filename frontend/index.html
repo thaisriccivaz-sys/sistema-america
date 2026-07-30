@@ -5205,10 +5205,24 @@
                 </select>
             </div>
             <div style="flex:1;min-width:150px;">
-                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status</label>
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status Funcional</label>
                 <select id="pres-filtro-status" class="form-control" style="width:100%;" onchange="window.filtrarPresencaStatus(this.value)">
                     <option value="Ativos">Ativos</option>
                     <option value="Desligados">Desligados</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:180px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Treinamento/Palestra</label>
+                <select id="pres-filtro-treinamento" class="form-control" style="width:100%;" onchange="window.filtrarPresencaTreinamento(this.value)">
+                    <option value="">Todos os treinamentos</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Conclusão</label>
+                <select id="pres-filtro-conclusao" class="form-control" style="width:100%;" onchange="window.filtrarPresencaConclusao(this.value)">
+                    <option value="">Todos</option>
+                    <option value="Concluido">Concluído</option>
+                    <option value="Pendente">Pendente</option>
                 </select>
             </div>
             <div style="flex:2;min-width:200px;">
