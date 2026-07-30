@@ -616,6 +616,16 @@ CARGOS_ENCODING_FIXES.forEach(({ de, para }) => {
     });
 });
 
+// FIX LOGISTICA IN DEPARTMENTS DB: Handles cases where Logística was saved as Log??stica in the DB
+db.run("UPDATE departamentos SET nome = 'Logística' WHERE nome LIKE '%Log%stica%' AND nome != 'Logística'");
+db.run("UPDATE colaboradores SET departamento = 'Logística' WHERE departamento LIKE '%Log%stica%' AND departamento != 'Logística'");
+db.run("UPDATE cargos SET departamento = 'Logística' WHERE departamento LIKE '%Log%stica%' AND departamento != 'Logística'");
+db.run("UPDATE logistica_agenda SET tipo = 'Logística' WHERE tipo LIKE '%Log%stica%' AND tipo != 'Logística'");
+
+db.run("UPDATE departamentos SET nome = 'Manutenção' WHERE nome LIKE '%Manuten%o%' AND nome != 'Manutenção'");
+db.run("UPDATE colaboradores SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
+db.run("UPDATE cargos SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
+
 
 // Recarregar configurações do sistema (ex: certificado)
 db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
