@@ -165,12 +165,18 @@
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Palestra';
                     el('filtro-treinamento-busca').placeholder = 'Buscar palestra...';
                     if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Palestras Cadastradas';
+                    // Ocultar coluna VALIDADE na tabela para palestras
+                    const thValidade = document.querySelector('#treinamentos-tbody')?.closest('table')?.querySelector('th:nth-child(3)');
+                    if (thValidade) thValidade.style.display = 'none';
                 } else {
                     if (h1) h1.textContent = 'Materiais de Treinamento';
                     if (p) p.textContent = 'Gerencie apresentações, vídeos, PDFs e outros materiais de treinamento.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Novo Treinamento';
                     el('filtro-treinamento-busca').placeholder = 'Buscar treinamento...';
                     if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Treinamentos Cadastrados';
+                    // Mostrar coluna VALIDADE na tabela para treinamentos
+                    const thValidade = document.querySelector('#treinamentos-tbody')?.closest('table')?.querySelector('th:nth-child(3)');
+                    if (thValidade) thValidade.style.display = '';
                 }
             }
 
@@ -291,7 +297,7 @@
                 </div>
             </td>
             <td style="padding:0.85rem 1rem;color:#475569;font-size:0.85rem;white-space:nowrap;">${anexos.length} arquivo${anexos.length !== 1 ? 's' : ''}</td>
-            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;">
+            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;" class="col-validade-trein"${(window._currentTreinamentoTipo === 'terapia') ? ' style="display:none"' : ''}>
                 ${t.validade_dias && t.validade_dias > 0
                     ? `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 8px;font-size:0.78rem;font-weight:600;">⏰ ${t.validade_dias} meses</span>`
                     : `<span style="background:#f1f5f9;color:#94a3b8;border-radius:8px;padding:3px 8px;font-size:0.78rem;">Sem validade</span>`}
@@ -327,6 +333,12 @@
         const buscaEl = el('novo-trein-colab-busca');
         if (buscaEl) buscaEl.value = '';
         window._novoCapaRemover(); // limpa capa anterior
+
+        // Ocultar/mostrar campo de validade conforme tipo
+        const novoValidadeWrap = el('novo-validade-wrap');
+        if (novoValidadeWrap) {
+            novoValidadeWrap.style.display = (window._currentTreinamentoTipo === 'terapia') ? 'none' : '';
+        }
         
         // Reset abas
         window.mudarAbaNovoTreinamento('detalhes');
@@ -935,7 +947,7 @@
         
         const titleEl = document.getElementById('modal-editar-treinamento-title');
         if (titleEl) {
-            const tipoText = (t.tipo === 'palestra') ? 'Palestra' : ((t.tipo === 'terapia') ? 'Terapia' : 'Treinamento');
+            const tipoText = (t.tipo === 'terapia') ? 'Palestra' : 'Treinamento';
             titleEl.innerHTML = `<i class="ph ph-pencil-simple"></i> Editar ${tipoText}`;
         }
 
@@ -949,8 +961,14 @@
         // Carregar colaboradores avulsos já selecionados
         const colabsAvulsosIds = (t.colaboradores_avulsos || '').split(',').filter(Boolean);
         _carregarColaboradoresSelect('editar-treinamento-colaboradores', colabsAvulsosIds, 'editar');
-        const buscaEl = el('editar-trein-colab-busca');
-        if (buscaEl) buscaEl.value = '';
+        const buscaEditarEl = el('editar-trein-colab-busca');
+        if (buscaEditarEl) buscaEditarEl.value = '';
+
+        // Ocultar/mostrar campo de validade conforme tipo
+        const editarValidadeWrap = el('editar-validade-wrap');
+        if (editarValidadeWrap) {
+            editarValidadeWrap.style.display = (t.tipo === 'terapia') ? 'none' : '';
+        }
 
         // Carrega capa existente
         _editarCapaFile = null;

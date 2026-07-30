@@ -6088,24 +6088,42 @@
                 <form id="form-editar-treinamento" onsubmit="window.salvarEdicaoTreinamento(event)">
                     <div id="aba-detalhes-content">
                     <input type="hidden" id="editar-treinamento-id">
+
+                    <!-- Nome -->
                     <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
                         <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
                             style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
                     </div>
+
+                    <!-- Integração — card destacado -->
                     <div class="mb-3">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:0.95rem;color:#374151;">
-                            <input type="checkbox" id="editar-treinamento-is-integracao" value="1"> Pertence à Integração do colaborador?
+                        <label for="editar-treinamento-is-integracao" style="display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;transition:border-color .2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#93c5fd'">
+                            <input type="checkbox" id="editar-treinamento-is-integracao" value="1" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;flex-shrink:0;">
+                            <div>
+                                <span style="font-weight:600;font-size:0.95rem;color:#1d4ed8;">Pertence à Integração do colaborador?</span>
+                                <p style="margin:2px 0 0;font-size:0.78rem;color:#3b82f6;">Se marcado, este item será obrigatório no checklist de integração de novos colaboradores.</p>
+                            </div>
                         </label>
                     </div>
-                    
 
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data do Treinamento / Palestra (Opcional)</label>
-                        <input type="date" id="editar-treinamento-data" class="form-control" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
-                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                    <!-- Data + Destinatários em grid -->
+                    <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;" class="mb-3">
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data da Palestra <span style="font-weight:400;color:#94a3b8;font-size:0.83rem;">(Opcional)</span></label>
+                            <input type="date" id="editar-treinamento-data" class="form-control"
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 12px;border:1.5px solid #cbd5e1;">
+                            <p style="font-size:0.75rem;color:#94a3b8;margin:5px 0 0;">Se preenchida, só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                        </div>
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                            <textarea id="editar-treinamento-desc" class="form-control" rows="3" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo..."
+                                style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:80px;"></textarea>
+                        </div>
                     </div>
-<div class="mb-3">
+
+                    <!-- Destinatários -->
+                    <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Destinatários</label>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <!-- Painel Esquerdo: Departamentos -->
@@ -6129,11 +6147,8 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
-                        <textarea id="editar-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo do treinamento..."
-                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:120px;"></textarea>
-                    </div>
+
+                    <!-- Imagem de Capa -->
                     <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
@@ -6149,7 +6164,9 @@
                         <input type="file" id="editar-treinamento-capa" accept="image/*" style="display:none;" onchange="window._editarCapaPreview(this)">
                         <input type="hidden" id="editar-treinamento-capa-url">
                     </div>
-                    <div class="mb-3">
+
+                    <!-- Validade (oculto para palestra via JS) -->
+                    <div class="mb-3" id="editar-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -6296,7 +6313,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" id="novo-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:10px;">
