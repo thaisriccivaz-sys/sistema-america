@@ -7796,10 +7796,10 @@ app.get('/api/cargos/por-nome', authenticateToken, (req, res) => {
 
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, status } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)",
-        [nome, documentos_obrigatorios || "", departamento || ""], function (err) {
+    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento, status) VALUES (?, ?, ?, ?)",
+        [nome, documentos_obrigatorios || "", departamento || "", status || "Ativo"], function (err) {
             if (err) {
                 if (err.message.includes('UNIQUE constraint failed')) {
                     return res.status(400).json({ error: `J?? existe um cargo com o nome "${nome}".` });

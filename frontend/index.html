@@ -997,13 +997,23 @@
                                     <i class="ph ph-plus-circle"></i> Novo Cargo
                                 </button>
                             </div>
-                            <div class="mb-3" style="position:relative;">
-                                <i class="ph ph-magnifying-glass"
-                                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                                <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
-                                    oninput="filtrarListaCargos(this.value)"
-                                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                            <div class="mb-3" style="display:flex; gap:10px; align-items:center;">
+                                <div style="flex:1; position:relative;">
+                                    <i class="ph ph-magnifying-glass"
+                                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                                    <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
+                                        oninput="filtrarListaCargos()"
+                                        style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                                </div>
+                                <div style="min-width: 150px;">
+                                    <select id="filtro-status-cargos" class="form-control" onchange="filtrarListaCargos()">
+                                        <option value="Todos">Todos os Status</option>
+                                        <option value="Ativo" selected>Ativos</option>
+                                        <option value="Inativo">Inativos</option>
+                                    </select>
+                                </div>
                             </div>
+
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -1011,6 +1021,7 @@
                                             <th>ID</th>
                                             <th>Nome do Cargo</th>
                                             <th>Departamento</th>
+                                            <th>Status</th>
                                             <th>Responsável</th>
                                             <th style="text-align: center;">Anexos</th>
                                             <th style="text-align: right;">Ações</th>
@@ -1037,6 +1048,13 @@
                                         <label>Departamento Vinculado</label>
                                         <select id="cargo-input-departamento" class="form-control" required>
                                             <option value="" selected disabled>Selecionar</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Status do Cargo</label>
+                                        <select id="cargo-input-status" class="form-control" required>
+                                            <option value="Ativo" selected>Ativo</option>
+                                            <option value="Inativo">Inativo</option>
                                         </select>
                                     </div>
                                 </div>

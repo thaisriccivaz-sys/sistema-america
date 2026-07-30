@@ -1503,6 +1503,11 @@ async function loadCargos() {
                         : '-'}
                 </td>
                 <td>
+                    ${(c.status || 'Ativo') === 'Ativo'
+                        ? `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">Ativo</span>`
+                        : `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">Inativo</span>`}
+                </td>
+                <td>
                     ${(() => {
                         const deptoObj = deptos.find(d => d.nome === c.departamento);
                         const resp = deptoObj ? deptoObj.responsavel_nome : '';
@@ -1532,9 +1537,11 @@ async function loadCargos() {
     if (cargoList) {
         cargoList.innerHTML = '';
         cargos.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c.nome;
-            cargoList.appendChild(option);
+            if (c.status !== 'Inativo') {
+                const option = document.createElement('option');
+                option.value = c.nome;
+                cargoList.appendChild(option);
+            }
         });
     }
 }
@@ -1560,11 +1567,19 @@ window.deleteCargo = async function (id, nome) {
 
 // Filtra as linhas da tabela de cargos pelo texto digitado
 window.filtrarListaCargos = function (query) {
-    const q = (query || '').toLowerCase().trim();
+    const searchInput = document.getElementById('search-cargos');
+    const statusFiltro = document.getElementById('filtro-status-cargos');
+    const q = (query !== undefined ? query : (searchInput ? searchInput.value : '')).toLowerCase().trim();
+    const s = statusFiltro ? statusFiltro.value : 'Todos';
+
     document.querySelectorAll('#table-cargos-body tr').forEach(row => {
         const nome = (row.cells[1]?.textContent || '').toLowerCase();
         const depto = (row.cells[2]?.textContent || '').toLowerCase();
-        row.style.display = (!q || nome.includes(q) || depto.includes(q)) ? '' : 'none';
+        const statusEl = row.cells[3]?.textContent || 'Ativo';
+        const matchSearch = (!q || nome.includes(q) || depto.includes(q));
+        const matchStatus = (s === 'Todos' || statusEl.trim() === s);
+        
+        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
     });
 };
 
@@ -1596,6 +1611,7 @@ window.toggleCargoView = async function (mode, id = null) {
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
+            document.getElementById('cargo-input-status').value = 'Ativo';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if (btnDelete) btnDelete.style.display = 'none';
             const anexosSection = document.getElementById('cargo-anexos-section');
@@ -1620,6 +1636,7 @@ window.toggleCargoView = async function (mode, id = null) {
             if (cargo) {
                 document.getElementById('cargo-input-name').value = cargo.nome;
                 if (cargo.departamento) document.getElementById('cargo-input-departamento').value = cargo.departamento;
+                document.getElementById('cargo-input-status').value = cargo.status || 'Ativo';
                 await renderCargoChecklist(id);  // carrega da nova tabela
                 console.log(`Documentos carregados para cargo ${id}`);
             }
@@ -1790,8 +1807,10 @@ async function handleCargoFormSubmit() {
     const id = document.getElementById('manage-cargo-id').value;
     const nomeInput = document.getElementById('cargo-input-name');
     const deptoInput = document.getElementById('cargo-input-departamento');
+    const statusInput = document.getElementById('cargo-input-status');
     const nome = (nomeInput ? nomeInput.value : '').trim();
     const departamento = deptoInput ? deptoInput.value : '';
+    const status = statusInput ? statusInput.value : 'Ativo';
     if (!nome) { alert('Informe o nome do cargo'); return; }
     if (!departamento) { alert('Informe o departamento vinculado'); return; }
 
@@ -1800,12 +1819,12 @@ async function handleCargoFormSubmit() {
             const r = await fetch(`${API_URL}/cargos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ nome, departamento, documentos_obrigatorios: '' })
+                body: JSON.stringify({ nome, departamento, status, documentos_obrigatorios: '' })
             });
             if (!r.ok) { const err = await r.json(); alert('Erro ao salvar: ' + (err.error || 'Erro')); return; }
         } else {
             // Criar novo cargo
-            const res = await apiPost('/cargos', { nome, departamento, documentos_obrigatorios: '' });
+            const res = await apiPost('/cargos', { nome, departamento, status, documentos_obrigatorios: '' });
             if (!res || res.error) { alert('Erro ao cadastrar: ' + (res?.error || 'Erro')); return; }
             // Agora temos o ID, atualizar o hidden field e habilitar os checkboxes
             document.getElementById('manage-cargo-id').value = res.id;
