@@ -7758,6 +7758,27 @@ app.get('/api/cargos', authenticateToken, (req, res) => {
     });
 });
 
+// Busca cargo por nome exato (ou aproximado) e retorna seus anexos
+// Usado pela aba Contratos para buscar a Descrição de Atividades do cargo do colaborador
+app.get('/api/cargos/por-nome', authenticateToken, (req, res) => {
+    const nome = (req.query.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'Parâmetro nome obrigatório.' });
+
+    // Busca pelo nome exato (TRIM + LOWER para tolerância)
+    db.get("SELECT * FROM cargos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nome], (err, cargo) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!cargo) return res.status(404).json({ error: 'Cargo não encontrado.' });
+
+        // Busca os anexos do cargo
+        db.all("SELECT id, titulo, nome_arquivo, observacoes, r2_key, data_upload FROM cargo_anexos WHERE cargo_id = ? ORDER BY data_upload DESC", [cargo.id], (err2, anexos) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            cargo.anexos = anexos || [];
+            res.json(cargo);
+        });
+    });
+});
+
+
 app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
@@ -7948,6 +7969,40 @@ app.get('/api/cargos/anexos/download', authenticateToken, async (req, res) => {
     } catch (e) {
         require('fs').appendFileSync('r2_debug.log', new Date().toISOString() + ' ERROR: ' + e.message + '\n');
         res.status(404).send('Arquivo não encontrado no armazenamento. Detalhes: ' + e.message);
+    }
+});
+
+// Download de cargo_anexo por ID (para vinculação de Descrição de Atividades)
+app.get('/api/cargos/anexos/:id/download', authenticateToken, async (req, res) => {
+    try {
+        const anexoId = req.params.id;
+        db.get("SELECT * FROM cargo_anexos WHERE id = ?", [anexoId], async (err, anexo) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+            try {
+                const fileData = await r2.downloadStreamFromR2(anexo.r2_key);
+                const contentType = fileData.contentType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                res.setHeader('Content-Type', contentType);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                const safeName = encodeURIComponent(anexo.nome_arquivo || `anexo_${anexoId}.docx`);
+                res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    res.end(Buffer.from(bytes));
+                } else {
+                    throw new Error("Formato de stream não suportado.");
+                }
+            } catch (e2) {
+                console.error('Erro ao baixar cargo_anexo:', e2.message);
+                res.status(500).json({ error: 'Falha ao baixar arquivo do armazenamento: ' + e2.message });
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
