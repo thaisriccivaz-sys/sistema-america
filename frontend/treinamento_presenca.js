@@ -183,7 +183,7 @@ let _filtroStatus = 'Ativos';
                         <i class="ph ph-warning" style="color:#f97316;font-size:1.1rem;flex-shrink:0;"></i>
                         <div style="flex:1;min-width:0;">
                             <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
-                            <div style="font-size:0.72rem;color:#f97316;">Optou por não participar em ${fmtData(t.data_conclusao)}</div>
+                            <div style="font-size:0.72rem;color:#f97316;">Optou não em ${fmtData(t.data_conclusao)}</div>
                         </div>
                     </div>`;
                 }
