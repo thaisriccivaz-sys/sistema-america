@@ -10811,7 +10811,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             ${escObs ? `<span style="font-size:0.72rem;color:#64748b;font-style:italic;max-width:200px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escObs}">Obs: ${escObs}</span>` : ''}
                             <button type="button"
                                 onclick="window.vincularDescricaoAtividades(${an.id}, '${escTitulo}')"
-                                style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+                                style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
                                 <i class="ph ph-link"></i> Vincular: ${escTitulo}
                             </button>
                         </div>`;
@@ -10820,26 +10820,26 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                     acaoBotaoHtml = `
                         <button type="button"
                             onclick="window.abrirModalSelecaoAnexoCargo()"
-                            style="background:#0f766e;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+                            style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
                             <i class="ph ph-list-bullets"></i> Escolher Documento (${qtdAnexos})
                         </button>`;
                 }
 
                 combinedHtml += `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.75rem;border:2px solid #0f766e;border-radius:8px;background:#f0fdf4;gap:0.75rem;margin-bottom:2px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.75rem;border:2px solid #ea580c;border-radius:8px;background:#fff7ed;gap:0.75rem;margin-bottom:2px;">
                     <div style="display:flex;align-items:center;gap:0.6rem;flex:1;">
-                        <div style="display:flex;align-items:center;justify-content:center;width:24px;color:#0f766e;"><i class="ph ph-clipboard-text" style="font-size:1.4rem;"></i></div>
+                        <div style="display:flex;align-items:center;justify-content:center;width:24px;color:#ea580c;"><i class="ph ph-clipboard-text" style="font-size:1.4rem;"></i></div>
                         <div>
                             <div style="display:flex;align-items:center;gap:0.5rem;">
-                                <span style="background:#f0fdf4;color:#0f766e;border:1px solid #6ee7b7;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Descrição de Atividades</span>
+                                <span style="background:#fff7ed;color:#ea580c;border:1px solid #fdba74;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Descrição de Atividades</span>
                                 ${temCargo ? `<span style="font-size:0.78rem;color:#475569;font-weight:500;">Cargo: <b>${(c.cargo||'').replace(/</g,'&lt;')}</b></span>` : ''}
                             </div>
-                            <div style="font-size:0.75rem;color:#0f766e;margin-top:2px;">
+                            <div style="font-size:0.75rem;color:#ea580c;margin-top:2px;">
                                 ${!temCargo ? 'Cargo não cadastrado para este colaborador' : qtdAnexos === 0 ? `Nenhum documento Word cadastrado no cargo — anexe manualmente` : `${qtdAnexos} documento(s) disponível(is) no cargo — aguardando vinculação`}
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:0.75rem;border-left:1px solid #6ee7b7;padding-left:1rem;">
+                    <div style="display:flex;align-items:center;gap:0.75rem;border-left:1px solid #fdba74;padding-left:1rem;">
                         <span style="font-size:0.85rem;font-weight:600;color:#334155;white-space:nowrap;">Exige Assinatura?</span>
                         <label style="cursor:pointer;display:flex;align-items:center;gap:0.25rem;font-size:0.85rem;color:#0f172a;margin:0;">
                             <input type="radio" name="req-ass-obr-descricao-atividades" value="sim"> Sim
