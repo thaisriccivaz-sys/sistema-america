@@ -7814,15 +7814,15 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, status } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
+    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento, status });
 
     db.get("SELECT * FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
-        let params = [documentos_obrigatorios || "", departamento || ""];
+        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?, status = ?";
+        let params = [documentos_obrigatorios || "", departamento || "", status || "Ativo"];
 
         const nomeMotorista = row && row.nome.trim().toUpperCase() === 'MOTORISTA';
         if (!nomeMotorista) {
@@ -9959,7 +9959,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
                 // Envio de e-mail para quem recebe aviso_faltas
                 const _logoPathFaltas = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                 sendEmailParaNotificados('aviso_faltas', {
-                    subject: `?????? Aviso de Falta ??? ${nomeColab}`,
+                    subject: `[FALTA] Aviso de Falta - ${nomeColab}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -10678,7 +10678,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
-            subject: `???? Boleto Faculdade - ${colab.nome_completo}`,
+            subject: `[BOLETO] Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
             attachments: attachments
         });
@@ -10779,7 +10779,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
-            subject: `?? Documento Disciplinar para Folha ??? ${colab.nome_completo} (${tipoDocumento})`,
+            subject: `[DISCIPLINAR] Documento para Folha - ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
             attachments
         });
@@ -17980,7 +17980,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 sendMailHelper({
                     to: cliente_email,
-                    subject: `??? Solicitação de Credenciamento Recebida - América Rental`,
+                    subject: `[CREDENCIAMENTO] Solicitação Recebida - América Rental`,
                     html: htmlCliente,
                     attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                 }).then(() => {
@@ -20653,7 +20653,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                         });
                         // E-mail de estoque mínimo (ajuste manual)
                         sendEmailParaNotificados('estoque_minimo', {
-                            subject: `???? Estoque M??nimo Atingido ??? ${nome}`,
+                            subject: `[ESTOQUE] Estoque Mínimo Atingido - ${nome}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -22283,7 +22283,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
                       const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                       sendMailHelper({
                         to: colab.email.trim(),
-                        subject: `Pesquisa de Satisfação ??? ${treinNome}`,
+                        subject: `Pesquisa de Satisfação - ${treinNome}`,
                         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação - sua opinião à muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div>`,
                         attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                       }).then(() => console.log(`[PRESENÇA-EMAIL] Pesquisa enviada para ${colab.email}`))
