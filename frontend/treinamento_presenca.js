@@ -163,10 +163,10 @@
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
         
         lista = lista.map(c => {
-            let tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento') === tipoAtual);
+            let tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento').toLowerCase() === tipoAtual);
             
             if (_filtroTreinamento) {
-                tr = tr.filter(t => String(t.treinamento_id) === String(_filtroTreinamento));
+                tr = tr.filter(t => String(t.id) === String(_filtroTreinamento));
             }
             
             return {
