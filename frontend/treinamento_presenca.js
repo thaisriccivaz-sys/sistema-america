@@ -57,6 +57,7 @@
         // O tipo (treinamento ou terapia/palestra) é setado pelo navigateTo() em app.js
         // antes de chamar initPresencaTreinamento(). Basta usar window._currentTreinamentoTipo.
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        console.log('[PRESENÇA-DEBUG] tipoAtual =', tipoAtual);
 
         const view = document.getElementById('view-treinamento-presenca');
         if (view) {
@@ -79,10 +80,32 @@
 
         try {
             const r = await api('/treinamento-presenca/colaboradores');
-            if (!r.ok) throw new Error('Erro ao carregar');
+            if (!r.ok) throw new Error('Erro ao carregar status=' + r.status);
             _dados = await r.json();
+            console.log('[PRESENÇA-DEBUG] API retornou', _dados.length, 'colaboradores');
+            // Log tipos de treinamento encontrados
+            const allTipos = {};
+            let totalTrein = 0;
+            _dados.forEach(c => {
+                (c.treinamentos || []).forEach(t => {
+                    allTipos[t.tipo || 'NULL'] = (allTipos[t.tipo || 'NULL'] || 0) + 1;
+                    totalTrein++;
+                });
+            });
+            console.log('[PRESENÇA-DEBUG] Total treinamentos somados:', totalTrein);
+            console.log('[PRESENÇA-DEBUG] Tipos encontrados:', JSON.stringify(allTipos));
+            // Log status dos colaboradores
+            const statusCount = {};
+            _dados.forEach(c => { statusCount[c.status || 'NULL'] = (statusCount[c.status || 'NULL'] || 0) + 1; });
+            console.log('[PRESENÇA-DEBUG] Status colaboradores:', JSON.stringify(statusCount));
+            // Amostra dos primeiros 3 com treinamentos
+            const comTrein = _dados.filter(c => (c.treinamentos || []).length > 0);
+            console.log('[PRESENÇA-DEBUG] Colaboradores COM treinamentos:', comTrein.length);
+            comTrein.slice(0, 3).forEach(c => {
+                console.log('[PRESENÇA-DEBUG]  ', c.nome_completo, '-> treinamentos:', c.treinamentos.map(t => `${t.nome}(tipo=${t.tipo})`));
+            });
         } catch (e) {
-            console.error('[PRESENÇA]', e);
+            console.error('[PRESENÇA] Erro ao carregar:', e);
             _dados = [];
         }
         _popularFiltroDepto();
@@ -128,6 +151,7 @@
 
         let lista = _dados;
         const statusFiltro = _filtroStatus || 'Ativos';
+        console.log('[PRESENÇA-DEBUG] renderizar: _dados.length =', _dados.length, 'statusFiltro =', statusFiltro);
 
         if (depto) lista = lista.filter(c => c.departamento === depto);
         if (tipoDepto) lista = lista.filter(c => c.departamento_tipo === tipoDepto);
@@ -142,6 +166,7 @@
                 return s === 'ativo' || s === 'afastado' || s === 'férias' || s === 'ferias';
             });
         }
+        console.log('[PRESENÇA-DEBUG] após filtro status:', lista.length, 'colaboradores');
         
         if (busca) lista = lista.filter(c =>
             (c.nome_completo || '').toLowerCase().includes(busca) ||
@@ -149,6 +174,7 @@
         );
 
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        console.log('[PRESENÇA-DEBUG] filtrando treinamentos por tipo =', tipoAtual);
         
         lista = lista.map(c => {
             // Filtra por tipo (treinamento ou terapia/palestra) — case insensitive
@@ -168,6 +194,7 @@
                 concluidos: tr.filter(x => x.concluido || x.optou_nao_participar).length
             };
         }).filter(c => c.total > 0);
+        console.log('[PRESENÇA-DEBUG] após filtro tipo + total>0:', lista.length, 'colaboradores');
         
         if (_filtroConclusao) {
             lista = lista.filter(c => {
