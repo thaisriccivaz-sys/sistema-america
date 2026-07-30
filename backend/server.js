@@ -429,6 +429,13 @@ db.run(`CREATE TABLE IF NOT EXISTS cargo_anexos (
     FOREIGN KEY(cargo_id) REFERENCES cargos(id)
 )`);
 
+// MIGRATION: coluna status em cargos (Ativo/Inativo)
+db.run("ALTER TABLE cargos ADD COLUMN status TEXT DEFAULT 'Ativo'", (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('[Migration] cargos.status:', err.message);
+    }
+});
+
 // Auto-adicionar coluna observacoes
 db.run("ALTER TABLE cargo_anexos ADD COLUMN observacoes TEXT", (err) => {
     if (err && err.message.indexOf('duplicate column') === -1 && err.message.indexOf('already exists') === -1) {
@@ -7821,7 +7828,7 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?, status = ?";
+        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?, status = COALESCE(?, 'Ativo')";
         let params = [documentos_obrigatorios || "", departamento || "", status || "Ativo"];
 
         const nomeMotorista = row && row.nome.trim().toUpperCase() === 'MOTORISTA';
