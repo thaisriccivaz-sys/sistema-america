@@ -108,6 +108,8 @@ window.initChamados = async function() {
                 '<option value="">Todos os tipos</option><option value="melhoria">\u2728 Melhoria</option><option value="correcao">\uD83D\uDC1B Corre\u00e7\u00e3o</option><option value="urgente">🚨 Urgente</option></select>' +
             '<select id="filtro-chamados-status" onchange="window.renderListaChamados()" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">' +
                 '<option value="">Todos os status</option><option value="Novo">Novo</option><option value="Aguardando Informa\u00e7\u00f5es">Aguardando Informa\u00e7\u00f5es</option><option value="Respondido">Respondido</option><option value="Finalizado">Finalizado</option></select>' +
+            (_isAdmin() ? '<select id="filtro-chamados-situacao" onchange="window.renderListaChamados()" style="border:1.5px solid #2563eb;border-radius:8px;padding:7px 12px;font-size:0.85rem;color:#1d4ed8;background:#eff6ff;cursor:pointer;font-weight:600;">' +
+                '<option value="ativo">\u26a1 Ativos</option><option value="finalizado">\u2713 Finalizados</option><option value="">Todas as situa\u00e7\u00f5es</option></select>' : '') +
             '<input id="filtro-chamados-busca" type="search" placeholder="Buscar chamado..." oninput="window.renderListaChamados()" style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:0.85rem;"></div>' +
         '<div id="chamados-lista-container"><div style="text-align:center;padding:60px;color:#94a3b8;"><i class="ph ph-spinner" style="font-size:2rem;"></i><br>Carregando...</div></div></div>';
 
@@ -135,8 +137,19 @@ window.renderListaChamados = async function() {
         const tipo = (document.getElementById('filtro-chamados-tipo') || {}).value || '';
         const status = (document.getElementById('filtro-chamados-status') || {}).value || '';
         const busca = ((document.getElementById('filtro-chamados-busca') || {}).value || '').toLowerCase();
+        const situacaoEl = document.getElementById('filtro-chamados-situacao');
+        const situacao = situacaoEl ? situacaoEl.value : '';
         if (tipo) dados = dados.filter(function(c) { return c.tipo === tipo; });
         if (status) dados = dados.filter(function(c) { return c.status === status; });
+        // Filtro de Situação: apenas para Thais.Ricci
+        if (_isAdmin()) {
+            const ATIVOS = ['Novo', 'Aguardando Informa\u00e7\u00f5es', 'Respondido'];
+            if (situacao === 'ativo') {
+                dados = dados.filter(function(c) { return ATIVOS.includes(c.status); });
+            } else if (situacao === 'finalizado') {
+                dados = dados.filter(function(c) { return c.status === 'Finalizado'; });
+            }
+        }
         if (busca) dados = dados.filter(function(c) { return (c.titulo||'').toLowerCase().includes(busca)||(c.descricao||'').toLowerCase().includes(busca); });
 
         if (dados.length === 0) {
