@@ -1591,8 +1591,6 @@ window.toggleCargoView = async function (mode, id = null) {
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
-            const obsInput = document.getElementById('cargo-input-observacoes');
-            if (obsInput) obsInput.value = '';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if (btnDelete) btnDelete.style.display = 'none';
             const anexosSection = document.getElementById('cargo-anexos-section');
@@ -1616,8 +1614,6 @@ window.toggleCargoView = async function (mode, id = null) {
 
             if (cargo) {
                 document.getElementById('cargo-input-name').value = cargo.nome;
-                const obsInput = document.getElementById('cargo-input-observacoes');
-                if (obsInput) obsInput.value = cargo.observacoes || '';
                 if (cargo.departamento) document.getElementById('cargo-input-departamento').value = cargo.departamento;
                 await renderCargoChecklist(id);  // carrega da nova tabela
                 console.log(`Documentos carregados para cargo ${id}`);
@@ -1647,6 +1643,7 @@ window.carregarAnexosCargo = async function(cargoId) {
                     <div style="overflow: hidden;">
                         <div style="font-weight: 500; font-size: 0.95rem; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${a.titulo}</div>
                         <div style="font-size: 0.8rem; color: #64748b;">${a.nome_arquivo} • ${new Date(a.data_upload).toLocaleDateString()}</div>
+                        ${a.observacoes ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic;">Obs: ${a.observacoes}</div>` : ''}
                     </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
@@ -1671,6 +1668,7 @@ window.uploadAnexoCargo = async function(event) {
     if (!cargoId) return showToast('Salve o cargo primeiro antes de anexar.', 'warning');
 
     const tituloInput = document.getElementById('cargo-anexo-titulo');
+    const observacoesInput = document.getElementById('cargo-anexo-observacoes');
     const arquivoInput = document.getElementById('cargo-anexo-arquivo');
     const btn = document.getElementById('btn-upload-anexo-cargo');
     
@@ -1683,6 +1681,7 @@ window.uploadAnexoCargo = async function(event) {
 
     const formData = new FormData();
     formData.append('titulo', tituloInput.value.trim());
+    if (observacoesInput) formData.append('observacoes', observacoesInput.value.trim());
     formData.append('arquivo', file);
 
     const originalBtnHTML = btn.innerHTML;
@@ -1786,10 +1785,8 @@ async function handleCargoFormSubmit() {
     const id = document.getElementById('manage-cargo-id').value;
     const nomeInput = document.getElementById('cargo-input-name');
     const deptoInput = document.getElementById('cargo-input-departamento');
-    const obsInput = document.getElementById('cargo-input-observacoes');
     const nome = (nomeInput ? nomeInput.value : '').trim();
     const departamento = deptoInput ? deptoInput.value : '';
-    const observacoes = obsInput ? obsInput.value : '';
     if (!nome) { alert('Informe o nome do cargo'); return; }
     if (!departamento) { alert('Informe o departamento vinculado'); return; }
 
@@ -1798,12 +1795,12 @@ async function handleCargoFormSubmit() {
             const r = await fetch(`${API_URL}/cargos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ nome, departamento, observacoes, documentos_obrigatorios: '' })
+                body: JSON.stringify({ nome, departamento, documentos_obrigatorios: '' })
             });
             if (!r.ok) { const err = await r.json(); alert('Erro ao salvar: ' + (err.error || 'Erro')); return; }
         } else {
             // Criar novo cargo
-            const res = await apiPost('/cargos', { nome, departamento, observacoes, documentos_obrigatorios: '' });
+            const res = await apiPost('/cargos', { nome, departamento, documentos_obrigatorios: '' });
             if (!res || res.error) { alert('Erro ao cadastrar: ' + (res?.error || 'Erro')); return; }
             // Agora temos o ID, atualizar o hidden field e habilitar os checkboxes
             document.getElementById('manage-cargo-id').value = res.id;
