@@ -628,6 +628,12 @@ db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE docu
     else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
 });
 
+// MIGRATION: Renomear 'ASO Padrão' para 'ASO Periódico'
+db.run("UPDATE documentos SET document_type = 'ASO Periódico' WHERE document_type IN ('ASO Padrão', 'ASO Padrao')", (err) => {
+    if (err) console.error("Erro na migration ASO Periódico:", err);
+    else console.log("Migration 'ASO Padrão -> ASO Periódico' executada (se houver registros).");
+});
+
 // MIGRATION: Novas colunas financeiras
 db.run("ALTER TABLE colaboradores ADD COLUMN adiantamento_salarial TEXT", (err) => {
     if (!err) console.log("Coluna adiantamento_salarial adicionada com sucesso.");
@@ -10250,10 +10256,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
             db.run('UPDATE colaboradores SET aso_email_enviado = ?, aso_exame_data = ? WHERE id = ?', [dataEnvioStr, dataAgendadaStr, colaborador_id], (err) => {
                 if (err) console.error('Erro ao salvar aso_email_enviado/aso_exame_data:', err);
 
-                // ASO Periódico e ASO Padrão são o mesmo quadro — sempre usa 'ASO Padrão'
+                // ASO Periódico e ASO Padrão são o mesmo quadro — sempre usa 'ASO Periódico'
                 const tipoExameNorm = tipoExameStr.toLowerCase().replace(/[áàãâä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i').replace(/[óòõôö]/g, 'o').replace(/[úùûü]/g, 'u');
                 const tipoASO = (tipoExameNorm === 'periodico' || tipoExameNorm === 'padrao' || tipoExameStr === 'Periódico' || tipoExameStr === 'Padrão')
-                    ? 'ASO Padrão'
+                    ? 'ASO Periódico'
                     : `ASO ${tipoExameStr}`;
                 db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, year) VALUES (?, ?, ?, ?)`,
                     [colaborador_id, 'ASO', tipoASO, y],
@@ -18140,7 +18146,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const docMap = {
             'cnh': ['CNH'],
             'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso': ['ASO', 'ASO Padrao', 'ASO Padr??o', 'Atestado de Sa??de Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
             'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
@@ -18593,7 +18599,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             const docMapPublico = {
                 'cnh': ['CNH'],
                 'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso': ['ASO', 'ASO Padrao', 'ASO Padr??o', 'Atestado de Sa??de Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
                 'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],

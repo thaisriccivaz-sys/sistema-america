@@ -4946,7 +4946,7 @@ async function loadDocumentosList() {
 
 const FIXED_DOCS = {
     'Contratos': ['Contrato de Trabalho', 'Termo de Confidencialidade', 'Acordo Individual Benefícios', 'Acordo Prorrogação e Compensação', 'Declaração Vale Transporte', 'Contrato Experiência 45 dias', 'Prorrogação de Contrato', 'Termo de Estágio'],
-    'ASO': ['ASO Padrão'],
+    'ASO': ['ASO Periódico'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
     'Multas': ['Contrato de Responsabilidade com o Veículo']
 };
@@ -6900,7 +6900,7 @@ window.renderASOAno = function () {
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
     // Documentos obrigatórios
-    const list = ['ASO Padrão'];
+    const list = ['ASO Periódico'];
     if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
@@ -13142,7 +13142,7 @@ function updateAdmissaoStepPercentages(colab) {
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
 
     // Reproduzir regras de ASO
-    const listAso = ['ASO Padrão'];
+    const listAso = ['ASO Periódico'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
 
     let preenchidos5 = 0;
