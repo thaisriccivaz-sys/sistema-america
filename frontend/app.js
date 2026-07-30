@@ -11899,12 +11899,11 @@ window.abrirModalSelecaoAnexoCargo = async function () {
         <label for="da-anexo-${idx}" style="display:block;cursor:pointer;border:2px solid transparent;border-radius:10px;padding:0.75rem;background:#f8fafc;margin-bottom:0.5rem;transition:border-color 0.15s,background 0.15s;" 
             onmouseenter="this.style.background='#f0fdf4'" 
             onmouseleave="this.style.background=document.getElementById('da-anexo-${idx}').checked?'#ecfdf5':'#f8fafc'"
-            onclick="document.querySelectorAll('.da-anexo-card').forEach(el=>el.style.borderColor='transparent',el.style.background='#f8fafc');this.style.borderColor='#0f766e';this.style.background='#ecfdf5';">
+            onclick="document.querySelectorAll('.da-anexo-card').forEach(el => { el.style.borderColor='transparent'; el.style.background='#f8fafc'; }); this.style.borderColor='#0f766e'; this.style.background='#ecfdf5';">
             <div style="display:flex;align-items:flex-start;gap:0.75rem;" class="da-anexo-card">
                 <input type="radio" id="da-anexo-${idx}" name="da-modal-anexo" value="${an.id}" style="margin-top:3px;accent-color:#0f766e;flex-shrink:0;">
                 <div style="flex:1;">
                     <div style="font-weight:700;color:#0f172a;font-size:0.92rem;">${titulo}</div>
-                    ${nomeArq ? `<div style="font-size:0.75rem;color:#64748b;margin-top:2px;"><i class="ph ph-file-doc"></i> ${nomeArq}</div>` : ''}
                     ${dataUpload ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:1px;">Cadastrado em: ${dataUpload}</div>` : ''}
                     ${obs ? `<div style="margin-top:6px;padding:6px 10px;background:#fff;border-left:3px solid #6ee7b7;border-radius:4px;font-size:0.78rem;color:#374151;font-style:italic;"><b>Obs:</b> ${obs}</div>` : ''}
                 </div>
