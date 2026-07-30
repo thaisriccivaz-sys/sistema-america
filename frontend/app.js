@@ -1620,7 +1620,6 @@ window.toggleCargoView = async function (mode, id = null) {
             }
         }
     }
-    }
 }
 
 window.carregarAnexosCargo = async function(cargoId) {
