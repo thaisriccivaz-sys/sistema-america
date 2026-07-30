@@ -6097,13 +6097,13 @@ async function renderCargoDocsChecklist(container) {
                 tabLabelDisplay = 'Ficha Cadastral';
             } else if (item.color === 'roxo') {
                 badgeBg = '#fdf4ff'; badgeColor = '#7e22ce'; badgeBorder = '#f0abfc';
-                tabLabelDisplay = 'Perfil';
+                tabLabelDisplay = 'Contratos';
             } else if (item.color === 'laranja') {
                 badgeBg = '#fff7ed'; badgeColor = '#ea580c'; badgeBorder = '#fdba74';
                 tabLabelDisplay = 'Cargo';
             } else {
                 badgeBg = '#eff6ff'; badgeColor = '#1e40af'; badgeBorder = '#bfdbfe';
-                tabLabelDisplay = 'Obrigatório';
+                tabLabelDisplay = 'Contabilidade';
             }
             const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${tabLabelDisplay}</span>`;
 
