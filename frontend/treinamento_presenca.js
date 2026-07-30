@@ -528,7 +528,7 @@ let _filtroStatus = 'Ativos';
                 if (!r.ok) throw new Error(await r.text());
                 
                 Swal.fire({ title: 'Sucesso', text: 'Opção salva com sucesso.', icon: 'success', timer: 2000, showConfirmButton: false });
-                if (window.carregarTreinamentosPresenca) window.carregarTreinamentosPresenca();
+                carregarDados();
             } catch (err) {
                 Swal.fire('Erro', 'Ocorreu um erro ao registrar a opção: ' + err.message, 'error');
             }
