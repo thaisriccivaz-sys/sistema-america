@@ -7752,10 +7752,10 @@ app.get('/api/cargos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, observacoes } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)",
-        [nome, documentos_obrigatorios || "", departamento || ""], function (err) {
+    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento, observacoes) VALUES (?, ?, ?, ?)",
+        [nome, documentos_obrigatorios || "", departamento || "", observacoes || ""], function (err) {
             if (err) {
                 if (err.message.includes('UNIQUE constraint failed')) {
                     return res.status(400).json({ error: `J?? existe um cargo com o nome "${nome}".` });
@@ -7770,15 +7770,15 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, observacoes } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
+    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento, observacoes });
 
     db.get("SELECT * FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
-        let params = [documentos_obrigatorios || "", departamento || ""];
+        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?, observacoes = ?";
+        let params = [documentos_obrigatorios || "", departamento || "", observacoes || ""];
 
         const nomeMotorista = row && row.nome.trim().toUpperCase() === 'MOTORISTA';
         if (!nomeMotorista) {
