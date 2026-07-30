@@ -6089,15 +6089,23 @@
                     <div id="aba-detalhes-content">
                     <input type="hidden" id="editar-treinamento-id">
 
-                    <!-- Nome -->
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
-                        <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
-                            style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                    <!-- Linha 1: Nome (2/3) + Data (1/3) -->
+                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;" class="mb-3">
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
+                            <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data da Palestra <span style="font-weight:400;color:#94a3b8;font-size:0.83rem;">(Opcional)</span></label>
+                            <input type="date" id="editar-treinamento-data" class="form-control"
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 12px;border:1.5px solid #cbd5e1;">
+                            <p style="font-size:0.75rem;color:#94a3b8;margin:5px 0 0;">Se preenchida, só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                        </div>
                     </div>
 
-                    <!-- Integração — card destacado -->
-                    <div class="mb-3">
+                    <!-- Linha 2: Integração — card destacado com espaçamento do título -->
+                    <div style="margin-top:20px;" class="mb-3">
                         <label for="editar-treinamento-is-integracao" style="display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;transition:border-color .2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#93c5fd'">
                             <input type="checkbox" id="editar-treinamento-is-integracao" value="1" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;flex-shrink:0;">
                             <div>
@@ -6107,19 +6115,11 @@
                         </label>
                     </div>
 
-                    <!-- Data + Destinatários em grid -->
-                    <div style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;" class="mb-3">
-                        <div>
-                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data da Palestra <span style="font-weight:400;color:#94a3b8;font-size:0.83rem;">(Opcional)</span></label>
-                            <input type="date" id="editar-treinamento-data" class="form-control"
-                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 12px;border:1.5px solid #cbd5e1;">
-                            <p style="font-size:0.75rem;color:#94a3b8;margin:5px 0 0;">Se preenchida, só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
-                        </div>
-                        <div>
-                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
-                            <textarea id="editar-treinamento-desc" class="form-control" rows="3" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo..."
-                                style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:80px;"></textarea>
-                        </div>
+                    <!-- Linha 3: Descrição abaixo da integração -->
+                    <div style="margin-top:20px;" class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                        <textarea id="editar-treinamento-desc" class="form-control" rows="4" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo da palestra..."
+                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:90px;"></textarea>
                     </div>
 
                     <!-- Destinatários -->
