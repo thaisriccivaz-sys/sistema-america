@@ -21692,13 +21692,15 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
   const sqlColabs = `
     SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
+           c.data_admissao,
            d.tipo AS departamento_tipo
     FROM colaboradores c
     LEFT JOIN departamentos d ON c.departamento = d.nome
     ORDER BY c.nome_completo ASC
   `;
   const sqlTrein = `
-    SELECT id, nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo, is_integracao
+    SELECT id, nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias,
+           IFNULL(tipo, 'treinamento') AS tipo, is_integracao, data_treinamento
     FROM treinamentos
     WHERE IFNULL(status, 'ativo') = 'ativo'
     ORDER BY nome ASC
@@ -21723,14 +21725,29 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
           // Treinamentos aplicáveis: departamento 'Todos' OU contém o depto do colaborador OU colaborador está na lista de avulsos
           const aplicaveis = treinamentos.filter(t => {
             // 1. Todos os departamentos
-            if (!t.departamento || t.departamento === 'Todos') return true;
-            // 2. Colaborador pertence a um dos departamentos selecionados
-            const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
-            if (deptos.includes((c.departamento || '').trim().toLowerCase())) return true;
-            // 3. Colaborador está na lista de avulsos
-            const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
-            if (avulsos.includes(String(c.id))) return true;
-            return false;
+            if (!t.departamento || t.departamento === 'Todos') {
+              // nada; continua para checar data
+            } else {
+              // 2. Colaborador pertence a um dos departamentos selecionados
+              const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
+              const noDepto = deptos.includes((c.departamento || '').trim().toLowerCase());
+              // 3. Colaborador está na lista de avulsos
+              const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
+              const eAvulso = avulsos.includes(String(c.id));
+              if (!noDepto && !eAvulso) return false;
+            }
+
+            // 4. Palestra com data definida: ocultar se data_treinamento < data_admissao do colaborador
+            if (t.tipo === 'terapia' && t.data_treinamento && c.data_admissao) {
+              const dtPalestra  = new Date(t.data_treinamento);
+              const dtAdmissao  = new Date(c.data_admissao);
+              // Normaliza para comparar apenas data (sem hora)
+              dtPalestra.setHours(0, 0, 0, 0);
+              dtAdmissao.setHours(0, 0, 0, 0);
+              if (dtPalestra < dtAdmissao) return false;
+            }
+
+            return true;
           });
 
           const treinamentosComStatus = aplicaveis.map(t => {
