@@ -21897,147 +21897,158 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
 // ?????? GET /api/treinamento-presenca/colaboradores ??????????????????????????????????????????????????????????????????????????????????????????
 // Retorna lista de colaboradores com seus treinamentos aplicáveis (por depto)
 // e o status de conclusão de cada treinamento
-app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
-  const sqlColabs = `
-    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status,
-           IFNULL(c.foto_path, '') AS foto_path,
-           IFNULL(c.foto_base64, '') AS foto_base64,
-           IFNULL(c.data_admissao, '') AS data_admissao,
-           IFNULL(c.tipo_contratacao, '') AS tipo_contratacao,
-           IFNULL(d.tipo, '') AS departamento_tipo
-    FROM colaboradores c
-    LEFT JOIN departamentos d ON c.departamento = d.nome
-    ORDER BY c.nome_completo ASC
-  `;
-  const sqlTrein = `
-    SELECT id, nome, descricao,
-           IFNULL(departamento, 'Todos') AS departamento,
-           IFNULL(colaboradores_avulsos, '') AS colaboradores_avulsos,
-           IFNULL(capa_url, '') AS capa_url,
-           IFNULL(validade_dias, 0) AS validade_dias,
-           IFNULL(tipo, 'treinamento') AS tipo,
-           IFNULL(is_integracao, 0) AS is_integracao,
-           IFNULL(data_treinamento, '') AS data_treinamento
-    FROM treinamentos
-    WHERE IFNULL(status, 'ativo') = 'ativo'
-    ORDER BY nome ASC
-  `;
-  const sqlPresencas = `
-    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
-           IFNULL(tp.optou_nao_participar, 0) AS optou_nao_participar,
-           pr.respondido_em
-    FROM treinamento_presenca tp
-    LEFT JOIN treinamento_pesquisa_respostas pr
-      ON pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id
-    WHERE tp.colaborador_id IS NOT NULL
-  `;
-
-  db.all(sqlColabs, [], (err, colabs) => {
-    if (err) {
-      console.error('[PRESENÇA] Erro sqlColabs:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-    db.all(sqlTrein, [], (err2, treinamentos) => {
-      if (err2) {
-        console.error('[PRESENÇA] Erro sqlTrein:', err2.message);
-        return res.status(500).json({ error: err2.message });
-      }
-      db.all(sqlPresencas, [], (err3, presencas) => {
-        if (err3) {
-          console.error('[PRESENÇA] Erro sqlPresencas:', err3.message);
-          return res.status(500).json({ error: err3.message });
-        }
-
-        const agora = new Date();
-
-        const resultado = colabs.map(c => {
-          // Treinamentos aplicáveis: departamento 'Todos' OU contém o depto do colaborador OU colaborador está na lista de avulsos
-          const aplicaveis = treinamentos.filter(t => {
-            // 1. Todos os departamentos
-            if (!t.departamento || t.departamento === 'Todos') {
-              // nada; continua para checar data
-            } else {
-              // 2. Colaborador pertence a um dos departamentos selecionados
-              const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
-              const noDepto = deptos.includes((c.departamento || '').trim().toLowerCase());
-              // 3. Colaborador está na lista de avulsos
-              const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
-              const eAvulso = avulsos.includes(String(c.id));
-              if (!noDepto && !eAvulso) return false;
-            }
-
-            // 4. Palestra com data definida: ocultar se data_treinamento < data_admissao do colaborador
-            if (t.tipo === 'terapia' && t.data_treinamento && c.data_admissao) {
-              // Converte data_treinamento (formato ISO: yyyy-mm-dd)
-              const dtPalestra = new Date(t.data_treinamento + 'T12:00:00');
-
-              // Converte data_admissao (pode ser dd/mm/yyyy ou yyyy-mm-dd)
-              let dtAdmissao;
-              const adm = String(c.data_admissao);
-              if (adm.includes('/')) {
-                const pts = adm.split('/');
-                dtAdmissao = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
-              } else {
-                dtAdmissao = new Date(adm + 'T12:00:00');
-              }
-
-              if (!isNaN(dtPalestra) && !isNaN(dtAdmissao) && dtPalestra < dtAdmissao) return false;
-            }
-
-            return true;
-          });
-
-          const treinamentosComStatus = aplicaveis.map(t => {
-            const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
-            const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
-
-            // Verificar se treinamento está vencido (validade_dias > 0)
-            let vencido = false;
-            if (presenca && dataConclusao && t.validade_dias > 0) {
-              const dtConclusao = new Date(dataConclusao);
-              const dtVencimento = new Date(dtConclusao);
-              dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
-              if (agora > dtVencimento) vencido = true;
-            }
-
-            // Se vencido, tratar como não concluído
-            const concluido = !!presenca && !vencido;
-
-            return {
-              id: t.id,
-              nome: t.nome,
-              descricao: t.descricao,
-              capa_url: t.capa_url,
-              validade_dias: t.validade_dias || 0,
-              tipo: t.tipo || 'treinamento',
-              concluido,
-              vencido,
-              data_conclusao: dataConclusao,
-              respondido_em: presenca ? presenca.respondido_em : null,
-              optou_nao_participar: presenca ? presenca.optou_nao_participar : 0
-            };
-          });
-
-          return {
-id: c.id,
-nome_completo: c.nome_completo,
-departamento: c.departamento,
-departamento_tipo: c.departamento_tipo,
-cargo: c.cargo,
-status: c.status,
-foto_path: c.foto_path,
-            foto_base64: c.foto_base64,
-            tipo_contratacao: c.tipo_contratacao,
-            treinamentos: treinamentosComStatus,
-            total: treinamentosComStatus.length,
-            concluidos: treinamentosComStatus.filter(t => t.concluido).length
-          };
-        });
-
-        res.json(resultado);
+app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req, res) => {
+  try {
+    // Helper: retorna lista de nomes de colunas de uma tabela
+    const getCols = (tabela) => new Promise((resolve) => {
+      db.all(`PRAGMA table_info(${tabela})`, [], (err, rows) => {
+        resolve(err ? [] : rows.map(r => r.name));
       });
     });
-  });
+
+    // Verifica colunas existentes nas tabelas relevantes (sem lançar exceção se não existirem)
+    const [treinCols, colabCols, presencaCols] = await Promise.all([
+      getCols('treinamentos'),
+      getCols('colaboradores'),
+      getCols('treinamento_presenca')
+    ]);
+
+    const has = (cols, col) => cols.includes(col);
+
+    // ── Query colaboradores ──────────────────────────────────────────────
+    const sqlColabs = `
+      SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status,
+             ${has(colabCols, 'foto_path')        ? "IFNULL(c.foto_path, '')"        : "''"} AS foto_path,
+             ${has(colabCols, 'foto_base64')      ? "IFNULL(c.foto_base64, '')"      : "''"} AS foto_base64,
+             ${has(colabCols, 'data_admissao')    ? "IFNULL(c.data_admissao, '')"    : "''"} AS data_admissao,
+             ${has(colabCols, 'tipo_contratacao') ? "IFNULL(c.tipo_contratacao, '')" : "''"} AS tipo_contratacao,
+             IFNULL(d.tipo, '') AS departamento_tipo
+      FROM colaboradores c
+      LEFT JOIN departamentos d ON c.departamento = d.nome
+      ORDER BY c.nome_completo ASC
+    `;
+
+    // ── Query treinamentos ───────────────────────────────────────────────
+    const sqlTrein = `
+      SELECT id, nome, IFNULL(descricao, '') AS descricao,
+             ${has(treinCols, 'departamento')          ? "IFNULL(departamento, 'Todos')"       : "'Todos'"      } AS departamento,
+             ${has(treinCols, 'colaboradores_avulsos') ? "IFNULL(colaboradores_avulsos, '')"   : "''"           } AS colaboradores_avulsos,
+             ${has(treinCols, 'capa_url')              ? "IFNULL(capa_url, '')"                : "''"           } AS capa_url,
+             ${has(treinCols, 'validade_dias')         ? "IFNULL(validade_dias, 0)"            : "0"            } AS validade_dias,
+             ${has(treinCols, 'tipo')                  ? "IFNULL(tipo, 'treinamento')"         : "'treinamento'"} AS tipo,
+             ${has(treinCols, 'is_integracao')         ? "IFNULL(is_integracao, 0)"            : "0"            } AS is_integracao,
+             ${has(treinCols, 'data_treinamento')      ? "IFNULL(data_treinamento, '')"        : "''"           } AS data_treinamento
+      FROM treinamentos
+      WHERE ${has(treinCols, 'status') ? "IFNULL(status, 'ativo') = 'ativo'" : "1=1"}
+      ORDER BY nome ASC
+    `;
+
+    // ── Query presenças ──────────────────────────────────────────────────
+    const sqlPresencas = `
+      SELECT tp.colaborador_id, tp.treinamento_id,
+             ${has(presencaCols, 'data_conclusao')       ? 'tp.data_conclusao'                         : 'NULL'} AS data_conclusao,
+             ${has(presencaCols, 'data_presenca')        ? 'tp.data_presenca'                          : 'NULL'} AS data_presenca,
+             ${has(presencaCols, 'optou_nao_participar') ? 'IFNULL(tp.optou_nao_participar, 0)'        : '0'   } AS optou_nao_participar,
+             pr.respondido_em
+      FROM treinamento_presenca tp
+      LEFT JOIN treinamento_pesquisa_respostas pr
+        ON pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id
+      WHERE tp.colaborador_id IS NOT NULL
+    `;
+
+    // ── Executar as queries em paralelo ──────────────────────────────────
+    const dbAll = (sql, params) => new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
+
+    const [colabs, treinamentos, presencas] = await Promise.all([
+      dbAll(sqlColabs, []),
+      dbAll(sqlTrein, []),
+      dbAll(sqlPresencas, [])
+    ]);
+
+    const agora = new Date();
+
+    const resultado = colabs.map(c => {
+      const aplicaveis = treinamentos.filter(t => {
+        if (!t.departamento || t.departamento === 'Todos') {
+          // aplica a todos
+        } else {
+          const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
+          const noDepto = deptos.includes((c.departamento || '').trim().toLowerCase());
+          const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
+          const eAvulso = avulsos.includes(String(c.id));
+          if (!noDepto && !eAvulso) return false;
+        }
+
+        // Palestra com data definida: ocultar se data_treinamento < data_admissao do colaborador
+        if (t.tipo === 'terapia' && t.data_treinamento && c.data_admissao) {
+          const dtPalestra = new Date(t.data_treinamento + 'T12:00:00');
+          let dtAdmissao;
+          const adm = String(c.data_admissao);
+          if (adm.includes('/')) {
+            const pts = adm.split('/');
+            dtAdmissao = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
+          } else {
+            dtAdmissao = new Date(adm + 'T12:00:00');
+          }
+          if (!isNaN(dtPalestra) && !isNaN(dtAdmissao) && dtPalestra < dtAdmissao) return false;
+        }
+
+        return true;
+      });
+
+      const treinamentosComStatus = aplicaveis.map(t => {
+        const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
+        const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
+
+        let vencido = false;
+        if (presenca && dataConclusao && t.validade_dias > 0) {
+          const dtConclusao = new Date(dataConclusao);
+          const dtVencimento = new Date(dtConclusao);
+          dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+          if (agora > dtVencimento) vencido = true;
+        }
+
+        const concluido = !!presenca && !vencido;
+
+        return {
+          id: t.id,
+          nome: t.nome,
+          descricao: t.descricao,
+          capa_url: t.capa_url,
+          validade_dias: t.validade_dias || 0,
+          tipo: t.tipo || 'treinamento',
+          concluido,
+          vencido,
+          data_conclusao: dataConclusao,
+          respondido_em: presenca ? presenca.respondido_em : null,
+          optou_nao_participar: presenca ? presenca.optou_nao_participar : 0
+        };
+      });
+
+      return {
+        id: c.id,
+        nome_completo: c.nome_completo,
+        departamento: c.departamento,
+        departamento_tipo: c.departamento_tipo,
+        cargo: c.cargo,
+        status: c.status,
+        foto_path: c.foto_path,
+        foto_base64: c.foto_base64,
+        tipo_contratacao: c.tipo_contratacao,
+        treinamentos: treinamentosComStatus,
+        total: treinamentosComStatus.length,
+        concluidos: treinamentosComStatus.filter(t => t.concluido).length
+      };
+    });
+
+    res.json(resultado);
+
+  } catch (err) {
+    console.error('[PRESENÇA] Erro FATAL no endpoint colaboradores:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ?????? GET /api/treinamento-presenca/historico/:colaboradorId ???????????????????????????????????????????????????????????????
