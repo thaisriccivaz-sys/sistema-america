@@ -21975,7 +21975,8 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res)
               concluido,
               vencido,
               data_conclusao: dataConclusao,
-              respondido_em: presenca ? presenca.respondido_em : null
+              respondido_em: presenca ? presenca.respondido_em : null,
+              optou_nao_participar: presenca ? presenca.optou_nao_participar : 0
             };
           });
 
