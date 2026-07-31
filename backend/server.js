@@ -1430,7 +1430,7 @@ e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
 
 db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria b'", (err, row) => {
     if (!row) {
-        db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", ['habilitação categoria b', habBHtml], (err) => {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['habilitação categoria b', habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
             if(!err) console.log("Seeded habilitação categoria b");
         });
     } else {
@@ -1439,7 +1439,7 @@ db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria b'", (err
 });
 db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria d'", (err, row) => {
     if (!row) {
-        db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", ['habilitação categoria d', habDHtml], (err) => {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['habilitação categoria d', habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
             if(!err) console.log("Seeded habilitação categoria d");
         });
     } else {
