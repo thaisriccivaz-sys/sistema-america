@@ -261,25 +261,25 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
             });
 
             // 2. Enviar e-mail com endereço e quantidades completas
-            const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposição' : 'Pedido de Compra';
+            const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposi&ccedil;&atilde;o' : 'Pedido de Compra';
             const enderecoLabel = enderecoNome || '—';
             const qtdMaxLabel = qtdMax !== null ? String(qtdMax) : '—';
             const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
                 '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
-                '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque Mínimo Atingido</h2>' +
-                '<p>Um item do estoque atingiu ou está abaixo da quantidade mínima após <b>' + labelTipo + '</b>:</p>' +
+                '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque M&iacute;nimo Atingido</h2>' +
+                '<p>Um item do estoque atingiu ou est&aacute; abaixo da quantidade m&iacute;nima ap&oacute;s <b>' + labelTipo + '</b>:</p>' +
                 '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
                 '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Item</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;font-size:15px;">' + itemNome + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Endereço</th><td style="padding:8px;border:1px solid #fed7aa;">' + enderecoLabel + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Endere&ccedil;o</th><td style="padding:8px;border:1px solid #fed7aa;">' + enderecoLabel + '</td></tr>' +
                 '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Atual</th><td style="padding:8px;border:1px solid #fed7aa;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #fed7aa;">' + minEnd + '</td></tr>' +
-                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Máxima</th><td style="padding:8px;border:1px solid #fed7aa;">' + qtdMaxLabel + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&iacute;nima</th><td style="padding:8px;border:1px solid #fed7aa;">' + minEnd + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&aacute;xima</th><td style="padding:8px;border:1px solid #fed7aa;">' + qtdMaxLabel + '</td></tr>' +
                 '</table>' +
-                '<p style="color:#ea580c;font-weight:bold;">Por favor, providencie a reposição o mais breve possível.</p>' +
+                '<p style="color:#ea580c;font-weight:bold;">Por favor, providencie a reposi&ccedil;&atilde;o o mais breve poss&iacute;vel.</p>' +
                 '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
 
             sendEmailParaNotificados(dbTipo, {
-                subject: 'Estoque Mínimo Atingido – ' + itemNome,
+                subject: `[ESTOQUE] ` + (dbTipo === 'estoque_reposicao' ? 'M\u00EDnimo para Reposi\u00E7\u00E3o' : 'Estoque M\u00EDnimo') + ` Atingido - ` + itemNome,
                 html: emailHtml
             }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
         });
@@ -3425,6 +3425,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
+        'habilitacao_b', 'habilitacao_d',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];
@@ -4003,6 +4004,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
+        'habilitacao_b', 'habilitacao_d',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];
@@ -20080,10 +20082,29 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
 
 // PUT ??? atualizar card
 app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, res) => {
-    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [req.params.id], (err, oldRow) => {
+    const idParam = req.params.id;
+    const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
+
+    if (String(idParam).startsWith('falta_')) {
+        const parts = idParam.split('_');
+        if (parts.length >= 3) {
+            const colabId = parts[1];
+            const dataFalta = parts.slice(2).join('_');
+            
+            if (!data) return res.status(400).json({ error: 'Nova data é obrigatória.' });
+
+            db.run(`UPDATE faltas SET data_falta = ? WHERE colaborador_id = ? AND data_falta = ?`, [data, colabId, dataFalta], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [req.user ? req.user.username : '', 'Agenda Logística', 'Edição de Falta', dataFalta, `Alterou data para ${data}`, idParam]);
+                return res.json({ ok: true, msg: 'Falta atualizada' });
+            });
+            return;
+        }
+    }
+
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [idParam], (err, oldRow) => {
         if (err || !oldRow) return res.status(404).json({ error: 'Card não encontrado' });
-        
-        const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
         
         let anterior = [];
         let atual = [];
@@ -20123,10 +20144,27 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
 
 // DELETE — excluir card
 app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [req.params.id], (err, card) => {
+    const idParam = req.params.id;
+    if (String(idParam).startsWith('falta_')) {
+        // Exemplo de id: falta_15_2026-07-31
+        const parts = idParam.split('_');
+        if (parts.length >= 3) {
+            const colabId = parts[1];
+            const dataFalta = parts.slice(2).join('_');
+            db.run(`DELETE FROM faltas WHERE colaborador_id = ? AND data_falta = ?`, [colabId, dataFalta], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Falta', null, `Excluiu a falta do colab ${colabId} no dia ${dataFalta}`, idParam]);
+                return res.json({ ok: true });
+            });
+            return;
+        }
+    }
+
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [idParam], (err, card) => {
         if (err || !card) return res.status(404).json({ error: 'Card não encontrado' });
         
-        db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (errDel) {
+        db.run('DELETE FROM logistica_agenda WHERE id = ?', [idParam], function (errDel) {
             if (errDel) return res.status(500).json({ error: errDel.message });
             
             // Sincronizar com prontuário: excluir falta vinculada se for um card de falta
@@ -20677,19 +20715,19 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                         });
                         // E-mail de estoque mínimo (ajuste manual)
                         sendEmailParaNotificados('estoque_minimo', {
-                            subject: `[ESTOQUE] Estoque Mínimo Atingido - ${nome}`,
+                            subject: `[ESTOQUE] Estoque M\u00EDnimo Atingido - ${nome}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    <img src="cid:empresa-logo" alt="Am&eacute;rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Estoque Mínimo Atingido</h2>
-                                    <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">&#9888; Estoque M&iacute;nimo Atingido</h2>
+                                    <p>Um item do estoque atingiu a quantidade m&iacute;nima ap&oacute;s ajuste manual:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
                                         <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                        <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade M&iacute;nima:</strong> ${quantidade_minima}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
                                 </div>

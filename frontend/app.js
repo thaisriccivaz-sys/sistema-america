@@ -3478,6 +3478,7 @@ window.exportarColaboradoresXLSX = async function () {
         "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
         "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
         "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
+        "Habilitação B", "Habilitação D",
         "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado"
     ]);
 
@@ -3538,6 +3539,8 @@ window.exportarColaboradoresXLSX = async function () {
             c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
             c.celular_participa === 'Sim' ? 'Sim' : 'Não',
             c.chaves_participa === 'Sim' ? 'Sim' : 'Não',
+            c.habilitacao_b === 'Sim' ? 'Sim' : 'Não',
+            c.habilitacao_d === 'Sim' ? 'Sim' : 'Não',
             c.tamanho_camiseta || '',
             c.tamanho_calca || '',
             c.tamanho_calcado || ''
@@ -4159,6 +4162,12 @@ window.resetFormColaborador = function () {
 
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
+
+    const radioHabBNao = document.querySelector('input[name="habilitacao_b"][value="Não"]');
+    if (radioHabBNao) radioHabBNao.checked = true;
+
+    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
+    if (radioHabDNao) radioHabDNao.checked = true;
 };
 
 window.editColaborador = async function (id) {
@@ -4447,6 +4456,16 @@ window.editColaborador = async function (id) {
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
+
+        // Habilitações (B e D)
+        const habB = c.habilitacao_b || 'Não';
+        const radioHabB = document.querySelector(`input[name="habilitacao_b"][value="${habB}"]`);
+        if (radioHabB) radioHabB.checked = true;
+
+        const habD = c.habilitacao_d || 'Não';
+        const radioHabD = document.querySelector(`input[name="habilitacao_d"][value="${habD}"]`);
+        if (radioHabD) radioHabD.checked = true;
+
         if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
         // Chaves
@@ -4755,6 +4774,8 @@ if (formColab) {
             terapia_data_inicio: document.getElementById('colab-terapia-data-inicio') ? document.getElementById('colab-terapia-data-inicio').value : null,
             celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'Não',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
+            habilitacao_b: document.querySelector('input[name="habilitacao_b"]:checked')?.value || 'Não',
+            habilitacao_d: document.querySelector('input[name="habilitacao_d"]:checked')?.value || 'Não',
             chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,

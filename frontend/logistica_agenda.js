@@ -569,7 +569,8 @@
             Swal.fire('Erro', 'Card não encontrado na lista atual. Atualize a página.', 'error');
             return;
         }
-        if (card.is_auto) {
+        // Permitir edição/exclusão de faltas pela agenda. 
+        if (card.is_auto && card.tipo !== 'falta') {
             Swal.fire('Informação', 'Este é um aviso automático do sistema. Para editar o período, acesse o Prontuário Digital do colaborador.', 'info');
             return;
         }
@@ -593,9 +594,18 @@
         let responsaveisSel = [];
         let referentesSel   = [];
         let acoesSel        = [];
-        try { responsaveisSel = JSON.parse(card.responsaveis || '[]'); } catch(e){}
-        try { referentesSel   = JSON.parse(card.referente_ids || '[]'); } catch(e){}
-        try { acoesSel        = JSON.parse(card.acoes || '[]'); } catch(e){}
+        try { 
+            let r = JSON.parse(card.responsaveis || '[]'); 
+            if (Array.isArray(r)) responsaveisSel = r;
+        } catch(e){}
+        try { 
+            let r = JSON.parse(card.referente_ids || '[]'); 
+            if (Array.isArray(r)) referentesSel = r;
+        } catch(e){}
+        try { 
+            let r = JSON.parse(card.acoes || '[]'); 
+            if (Array.isArray(r)) acoesSel = r;
+        } catch(e){}
         const tipoAtual = card.tipo || 'aviso';
 
         const tiposHTML = TIPOS.filter(t => t.value !== 'ferias' && t.value !== 'outro' && t.value !== 'afastado').map(t => {
@@ -618,17 +628,19 @@
             .join('');
 
         const respChips = responsaveisSel.map(id => {
-            const c = agendaColabs.find(x => x.id == id);
+            const c = agendaColabs.find(x => String(x.id) === String(id));
+            const nome = c && c.nome_completo ? c.nome_completo.split(' ')[0] : 'Desconhecido';
             return c ? `<div class="ag-chip-resp" data-id="${id}">
-                <i class="ph ph-user-gear"></i>${c.nome_completo.split(' ')[0]}
+                <i class="ph ph-user-gear"></i>${nome}
                 <button onclick="agendaRemoveChip('resp','${id}')"><i class="ph ph-x"></i></button>
             </div>` : '';
         }).join('');
 
         const refChips = referentesSel.map(id => {
-            const c = agendaColabs.find(x => x.id == id);
+            const c = agendaColabs.find(x => String(x.id) === String(id));
+            const nome = c && c.nome_completo ? c.nome_completo.split(' ')[0] : 'Desconhecido';
             return c ? `<div class="ag-chip-ref" data-id="${id}">
-                <i class="ph ph-user"></i>${c.nome_completo.split(' ')[0]}
+                <i class="ph ph-user"></i>${nome}
                 <button onclick="agendaRemoveChip('ref','${id}')"><i class="ph ph-x"></i></button>
             </div>` : '';
         }).join('');

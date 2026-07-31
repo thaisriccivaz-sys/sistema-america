@@ -687,6 +687,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT", (err) => {});
                     if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'", (err) => {});
                     if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT", (err) => {});
+                    if (!cols.includes('habilitacao_b')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b TEXT", (err) => {});
+                    if (!cols.includes('habilitacao_d')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d TEXT", (err) => {});
                     if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT", (err) => {});
                     if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT", (err) => {}); // Data de referência para ciclo Domingo de Lei
                     if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0", (err) => {}); // Supervisão que faz apontamento de ponto
