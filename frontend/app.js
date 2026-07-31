@@ -6204,8 +6204,7 @@ async function renderCargoDocsChecklist(container) {
                     ${fileInfo}
                     ${hintText}
                 </div>
-                ${categoryBadge}
-                    ${statusBadge}
+                ${statusBadge}
             </div>`;
         };
 
@@ -11018,7 +11017,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 const html = `
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem; margin-bottom:2px;">
                     <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                        <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
+                        <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contratos</span>
                         <div>
                             <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
                             <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
