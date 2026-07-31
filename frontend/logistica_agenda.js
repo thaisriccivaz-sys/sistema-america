@@ -182,23 +182,23 @@
     };
 
     window.agendaRenderFiltroStatus = function() {
-        const container = document.getElementById('ag-log-status-buttons-container');
+        const container = document.getElementById('log-ag-log-status-buttons-container');
         if (!container) return;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = buildAgendaHTML();
-        const newContainer = tempDiv.querySelector('#ag-log-status-buttons-container');
+        const newContainer = tempDiv.querySelector('#log-ag-log-status-buttons-container');
         if (newContainer) container.innerHTML = newContainer.innerHTML;
     };
 
     window.agendaRenderSetorDropdown = function() {
-        const container = document.getElementById('ag-log-setor-dropdown-container');
+        const container = document.getElementById('log-ag-log-setor-dropdown-container');
         if (!container) return;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = buildAgendaHTML();
-        const newContainer = tempDiv.querySelector('#ag-log-setor-dropdown-container');
+        const newContainer = tempDiv.querySelector('#log-ag-log-setor-dropdown-container');
         if (newContainer) {
             container.innerHTML = newContainer.innerHTML;
-            document.getElementById('ag-log-setor-dropdown-list').style.display = 'block';
+            document.getElementById('log-ag-log-setor-dropdown-list').style.display = 'block';
         }
     };
 
@@ -387,7 +387,7 @@
                 </div>
                 <div class="ag-header-right">
                     <button class="ag-nav-btn ${agendaFilterTipo === 'escala' ? 'ag-escala-active' : ''}" onclick="agendaSetFilter('${agendaFilterTipo === 'escala' ? '' : 'escala'}')" style="${agendaFilterTipo === 'escala' ? 'background:#1a7a46;color:#fff;border-color:#1a7a46;' : 'color:#1a7a46;border-color:#1a7a46;font-weight:600;'}"><i class="ph ph-users"></i> Escala Operacional</button>
-                    <select id="ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="outline:none; font-weight:600;">
+                    <select id="log-ag-filter-tipo" class="ag-nav-btn" onchange="agendaSetFilter(this.value)" style="outline:none; font-weight:600;">
                         <option value="">Todos os Cards</option>
                         ${TIPOS.filter(t => t.value !== 'outro' && t.value !== 'aso').map(t => `<option value="${t.value}" ${agendaFilterTipo === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
                     </select>
@@ -396,14 +396,14 @@
                         <button class="ag-view-btn ${agendaViewMode==='semana'?'active':''}" onclick="agendaSetView('semana')">Semana</button>
                         <button class="ag-view-btn ${agendaViewMode==='mes'?'active':''}" onclick="agendaSetView('mes')">Mês</button>
                     </div>
-                    <button id="ag-limpar-btn" class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
+                    <button id="log-ag-limpar-btn" class="ag-nav-btn" onclick="limparTestesAgenda()" style="display:none; color: #dc2626; border-color: #fca5a5;"><i class="ph ph-trash"></i> Limpar Testes</button>
                     <button class="ag-btn-novo" onclick="abrirNovoCard('')"><i class="ph ph-plus"></i> Novo Card</button>
                 </div>
             </div>
             ${agendaFilterTipo === 'escala' ? `
-            <div id="ag-escala-filtro-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0.4rem 0;margin-bottom:1rem; overflow:visible;">
+            <div id="log-ag-escala-filtro-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0.4rem 0;margin-bottom:1rem; overflow:visible;">
                 <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">STATUS:</span>
-                <div id="ag-log-status-buttons-container" style="display:flex; align-items:center; gap:6px;">
+                <div id="log-ag-log-status-buttons-container" style="display:flex; align-items:center; gap:6px;">
                 ${[
                     {k:'todos',    label:'Todos',      color:'#334155', bg:'#f1f5f9'},
                     {k:'disponivel',label:'🟢 Escalados',color:'#16a34a', bg:'#dcfce7'},
@@ -420,16 +420,16 @@
 
                 <div style="flex:1; min-width:20px;"></div>
 
-                <input type="search" id="ag-log-busca-nome-input" name="ag-log-busca-nome" autocomplete="new-password" role="presentation" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="agendaSetBuscaNome(this.value)" readonly onfocus="this.removeAttribute('readonly')" data-lpignore="true" data-1p-ignore="true" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
+                <input type="search" id="log-ag-log-busca-nome-input" name="ag-log-busca-nome" autocomplete="new-password" role="presentation" placeholder="Buscar por nome..." value="${agendaBuscaNome || ''}" oninput="agendaSetBuscaNome(this.value)" readonly onfocus="this.removeAttribute('readonly')" data-lpignore="true" data-1p-ignore="true" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; outline:none; min-width:200px; background:#fff;">
 
-                <div id="ag-log-setor-dropdown-container" style="position:relative; min-width:160px;">
-                    <div onclick="document.getElementById('ag-log-setor-dropdown-list').style.display = document.getElementById('ag-log-setor-dropdown-list').style.display === 'none' ? 'block' : 'none'" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                <div id="log-ag-log-setor-dropdown-container" style="position:relative; min-width:160px;">
+                    <div onclick="document.getElementById('log-ag-log-setor-dropdown-list').style.display = document.getElementById('log-ag-log-setor-dropdown-list').style.display === 'none' ? 'block' : 'none'" style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:20px; font-size:0.8rem; background:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
                         <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#334155; font-weight:600;">
                             ${agendaBuscaSetores.length === 0 ? 'Todos os Setores' : (agendaBuscaSetores.length === 1 ? agendaBuscaSetores[0] : agendaBuscaSetores.length + ' selecionados')}
                         </span>
                         <i class="ph ph-caret-down" style="color:#64748b; margin-left:8px;"></i>
                     </div>
-                    <div id="ag-log-setor-dropdown-list" style="display:none; position:absolute; top:100%; right:0; width:100%; min-width:200px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:4px; max-height:250px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:4px;">
+                    <div id="log-ag-log-setor-dropdown-list" style="display:none; position:absolute; top:100%; right:0; width:100%; min-width:200px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; margin-top:4px; max-height:250px; overflow-y:auto; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.15); padding:4px;">
                         <div onclick="agendaToggleSetor('todos')" style="padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:4px; background:${agendaBuscaSetores.length === 0 ? '#f0fdf4' : 'transparent'}; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
                             <input type="checkbox" ${agendaBuscaSetores.length === 0 ? 'checked' : ''} style="pointer-events:none; accent-color:#16a34a; width:14px; height:14px; margin:0;">
                             <span style="font-size:0.8rem; color:${agendaBuscaSetores.length === 0 ? '#16a34a' : '#334155'}; font-weight:${agendaBuscaSetores.length === 0 ? '700' : '500'};">Todos os Setores</span>
@@ -452,13 +452,13 @@
         
 
         <!-- Modal de Card -->
-        <div id="ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)">
+        <div id="log-ag-modal-overlay" style="display:none;" onclick="fecharAgendaModal(event)">
             <div class="ag-modal" onclick="event.stopPropagation()">
                 <div class="ag-modal-header">
-                    <span id="ag-modal-title">Novo Card</span>
+                    <span id="log-ag-modal-title">Novo Card</span>
                     <button onclick="fecharAgendaModal()" class="ag-modal-close"><i class="ph ph-x"></i></button>
                 </div>
-                <div class="ag-modal-body" id="ag-modal-body"></div>
+                <div class="log-ag-modal-body" id="log-ag-modal-body"></div>
             </div>
         </div>
 
@@ -497,14 +497,14 @@
         .ag-badges.mode-semana .ag-badge { font-size: 0.78rem; padding: 6px 8px; margin-bottom: 2px; }
         .ag-badges.mode-dia .ag-badge { font-size: 0.9rem; padding: 10px 14px; margin-bottom: 4px; border-radius: 8px; border-left-width: 4px !important; }
         .ag-mais{font-size:.65rem;color:#94a3b8;font-style:italic;margin-top:1px;}
-        #ag-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);}
+        #log-ag-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);}
         .ag-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:agSlideIn .25s ease;}
         @keyframes agSlideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
         .ag-modal-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 1.5rem;background:linear-gradient(135deg,#1e293b,#334155);border-radius:16px 16px 0 0;position:sticky;top:0;z-index:1;}
         .ag-modal-header span{color:#fff;font-weight:700;font-size:1.05rem;}
         .ag-modal-close{background:rgba(255,255,255,.15);border:none;border-radius:8px;color:#fff;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:background .2s;}
         .ag-modal-close:hover{background:rgba(255,255,255,.3);}
-        .ag-modal-body{padding:1.5rem;}
+        .log-ag-modal-body{padding:1.5rem;}
         .ag-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
         .ag-field{margin-bottom:1rem;}
         .ag-field label{display:block;font-weight:600;font-size:.82rem;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
@@ -580,9 +580,9 @@
     // ── Modal de formulário ─────────────────────────────────────
     function mostrarFormCard(card) {
         try {
-            const overlay = document.getElementById('ag-modal-overlay');
-            const body    = document.getElementById('ag-modal-body');
-            const titleEl = document.getElementById('ag-modal-title');
+            const overlay = document.getElementById('log-ag-modal-overlay');
+            const body    = document.getElementById('log-ag-modal-body');
+            const titleEl = document.getElementById('log-ag-modal-title');
             if (!overlay || !body) {
                 console.error('Modal elements not found!');
                 return;
@@ -651,52 +651,52 @@
         body.innerHTML = `
             <div class="ag-field">
                 <label>Tipo de Card</label>
-                <div class="ag-tipos-grid" id="ag-tipos-grid">${tiposHTML}</div>
-                <input type="hidden" id="ag-tipo-val" value="${tipoAtual}">
+                <div class="ag-tipos-grid" id="log-ag-tipos-grid">${tiposHTML}</div>
+                <input type="hidden" id="log-ag-tipo-val" value="${tipoAtual}">
             </div>
             <div class="ag-field">
                 <label>Título</label>
-                <input type="text" id="ag-titulo" placeholder="Ex: Reunião de equipe..." value="${card.titulo || getTipo(tipoAtual).label}">
+                <input type="text" id="log-ag-titulo" placeholder="Ex: Reunião de equipe..." value="${card.titulo || getTipo(tipoAtual).label}">
             </div>
             <div class="ag-row2">
                 <div class="ag-field">
                     <label>Data</label>
-                    <input type="date" id="ag-data" value="${card.data||''}">
+                    <input type="date" id="log-ag-data" value="${card.data||''}">
                 </div>
                 <div class="ag-field">
                     <label>Horário</label>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        <input type="time" id="ag-horario-ini" value="${(card.horario||'').split(' - ')[0]||''}" style="flex:1;">
+                        <input type="time" id="log-ag-horario-ini" value="${(card.horario||'').split(' - ')[0]||''}" style="flex:1;">
                         <span style="color:#64748b;font-weight:600;">até</span>
-                        <input type="time" id="ag-horario-fim" value="${(card.horario||'').split(' - ')[1]||''}" style="flex:1;">
+                        <input type="time" id="log-ag-horario-fim" value="${(card.horario||'').split(' - ')[1]||''}" style="flex:1;">
                     </div>
                 </div>
             </div>
             <div class="ag-field">
                 <label>Descrição / Observação</label>
-                <textarea id="ag-descricao" placeholder="Descreva o que deve ser registrado...">${card.descricao||''}</textarea>
+                <textarea id="log-ag-descricao" placeholder="Descreva o que deve ser registrado...">${card.descricao||''}</textarea>
             </div>
             <!-- Responsáveis ocultos: gerenciados pelo sistema -->
-            <div style="display:none" id="ag-resp-list-hidden">${respChips}</div>
-            <select id="ag-resp-select" style="display:none" onchange="agendaAddChip('resp',this.value);this.value=''">
+            <div style="display:none" id="log-ag-resp-list-hidden">${respChips}</div>
+            <select id="log-ag-resp-select" style="display:none" onchange="agendaAddChip('resp',this.value);this.value=''">
                 <option value="">— Adicionar responsável —</option>
                 ${colabOptions}
             </select>
-            <div class="ag-chips-list" id="ag-resp-list" style="display:none"></div>
+            <div class="ag-chips-list" id="log-ag-resp-list" style="display:none"></div>
             <div class="ag-field">
                 <label><i class="ph ph-user" style="color:#92400e;margin-right:4px;"></i>Card referente à</label>
-                <select id="ag-ref-select" onchange="agendaAddChip('ref',this.value);this.value=''">
+                <select id="log-ag-ref-select" onchange="agendaAddChip('ref',this.value);this.value=''">
                     <option value="">— Selecionar colaborador —</option>
                     ${colabOptions}
                 </select>
-                <div class="ag-chips-list" id="ag-ref-list">${refChips}</div>
+                <div class="ag-chips-list" id="log-ag-ref-list">${refChips}</div>
             </div>
             <!-- Ações ocultas: gerenciadas pelo sistema de notificações -->
 
             <div class="ag-footer">
-                ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard(${card.id})"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
+                ${isEdicao?`<button class="ag-btn-del" onclick="agendaExcluirCard('${card.id}')"><i class="ph ph-trash"></i> Excluir Card</button>`:''}
                 <button class="ag-btn-cancel" onclick="fecharAgendaModal()">Cancelar</button>
-                <button class="ag-btn-save" onclick="agendaSalvarCard(${card.id||'null'})">
+                <button class="ag-btn-save" onclick="agendaSalvarCard('${card.id||''}')">
                     <i class="ph ph-floppy-disk"></i> ${isEdicao?'Editar Card':'Criar Card'}
                 </button>
             </div>`;
@@ -709,19 +709,19 @@
     }
 
     window.fecharAgendaModal = function(e) {
-        if (e && e.target !== document.getElementById('ag-modal-overlay')) return;
-        const ov = document.getElementById('ag-modal-overlay');
+        if (e && e.target !== document.getElementById('log-ag-modal-overlay')) return;
+        const ov = document.getElementById('log-ag-modal-overlay');
         if (ov) ov.style.display = 'none';
     };
 
     window.agendaSelectTipo = function(val, color) {
-        const titInput = document.getElementById('ag-titulo');
+        const titInput = document.getElementById('log-ag-titulo');
         const oldTypeObj = TIPOS.find(t => t.label === titInput.value);
         if (!titInput.value || oldTypeObj) {
             titInput.value = getTipo(val).label;
         }
         
-        document.getElementById('ag-tipo-val').value = val;
+        document.getElementById('log-ag-tipo-val').value = val;
         document.querySelectorAll('.ag-tipo-btn').forEach(b => {
             b.classList.remove('active');
             b.style.background = b.style.borderColor = b.style.color = '';
@@ -760,23 +760,23 @@
     };
 
     window.agendaSalvarCard = async function(idExistente) {
-        const titulo    = document.getElementById('ag-titulo')?.value.trim();
-        const data      = document.getElementById('ag-data')?.value;
+        const titulo    = document.getElementById('log-ag-titulo')?.value.trim();
+        const data      = document.getElementById('log-ag-data')?.value;
         
-        const hIni = document.getElementById('ag-horario-ini')?.value;
-        const hFim = document.getElementById('ag-horario-fim')?.value;
+        const hIni = document.getElementById('log-ag-horario-ini')?.value;
+        const hFim = document.getElementById('log-ag-horario-fim')?.value;
         let horario = '';
         if (hIni && hFim) horario = `${hIni} - ${hFim}`;
         else if (hIni) horario = hIni;
 
-        const descricao = document.getElementById('ag-descricao')?.value.trim();
-        const tipo      = document.getElementById('ag-tipo-val')?.value || 'aviso';
+        const descricao = document.getElementById('log-ag-descricao')?.value.trim();
+        const tipo      = document.getElementById('log-ag-tipo-val')?.value || 'aviso';
 
         if (!data) { showToast('Selecione uma data para o card.', 'error'); return; }
 
-        const responsaveis  = Array.from(document.querySelectorAll('#ag-resp-list [data-id]')).map(c => parseInt(c.dataset.id));
-        const referente_ids = Array.from(document.querySelectorAll('#ag-ref-list [data-id]')).map(c => parseInt(c.dataset.id));
-        const acoes         = Array.from(document.querySelectorAll('#ag-acoes-grid .ag-acao-item.selected')).map(el => el.querySelector('input').value);
+        const responsaveis  = Array.from(document.querySelectorAll('#log-ag-resp-list [data-id]')).map(c => parseInt(c.dataset.id));
+        const referente_ids = Array.from(document.querySelectorAll('#log-ag-ref-list [data-id]')).map(c => parseInt(c.dataset.id));
+        const acoes         = Array.from(document.querySelectorAll('#log-ag-acoes-grid .ag-acao-item.selected')).map(el => el.querySelector('input').value);
 
         const payload = { titulo, data, horario, descricao, tipo, responsaveis, referente_ids, acoes, setor: 'logistica' };
         if (idExistente) payload.id = idExistente;
@@ -784,7 +784,7 @@
         try {
             await salvarCard(payload);
             showToast(idExistente ? 'Card atualizado!' : 'Card criado!', 'success');
-            document.getElementById('ag-modal-overlay').style.display = 'none';
+            document.getElementById('log-ag-modal-overlay').style.display = 'none';
             await window.renderAgendaLogistica();
         } catch(e) {
             showToast('Erro ao salvar: ' + e.message, 'error');
@@ -796,7 +796,7 @@
         try {
             await excluirCard(id);
             showToast('Card excluído.', 'success');
-            document.getElementById('ag-modal-overlay').style.display = 'none';
+            document.getElementById('log-ag-modal-overlay').style.display = 'none';
             await window.renderAgendaLogistica();
         } catch(e) {
             showToast('Erro ao excluir: ' + e.message, 'error');
@@ -807,8 +807,8 @@
 
 // Fecha o dropdown se clicar fora
 window.addEventListener('click', function(e) {
-    const dropdown = document.getElementById('ag-log-setor-dropdown-list');
-    const container = document.getElementById('ag-log-setor-dropdown-container');
+    const dropdown = document.getElementById('log-ag-log-setor-dropdown-list');
+    const container = document.getElementById('log-ag-log-setor-dropdown-container');
     if (dropdown && container && !container.contains(e.target)) {
         dropdown.style.display = 'none';
     }
@@ -826,9 +826,9 @@ window.agendaAbrirHistorico = async function() {
                 <i class="ph ph-clock-counter-clockwise" style="font-size:1.4rem;color:rgba(255,255,255,0.8);"></i>
                 <span style="color:#fff;font-weight:700;font-size:1.05rem;">Histórico de Alterações — Agenda Logística</span>
             </div>
-            <button onclick="document.getElementById('ag-hist-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+            <button onclick="document.getElementById('log-ag-hist-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
         </div>
-        <div style="padding:1.5rem;" id="ag-hist-body"><div style="text-align:center;padding:2rem;color:#94a3b8;">Carregando...</div></div>
+        <div style="padding:1.5rem;" id="log-ag-hist-body"><div style="text-align:center;padding:2rem;color:#94a3b8;">Carregando...</div></div>
     </div>
     <style>@keyframes agHistSlide{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}</style>`;
     document.body.appendChild(overlay);
@@ -839,7 +839,7 @@ window.agendaAbrirHistorico = async function() {
             headers: { Authorization: 'Bearer ' + token }
         });
         const rows = await res.json();
-        const body = document.getElementById('ag-hist-body');
+        const body = document.getElementById('log-ag-hist-body');
         if (!rows.length) {
             body.innerHTML = '<div style="text-align:center;padding:3rem;color:#94a3b8;"><i class="ph ph-clock" style="font-size:3rem;opacity:0.4;"></i><p style="margin-top:1rem;">Nenhuma alteração registrada ainda.</p></div>';
             return;
@@ -879,6 +879,6 @@ window.agendaAbrirHistorico = async function() {
             }).join('')}</tbody>
         </table>`;
     } catch(e) {
-        document.getElementById('ag-hist-body').innerHTML = '<div style="color:#dc2626;padding:2rem;">Erro: ' + e.message + '</div>';
+        document.getElementById('log-ag-hist-body').innerHTML = '<div style="color:#dc2626;padding:2rem;">Erro: ' + e.message + '</div>';
     }
 };

@@ -85,10 +85,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE usuarios ADD COLUMN page_bookmarks TEXT DEFAULT '[]'`, (err) => {
                 // Erro esperado se a coluna já existir
             });
-            // RESET TEMPORÁRIO DE SENHA - diretoria.1 (remover após primeiro login)
-            db.run(`UPDATE usuarios SET password_hash = '$2b$10$uD554g2Wy1ix50pkDV4ry.DQZ4Gx9WbbLn3NB3fMmcQZqOt3dyPA2' WHERE username = 'diretoria.1'`, (err) => {
-                if (!err) console.log('[DB] Senha de diretoria.1 resetada com sucesso.');
-            });
+            // (reset de senha temporário removido por segurança)
+
 
             // Tabela de Configurações (Cargos)
             db.run(`
@@ -677,22 +675,26 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 db.all("PRAGMA table_info(colaboradores)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('rg_tipo')) db.run("ALTER TABLE colaboradores ADD COLUMN rg_tipo TEXT DEFAULT 'RG'", (err) => {});
-                    if (!cols.includes('aso_email_enviado')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_email_enviado TEXT", (err) => {});
-                    if (!cols.includes('aso_exame_data')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exame_data TEXT", (err) => {});
-                    if (!cols.includes('aso_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_assinafy_link TEXT", (err) => {});
-                    if (!cols.includes('aso_exames_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exames_assinafy_link TEXT", (err) => {});
-                    if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT", (err) => {});
-                    if (!cols.includes('admissao_contabil_enviada_em')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_enviada_em DATETIME", (err) => {});
-                    if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT", (err) => {});
-                    if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'", (err) => {});
-                    if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT", (err) => {});
-                    if (!cols.includes('habilitacao_b')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b TEXT", (err) => {});
-                    if (!cols.includes('habilitacao_d')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d TEXT", (err) => {});
-                    if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT", (err) => {});
-                    if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT", (err) => {}); // Data de referência para ciclo Domingo de Lei
-                    if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0", (err) => {}); // Supervisão que faz apontamento de ponto
-                    if (!cols.includes('destaque_equipe')) db.run("ALTER TABLE colaboradores ADD COLUMN destaque_equipe INTEGER DEFAULT 0", (err) => {});
+                    db.serialize(() => {
+                        if (!cols.includes('rg_tipo')) db.run("ALTER TABLE colaboradores ADD COLUMN rg_tipo TEXT DEFAULT 'RG'", (err) => {});
+                        if (!cols.includes('aso_email_enviado')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_email_enviado TEXT", (err) => {});
+                        if (!cols.includes('aso_exame_data')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exame_data TEXT", (err) => {});
+                        if (!cols.includes('aso_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_assinafy_link TEXT", (err) => {});
+                        if (!cols.includes('aso_exames_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exames_assinafy_link TEXT", (err) => {});
+                        if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT", (err) => {});
+                        if (!cols.includes('admissao_contabil_enviada_em')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_enviada_em DATETIME", (err) => {});
+                        if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT", (err) => {});
+                        if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'", (err) => {});
+                        if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_b')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_b_data')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b_data TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_d')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_d_data')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d_data TEXT", (err) => {});
+                        if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT", (err) => {});
+                        if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT", (err) => {}); // Data de referência para ciclo Domingo de Lei
+                        if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0", (err) => {}); // Supervisão que faz apontamento de ponto
+                        if (!cols.includes('destaque_equipe')) db.run("ALTER TABLE colaboradores ADD COLUMN destaque_equipe INTEGER DEFAULT 0", (err) => {});
+                    });
                 });
 
                 // Multas Logística
@@ -1078,23 +1080,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Remover grupo Administrador legados
             db.run("DELETE FROM grupos_permissao WHERE nome='Administrador'", (err) => {});
 
-            // ── MIGRAÇÃO: Garantir usuário diretoria.1 com senha 123 se tabela estiver vazia ──
-            const bcryptjs = require('bcryptjs');
-            db.get("SELECT COUNT(*) as count FROM usuarios", [], (err, row) => {
-                if (err) return;
-                if (row && row.count === 0) {
-                    bcryptjs.hash('123', 10, (hashErr, hash) => {
-                        if (hashErr) return console.error('[MIGRAÇÃO] Erro ao gerar hash:', hashErr);
-                        db.run(
-                            "INSERT INTO usuarios (username, password_hash, role) VALUES ('diretoria.1', ?, 'Diretoria')",
-                            [hash],
-                            (insErr) => {
-                                if (!insErr) console.log('[MIGRAÇÃO] Usuário diretoria.1 criado automaticamente (senha: 123)');
-                            }
-                        );
-                    });
-                }
-            });
+            // Migração: criação de usuário padrão removida por segurança.
+            // Crie usuários manualmente via painel de administração.
+
 
             // ── MIGRAÇÃO: Garantir acesso total ao usuário teste.2 ───────
             setTimeout(() => {

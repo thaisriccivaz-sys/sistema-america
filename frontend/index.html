@@ -2461,10 +2461,16 @@
                                                     <span class="opcional-question">Possui Habilitação Categoria B?</span>
                                                     <div class="radio-pill-group">
                                                         <label><input type="radio" name="habilitacao_b"
-                                                                value="Não" checked> Não</label>
+                                                                value="Não" checked onchange="toggleHabilitacaoB(this.value)"> Não</label>
                                                         <label><input type="radio" name="habilitacao_b"
-                                                                value="Sim"> Sim</label>
+                                                                value="Sim" onchange="toggleHabilitacaoB(this.value)"> Sim</label>
                                                     </div>
+                                                </div>
+                                            </div>
+                                            <div class="opcional-content" id="content-habilitacao-b" style="display: none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início da Habilitação B</label>
+                                                    <input type="date" id="colab-habilitacao-b-data">
                                                 </div>
                                             </div>
                                         </div>
@@ -2477,10 +2483,16 @@
                                                     <span class="opcional-question">Possui Habilitação Categoria D?</span>
                                                     <div class="radio-pill-group">
                                                         <label><input type="radio" name="habilitacao_d"
-                                                                value="Não" checked> Não</label>
+                                                                value="Não" checked onchange="toggleHabilitacaoD(this.value)"> Não</label>
                                                         <label><input type="radio" name="habilitacao_d"
-                                                                value="Sim"> Sim</label>
+                                                                value="Sim" onchange="toggleHabilitacaoD(this.value)"> Sim</label>
                                                     </div>
+                                                </div>
+                                            </div>
+                                            <div class="opcional-content" id="content-habilitacao-d" style="display: none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início da Habilitação D</label>
+                                                    <input type="date" id="colab-habilitacao-d-data">
                                                 </div>
                                             </div>
                                         </div>
