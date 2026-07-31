@@ -3425,7 +3425,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
-        'habilitacao_b', 'habilitacao_d',
+        'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];
@@ -4004,7 +4004,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
-        'habilitacao_b', 'habilitacao_d',
+        'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];

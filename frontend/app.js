@@ -2257,7 +2257,27 @@ window.toggleChavesColabFields = function (val) {
     }
 };
 
-window.toggleBrigadistaFields = function (val) {
+window.toggleHabilitacaoB = function (val) {
+    const section = document.getElementById('content-habilitacao-b');
+    if (section) {
+        section.style.display = (val === 'Sim') ? 'block' : 'none';
+        if (val === 'N\u00E3o') {
+            const dateInput = document.getElementById('colab-habilitacao-b-data');
+            if (dateInput) dateInput.value = '';
+        }
+    }
+};
+
+window.toggleHabilitacaoD = function (val) {
+    const section = document.getElementById('content-habilitacao-d');
+    if (section) {
+        section.style.display = (val === 'Sim') ? 'block' : 'none';
+        if (val === 'N\u00E3o') {
+            const dateInput = document.getElementById('colab-habilitacao-d-data');
+            if (dateInput) dateInput.value = '';
+        }
+    }
+};
     const section = document.getElementById('section-brigadista');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -4138,6 +4158,12 @@ window.resetFormColaborador = function () {
     const fotoPreview = document.getElementById('colab-foto-preview');
     const fotoInput = document.getElementById('colab-foto-input');
 
+    const radioHabBNao = document.querySelector('input[name="habilitacao_b"][value="Não"]');
+    if (radioHabBNao) { radioHabBNao.checked = true; toggleHabilitacaoB('Não'); }
+
+    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
+    if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
+
     if (stateNew) stateNew.style.display = 'flex';
     if (stateUploadable) stateUploadable.style.display = 'none';
     if (stateSaved) stateSaved.style.display = 'none';
@@ -4162,12 +4188,6 @@ window.resetFormColaborador = function () {
 
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
-
-    const radioHabBNao = document.querySelector('input[name="habilitacao_b"][value="Não"]');
-    if (radioHabBNao) radioHabBNao.checked = true;
-
-    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
-    if (radioHabDNao) radioHabDNao.checked = true;
 };
 
 window.editColaborador = async function (id) {
@@ -4461,10 +4481,14 @@ window.editColaborador = async function (id) {
         const habB = c.habilitacao_b || 'Não';
         const radioHabB = document.querySelector(`input[name="habilitacao_b"][value="${habB}"]`);
         if (radioHabB) radioHabB.checked = true;
+        toggleHabilitacaoB(habB);
+        if (document.getElementById('colab-habilitacao-b-data')) document.getElementById('colab-habilitacao-b-data').value = c.habilitacao_b_data || '';
 
         const habD = c.habilitacao_d || 'Não';
         const radioHabD = document.querySelector(`input[name="habilitacao_d"][value="${habD}"]`);
         if (radioHabD) radioHabD.checked = true;
+        toggleHabilitacaoD(habD);
+        if (document.getElementById('colab-habilitacao-d-data')) document.getElementById('colab-habilitacao-d-data').value = c.habilitacao_d_data || '';
 
         if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
@@ -4775,7 +4799,9 @@ if (formColab) {
             celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'Não',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
             habilitacao_b: document.querySelector('input[name="habilitacao_b"]:checked')?.value || 'Não',
+            habilitacao_b_data: document.getElementById('colab-habilitacao-b-data') ? document.getElementById('colab-habilitacao-b-data').value : null,
             habilitacao_d: document.querySelector('input[name="habilitacao_d"]:checked')?.value || 'Não',
+            habilitacao_d_data: document.getElementById('colab-habilitacao-d-data') ? document.getElementById('colab-habilitacao-d-data').value : null,
             chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,
