@@ -1333,6 +1333,121 @@ const FOLDERS = [
  * Helper para sincronizar pastas no OneDrive automaticamente
  * @param {string} nomeCompleto 
  */
+
+(function seedHabilitacao() {
+const habBHtml = `<div style="text-align:center; font-weight:bold; text-decoration:underline;">ACORDO INDIVIDUAL PARA CONCESSÃO DO BENEFÍCIO DE PRIMEIRA HABILITAÇÃO – CATEGORIA B</div><br><br>
+<div style="text-align:justify;">
+A empresa <strong>AMÉRICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada, Guarulhos/SP, denominada <strong>EMPREGADOR</strong>, e o <strong>COLABORADOR</strong>, de comum acordo e na melhor forma do direito, celebram o presente Acordo Individual para Concessão do Benefício de Primeira Habilitação – Categoria B, com fundamento nos artigos 444, 456, 462 e 468 da Consolidação das Leis do Trabalho – CLT.<br><br>
+O presente acordo tem por objeto disciplinar exclusivamente as condições para concessão do benefício de custeio da primeira Carteira Nacional de Habilitação – Categoria B, permanecendo inalteradas as demais cláusulas do contrato de trabalho.<br><br>
+O benefício possui caráter exclusivamente educacional e de desenvolvimento profissional, não possuindo natureza salarial, não se incorporando à remuneração do colaborador para quaisquer fins e não constituindo obrigação permanente do empregador.<br><br>
+<strong>CLÁUSULA PRIMEIRA – DA CONCESSÃO DO BENEFÍCIO</strong><br>
+1.1. O empregador concederá ao colaborador o benefício consistente no custeio da obtenção da primeira Carteira Nacional de Habilitação – Categoria B, conforme as regras estabelecidas no Programa Rota de Sucesso para o Futuro.<br>
+1.2. O benefício será concedido exclusivamente por meio de autoescola credenciada ou indicada pelo empregador.<br>
+1.3. O benefício compreende exclusivamente as despesas previamente aprovadas pelo empregador para a realização do processo de primeira habilitação.<br><br>
+<strong>CLÁUSULA SEGUNDA – DAS OBRIGAÇÕES DO COLABORADOR</strong><br>
+2.1. O colaborador compromete-se a:<br>
+a) frequentar regularmente as aulas teóricas e práticas;<br>
+b) comparecer aos exames obrigatórios;<br>
+c) cumprir todas as exigências da legislação de trânsito e da autoescola;<br>
+d) manter comportamento compatível com as normas internas da empresa;<br>
+e) comunicar imediatamente qualquer fato que impeça a continuidade do processo de habilitação.<br><br>
+<strong>CLÁUSULA TERCEIRA – DAS REPROVAÇÕES</strong><br>
+3.1. O empregador custeará apenas o processo inicialmente contratado.<br>
+3.2. As despesas decorrentes de reprovação em exames médicos, psicológicos, teóricos ou práticos, bem como taxas de remarcação, aulas adicionais e novas provas, serão de responsabilidade exclusiva do colaborador, salvo autorização expressa do empregador.<br><br>
+<strong>CLÁUSULA QUARTA – DO COMPROMISSO DE PERMANÊNCIA</strong><br>
+4.1. Em razão do investimento realizado pelo empregador, o colaborador compromete-se a permanecer vinculado à empresa pelo período mínimo de 12 (doze) meses, contados da emissão da Carteira Nacional de Habilitação – Categoria B.<br><br>
+<strong>CLÁUSULA QUINTA – DO RESSARCIMENTO</strong><br>
+5.1. Caso o colaborador solicite desligamento da empresa ou tenha seu contrato rescindido por justa causa antes do término do prazo previsto na Cláusula Quarta, compromete-se a ressarcir os valores investidos pelo empregador de forma proporcional ao período restante do compromisso de permanência.<br>
+5.2. O valor a ser ressarcido será calculado considerando o custo efetivamente suportado pelo empregador para a obtenção da primeira habilitação.<br>
+5.3. O colaborador autoriza, desde já, observados os limites previstos na legislação trabalhista, o desconto do valor devido nas verbas rescisórias, nos termos do artigo 462 da CLT, sem prejuízo da cobrança da diferença remanescente, caso o saldo rescisório seja insuficiente.<br><br>
+<strong>CLÁUSULA SEXTA – DA NÃO GARANTIA DE PROMOÇÃO</strong><br>
+6.1. O colaborador declara estar ciente de que a obtenção da Carteira Nacional de Habilitação – Categoria B não garante promoção, alteração de cargo, aumento salarial ou mudança de função.<br>
+6.2. Eventual promoção dependerá exclusivamente da existência de vaga, da necessidade da empresa e da aprovação nos processos internos de seleção.<br><br>
+<strong>CLÁUSULA SÉTIMA – DO CANCELAMENTO DO BENEFÍCIO</strong><br>
+7.1. O empregador poderá cancelar a concessão do benefício antes da conclusão do processo de habilitação caso o colaborador:<br>
+1) deixe de cumprir as normas internas da empresa;<br>
+2) apresente comportamento incompatível com os valores organizacionais;<br>
+3) receba penalidades disciplinares relevantes;<br>
+4) abandone o curso ou deixe de comparecer às aulas e exames sem justificativa;<br>
+5) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
+<strong>CLÁUSULA OITAVA – DA NATUREZA DO BENEFÍCIO</strong><br>
+8.1. O benefício previsto neste acordo possui natureza exclusivamente indenizatória e de desenvolvimento profissional.<br>
+8.2. O benefício não possui natureza salarial, não integra a remuneração do colaborador para quaisquer efeitos trabalhistas, previdenciários ou fundiários e não gera direito adquirido.<br><br>
+<strong>CLÁUSULA NONA – DAS DISPOSIÇÕES GERAIS</strong><br>
+9.1. O colaborador declara ter recebido e lido o Regulamento do Programa Rota de Sucesso para o Futuro, comprometendo-se a cumprir todas as suas disposições.<br>
+9.2. A concessão do benefício constitui ato de liberalidade do empregador, podendo o programa ser alterado, suspenso ou encerrado para novas concessões, sem prejuízo dos benefícios já formalizados.<br>
+9.3. As partes firmam o presente acordo de comum acordo, reconhecendo sua validade e eficácia legal.<br><br>
+[ASSINATURAS]
+</div>`;
+
+const habDHtml = `<div style="text-align:center; font-weight:bold; text-decoration:underline;">ACORDO INDIVIDUAL PARA CONCESSÃO DO BENEFÍCIO DE ALTERAÇÃO DA CARTEIRA NACIONAL DE HABILITAÇÃO – CATEGORIA D</div><br><br>
+<div style="text-align:justify;">
+A empresa <strong>AMÉRICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada, Guarulhos/SP, denominada <strong>EMPREGADOR</strong>, e o <strong>COLABORADOR</strong>, de comum acordo e na melhor forma do direito, celebram o presente Acordo Individual para Concessão do Benefício de Alteração da Carteira Nacional de Habilitação – Categoria D, com fundamento nos artigos 444, 456, 462 e 468 da Consolidação das Leis do Trabalho – CLT.<br><br>
+O presente acordo tem por objeto disciplinar exclusivamente as condições para concessão do benefício de custeio da alteração da Carteira Nacional de Habilitação da Categoria B para a Categoria D, permanecendo inalteradas as demais cláusulas do contrato de trabalho.<br><br>
+O benefício possui caráter exclusivamente educacional e de desenvolvimento profissional, não possuindo natureza salarial, não se incorporando à remuneração do colaborador para quaisquer fins e não constituindo obrigação permanente do empregador.<br><br>
+1.1. Poderá inscrever-se no Programa Rota de Sucesso para o Futuro para obtenção do benefício de alteração da Carteira Nacional de Habilitação para a Categoria D o colaborador que atender, cumulativamente, aos seguintes requisitos:<br>
+a) possuir Carteira Nacional de Habilitação – Categoria B há, no mínimo, 12 (doze) meses, contados da data de emissão da categoria;<br>
+b) estar exercendo efetivamente a função de Motorista I na América Rental;<br>
+c) possuir, no mínimo, 6 (seis) meses de exercício na função de Motorista I;<br>
+d) atender aos demais critérios de elegibilidade previstos no Regulamento do Programa.<br>
+1.2. O benefício será concedido exclusivamente por meio de autoescola credenciada ou indicada pelo empregador.<br>
+1.3. O benefício compreende exclusivamente as despesas previamente aprovadas pelo empregador para a realização do processo de alteração da categoria da habilitação.<br><br>
+<strong>CLÁUSULA SEGUNDA – DAS OBRIGAÇÕES DO COLABORADOR</strong><br>
+2.1. O colaborador compromete-se a:<br>
+a) frequentar regularmente as aulas e treinamentos exigidos;<br>
+b) comparecer aos exames obrigatórios;<br>
+c) cumprir todas as exigências da legislação de trânsito e da autoescola;<br>
+d) manter comportamento compatível com as normas internas da empresa;<br>
+e) comunicar imediatamente qualquer fato que impeça a continuidade do processo de alteração da categoria da habilitação.<br><br>
+<strong>CLÁUSULA TERCEIRA – DAS REPROVAÇÕES</strong><br>
+3.1. O empregador custeará apenas o processo inicialmente contratado.<br>
+3.2. As despesas decorrentes de reprovação em exames médicos, psicológicos, teóricos ou práticos, bem como taxas de remarcação, aulas adicionais e novas provas, serão de responsabilidade exclusiva do colaborador, salvo autorização expressa do empregador.<br><br>
+<strong>CLÁUSULA QUARTA – DO COMPROMISSO DE PERMANÊNCIA</strong><br>
+4.1. Em razão do investimento realizado pelo empregador, o colaborador compromete-se a permanecer vinculado à empresa pelo período mínimo de 12 (doze) meses, contados da conclusão da alteração da Carteira Nacional de Habilitação para a Categoria D.<br><br>
+<strong>CLÁUSULA QUINTA – DO RESSARCIMENTO</strong><br>
+5.1. Caso o colaborador solicite desligamento da empresa ou tenha seu contrato rescindido por justa causa antes do término do prazo previsto na Cláusula Quarta, compromete-se a ressarcir os valores investidos pelo empregador de forma proporcional ao período restante do compromisso de permanência.<br>
+5.2. O valor a ser ressarcido será calculado considerando o custo efetivamente suportado pelo empregador para a alteração da Carteira Nacional de Habilitação da Categoria B para a Categoria D.<br>
+5.3. O colaborador autoriza, desde já, observados os limites previstos na legislação trabalhista, o desconto do valor devido nas verbas rescisórias, nos termos do artigo 462 da CLT, sem prejuízo da cobrança da diferença remanescente, caso o saldo rescisório seja insuficiente.<br><br>
+<strong>CLÁUSULA SEXTA – DA NÃO GARANTIA DE PROMOÇÃO</strong><br>
+6.1. O colaborador declara estar ciente de que a obtenção da Carteira Nacional de Habilitação Categoria D não garante promoção, alteração de cargo, aumento salarial ou mudança de função.<br>
+6.2. Eventual promoção para o cargo de Motorista II, ou qualquer outra função, dependerá exclusivamente da existência de vaga, da necessidade da empresa e da aprovação nos processos internos de seleção previstos no Programa Rota de Sucesso para o Futuro.<br><br>
+<strong>CLÁUSULA SÉTIMA – DO CANCELAMENTO DO BENEFÍCIO</strong><br>
+7.1. O empregador poderá cancelar a concessão do benefício antes da conclusão do processo de alteração da categoria da habilitação caso o colaborador:<br>
+a) deixe de cumprir as normas internas da empresa;<br>
+b) apresente comportamento incompatível com os valores organizacionais;<br>
+c) receba penalidades disciplinares relevantes;<br>
+d) abandone o curso ou deixe de comparecer às aulas e exames sem justificativa;<br>
+e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
+<strong>CLÁUSULA OITAVA – DA NATUREZA DO BENEFÍCIO</strong><br>
+8.1. O benefício previsto neste acordo possui natureza exclusivamente indenizatória e de desenvolvimento profissional.<br>
+8.2. O benefício não possui natureza salarial, não integra a remuneração do colaborador para quaisquer efeitos trabalhistas, previdenciários ou fundiários e não gera direito adquirido.<br><br>
+<strong>CLÁUSULA NONA – DAS DISPOSIÇÕES GERAIS</strong><br>
+9.1. O colaborador declara ter recebido e lido o Regulamento do Programa Rota de Sucesso para o Futuro, comprometendo-se a cumprir integralmente suas disposições.<br>
+9.2. A concessão do benefício constitui ato de liberalidade do empregador, podendo o programa ser alterado, suspenso ou encerrado para novas concessões, sem prejuízo dos benefícios já formalizados.<br>
+9.3. As partes firmam o presente acordo de comum acordo, reconhecendo sua validade e eficácia legal.<br><br>
+[ASSINATURAS]
+</div>`;
+
+db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria b'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", ['habilitação categoria b', habBHtml], (err) => {
+            if(!err) console.log("Seeded habilitação categoria b");
+        });
+    } else {
+        db.run("UPDATE geradores SET conteudo = ? WHERE nome = 'habilitação categoria b'", [habBHtml]);
+    }
+});
+db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria d'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", ['habilitação categoria d', habDHtml], (err) => {
+            if(!err) console.log("Seeded habilitação categoria d");
+        });
+    } else {
+        db.run("UPDATE geradores SET conteudo = ? WHERE nome = 'habilitação categoria d'", [habDHtml]);
+    }
+});
+})();
+
 async function syncColaboradorOneDrive(nomeCompleto) {
     if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) {
         console.warn("[OneDrive] Pulando sincronização: OneDrive desabilitado ou não configurado.");
