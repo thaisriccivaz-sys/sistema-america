@@ -10853,57 +10853,37 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         // correspondente (se já existir) ou a linha pendente (se ainda não).
         // Docs avulsos sem gerador correspondente ficam no final.
         // ──────────────────────────────────────────────────────────────────────
-        const docsUsados = new Set();
-        let combinedHtml = '';
+        // ──────────────────────────────────────────────────────────────────────
+        // Nova Renderização ORDENADA por Categoria e Alfabética
+        // ──────────────────────────────────────────────────────────────────────
+        const renderItems = [];
 
-        // --- MUDANÇA: Ordenar TODOS os documentos já gerados do mais novo para o mais antigo ---
-        let allExistingDocs = [...filteredDocs];
-
-        if (searchTerm) {
-            const st = searchTerm.toLowerCase();
-            allExistingDocs = allExistingDocs.filter(d => (d.document_type || '').toLowerCase().includes(st) || (d.file_name || '').toLowerCase().includes(st));
-            autoGeradores = autoGeradores.filter(g => (g.nome || '').toLowerCase().includes(st));
-        }
-
-        // ══════════════════════════════════════════════════════════════════════
-        // BLOCO: DESCRIÇÃO DE ATIVIDADES (sempre PRIMEIRO)
-        // ══════════════════════════════════════════════════════════════════════
+        // 1. Descrição de Atividades
         const _normDA = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const descAtivDoc = filteredDocs.find(d => _normDA(d.document_type) === 'descricao de atividades');
-
+        
         if (!searchTerm || 'descrição de atividades'.includes(searchTerm.toLowerCase())) {
             if (descAtivDoc) {
-                // Já existe → será renderizado por buildContratosSignatureRows depois
-                // Mas precisamos garantir que apareça primeiro → marcamos como prioritário
-                if (!allExistingDocs.some(d => d.id === descAtivDoc.id)) {
-                    allExistingDocs.push(descAtivDoc);
-                }
-                // Marcar como prioritário para ordenação
-                descAtivDoc._isDescricaoAtividades = true;
-                docsUsados.add(descAtivDoc.id);
+                const html = window.buildContratosSignatureRows(assinaturas, [descAtivDoc], viewedColaborador);
+                renderItems.push({ cat: 1, sortName: 'descricao de atividades', html });
             } else {
-                // Slot pendente — construir o card
                 const cargoAnexos = (cargoData && cargoData.anexos) ? cargoData.anexos : [];
                 const temCargo = !!(c.cargo && c.cargo.trim());
                 const qtdAnexos = cargoAnexos.length;
 
-                // Salvar os anexos no window para o modal poder acessar depois
                 window._cargoAnexosParaDA = cargoAnexos;
                 window._cargoDataParaDA = cargoData;
 
                 let acaoBotaoHtml = '';
                 if (!temCargo) {
-                    // Sem cargo cadastrado
                     acaoBotaoHtml = `<span style="font-size:0.78rem;color:#64748b;font-style:italic;white-space:nowrap;">Colaborador sem cargo definido</span>`;
                 } else if (qtdAnexos === 0) {
-                    // Cargo sem anexos Word: só upload manual
                     acaoBotaoHtml = `
                         <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;" title="O cargo '${(c.cargo||'').replace(/'/g,"&#39;")}' não possui nenhum documento Word cadastrado. Anexe um PDF manualmente.">
                             <i class="ph ph-upload-simple"></i> Anexar PDF
                             <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Descrição de Atividades', 'descricao-atividades')">
                         </label>`;
                 } else if (qtdAnexos === 1) {
-                    // 1 anexo: botão direto
                     const an = cargoAnexos[0];
                     const escTitulo = (an.titulo || an.nome_arquivo || 'Documento').replace(/'/g, "&#39;");
                     const escObs = (an.observacoes || '').replace(/'/g, "&#39;");
@@ -10916,7 +10896,6 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                                 <i class="ph ph-link"></i> Vincular: ${escTitulo}
                             </button>`;
                 } else {
-                    // 2+ anexos: botão abre modal
                     acaoBotaoHtml = `
                         <button type="button"
                             onclick="window.abrirModalSelecaoAnexoCargo()"
@@ -10925,7 +10904,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                         </button>`;
                 }
 
-                combinedHtml += `
+                const html = `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.75rem;border:2px solid #ea580c;border-radius:8px;background:#fff7ed;gap:0.75rem;margin-bottom:2px;">
                     <div style="display:flex;align-items:center;gap:0.6rem;flex:1;">
                         <div style="display:flex;align-items:center;justify-content:center;width:24px;color:#ea580c;"><i class="ph ph-clipboard-text" style="font-size:1.4rem;"></i></div>
@@ -10935,30 +10914,46 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                                 ${temCargo ? `<span style="font-size:0.78rem;color:#475569;font-weight:500;">Cargo: <b>${(c.cargo||'').replace(/</g,'&lt;')}</b></span>` : ''}
                             </div>
                             <div style="font-size:0.75rem;color:#ea580c;margin-top:2px;">
-                                ${!temCargo ? 'Cargo não cadastrado para este colaborador' : qtdAnexos === 0 ? `Nenhum documento Word cadastrado no cargo — anexe manualmente` : `${qtdAnexos} documento(s) disponível(is) no cargo — aguardando vinculação`}
+                                ${!temCargo ? 'Cargo não cadastrado para este colaborador' : qtdAnexos === 0 ? 'Nenhum documento Word cadastrado no cargo — anexe manualmente' : `${qtdAnexos} documento(s) disponível(is) no cargo — aguardando vinculação`}
                             </div>
                         </div>
                     </div>
-
-                    <div style="min-width:fit-content;">
-                        ${acaoBotaoHtml}
-                    </div>
+                    <div style="min-width:fit-content;">${acaoBotaoHtml}</div>
                 </div>`;
+                renderItems.push({ cat: 1, sortName: 'descricao de atividades', html });
             }
         }
-        // ══════════════════════════════════════════════════════════════════════
 
+        // 2. Documentos da Contabilidade
         const _normFR = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const fichaRegistroDoc = docs.find(d =>
             (d.tab_name === '01_FICHA_CADASTRAL' || d.tab_name === 'CONTRATOS_AVULSOS') &&
             (_normFR(d.document_type).includes('ficha de registro') || _normFR(d.document_type).includes('ficha cadastral'))
         );
 
-        if (fichaRegistroDoc && !allExistingDocs.some(d => d.id === fichaRegistroDoc.id)) {
-            allExistingDocs.push(fichaRegistroDoc);
+        if (!searchTerm || 'ficha de registro'.includes(searchTerm.toLowerCase())) {
+            if (fichaRegistroDoc) {
+                const html = window.buildContratosSignatureRows(assinaturas, [fichaRegistroDoc], viewedColaborador);
+                renderItems.push({ cat: 2, sortName: 'ficha de registro', html });
+            } else {
+                const html = `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem; margin-bottom:2px;">
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
+                            <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório — aguardando upload</div>
+                        </div>
+                    </div>
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Ficha de Registro', 'ficha-registro')">
+                    </label>
+                </div>`;
+                renderItems.push({ cat: 2, sortName: 'ficha de registro', html });
+            }
         }
 
-        // Documentos obrigatórios pós-admissão (azul)
         const DOCS_OBRIGATORIOS_POS = [
             'Termo responsabilidade salário família',
             'Termo de consentimento lgpd',
@@ -10970,78 +10965,57 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             'Acordo de compensação de horas trabalhadas'
         ];
 
-        const docsObrigatoriosEncontrados = {};
+        const handledDocIds = new Set();
+        if (descAtivDoc) handledDocIds.add(descAtivDoc.id);
+        if (fichaRegistroDoc) handledDocIds.add(fichaRegistroDoc.id);
+
         DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
+            if (searchTerm && !nomePadrao.toLowerCase().includes(searchTerm.toLowerCase())) return;
             const normPadrao = _normFR(nomePadrao);
-            const found = docs.find(d => _normFR(d.document_type) === normPadrao);
-            docsObrigatoriosEncontrados[nomePadrao] = found || null;
-            if (found && !allExistingDocs.some(d => d.id === found.id)) {
-                allExistingDocs.push(found);
-            }
-        });
-
-        // Ordena descending por ID
-        allExistingDocs.sort((a, b) => b.id - a.id);
-
-        if (allExistingDocs.length > 0) {
-            combinedHtml += window.buildContratosSignatureRows(assinaturas, allExistingDocs, viewedColaborador);
-            allExistingDocs.forEach(d => docsUsados.add(d.id));
-        }
-
-
-
-        // ── Slots obrigatórios pós-admissão (azul) — ficam ANTES da Ficha de Registro ──
-        DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
-            const docEncontrado = docsObrigatoriosEncontrados[nomePadrao];
-            if (!docEncontrado) {
+            const docEncontrado = docs.find(d => _normFR(d.document_type) === normPadrao);
+            
+            if (docEncontrado) {
+                handledDocIds.add(docEncontrado.id);
+                const html = window.buildContratosSignatureRows(assinaturas, [docEncontrado], viewedColaborador);
+                renderItems.push({ cat: 2, sortName: nomePadrao.toLowerCase(), html });
+            } else {
                 const escapedNome = nomePadrao.replace(/'/g, "\\'");
                 const _idSlot = 'slot-obr-' + nomePadrao.replace(/[^a-z0-9]/gi, '-');
-                combinedHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
+                const html = `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem; margin-bottom:2px;">
                     <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                        <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
+                        <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span>
                         <div>
                             <span style="font-weight:600; color:#334155; font-size:0.9rem;">${nomePadrao}</span>
                             <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório pós-admissão — aguardando upload</div>
                         </div>
-                    </div>
                     </div>
                     <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
                         <i class="ph ph-upload-simple"></i> Anexar PDF
                         <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, '${escapedNome}', '${_idSlot}')">
                     </label>
                 </div>`;
-            } else {
-                docsUsados.add(docEncontrado.id);
+                renderItems.push({ cat: 2, sortName: nomePadrao.toLowerCase(), html });
             }
         });
 
-        // ── Slot especial: Ficha de Registro (upload-only, azul) ──
-        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
-            combinedHtml += `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
-                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                    <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
-                    <div>
-                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
-                        <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório — aguardando upload</div>
-                    </div>
-                </div>
-                </div>
-                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
-                    <i class="ph ph-upload-simple"></i> Anexar PDF
-                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Ficha de Registro', 'ficha-registro')">
-                </label>
-            </div>`;
-        }
+        // 3. Contratos (Perfil / Demais avulsos)
+        filteredDocs.forEach(d => {
+            if (!handledDocIds.has(d.id)) {
+                if (searchTerm && !(d.document_type||'').toLowerCase().includes(searchTerm.toLowerCase()) && !(d.file_name||'').toLowerCase().includes(searchTerm.toLowerCase())) return;
+                const html = window.buildContratosSignatureRows(assinaturas, [d], viewedColaborador);
+                renderItems.push({ cat: 3, sortName: (d.document_type || d.file_name || '').toLowerCase(), html });
+                handledDocIds.add(d.id);
+            }
+        });
 
-        for (const g of autoGeradores) {
+        autoGeradores.forEach(g => {
             const docMatch = _findDocForGerador(g);
             if (!docMatch) {
-                // Gerador pendente: renderiza a linha de perfil aguardando geração
+                if (searchTerm && !(g.nome||'').toLowerCase().includes(searchTerm.toLowerCase())) return;
                 const escNome = (g.nome || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                combinedHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem;">
+                const html = `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #c026d3; border-radius:8px; background:#fdf4ff; gap:0.75rem; margin-bottom:2px;">
                     <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
                         <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Perfil</span>
                         <div>
@@ -11059,8 +11033,17 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                         </label>
                     </div>
                 </div>`;
+                renderItems.push({ cat: 3, sortName: (g.nome || '').toLowerCase(), html });
             }
-        }
+        });
+
+        // Ordenar tudo!
+        renderItems.sort((a, b) => {
+            if (a.cat !== b.cat) return a.cat - b.cat;
+            return a.sortName.localeCompare(b.sortName);
+        });
+
+        let combinedHtml = renderItems.map(item => item.html).join('');
 
         container.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
@@ -12253,7 +12236,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             if (isObrigatorio || isFicha) {
                 borderBgColor = 'border:1px solid #2563eb; background:#eff6ff;';
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
-                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
             } else {
                 leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
                 statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
