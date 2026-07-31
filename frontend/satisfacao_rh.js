@@ -711,11 +711,27 @@
         if (!saved.__obs__) saved.__obs__ = {};
         
         const grupo = grupoFromDeptCargo(dept, cargo);
-        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
-        if (!perguntasGroup) {
-            alert('Erro: Perguntas não encontradas para o grupo "' + grupo + '".');
+        if (!grupo) {
+            const overlay = document.createElement('div');
+            overlay.id = 'sat-modal-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;padding:2rem;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                    <i class="ph ph-warning-circle" style="font-size:3rem;color:#f59e0b;"></i>
+                    <h3 style="margin:1rem 0 0.5rem;color:#1e293b;">Template não cadastrado</h3>
+                    <p style="color:#64748b;margin-bottom:1.5rem;">
+                        Não há um template de avaliação de satisfação cadastrado para o departamento<br>
+                        <strong style="color:#0f4c81;">${dept || cargo || 'deste colaborador'}</strong>.
+                    </p>
+                    <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:1.5rem;">
+                        Acesse <strong>Avaliações → Gerenciar Avaliações</strong> e crie um template incluindo esse departamento.
+                    </p>
+                    <button onclick="document.getElementById('sat-modal-overlay').remove()" style="padding:0.6rem 1.5rem;background:#0f4c81;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fechar</button>
+                </div>`;
+            document.body.appendChild(overlay);
             return;
         }
+        const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         
         let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
             <div style="background:#fff;border-radius:14px;width:100%;max-width:98%;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">

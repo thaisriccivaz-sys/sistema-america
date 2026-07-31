@@ -414,6 +414,27 @@ window.navigateInitialPage = function () {
     const colabId = params.get('colaborador_id');
     const autoOpenDesempenho = params.get('autoOpenDesempenho');
     
+    const chamadoId = params.get('chamado_id');
+    if (chamadoId) {
+        navigateTo('chamados');
+        setTimeout(() => {
+            if (typeof window.verChamado === 'function') {
+                window.verChamado(chamadoId);
+            }
+        }, 500);
+        return;
+    }
+    
+    const abrirChamados = params.get('abrir_chamados');
+    if (abrirChamados) {
+        setTimeout(() => {
+            if (typeof window.abrirTelaChamados === 'function') {
+                window.abrirTelaChamados();
+            }
+        }, 500);
+        return;
+    }
+    
     if (colabId && autoOpenDesempenho) {
         navigateTo('colaboradores');
         setTimeout(() => {
@@ -508,6 +529,28 @@ async function carregarFotoUsuarioTopbar() {
 }
 
 window.carregarFotoUsuarioTopbar = carregarFotoUsuarioTopbar;
+
+// ── Sistema de Chamados: abrir/fechar overlay ────────────────
+window.abrirTelaChamados = function() {
+    const el = document.getElementById('content-chamados');
+    if (!el) return;
+    el.style.display = 'block';
+    // Injeta barra superior com botão fechar se ainda não existir
+    if (!document.getElementById('chamados-topbar')) {
+        const bar = document.createElement('div');
+        bar.id = 'chamados-topbar';
+        bar.style.cssText = 'position:sticky;top:0;z-index:10;background:#fff;border-bottom:1.5px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+        bar.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><i class="ph ph-ticket" style="color:#dc2626;font-size:1.2rem;"></i><span style="font-weight:700;color:#0f172a;font-size:0.95rem;">Chamados do Sistema</span></div>' +
+            '<button onclick="window.fecharTelaChamados()" title="Fechar" style="background:none;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px 12px;cursor:pointer;color:#475569;font-size:0.85rem;display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ph ph-x"></i> Fechar</button>';
+        el.insertBefore(bar, el.firstChild);
+    }
+    if (typeof window.initChamados === 'function') window.initChamados();
+};
+
+window.fecharTelaChamados = function() {
+    const el = document.getElementById('content-chamados');
+    if (el) el.style.display = 'none';
+};
 
 function showView(viewId) {
     document.querySelectorAll('.view-section').forEach(el => {
@@ -925,7 +968,7 @@ const TAB_META = {
     'logistica-senhas': { color: '#2d9e5f', icon: 'ph-lock-key', title: 'Cofre de Senhas' },
     'logistica-itinerantes': { color: '#2d9e5f', icon: 'ph-map-pin-line', title: 'Clientes Itinerantes' },
     'logistica-agenda': { color: '#2d9e5f', icon: 'ph-calendar-check', title: 'Agenda' },
-    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Entrega de EPI' },
+    'logistica-epi': { color: '#2d9e5f', icon: 'ph-shield-check', title: 'Logística > Entrega de EPI' },
     'rh-agenda': { color: '#f503c5', icon: 'ph-calendar-check', title: 'Agenda RH' },
     // Financeiro - Azul
     'financeiro-em-breve': { color: '#1971c2', icon: 'ph-currency-dollar', title: 'Financeiro' },
@@ -1460,11 +1503,21 @@ async function loadCargos() {
                         : '-'}
                 </td>
                 <td>
+                    ${(c.status || 'Ativo') === 'Ativo'
+                        ? `<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">Ativo</span>`
+                        : `<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:600;">Inativo</span>`}
+                </td>
+                <td>
                     ${(() => {
                         const deptoObj = deptos.find(d => d.nome === c.departamento);
                         const resp = deptoObj ? deptoObj.responsavel_nome : '';
                         return resp ? `<span style="font-size:0.85rem; color:#64748b;"><i class="ph ph-user"></i> ${resp}</span>` : '-';
                     })()}
+                </td>
+                <td style="text-align: center;">
+                    ${c.qtd_anexos > 0 
+                        ? `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:0.8rem;font-weight:700;"><i class="ph ph-paperclip"></i> ${c.qtd_anexos}</span>`
+                        : `<span style="color:#94a3b8;font-size:0.85rem;">-</span>`}
                 </td>
                 <td style="text-align: right; gap:0.4rem; justify-content:flex-end; align-items:center; display: ${window.isTopAdmin ? "flex" : "none"};">
                     <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCargoView('edit', ${c.id})">
@@ -1484,9 +1537,11 @@ async function loadCargos() {
     if (cargoList) {
         cargoList.innerHTML = '';
         cargos.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c.nome;
-            cargoList.appendChild(option);
+            if (c.status !== 'Inativo') {
+                const option = document.createElement('option');
+                option.value = c.nome;
+                cargoList.appendChild(option);
+            }
         });
     }
 }
@@ -1512,11 +1567,19 @@ window.deleteCargo = async function (id, nome) {
 
 // Filtra as linhas da tabela de cargos pelo texto digitado
 window.filtrarListaCargos = function (query) {
-    const q = (query || '').toLowerCase().trim();
+    const searchInput = document.getElementById('search-cargos');
+    const statusFiltro = document.getElementById('filtro-status-cargos');
+    const q = (query !== undefined ? query : (searchInput ? searchInput.value : '')).toLowerCase().trim();
+    const s = statusFiltro ? statusFiltro.value : 'Todos';
+
     document.querySelectorAll('#table-cargos-body tr').forEach(row => {
         const nome = (row.cells[1]?.textContent || '').toLowerCase();
         const depto = (row.cells[2]?.textContent || '').toLowerCase();
-        row.style.display = (!q || nome.includes(q) || depto.includes(q)) ? '' : 'none';
+        const statusEl = row.cells[3]?.textContent || 'Ativo';
+        const matchSearch = (!q || nome.includes(q) || depto.includes(q));
+        const matchStatus = (s === 'Todos' || statusEl.trim() === s);
+        
+        row.style.display = (matchSearch && matchStatus) ? '' : 'none';
     });
 };
 
@@ -1548,8 +1611,11 @@ window.toggleCargoView = async function (mode, id = null) {
         if (mode === 'new') {
             document.getElementById('manage-cargo-id').value = '';
             document.getElementById('cargo-input-name').value = '';
+            document.getElementById('cargo-input-status').value = 'Ativo';
             document.getElementById('cargo-form-label').textContent = 'Novo Cargo';
             if (btnDelete) btnDelete.style.display = 'none';
+            const anexosSection = document.getElementById('cargo-anexos-section');
+            if (anexosSection) anexosSection.style.display = 'none';
             renderCargoChecklist(null);  // null = sem cargo ainda, checkboxes desabilitados
             document.getElementById('cargo-input-name').focus();
             // Garantir que o dropdown de departamentos esteja populado
@@ -1558,6 +1624,9 @@ window.toggleCargoView = async function (mode, id = null) {
             document.getElementById('manage-cargo-id').value = id;
             document.getElementById('cargo-form-label').textContent = 'Editar Cargo';
             if (btnDelete) btnDelete.style.display = 'block';
+            const anexosSection = document.getElementById('cargo-anexos-section');
+            if (anexosSection) anexosSection.style.display = 'block';
+            if (window.carregarAnexosCargo) window.carregarAnexosCargo(id);
 
             await populateCargoDeptoSelect();
             const res = await fetch(`${API_URL}/cargos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
@@ -1567,12 +1636,118 @@ window.toggleCargoView = async function (mode, id = null) {
             if (cargo) {
                 document.getElementById('cargo-input-name').value = cargo.nome;
                 if (cargo.departamento) document.getElementById('cargo-input-departamento').value = cargo.departamento;
+                document.getElementById('cargo-input-status').value = cargo.status || 'Ativo';
                 await renderCargoChecklist(id);  // carrega da nova tabela
                 console.log(`Documentos carregados para cargo ${id}`);
             }
         }
     }
 }
+
+window.carregarAnexosCargo = async function(cargoId) {
+    const list = document.getElementById('cargo-anexos-list');
+    if (!list) return;
+    list.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem;">Carregando anexos...</p>';
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) throw new Error('Erro ao carregar anexos');
+        const anexos = await res.json();
+        
+        if (anexos.length === 0) {
+            list.innerHTML = '<p style="color:#94a3b8; font-size:0.85rem; font-style:italic;">Nenhum documento Word anexado.</p>';
+            return;
+        }
+
+        list.innerHTML = anexos.map(a => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; overflow: hidden;">
+                    <i class="ph ph-file-word" style="font-size: 1.5rem; color: #2563eb;"></i>
+                    <div style="overflow: hidden;">
+                        <div style="font-weight: 500; font-size: 0.95rem; color: #1e293b; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${a.titulo}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">${a.nome_arquivo} • ${new Date(a.data_upload).toLocaleDateString()}</div>
+                        ${a.observacoes ? `<div style="font-size: 0.8rem; color: #64748b; font-style: italic;">Obs: ${a.observacoes}</div>` : ''}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.open('${a.r2_key.startsWith('http') ? a.r2_key : API_URL + '/cargos/anexos/download?r2_key=' + encodeURIComponent(a.r2_key) + '&nome=' + encodeURIComponent(a.nome_arquivo) + '&token=' + currentToken}', '_blank')" title="Baixar/Ver">
+                        <i class="ph ph-download-simple"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="window.excluirAnexoCargo(${cargoId}, ${a.id})" title="Excluir">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = '<p style="color:red; font-size:0.85rem;">Falha ao carregar anexos.</p>';
+    }
+};
+
+window.uploadAnexoCargo = async function(event) {
+    event.preventDefault();
+    const cargoId = document.getElementById('manage-cargo-id').value;
+    if (!cargoId) return showToast('Salve o cargo primeiro antes de anexar.', 'warning');
+
+    const tituloInput = document.getElementById('cargo-anexo-titulo');
+    const observacoesInput = document.getElementById('cargo-anexo-observacoes');
+    const arquivoInput = document.getElementById('cargo-anexo-arquivo');
+    const btn = document.getElementById('btn-upload-anexo-cargo');
+    
+    if (!tituloInput.value.trim()) return showToast('Digite um título para o anexo.', 'warning');
+    if (!arquivoInput.files || arquivoInput.files.length === 0) return showToast('Selecione um arquivo Word.', 'warning');
+
+    const file = arquivoInput.files[0];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'doc' && ext !== 'docx') return showToast('Apenas arquivos .doc ou .docx são permitidos.', 'error');
+
+    const formData = new FormData();
+    formData.append('titulo', tituloInput.value.trim());
+    if (observacoesInput) formData.append('observacoes', observacoesInput.value.trim());
+    formData.append('arquivo', file);
+
+    const originalBtnHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro no upload');
+        
+        showToast('Anexo salvo com sucesso!', 'success');
+        tituloInput.value = '';
+        arquivoInput.value = '';
+        window.carregarAnexosCargo(cargoId);
+    } catch (e) {
+        console.error(e);
+        showToast(e.message, 'error');
+    } finally {
+        btn.innerHTML = originalBtnHTML;
+        btn.disabled = false;
+    }
+};
+
+window.excluirAnexoCargo = async function(cargoId, anexoId) {
+    if (!confirm('Deseja realmente excluir este anexo?')) return;
+    
+    try {
+        const res = await fetch(`${API_URL}/cargos/${cargoId}/anexos/${anexoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (!res.ok) throw new Error('Erro ao excluir');
+        showToast('Anexo removido.', 'success');
+        window.carregarAnexosCargo(cargoId);
+    } catch (e) {
+        console.error(e);
+        showToast('Erro ao remover anexo', 'error');
+    }
+};
 
 async function renderCargoChecklist(cargoId) {
     const checklist = document.getElementById('cargo-checklist-main');
@@ -1632,8 +1807,10 @@ async function handleCargoFormSubmit() {
     const id = document.getElementById('manage-cargo-id').value;
     const nomeInput = document.getElementById('cargo-input-name');
     const deptoInput = document.getElementById('cargo-input-departamento');
+    const statusInput = document.getElementById('cargo-input-status');
     const nome = (nomeInput ? nomeInput.value : '').trim();
     const departamento = deptoInput ? deptoInput.value : '';
+    const status = statusInput ? statusInput.value : 'Ativo';
     if (!nome) { alert('Informe o nome do cargo'); return; }
     if (!departamento) { alert('Informe o departamento vinculado'); return; }
 
@@ -1642,21 +1819,25 @@ async function handleCargoFormSubmit() {
             const r = await fetch(`${API_URL}/cargos/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify({ nome, departamento, documentos_obrigatorios: '' })
+                body: JSON.stringify({ nome, departamento, status, documentos_obrigatorios: '' })
             });
             if (!r.ok) { const err = await r.json(); alert('Erro ao salvar: ' + (err.error || 'Erro')); return; }
         } else {
             // Criar novo cargo
-            const res = await apiPost('/cargos', { nome, departamento, documentos_obrigatorios: '' });
+            const res = await apiPost('/cargos', { nome, departamento, status, documentos_obrigatorios: '' });
             if (!res || res.error) { alert('Erro ao cadastrar: ' + (res?.error || 'Erro')); return; }
             // Agora temos o ID, atualizar o hidden field e habilitar os checkboxes
             document.getElementById('manage-cargo-id').value = res.id;
             await renderCargoChecklist(res.id);  // rerender com checkboxes habilitados
             alert('Cargo criado! Agora selecione os documentos exigidos.');
-            toggleCargoView('list');
+            loadCargos();
             return;
         }
         alert('Nome do cargo salvo!');
+        // Reseta o filtro para "Todos" para que cargos Inativos recém-salvos fiquem visíveis
+        const filtroStatusEl = document.getElementById('filtro-status-cargos');
+        if (filtroStatusEl) filtroStatusEl.value = 'Todos';
+        await loadCargos();
         toggleCargoView('list');
     } catch (err) {
         console.error('Erro ao salvar cargo:', err);
@@ -1782,7 +1963,7 @@ async function loadDepartamentos() {
             <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
             <td>${responsavel}</td>
             <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}')" title="Editar">
+                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}','${(d.nome_aso||'').replace(/\'/g,"\\\\\'")}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
@@ -1793,10 +1974,12 @@ async function loadDepartamentos() {
     });
 }
 
-window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual) {
+window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual, nomeAsoAtual) {
     document.getElementById('edit-departamento-id').value = id;
     document.getElementById('edit-departamento-nome').value = nomeAtual;
     document.getElementById('edit-departamento-tipo').value = tipoAtual || 'Operacional';
+    const asoEl = document.getElementById('edit-departamento-aso');
+    if (asoEl) asoEl.value = nomeAsoAtual || '';
     await carregarOpcoesResponsavel('edit-departamento-responsavel', responsavelIdAtual);
     document.getElementById('modal-editar-departamento').style.display = 'flex';
 }
@@ -1809,11 +1992,12 @@ document.getElementById('form-editar-departamento')?.addEventListener('submit', 
     const selectResp = document.getElementById('edit-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    const nome_aso = document.getElementById('edit-departamento-aso')?.value.trim() || null;
 
     const res = await fetch(`${API_URL}/departamentos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-        body: JSON.stringify({ nome: nome, tipo, responsavel_id, responsavel_nome })
+        body: JSON.stringify({ nome: nome, tipo, responsavel_id, responsavel_nome, nome_aso })
     });
     const data = await res.json();
     if (data.error) alert(data.error);
@@ -1842,10 +2026,13 @@ document.getElementById('form-departamento')?.addEventListener('submit', async (
     const selectResp = document.getElementById('novo-departamento-responsavel');
     const responsavel_id = selectResp.value || null;
     const responsavel_nome = selectResp.options[selectResp.selectedIndex]?.dataset.nome || null;
+    const nome_aso = document.getElementById('novo-departamento-aso')?.value.trim() || null;
 
     if (!nome) return;
-    await apiPost('/departamentos', { nome, tipo, responsavel_id, responsavel_nome });
+    await apiPost('/departamentos', { nome, tipo, responsavel_id, responsavel_nome, nome_aso });
     document.getElementById('novo-departamento-nome').value = '';
+    const asoNovoEl = document.getElementById('novo-departamento-aso');
+    if (asoNovoEl) asoNovoEl.value = '';
     loadDepartamentos();
 });
 
@@ -2594,28 +2781,34 @@ async function loadDashboard() {
             const dataAtestados = (chartsData.faltasAgrupadasMes || []).map(d => d.atestados);
 
             chartAtestadosInst = new Chart(ctxAtestados, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: labelsMeses.length ? labelsMeses : ['Sem dados'],
                     datasets: [
                         {
                             label: 'Faltas Injustificadas',
                             data: dataFaltas.length ? dataFaltas : [0],
+                            borderColor: '#fa5252',
                             backgroundColor: '#fa5252',
-                            borderRadius: 4
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: false
                         },
                         {
                             label: 'Atestados',
                             data: dataAtestados.length ? dataAtestados : [0],
+                            borderColor: '#228be6',
                             backgroundColor: '#228be6',
-                            borderRadius: 4
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: false
                         }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
-                    scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
                 }
             });
         }
@@ -2640,7 +2833,7 @@ async function loadDashboard() {
                         {
                             label: 'Dias Atestado',
                             data: ranking.length ? ranking.map(r => r.dias_atestado) : [0],
-                            backgroundColor: '#f59f00',
+                            backgroundColor: '#228be6',
                             borderRadius: 4
                         }
                     ]
@@ -3285,6 +3478,7 @@ window.exportarColaboradoresXLSX = async function () {
         "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
         "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
         "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
+        "Habilitação B", "Habilitação D",
         "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado"
     ]);
 
@@ -3345,6 +3539,8 @@ window.exportarColaboradoresXLSX = async function () {
             c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
             c.celular_participa === 'Sim' ? 'Sim' : 'Não',
             c.chaves_participa === 'Sim' ? 'Sim' : 'Não',
+            c.habilitacao_b === 'Sim' ? 'Sim' : 'Não',
+            c.habilitacao_d === 'Sim' ? 'Sim' : 'Não',
             c.tamanho_camiseta || '',
             c.tamanho_calca || '',
             c.tamanho_calcado || ''
@@ -3966,6 +4162,12 @@ window.resetFormColaborador = function () {
 
     const radioChavesNao = document.querySelector('input[name="chaves_participa"][value="Não"]');
     if (radioChavesNao) { radioChavesNao.checked = true; toggleChavesColabFields('Não'); }
+
+    const radioHabBNao = document.querySelector('input[name="habilitacao_b"][value="Não"]');
+    if (radioHabBNao) radioHabBNao.checked = true;
+
+    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
+    if (radioHabDNao) radioHabDNao.checked = true;
 };
 
 window.editColaborador = async function (id) {
@@ -4254,6 +4456,16 @@ window.editColaborador = async function (id) {
         if (radioCelu) radioCelu.checked = true;
         toggleCelularFields(participaCelu);
         if (document.getElementById('colab-celular-data')) document.getElementById('colab-celular-data').value = c.celular_data || '';
+
+        // Habilitações (B e D)
+        const habB = c.habilitacao_b || 'Não';
+        const radioHabB = document.querySelector(`input[name="habilitacao_b"][value="${habB}"]`);
+        if (radioHabB) radioHabB.checked = true;
+
+        const habD = c.habilitacao_d || 'Não';
+        const radioHabD = document.querySelector(`input[name="habilitacao_d"][value="${habD}"]`);
+        if (radioHabD) radioHabD.checked = true;
+
         if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
         // Chaves
@@ -4562,6 +4774,8 @@ if (formColab) {
             terapia_data_inicio: document.getElementById('colab-terapia-data-inicio') ? document.getElementById('colab-terapia-data-inicio').value : null,
             celular_participa: document.querySelector('input[name="celular_participa"]:checked')?.value || 'Não',
             celular_data: document.getElementById('colab-celular-data') ? document.getElementById('colab-celular-data').value : null,
+            habilitacao_b: document.querySelector('input[name="habilitacao_b"]:checked')?.value || 'Não',
+            habilitacao_d: document.querySelector('input[name="habilitacao_d"]:checked')?.value || 'Não',
             chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,
@@ -4897,7 +5111,7 @@ async function loadDocumentosList() {
 
 const FIXED_DOCS = {
     'Contratos': ['Contrato de Trabalho', 'Termo de Confidencialidade', 'Acordo Individual Benefícios', 'Acordo Prorrogação e Compensação', 'Declaração Vale Transporte', 'Contrato Experiência 45 dias', 'Prorrogação de Contrato', 'Termo de Estágio'],
-    'ASO': ['ASO Padrão'],
+    'ASO': ['ASO Periódico'],
     'Ficha de EPI': ['Ficha de EPI Assinada'],
     'Multas': ['Contrato de Responsabilidade com o Veículo']
 };
@@ -5123,6 +5337,7 @@ window.gerarAdvertencia = function () {
         </p>` : `
         <p style="margin-top:1rem; text-align:justify; color:#475569; font-size:0.92em;">
             Este registro é de caráter informativo e será arquivado no prontuário do colaborador.
+            O(A) colaborador(a) declara, com sua assinatura, estar ciente do conteúdo desta ocorrência.
         </p>`}
     `;
 
@@ -5168,9 +5383,9 @@ window.gerarAdvertencia = function () {
 function buildAdvertenciaTemplate(data, logoSrc) {
     const isOcorrencia = data.isOcorrencia;
 
-    // Seção de assinaturas (não exibida para ocorrências)
-    const assinaturasHtml = !isOcorrencia ? `
-        <div style="margin-top:40px;">
+    // Seção de assinaturas (agora exibida para ocorrências também)
+    const assinaturasHtml = `
+        <div style="margin-top:20px;">
             <div style="display:flex; gap:40px; justify-content:center;">
                 <div style="flex:1; text-align:center; max-width:220px;">
                     <div style="border-top:1px solid #111; padding-top:6px; font-size:11px;">
@@ -5185,14 +5400,14 @@ function buildAdvertenciaTemplate(data, logoSrc) {
                     </div>
                 </div>
             </div>
-            <div style="margin-top:40px; text-align:center;">
+            <div style="margin-top:24px; text-align:center;">
                 <div style="display:inline-block; width:260px; border-top:1px solid #111; padding-top:6px; font-size:11px; text-align:center;">
                     <div>Nome do Colaborador: ${data.colaborador.NOME_COMPLETO}</div>
                     <div>CPF: ${data.colaborador.CPF}</div>
                 </div>
             </div>
         </div>
-    ` : '';
+    `;
 
     return `<style>html,body{margin:0!important;padding:0!important;background:#fff!important;}*{box-sizing:border-box;}</style><div style="width:794px; background:#fff; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; line-height:1.5; display:block;">
         <!-- LOGO BANNER - largura total sem margens -->
@@ -5230,8 +5445,8 @@ function buildAdvertenciaTemplate(data, logoSrc) {
             <!-- DATA -->
             <p style="margin-top:24px; font-size:12px; font-weight:bold;">Guarulhos, ${data.dataHojeExtenso}.</p>
 
-            <!-- ESPAÇO RESERVADO PARA ASSINATURAS (desenhadas pelo pdf-lib após coleta) -->
-            ${!isOcorrencia ? '<div style="height:180px;"></div>' : ''}
+            <!-- Espaço reservado para as assinaturas -->
+            <div style="height:300px;"></div>
         </div>
     </div>`;
 }
@@ -5342,6 +5557,8 @@ window.anexarAdvertenciaAoProntuario = async function () {
         const pageH = pdf.internal.pageSize.getHeight();  // 297mm
         const imgData = canvas.toDataURL('image/jpeg', 0.98);
         const imgHeightMm = pageW * (canvas.height / canvas.width);
+
+        pdf.setProperties({ keywords: 'contentHeightMm:' + imgHeightMm });
 
         let posY = 0, page = 0;
         while (posY < imgHeightMm) {
@@ -5769,15 +5986,6 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
         }
         fixedDocsList.forEach(docType => {
             if (!searchTerm || docType.toLowerCase().includes(searchTerm)) {
-                if (tabId === 'Contratos' && docType === 'Acordo de auxílio combustível') {
-                    const meio = (viewedColaborador && viewedColaborador.meio_transporte) ? viewedColaborador.meio_transporte.toLowerCase() : '';
-                    if (meio === 'vale transporte') {
-                        const existingDoc = filteredDocs.find(d => d.document_type === docType);
-                        const msg = 'Não aplicável para usuários de Vale Transporte.';
-                        listContainer.appendChild(createDocSlot(tabId, docType, existingDoc, null, null, msg));
-                        return;
-                    }
-                }
                 if (tabId === 'Contratos' && docType === 'Contrato faculdade') {
                     const participa = (viewedColaborador && viewedColaborador.faculdade_participa) ? viewedColaborador.faculdade_participa : 'Não';
                     if (participa === 'Não') {
@@ -5805,86 +6013,155 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
     }
 }
 async function renderCargoDocsChecklist(container) {
-    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando checklist de contratos...</p>';
+    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando checklist...</p>';
 
     try {
-        // Get all mandatory docs from Contratos tab
-        const contratosObrig = (window.getFixedDocsForTab ? window.getFixedDocsForTab('Contratos') : []) || [];
-        
-        // Get all mandatory docs from Ficha Cadastral
-        const fichaObrig = getFichaCadastralDocs ? getFichaCadastralDocs() : [];
-        
-        // Helper: normalize string for matching
         const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        
-        // Helper: find if a doc exists in currentDocs for a given tab & type
-        const findDoc = (docName, tabName) => {
-            const n = norm(docName);
-            return currentDocs.find(d => 
-                d.tab_name === tabName && norm(d.document_type) === n
-            );
-        };
-        
-        // Build combined list: { docName, tab, tabLabel, tabDataTab }
-        const fichaItems = fichaObrig.map(d => ({
-            docName: d,
-            tab: '01_FICHA_CADASTRAL',
+
+        // ── Ficha Cadastral (amarelo) ──────────────────────────────────────────
+        const fichaObrig = getFichaCadastralDocs ? getFichaCadastralDocs() : [];
+        const fichaItems = fichaObrig.map(docName => ({
+            docName,
+            color: 'amarelo',
             tabLabel: 'Ficha Cadastral',
             tabDataTab: '01_FICHA_CADASTRAL',
-            found: findDoc(d, '01_FICHA_CADASTRAL')
+            found: currentDocs.find(d =>
+                (d.tab_name === '01_FICHA_CADASTRAL') && norm(d.document_type) === norm(docName)
+            )
         }));
-        
-        const contratosItems = contratosObrig.map(d => ({
-            docName: d,
-            tab: 'CONTRATOS',
+
+        // ── Contratos: obrigatórios azuis (pós-admissão + Ficha de Registro) ──
+        const DOCS_OBRIGATORIOS_POS = [
+            'Termo responsabilidade salário família',
+            'Termo de consentimento lgpd',
+            'Ficha de salário família',
+            'Declaração encargos de família para fins de IR',
+            'Contrato de experiência',
+            'Autorização de pagamento através depósito bancário',
+            'Acordo de prorrogação de horas trabalhadas',
+            'Acordo de compensação de horas trabalhadas',
+            'Ficha de Registro'
+        ];
+        const azulItems = DOCS_OBRIGATORIOS_POS.map(docName => ({
+            docName,
+            color: 'azul',
             tabLabel: 'Contratos',
             tabDataTab: 'Contratos',
-            found: findDoc(d, 'CONTRATOS')
+            found: currentDocs.find(d =>
+                (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS' || d.tab_name === '01_FICHA_CADASTRAL') &&
+                norm(d.document_type) === norm(docName)
+            )
         }));
-        
-        const allItems = [...fichaItems, ...contratosItems];
+
+        // ── Contratos: perfil roxo (auto-geradores pelo perfil do colaborador) ─
+        let roxoItems = [];
+        if (viewedColaborador) {
+            const c = viewedColaborador;
+            const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const empDeptId = c.departamento;
+            const deptObj = typeof departamentos !== 'undefined' ? departamentos.find(d =>
+                String(d.id) === String(empDeptId) ||
+                String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
+            ) : null;
+            const deptNome = deptObj ? deptObj.nome.toLowerCase() : String(empDeptId || '').toLowerCase();
+            const deptTipo = deptObj ? (deptObj.tipo || '').toLowerCase() : '';
+
+            // Mapa de geradores de perfil (mesmo que o da aba Contratos)
+            const PERFIL_MAP = [
+                { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' },
+                { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
+                { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Responsabilidade Celular', cond: deNorm(c.celular_participa) === 'sim' },
+                { nome: 'Contrato Faculdade', cond: deNorm(c.faculdade_participa) === 'sim' },
+                { nome: 'Contrato Academia', cond: deNorm(c.academia_participa) === 'sim' },
+                { nome: 'Contrato Intermitente', cond: deNorm(c.tipo_contrato) === 'intermitente' },
+                { nome: 'Acordo Individual Benefícios', cond: true },
+                { nome: 'Autorização de Uso de Imagem', cond: true },
+                { nome: 'Compartilhamento de Dados', cond: true },
+                { nome: 'Regimento Interno', cond: true },
+                { nome: 'Aceite de Recebimento por E-mail', cond: true },
+                { nome: 'Regras Sorteio Final de Ano', cond: true },
+                { nome: 'Termo de Confidencialidade', cond: true },
+                { nome: 'Solicitação de VT', cond: true },
+                { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
+                { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
+                { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
+            ];
+
+            roxoItems = PERFIL_MAP
+                .filter(m => m.cond)
+                .map(m => ({
+                    docName: m.nome,
+                    color: 'roxo',
+                    tabLabel: 'Contratos',
+                    tabDataTab: 'Contratos',
+                    found: currentDocs.find(d =>
+                        (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') &&
+                        norm(d.document_type) === norm(m.nome)
+                    )
+                }));
+        }
+
+        // ── Descrição de Atividades (laranja) ──────────────────────────────────
+        const laranjaItems = [{
+            docName: 'Descrição de Atividades',
+            color: 'laranja',
+            tabLabel: 'Contratos',
+            tabDataTab: 'Contratos',
+            found: currentDocs.find(d =>
+                (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') &&
+                norm(d.document_type) === norm('Descrição de Atividades')
+            )
+        }];
+
+        // ── Combinar: Laranja primeiro, Azuis depois Roxos, depois Ficha Cadastral ─────
+        const allItems = [...laranjaItems, ...azulItems, ...roxoItems, ...fichaItems];
         const pendentes = allItems.filter(i => !i.found);
         const ok = allItems.filter(i => i.found);
-        
+
         const countOk = ok.length;
         const countTotal = allItems.length;
         const pct = countTotal > 0 ? Math.round((countOk / countTotal) * 100) : 100;
         const barColor = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
-        
+
         const renderItem = (item) => {
             const hasdoc = !!item.found;
-            const docKey = item.docName.replace(/[^a-zA-Z0-9]/g, '_');
-            
+
             const statusIcon = hasdoc
                 ? `<i class="ph ph-check-circle" style="color:#16a34a;font-size:1.3rem;flex-shrink:0;"></i>`
                 : `<i class="ph ph-x-circle" style="color:#dc2626;font-size:1.3rem;flex-shrink:0;"></i>`;
-            
+
             const statusBadge = hasdoc
                 ? `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-check"></i> Anexado</span>`
                 : `<span style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:12px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;"><i class="ph ph-warning"></i> Pendente</span>`;
-            
-            let badgeBg = '#f1f5f9';
-            let badgeColor = '#475569';
-            if (item.tabLabel === 'Ficha Cadastral') {
-                badgeBg = '#fef9c3';
-                badgeColor = '#854d0e';
-            } else if (item.tabLabel === 'Contratos') {
-                badgeBg = '#dbeafe';
-                badgeColor = '#1e40af';
+
+            let badgeBg, badgeColor, badgeBorder, tabLabelDisplay;
+            if (item.color === 'amarelo') {
+                badgeBg = '#fef9c3'; badgeColor = '#854d0e'; badgeBorder = '#fde047';
+                tabLabelDisplay = 'Ficha Cadastral';
+            } else if (item.color === 'roxo') {
+                badgeBg = '#fdf4ff'; badgeColor = '#7e22ce'; badgeBorder = '#f0abfc';
+                tabLabelDisplay = 'Contratos';
+            } else if (item.color === 'laranja') {
+                badgeBg = '#fff7ed'; badgeColor = '#ea580c'; badgeBorder = '#fdba74';
+                tabLabelDisplay = 'Cargo';
+            } else {
+                badgeBg = '#eff6ff'; badgeColor = '#1e40af'; badgeBorder = '#bfdbfe';
+                tabLabelDisplay = 'Contabilidade';
             }
-            const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${item.tabLabel}</span>`;
-            
+            const tabBadge = `<span style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};border-radius:8px;padding:1px 7px;font-size:0.68rem;font-weight:600;white-space:nowrap;">${tabLabelDisplay}</span>`;
+
             const fileInfo = hasdoc && item.found.file_name
                 ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-file"></i> ${item.found.file_name}</div>`
                 : '';
-            
+
             const cursor = hasdoc ? 'default' : 'pointer';
             const hoverStyle = hasdoc ? '' : 'class="checklist-item-hover"';
             const clickAttr = hasdoc ? '' : `onclick="window._checklistGoToTab('${item.tabDataTab}', '${item.tabLabel}')"`;
             const hintText = hasdoc ? '' : `<div style="font-size:0.72rem;color:#9333ea;margin-top:3px;"><i class="ph ph-arrow-right"></i> Clique para ir até ${item.tabLabel} e anexar</div>`;
-            
+
             return `
-            <div ${hoverStyle} ${clickAttr} 
+            <div ${hoverStyle} ${clickAttr}
                 style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.85rem;border-radius:8px;margin-bottom:0.4rem;
                        background:${hasdoc ? '#f8fffe' : '#fff5f5'};
                        border:1.5px solid ${hasdoc ? '#a7f3d0' : '#fecaca'};
@@ -5901,7 +6178,7 @@ async function renderCargoDocsChecklist(container) {
                 ${statusBadge}
             </div>`;
         };
-        
+
         const pendHTML = pendentes.length > 0
             ? `<div style="margin-bottom:1.25rem;">
                 <div style="font-size:0.8rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem;">
@@ -5910,7 +6187,7 @@ async function renderCargoDocsChecklist(container) {
                 ${pendentes.map(renderItem).join('')}
               </div>`
             : '';
-        
+
         const okHTML = ok.length > 0
             ? `<div style="margin-bottom:1rem;">
                 <div style="font-size:0.8rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem;">
@@ -5919,7 +6196,7 @@ async function renderCargoDocsChecklist(container) {
                 ${ok.map(renderItem).join('')}
               </div>`
             : '';
-        
+
         container.innerHTML = `
             <style>
               .checklist-item-hover:hover { background:#ffeaea !important; border-color:#f87171 !important; transform:translateX(2px); }
@@ -5927,7 +6204,7 @@ async function renderCargoDocsChecklist(container) {
             <div style="margin-bottom:1.5rem;padding:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
                     <div>
-                        <span style="font-size:1rem;font-weight:700;color:#1e293b;"><i class="ph ph-clipboard-text"></i> Documentos Obrigatórios — Contratos</span>
+                        <span style="font-size:1rem;font-weight:700;color:#1e293b;"><i class="ph ph-clipboard-text"></i> Checklist de Documentos</span>
                         <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">${countOk} de ${countTotal} documentos anexados</div>
                     </div>
                     <span style="font-size:1.6rem;font-weight:800;color:${barColor};">${pct}%</span>
@@ -6156,8 +6433,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         atestadoContabHtml = ` <br><span style="color:#2f9e44; font-weight:600; font-size:0.75rem;"><i class="ph ph-check-circle"></i> Enviado p/ Contab: ${dd}/${mm}/${yyyy} - ${h}h${min}m</span> `;
     }
 
-    const subInfoLine = (vencInfoHtml || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
-        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtml}${enviadoHtml}</p>${linkAssinaturaHtml}`
+    // Para a aba ASO, o vencimento já é exibido no campo de input à direita do card
+    // — não duplicar como texto abaixo do nome do arquivo
+    const vencInfoHtmlLine = (tabId === 'ASO') ? '' : vencInfoHtml;
+    const subInfoLine = (vencInfoHtmlLine || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
+        ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtmlLine}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
 
     // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
@@ -6255,7 +6535,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
         }
         vencimentoInputHtml = `
             <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b;">${tabId === 'ASO' ? 'Data do Exame' : 'Vencimento'}</label>
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b;">${tabId === 'ASO' ? 'Vencimento do ASO' : 'Vencimento'}</label>
                 <div style="display:flex; gap:0.25rem; align-items: center;">
                     <input type="date" id="venc-${tabId}-${safeDocType}" class="venc-input" value="${existingVencimento}"
                            style="padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; font-family: inherit; color: var(--text-main); width: 145px; height: 42px;">
@@ -6327,10 +6607,10 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                     ` : ''}
 
-                    ${(tabId === 'Advertências' && isSaved) ? (() => {
+            ${(tabId === 'Advertências' && isSaved) ? (() => {
                 const _isOcorrDoc = (docType || '').includes('###Ocorr');
                 const _isVerbalDoc = (docType || '').toLowerCase().includes('###advert') && (docType || '').toLowerCase().includes('verbal');
-                if (_isOcorrDoc) return ''; // Ocorrência não tem assinatura
+                
                 return `
                         ${(!stMain || stMain === 'Nenhum') ? `
                         <button type="button" class="btn btn-secondary"
@@ -6425,7 +6705,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
             const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
             return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>` : ''}
+                            ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
+                                ${tabId === 'ASO' ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
+                            ` : ''}
                             <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
@@ -6538,7 +6820,7 @@ function createDynamicUploadForm(tabId, btnLabel, defaultDocType = '') {
             </div>
             ${showVencimento ? `
             <div style="flex: 1; min-width: 140px;">
-                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">${tabId === 'ASO' ? 'Data do Exame (opcional)' : 'Vencimento (opcional)'}</label>
+                <label style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-bottom: 2px; display: block;">${tabId === 'ASO' ? 'Vencimento do ASO (opcional)' : 'Vencimento (opcional)'}</label>
                 <input type="date" id="dyn-doc-venc-${tabId}" class="form-control" style="padding: 0.5rem; border-radius:4px; border:1px solid #ccc; width: 100%;">
             </div>
             ` : ''}
@@ -6800,7 +7082,7 @@ window.renderASOAno = function () {
     const isDesligado = viewedColaborador && (viewedColaborador.status === 'Desligado');
 
     // Documentos obrigatórios
-    const list = ['ASO Padrão'];
+    const list = ['ASO Periódico'];
     if (isMotorista) list.push('Exames Complementares');
     if (isDesligado) list.push('ASO Demissional');
 
@@ -10258,12 +10540,20 @@ window._reloadContratosContainer = async function () {
 
 // === SUB-ABA OUTROS CONTRATOS ===
 // Helper: avalia se um gerador deve aparecer automaticamente para o colaborador
-window._avaliarRegraGerador = function (g, colab, deptNome) {
+// deptObj: objeto completo do departamento (com .nome e .tipo)
+window._avaliarRegraGerador = function (g, colab, deptNome, deptObj) {
     if (g.is_sinistro_only) return false;
     let regra = {};
     try { regra = g.visibilidade_regra ? JSON.parse(g.visibilidade_regra) : {}; } catch (e) { }
 
     if (!regra.visivel_automatico) return false;
+
+    // Verificar restrição por TIPO de departamento (Operacional / Administrativo)
+    if (regra.tipos_departamento && regra.tipos_departamento.length > 0) {
+        const tipoDept = ((deptObj && deptObj.tipo) || '').toLowerCase().trim();
+        const matchTipo = regra.tipos_departamento.some(t => t.toLowerCase().trim() === tipoDept);
+        if (!matchTipo) return false;
+    }
 
     // Verificar restrição de departamento (ou cargo/tipo)
     if (regra.departamentos && regra.departamentos.length > 0) {
@@ -10412,21 +10702,29 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 return Array.isArray(r) ? r : (r ? [r] : []);
             } catch (e) { return []; }
         };
-        const [assinaturas, docs, geradores, departamentos] = await Promise.all([
-            safeGet(`/colaboradores/${viewedColaborador.id}/admissao-assinaturas`),
-            safeGet(`/colaboradores/${viewedColaborador.id}/documentos`),
+        const safeGetObj = async (url) => {
+            try { return await apiGet(url); } catch (e) { return null; }
+        };
+
+        const c = viewedColaborador;
+
+        const [assinaturas, docs, geradores, departamentos, cargoData] = await Promise.all([
+            safeGet(`/colaboradores/${c.id}/admissao-assinaturas`),
+            safeGet(`/colaboradores/${c.id}/documentos`),
             safeGet('/geradores'),
-            safeGet('/departamentos')
+            safeGet('/departamentos'),
+            c.cargo ? safeGetObj(`/cargos/por-nome?nome=${encodeURIComponent(c.cargo)}`) : Promise.resolve(null)
         ]);
         window._todosGeradores = geradores;
 
-        const c = viewedColaborador;
         const empDeptId = c.departamento;
         const deptObj = departamentos.find(d =>
             String(d.id) === String(empDeptId) ||
             String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase()
         );
         const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
+        // tipo do departamento: 'Operacional' ou 'Administrativo'
+        const deptTipo = deptObj ? (deptObj.tipo || '') : '';
 
         // Nomes que NUNCA devem aparecer em Outros Contratos
         const EXCLUIDOS_FIXOS = [
@@ -10450,7 +10748,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
 
         // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
         let autoGeradores = geradoresElegiveis.filter(g =>
-            window._avaliarRegraGerador(g, c, deptNome)
+            window._avaliarRegraGerador(g, c, deptNome, deptObj)
         );
 
         // FALLBACK: se nenhum gerador tem regras seeded ainda, usa mapa legado de perfil
@@ -10462,19 +10760,22 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
                 { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Responsabilidade Celular', cond: deNorm(c.celular_participa) === 'sim' },
-                { nome: 'Responsabilidade Chaves', cond: deNorm(c.chaves_participa) === 'sim' },
                 { nome: 'Contrato Faculdade', cond: deNorm(c.faculdade_participa) === 'sim' },
                 { nome: 'Contrato Academia', cond: deNorm(c.academia_participa) === 'sim' },
                 { nome: 'Contrato Intermitente', cond: deNorm(c.tipo_contrato) === 'intermitente' },
                 { nome: 'Acordo Individual Benefícios', cond: true },
                 { nome: 'Autorização de Uso de Imagem', cond: true },
                 { nome: 'Compartilhamento de Dados', cond: true },
-                { nome: 'Recebimento de Regimento Interno', cond: true },
+                { nome: 'Regimento Interno', cond: true },
+                { nome: 'Aceite de Recebimento por E-mail', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
                 { nome: 'Solicitação de VT', cond: true },
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
-                { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
+                // Responsabilidade Equipamento: somente tipo Administrativo
+                { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
+                // NR1: somente tipo Operacional
+                { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -10529,6 +10830,89 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             autoGeradores = autoGeradores.filter(g => (g.nome || '').toLowerCase().includes(st));
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // BLOCO: DESCRIÇÃO DE ATIVIDADES (sempre PRIMEIRO)
+        // ══════════════════════════════════════════════════════════════════════
+        const _normDA = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const descAtivDoc = filteredDocs.find(d => _normDA(d.document_type) === 'descricao de atividades');
+
+        if (!searchTerm || 'descrição de atividades'.includes(searchTerm.toLowerCase())) {
+            if (descAtivDoc) {
+                // Já existe → será renderizado por buildContratosSignatureRows depois
+                // Mas precisamos garantir que apareça primeiro → marcamos como prioritário
+                if (!allExistingDocs.some(d => d.id === descAtivDoc.id)) {
+                    allExistingDocs.push(descAtivDoc);
+                }
+                // Marcar como prioritário para ordenação
+                descAtivDoc._isDescricaoAtividades = true;
+                docsUsados.add(descAtivDoc.id);
+            } else {
+                // Slot pendente — construir o card
+                const cargoAnexos = (cargoData && cargoData.anexos) ? cargoData.anexos : [];
+                const temCargo = !!(c.cargo && c.cargo.trim());
+                const qtdAnexos = cargoAnexos.length;
+
+                // Salvar os anexos no window para o modal poder acessar depois
+                window._cargoAnexosParaDA = cargoAnexos;
+                window._cargoDataParaDA = cargoData;
+
+                let acaoBotaoHtml = '';
+                if (!temCargo) {
+                    // Sem cargo cadastrado
+                    acaoBotaoHtml = `<span style="font-size:0.78rem;color:#64748b;font-style:italic;white-space:nowrap;">Colaborador sem cargo definido</span>`;
+                } else if (qtdAnexos === 0) {
+                    // Cargo sem anexos Word: só upload manual
+                    acaoBotaoHtml = `
+                        <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;" title="O cargo '${(c.cargo||'').replace(/'/g,"&#39;")}' não possui nenhum documento Word cadastrado. Anexe um PDF manualmente.">
+                            <i class="ph ph-upload-simple"></i> Anexar PDF
+                            <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Descrição de Atividades', 'descricao-atividades')">
+                        </label>`;
+                } else if (qtdAnexos === 1) {
+                    // 1 anexo: botão direto
+                    const an = cargoAnexos[0];
+                    const escTitulo = (an.titulo || an.nome_arquivo || 'Documento').replace(/'/g, "&#39;");
+                    const escObs = (an.observacoes || '').replace(/'/g, "&#39;");
+                    let titleAttr = escObs ? `title="Obs: ${escObs}"` : '';
+                    acaoBotaoHtml = `
+                        <button type="button"
+                                ${titleAttr}
+                                onclick="window.vincularDescricaoAtividades(${an.id}, '${escTitulo}')"
+                                style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+                                <i class="ph ph-link"></i> Vincular: ${escTitulo}
+                            </button>`;
+                } else {
+                    // 2+ anexos: botão abre modal
+                    acaoBotaoHtml = `
+                        <button type="button"
+                            onclick="window.abrirModalSelecaoAnexoCargo()"
+                            style="background:#ea580c;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+                            <i class="ph ph-list-bullets"></i> Escolher Documento (${qtdAnexos})
+                        </button>`;
+                }
+
+                combinedHtml += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:0.65rem 0.75rem;border:2px solid #ea580c;border-radius:8px;background:#fff7ed;gap:0.75rem;margin-bottom:2px;">
+                    <div style="display:flex;align-items:center;gap:0.6rem;flex:1;">
+                        <div style="display:flex;align-items:center;justify-content:center;width:24px;color:#ea580c;"><i class="ph ph-clipboard-text" style="font-size:1.4rem;"></i></div>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="background:#fff7ed;color:#ea580c;border:1px solid #fdba74;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Descrição de Atividades</span>
+                                ${temCargo ? `<span style="font-size:0.78rem;color:#475569;font-weight:500;">Cargo: <b>${(c.cargo||'').replace(/</g,'&lt;')}</b></span>` : ''}
+                            </div>
+                            <div style="font-size:0.75rem;color:#ea580c;margin-top:2px;">
+                                ${!temCargo ? 'Cargo não cadastrado para este colaborador' : qtdAnexos === 0 ? `Nenhum documento Word cadastrado no cargo — anexe manualmente` : `${qtdAnexos} documento(s) disponível(is) no cargo — aguardando vinculação`}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="min-width:fit-content;">
+                        ${acaoBotaoHtml}
+                    </div>
+                </div>`;
+            }
+        }
+        // ══════════════════════════════════════════════════════════════════════
+
         const _normFR = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const fichaRegistroDoc = docs.find(d =>
             (d.tab_name === '01_FICHA_CADASTRAL' || d.tab_name === 'CONTRATOS_AVULSOS') &&
@@ -10539,12 +10923,81 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             allExistingDocs.push(fichaRegistroDoc);
         }
 
+        // Documentos obrigatórios pós-admissão (azul)
+        const DOCS_OBRIGATORIOS_POS = [
+            'Termo responsabilidade salário família',
+            'Termo de consentimento lgpd',
+            'Ficha de salário família',
+            'Declaração encargos de família para fins de IR',
+            'Contrato de experiência',
+            'Autorização de pagamento através depósito bancário',
+            'Acordo de prorrogação de horas trabalhadas',
+            'Acordo de compensação de horas trabalhadas'
+        ];
+
+        const docsObrigatoriosEncontrados = {};
+        DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
+            const normPadrao = _normFR(nomePadrao);
+            const found = docs.find(d => _normFR(d.document_type) === normPadrao);
+            docsObrigatoriosEncontrados[nomePadrao] = found || null;
+            if (found && !allExistingDocs.some(d => d.id === found.id)) {
+                allExistingDocs.push(found);
+            }
+        });
+
         // Ordena descending por ID
         allExistingDocs.sort((a, b) => b.id - a.id);
 
         if (allExistingDocs.length > 0) {
             combinedHtml += window.buildContratosSignatureRows(assinaturas, allExistingDocs, viewedColaborador);
             allExistingDocs.forEach(d => docsUsados.add(d.id));
+        }
+
+
+
+        // ── Slots obrigatórios pós-admissão (azul) — ficam ANTES da Ficha de Registro ──
+        DOCS_OBRIGATORIOS_POS.forEach(nomePadrao => {
+            const docEncontrado = docsObrigatoriosEncontrados[nomePadrao];
+            if (!docEncontrado) {
+                const escapedNome = nomePadrao.replace(/'/g, "\\'");
+                const _idSlot = 'slot-obr-' + nomePadrao.replace(/[^a-z0-9]/gi, '-');
+                combinedHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                        <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
+                        <div>
+                            <span style="font-weight:600; color:#334155; font-size:0.9rem;">${nomePadrao}</span>
+                            <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório pós-admissão — aguardando upload</div>
+                        </div>
+                    </div>
+                    </div>
+                    <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                        <i class="ph ph-upload-simple"></i> Anexar PDF
+                        <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, '${escapedNome}', '${_idSlot}')">
+                    </label>
+                </div>`;
+            } else {
+                docsUsados.add(docEncontrado.id);
+            }
+        });
+
+        // ── Slot especial: Ficha de Registro (upload-only, azul) ──
+        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
+            combinedHtml += `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #2563eb; border-radius:8px; background:#eff6ff; gap:0.75rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
+                    <span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span>
+                    <div>
+                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
+                        <div style="font-size:0.75rem; color:#1d4ed8; margin-top:1px;">Documento obrigatório — aguardando upload</div>
+                    </div>
+                </div>
+                </div>
+                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
+                    <i class="ph ph-upload-simple"></i> Anexar PDF
+                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipoAssinatura(this, 'Ficha de Registro', 'ficha-registro')">
+                </label>
+            </div>`;
         }
 
         for (const g of autoGeradores) {
@@ -10561,39 +11014,17 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                             <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #f0abfc; padding-left: 1rem;">
-                        <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="sim" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'sim', '${escNome}')"> Sim
+                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end; gap:0.5rem;">
+                        <button class="btn btn-primary btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#c026d3;border-color:#c026d3;padding:0.4rem 1rem;border-radius:6px;" onclick="window.previewContratoPerfilAssinado('${g.id}', '${escNome}')">
+                            <i class="ph ph-file-arrow-down"></i> Gerar
+                        </button>
+                        <label class="btn btn-warning btn-sm" style="margin:0;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:0.85rem;background:#eab308;color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;font-weight:600;">
+                            <i class="ph ph-upload-simple"></i> Anexar PDF
+                            <input type="file" accept=".pdf" style="display:none;" onchange="window.uploadContratoExternoComTipoAssinatura(this, '${escNome}', '${g.id}')">
                         </label>
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
-                            <input type="radio" name="req-ass-${g.id}" value="nao" onchange="window.toggleAcaoContratoPerfil('${g.id}', 'nao', '${escNome}')"> Não
-                        </label>
-                    </div>
-                    <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end;">
-                        <span style="font-size:0.8rem; color:#64748b; font-style:italic;">Selecione uma opção</span>
                     </div>
                 </div>`;
             }
-        }
-
-        // ── Slot especial: Ficha de Registro (upload-only, não gerado por template) ──
-        if (!docsUsados.has(fichaRegistroDoc?.id) && !fichaRegistroDoc) {
-            // Slot vazio: exibe linha para anexar
-            combinedHtml += `
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.75rem; border:1.5px dashed #64748b; border-radius:8px; background:#f8fafc; gap:0.75rem;">
-                <div style="display:flex; align-items:center; gap:0.6rem; flex:1;">
-                    <span style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Upload</span>
-                    <div>
-                        <span style="font-weight:600; color:#334155; font-size:0.9rem;">Ficha de Registro</span>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:1px;">Anexe o PDF da Ficha de Registro para envio à assinatura</div>
-                    </div>
-                </div>
-                <label class="btn btn-secondary" style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.82rem;padding:0.35rem 0.8rem;margin:0;">
-                    <i class="ph ph-upload-simple"></i> Anexar PDF
-                    <input type="file" accept=".pdf" style="display:none" onchange="window.uploadContratoExternoComTipo(this, 'Ficha de Registro')">
-                </label>
-            </div>`;
         }
 
         container.innerHTML = `
@@ -11318,7 +11749,7 @@ window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
     formData.append('document_type', docType);
     formData.append('colaborador_id', viewedColaborador.id);
     formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
-    formData.append('assinafy_status', 'NAO_EXIGE');
+    formData.append('assinafy_status', '');
 
     try {
         var res = await fetch(API_URL + '/documentos', {
@@ -11342,6 +11773,232 @@ window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
         alert('Erro: ' + err.message);
     }
 };
+
+// Upload de documento obrigatório pós-admissão lendo a seleção de assinatura antes de enviar
+window.uploadContratoExternoComTipoAssinatura = async function (input, docType, slotId) {
+    const file = input.files[0];
+    if (!file || !viewedColaborador) return;
+    input.value = '';
+
+    // Lê a seleção de Sim/Não do radio correspondente ao slot
+    var radioSelecionado = document.querySelector('input[name="req-ass-obr-' + slotId + '"]:checked');
+    var reqAssinatura = radioSelecionado ? radioSelecionado.value : null;
+
+    if (!reqAssinatura) {
+        const radioExiste = document.querySelector('input[name="req-ass-obr-' + slotId + '"]');
+        if (!radioExiste) {
+            const result = await Swal.fire({
+                title: 'Exige Assinatura?',
+                text: 'Este documento exigirá assinatura digital pelo colaborador?',
+                icon: 'question',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: 'Sim',
+                denyButtonText: 'Não',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#ea580c',
+                denyButtonColor: '#64748b'
+            });
+            if (result.isDismissed) {
+                input.value = '';
+                return;
+            }
+            reqAssinatura = result.isConfirmed ? 'sim' : 'nao';
+        } else {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Selecione antes de anexar',
+                text: 'Por favor, selecione se o documento exige assinatura (Sim ou Não) antes de anexar o PDF.',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#2563eb'
+            });
+            input.value = '';
+            return;
+        }
+    }
+
+    var assinafyStatus = (reqAssinatura === 'sim') ? '' : 'NAO_EXIGE';
+
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('tab_name', 'CONTRATOS_AVULSOS');
+    formData.append('document_type', docType);
+    formData.append('colaborador_id', viewedColaborador.id);
+    formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+    formData.append('assinafy_status', assinafyStatus);
+
+    try {
+        var res = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentToken },
+            body: formData
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Falha ao anexar PDF');
+        if (typeof showToast !== 'undefined') showToast(docType + ' anexado com sucesso!', 'success');
+        await window._reloadContratosContainer();
+    } catch (err) {
+        alert('Erro: ' + err.message);
+    }
+};
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DESCRIÇÃO DE ATIVIDADES — vinculação de anexo do cargo ao prontuário
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Baixa o Word do cargo_anexos (via /api/cargos/anexos/:id/download)
+ * e reenvia para o bucket de documentos do colaborador como "Descrição de Atividades".
+ * @param {number} anexoId — id do cargo_anexo
+ * @param {string} titulo — título exibido
+ */
+window.vincularDescricaoAtividades = async function (anexoId, titulo) {
+    if (!viewedColaborador) return;
+
+    const result = await Swal.fire({
+        title: 'Exige Assinatura?',
+        text: 'Este documento de Descrição de Atividades exigirá assinatura digital pelo colaborador?',
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'Sim',
+        denyButtonText: 'Não',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#ea580c',
+        denyButtonColor: '#64748b'
+    });
+    
+    if (result.isDismissed) return;
+    
+    const reqAssinatura = result.isConfirmed ? 'sim' : 'nao';
+    const assinafyStatus = (reqAssinatura === 'sim') ? '' : 'NAO_EXIGE';
+
+    // Mostra loading
+    Swal.fire({
+        title: 'Vinculando documento...',
+        text: 'Aguarde enquanto o arquivo é baixado e salvo no prontuário.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        // 1. Baixar o arquivo do R2 via backend
+        const token = window.currentToken || localStorage.getItem('erp_token') || '';
+        const dlRes = await fetch(`${API_URL}/cargos/anexos/${anexoId}/download`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!dlRes.ok) {
+            const errData = await dlRes.json().catch(() => ({}));
+            throw new Error(errData.error || 'Falha ao baixar o arquivo do cargo.');
+        }
+
+        // 2. Ler como Blob
+        const blob = await dlRes.blob();
+        const contentType = dlRes.headers.get('Content-Type') || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        const ext = contentType.includes('pdf') ? '.pdf' : '.docx';
+        const fileName = `Descricao_Atividades_${(viewedColaborador.nome_completo || 'colaborador').replace(/\s+/g, '_')}${ext}`;
+        const file = new File([blob], fileName, { type: contentType });
+
+        // 3. Fazer upload como documento do colaborador
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tab_name', 'CONTRATOS_AVULSOS');
+        formData.append('document_type', 'Descrição de Atividades');
+        formData.append('colaborador_id', viewedColaborador.id);
+        formData.append('colaborador_nome', viewedColaborador.nome_completo || '');
+        formData.append('assinafy_status', assinafyStatus);
+
+        const upRes = await fetch(API_URL + '/documentos', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        const upData = await upRes.json().catch(() => ({}));
+        if (!upRes.ok) throw new Error(upData.error || 'Falha ao salvar o documento.');
+
+        Swal.close();
+        if (typeof showToast !== 'undefined') showToast('Descrição de Atividades vinculada com sucesso!', 'success');
+        await window._reloadContratosContainer();
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: err.message, confirmButtonColor: '#0f766e' });
+    }
+};
+
+/**
+ * Abre modal de seleção quando o cargo tem 2+ anexos Word.
+ * Mostra título, nome do arquivo e observações de cada anexo.
+ */
+window.abrirModalSelecaoAnexoCargo = async function () {
+    if (!viewedColaborador) return;
+
+
+
+    const cargoAnexos = window._cargoAnexosParaDA || [];
+    if (cargoAnexos.length === 0) {
+        Swal.fire({ icon: 'info', title: 'Sem documentos', text: 'Nenhum anexo encontrado para este cargo.', confirmButtonColor: '#0f766e' });
+        return;
+    }
+
+    // Monta os cards dos anexos
+    const cardsHtml = cargoAnexos.map((an, idx) => {
+        const titulo = (an.titulo || an.nome_arquivo || 'Documento').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const nomeArq = (an.nome_arquivo || '').replace(/</g, '&lt;');
+        const obs = (an.observacoes || '').replace(/</g, '&lt;');
+        const dataUpload = an.data_upload ? new Date(an.data_upload).toLocaleDateString('pt-BR') : '';
+        return `
+        <label for="da-anexo-${idx}" style="display:block;cursor:pointer;border:2px solid transparent;border-radius:10px;padding:0.75rem;background:#f8fafc;margin-bottom:0.5rem;transition:border-color 0.15s,background 0.15s;" 
+            onmouseenter="this.style.background='#f0fdf4'" 
+            onmouseleave="this.style.background=document.getElementById('da-anexo-${idx}').checked?'#ecfdf5':'#f8fafc'"
+            onclick="document.querySelectorAll('.da-anexo-card').forEach(el => { el.style.borderColor='transparent'; el.style.background='#f8fafc'; }); this.style.borderColor='#0f766e'; this.style.background='#ecfdf5';">
+            <div style="display:flex;align-items:flex-start;gap:0.75rem;" class="da-anexo-card">
+                <input type="radio" id="da-anexo-${idx}" name="da-modal-anexo" value="${an.id}" style="margin-top:3px;accent-color:#0f766e;flex-shrink:0;">
+                <div style="flex:1;">
+                    <div style="font-weight:700;color:#0f172a;font-size:0.92rem;">${titulo}</div>
+                    ${dataUpload ? `<div style="font-size:0.72rem;color:#94a3b8;margin-top:1px;">Cadastrado em: ${dataUpload}</div>` : ''}
+                    ${obs ? `<div style="margin-top:6px;padding:6px 10px;background:#fff;border-left:3px solid #6ee7b7;border-radius:4px;font-size:0.78rem;color:#374151;font-style:italic;"><b>Obs:</b> ${obs}</div>` : ''}
+                </div>
+            </div>
+        </label>`;
+    }).join('');
+
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: '<span style="font-size:1rem;font-weight:700;color:#0f172a;">Escolher Descrição de Atividades</span>',
+        html: `
+            <p style="text-align:left;font-size:0.85rem;color:#475569;margin-bottom:1rem;">
+                O cargo <b>${(viewedColaborador.cargo || '').replace(/</g, '&lt;')}</b> possui ${cargoAnexos.length} documento(s) cadastrados. 
+                Selecione qual deve ser vinculado como <b>Descrição de Atividades</b> no prontuário:
+            </p>
+            <div style="max-height:360px;overflow-y:auto;text-align:left;">
+                ${cardsHtml}
+            </div>`,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-link"></i> Vincular selecionado',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        width: '560px',
+        preConfirm: () => {
+            const sel = document.querySelector('input[name="da-modal-anexo"]:checked');
+            if (!sel) {
+                Swal.showValidationMessage('Selecione um documento para continuar.');
+                return false;
+            }
+            return { anexoId: parseInt(sel.value) };
+        }
+    });
+
+    if (!isConfirmed || !formValues) return;
+
+    // Encontrar o título do anexo selecionado
+    const anSel = cargoAnexos.find(a => a.id === formValues.anexoId);
+    const tituloSel = anSel ? (anSel.titulo || anSel.nome_arquivo || 'Documento') : 'Documento';
+
+    await window.vincularDescricaoAtividades(formValues.anexoId, tituloSel);
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 
 window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -11451,6 +12108,40 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
         return '';
     }
 
+    const DOCS_OBR_LIST = [
+        'termo responsabilidade salario familia',
+        'termo de consentimento lgpd',
+        'ficha de salario familia',
+        'ficha de empregado',
+        'declaracao encargos de familia para fins de ir',
+        'contrato de experiencia',
+        'autorizacao de pagamento atraves deposito bancario',
+        'acordo de prorrogacao de horas trabalhadas',
+        'acordo de compensacao de horas trabalhadas'
+    ];
+    const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    
+    // Order: Descrição de Atividades SEMPRE primeiro, depois Obrigatórios e Ficha de Registro (azuis)
+    docs.sort((a, b) => {
+        const nameA = a.document_type || a.file_name || '';
+        const nameB = b.document_type || b.file_name || '';
+        
+        const isDAA = _normDoc(nameA) === 'descricao de atividades' || a._isDescricaoAtividades;
+        const isDAB = _normDoc(nameB) === 'descricao de atividades' || b._isDescricaoAtividades;
+        if (isDAA && !isDAB) return -1;
+        if (!isDAA && isDAB) return 1;
+
+        const isFichaA = nameA.toLowerCase().includes('ficha de registro');
+        const isObrA = DOCS_OBR_LIST.includes(_normDoc(nameA)) || isFichaA;
+        
+        const isFichaB = nameB.toLowerCase().includes('ficha de registro');
+        const isObrB = DOCS_OBR_LIST.includes(_normDoc(nameB)) || isFichaB;
+        
+        if (isObrA && !isObrB) return -1;
+        if (!isObrA && isObrB) return 1;
+        return 0;
+    });
+
     let html = '';
     docs.forEach(doc => {
         let realStatus = 'Não enviado';
@@ -11482,7 +12173,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
         const _signedStr = formatDate(doc.assinafy_signed_at || doc.upload_date);
 
         let statusBadge = '', leftIconMarkup = '', sendBtn = '', actionUX = '';
-        const borderBgColor = isSigned
+        let borderBgColor = isSigned
             ? 'border:1px solid #bbf7d0; background:#f0fdf4;'
             : isPending
                 ? 'border:1px solid #bfdbfe; background:#eff6ff;'
@@ -11510,11 +12201,32 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
-            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
-            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            const isFicha = _docName.toLowerCase().includes('ficha de registro');
+            const DOCS_OBR_LIST = [
+                'termo responsabilidade salario familia',
+                'termo de consentimento lgpd',
+                'ficha de salario familia',
+                'declaracao encargos de familia para fins de ir',
+                'contrato de experiencia',
+                'autorizacao de pagamento atraves deposito bancario',
+                'acordo de prorrogacao de horas trabalhadas',
+                'acordo de compensacao de horas trabalhadas'
+            ];
+            const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const isObrigatorio = DOCS_OBR_LIST.includes(_normDoc(_docName));
+
+            if (isObrigatorio || isFicha) {
+                borderBgColor = 'border:1px solid #2563eb; background:#eff6ff;';
+                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
+                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Obrigatório</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            } else {
+                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+                statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            }
+            const _dividerColor = (isObrigatorio || isFicha) ? '#bfdbfe' : '#fde047';
             const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
-                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid #fde047; padding-left: 1rem; margin-right:5px;">
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid ${_dividerColor}; padding-left: 1rem; margin-right:5px;">
                     <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
                     <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
                         <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
@@ -12235,6 +12947,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
             const empDeptId = colab.departamento;
             const deptObj = (departamentos || []).find(d => String(d.id) === String(empDeptId) || String(d.nome).trim().toLowerCase() === String(empDeptId).trim().toLowerCase());
             const deptNome = deptObj ? deptObj.nome : String(empDeptId || '');
+            const deptTipo = deptObj ? (deptObj.tipo || '') : '';
 
             const EXCLUIDOS_FIXOS = ['autorização de desconto em folha de pagamento', 'autorizacao de desconto em folha de pagamento', 'autorizar desconto', 'termo de responsabilidade de chaves'];
             const isExcluido = (g) => {
@@ -12243,7 +12956,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
             };
 
             const geradoresElegiveis = (geradores || []).filter(g => !isExcluido(g));
-            let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome));
+            let autoGeradores = geradoresElegiveis.filter(g => window._avaliarRegraGerador && window._avaliarRegraGerador(g, colab, deptNome, deptObj));
 
             if (geradoresElegiveis.length > 0 && !geradoresElegiveis.some(g => g.visibilidade_regra)) {
                 // Legacy Map Fallback
@@ -12266,7 +12979,10 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Termo de Confidencialidade', cond: true },
                     { nome: 'Solicitação de VT', cond: true },
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
-                    { nome: 'Responsabilidade Equipamento', cond: deNorm(deptNome).includes('administrativo') || deNorm(c.cargo || '').includes('administrativo') || deNorm(c.tipo || '').includes('administrativo') },
+                    // Responsabilidade Equipamento: somente tipo Administrativo
+                    { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
+                    // NR1: somente tipo Operacional
+                    { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
@@ -12862,7 +13578,7 @@ function updateAdmissaoStepPercentages(colab) {
     const asoDocs = (window.currentDocs || []).filter(d => d.tab_name === 'ASO');
 
     // Reproduzir regras de ASO
-    const listAso = ['ASO Padrão'];
+    const listAso = ['ASO Periódico'];
     if ((targetColab.cargo || '').toUpperCase().includes('MOTORISTA')) listAso.push('Exames Complementares');
 
     let preenchidos5 = 0;
@@ -13944,7 +14660,9 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'estoque_minimo') {
-                    bg = '#fff5e6'; color = '#e67700'; icon = 'ph-package'; titulo = 'Estoque Mínimo'; navTarget = 'estoque';
+                    bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-shopping-cart'; titulo = 'Compra'; navTarget = 'estoque';
+                } else if (notif.tipo === 'estoque_reposicao') {
+                    bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-arrows-clockwise'; titulo = 'Reposição'; navTarget = 'estoque';
                 } else if (notif.tipo === 'novo_colaborador_equipe') {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-user-plus'; titulo = 'Novo Colaborador para Distribuição'; navTarget = 'logistica-equipes';
                 } else if (notif.tipo === 'nova_ocorrencia') {
@@ -14010,20 +14728,24 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">${nomeStr}</div>
                         <div style="color:#64748b;font-size:0.85rem;">Um novo boletim de ocorrência foi anexado.</div>
                     `;
-                } else if (notif.tipo === 'estoque_minimo') {
+                } else if (notif.tipo === 'estoque_minimo' || notif.tipo === 'estoque_reposicao') {
                     const nomeProduto = dados.nome || (notif.mensagem || '').replace(/^ESTOQUE BAIXO:\s*/i, '').split('(')[0].trim();
                     const qtdAtual = dados.quantidade_atual !== undefined ? dados.quantidade_atual : '—';
                     const qtdMin   = dados.quantidade_minima !== undefined ? dados.quantidade_minima : '—';
+                    const qtdMax   = dados.quantidade_maxima !== undefined && dados.quantidade_maxima !== null ? dados.quantidade_maxima : '—';
+                    const endNome  = dados.endereco_nome || '';
                     contentHTML = `
-                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
                         </div>
-                        <div style="color:#475569;font-weight:700;font-size:0.97rem;margin-bottom:6px;letter-spacing:0.2px;">
+                        <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:6px;line-height:1.3;">
                             ${nomeProduto}
                         </div>
-                        <div style="display:flex;gap:12px;font-size:0.82rem;">
-                            <span style="color:#ef4444;font-weight:700;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
-                            <span style="color:#64748b;">Mínimo: ${qtdMin}</span>
+                        ${endNome ? `<div style="color:#94a3b8;font-size:0.78rem;margin-bottom:6px;"><i class="ph ph-map-pin"></i> ${endNome}</div>` : ''}
+                        <div style="display:flex;gap:10px;font-size:0.83rem;flex-wrap:wrap;">
+                            <span style="background:#fee2e2;color:#dc2626;font-weight:700;padding:2px 8px;border-radius:6px;"><i class="ph ph-arrow-down"></i> Atual: ${qtdAtual}</span>
+                            <span style="background:#fef3c7;color:#92400e;font-weight:600;padding:2px 8px;border-radius:6px;">Mín: ${qtdMin}</span>
+                            <span style="background:#dcfce7;color:#166534;font-weight:600;padding:2px 8px;border-radius:6px;">Máx: ${qtdMax}</span>
                         </div>
                     `;
                 } else if (notif.tipo === 'formulario_experiencia') {
@@ -14052,7 +14774,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#64748b;font-size:0.85rem;">O colaborador <b style="color:${color}">${colabNome}</b> é um novo colaborador para distribuição de equipe.</div>
                     `;
                 } else if (notif.tipo === 'nova_ocorrencia') {
-                    const nomeStr = notif.mensagem.replace(/^Uma nova ocorrência foi registrada no prontuário do colaborador:\s*/i, '').trim();
+                    const nomeStr = notif.mensagem.replace(/^Uma nova ocorr[ê\?\?]{1,3}ncia foi registrada no prontu[á\?\?]{1,3}rio do colaborador:\s*/i, '').trim();
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> Ocorrência Registrada
@@ -14304,8 +15026,8 @@ window.abrirModalAssinaturaTestemunhas = async function (docId) {
 
     console.log('[Testemunhas] Total colaboradores carregados:', cols.length);
 
-    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas
-    const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '');
+    // Mostrar todos os colaboradores cadastrados como possíveis testemunhas (excluindo Desligados)
+    const todos = (cols || []).filter(c => (c.nome_completo || c.nome || '').trim() !== '' && c.status !== 'Desligado');
     todos.sort((a, b) => (a.nome_completo || a.nome || '').localeCompare(b.nome_completo || b.nome || ''));
 
     let options = '<option value="">Selecione uma testemunha...</option>';
@@ -14367,10 +15089,31 @@ window.salvarAssinaturasTestemunhas = async function () {
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
 
         const pages = pdfDoc.getPages();
-        // Usa SEMPRE a última página para as assinaturas das testemunhas
-        const sigPage = pages[pages.length - 1];
-        const { width: pageWidth, height: pageHeight } = sigPage.getSize();
+        // Captura dimensões da última página do documento
+        const refPage = pages[pages.length - 1];
+        const { width: pageWidth, height: pageHeight } = refPage.getSize();
         const innerWidth = (pageWidth - 112) / 2 - 20;
+
+        let keywords = '';
+        try { keywords = pdfDoc.getKeywords() || ''; } catch(_) {}
+
+        let pageIndexToDraw = pages.length - 1;
+        let yFromTop = pageHeight - 160;
+
+        if (keywords.includes('contentHeightMm:')) {
+            const match = keywords.match(/contentHeightMm:([0-9.]+)/);
+            if (match) {
+                const totalH = parseFloat(match[1]);
+                const drawHMm = Math.max(0, totalH - 79 + 15);
+                pageIndexToDraw = Math.floor(drawHMm / 297);
+                yFromTop = (drawHMm % 297) * (72 / 25.4);
+            }
+        }
+
+        while (pdfDoc.getPageCount() <= pageIndexToDraw) {
+            pdfDoc.addPage([pageWidth, pageHeight]);
+        }
+        const sigPage = pdfDoc.getPages()[pageIndexToDraw];
 
         // --- Captura canvas em alta resolução (3x DPI) ---
         async function getHQCanvas(canvasId) {
@@ -14389,16 +15132,14 @@ window.salvarAssinaturasTestemunhas = async function () {
         const data1 = s1.split('###');
         const data2 = s2.split('###');
 
-        // ── Posicionamento ancorado no RODAPÉ da última página ──
-        // TESTEMUNHAS ficam na faixa de ~150 a ~270pt do rodapé
-        // (abaixo delas ficará o bloco do Colaborador, em ~30 a ~130pt)
+        // ── Posicionamento Dinâmico ──
         const tImgH    = 55;  // altura da imagem de assinatura
-        const bottomMargin = 160; // margem do rodapé para o bloco das testemunhas
+        const t1LabelY = pageHeight - yFromTop;
+        const bottomMargin = t1LabelY - 95;
         const t1CpfY   = bottomMargin;
         const t1NameY  = t1CpfY  + 14;
         const t1LineY  = t1NameY + 14;
         const t1ImgY   = t1LineY + 6;
-        const t1LabelY = t1ImgY  + tImgH + 6;
 
         // ══ TESTEMUNHA 1 (Esquerda) ══
         const t1X = 56;
@@ -14667,6 +15408,19 @@ window.limparCanvasColaborador = function () {
 };
 
 window.salvarAssinaturaColaborador = async function () {
+    async function getHQCanvas2(canvasId) {
+        const src = document.getElementById(canvasId);
+        const dpr = window.devicePixelRatio || 1;
+        const scale = 3;
+        const off = document.createElement('canvas');
+        off.width = src.width * scale / dpr;
+        off.height = src.height * scale / dpr;
+        const ctx = off.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
+        return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
+    }
+
     if (!_epiSelfieBase64) {
         alert('É necessário tirar a selfie antes de assinar.'); return;
     }
@@ -14691,59 +15445,71 @@ window.salvarAssinaturaColaborador = async function () {
         const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
         const pages = pdfDoc.getPages();
         // Usa SEMPRE a última página, igual às testemunhas
-        const lastPage = pages[pages.length - 1];
-        const { width: pgW, height: pgH } = lastPage.getSize();
-
-        // Captura de alta qualidade
-        async function getHQCanvas2(canvasId) {
-            const src = document.getElementById(canvasId);
-            const dpr = window.devicePixelRatio || 1;
-            const scale = 3;
-            const off = document.createElement('canvas');
-            off.width = src.width * scale / dpr;
-            off.height = src.height * scale / dpr;
-            const ctx = off.getContext('2d');
-            ctx.scale(scale, scale);
-            ctx.drawImage(src, 0, 0, src.width / dpr, src.height / dpr);
-            return fetch(off.toDataURL('image/png')).then(r => r.arrayBuffer());
-        }
-
         // --- COLABORADOR ---
-        // Testemunhas ocupam a faixa 160-260pt do rodapé.
-        // Colaborador fica na faixa 30-130pt do rodapé, sem sobreposição.
+        let pdfKeywords = '';
+        try { pdfKeywords = pdfDoc.getKeywords() || ''; } catch(_) {}
+        const hasSignaturePage = pdfKeywords.includes('ASSINATURAS_SEPARADAS');
+
         const isAdvertenciaOuSuspensao = (doc.document_type && (doc.document_type.includes('Advertência') || doc.document_type.includes('Suspensão'))) || doc.tab_name === 'Advertências';
 
         let cImgH = 55;
         let cWidth = 280;
-        let cX = (pgW - cWidth) / 2;
+        
+        let pageIndexToDraw = pages.length - 1;
+        let pgH = 841.89; // Default A4 height
+        let pgW = 595.28; // Default A4 width
+        if (pages.length > 0) {
+            const size = pages[pages.length - 1].getSize();
+            pgW = size.width;
+            pgH = size.height;
+        }
 
-        if (isAdvertenciaOuSuspensao && _epiSelfieBase64) {
+        let cX = (pgW - cWidth) / 2;
+        if ((isAdvertenciaOuSuspensao || hasSignaturePage) && _epiSelfieBase64) {
             cWidth = 240;
             cX = 50; // Alinhado à esquerda
         }
 
-        const cCpfY   = 30;
+        let cCpfY = 30; // fallback
+        if (pdfKeywords.includes('contentHeightMm:')) {
+            const match = pdfKeywords.match(/contentHeightMm:([0-9.]+)/);
+            if (match) {
+                const totalH = parseFloat(match[1]);
+                const drawHMm = Math.max(0, totalH - 79 + 50); // Colaborador below Testemunhas
+                pageIndexToDraw = Math.floor(drawHMm / 297);
+                const yFromTop = (drawHMm % 297) * (72 / 25.4);
+                cCpfY = pgH - yFromTop - 95;
+            }
+        } else {
+            // Old format fallback
+            cCpfY = hasSignaturePage ? 300 : 30;
+        }
+
+        while (pdfDoc.getPageCount() <= pageIndexToDraw) {
+            pdfDoc.addPage([pgW, pgH]);
+        }
+        const sigPage = pdfDoc.getPages()[pageIndexToDraw];
+
         const cNameY  = cCpfY  + 14;
         const cLineY  = cNameY + 14;
         const cImgY   = cLineY + 6;
         const cLabelY = cImgY  + cImgH + 6;
 
         // Label
-        lastPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
 
         // Imagem da assinatura
         const png1Bytes = await getHQCanvas2('canvas-colaborador');
         const png1Image = await pdfDoc.embedPng(png1Bytes);
-        lastPage.drawImage(png1Image, { x: cX, y: cImgY, width: cWidth, height: cImgH });
+        sigPage.drawImage(png1Image, { x: cX, y: cImgY, width: cWidth, height: cImgH });
 
         // Linha e textos
-        lastPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
-        lastPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
-        lastPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
-
+        sigPage.drawLine({ start: { x: cX, y: cLineY }, end: { x: cX + cWidth, y: cLineY }, thickness: 1, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        sigPage.drawText(viewedColaborador.nome_completo || 'Colaborador', { x: cX, y: cNameY, size: 10, color: PDFLib.rgb(0, 0, 0) });
+        sigPage.drawText(`CPF: ${viewedColaborador.cpf || 'N/D'}`, { x: cX, y: cCpfY, size: 9, color: PDFLib.rgb(0.35, 0.35, 0.35) });
 
         const dateStrColab = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        lastPage.drawText(`Assinado em: ${dateStrColab}`, { x: cX, y: cCpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
+        sigPage.drawText(`Assinado em: ${dateStrColab}`, { x: cX, y: cCpfY - 12, size: 8, color: PDFLib.rgb(0.35, 0.35, 0.35) });
         
         if (doc.created_at || doc.data_inclusao) {
             const dtCriado = new Date(doc.created_at || doc.data_inclusao);
@@ -15365,7 +16131,7 @@ window.abrirAssinaturaEpi = async function (fichaId) {
             <button id="btn-assin-next" onclick="window._assinNextStep()" class="btn btn-primary" style="padding:0.65rem 2rem;font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">Próximo <i class="ph ph-arrow-right"></i></button>
         </div>`;
     document.body.appendChild(overlay);
-    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null;
+    window._assinCurrentStep = 1; window._assinFichaId = fichaId; window._assinColabId = colabId; window._assinEpisDisponiveis = epis; window._assinQtds = {}; window._assinEmprestimos = {}; window._assinSelfieBase64 = null; window._assinSelfieTs = null; window._assinBase64 = null; window._enderecoPorEpi = {};
     setTimeout(() => { window._initSignatureCanvas(); const today = new Date(); const di = document.getElementById('epi-data-entrega'); if (di) { di.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'); } window._renderEpiGrid(''); }, 100);
 };
 
@@ -15403,7 +16169,7 @@ window._requiresAgendarDevolucao = function(epi) {
 window._assinRetornosConfirmados = window._assinRetornosConfirmados || {};
 // Armazena EPIs que precisam ser devolvidos com data prevista { epiNome: 'dd/mm/yyyy' }
 window._assinEmprestimos = window._assinEmprestimos || {};
-window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
+window._requiresSize = function(epi) { const e=epi.toUpperCase(); if(e.includes('COLETE REFLETIVO')) return false; if(['CAMISETA','POLO','CALÇA','BLUSA','JAQUETA','COLETE','BLUSAO','BLUSÃO','UNIFORME'].some(k=>e.includes(k))) return 'roupa'; if(e.includes('BOTA')) return 'bota'; return false; };
 
 window._setEpiQty = async function (epi, qty) {
     const prevQty = (window._assinQtds||{})[epi]||0;
@@ -15493,8 +16259,28 @@ window._setEpiQty = async function (epi, qty) {
         let swalStyleEl = document.getElementById('swal-epi-zindex-fix');
         if (!swalStyleEl) { swalStyleEl = document.createElement('style'); swalStyleEl.id = 'swal-epi-zindex-fix'; document.head.appendChild(swalStyleEl); }
         swalStyleEl.textContent = '.swal2-container { z-index: 999999 !important; }';
-        const {value:tamanho}=await Swal.fire({title:'Qual tamanho?',html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>b.style.background='#f1f5f9');this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Pular',confirmButtonColor:'#1e3a5f',preConfirm:()=>document.getElementById('swal-size-val').value||null});
+        const sizeResult = await Swal.fire({
+            title:'Qual tamanho?',
+            html:`<p style="color:#475569;font-size:0.9rem;">Selecione o tamanho para <strong>${epi}</strong>:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;">${opcoes.map(o=>`<button type="button" class="swal-size-btn" data-size="${o}" onclick="document.querySelectorAll('.swal-size-btn').forEach(b=>{b.style.background='#f1f5f9';b.style.color='#374151';});this.style.background='#1e3a5f';this.style.color='#fff';document.getElementById('swal-size-val').value='${o}'" style="padding:8px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-weight:700;font-size:0.9rem;cursor:pointer;background:#f1f5f9;">${o}</button>`).join('')}</div><input type="hidden" id="swal-size-val" value="">`,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: '<i class="ph ph-x"></i> Fechar',
+            confirmButtonColor: '#1e3a5f',
+            cancelButtonColor: '#64748b',
+            preConfirm: () => {
+                const v = document.getElementById('swal-size-val').value;
+                if (!v) { Swal.showValidationMessage('Selecione um tamanho!'); return false; }
+                return v;
+            }
+        });
         if (swalStyleEl) swalStyleEl.textContent = '';
+        // Se fechou sem confirmar (clicou Fechar ou ESC): NÃO adiciona o produto
+        if (!sizeResult.isConfirmed) {
+            window._assinQtds[epi] = prevQty; // restaura quantidade anterior (0)
+            window._renderEpiGrid(document.getElementById('epi-filtro-input')?.value||'');
+            return;
+        }
+        const tamanho = sizeResult.value;
         if(tamanho){
             const baseEpi = epi.replace(/\s*\(TAM.*?\)/g, '');
             const nomeComTamanho = `${baseEpi} (TAM ${tamanho})`;
@@ -15591,6 +16377,65 @@ window._assinNextStep = async function () {
                 { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         }
+
+        // --- Seleção de endereço de estoque (igual ao prontuário) ---
+        try {
+            window._enderecoPorEpi = {};
+            const episSel = Object.entries(window._assinQtds||{}).filter(([,q])=>q>0).map(([nome])=>nome);
+            const endResp = await fetch(`${API_URL}/estoque/enderecos-disponiveis-epi`, {
+                method: 'POST',
+                headers: {'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json'},
+                body: JSON.stringify({ epis: episSel })
+            }).catch(()=>null);
+            if (endResp && endResp.ok) {
+                const endData = await endResp.json().catch(()=>({}));
+                // endData: { [nomeEpi]: { matchId, matchNome, enderecos: [{id, nome, quantidade}] } }
+                const perguntas = [];
+                for (const nomeOriginal of episSel) {
+                    const epiData = endData[nomeOriginal];
+                    const ends = (epiData && epiData.enderecos) ? epiData.enderecos : [];
+                    if (ends.length === 1) {
+                        window._enderecoPorEpi[nomeOriginal] = { id: ends[0].id, nome: ends[0].nome };
+                    } else if (ends.length > 1) {
+                        perguntas.push({ nomeEpi: nomeOriginal, ends });
+                    }
+                }
+                if (perguntas.length > 0) {
+                    let html = '<div style="max-height:320px;overflow-y:auto;">';
+                    perguntas.forEach((p, idx) => {
+                        html += `<div style="margin-bottom:12px;"><label style="font-weight:bold;font-size:0.9rem;">${p.nomeEpi}</label><select id="swal-epi-end-${idx}" class="swal2-select" style="display:flex;width:100%;margin:4px 0;">`;
+                        p.ends.forEach(e => { html += `<option value="${e.id}">${e.nome} (Saldo: ${e.quantidade})</option>`; });
+                        html += `</select></div>`;
+                    });
+                    html += '</div>';
+                    let swalEndStyle = document.getElementById('swal-epi-zindex-fix');
+                    if (!swalEndStyle) { swalEndStyle = document.createElement('style'); swalEndStyle.id='swal-epi-zindex-fix'; document.head.appendChild(swalEndStyle); }
+                    swalEndStyle.textContent = '.swal2-container { z-index: 999999 !important; }';
+                    const swalRes = await Swal.fire({
+                        title: 'Selecione o Endereço',
+                        html,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#1e3a5f',
+                        preConfirm: () => {
+                            const resMap = {};
+                            perguntas.forEach((p, idx) => {
+                                const sel = document.getElementById(`swal-epi-end-${idx}`);
+                                const opt = sel.options[sel.selectedIndex];
+                                resMap[p.nomeEpi] = { id: parseInt(opt.value), nome: opt.text.split(' (')[0] };
+                            });
+                            return resMap;
+                        }
+                    });
+                    if (swalEndStyle) swalEndStyle.textContent = '';
+                    if (!swalRes.isConfirmed) return;
+                    Object.assign(window._enderecoPorEpi, swalRes.value);
+                }
+            }
+        } catch(e) { console.error('[EPI] Erro ao buscar endereços:', e); }
+        // --- fim seleção de endereço ---
+
         window._assinStep('selfie'); return;
     }
     if(step===2){
@@ -15604,7 +16449,7 @@ window._assinNextStep = async function () {
             const episSelecionados=[]; Object.entries(window._assinQtds||{}).forEach(([nome,qty])=>{for(let i=0;i<qty;i++)episSelecionados.push(nome);});
             const episParaDevolver = Object.entries(window._assinEmprestimos || {}).filter(([,v]) => v).map(([nome, data_devolucao_prevista]) => ({ nome, data_devolucao_prevista }));
             const controller=new AbortController(); const timeout=setTimeout(()=>controller.abort(),30000);
-            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver}),signal:controller.signal});
+            const res=await fetch(`${API_URL}/epi-fichas/${window._assinFichaId}/entregas`,{method:'POST',headers:{'Authorization':`Bearer ${currentToken}`,'Content-Type':'application/json'},body:JSON.stringify({data_entrega:dataFormatada,epis_entregues:episSelecionados,assinatura_base64:assinaturaBase64,selfie_base64:window._assinSelfieBase64||null,colaborador_id:window._assinColabId,registrado_por:currentUser?.nome||currentUser?.email||'Sistema', gps_lat:window._currentGpsLat||'', gps_lon:window._currentGpsLon||'', epis_para_devolver:episParaDevolver, endereco_por_epi:window._enderecoPorEpi||{}}),signal:controller.signal});
 
             if (res.ok && window._assinSelfieBase64) {
                  try {

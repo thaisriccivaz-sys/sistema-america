@@ -7,8 +7,10 @@
     let _dados = [];
     let _filtroDepto = '';
     let _filtroTipoDepto = '';
-let _filtroStatus = 'Ativos';
+    let _filtroStatus = 'Ativos';
     let _filtroBusca = '';
+    let _filtroTreinamento = '';
+    let _filtroConclusao = '';
     let _assinCtx = null;
     let _assinDesenhando = false;
     let _assinTreinamento = null; // { treinamento, colaborador }
@@ -52,20 +54,9 @@ let _filtroStatus = 'Ativos';
 
     // ── Carregar dados ────────────────────────────────────────────────────────
     async function carregarDados() {
-        let tipoAtual = window._currentTreinamentoTipo || 'treinamento';
-        
-        // FORÇA o tipo baseado na aba ativa no DOM para evitar falhas de estado
-        const tabAtiva = document.querySelector('.app-top-tab.active');
-        if (tabAtiva) {
-            const onclickText = tabAtiva.getAttribute('onclick') || '';
-            if (onclickText.includes('treinamento-presenca-terapia')) {
-                tipoAtual = 'terapia';
-                window._currentTreinamentoTipo = 'terapia';
-            } else if (onclickText.includes('treinamento-presenca')) {
-                tipoAtual = 'treinamento';
-                window._currentTreinamentoTipo = 'treinamento';
-            }
-        }
+        // O tipo (treinamento ou terapia/palestra) é setado pelo navigateTo() em app.js
+        // antes de chamar initPresencaTreinamento(). Basta usar window._currentTreinamentoTipo.
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
 
         const view = document.getElementById('view-treinamento-presenca');
         if (view) {
@@ -73,7 +64,7 @@ let _filtroStatus = 'Ativos';
             const p = view.querySelector('p');
             if (tipoAtual === 'terapia') {
                 if (h1) h1.textContent = 'Presença Palestras';
-                if (p) p.textContent = 'Visualize e registre a presença em terapias por colaborador.';
+                if (p) p.textContent = 'Visualize e registre a presença em palestras por colaborador.';
             } else {
                 if (h1) h1.textContent = 'Presença Treinamento';
                 if (p) p.textContent = 'Visualize e registre a conclusão de treinamentos por colaborador.';
@@ -95,7 +86,26 @@ let _filtroStatus = 'Ativos';
             _dados = [];
         }
         _popularFiltroDepto();
+        _popularFiltroTreinamentos();
         renderizar();
+    }
+
+    async function _popularFiltroTreinamentos() {
+        const sel = document.getElementById('pres-filtro-treinamento');
+        if (!sel) return;
+        
+        const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
+        try {
+            const r = await api('/treinamentos?tipo=' + tipoAtual);
+            if (!r.ok) return;
+            const res = await r.json();
+            const ativos = res.filter(t => (t.status || '').toLowerCase() !== 'arquivado');
+            
+            sel.innerHTML = '<option value="">Todos</option>' +
+                ativos.map(t => `<option value="${t.id}">${t.nome}</option>`).join('');
+        } catch (e) {
+            console.error('[PRESENÇA]', e);
+        }
     }
 
     function _popularFiltroDepto() {
@@ -141,22 +151,44 @@ let _filtroStatus = 'Ativos';
         const tipoAtual = window._currentTreinamentoTipo || 'treinamento';
         
         lista = lista.map(c => {
-            const tr = (c.treinamentos || []).filter(t => (t.tipo || 'treinamento') === tipoAtual);
+            // Filtra por tipo (treinamento ou terapia/palestra) — case insensitive
+            let tr = (c.treinamentos || []).filter(t => {
+                const tTipo = (t.tipo || 'treinamento').toLowerCase();
+                return tTipo === tipoAtual.toLowerCase();
+            });
+            
+            if (_filtroTreinamento) {
+                tr = tr.filter(t => String(t.id) === String(_filtroTreinamento));
+            }
+            
             return {
                 ...c,
                 treinamentos: tr,
                 total: tr.length,
-                concluidos: tr.filter(x => x.concluido).length
+                concluidos: tr.filter(x => x.concluido || x.optou_nao_participar).length
             };
-        }).filter(c => c.total > 0 || c.treinamentos.length > 0);
+        }).filter(c => c.total > 0);
+        
+        if (_filtroConclusao) {
+            lista = lista.filter(c => {
+                if (c.total === 0) return false;
+                const isAllCompleted = c.concluidos === c.total;
+                if (_filtroConclusao === 'Concluido') return isAllCompleted;
+                if (_filtroConclusao === 'Pendente') return !isAllCompleted;
+                return true;
+            });
+        }
 
         if (counter) counter.textContent = `${lista.length} colaborador(es)`;
 
         if (!lista.length) {
+            const msg = tipoAtual === 'terapia'
+                ? 'Nenhum colaborador com palestras cadastradas encontrado.'
+                : 'Nenhum colaborador com treinamentos cadastrados encontrado.';
             grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:4rem;color:#94a3b8;">
                 <i class="ph ph-users" style="font-size:3rem;display:block;margin-bottom:12px;color:#cbd5e1;"></i>
                 <p style="font-size:1rem;font-weight:600;color:#64748b;margin:0 0 4px;">Nenhum colaborador encontrado</p>
-                <p style="font-size:0.85rem;margin:0;">Ajuste os filtros ou cadastre treinamentos para os departamentos.</p>
+                <p style="font-size:0.85rem;margin:0;">${msg}</p>
             </div>`;
             return;
         }
@@ -178,6 +210,15 @@ let _filtroStatus = 'Ativos';
 
         const listaTrein = (c.treinamentos || []).map(t => {
             if (t.concluido) {
+                if (t.optou_nao_participar) {
+                    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                        <i class="ph ph-check-circle" style="color:#3b82f6;font-size:1.1rem;flex-shrink:0;"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
+                            <div style="font-size:0.72rem;color:#3b82f6;">Optou não em ${fmtData(t.data_conclusao)}</div>
+                        </div>
+                    </div>`;
+                }
                 const valStr = '';
                 const respStr = t.respondido_em ? `<br>Respondido: ${fmtData(t.respondido_em)}` : '';
                 const encodedId = `${c.id},${t.id}`;
@@ -470,22 +511,59 @@ let _filtroStatus = 'Ativos';
     };
 
     // ── Abrir modal de assinatura ─────────────────────────────────────────────
-    window.abrirAssinaturaTreinamento = function (colaboradorId, treinamentoId) {
+    window.abrirAssinaturaTreinamento = async function (colaboradorId, treinamentoId) {
         const colab = _dados.find(c => c.id === colaboradorId);
         const trein = colab && colab.treinamentos.find(t => t.id === treinamentoId);
         if (!colab || !trein) return;
 
-        _assinTreinamento = { colaborador: colab, treinamento: trein };
-        _selfieBase64 = '';
-        _assinaturaBase64 = '';
-        _passoAtual = 1;
+        const res = await Swal.fire({
+            title: 'Registro de Presença',
+            text: 'Como deseja registrar a presença deste colaborador?',
+            icon: 'question',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: '<i class="ph ph-pen-nib"></i> Assinar Digitalmente',
+            confirmButtonColor: '#0e7490',
+            denyButtonText: '<i class="ph ph-user-minus"></i> Optou por não participar',
+            denyButtonColor: '#ea580c',
+            cancelButtonText: 'Cancelar'
+        });
 
-        if (trein.capa_url) {
-            // Mostra capa em fullscreen antes do modal de assinatura
-            _abrirCapaParaAssinatura(trein.capa_url, colab, trein);
-        } else {
-            // Sem capa: abre modal direto no passo 2 (assinatura)
-            _abrirModalAssinatura(2);
+        if (res.isConfirmed) {
+            _assinTreinamento = { colaborador: colab, treinamento: trein };
+            _selfieBase64 = '';
+            _assinaturaBase64 = '';
+            _passoAtual = 1;
+            
+            if (trein.capa_url) {
+                _abrirCapaParaAssinatura(trein.capa_url, colab, trein);
+            } else {
+                _abrirModalAssinatura(2);
+            }
+        } else if (res.isDenied) {
+            try {
+                const r = await api('/treinamento-presenca/assinar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        colaborador_id: colab.id,
+                        treinamento_id: trein.id,
+                        assinatura_base64: '',
+                        selfie_base64: '',
+                        instrutor_nome: typeof getInstrutorNome === 'function' ? getInstrutorNome() : '',
+                        gps_lat: '',
+                        gps_lon: '',
+                        dispositivo: navigator.userAgent,
+                        optou_nao_participar: true
+                    })
+                });
+                if (!r.ok) throw new Error(await r.text());
+                
+                Swal.fire({ title: 'Sucesso', text: 'Opção salva com sucesso.', icon: 'success', timer: 2000, showConfirmButton: false });
+                carregarDados();
+            } catch (err) {
+                Swal.fire('Erro', 'Ocorreu um erro ao registrar a opção: ' + err.message, 'error');
+            }
         }
     };
 
@@ -1113,6 +1191,16 @@ let _filtroStatus = 'Ativos';
 
     window.filtrarPresencaStatus = function (val) {
         _filtroStatus = val;
+        renderizar();
+    };
+
+    window.filtrarPresencaTreinamento = function (val) {
+        _filtroTreinamento = val;
+        renderizar();
+    };
+
+    window.filtrarPresencaConclusao = function (val) {
+        _filtroConclusao = val;
         renderizar();
     };
 

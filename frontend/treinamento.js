@@ -165,12 +165,18 @@
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Palestra';
                     el('filtro-treinamento-busca').placeholder = 'Buscar palestra...';
                     if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Palestras Cadastradas';
+                    // Ocultar coluna VALIDADE na tabela para palestras
+                    const thValidade = document.querySelector('#treinamentos-tbody')?.closest('table')?.querySelector('th:nth-child(3)');
+                    if (thValidade) thValidade.style.display = 'none';
                 } else {
                     if (h1) h1.textContent = 'Materiais de Treinamento';
                     if (p) p.textContent = 'Gerencie apresentações, vídeos, PDFs e outros materiais de treinamento.';
                     if (btnNovo) btnNovo.innerHTML = '<i class="ph ph-plus-circle"></i> Novo Treinamento';
                     el('filtro-treinamento-busca').placeholder = 'Buscar treinamento...';
                     if(view.querySelector('.ph-books').nextSibling) view.querySelector('.ph-books').nextSibling.textContent = ' Treinamentos Cadastrados';
+                    // Mostrar coluna VALIDADE na tabela para treinamentos
+                    const thValidade = document.querySelector('#treinamentos-tbody')?.closest('table')?.querySelector('th:nth-child(3)');
+                    if (thValidade) thValidade.style.display = '';
                 }
             }
 
@@ -254,7 +260,11 @@
                 <i class="ph ph-graduation-cap" style="color:#fff;font-size:1.5rem;"></i></div>`;
         }
 
-        const data = t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '—';
+        const isPalestra = (t.tipo === 'terapia');
+        const dataRaw = isPalestra ? (t.data_treinamento || '') : (t.criado_em || '');
+        const data = dataRaw
+            ? new Date(dataRaw.includes('T') ? dataRaw : dataRaw + 'T12:00:00').toLocaleDateString('pt-BR')
+            : '—';
         const desc = t.descricao ? `<div style="font-size:0.77rem;color:#64748b;margin-top:1px;max-width:380px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.descricao}</div>` : '';
         const nomeSafe = (t.nome || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         
@@ -291,7 +301,7 @@
                 </div>
             </td>
             <td style="padding:0.85rem 1rem;color:#475569;font-size:0.85rem;white-space:nowrap;">${anexos.length} arquivo${anexos.length !== 1 ? 's' : ''}</td>
-            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;">
+            <td style="padding:0.85rem 1rem;color:#64748b;font-size:0.82rem;white-space:nowrap;${(window._currentTreinamentoTipo === 'terapia') ? 'display:none;' : ''}">
                 ${t.validade_dias && t.validade_dias > 0
                     ? `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 8px;font-size:0.78rem;font-weight:600;">⏰ ${t.validade_dias} meses</span>`
                     : `<span style="background:#f1f5f9;color:#94a3b8;border-radius:8px;padding:3px 8px;font-size:0.78rem;">Sem validade</span>`}
@@ -323,26 +333,47 @@
         const m = el('modal-novo-treinamento');
         if (m) { m.style.display = 'flex'; }
         _carregarDepartamentosSelect('novo-treinamento-departamento', 'Todos');
+        _carregarColaboradoresSelect('novo-treinamento-colaboradores', [], 'novo');
+        const buscaEl = el('novo-trein-colab-busca');
+        if (buscaEl) buscaEl.value = '';
         window._novoCapaRemover(); // limpa capa anterior
+
+        // Ocultar/mostrar campo de validade conforme tipo
+        const novoValidadeWrap = el('novo-validade-wrap');
+        if (novoValidadeWrap) {
+            novoValidadeWrap.style.display = (window._currentTreinamentoTipo === 'terapia') ? 'none' : '';
+        }
         
         // Reset abas
         window.mudarAbaNovoTreinamento('detalhes');
         
-        // Limpar perguntas de pesquisa e adicionar as padrão
+        // Limpar perguntas de pesquisa e adicionar as padrão (apenas para treinamento)
         const lista = el('novo-pesquisa-perguntas-lista');
         if (lista) {
             lista.innerHTML = '';
-            // Perguntas padrão
-            const perguntasPadrao = [
-                "O conteúdo do treinamento foi claro e de fácil compreensão?",
-                "O instrutor demonstrou domínio sobre os temas abordados?",
-                "A duração do treinamento foi adequada para o conteúdo apresentado?",
-                "Os materiais de apoio (slides, apostilas, etc.) foram úteis?",
-                "O treinamento contribuiu para o seu desenvolvimento profissional?"
-            ];
-            perguntasPadrao.forEach((p, idx) => {
-                _adicionarInputPerguntaNovo(p, idx);
-            });
+            const tipoModal = window._currentTreinamentoTipo || 'treinamento';
+            if (tipoModal === 'treinamento') {
+                // Perguntas padrão completas — apenas para treinamentos
+                const perguntasPadrao = [
+                    { tipo: 'escala', pergunta: 'O conteúdo apresentado foi claro e fácil de compreender?' },
+                    { tipo: 'escala', pergunta: 'O material disponibilizado (slides, apostilos, documentos etc.) contribuiu para o seu aprendizado?' },
+                    { tipo: 'escala', pergunta: 'Os exemplos e demonstrações facilitaram o entendimento do conteúdo?' },
+                    { tipo: 'escala', pergunta: 'O conteúdo é relevante para as atividades que você realiza no dia a dia?' },
+                    { tipo: 'escala', pergunta: 'Após este treinamento, você se sente mais preparado para aplicar esse conhecimento na prática?' },
+                    { tipo: 'escala', pergunta: 'A carga horária foi adequada para abordar o conteúdo proposto?' },
+                    { tipo: 'escala', pergunta: 'O ritmo do treinamento permitiu um bom acompanhamento do conteúdo?' },
+                    { tipo: 'escala', pergunta: 'Você vai aplicar o conteúdo mostrado nesse treinamento no seu trabalho do dia a dia?' },
+                    { tipo: 'escala', pergunta: 'De forma geral, qual sua satisfação com este treinamento?' },
+                    { tipo: 'texto', pergunta: 'O que você mais gostou neste treinamento?' },
+                    { tipo: 'texto', pergunta: 'O que poderia ser melhorado?' },
+                    { tipo: 'texto', pergunta: 'Existe algum tema relacionado que você gostaria que fosse aprofundado?' },
+                    { tipo: 'texto', pergunta: 'Como você pretende aplicar esse conhecimento na sua rotina?' },
+                ];
+                perguntasPadrao.forEach((p, idx) => {
+                    _adicionarInputPerguntaNovo(p, idx);
+                });
+            }
+            // Para terapia e palestra: lista fica vazia (sem perguntas padrão)
         }
 
         setTimeout(() => { const n = el('novo-treinamento-nome'); if (n) n.focus(); }, 80);
@@ -525,6 +556,76 @@
         } catch(e) {}
     }
 
+    // ── COLABORADORES AVULSOS ─────────────────────────────────────────────────
+    let _todosColabsTrein = []; // cache global de colaboradores (carregado uma vez)
+    // Sets em memória para guardar seleção independente do filtro/DOM
+    const _colabsSelecionados = { novo: new Set(), editar: new Set() };
+
+    async function _carregarColaboradoresSelect(containerId, selecionados = [], prefixo = '') {
+        const container = el(containerId);
+        if (!container) return;
+        try {
+            if (_todosColabsTrein.length === 0) {
+                const r = await api('/colaboradores');
+                if (!r.ok) return;
+                const todos = await r.json();
+                _todosColabsTrein = (todos || []).filter(c =>
+                    !['Desligado', 'desligado', 'Demitido', 'demitido'].includes(c.status)
+                ).sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+            }
+            // Inicializa o Set com os selecionados salvos no banco
+            if (prefixo && _colabsSelecionados[prefixo] !== undefined) {
+                _colabsSelecionados[prefixo] = new Set(selecionados.map(String));
+            }
+            _renderColabsCheckboxes(containerId, prefixo, '');
+        } catch(e) { console.warn('[TREIN] Erro ao carregar colaboradores:', e); }
+    }
+
+    function _renderColabsCheckboxes(containerId, prefixo, filtro = '') {
+        const container = el(containerId);
+        if (!container) return;
+        const sel = prefixo ? _colabsSelecionados[prefixo] : new Set();
+        const lista = filtro
+            ? _todosColabsTrein.filter(c => c.nome_completo.toLowerCase().includes(filtro.toLowerCase()))
+            : _todosColabsTrein;
+        if (lista.length === 0) {
+            container.innerHTML = '<span style="color:#94a3b8;font-size:0.83rem;">' + (filtro ? 'Nenhum resultado.' : 'Nenhum colaborador ativo.') + '</span>';
+            return;
+        }
+        container.innerHTML = lista.map(c => {
+            const isChecked = sel.has(String(c.id));
+            return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:0.9rem;">
+                <input type="checkbox" value="${c.id}" class="colab-avulso-checkbox"${isChecked ? ' checked' : ''}
+                    onchange="window._onColabCheckChange('${prefixo}', this)"> ${c.nome_completo}
+            </label>`;
+        }).join('');
+    }
+
+    // Callback quando o usuário marca/desmarca um colaborador — atualiza o Set em memória
+    window._onColabCheckChange = function(prefixo, cb) {
+        if (!prefixo || !_colabsSelecionados[prefixo]) return;
+        if (cb.checked) {
+            _colabsSelecionados[prefixo].add(cb.value);
+        } else {
+            _colabsSelecionados[prefixo].delete(cb.value);
+        }
+    };
+
+    // Filtro de busca — usa o Set em memória, não depende do DOM para saber o que está selecionado
+    window._filtrarColabsTrein = function(prefixo) {
+        const buscaId = prefixo + '-trein-colab-busca';
+        const containerId = prefixo + '-treinamento-colaboradores';
+        const filtro = (el(buscaId) || {}).value || '';
+        _renderColabsCheckboxes(containerId, prefixo, filtro);
+    };
+
+    // Helper: lê os IDs do Set em memória (não do DOM — garante que items filtrados não se percam)
+    function _getColabsAvulsosSelecionados(prefixo) {
+        const set = _colabsSelecionados[prefixo];
+        if (!set) return '';
+        return Array.from(set).join(',');
+    }
+
     window.fecharModalNovoTreinamento = function () {
         const m = el('modal-novo-treinamento');
         if (m) m.style.display = 'none';
@@ -543,6 +644,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('novo');
         const validade_dias = parseInt((el('novo-treinamento-validade') || {}).value || '0', 10) || 0;
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
@@ -565,7 +667,7 @@
             const r = await api('/treinamentos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, validade_dias, pesquisa_perguntas, tipo: tipoAtual, is_integracao })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, validade_dias, pesquisa_perguntas, tipo: tipoAtual, is_integracao })
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Erro ao criar'); }
             const novoTrein = await r.json();
@@ -579,7 +681,7 @@
                         await api('/treinamentos/' + novoTrein.id, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url: url, tipo: tipoAtual })
+                            body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, capa_url: url, validade_dias, tipo: tipoAtual, is_integracao, data_treinamento })
                         });
                     }
                 } catch (capaErr) {
@@ -849,7 +951,7 @@
         
         const titleEl = document.getElementById('modal-editar-treinamento-title');
         if (titleEl) {
-            const tipoText = (t.tipo === 'palestra') ? 'Palestra' : ((t.tipo === 'terapia') ? 'Terapia' : 'Treinamento');
+            const tipoText = (t.tipo === 'terapia') ? 'Palestra' : 'Treinamento';
             titleEl.innerHTML = `<i class="ph ph-pencil-simple"></i> Editar ${tipoText}`;
         }
 
@@ -860,6 +962,17 @@
         if (el('editar-treinamento-data')) el('editar-treinamento-data').value = t.data_treinamento || '';
         if (el('editar-treinamento-is-integracao')) el('editar-treinamento-is-integracao').checked = !!t.is_integracao;
         _carregarDepartamentosSelect('editar-treinamento-departamento', t.departamento || 'Todos');
+        // Carregar colaboradores avulsos já selecionados
+        const colabsAvulsosIds = (t.colaboradores_avulsos || '').split(',').filter(Boolean);
+        _carregarColaboradoresSelect('editar-treinamento-colaboradores', colabsAvulsosIds, 'editar');
+        const buscaEditarEl = el('editar-trein-colab-busca');
+        if (buscaEditarEl) buscaEditarEl.value = '';
+
+        // Ocultar/mostrar campo de validade conforme tipo
+        const editarValidadeWrap = el('editar-validade-wrap');
+        if (editarValidadeWrap) {
+            editarValidadeWrap.style.display = (t.tipo === 'terapia') ? 'none' : '';
+        }
 
         // Carrega capa existente
         _editarCapaFile = null;
@@ -904,6 +1017,7 @@
         } else if (checked.length > 0) {
             departamento = checked.join(', ');
         }
+        const colaboradores_avulsos = _getColabsAvulsosSelecionados('editar');
         if (!nome) { alert('Informe o nome do treinamento.'); return; }
 
         const btn = el('btn-salvar-edicao-treinamento');
@@ -932,7 +1046,7 @@
             const r = await api('/treinamentos/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, descricao: desc || '', departamento, capa_url, validade_dias, tipo: tipoAtual, is_integracao })
+                body: JSON.stringify({ nome, descricao: desc || '', departamento, colaboradores_avulsos, capa_url, validade_dias, tipo: tipoAtual, is_integracao, data_treinamento })
             });
             if (!r.ok) {
                 const e = await r.json().catch(() => ({}));
@@ -945,6 +1059,7 @@
                 _cache[idx].nome        = nome;
                 _cache[idx].descricao   = desc || '';
                 _cache[idx].departamento = departamento;
+                _cache[idx].colaboradores_avulsos = colaboradores_avulsos;
                 _cache[idx].capa_url    = capa_url;
                 _cache[idx].is_integracao = is_integracao;
             }

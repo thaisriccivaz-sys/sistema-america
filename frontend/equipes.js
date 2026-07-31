@@ -75,6 +75,16 @@ window.initEquipes = async function (showSkeleton = true) {
       }
     });
     _equipes.sort((a, b) => a.ordem - b.ordem);
+    // Ocultar colaboradores do departamento Limpeza da tela de Equipes
+    const _isLimpeza = m => {
+      const dept = (m.departamento || '').toLowerCase();
+      const cargo = (m.cargo || '').toLowerCase();
+      return dept.includes('limpeza') || cargo.includes('limpeza');
+    };
+    _semEquipe = _semEquipe.filter(m => !_isLimpeza(m));
+    _equipes.forEach(eq => {
+      if (eq.membros) eq.membros = eq.membros.filter(m => !_isLimpeza(m));
+    });
     if (_equipes.length === 0) {
       const defaults = [
         { nome: 'Equipe Padrão', descricao: '', cor: '#2563eb', ordem: 1 },

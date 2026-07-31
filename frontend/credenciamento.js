@@ -697,12 +697,26 @@ window.gerarEnviarCredenciamento = async function() {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
             return { id: parseInt(idStr), placa: v ? v.placa : idStr, modelo: v ? v.marca_modelo_versao : '' };
         }),
-        licencas: Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked')).map(cb => ({
-            id: cb.value,
-            nome: cb.dataset.nome || '',
-            empresa: cb.dataset.empresa || '',
-            validade: cb.dataset.validade || null
-        })),
+        licencas: (() => {
+            // Coleta dos dois sistemas de checkboxes de licenças:
+            // 1. Modal antigo (#cred-licencas-quadro) com name="cred_licencas"
+            // 2. Novo painel com abas (#cred-licencas-empresas) que não tem name
+            const fromOldModal = Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked'));
+            const fromNewPanel = Array.from(document.querySelectorAll('#cred-licencas-empresas input[type="checkbox"]:checked'));
+            const todos = [...fromOldModal, ...fromNewPanel];
+            // Deduplica por id
+            const vistos = new Set();
+            return todos.filter(cb => {
+                if (vistos.has(cb.value)) return false;
+                vistos.add(cb.value);
+                return true;
+            }).map(cb => ({
+                id: cb.value,
+                nome: cb.dataset.nome || '',
+                empresa: cb.dataset.empresa || '',
+                validade: cb.dataset.validade || null
+            }));
+        })(),
         docs_exigidos: Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value)
     };
 
@@ -725,8 +739,14 @@ window.gerarEnviarCredenciamento = async function() {
 
         if (solId) {
             try {
+                // Usa POST para enviar as licenças selecionadas no body (mais confiável que query param)
                 const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
-                    headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}` }
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ licencas: payload.licencas || [] })
                 });
                 if (zipRes.ok) {
                     const blob = await zipRes.blob();
@@ -790,7 +810,9 @@ window._credSolicitacaoId = null;
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span'); if (spanModalColabs) spanModalColabs.textContent = '(Ilimitado)';
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span'); if (spanModalVeics) spanModalVeics.textContent = '(Ilimitado)'; // ID da solicitação sendo cumprida (ou null para novo)
 
-window.abrirModalNovoCredenciamento = function() {
+window.abrirModalNovoCredenciamento = async function() {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
     window._credSolicitacaoId = null;
     // Limpar campos e seleções
     const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = '';
@@ -819,15 +841,18 @@ window.abrirModalNovoCredenciamento = function() {
 };
 
 // ── Cumprir uma Solicitação existente (botão Adicionar na tabela da Logística) ─
-window.abrirModalCumprirSolicitacao = function(id) {
+window.abrirModalCumprirSolicitacao = async function(id) {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
+
     // Pega os dados da solicitação do histórico já carregado
     const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
     
     window._credSolicitacaoId = id;
 
     window._credLimites = {
-        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
-        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
+        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados && dados.qtd_max_colaboradores ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
+        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados && dados.qtd_max_veiculos ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
     };
     
     const maxColabsText = window._credLimites.colabs === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.colabs})</span>`;
@@ -900,7 +925,8 @@ window.fecharModalNovoCredenciamento = function() {
 };
 
 window.mudarTipoEnvioLogistica = function() {
-    const tipo = document.getElementById('cred-tipo-envio').value;
+    const tipoEnvioElem = document.getElementById('cred-tipo-envio');
+    const tipo = tipoEnvioElem ? tipoEnvioElem.value : 'email';
     const gEmail = document.getElementById('grupo-cred-email');
     const gWhats = document.getElementById('grupo-cred-whatsapp');
     
@@ -1142,18 +1168,9 @@ window._renderizarTabelaHistorico = function(dados) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (expirado) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
-        } else if (cred.tipo_envio === 'whatsapp') {
-            // WhatsApp: sempre verde ao ser enviado (sem link para rastrear acesso)
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-whatsapp-logo"></i> Enviado</span>`;
-        } else if (cred.acessado_em) {
-            // E-mail: verde quando o link foi acessado
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-eye"></i> Visualizado</span>`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Aguardando</span>`;
         } else {
-            // E-mail: azul quando enviado mas ainda não acessado
-            statusBadge = `<span style="color:#2563eb; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Enviado</span>`;
         }
 
         return `
@@ -1177,7 +1194,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender / Baixar ZIP</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar / Baixar Novamente</button>`}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-download-simple"></i> Atender</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar</button>`}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">

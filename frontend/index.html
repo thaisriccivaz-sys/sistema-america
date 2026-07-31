@@ -28,8 +28,9 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20260716v5" defer></script>
     <script src="estoque.js?v=202606272305" defer></script>
+    <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
-    <script src="recibos.js?v=1780956700456" defer></script>
+    <script src="recibos.js?v=20260730v1" defer></script>
     <style>
 .bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
 .fav-btn, .btn-favorite { display: none !important; }
@@ -82,7 +83,7 @@
                         </label>
                     </div>
                     <!-- Turnstile Widget -->
-                    <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" style="margin-bottom: 1rem; display: flex; justify-content: center;"></div>
+                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAD8V4JgN7CQl0_n6" style="margin-bottom: 1rem; display: flex; justify-content: center;"></div>
                     <button type="submit" class="btn btn-primary btn-block">Entrar</button>
                     <div id="login-error" class="error-msg"></div>
                 </form>
@@ -440,6 +441,15 @@
                     <div class="user-info">
                         <span id="logged-user-name">Usuário</span>
                     </div>
+                    <!-- 🔴 Botão de Chamados -->
+                    <div style="position:relative;display:flex;align-items:center;margin:0 6px;">
+                        <button id="btn-abrir-chamados" onclick="window.open('?abrir_chamados=1', '_blank')" title="Chamados do Sistema"
+                            style="background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:8px;transition:background 0.15s;"
+                            onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
+                            <i class="ph ph-gear-six" style="font-size:1.5rem;color:#dc2626;"></i>
+                        </button>
+                        <span id="chamados-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65rem;font-weight:800;justify-content:center;align-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(220,38,38,0.5);">0</span>
+                    </div>
                     <div class="user-avatar" id="user-avatar-container" title="Foto do colaborador">
                         <img id="user-avatar-img" src="" alt=""
                             style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
@@ -463,6 +473,8 @@
                 style="display:none; gap:2px; background:#f1f5f9; padding:6px 12px 0 12px; border-bottom:2px solid #cbd5e1; overflow-x:auto; flex-wrap:nowrap; align-items:flex-end; min-height:38px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: hidden;">
                 <!-- Tabs geradas pelo app.js -->
             </div>
+            <!-- Chamados Screen (overlay fixo) -->
+            <div id="content-chamados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:#f8fafc;overflow-y:auto;"></div>
 
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">
@@ -894,15 +906,13 @@
                     <div class="dashboard-charts-row"
                         style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
                         <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência: Faltas e
-                                Atestados (Últimos 6 Meses)</h3>
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência Geral (Últimos 6 Meses)</h3>
                             <div style="position: relative; height: 250px; width: 100%;">
                                 <canvas id="chart-atestados"></canvas>
                             </div>
                         </div>
                         <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas (Sem e
-                                Com Atestado)</h3>
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas Colaboradores (Últimos 6 Meses)</h3>
                             <div style="position: relative; height: 250px; width: 100%;">
                                 <canvas id="chart-faltas"></canvas>
                             </div>
@@ -987,13 +997,23 @@
                                     <i class="ph ph-plus-circle"></i> Novo Cargo
                                 </button>
                             </div>
-                            <div class="mb-3" style="position:relative;">
-                                <i class="ph ph-magnifying-glass"
-                                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                                <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
-                                    oninput="filtrarListaCargos(this.value)"
-                                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                            <div class="mb-3" style="display:flex; gap:10px; align-items:center;">
+                                <div style="flex:1; position:relative;">
+                                    <i class="ph ph-magnifying-glass"
+                                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                                    <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
+                                        oninput="filtrarListaCargos()"
+                                        style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                                </div>
+                                <div style="min-width: 150px;">
+                                    <select id="filtro-status-cargos" class="form-control" onchange="filtrarListaCargos()">
+                                        <option value="Todos">Todos os Status</option>
+                                        <option value="Ativo" selected>Ativos</option>
+                                        <option value="Inativo">Inativos</option>
+                                    </select>
+                                </div>
                             </div>
+
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -1001,7 +1021,9 @@
                                             <th>ID</th>
                                             <th>Nome do Cargo</th>
                                             <th>Departamento</th>
+                                            <th>Status</th>
                                             <th>Responsável</th>
+                                            <th style="text-align: center;">Anexos</th>
                                             <th style="text-align: right;">Ações</th>
                                         </tr>
                                     </thead>
@@ -1016,7 +1038,7 @@
                         <div id="cargo-form-container" style="display:none;">
                             <form id="form-manage-cargo">
                                 <input type="hidden" id="manage-cargo-id">
-                                <div class="form-grid mb-4" style="grid-template-columns: 1fr 1fr; max-width: 600px;">
+                                <div class="form-grid mb-4" style="grid-template-columns: 1fr 1fr 1fr; max-width: 900px;">
                                     <div class="input-group">
                                         <label id="cargo-form-label">Nome do Cargo</label>
                                         <input type="text" id="cargo-input-name" class="form-control"
@@ -1027,6 +1049,41 @@
                                         <select id="cargo-input-departamento" class="form-control" required>
                                             <option value="" selected disabled>Selecionar</option>
                                         </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Status do Cargo</label>
+                                        <select id="cargo-input-status" class="form-control" required>
+                                            <option value="Ativo" selected>Ativo</option>
+                                            <option value="Inativo">Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="cargo-anexos-section" style="margin-top: 1.5rem; display: none;">
+                                    <h4 style="font-size: 1rem; color: #475569; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                                        <i class="ph ph-file-word"></i> Anexos Word do Cargo
+                                    </h4>
+                                    
+                                    <div class="mb-3" style="display: flex; gap: 1rem; align-items: flex-end; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Título do Documento</label>
+                                            <input type="text" id="cargo-anexo-titulo" class="form-control" placeholder="Ex: Contrato de Trabalho">
+                                        </div>
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Observações</label>
+                                            <input type="text" id="cargo-anexo-observacoes" class="form-control" placeholder="Opcional">
+                                        </div>
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Arquivo Word (.doc, .docx)</label>
+                                            <input type="file" id="cargo-anexo-arquivo" class="form-control" accept=".doc,.docx" style="padding: 0.4rem;">
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="btn-upload-anexo-cargo" onclick="window.uploadAnexoCargo(event)" style="height: 42px; white-space: nowrap;">
+                                            <i class="ph ph-upload-simple"></i> Enviar Anexo
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="cargo-anexos-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <!-- Preenchido via JS -->
                                     </div>
                                 </div>
 
@@ -1174,15 +1231,15 @@
                     </div>
                     <div class="card mb-4 p-4">
                         <form id="form-departamento"
-                            style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
-                            <div style="flex:2;min-width:180px;">
+                            style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;align-items:flex-end;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome
                                     do Departamento</label>
                                 <input type="text" id="novo-departamento-nome" placeholder="Ex: Logística"
                                     style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:2/3;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
                                 <select id="novo-departamento-tipo"
@@ -1191,7 +1248,7 @@
                                     <option value="Administrativo">Administrativo</option>
                                 </select>
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Responsável</label>
                                 <select id="novo-departamento-responsavel"
@@ -1199,8 +1256,17 @@
                                     <option value="">Nenhum</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
-                                    class="ph ph-plus"></i> Adicionar Depto</button>
+                            <div style="grid-column:2/3;">
+                                <label
+                                    style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                                <input type="text" id="novo-departamento-aso" placeholder="Ex: Setor de Logistica"
+                                    title="Nome específico do departamento usado no e-mail de solicitação de ASO para a IACI"
+                                    style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#eff6ff;">
+                            </div>
+                            <div style="grid-column:1/-1;display:flex;justify-content:flex-end;">
+                                <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
+                                        class="ph ph-plus"></i> Adicionar Depto</button>
+                            </div>
                         </form>
                     </div>
                     <div class="card">
@@ -2387,6 +2453,37 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- 5.7 Habilitação Categoria B -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-car"></i> Habilitação Categoria B</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Possui Habilitação Categoria B?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="habilitacao_b"
+                                                                value="Não" checked> Não</label>
+                                                        <label><input type="radio" name="habilitacao_b"
+                                                                value="Sim"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.8 Habilitação Categoria D -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-truck"></i> Habilitação Categoria D</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Possui Habilitação Categoria D?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="habilitacao_d"
+                                                                value="Não" checked> Não</label>
+                                                        <label><input type="radio" name="habilitacao_d"
+                                                                value="Sim"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div><!-- End module-opcionais card -->
 
@@ -2549,7 +2646,7 @@
                                 <li data-tab="Advert&ecirc;ncias">Ocorr&ecirc;ncias</li>
                                 <li data-tab="Faculdade">Faculdade</li>
                                 <!-- Aba Boletim de ocorrencia removida - usar aba Sinistros -->
-                                <li data-tab="Certificados">Certificados</li>
+                                <li data-tab="Certificados" style="display:none !important;">Certificados</li>
                                 <li id="tab-conjuge" data-tab="Conjuge" style="display:none !important;">Conjuge</li>
                                 <li data-tab="Dependentes">Dependentes</li>
                                 <li data-tab="Fotos" style="display:none !important;">Fotos</li>
@@ -3189,41 +3286,19 @@
                                         <input type="text" id="solic-cliente-nome" placeholder="Ex: Construtora XPTO"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
-                                    <div class="form-group">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Tipo de Envio</label>
-                                        <select id="solic-tipo-envio" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;" onchange="window.mudarTipoEnvioComercial()">
-                                            <option value="email">E-mail</option>
-                                            <option value="whatsapp">WhatsApp</option>
-                                        </select>
-                                    </div>
+
                                     <div class="form-group" id="grupo-solic-email">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail do
-                                            Cliente</label>
-                                        <input type="email" id="solic-cliente-email"
-                                            placeholder="Ex: contato@xpto.com.br"
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail ou WhatsApp do cliente
+                                            <span class="required">*</span></label>
+                                        <input type="text" id="solic-cliente-email"
+                                            placeholder="Ex: contato@xpto.com.br ou (11) 99999-9999"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
-                                    <div class="form-group" id="grupo-solic-whatsapp" style="display:none;">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">WhatsApp do
-                                            Cliente</label>
-                                        <input type="text" id="solic-cliente-whatsapp"
-                                            placeholder="Ex: (11) 99999-9999" oninput="maskPhone(this)"
+
+                                    <div class="form-group">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                                        <input type="text" id="solic-os" placeholder="Ex: OS-12345"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                    </div>
-                                    <div class="form-group"
-                                        style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 3fr; gap: 1rem;">
-                                        <div>
-                                            <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
-                                            <input type="text" id="solic-os" placeholder="Ex: OS-12345"
-                                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                        </div>
-                                        <div>
-                                            <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço
-                                                de Instalação</label>
-                                            <input type="text" id="solic-endereco-instalacao"
-                                                placeholder="Ex: Rua das Flores, 123 - Centro"
-                                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3437,12 +3512,11 @@
                                 <thead>
                                     <tr style="font-size:0.78rem;">
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Catg. <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Placas <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Qt. Atual <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th style="white-space:nowrap;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th style="white-space:nowrap;">Tipo</th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
@@ -4326,7 +4400,7 @@
                                         <th>Data Limite</th>
                                         <th style="cursor:pointer; white-space:nowrap;"
                                             onclick="window.ordenarHistoricoCred('data')" title="Ordenar Antigo/Novo">
-                                            Status do Link <i class="ph ph-arrows-down-up"
+                                            Status <i class="ph ph-arrows-down-up"
                                                 style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th style="text-align:right;">Ações</th>
                                     </tr>
@@ -5180,10 +5254,24 @@
                 </select>
             </div>
             <div style="flex:1;min-width:150px;">
-                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status</label>
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status Funcional</label>
                 <select id="pres-filtro-status" class="form-control" style="width:100%;" onchange="window.filtrarPresencaStatus(this.value)">
                     <option value="Ativos">Ativos</option>
                     <option value="Desligados">Desligados</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:180px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Treinamento/Palestra</label>
+                <select id="pres-filtro-treinamento" class="form-control" style="width:100%;" onchange="window.filtrarPresencaTreinamento(this.value)">
+                    <option value="">Todos os treinamentos</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Conclusão</label>
+                <select id="pres-filtro-conclusao" class="form-control" style="width:100%;" onchange="window.filtrarPresencaConclusao(this.value)">
+                    <option value="">Todos</option>
+                    <option value="Concluido">Concluído</option>
+                    <option value="Pendente">Pendente</option>
                 </select>
             </div>
             <div style="flex:2;min-width:200px;">
@@ -5238,39 +5326,21 @@
                     <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
                     <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                         <div class="form-group">
-                            <label>Nome do Cliente / Obra <span class="required">*</span></label>
-                            <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO">
-                        </div>
-                        <div class="form-group">
-                            <label style="display:block; margin-bottom:4px; font-weight:600;">Tipo de Envio</label>
-                            <select id="cred-tipo-envio" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;" onchange="window.mudarTipoEnvioLogistica()">
-                                <option value="email">E-mail</option>
-                                <option value="whatsapp">WhatsApp</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="grupo-cred-email">
-                            <label>E-mail do Cliente <span class="required">*</span></label>
-                            <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
-                        </div>
-                        <div class="form-group" id="grupo-cred-whatsapp" style="display:none;">
-                            <label>WhatsApp do Cliente</label>
-                            <input type="text" id="cred-cliente-whatsapp" placeholder="Ex: (11) 99999-9999" oninput="maskPhone(this)"
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">Nome do Cliente / Obra <span class="required">*</span></label>
+                            <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO"
                                 style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                         </div>
-                        <div class="form-group"
-                            style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 3fr; gap: 1rem;">
-                            <div>
-                                <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
-                                <input type="text" id="cred-os" placeholder="Ex: OS-12345"
-                                    style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço de
-                                    Instalação</label>
-                                <input type="text" id="cred-endereco-instalacao"
-                                    placeholder="Ex: Rua das Flores, 123 - Centro"
-                                    style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                            </div>
+
+                        <div class="form-group" id="grupo-cred-email">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail ou WhatsApp do cliente <span class="required">*</span></label>
+                            <input type="text" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br ou (11) 99999-9999"
+                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                            <input type="text" id="cred-os" placeholder="Ex: OS-12345"
+                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                         </div>
                     </div>
                 </div>
@@ -5645,7 +5715,7 @@
     <div id="modal-editar-departamento" class="modal"
         style="display:none; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.5);">
         <div class="modal-content"
-            style="max-width: 450px; background:#fff; border-radius:12px; overflow:hidden; width: 100%;">
+            style="max-width: 480px; background:#fff; border-radius:12px; overflow:visible; width: 100%; max-height:92vh; display:flex; flex-direction:column;">
             <div class="modal-header"
                 style="background:#f8fafc; padding:1.25rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:1.2rem; color:#1e293b;">Editar Departamento</h3>
@@ -5653,7 +5723,7 @@
                     onclick="document.getElementById('modal-editar-departamento').style.display='none'"
                     style="cursor:pointer; font-size:1.5rem; color:#94a3b8;">&times;</span>
             </div>
-            <div class="modal-body" style="padding:1.25rem;">
+            <div class="modal-body" style="padding:1.25rem; overflow-y:auto; flex:1;">
                 <form id="form-editar-departamento">
                     <input type="hidden" id="edit-departamento-id">
                     <div class="input-group mb-3">
@@ -5679,6 +5749,15 @@
                             style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
                             <option value="">Nenhum</option>
                         </select>
+                    </div>
+                    <div class="input-group mb-4">
+                        <label
+                            style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                        <input type="text" id="edit-departamento-aso"
+                            placeholder="Nome específico para o e-mail de ASO"
+                            title="Será usado no campo Departamento do e-mail de solicitação de exame enviado para a IACI"
+                            style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;background:#eff6ff;">
+                        <small style="color:#64748b;font-size:0.75rem;margin-top:4px;display:block;">Se preenchido, este nome aparecerá no campo Departamento do e-mail enviado para a IACI.</small>
                     </div>
                     <div style="display:flex; gap:1rem; justify-content:flex-end;">
                         <button type="button" class="btn btn-secondary"
@@ -5933,7 +6012,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Gerador PDF client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="avaliacoes_perguntas.js?v=20260720v1"></script>
+    <script src="avaliacoes_perguntas.js?v=20260728v2"></script>
     <script src="avaliacoes.js?v=1778869020176"></script>
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
@@ -5966,7 +6045,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260718v3"></script>
+    <script src="app.js?v=20260730v9"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
@@ -6099,34 +6178,66 @@
                 <form id="form-editar-treinamento" onsubmit="window.salvarEdicaoTreinamento(event)">
                     <div id="aba-detalhes-content">
                     <input type="hidden" id="editar-treinamento-id">
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
-                        <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
-                            style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
-                    </div>
-                    <div class="mb-3">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:0.95rem;color:#374151;">
-                            <input type="checkbox" id="editar-treinamento-is-integracao" value="1"> Pertence à Integração do colaborador?
-                        </label>
-                    </div>
-                    
 
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data do Treinamento / Palestra (Opcional)</label>
-                        <input type="date" id="editar-treinamento-data" class="form-control" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
-                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
-                    </div>
-<div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
-                        <div id="editar-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
-                            <!-- Checkboxes injetados pelo JS -->
+                    <!-- Linha 1: Nome (2/3) + Data (1/3) -->
+                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;" class="mb-3">
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
+                            <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data da Palestra <span style="font-weight:400;color:#94a3b8;font-size:0.83rem;">(Opcional)</span></label>
+                            <input type="date" id="editar-treinamento-data" class="form-control"
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 12px;border:1.5px solid #cbd5e1;">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
-                        <textarea id="editar-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo do treinamento..."
-                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:120px;"></textarea>
+
+                    <!-- Linha 2: Integração — card destacado com espaçamento do título -->
+                    <div style="margin-top:20px;" class="mb-3">
+                        <label for="editar-treinamento-is-integracao" style="display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;transition:border-color .2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#93c5fd'">
+                            <input type="checkbox" id="editar-treinamento-is-integracao" value="1" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;flex-shrink:0;">
+                            <div>
+                                <span style="font-weight:600;font-size:0.95rem;color:#1d4ed8;">Pertence à Integração do colaborador?</span>
+                                <p style="margin:2px 0 0;font-size:0.78rem;color:#3b82f6;">Se marcado, este item será obrigatório no checklist de integração de novos colaboradores.</p>
+                            </div>
+                        </label>
                     </div>
+
+                    <!-- Linha 3: Descrição abaixo da integração -->
+                    <div style="margin-top:20px;" class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                        <textarea id="editar-treinamento-desc" class="form-control" rows="4" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo da palestra..."
+                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:90px;"></textarea>
+                    </div>
+
+                    <!-- Destinatários -->
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Destinatários</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <!-- Painel Esquerdo: Departamentos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-buildings" style="color:#0e7490;"></i> Departamentos
+                                </div>
+                                <div id="editar-treinamento-departamento" style="max-height:160px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                            <!-- Painel Direito: Colaboradores Avulsos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-user-plus" style="color:#1d4ed8;"></i> Colaboradores Avulsos
+                                </div>
+                                <input type="text" id="editar-trein-colab-busca" placeholder="Buscar colaborador..." oninput="window._filtrarColabsTrein('editar')" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.88rem;padding:7px 10px;border:1.5px solid #cbd5e1;margin-bottom:6px;outline:none;">
+                                <div id="editar-treinamento-colaboradores" style="max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Imagem de Capa -->
                     <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
@@ -6142,7 +6253,9 @@
                         <input type="file" id="editar-treinamento-capa" accept="image/*" style="display:none;" onchange="window._editarCapaPreview(this)">
                         <input type="hidden" id="editar-treinamento-capa-url">
                     </div>
-                    <div class="mb-3">
+
+                    <!-- Validade (oculto para palestra via JS) -->
+                    <div class="mb-3" id="editar-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -6266,12 +6379,30 @@
                         <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
                     </div>
 <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
-                        <div id="novo-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
-                            <!-- Checkboxes injetados pelo JS -->
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Destinatários</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <!-- Painel Esquerdo: Departamentos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-buildings" style="color:#0e7490;"></i> Departamentos
+                                </div>
+                                <div id="novo-treinamento-departamento" style="max-height:160px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                            <!-- Painel Direito: Colaboradores Avulsos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-user-plus" style="color:#1d4ed8;"></i> Colaboradores Avulsos
+                                </div>
+                                <input type="text" id="novo-trein-colab-busca" placeholder="Buscar colaborador..." oninput="window._filtrarColabsTrein('novo')" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.88rem;padding:7px 10px;border:1.5px solid #cbd5e1;margin-bottom:6px;outline:none;">
+                                <div id="novo-treinamento-colaboradores" style="max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" id="novo-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:10px;">

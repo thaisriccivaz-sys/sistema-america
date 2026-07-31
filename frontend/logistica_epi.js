@@ -87,7 +87,7 @@
                     <i class="ph ph-shield-check" style="font-size:1.6rem;color:#93c5fd;"></i>
                 </div>
                 <div>
-                    <h1 style="margin:0;color:#f1f5f9;font-size:1.25rem;font-weight:700;">Entrega de EPI</h1>
+                    <h1 style="margin:0;color:#f1f5f9;font-size:1.25rem;font-weight:700;">Logística &gt; Entrega de EPI</h1>
                     <p style="margin:0;color:#93c5fd;font-size:0.82rem;">Registre a entrega de Equipamento de Proteção Individual</p>
                 </div>
             </div>
