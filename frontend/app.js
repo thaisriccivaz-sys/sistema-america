@@ -2278,6 +2278,8 @@ window.toggleHabilitacaoD = function (val) {
         }
     }
 };
+
+window.toggleBrigadistaFields = function (val) {
     const section = document.getElementById('section-brigadista');
     if (section) {
         section.style.display = (val === 'Sim') ? 'block' : 'none';
@@ -2287,6 +2289,7 @@ window.toggleHabilitacaoD = function (val) {
         }
     }
 };
+
 
 window.addNewChaveRow = async function (selectedChaveId = null, selectedDate = null) {
     try {
