@@ -24050,12 +24050,15 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
 // ============================================================
 // ENDPOINT ÚNICO: Inativar cargos sem colaboradores (30/07/2026)
 // USAR UMA VEZ SOMENTE. Chave: america2026inativar
+// Com ?preview=1 apenas MOSTRA o que seria feito, sem alterar nada.
 // ============================================================
 app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
   const CHAVE = 'america2026inativar';
   if (req.headers['x-admin-key'] !== CHAVE) {
     return res.status(403).json({ error: 'Acesso negado.' });
   }
+
+  const modoPrevia = req.query.preview === '1';
 
   // Cargos com colaboradores ATIVOS na planilha de 30/07/2026
   const cargosAtivos = [
@@ -24072,20 +24075,49 @@ app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
     'Téc. de Manutenção 2'
   ];
 
-  const placeholders = cargosAtivos.map(() => 'LOWER(TRIM(?))').join(', ');
-  const sqlSelect = `SELECT id, nome, IFNULL(status,'Ativo') as status FROM cargos
-                     WHERE LOWER(TRIM(nome)) NOT IN (${placeholders})
-                     AND LOWER(TRIM(nome)) NOT IN (SELECT LOWER(TRIM(nome)) FROM cargos_excluidos)
-                     ORDER BY nome`;
-
   const paramsLower = cargosAtivos.map(c => c.toLowerCase().trim());
+  const phList = paramsLower.map(() => '?').join(', ');
+
+  // Busca cargos que NÃO estão na lista de ativos,
+  // e também verifica quantos colaboradores não-desligados cada um tem no BD
+  const sqlSelect = `
+    SELECT c.id, c.nome, IFNULL(c.status,'Ativo') AS status,
+           (SELECT COUNT(*) FROM colaboradores col
+            WHERE LOWER(TRIM(col.cargo)) = LOWER(TRIM(c.nome))
+            AND LOWER(TRIM(col.status)) != 'desligado') AS qtd_colab_ativos
+    FROM cargos c
+    WHERE LOWER(TRIM(c.nome)) NOT IN (${phList})
+    ORDER BY c.nome
+  `;
 
   db.all(sqlSelect, paramsLower, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const paraInativar = rows.filter(r => (r.status || 'Ativo') !== 'Inativo');
-    const jaInativos   = rows.filter(r => (r.status || 'Ativo') === 'Inativo');
+    // SEGURANÇA DUPLA: só inativa se (1) não está na lista da planilha E
+    //                              (2) não tem nenhum colaborador ativo no banco
+    const paraInativar = rows.filter(r =>
+      (r.status || 'Ativo') !== 'Inativo' &&
+      (r.qtd_colab_ativos || 0) === 0
+    );
+    const jaInativos  = rows.filter(r => (r.status || 'Ativo') === 'Inativo');
+    const protegidos  = rows.filter(r => (r.qtd_colab_ativos || 0) > 0);
 
+    // ── MODO PRÉVIA (preview=1): apenas mostra, não altera nada ──────────
+    if (modoPrevia) {
+      return res.json({
+        modo: '*** PRÉVIA — nenhuma alteração foi feita ***',
+        seriam_inativados: paraInativar.map(r => r.nome).sort(),
+        ja_estao_inativos: jaInativos.map(r => r.nome).sort(),
+        protegidos_tem_colaborador_no_bd: protegidos.map(r =>
+          `${r.nome} (${r.qtd_colab_ativos} colaborador(es) ativo(s))`
+        ).sort(),
+        cargos_mantidos_ativos_da_planilha: cargosAtivos.sort(),
+        total_seriam_inativados: paraInativar.length,
+        instrucao: 'Para executar de verdade, chame sem ?preview=1'
+      });
+    }
+
+    // ── MODO EXECUÇÃO ────────────────────────────────────────────────────
     if (paraInativar.length === 0) {
       return res.json({
         ok: true,
@@ -24096,20 +24128,16 @@ app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
     }
 
     const ids = paraInativar.map(r => r.id);
-    const idPlaceholders = ids.map(() => '?').join(', ');
-    const sqlUpdate = `UPDATE cargos SET status = 'Inativo' WHERE id IN (${idPlaceholders})`;
-
-    db.run(sqlUpdate, ids, function(errUpd) {
+    const idPh = ids.map(() => '?').join(', ');
+    db.run(`UPDATE cargos SET status = 'Inativo' WHERE id IN (${idPh})`, ids, function(errUpd) {
       if (errUpd) return res.status(500).json({ error: errUpd.message });
-
-      const logMsg = `[ADMIN] Inativados ${this.changes} cargos: ${paraInativar.map(r=>r.nome).join(', ')}`;
-      console.log(logMsg);
-
+      console.log(`[ADMIN] Inativados ${this.changes} cargos: ${paraInativar.map(r=>r.nome).join(', ')}`);
       res.json({
         ok: true,
         total_inativados: this.changes,
         inativados_agora: paraInativar.map(r => r.nome).sort(),
         ja_inativos_antes: jaInativos.map(r => r.nome).sort(),
+        protegidos_nao_alterados: protegidos.map(r => r.nome).sort(),
         cargos_ativos_mantidos: cargosAtivos.sort()
       });
     });
