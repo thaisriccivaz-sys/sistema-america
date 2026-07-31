@@ -1,3 +1,19 @@
+
+function getBadgeColors(nome, isLow) {
+    if (isLow) return { bg: '#fef2f2', color: '#ef4444', border: '#fca5a5' };
+    const n = (nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (n.includes('terreno')) {
+        return { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }; // green
+    } else if (n.includes('almoxarifado')) {
+        return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }; // blue
+    } else if (n.includes('loja')) {
+        return { bg: '#fefce8', color: '#a16207', border: '#fef08a' }; // yellow
+    } else if (n.includes('galpao')) {
+        return { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' }; // purple
+    }
+    return { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' }; // default slate
+}
+
 // frontend/estoque.js
 
 // Cache global de enderecos
@@ -218,7 +234,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                     tipoCell = tipoEstoque === 'reposicao'
                         ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
                         : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
-                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
+                    const endColors = getBadgeColors(s.nome, lowEnd);
+                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
                         '</span>';
