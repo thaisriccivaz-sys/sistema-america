@@ -6111,7 +6111,9 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Aceite de Recebimento por E-mail', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
-                { nome: 'Solicitação de VT', cond: true },
+                                    { nome: 'Solicita\u00E7\u00E3o de VT', cond: true },
+                    { nome: 'habilita\u00E7\u00E3o categoria b', cond: deNorm(c.habilitacao_b) === 'sim' },
+                    { nome: 'habilita\u00E7\u00E3o categoria d', cond: deNorm(c.habilitacao_d) === 'sim' },
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
@@ -10791,6 +10793,8 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         if (!algumTemRegra) {
             const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const LEGACY_MAP = [
+                    { nome: 'habilita\u00E7\u00E3o categoria b', cond: deNorm(c.habilitacao_b) === 'sim' },
+                    { nome: 'habilita\u00E7\u00E3o categoria d', cond: deNorm(c.habilitacao_d) === 'sim' },
                 { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' || deNorm(c.terapia_participa) === 'nao' },
                 { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
                 { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
@@ -10805,7 +10809,9 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Aceite de Recebimento por E-mail', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
-                { nome: 'Solicitação de VT', cond: true },
+                                    { nome: 'Solicita\u00E7\u00E3o de VT', cond: true },
+                    { nome: 'habilita\u00E7\u00E3o categoria b', cond: deNorm(c.habilitacao_b) === 'sim' },
+                    { nome: 'habilita\u00E7\u00E3o categoria d', cond: deNorm(c.habilitacao_d) === 'sim' },
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 // Responsabilidade Equipamento: somente tipo Administrativo
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
@@ -12985,6 +12991,8 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                 const deNorm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
                 const c = colab;
                 const LEGACY_MAP = [
+                    { nome: 'habilita\u00E7\u00E3o categoria b', cond: deNorm(c.habilitacao_b) === 'sim' },
+                    { nome: 'habilita\u00E7\u00E3o categoria d', cond: deNorm(c.habilitacao_d) === 'sim' },
                     { nome: 'Termo de NÃO Interesse Terapia', cond: deNorm(c.terapia_participa) === 'nao' },
                     { nome: 'Termo de Interesse Terapia', cond: deNorm(c.terapia_participa) === 'sim' },
                     { nome: 'Responsabilidade Bilhete Único', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
@@ -12999,7 +13007,9 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Recebimento de Regimento Interno', cond: true },
                     { nome: 'Regras Sorteio Final de Ano', cond: true },
                     { nome: 'Termo de Confidencialidade', cond: true },
-                    { nome: 'Solicitação de VT', cond: true },
+                                        { nome: 'Solicita\u00E7\u00E3o de VT', cond: true },
+                    { nome: 'habilita\u00E7\u00E3o categoria b', cond: deNorm(c.habilitacao_b) === 'sim' },
+                    { nome: 'habilita\u00E7\u00E3o categoria d', cond: deNorm(c.habilitacao_d) === 'sim' },
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                     // Responsabilidade Equipamento: somente tipo Administrativo
                     { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
