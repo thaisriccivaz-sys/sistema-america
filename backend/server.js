@@ -1428,19 +1428,22 @@ e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
 [ASSINATURAS]
 </div>`;
 
-db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'habilitação categoria b'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
-db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria b'", (err, row) => {
+// Cleanup old lowercase seeded generators to prevent duplicates
+db.run("DELETE FROM geradores WHERE nome IN ('habilitação categoria b', 'habilitação categoria d')");
+
+db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria B'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
+db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria B'", (err, row) => {
     if (!row) {
-        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['habilitação categoria b', habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
-            if(!err) console.log("[SEED] Gerador habilitação categoria b criado.");
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria B', habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
+            if(!err) console.log("[SEED] Gerador Habilitação Categoria B criado.");
         });
     }
 });
-db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'habilitação categoria d'", [habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}']);
-db.get("SELECT id FROM geradores WHERE nome = 'habilitação categoria d'", (err, row) => {
+db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria D'", [habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}']);
+db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria D'", (err, row) => {
     if (!row) {
-        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['habilitação categoria d', habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
-            if(!err) console.log("[SEED] Gerador habilitação categoria d criado.");
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria D', habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
+            if(!err) console.log("[SEED] Gerador Habilitação Categoria D criado.");
         });
     }
 });
