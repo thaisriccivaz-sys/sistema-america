@@ -12271,6 +12271,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
                 ${leftIconMarkup}
                 <div style="display:flex; flex-direction:column; gap:2px;">
                     <span style="font-size:0.95rem; font-weight:700; color:#0f172a; margin-bottom:2px;">${_docTitle.toUpperCase()}</span>
+                    ${categoryBadge}
                     ${statusBadge}
                     ${doc.file_name ? `<span style="font-size:0.72rem;color:#94a3b8;margin-top:1px;"><i class="ph ph-file"></i> ${doc.file_name}</span>` : ''}
                 </div>
