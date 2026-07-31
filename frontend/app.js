@@ -10555,15 +10555,21 @@ window.renderContratosTab = async function (container, searchTerm = '') {
 // Só roda se ca-list-container estiver no DOM (indica que a aba Contratos está ativa)
 window._reloadContratosContainer = async function () {
     window._contratosAvulsoLoaded = false;
-    // O elemento ca-list-container é renderizado por renderContratosAvulso
-    // Se ele existe, o usuário ESTÁ na aba Contratos
     const caList = document.getElementById('ca-list-container');
     let ct = document.getElementById('docs-list-container') ||
         document.getElementById('tab-dynamic-content');
     if (ct && caList) {
         const searchTerm = document.getElementById('doc-search-input')?.value.toLowerCase() || '';
+        
+        // Salvar altura para não perder o scroll
+        const currentHeight = ct.getBoundingClientRect().height;
+        if (currentHeight > 0) ct.style.minHeight = currentHeight + 'px';
+        
         ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
         await window.renderContratosAvulso(ct, searchTerm);
+        
+        // Restaurar altura automática
+        ct.style.minHeight = '';
     }
 };
 
