@@ -20683,13 +20683,13 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">???? Estoque M??nimo Atingido</h2>
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Estoque Mínimo Atingido</h2>
                                     <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
                                         <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                        <p style="margin:4px 0;"><strong>Quantidade M??nima:</strong> ${quantidade_minima}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
                                 </div>
