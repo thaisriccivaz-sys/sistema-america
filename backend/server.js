@@ -24047,8 +24047,78 @@ app.get('/api/public/test-cnd-email', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// ============================================================
+// ENDPOINT ÚNICO: Inativar cargos sem colaboradores (30/07/2026)
+// USAR UMA VEZ SOMENTE. Chave: america2026inativar
+// ============================================================
+app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
+  const CHAVE = 'america2026inativar';
+  if (req.headers['x-admin-key'] !== CHAVE) {
+    return res.status(403).json({ error: 'Acesso negado.' });
+  }
+
+  // Cargos com colaboradores ATIVOS na planilha de 30/07/2026
+  const cargosAtivos = [
+    'Ajudante Geral','Ana. DP Pl.','Ana. RH Jr.','Ana. de CS',
+    'Ass. Administrativo 2','Ass. Financeiro 1','Ass. Financeiro 2',
+    'Ass. Logística 2','Ass. RH 1','Ass. de Manutenção 1',
+    'Assistente de Compras 2','Assistente de TI 2',
+    'Aux. Administrativo','Aux. Comercial','Aux. Financeiro',
+    'Aux. Logística','Aux. de Manutenção','Aux. de Processos',
+    'Auxiliar de Limpeza 2','Cor. de Processos','Ger. Logística',
+    'Instrutor de Treinamento','Lavador de Veículos','Líder Operacional',
+    'Motorista','Motorista Operador de Saneamento',
+    'Sup. Comercial','Sup. Financeiro','Sup. Logística','Sup. Pátio',
+    'Téc. de Manutenção 2'
+  ];
+
+  const placeholders = cargosAtivos.map(() => 'LOWER(TRIM(?))').join(', ');
+  const sqlSelect = `SELECT id, nome, IFNULL(status,'Ativo') as status FROM cargos
+                     WHERE LOWER(TRIM(nome)) NOT IN (${placeholders})
+                     AND LOWER(TRIM(nome)) NOT IN (SELECT LOWER(TRIM(nome)) FROM cargos_excluidos)
+                     ORDER BY nome`;
+
+  const paramsLower = cargosAtivos.map(c => c.toLowerCase().trim());
+
+  db.all(sqlSelect, paramsLower, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const paraInativar = rows.filter(r => (r.status || 'Ativo') !== 'Inativo');
+    const jaInativos   = rows.filter(r => (r.status || 'Ativo') === 'Inativo');
+
+    if (paraInativar.length === 0) {
+      return res.json({
+        ok: true,
+        mensagem: 'Nenhum cargo precisava ser inativado.',
+        ja_inativos: jaInativos.map(r => r.nome),
+        inativados_agora: []
+      });
+    }
+
+    const ids = paraInativar.map(r => r.id);
+    const idPlaceholders = ids.map(() => '?').join(', ');
+    const sqlUpdate = `UPDATE cargos SET status = 'Inativo' WHERE id IN (${idPlaceholders})`;
+
+    db.run(sqlUpdate, ids, function(errUpd) {
+      if (errUpd) return res.status(500).json({ error: errUpd.message });
+
+      const logMsg = `[ADMIN] Inativados ${this.changes} cargos: ${paraInativar.map(r=>r.nome).join(', ')}`;
+      console.log(logMsg);
+
+      res.json({
+        ok: true,
+        total_inativados: this.changes,
+        inativados_agora: paraInativar.map(r => r.nome).sort(),
+        ja_inativos_antes: jaInativos.map(r => r.nome).sort(),
+        cargos_ativos_mantidos: cargosAtivos.sort()
+      });
+    });
+  });
+});
+// ============================================================
 
 app.listen(PORT, () => {
+
 
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
