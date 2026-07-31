@@ -20121,13 +20121,30 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
     });
 });
 
-// DELETE ??? excluir card
+// DELETE — excluir card
 app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
-        res.json({ ok: true });
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [req.params.id], (err, card) => {
+        if (err || !card) return res.status(404).json({ error: 'Card não encontrado' });
+        
+        db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            
+            // Sincronizar com prontuário: excluir falta vinculada se for um card de falta
+            if (card.tipo === 'falta' && card.data) {
+                let referente_ids = [];
+                try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch(e){}
+                if (referente_ids.length > 0) {
+                    const placeholders = referente_ids.map(()=>'?').join(',');
+                    db.run(`DELETE FROM faltas WHERE data_falta = ? AND colaborador_id IN (${placeholders})`, [card.data, ...referente_ids], errFalta => {
+                        if (errFalta) console.error("Erro ao deletar falta vinculada:", errFalta.message);
+                    });
+                }
+            }
+
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
+            res.json({ ok: true });
+        });
     });
 });
 
