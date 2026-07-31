@@ -22,11 +22,16 @@ async function _carregarEnderecos() {
 }
 
 // ── TABELA PRINCIPAL ──────────────────────────────────────────────────────────
-window.renderEstoqueTable = async function() {
+window.renderEstoqueTable = async function(preserveScroll = false) {
     const table = document.getElementById("table-estoque");
     if (!table) return;
+    
+    const lastScrollY = window.scrollY;
+    
     try {
-        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
+        if (!preserveScroll) {
+            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
+        }
         const dept   = document.getElementById("filtro-estoque-dept").value;
         const cat    = document.getElementById("filtro-estoque-cat").value;
         const statusEl = document.getElementById("filtro-estoque-status");

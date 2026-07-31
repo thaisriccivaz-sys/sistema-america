@@ -6204,7 +6204,8 @@ async function renderCargoDocsChecklist(container) {
                     ${fileInfo}
                     ${hintText}
                 </div>
-                ${statusBadge}
+                ${categoryBadge}
+                    ${statusBadge}
             </div>`;
         };
 
@@ -10565,7 +10566,7 @@ window._reloadContratosContainer = async function () {
         const currentHeight = ct.getBoundingClientRect().height;
         if (currentHeight > 0) ct.style.minHeight = currentHeight + 'px';
         
-        ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
+        // ct.innerHTML = '<p class="text-muted" style="padding:0.5rem;"><i class="ph ph-spinner ph-spin"></i> Atualizando...</p>';
         await window.renderContratosAvulso(ct, searchTerm);
         
         // Restaurar altura automática
@@ -10729,7 +10730,7 @@ window._reloadRescisaoContainer = async function () {
 
 window.renderContratosAvulso = async function (container, searchTerm = '') {
     if (!viewedColaborador || !container) return;
-    container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
+    // container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
     try {
         const safeGet = async (url) => {
             try {
@@ -12191,15 +12192,39 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
         const _signedStr = formatDate(doc.assinafy_signed_at || doc.upload_date);
 
         let statusBadge = '', leftIconMarkup = '', sendBtn = '', actionUX = '';
-        let borderBgColor = isSigned
-            ? 'border:1px solid #bbf7d0; background:#f0fdf4;'
-            : isPending
-                ? 'border:1px solid #bfdbfe; background:#eff6ff;'
-                : isPronto
-                    ? 'border:1px solid #ddd6fe; background:#f5f3ff;'
-                    : literallyNaoExige
-                        ? 'border:1px solid #e9d5ff; background:#faf5ff;'
-                        : 'border:1px solid #fde047; background:#fefce8;';
+
+        const isFicha = _docName.toLowerCase().includes('ficha de registro');
+        const _normDocCmp = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const isDA = _normDocCmp(_docName) === 'descricao de atividades' || doc._isDescricaoAtividades;
+        const DOCS_OBR_LIST = [
+            'termo responsabilidade salario familia',
+            'termo de consentimento lgpd',
+            'ficha de salario familia',
+            'declaracao encargos de familia para fins de ir',
+            'contrato de experiencia',
+            'autorizacao de pagamento atraves deposito bancario',
+            'acordo de prorrogacao de horas trabalhadas',
+            'acordo de compensacao de horas trabalhadas'
+        ];
+        const isContabilidade = DOCS_OBR_LIST.includes(_normDocCmp(_docName)) || isFicha;
+
+        let borderBgColor = '';
+        let categoryBadge = '';
+        let dividerColor = '';
+        
+        if (isDA) {
+            borderBgColor = 'border:2px solid #ea580c; background:#fff7ed;';
+            dividerColor = '#fdba74';
+            categoryBadge = '<div style="margin-bottom:6px;"><span style="background:#fff7ed;color:#ea580c;border:1px solid #fdba74;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Descrição de Atividades</span></div>';
+        } else if (isContabilidade) {
+            borderBgColor = 'border:1.5px solid #2563eb; background:#eff6ff;';
+            dividerColor = '#bfdbfe';
+            categoryBadge = '<div style="margin-bottom:6px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span></div>';
+        } else {
+            borderBgColor = 'border:1.5px solid #c026d3; background:#fdf4ff;';
+            dividerColor = '#f0abfc';
+            categoryBadge = '<div style="margin-bottom:6px;"><span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contratos</span></div>';
+        }
 
         if (isSigned) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#16a34a;"><i class="ph ph-check-circle" style="font-size:1.4rem;"></i></div>`;
@@ -12209,7 +12234,6 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             statusBadge = `<div style="display:flex;flex-direction:column;gap:2px;"><span style="color:#2563eb;font-size:0.75rem;font-weight:600;">Enviado para Assinatura</span>${_sentStr ? '<span style="font-size:0.65rem;color:#64748b;">' + _sentStr + '</span>' : ''}</div>`;
             sendBtn = `<button type="button" onclick="window.reenviarAssinaturaContrato(${doc.id}, event);" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-pen"></i> Reenviar para Assinatura</button>`;
         } else if (isPronto) {
-            // Documento salvo localmente (Pendente sem assinafy_id) — aguardando envio ao Assinafy
             const gerDocId = doc.gerador_id || '';
             const escNomeDoc = (doc.document_type || '').replace(/'/g, "\\'");
             leftIconMarkup = `<div data-role="status-icon" style="display:flex;align-items:center;justify-content:center;width:24px;color:#7c3aed;"><i class="ph ph-paperclip" style="font-size:1.4rem;"></i></div>`;
@@ -12219,32 +12243,12 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#9333ea;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
             statusBadge = `<span style="color:#9333ea;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
         } else {
-            const isFicha = _docName.toLowerCase().includes('ficha de registro');
-            const DOCS_OBR_LIST = [
-                'termo responsabilidade salario familia',
-                'termo de consentimento lgpd',
-                'ficha de salario familia',
-                'declaracao encargos de familia para fins de ir',
-                'contrato de experiencia',
-                'autorizacao de pagamento atraves deposito bancario',
-                'acordo de prorrogacao de horas trabalhadas',
-                'acordo de compensacao de horas trabalhadas'
-            ];
-            const _normDoc = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-            const isObrigatorio = DOCS_OBR_LIST.includes(_normDoc(_docName));
-
-            if (isObrigatorio || isFicha) {
-                borderBgColor = 'border:1px solid #2563eb; background:#eff6ff;';
-                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#2563eb;"><i class="ph ph-file-text" style="font-size:1.4rem;"></i></div>`;
-                statusBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contabilidade</span></div><span style="color:#1d4ed8;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            } else {
-                leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
-                statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
-            }
-            const _dividerColor = (isObrigatorio || isFicha) ? '#bfdbfe' : '#fde047';
+            leftIconMarkup = `<div style="display:flex;align-items:center;justify-content:center;width:24px;color:#eab308;"><i class="ph ph-info" style="font-size:1.4rem;"></i></div>`;
+            statusBadge = `<span style="color:#eab308;font-size:0.75rem;font-weight:600;">Documento anexado${_uploadStr ? ': ' + _uploadStr : ''}</span>`;
+            
             const escNome = _docName.replace(/'/g, "\\'");
             actionUX = `
-                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid ${_dividerColor}; padding-left: 1rem; margin-right:5px;">
+                <div style="display:flex; align-items:center; gap:0.75rem; border-left: 1px solid ${dividerColor}; padding-left: 1rem; margin-right:5px;">
                     <span style="font-size:0.85rem; font-weight:600; color:#334155;">Exige Assinatura?</span>
                     <label style="cursor:pointer; display:flex; align-items:center; gap:0.25rem; font-size:0.85rem; color:#0f172a; margin:0;">
                         <input type="radio" name="req-ass-doc-${doc.id}" value="sim" onchange="window.toggleAcaoDocumentoAvulso('${doc.id}', 'sim', '${escNome}')"> Sim
