@@ -264,6 +264,11 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
         });
 
         table.innerHTML = rows;
+        if (preserveScroll) {
+            window.scrollTo(0, lastScrollY);
+            setTimeout(() => window.scrollTo(0, lastScrollY), 10);
+            setTimeout(() => window.scrollTo(0, lastScrollY), 50);
+        }
     } catch (e) {
         console.error(e);
         table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
@@ -579,7 +584,7 @@ window.salvarEstoque = async function(e) {
 
         Swal.fire({ icon: "success", title: "Sucesso", text: "Item salvo com sucesso", timer: 1500, showConfirmButton: false });
         window.fecharModalEstoque();
-        window.renderEstoqueTable();
+        window.renderEstoqueTable(true);
     } catch (err) {
         Swal.fire("Erro", err.message, "error");
     } finally {
@@ -604,7 +609,7 @@ window.ajustarEstoqueRapido = async function(id, qtdAtual, variacao) {
             body: JSON.stringify({ nome: item.nome, departamento: item.departamento, categoria: item.categoria, quantidade_atual: novaQtd, quantidade_minima: item.quantidade_minima, quantidade_maxima: item.quantidade_maxima })
         });
         if (!ur.ok) throw new Error("Erro ao atualizar");
-        window.renderEstoqueTable();
+        window.renderEstoqueTable(true);
     } catch(e) { Swal.fire("Erro", "Não foi possível atualizar a quantidade.", "error"); }
 };
 
