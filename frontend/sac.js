@@ -154,12 +154,14 @@
     try {
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
-      const [ticketsRes, deptsRes] = await Promise.all([
+      const [ticketsRes, deptsRes, usersRes] = await Promise.all([
         fetch('/api/sac/tickets', { headers }),
-        fetch('/api/departamentos', { headers }).catch(() => null)
+        fetch('/api/departamentos', { headers }).catch(() => null),
+        fetch('/api/usuarios', { headers }).catch(() => null)
       ]);
       if (ticketsRes.ok) _tickets = await ticketsRes.json();
       if (deptsRes && deptsRes.ok) _globalDepartamentos = await deptsRes.json();
+      if (usersRes && usersRes.ok) window._sacUsersList = await usersRes.json();
     } catch(e) { console.error('[SAC] Erro ao carregar chamados', e); }
     if (!_tickets) _tickets = [];
   }
@@ -899,7 +901,7 @@
     const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
 
     mc.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:780px;max-width:96vw;min-height:520px;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="sac-modal sac-animated" style="width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
       <!-- MODAL HEADER -->
       <div style="padding:20px 24px 0;border-bottom:1px solid #f1f5f9;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
@@ -926,7 +928,6 @@
           <button class="sac-tab-btn ${_modalTab==='geral'?'active':''}" onclick="SAC.setModalTab('geral')">Geral</button>
           <button class="sac-tab-btn ${_modalTab==='historico'?'active':''}" onclick="SAC.setModalTab('historico')">Histórico</button>
           <button class="sac-tab-btn ${_modalTab==='custo'?'active':''}" onclick="SAC.setModalTab('custo')">Centro de Custo</button>
-          <button class="sac-tab-btn ${_modalTab==='anexos'?'active':''}" onclick="SAC.setModalTab('anexos')">Anexos</button>
           ${showChecklistInStage(t.stage)?`<button class="sac-tab-btn ${_modalTab==='checklist'?'active':''}" onclick="SAC.setModalTab('checklist')">Checklist (${clChecked}/${cl.length})</button>`:''}
         </div>
       </div>
@@ -988,10 +989,15 @@
           <strong style="font-size:0.85rem;color:#1e293b;">${label}: </strong>
           <span style="font-size:0.8rem;color:#475569;">${task.name}</span>
         </div>
-        ${task.assignedTo ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
-          <img src="${task.assignedToPhoto||''}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
-          <span style="font-size:0.8rem;color:#475569;font-weight:600;">Atribuído a: ${task.assignedToName}</span>
-        </div>` : ''}
+        <!-- Edição de atribuição -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <img src="${task.assignedToPhoto||''}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;background:#cbd5e1;flex-shrink:0;" onerror="this.style.display='none'">
+          <select id="assign-select-${key}" style="flex:1;min-width:160px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:pointer;" onchange="SAC.changeTaskAssignment('${key}', this.value)">
+            <option value="">— Nenhum —</option>
+            ${(window._sacUsersList||[]).map(u=>`<option value="${u.username||u.login||u.email}" ${(task.assignedTo===(u.username||u.login||u.email))?'selected':''}>${u.nome||u.name||u.username}</option>`).join('')}
+          </select>
+          <span style="font-size:0.75rem;color:#94a3b8;">Atribuído a: <strong>${task.assignedToName||task.assignedTo||'Ninguém'}</strong></span>
+        </div>
         ${task.isCompleted?`<div style="font-size:0.8rem;color:#15803d;padding:6px 10px;background:#dcfce7;border-radius:6px;"><strong>Resposta:</strong> ${task.feedback}</div>
         <button class="sac-btn sac-btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:0.78rem;" onclick="SAC.reopenTask('${key}')"><i class="ph ph-arrow-counter-clockwise"></i> Reabrir</button>`:
         `<div id="task-feedback-${key}" style="margin-top:6px;">
@@ -1019,6 +1025,33 @@
         <textarea id="modal-occ-note" rows="2" placeholder="Observação sobre a ocorrência..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
         <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
       </div>`:''}
+    </div>
+
+    <!-- ANEXOS (na aba Geral) -->
+    <div style="margin-top:20px;">
+      <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Anexos</div>
+      ${(t.attachments||[]).length?`
+      ${(t.attachments||[]).map(a=>`
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <i class="ph ph-file-text" style="font-size:1.2rem;color:#64748b;flex-shrink:0;"></i>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">
+            ${a.url ? `<a href="${a.url}" target="_blank" style="color:#1e293b;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">` : ''}
+            ${a.originalName||a.name||a.filename||'Arquivo'}
+            ${a.url ? `</a>` : ''}
+          </div>
+          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
+        </div>
+        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
+      </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:12px;">Nenhum arquivo anexado.</div>`}
+      <div style="margin-top:10px;background:#fff;border:1.5px dashed #e2e8f0;border-radius:10px;padding:14px;text-align:center;">
+        <i class="ph ph-upload-simple" style="font-size:1.4rem;color:#94a3b8;display:block;margin-bottom:4px;"></i>
+        <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
+          <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
+          Selecionar arquivos para upload
+        </label>
+        <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">PDF, imagens, documentos</div>
+      </div>
     </div>`;
   }
 
@@ -1469,6 +1502,20 @@
       const gate = checkGate(t, targetId);
       if (gate) { alert(`Bloqueio: Pendência ${gate.sector} não concluída.\n${gate.task}`); renderDetailModal(); return; }
       openTransitionModal(t.id, targetId);
+    },
+    changeTaskAssignment(key, newUsername) {
+      const t = _selectedTicket;
+      if (!t || !t[key]) return;
+      const usersList = window._sacUsersList || [];
+      const user = usersList.find(u => (u.username||u.login||u.email) === newUsername);
+      t[key] = {
+        ...t[key],
+        assignedTo: newUsername || null,
+        assignedToName: user ? (user.nome||user.name||user.username) : newUsername,
+        assignedToPhoto: user ? (user.foto||user.photo||'') : ''
+      };
+      updateTicket(t);
+      showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
     },
     deleteTicket(id) {
       if (!confirm('Excluir esta OS permanentemente?')) return;
