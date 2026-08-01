@@ -619,7 +619,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',
-        grupos: [{ titulo: 'Telas', telas: ['sac'] }]
+        grupos: [{ titulo: 'Telas', telas: ['sac', 'sac-atribuidos'] }]
     },
     {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
