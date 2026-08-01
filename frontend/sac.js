@@ -453,7 +453,7 @@
 
     const coverAttachment = (ticket.attachments || []).find(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url || a.originalName || a.name || a.filename));
     const coverHtml = coverAttachment && coverAttachment.url 
-      ? `<div style="margin:-12px -12px 12px -12px;"><img src="${coverAttachment.url}" style="width:calc(100% + 24px);height:140px;object-fit:cover;border-radius:9px 9px 0 0;display:block;"></div>`
+      ? `<div style="margin:-12px -12px 12px -12px;overflow:hidden;border-radius:8.5px 8.5px 0 0;"><img src="${coverAttachment.url}" style="width:100%;height:140px;object-fit:cover;display:block;"></div>`
       : '';
 
     return `
