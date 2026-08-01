@@ -617,6 +617,10 @@ const MENU_HIERARQUIA = [
         grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }]
     },
     {
+        modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',
+        grupos: [{ titulo: 'Telas', telas: ['sac'] }]
+    },
+    {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
         grupos: [
             {

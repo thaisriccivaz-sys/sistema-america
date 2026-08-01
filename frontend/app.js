@@ -991,8 +991,8 @@ const TAB_META = {
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
     'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
     'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' },
-    // Processos - Violeta
-    'sac': { color: '#7c3aed', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
+    // Processos - Vermelho
+    'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
 };
 
 
@@ -17057,7 +17057,7 @@ window.handlePageSearch = function (q) {
     if (!q) { resDiv.style.display = 'none'; return; }
 
     const all = getNormalizedPageSearchData();
-    const filtered = all.filter(p => p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
+    const filtered = all.filter(p => !p.key.startsWith('tab:') && (p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q))));
 
     if (filtered.length === 0) {
         resDiv.innerHTML = '<div style="padding:10px; color:#64748b; font-size:0.85rem;">Nenhuma página encontrada.</div>';
@@ -17073,9 +17073,10 @@ window.handlePageSearch = function (q) {
             else if (color === '#1971c2') { menuName = 'Financeiro'; menuIcon = 'ph-currency-dollar'; }
             else if (color === '#7048e8') { menuName = 'Comercial'; menuIcon = 'ph-handshake'; }
             else if (color === '#e67700') { menuName = 'Administrativo'; menuIcon = 'ph-gear'; }
+            else if (color === '#0e7490') { menuName = 'Treinamentos'; menuIcon = 'ph-graduation-cap'; }
+            else if (color === '#ef4444') { menuName = 'Processos'; menuIcon = 'ph-headset'; }
 
             let screenName = tMeta.title || p.name;
-            if (p.key.startsWith('tab:')) screenName = 'Prontuário: ' + (p.key.replace('tab:', '') || screenName);
 
             return `
             <div onclick="abrirAbaOuNavegar('${p.key}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.85rem; display:flex; align-items:center; gap:8px; color:${color}; font-weight:600;">
