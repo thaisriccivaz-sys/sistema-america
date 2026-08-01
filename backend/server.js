@@ -27819,16 +27819,28 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const setorNorm = norm(setor);
 
-    // Busca TODOS os colaboradores (exceto desligados) para filtragem e busca do gestor
-    db.all(`SELECT id, nome_completo, cargo, departamento, status, foto_base64, foto_path
-            FROM colaboradores
-            WHERE LOWER(status) NOT LIKE '%desligado%'
-            ORDER BY nome_completo ASC`, [], (errC, todosColabs) => {
+    // ──────────────────────────────────────────────────────────────────────────
+    // Busca colaboradores pelo departamento do CARGO (via JOIN com cargos) OU
+    // pelo campo departamento da tabela colaboradores.
+    // Isso garante que colaboradores cadastrados antes da propagação automática
+    // de departamento (campo vazio/desatualizado) também apareçam corretamente.
+    // ──────────────────────────────────────────────────────────────────────────
+    const query = `
+        SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.status, c.foto_base64, c.foto_path,
+               COALESCE(ca.departamento, c.departamento) AS dept_efetivo
+        FROM colaboradores c
+        LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))
+        WHERE LOWER(c.status) NOT LIKE '%desligado%'
+        ORDER BY c.nome_completo ASC
+    `;
+
+    db.all(query, [], (errC, todosColabs) => {
         if (errC) return res.status(500).json({ error: errC.message });
 
-        // Filtragem bidirecional: pega colaboradores cujo departamento contém o setor ou vice-versa
+        // Filtra: colaborador entra se o departamento efetivo (do cargo OU do campo) bate com o setor
+        // Usa match bidirecional para tolerar variações de nome (ex: "Logística" vs "Logistica")
         const filtered = (todosColabs || []).filter(c => {
-            const deptNorm = norm(c.departamento);
+            const deptNorm = norm(c.dept_efetivo || c.departamento);
             return deptNorm.includes(setorNorm) || setorNorm.includes(deptNorm);
         });
 
@@ -27857,7 +27869,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                         id: c.id,
                         nome: c.nome_completo,
                         cargo: c.cargo,
-                        departamento: c.departamento,
+                        departamento: c.dept_efetivo || c.departamento,
                         status: c.status,
                         username: uByNome ? uByNome.username : null,
                         foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
@@ -27881,7 +27893,6 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                         : (dept.responsavel_nome || '');
 
                     // Busca o colaborador gestor em TODOS os colaboradores (incluindo afastados)
-                    // para garantir que apareça mesmo com status especial
                     const gestorColab = gestorNome && (todosColabs || []).find(c =>
                         normNome(c.nome_completo) === normNome(gestorNome) ||
                         normNome(c.nome_completo).includes(normNome(gestorNome)) ||
