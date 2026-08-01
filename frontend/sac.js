@@ -152,18 +152,16 @@
 
   async function loadTickets() {
     try {
+      const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
       const [ticketsRes, deptsRes] = await Promise.all([
-        fetch('/api/sac/tickets', { headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}` } }),
-        fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}` } }).catch(() => ({ok:false}))
+        fetch('/api/sac/tickets', { headers }),
+        fetch('/api/departamentos', { headers }).catch(() => null)
       ]);
-      if (ticketsRes.ok) {
-        _tickets = await ticketsRes.json();
-      }
-      if (deptsRes && deptsRes.ok) {
-        _globalDepartamentos = await deptsRes.json();
-      }
-    } catch(e) { console.error('[SAC] Erro ao carregar chamados/departamentos', e); }
-    _tickets = [];
+      if (ticketsRes.ok) _tickets = await ticketsRes.json();
+      if (deptsRes && deptsRes.ok) _globalDepartamentos = await deptsRes.json();
+    } catch(e) { console.error('[SAC] Erro ao carregar chamados', e); }
+    if (!_tickets) _tickets = [];
   }
 
   // ── HELPERS ──────────────────────────────────────────────────
@@ -901,16 +899,16 @@
     const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
 
     mc.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:98vw;max-width:98vw;height:96vh;max-height:96vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="sac-modal sac-animated" style="width:780px;max-width:96vw;min-height:520px;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
       <!-- MODAL HEADER -->
-      <div style="padding:14px 24px 0;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <div style="padding:20px 24px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
           <div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">Nº ${t.protocol}</span>
               <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
               <span class="sac-tag" style="background:#fff7ed;color:#c2410c;">${type.icon} ${type.name}</span>
-              <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"> ${sla.label}</span>
+              <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};">${sla.label}</span>
             </div>
             <h2 style="margin:4px 0 0;font-size:1.1rem;color:#1e293b;">${t.clientName}</h2>
             <div style="font-size:0.82rem;color:#64748b;margin-top:2px;">${t.equipment} ${t.address?'· '+t.address:''}</div>
@@ -918,36 +916,11 @@
           <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;flex-shrink:0;">✕</button>
         </div>
         <!-- TROCA DE ETAPA -->
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 0 0;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0 0;flex-wrap:wrap;">
           <span style="font-size:0.75rem;font-weight:700;color:#64748b;">MOVER PARA:</span>
           <select style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.82rem;outline:none;cursor:pointer;" onchange="SAC.changeStageFromModal(this.value)">${stageOpts}</select>
           <button class="sac-btn sac-btn-danger" style="padding:5px 12px;font-size:0.78rem;margin-left:auto;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
         </div>
-        <!-- TABS -->
-        <div style="display:flex;gap:0;margin-top:8px;">
-          <button class="sac-tab-btn ${_modalTab==='geral'?'active':''}" onclick="SAC.setModalTab('geral')">Geral</button>
-          <button class="sac-tab-btn ${_modalTab==='comentarios'?'active':''}" onclick="SAC.setModalTab('comentarios')">Comentários</button>
-          <button class="sac-tab-btn ${_modalTab==='historico'?'active':''}" onclick="SAC.setModalTab('historico')">Histórico</button>
-          <button class="sac-tab-btn ${_modalTab==='custo'?'active':''}" onclick="SAC.setModalTab('custo')">Centro de Custo</button>
-          ${showChecklistInStage(t.stage)?`<button class="sac-tab-btn ${_modalTab==='checklist'?'active':''}" onclick="SAC.setModalTab('checklist')">Checklist (${clChecked}/${cl.length})</button>`:''}
-        </div>
-      </div>
-
-      <!-- TAB CONTENT -->
-      <div style="flex:1;overflow-y:auto;padding:20px 24px;" id="sac-modal-body">
-        ${renderModalTab(t, cl)}
-      </div>
-    </div>`;
-  }
-
-  function renderModalTab(t, cl) {
-    if (_modalTab === 'geral') return renderModalGeral(t);
-    if (_modalTab === 'comentarios') return renderModalComentarios(t);
-    if (_modalTab === 'historico') return renderModalHistorico(t);
-    if (_modalTab === 'custo') return renderModalCusto(t);
-    if (_modalTab === 'checklist') return renderModalChecklist(t, cl);
-    return '';
-  }
         <!-- TABS -->
         <div style="display:flex;gap:0;margin-top:10px;">
           <button class="sac-tab-btn ${_modalTab==='geral'?'active':''}" onclick="SAC.setModalTab('geral')">Geral</button>
@@ -983,12 +956,8 @@
       t.financialTask && { label:'Financeiro', task:t.financialTask, key:'financialTask' }
     ].filter(Boolean);
 
-    const attachList = t.attachments || [];
-    const imgAttachments = attachList.filter(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url||a.originalName||a.name||a.filename||''));
-    const otherAttachments = attachList.filter(a => !/\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url||a.originalName||a.name||a.filename||''));
-
     return `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div>
         <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Dados da OS</div>
         <div style="font-size:0.85rem;color:#1e293b;line-height:1.8;">
@@ -1005,17 +974,6 @@
         <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Próximos Passos</div>
         <div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:0.84rem;color:#475569;border:1px solid #e2e8f0;">${t.nextSteps||'Nenhum próximo passo registrado.'}</div>
         ${t.description?`<div style="margin-top:10px;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;">Descrição</div><div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:0.84rem;color:#475569;border:1px solid #e2e8f0;">${t.description}</div>`:''}
-      </div>
-      <div>
-        <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Anexos (${attachList.length})</div>
-        ${imgAttachments.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:5px;margin-bottom:8px;">${imgAttachments.map(a=>`<a href="${a.url}" target="_blank" title="${a.originalName||a.name||''}"><img src="${a.url}" style="width:100%;height:68px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;"></a>`).join('')}</div>` : ''}
-        ${otherAttachments.map(a=>`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px;font-size:0.78rem;"><i class="ph ph-file-text" style="color:#64748b;flex-shrink:0;"></i><a href="${a.url}" target="_blank" style="flex:1;color:#1e293b;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.originalName||a.name||a.filename||'Arquivo'}</a><button class="sac-btn sac-btn-danger" style="padding:2px 5px;font-size:0.68rem;flex-shrink:0;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button></div>`).join('')}
-        <div style="border:1.5px dashed #e2e8f0;border-radius:7px;padding:8px;text-align:center;margin-top:4px;">
-          <label style="cursor:pointer;font-size:0.78rem;font-weight:600;color:#f97316;">
-            <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
-            <i class="ph ph-upload-simple"></i> Adicionar arquivo
-          </label>
-        </div>
       </div>
     </div>
 
@@ -1137,27 +1095,31 @@
     </div>`;
   }
 
-  function renderModalComentarios(t) {
-    const comments = (t.comments || []).slice().reverse();
-    const me = currentUsername();
+  function renderModalAnexos(t) {
+    const list = t.attachments || [];
     return `
-    <div style="display:flex;flex-direction:column;height:calc(96vh - 180px);">
-      <div style="flex:1;overflow-y:auto;padding-bottom:12px;">
-        ${comments.length===0 ? `<div style="text-align:center;color:#94a3b8;padding:40px 0;"><i class="ph ph-chat-dots" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i>Nenhum comentário ainda.</div>` : ''}
-        ${comments.map(c => {
-          const isMe = c.author === me;
-          return `<div style="display:flex;gap:10px;margin-bottom:14px;${isMe?'flex-direction:row-reverse;':''}">  
-            <img src="${c.authorPhoto||''}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;background:#e2e8f0;flex-shrink:0;" onerror="this.style.visibility='hidden'">
-            <div style="max-width:72%;">
-              <div style="background:${isMe?'#f97316':'#f1f5f9'};color:${isMe?'#fff':'#1e293b'};border-radius:${isMe?'12px 2px 12px 12px':'2px 12px 12px 12px'};padding:10px 14px;font-size:0.85rem;line-height:1.5;word-break:break-word;">${c.text}</div>
-              <div style="font-size:0.68rem;color:#94a3b8;margin-top:3px;text-align:${isMe?'right':'left'};">${c.authorName||c.author} · ${formatDate(c.time)}</div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="border-top:1px solid #f1f5f9;padding-top:12px;flex-shrink:0;display:flex;gap:10px;align-items:flex-end;">
-        <textarea id="sac-comment-input" rows="2" placeholder="Escreva um comentário..." style="flex:1;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:none;outline:none;font-family:inherit;"></textarea>
-        <button class="sac-btn sac-btn-primary" onclick="SAC.addComment()" style="padding:9px 18px;white-space:nowrap;"><i class="ph ph-paper-plane-tilt"></i> Enviar</button>
+    <div>
+      ${list.length?`
+      ${list.map(a=>`
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <i class="ph ph-file-text" style="font-size:1.2rem;color:#64748b;flex-shrink:0;"></i>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">
+            ${a.url ? `<a href="${a.url}" target="_blank" style="color:#1e293b;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">` : ''}
+            ${a.originalName||a.name||a.filename||'Arquivo'}
+            ${a.url ? `</a>` : ''}
+          </div>
+          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
+        </div>
+        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
+      </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum arquivo anexado.</div>`}
+      <div style="margin-top:16px;background:#fff;border:1.5px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
+        <i class="ph ph-upload-simple" style="font-size:1.5rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>
+        <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
+          <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
+          Selecionar arquivos para upload (serão enviados na hora)
+        </label>
+        <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">PDF, imagens, documentos</div>
       </div>
     </div>`;
   }
@@ -1229,7 +1191,7 @@
       ${isAguard?`
       <div class="sac-field">
         <label>Setor Demandado <span style="color:#dc2626">*</span></label>
-        <select id="trans-sector" onchange="_sacFilterUsersByDept(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
+        <select id="trans-sector" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
           <option value="Logística">Logística</option>
           <option value="Comercial">Comercial</option>
           <option value="Financeiro">Financeiro</option>
@@ -1237,25 +1199,12 @@
       </div>
       <div class="sac-field">
         <label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
-        <div style="position:relative;">
-          <div style="display:flex;align-items:center;gap:8px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;background:#fff;">
-            <img id="trans-assigned-photo" src="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;flex-shrink:0;" onerror="this.style.display='none'">
-            <input id="trans-user-search" type="text" placeholder="Digite para filtrar usuários..." autocomplete="off"
-              oninput="_sacFilterUsersBySearch(this.value)"
-              onfocus="document.getElementById('trans-user-dropdown').style.display='block'"
-              style="flex:1;border:none;outline:none;font-size:0.85rem;background:transparent;">
-          </div>
-          <input type="hidden" id="trans-assigned-user" value="">
-          <div id="trans-user-dropdown" style="display:none;position:absolute;z-index:200;width:100%;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 6px 24px rgba(0,0,0,0.13);">
-            ${(pt.usersList||[]).filter(u=>u.ativo).map(u=>`
-            <div class="sac-user-opt" data-username="${u.username}" data-name="${u.nome}" data-photo="${u.foto_colaborador||''}" data-dept="${u.departamento||''}"
-              onclick="_sacSelectUser(this)"
-              style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;"
-              onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
-              <img src="${u.foto_colaborador||''}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;background:#e2e8f0;flex-shrink:0;" onerror="this.style.visibility='hidden'">
-              <div><div style="font-weight:600;font-size:0.85rem;color:#1e293b;">${u.nome}</div><div style="font-size:0.72rem;color:#94a3b8;">${u.departamento||''}</div></div>
-            </div>`).join('')}
-          </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src = this.options[this.selectedIndex].dataset.photo || ''; document.getElementById('trans-assigned-photo').style.display = this.options[this.selectedIndex].dataset.photo ? 'block' : 'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;">
+            <option value="">Selecione um usuário...</option>
+            ${(pt.usersList||[]).filter(u => u.ativo).map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador || ''}" data-id="${u.id}">${u.nome}</option>`).join('')}
+          </select>
+          <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'">
         </div>
       </div>`:''}
 
@@ -1299,19 +1248,21 @@
   function getFilteredTickets() {
     const s = _searchTerm.toLowerCase();
     const cu = window.currentUser;
-    const isTopAdmin = cu && (cu.role === 'Diretoria' || cu.role === 'Administrador' ||
-      (cu.departamento && cu.departamento.toLowerCase() === 'diretoria') ||
-      (cu.grupo_nome && cu.grupo_nome.toLowerCase() === 'diretoria'));
+    const canSeeAll = window.hasPermission ? window.hasPermission('sac', 'visualizar') : true;
+    const canSeeAssigned = window.hasPermission ? window.hasPermission('sac-atribuidos', 'visualizar') : false;
+
+    // Identifica quais departamentos o usuário atual gerencia (via tela Gestão de Departamentos)
+    const currUsername = currentUsername();
+    const currNome = (cu ? (cu.nome || '') : '').toLowerCase();
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
-    
-    const currUsername = currentUsername().toLowerCase();
-    const currName = (cu ? cu.nome || '' : '').toLowerCase();
-    
-    // Check if current user is manager of any department in _globalDepartamentos
     const myManagedDepts = _globalDepartamentos
-      .filter(d => ((d.responsavel_id||'').toLowerCase() === currUsername) || 
-                   ((d.responsavel_nome||'').toLowerCase().includes(currUsername) || (currName && (d.responsavel_nome||'').toLowerCase().includes(currName))))
-      .map(d => (d.nome||'').toLowerCase());
+      .filter(d => {
+        const respId = (d.responsavel_id || '').toString().toLowerCase();
+        const respNome = (d.responsavel_nome || '').toLowerCase();
+        return respId === currUsername.toLowerCase() ||
+               (currNome && respNome && respNome.includes(currNome));
+      })
+      .map(d => (d.nome || '').trim());
 
     return _tickets.filter(t => {
       const matchSearch = !s ||
@@ -1321,22 +1272,19 @@
         (t.cnpjCpf||'').includes(s) ||
         (t.occurrences||[]).some(o => o.name.toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
-      
-      let matchPermission = true;
-      if (!isTopAdmin && window.hasPermission && !window.hasPermission('sac', 'visualizar')) {
-        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currentUsername()) ||
-                           (t.commercialTask && t.commercialTask.assignedTo === currentUsername()) ||
-                           (t.financialTask && t.financialTask.assignedTo === currentUsername());
-        
-        // Gestor vê todos os SACs que têm tarefa do departamento que ele é responsável
-        const isManagerOfTicket = myManagedDepts.some(dept => {
-          const taskKey = Object.keys(deptMap).find(k => k.toLowerCase() === dept);
-          return taskKey && t[deptMap[taskKey]];
-        });
 
-        matchPermission = isAssigned || isManagerOfTicket;
+      let matchPermission = canSeeAll;
+      if (!canSeeAll) {
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currUsername) ||
+                           (t.commercialTask && t.commercialTask.assignedTo === currUsername) ||
+                           (t.financialTask && t.financialTask.assignedTo === currUsername);
+        const isManagerOfTicket = myManagedDepts.some(dept => {
+          const taskKey = deptMap[dept];
+          return taskKey && t[taskKey];
+        });
+        matchPermission = isAssigned || (canSeeAssigned && isManagerOfTicket);
       }
-      
+
       return matchSearch && matchType && matchPermission;
     });
   }
@@ -1621,25 +1569,6 @@
         showToast('Erro ao enviar os arquivos', 'error');
       }
     },
-    addComment() {
-      const t = _selectedTicket;
-      if (!t) return;
-      const inp = document.getElementById('sac-comment-input');
-      const text = inp ? inp.value.trim() : '';
-      if (!text) { showToast('Escreva um comentário antes de enviar.','warning'); return; }
-      const cu = window.currentUser;
-      const comment = {
-        id: 'cmt-' + Date.now(),
-        text,
-        author: currentUsername(),
-        authorName: cu ? (cu.nome || cu.name || currentUsername()) : currentUsername(),
-        authorPhoto: cu ? (cu.foto_colaborador || cu.foto || '') : '',
-        time: new Date().toISOString()
-      };
-      t.comments = [...(t.comments || []), comment];
-      updateTicket(t);
-      showToast('Comentário enviado!','success');
-    },
     removeAttachment(r2Key) {
       const t = _selectedTicket;
       if (!t) return;
@@ -1695,11 +1624,10 @@
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
 
       if (isAguard) {
-        const hiddenUser = document.getElementById('trans-assigned-user');
-        const assignedUsername = hiddenUser?.value || '';
-        const searchInput = document.getElementById('trans-user-search');
-        const assignedUserNome = searchInput?.dataset.selectedName || searchInput?.value || '';
-        const assignedUserPhoto = searchInput?.dataset.selectedPhoto || '';
+        const userSelect = document.getElementById('trans-assigned-user');
+        const assignedUsername = userSelect?.value || '';
+        const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
+        const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
         
         if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
@@ -1761,70 +1689,6 @@
     // Fechar modal overlay clicando fora
     const ov = document.getElementById('sac-modal-overlay');
     if (ov) ov.onclick = (e) => { if (e.target===ov) SAC.closeModal(e); };
-    // Fechar dropdown de usuário ao clicar fora
-    document.addEventListener('click', (e) => {
-      const dd = document.getElementById('trans-user-dropdown');
-      if (dd && !dd.contains(e.target) && e.target.id !== 'trans-user-search') {
-        dd.style.display = 'none';
-      }
-    });
   }
 
 })();
-
-// ── HELPERS GLOBAIS PARA SELEÇÃO DE USUÁRIO NO MODAL DE TRANSIÇÃO ──
-window._sacFilterUsersByDept = function(dept) {
-  const opts = document.querySelectorAll('#trans-user-dropdown .sac-user-opt');
-  opts.forEach(opt => {
-    const optDept = opt.dataset.dept || '';
-    const matches = !dept || optDept.toLowerCase().includes(dept.toLowerCase());
-    opt.style.display = matches ? 'flex' : 'none';
-  });
-  // Reset selection
-  const hidden = document.getElementById('trans-assigned-user');
-  const search = document.getElementById('trans-user-search');
-  const photo = document.getElementById('trans-assigned-photo');
-  if (hidden) hidden.value = '';
-  if (search) { search.value = ''; delete search.dataset.selectedName; delete search.dataset.selectedPhoto; }
-  if (photo) photo.style.display = 'none';
-  const dd = document.getElementById('trans-user-dropdown');
-  if (dd) dd.style.display = 'block';
-};
-
-window._sacFilterUsersBySearch = function(q) {
-  const opts = document.querySelectorAll('#trans-user-dropdown .sac-user-opt');
-  const sector = document.getElementById('trans-sector')?.value || '';
-  const search = q.toLowerCase();
-  opts.forEach(opt => {
-    const name = (opt.dataset.name || '').toLowerCase();
-    const dept = (opt.dataset.dept || '').toLowerCase();
-    const matchSearch = !search || name.includes(search);
-    const matchDept = !sector || dept.includes(sector.toLowerCase());
-    opt.style.display = (matchSearch && matchDept) ? 'flex' : 'none';
-  });
-  const dd = document.getElementById('trans-user-dropdown');
-  if (dd) dd.style.display = 'block';
-};
-
-window._sacSelectUser = function(el) {
-  const username = el.dataset.username;
-  const name = el.dataset.name;
-  const photo = el.dataset.photo;
-  const hidden = document.getElementById('trans-assigned-user');
-  const search = document.getElementById('trans-user-search');
-  const photoEl = document.getElementById('trans-assigned-photo');
-  const dd = document.getElementById('trans-user-dropdown');
-  if (hidden) hidden.value = username;
-  if (search) {
-    search.value = name;
-    search.dataset.selectedName = name;
-    search.dataset.selectedPhoto = photo;
-  }
-  if (photoEl && photo) {
-    photoEl.src = photo;
-    photoEl.style.display = 'block';
-  } else if (photoEl) {
-    photoEl.style.display = 'none';
-  }
-  if (dd) dd.style.display = 'none';
-};
