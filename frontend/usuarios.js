@@ -572,7 +572,7 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'dashboard', 'colaboradores-total', 'colaboradores-parcial', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa',
+                    'admissao', 'integracao', 'faculdade', 'rh-agenda', 'recibos', 'pagamentos-massa',
                     'rh-logistica-sinistros', 'rh-logistica-multas'
                 ]
             },
@@ -621,7 +621,7 @@ const MENU_HIERARQUIA = [
                 titulo: 'Telas',
                 telas: [
                     'usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital',
-                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes'
+                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
                 ]
             }
         ]
