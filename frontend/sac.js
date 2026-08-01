@@ -575,7 +575,7 @@
       ${anyPending ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#854d0e;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendência ${hasPendingLog?'Logística':hasPendingCom?'Comercial':'Financeiro'}</div>` : ''}
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
-        <span style="font-size:0.7rem;color:#475569;font-weight:600;">Resp: ${assignedUser}</span>
+        <span style="font-size:0.7rem;color:#475569;font-weight:600;">${assignedUser}</span>
       </div>` : ''}
       ${showCL ? `<div style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
         <i class="ph ph-check-square" style="color:#15803d;"></i>
@@ -1334,7 +1334,7 @@
       } catch (e) { console.error('Erro ao buscar usuarios:', e); }
     }
     _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId, usersList };
-    _transForm = { nextSteps:'', obs:'', sector:'Logistica', closingReason:'Concluido', checklistJustification:'', closingAttachments:[] };
+    _transForm = { nextSteps:'', obs:'', sector:'Logística', closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
     renderTransModal();
   }
 
@@ -1343,32 +1343,32 @@
     ov.style.display = 'flex';
     const pt = _pendingTransition;
     const ticket = _tickets.find(t => t.id === pt.ticketId);
-    const isClosing = pt.targetStageId === 'encerrado';
+    const isClosing  = pt.targetStageId === 'encerrado';
     const isAguard  = pt.targetStageId === 'aguardando_setores';
     const cl = ticket ? getChecklist(ticket) : [];
     const hasUnchecked = cl.some(i => !i.checked);
-    const sectorOpts = ['Logistica','Comercial','Financeiro'];
+    const sectorOpts = ['Logística','Comercial','Financeiro'];
     ov.innerHTML = '<div class="sac-modal sac-animated" style="width:500px;max-width:95vw;padding:24px;" onclick="event.stopPropagation()">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
-        '<div><div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Transicao de Etapa</div>' +
-        '<h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">' + pt.srcName + ' &rarr; ' + pt.tgtName + '</h3></div>' +
+        '<div><div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Transição de Etapa</div>' +
+        '<h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">' + pt.srcName + ' → ' + pt.tgtName + '</h3></div>' +
         '<button onclick="SAC.cancelTransition()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;">&times;</button>' +
       '</div>' +
       (isAguard ?
         `<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>
-        <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logistica">Logistica</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>
-        <div class="sac-field"><label>Usuario Atribuido <span style="color:#dc2626">*</span></label>
-        <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuario...</option></select>
+        <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logística">Logística</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>
+        <div class="sac-field"><label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuário...</option></select>
         <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'"></div></div>` : '') +
       (isClosing ?
-        `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluido</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
+        `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluído</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
         <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
-        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist nao foram concluidos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
-        `<div class="sac-field"><label>Proximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que sera feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
-        <div class="sac-field"><label>Observacao (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informacao adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`) +
-      `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transicao</button></div>
+        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
+        `<div class="sac-field"><label>Próximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
+        <div class="sac-field"><label>Observação (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informação adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`) +
+      `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
       </div>`;
-    if (isAguard) setTimeout(() => SAC.filterTransUsers('Logistica'), 0);
+    if (isAguard) setTimeout(() => SAC.filterTransUsers('Logística'), 0);
   }
 
   // ── FILTRAGEM ─────────────────────────────────────────────────
@@ -1430,11 +1430,15 @@
         const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currUsername) ||
                            (t.commercialTask && t.commercialTask.assignedTo === currUsername) ||
                            (t.financialTask && t.financialTask.assignedTo === currUsername);
+        const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user === currUsername;
+        const wasEverAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currUsername) ||
+                                (t.commercialTask && t.commercialTask.assignedTo === currUsername) ||
+                                (t.financialTask && t.financialTask.assignedTo === currUsername);
         const isManagerOfTicket = myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
         });
-        matchPermission = isAssigned || (canSeeAssigned && isManagerOfTicket);
+        matchPermission = isAssigned || wasEverAssigned || isCreator || (canSeeAssigned && isManagerOfTicket);
       }
 
       return matchSearch && matchType && matchUrgent && matchDate && matchPermission;
@@ -1598,6 +1602,13 @@
         });
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
+        // Notificar Rafaela sobre novo chamado
+        fetch('/api/sac/notificar-rafaela', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ protocol: proto, client: newTicket.clientName })
+        }).catch(e => console.error(e));
+
         _tickets.unshift(newTicket);
         SAC.closeWizard();
         showToast(`Chamado ${proto} criado com sucesso!`,'success');
@@ -1623,7 +1634,7 @@
       const t = _selectedTicket;
       if (!t || t.stage === targetId) return;
       const gate = checkGate(t, targetId);
-      if (gate) { alert(`Bloqueio: Pend├¬ncia ${gate.sector} n├úo conclu├¡da.\n${gate.task}`); renderDetailModal(); return; }
+      if (gate) { alert(`Bloqueio: Pendência ${gate.sector} não concluída.\n${gate.task}`); renderDetailModal(); return; }
       openTransitionModal(t.id, targetId);
     },
     changeTaskAssignment(key, newUsername) {
@@ -1631,6 +1642,7 @@
       if (!t || !t[key]) return;
       const usersList = window._sacUsersList || [];
       const user = usersList.find(u => (u.username||u.login||u.email) === newUsername);
+      const previousAssignee = t[key].assignedTo;
       t[key] = {
         ...t[key],
         assignedTo: newUsername || null,
@@ -1638,7 +1650,23 @@
         assignedToPhoto: user ? (user.foto||user.photo||'') : ''
       };
       updateTicket(t);
-      showToast(`Atribui├º├úo de ${key.replace('Task','')} atualizada.`, 'success');
+      showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
+      // Notifica o usuário atribuído por e-mail + popup se houve mudança de atribuicão
+      if (newUsername && newUsername !== previousAssignee) {
+        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+        fetch('/api/sac/notificar-atribuicao', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketId: t.id,
+            protocol: t.protocol,
+            clientName: t.clientName,
+            setor: key.replace('Task',''),
+            assignedUsername: newUsername,
+            assignedUserNome: user ? (user.nome||user.name||user.username) : newUsername
+          })
+        }).catch(e => console.error('[SAC] Erro ao notificar atribuicao:', e));
+      }
     },
     deleteTicket(id) {
       if (!confirm('Excluir esta OS permanentemente?')) return;
@@ -1648,20 +1676,20 @@
         .then(() => {
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS exclu├¡da com sucesso.','warning');
+          showToast('OS excluída com sucesso.','warning');
           renderAll();
         })
         .catch(() => {
           // Fallback: remove local mesmo que API falhe
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS exclu├¡da (modo local).','warning');
+          showToast('OS excluída (modo local).','warning');
           renderAll();
         });
     },
     removeOccurrence(idx) {
       const t = _selectedTicket;
-      if (!t || t.occurrences.length<=1) { showToast('M├¡nimo de 1 ocorr├¬ncia.','warning'); return; }
+      if (!t || t.occurrences.length<=1) { showToast('Mínimo de 1 ocorrência.','warning'); return; }
       t.occurrences.splice(idx,1);
       updateTicket(t);
     },
@@ -1670,8 +1698,8 @@
       if (!t) return;
       const sel = document.getElementById('modal-occ-select');
       const note = document.getElementById('modal-occ-note');
-      if (!sel||!sel.value) { showToast('Selecione uma ocorr├¬ncia.','warning'); return; }
-      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('Ocorr├¬ncia j├í cadastrada.','warning'); return; }
+      if (!sel||!sel.value) { showToast('Selecione uma ocorrência.','warning'); return; }
+      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('Ocorrência já cadastrada.','warning'); return; }
       t.occurrences.push({ name:sel.value, note:(note&&note.value)||'', images:[] });
       if (note) note.value='';
       updateTicket(t);
@@ -1685,11 +1713,11 @@
       const isRedirect = t.stage === 'aguardando_setores';
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
-      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} resolvida. OS movida para Respondido.`, user }); }
-      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} resolvida: "${feedback}"`, user }); }
+      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida. OS movida para Respondido.`, user }); }
+      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
       if (isRedirect) { showToast(`OS ${t.protocol} respondida! Movida para Respondido.`,'warning'); }
-      else { showToast('Pend├¬ncia marcada como resolvida!','success'); }
+      else { showToast('Pendência marcada como resolvida!','success'); }
     },
     reopenTask(key) {
       const t = _selectedTicket;
@@ -1698,9 +1726,9 @@
       if (!reason||!reason.trim()) return;
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:false, feedback:'', history:[...(t[key].history||[]),{type:'reopen',time:new Date().toISOString(),feedback:reason,user}] };
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} reaberta: "${reason}"`, user });
+      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} reaberta: "${reason}"`, user });
       updateTicket(t);
-      showToast('Pend├¬ncia reaberta. Avan├ºo bloqueado.','warning');
+      showToast('Pendência reaberta. Avanço bloqueado.','warning');
     },
     saveCostCenter() {
       const t = _selectedTicket;
@@ -1713,16 +1741,16 @@
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return; }
       const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:billing };
       t.costCenters = [...(t.costCenters||[]), cc];
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} ÔÇö ${formatBRL(valor)}`, user:currentUsername() });
+      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} — ${formatBRL(valor)}`, user:currentUsername() });
       updateTicket(t);
-      showToast('Lan├ºamento adicionado!','success');
+      showToast('Lançamento adicionado!','success');
     },
     removeCostCenter(ccId) {
       const t = _selectedTicket;
       if (!t) return;
       t.costCenters = (t.costCenters||[]).filter(c=>c.id!==ccId);
       updateTicket(t);
-      showToast('Lan├ºamento removido.','warning');
+      showToast('Lançamento removido.','warning');
     },
     async addAttachments(files) {
       const t = _selectedTicket;
@@ -1833,10 +1861,10 @@
       let _idx = idx;
       const renderImg = () => {
         overlay.innerHTML = `
-          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">Ô£ò</button>
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">ÔÇ╣</button>`:''}
+          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">✕</button>
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">❮</button>`:''}
           <img src="${imgs[_idx].url}" style="max-width:90vw;max-height:88vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 48px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">ÔÇ║</button>`:''}
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">❯</button>`:''}
           <div style="position:absolute;bottom:16px;color:#94a3b8;font-size:0.78rem;">${_idx+1} / ${imgs.length}</div>`;
       };
       SAC._viewerNav = (dir) => { _idx = (_idx+dir+imgs.length)%imgs.length; renderImg(); };
@@ -1861,21 +1889,21 @@
 
       let nextSteps  = (document.getElementById('trans-next')?.value||'').trim();
       let obs        = (document.getElementById('trans-obs')?.value||'').trim();
-      let sector     = document.getElementById('trans-sector')?.value || 'Log├¡stica';
-      let closeReason= document.getElementById('trans-closing-reason')?.value || 'Conclu├¡do';
+      let sector     = document.getElementById('trans-sector')?.value || 'Logística';
+      let closeReason= document.getElementById('trans-closing-reason')?.value || 'Concluído';
       let clJust     = (document.getElementById('trans-cl-just')?.value||'').trim();
 
       if (isClosing) {
-        if (!obs) { showToast('O resumo de encerramento ├® obrigat├│rio.','warning'); return; }
-        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto ├® obrigat├│ria.','warning'); return; }
-        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (m├¡n. 10 caracteres).','warning'); return; }
+        if (!obs) { showToast('O resumo de encerramento é obrigatório.','warning'); return; }
+        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
+        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
       } else {
-        if (!nextSteps) { showToast('Os pr├│ximos passos s├úo obrigat├│rios.','warning'); return; }
+        if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
 
       let logNotes = isClosing
         ? `Encerramento: ${closeReason}. Resumo: "${obs}"` + (hasUnchecked?` | Justificativa checklist: "${clJust}"`:'' )
-        : `${pt.srcName} ÔåÆ ${pt.tgtName}. Pr├│ximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
+        : `${pt.srcName} → ${pt.tgtName}. Próximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
 
       ticket.stage = pt.targetStageId;
       ticket.nextSteps = isClosing ? `Encerrado: ${closeReason}` : nextSteps;
