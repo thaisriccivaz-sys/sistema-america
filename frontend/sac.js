@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // MÓDULO: SAC — Portal de Ocorrências (Kanban de Chamados)
 // Adaptado de: kanban-flow prototype (React → Vanilla JS)
 // ============================================================
@@ -1739,7 +1739,7 @@
     },
 
     // ── filterTransUsers: busca colaboradores por departamento na tabela colaboradores (HR)
-    // Inclui gestora Beatriz, Thaynara (afastada), Caroline e outros sem conta de sistema.
+    // Inclui gestora, afastados e outros sem conta de sistema via endpoint dedicado.
     filterTransUsers(sector) {
       const pt = _pendingTransition;
       if (!pt) return;
@@ -1754,6 +1754,11 @@
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(lista => {
         const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+        if (!lista || lista.length === 0) {
+          sel.innerHTML = '<option value="">Nenhum colaborador encontrado para este setor</option>';
+          if (photo) { photo.src = ''; photo.style.display = 'none'; }
+          return;
+        }
         sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
           lista.map(u => {
             const val = u.username || normalizeId(u.nome);
@@ -1764,14 +1769,24 @@
         if (photo) { photo.src = ''; photo.style.display = 'none'; }
       })
       .catch(err => {
+        // Fallback local: usa lista de usuários carregada na inicialização, filtragem bidirecional
         console.warn('[SAC] Erro ao buscar colaboradores por setor, usando fallback:', err);
-        const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const deptKey = normalizeStr(sector);
-        const allUsers = pt.usersList || [];
-        let filtered = allUsers.filter(u => u.ativo && normalizeStr(u.departamento||'').includes(deptKey));
-        if (filtered.length === 0) filtered = allUsers.filter(u => u.ativo);
-        sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
-          filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
+        const allUsers = window._sacUsersList || pt.usersList || [];
+        // Filtragem bidirecional: departamento do usuário contém o setor OU setor contém o departamento
+        const filtered = allUsers.filter(u => {
+          if (!u.ativo) return false;
+          const uDept = normalizeStr(u.departamento || '');
+          return uDept.includes(deptKey) || deptKey.includes(uDept);
+        });
+        if (filtered.length === 0) {
+          // Não retornar todos os usuários — exibir aviso em vez disso
+          sel.innerHTML = `<option value="">Nenhum colaborador encontrado para "${sector}"</option>`;
+        } else {
+          sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
+            filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
+        }
         if (photo) { photo.src = ''; photo.style.display = 'none'; }
       });
     },

@@ -27819,27 +27819,34 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const setorNorm = norm(setor);
 
+    // Busca TODOS os colaboradores (exceto desligados) para filtragem e busca do gestor
     db.all(`SELECT id, nome_completo, cargo, departamento, status, foto_base64, foto_path
             FROM colaboradores
             WHERE LOWER(status) NOT LIKE '%desligado%'
-              AND LOWER(status) NOT LIKE '%iniciado%'
-            ORDER BY nome_completo ASC`, [], (errC, colabs) => {
+            ORDER BY nome_completo ASC`, [], (errC, todosColabs) => {
         if (errC) return res.status(500).json({ error: errC.message });
 
-        // Filtra colaboradores cujo departamento bate com o setor solicitado
-        const filtered = (colabs || []).filter(c => norm(c.departamento).includes(setorNorm));
+        // Filtragem bidirecional: pega colaboradores cujo departamento contém o setor ou vice-versa
+        const filtered = (todosColabs || []).filter(c => {
+            const deptNorm = norm(c.departamento);
+            return deptNorm.includes(setorNorm) || setorNorm.includes(deptNorm);
+        });
 
         db.all(`SELECT * FROM departamentos ORDER BY nome ASC`, [], (errD, depts) => {
             if (errD) return res.status(500).json({ error: errD.message });
 
-            // Busca o gestor do departamento pelo responsavel_id (pode ser username ou id)
-            const dept = (depts || []).find(d => norm(d.nome).includes(setorNorm));
+            // Busca do departamento com match bidirecional
+            const dept = (depts || []).find(d => {
+                const dNorm = norm(d.nome);
+                return dNorm.includes(setorNorm) || setorNorm.includes(dNorm);
+            });
 
             db.all(`SELECT id, username, nome, email, departamento, ativo, grupo_permissao_id FROM usuarios`, [], (errU, usuarios) => {
                 if (errU) return res.status(500).json({ error: errU.message });
 
-                // Mapeia cada colaborador para o objeto de resposta, tentando associar um usuario pelo nome
                 const normNome = n => norm(n);
+
+                // Mapeia colaboradores filtrados com username quando disponível
                 const result = filtered.map(c => {
                     const uByNome = (usuarios || []).find(u =>
                         normNome(u.nome) === normNome(c.nome_completo) ||
@@ -27858,30 +27865,41 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                 });
 
                 // Adiciona o gestor do departamento no topo, se não estiver já na lista
-                if (dept && dept.responsavel_id) {
-                    const gestorId = String(dept.responsavel_id);
-                    // Tenta achar o gestor nos usuarios pelo id ou username
-                    const gestorUser = (usuarios || []).find(u =>
-                        String(u.id) === gestorId || norm(u.username) === norm(gestorId)
-                    );
-                    // Tenta achar nos colaboradores pelo nome do usuario ou pelo responsavel_nome
-                    const gestorNome = gestorUser ? gestorUser.nome : (dept.responsavel_nome || '');
-                    const gestorColab = gestorNome && (colabs || []).find(c =>
+                if (dept && (dept.responsavel_id || dept.responsavel_nome)) {
+                    const gestorId = dept.responsavel_id ? String(dept.responsavel_id) : null;
+
+                    // Tenta encontrar o gestor na tabela usuarios pelo id ou username
+                    const gestorUser = gestorId
+                        ? (usuarios || []).find(u =>
+                            String(u.id) === gestorId || norm(u.username) === norm(gestorId)
+                        )
+                        : null;
+
+                    // Nome do gestor: prioridade = usuario.nome > responsavel_nome do departamento > gestorId
+                    const gestorNome = gestorUser
+                        ? gestorUser.nome
+                        : (dept.responsavel_nome || '');
+
+                    // Busca o colaborador gestor em TODOS os colaboradores (incluindo afastados)
+                    // para garantir que apareça mesmo com status especial
+                    const gestorColab = gestorNome && (todosColabs || []).find(c =>
                         normNome(c.nome_completo) === normNome(gestorNome) ||
                         normNome(c.nome_completo).includes(normNome(gestorNome)) ||
                         normNome(gestorNome).includes(normNome(c.nome_completo))
                     );
 
+                    // Verifica se o gestor já está na lista de resultado
                     const alreadyIn = result.some(r =>
                         (gestorUser && r.username === gestorUser.username) ||
-                        (gestorColab && r.id === gestorColab.id)
+                        (gestorColab && r.id === gestorColab.id) ||
+                        (gestorNome && normNome(r.nome) === normNome(gestorNome))
                     );
 
-                    if (!alreadyIn) {
+                    if (!alreadyIn && (gestorNome || gestorId)) {
                         const gestorEntry = {
                             id: gestorColab ? gestorColab.id : (gestorUser ? gestorUser.id : null),
-                            nome: gestorNome || dept.responsavel_nome || gestorId,
-                            cargo: gestorColab ? gestorColab.cargo : 'Gestor',
+                            nome: gestorNome || gestorId,
+                            cargo: gestorColab ? gestorColab.cargo : (gestorUser ? 'Gestor(a)' : 'Gestor(a)'),
                             departamento: setor,
                             status: gestorColab ? gestorColab.status : 'Ativo',
                             username: gestorUser ? gestorUser.username : null,

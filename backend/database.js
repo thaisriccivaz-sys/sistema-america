@@ -1518,19 +1518,14 @@ db.run("PRAGMA foreign_keys = ON;");
                     logistics_task TEXT,
                     commercial_task TEXT,
                     financial_task TEXT,
-                    db.run("ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0", () => {});
-                }
-            });
-                    checklist TEXT,
-                    logistics_task TEXT,
-                    commercial_task TEXT,
-                    financial_task TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             `, (err) => {
                 if (!err) console.log('[SAC] Tabela sac_tickets OK.');
             });
+            // Migration: garantir coluna is_urgent caso tabela já existia sem ela
+            db.run(`ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0`, () => {});
 
             // ── Auto-fix: corrigir cargos com nomes corrompidos (encoding Latin1→UTF8) ──────────────────────────────
             // Cargos criados via import com encoding errado ficam com "????" no lugar de caracteres especiais.
