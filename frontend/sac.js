@@ -145,14 +145,19 @@
 
   // ── PERSISTÊNCIA ─────────────────────────────────────────────
   function saveTickets() {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(_tickets)); } catch(e) {}
+    // Agora é feito via API no updateTicket / wizSubmit
   }
 
-  function loadTickets() {
+  async function loadTickets() {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) { _tickets = JSON.parse(raw); return; }
-    } catch(e) {}
+      const res = await fetch('/api/sac/tickets', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        _tickets = await res.json();
+        return;
+      }
+    } catch(e) { console.error('[SAC] Erro ao carregar chamados', e); }
     _tickets = [];
   }
 
@@ -679,6 +684,9 @@
       _wiz.clientName = _clienteLimpo || os.cliente || '';
       _wiz.equipment  = equipFinal;
       _wiz.address    = enderCalc;
+      _wiz.contactName = os.responsavel || '';
+      _wiz.contactPhone = os.telefone || '';
+      _wiz.contactEmail = os.email || '';
       _wiz.protocol   = nextProtocol();
       _wiz._protocolLocked = true;
       _wiz._osLinked  = true;
@@ -721,23 +729,19 @@
     const occOptions  = (OCCURRENCES_BY_TYPE[_wiz.typeKey]||[]).map(o => `<option value="${o}" ${_wiz.currentOcc===o?'selected':''}>${o}</option>`).join('');
     const channelOpts = ['WhatsApp','E-mail','Telefone','Presencial'].map(c => `<option ${_wiz.channel===c?'selected':''}>${c}</option>`).join('');
 
-    const steps = ['Dados da OS', 'Contato', 'Ocorrências'];
-
     ov.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:560px;max-width:95vw;padding:28px;position:relative;" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <div class="sac-modal sac-animated" style="width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;position:relative;" onclick="event.stopPropagation()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:sticky;top:-28px;background:#fff;z-index:10;padding:10px 0;border-bottom:1px solid #f1f5f9;">
         <div>
-          <div style="font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Passo ${_wiz.step} de ${steps.length}</div>
-          <h2 style="margin:2px 0 0;font-size:1.1rem;color:#1e293b;">${steps[_wiz.step-1]}</h2>
+          <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Novo Chamado de SAC</h2>
+          <div style="font-size:0.8rem;color:#64748b;">Preencha todas as informações abaixo para abrir a ocorrência.</div>
         </div>
         <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;padding:4px;">✕</button>
       </div>
-      <div class="sac-wiz-step-indicator">
-        ${steps.map((_,i)=>`<div class="sac-wiz-step ${i<_wiz.step?'done':''}"></div>`).join('')}
-      </div>
 
-      ${_wiz.step===1?`
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <!-- SEÇÃO 1: DADOS DA OS -->
+      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <div class="sac-field">
           <label>Protocolo / Nº Chamado</label>
           <input type="text" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
@@ -752,7 +756,7 @@
         <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
         <input type="text" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <div class="sac-field">
           <label>CNPJ / CPF</label>
           <input type="text" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
@@ -766,16 +770,14 @@
         <label>Equipamento <span style="color:#dc2626">*</span></label>
         <input type="text" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
       </div>
-      <div class="sac-field">
+      <div class="sac-field" style="margin-bottom:24px;">
         <label>Endereço / Local</label>
         <input type="text" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
       </div>
-      <div class="sac-field">
-        <label>Tipo de Chamado</label>
-        <select onchange="_sacWiz('typeKey',this.value)">${typeOptions}</select>
-      </div>
-      `:_wiz.step===2?`
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+      <!-- SEÇÃO 2: CONTATO & TIPO -->
+      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;">Informações de Contato</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <div class="sac-field">
           <label>Nome do Contato <span style="color:#dc2626">*</span></label>
           <input type="text" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
@@ -785,27 +787,33 @@
           <input type="text" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
         </div>
       </div>
-      <div class="sac-field">
+      <div class="sac-field" style="margin-bottom:24px;">
         <label>E-mail</label>
         <input type="email" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
       </div>
+
+      <!-- SEÇÃO 3: OCORRÊNCIAS & DESCRIÇÃO -->
+      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #ef4444;padding-left:8px;">Detalhes do Problema</h3>
+      <div class="sac-field">
+        <label>Tipo de Chamado</label>
+        <select onchange="_sacWiz('typeKey',this.value)">${typeOptions}</select>
+      </div>
       <div class="sac-field">
         <label>Descrição / Detalhamento <span style="color:#dc2626">*</span></label>
-        <textarea rows="4" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
+        <textarea rows="3" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
       </div>
-      `:/* step 3 */_wiz.step===3?`
-      <div style="margin-bottom:12px;">
-        <div class="sac-field">
-          <label>Tipo da Ocorrência</label>
+
+      <div style="margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
+        <div class="sac-field" style="margin-bottom:8px;">
+          <label>Especificar Ocorrência (Opcional)</label>
           <select id="wiz-occ-select" onchange="_sacWiz('currentOcc',this.value)">${occOptions}</select>
         </div>
-        <div class="sac-field">
-          <label>Nota / Observação</label>
-          <textarea rows="2" placeholder="Observações adicionais sobre a ocorrência..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
+        <div class="sac-field" style="margin-bottom:8px;">
+          <textarea rows="1" placeholder="Notas sobre a ocorrência específica..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
         </div>
-        <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;"><i class="ph ph-plus"></i> Adicionar Ocorrência à Lista</button>
+        <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;width:100%;"><i class="ph ph-plus"></i> Adicionar Ocorrência à Lista</button>
         <div id="wiz-occ-list">
-          ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;background:#f8fafc;border-radius:8px;">Nenhuma ocorrência adicionada ainda</div>`:
+          ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">Nenhuma ocorrência adicionada</div>`:
           _wiz.occList.map((o,i)=>`
           <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
@@ -816,14 +824,16 @@
           </div>`).join('')}
         </div>
       </div>
-      `:''}
 
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px;">
-        ${_wiz.step>1?`<button class="sac-btn sac-btn-secondary" onclick="SAC.wizStep(-1)"><i class="ph ph-arrow-left"></i> Anterior</button>`:''}
-        ${_wiz.step<3
-          ?`<button class="sac-btn sac-btn-primary" onclick="SAC.wizStep(1)">Próximo <i class="ph ph-arrow-right"></i></button>`
-          :`<button class="sac-btn sac-btn-primary" onclick="SAC.wizSubmit()"><i class="ph ph-check-circle"></i> Criar Chamado</button>`
-        }
+      <!-- SEÇÃO 4: ANEXOS -->
+      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #10b981;padding-left:8px;">Anexos (Fotos / Vídeos / Documentos)</h3>
+      <div class="sac-field" style="margin-bottom:24px;">
+        <input type="file" multiple id="wiz-anexos" accept="image/*,video/*,application/pdf" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;cursor:pointer;">
+        <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Selecione um ou mais arquivos. (Limite recomendado: 30MB)</div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px;">
+        <button id="wiz-submit-btn" class="sac-btn sac-btn-primary" onclick="SAC.wizSubmit()" style="font-size:1.05rem;padding:10px 24px;"><i class="ph ph-check-circle"></i> Criar Chamado</button>
       </div>
     </div>`;
   }
@@ -1056,16 +1066,20 @@
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
         <i class="ph ph-file-text" style="font-size:1.2rem;color:#64748b;flex-shrink:0;"></i>
         <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">${a.name||a.filename||'Arquivo'}</div>
+          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">
+            ${a.url ? `<a href="${a.url}" target="_blank" style="color:#1e293b;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">` : ''}
+            ${a.originalName||a.name||a.filename||'Arquivo'}
+            ${a.url ? `</a>` : ''}
+          </div>
           <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
         </div>
-        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.name||a.filename}')"><i class="ph ph-trash"></i></button>
+        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
       </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum arquivo anexado.</div>`}
       <div style="margin-top:16px;background:#fff;border:1.5px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
         <i class="ph ph-upload-simple" style="font-size:1.5rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>
         <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
           <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
-          Selecionar arquivos para upload
+          Selecionar arquivos para upload (serão enviados na hora)
         </label>
         <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">PDF, imagens, documentos</div>
       </div>
@@ -1257,7 +1271,7 @@
     wizStep(delta){
       if (delta > 0) {
         if (_wiz.step===1 && (!_wiz.clientName.trim()||!_wiz.equipment.trim())) { showToast('Preencha o nome do cliente e o equipamento.','warning'); return; }
-        if (_wiz.step===2 && !_wiz.contactName.trim()) { showToast('Preencha o nome do contato.','warning'); return; }
+        if (_wiz.step===2 && (!_wiz.contactName.trim() || !_wiz.description.trim())) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
       }
       _wiz.step = Math.max(1, Math.min(3, _wiz.step+delta));
       renderWizard();
@@ -1271,43 +1285,82 @@
       renderWizard();
     },
     wizRemoveOcc(i) { _wiz.occList.splice(i,1); renderWizard(); },
-    wizSubmit() {
+    async wizSubmit() {
       if (!_wiz.clientName.trim()||!_wiz.equipment.trim()) { showToast('Dados obrigatórios ausentes.','warning'); return; }
-      if (!_wiz.description.trim()) { showToast('Preencha a descrição do chamado.','warning'); return; }
-      const proto = _wiz.protocol.trim() || nextProtocol();
-      const dupl = _tickets.find(t => t.protocol === proto);
-      if (dupl && !confirm(`Já existe a OS ${proto} (${dupl.clientName}). Criar mesmo assim?`)) return;
-      const user = currentUsername();
-      const now = new Date().toISOString();
-      const newTicket = {
-        id: 'sac-'+Date.now(),
-        protocol: proto,
-        osNumber: _wiz.osNumber.trim(),
-        openDate: now,
-        clientName: _wiz.clientName.trim(),
-        cnpjCpf: _wiz.cnpjCpf.trim(),
-        equipment: _wiz.equipment.trim(),
-        address: _wiz.address.trim(),
-        contactName: _wiz.contactName.trim(),
-        contactPhone: _wiz.contactPhone.trim(),
-        contactEmail: _wiz.contactEmail.trim(),
-        channel: _wiz.channel,
-        typeKey: _wiz.typeKey,
-        occurrences: _wiz.occList.length ? _wiz.occList : [{ name: _wiz.currentOcc||'Ocorrência geral', note: '', images:[] }],
-        description: _wiz.description.trim(),
-        stage: 'abertura',
-        nextSteps: 'Triagem inicial pendente.',
-        timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto. Triagem inicial pendente.', user }],
-        costCenters: [],
-        attachments: [],
-        checklist: [...(CHECKLISTS_BY_TYPE.all||[]),...(CHECKLISTS_BY_TYPE[_wiz.typeKey]||[])].map(text=>({text,checked:false})),
-        logisticsTask:null, commercialTask:null, financialTask:null
-      };
-      _tickets.unshift(newTicket);
-      saveTickets();
-      SAC.closeWizard();
-      showToast(`Chamado ${proto} criado com sucesso!`,'success');
-      renderAll();
+      if (!_wiz.contactName.trim() || !_wiz.description.trim()) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
+
+      const btn = document.getElementById('wiz-submit-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Criando...'; }
+
+      try {
+        const fileInput = document.getElementById('wiz-anexos');
+        let finalAttachments = [];
+        if (fileInput && fileInput.files.length > 0) {
+          const fd = new FormData();
+          for (let f of fileInput.files) fd.append('anexos', f);
+          const uploadRes = await fetch('/api/sac/upload-anexos', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}` },
+            body: fd
+          });
+          if (!uploadRes.ok) throw new Error('Erro no upload de anexos');
+          const uploadData = await uploadRes.json();
+          finalAttachments = uploadData.urls || [];
+        }
+
+        const proto = _wiz.protocol.trim() || nextProtocol();
+        const dupl = _tickets.find(t => t.protocol === proto);
+        if (dupl && !confirm(`Já existe a OS ${proto} (${dupl.clientName}). Criar mesmo assim?`)) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Criar Chamado'; }
+            return;
+        }
+
+        const user = currentUsername();
+        const now = new Date().toISOString();
+        const newTicket = {
+          id: 'sac-'+Date.now(),
+          protocol: proto,
+          osNumber: _wiz.osNumber.trim(),
+          openDate: now,
+          clientName: _wiz.clientName.trim(),
+          cnpjCpf: _wiz.cnpjCpf.trim(),
+          equipment: _wiz.equipment.trim(),
+          address: _wiz.address.trim(),
+          contactName: _wiz.contactName.trim(),
+          contactPhone: _wiz.contactPhone.trim(),
+          contactEmail: _wiz.contactEmail.trim(),
+          channel: _wiz.channel,
+          typeKey: _wiz.typeKey,
+          occurrences: _wiz.occList.length ? _wiz.occList : [{ name: _wiz.currentOcc||'Ocorrência geral', note: '', images:[] }],
+          description: _wiz.description.trim(),
+          stage: 'abertura',
+          nextSteps: 'Triagem inicial pendente.',
+          timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto. Triagem inicial pendente.', user }],
+          costCenters: [],
+          attachments: finalAttachments,
+          checklist: [...(CHECKLISTS_BY_TYPE.all||[]),...(CHECKLISTS_BY_TYPE[_wiz.typeKey]||[])].map(text=>({text,checked:false})),
+          logisticsTask:null, commercialTask:null, financialTask:null
+        };
+
+        const res = await fetch('/api/sac/tickets', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(newTicket)
+        });
+        if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
+
+        _tickets.unshift(newTicket);
+        SAC.closeWizard();
+        showToast(`Chamado ${proto} criado com sucesso!`,'success');
+        renderAll();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao criar chamado. Tente novamente.', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Criar Chamado'; }
+      }
     },
     openDetail(id) { openDetail(id); },
     closeModal(e) {
@@ -1318,10 +1371,7 @@
     },
     setModalTab(tab) {
       _modalTab = tab;
-      const t = _selectedTicket;
-      if (!t) return;
-      const cl = getChecklist(t);
-      document.getElementById('sac-modal-body').innerHTML = renderModalTab(t, cl);
+      renderDetailModal();
     },
     changeStageFromModal(targetId) {
       const t = _selectedTicket;
@@ -1403,19 +1453,37 @@
       updateTicket(t);
       showToast('Lançamento removido.','warning');
     },
-    addAttachments(files) {
+    async addAttachments(files) {
       const t = _selectedTicket;
       if (!t||!files.length) return;
-      Array.from(files).forEach(file => {
-        t.attachments = [...(t.attachments||[]), { name:file.name, size:(file.size/1024).toFixed(0)+' KB', date:new Date().toLocaleDateString('pt-BR') }];
-      });
-      updateTicket(t);
-      showToast(`${files.length} arquivo(s) adicionado(s).`,'success');
+      showToast('Enviando anexos...', 'info');
+      try {
+        const fd = new FormData();
+        for (let f of files) fd.append('anexos', f);
+        const res = await fetch('/api/sac/upload-anexos', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}` },
+          body: fd
+        });
+        if (!res.ok) throw new Error('Erro no upload');
+        const data = await res.json();
+        t.attachments = [...(t.attachments||[]), ...(data.urls||[]).map(a => ({
+          ...a,
+          size: 'KB',
+          date: new Date().toLocaleDateString('pt-BR')
+        }))];
+        updateTicket(t);
+        showToast(`${files.length} arquivo(s) adicionado(s) com sucesso.`,'success');
+      } catch (e) {
+        console.error(e);
+        showToast('Erro ao enviar os arquivos', 'error');
+      }
     },
-    removeAttachment(name) {
+    removeAttachment(r2Key) {
       const t = _selectedTicket;
       if (!t) return;
-      t.attachments = (t.attachments||[]).filter(a=>(a.name||a.filename)!==name);
+      if (!confirm('Deseja realmente remover este anexo?')) return;
+      t.attachments = (t.attachments||[]).filter(a=>(a.r2Key||a.name||a.filename)!==r2Key);
       updateTicket(t);
     },
     toggleChecklist(idx) {
@@ -1504,7 +1572,15 @@
 
   function updateTicket(t) {
     _tickets = _tickets.map(x => x.id===t.id ? t : x);
-    saveTickets();
+    fetch('/api/sac/tickets/'+t.id, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(t)
+    }).catch(e=>console.error('[SAC] Erro salvando OS', e));
+
     if (_selectedTicket && _selectedTicket.id===t.id) {
       _selectedTicket = t;
       renderDetailModal();

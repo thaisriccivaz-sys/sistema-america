@@ -27720,6 +27720,85 @@ app.post('/api/chamados/:id/marcar-lido', authenticateToken, (req, res) => {
     });
 });
 
+// ==========================================
+// MÓDULO SAC (SERVIÇO DE ATENDIMENTO)
+// ==========================================
+
+const sacUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+
+app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 10), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        const urls = [];
+        for (const file of req.files) {
+            const ext = require('path').extname(file.originalname);
+            const r2Key = `sac/anexos/${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+            const publicUrl = await r2.uploadToR2(r2Key, file.buffer, file.mimetype);
+            urls.push({ originalName: file.originalname, r2Key, url: publicUrl });
+        }
+        res.json({ urls });
+    } catch (err) {
+        console.error('[SAC] Erro no upload de anexos:', err);
+        res.status(500).json({ error: 'Erro ao fazer upload dos anexos' });
+    }
+});
+
+app.get('/api/sac/tickets', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM sac_tickets ORDER BY created_at DESC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const parsed = rows.map(r => ({
+            ...r,
+            osNumber: r.os_number, clientName: r.client_name, cnpjCpf: r.cnpj_cpf, contactName: r.contact_name,
+            contactPhone: r.contact_phone, contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps,
+            costCenters: r.cost_centers ? JSON.parse(r.cost_centers) : [],
+            logisticsTask: r.logistics_task ? JSON.parse(r.logistics_task) : null,
+            commercialTask: r.commercial_task ? JSON.parse(r.commercial_task) : null,
+            financialTask: r.financial_task ? JSON.parse(r.financial_task) : null,
+            occurrences: r.occurrences ? JSON.parse(r.occurrences) : [],
+            timeline: r.timeline ? JSON.parse(r.timeline) : [],
+            attachments: r.attachments ? JSON.parse(r.attachments) : [],
+            checklist: r.checklist ? JSON.parse(r.checklist) : []
+        }));
+        res.json(parsed);
+    });
+});
+
+app.post('/api/sac/tickets', authenticateToken, (req, res) => {
+    const t = req.body;
+    db.run(`INSERT INTO sac_tickets (
+        id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
+        contact_name, contact_phone, contact_email, channel, type_key, occurrences,
+        description, stage, next_steps, timeline, cost_centers, attachments, checklist,
+        logistics_task, commercial_task, financial_task
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+        t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
+        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, JSON.stringify(t.occurrences||[]),
+        t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
+        JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null)
+    ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: t.id });
+    });
+});
+
+app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
+    const t = req.body;
+    db.run(`UPDATE sac_tickets SET
+        stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
+        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+    [
+        t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
+        JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), req.params.id
+    ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
 // Run one-time formatting on startup
 setTimeout(() => {
     try {

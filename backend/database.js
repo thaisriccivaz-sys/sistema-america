@@ -1491,6 +1491,39 @@ db.run("PRAGMA foreign_keys = ON;");
                 }
             });
 
+            // Tabela de SAC Tickets
+            db.run(`
+                CREATE TABLE IF NOT EXISTS sac_tickets (
+                    id TEXT PRIMARY KEY,
+                    protocol TEXT NOT NULL,
+                    os_number TEXT,
+                    client_name TEXT NOT NULL,
+                    cnpj_cpf TEXT,
+                    equipment TEXT NOT NULL,
+                    address TEXT,
+                    contact_name TEXT,
+                    contact_phone TEXT,
+                    contact_email TEXT,
+                    channel TEXT,
+                    type_key TEXT,
+                    occurrences TEXT,
+                    description TEXT,
+                    stage TEXT,
+                    next_steps TEXT,
+                    timeline TEXT,
+                    cost_centers TEXT,
+                    attachments TEXT,
+                    checklist TEXT,
+                    logistics_task TEXT,
+                    commercial_task TEXT,
+                    financial_task TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (!err) console.log('[SAC] Tabela sac_tickets OK.');
+            });
+
             // ── Auto-fix: corrigir cargos com nomes corrompidos (encoding Latin1→UTF8) ──────────────────────────────
             // Cargos criados via import com encoding errado ficam com "????" no lugar de caracteres especiais.
             // Esta rotina detecta e remove cargos duplicados corrompidos, mantendo apenas os corretos.
