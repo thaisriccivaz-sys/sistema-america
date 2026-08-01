@@ -869,7 +869,38 @@
       </div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px;">
-        <button id="wiz-submit-btn" class="sac-btn sac    mc.innerHTML = `
+        <button id="wiz-submit-btn" class="sac-btn sac-btn-primary" onclick="SAC.wizSubmit()" style="font-size:1.05rem;padding:10px 24px;"><i class="ph ph-check-circle"></i> Criar Chamado</button>
+      </div>
+    </div>`;
+  }
+
+  window._sacWiz = function(field, val) { _wiz[field] = val; if (field === 'typeKey') { _wiz.currentOcc = (OCCURRENCES_BY_TYPE[val]||[])[0]||''; } };
+
+  // ── MODAL DETALHES ───────────────────────────────────────────
+  function openDetail(id) {
+    _selectedTicket = _tickets.find(t => t.id === id);
+    if (!_selectedTicket) return;
+    _modalTab = 'geral';
+    renderDetailModal();
+  }
+
+  function renderDetailModal() {
+    const t = _selectedTicket;
+    if (!t) return;
+    const ov = document.getElementById('sac-modal-overlay');
+    const mc = document.getElementById('sac-modal-container');
+    ov.style.display = 'block';
+    mc.style.display = 'flex';
+
+    const stage  = PIPELINE_STAGES.find(s=>s.id===t.stage)||{name:t.stage,color:'#64748b'};
+    const type   = TICKET_TYPES[t.typeKey]||{name:t.typeKey,icon:'❓',sla:48};
+    const sla    = getSLADetails(t);
+    const cl     = getChecklist(t);
+    const clChecked = cl.filter(i=>i.checked).length;
+
+    const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
+
+    mc.innerHTML = `
     <div class="sac-modal sac-animated" style="width:98vw;max-width:98vw;height:96vh;max-height:96vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
       <!-- MODAL HEADER -->
       <div style="padding:14px 24px 0;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
