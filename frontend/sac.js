@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // MÓDULO: SAC — Portal de Ocorrências (Kanban de Chamados)
 // Adaptado de: kanban-flow prototype (React → Vanilla JS)
 // ============================================================
@@ -198,7 +198,7 @@
 
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
-    if (!type) return { label: '—', status: 'ok', pct: 100, remaining: 0, isOverdue: false };
+    if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false };
     const opened = new Date(ticket.openDate).getTime();
     const limitMs = type.sla * 3600000;
     const isClosed = ticket.stage === 'concluido' || ticket.stage === 'encerrado';
@@ -210,14 +210,35 @@
     const elapsedMs = endCalc - opened;
     const remainMs = limitMs - elapsedMs;
     const remainH = Math.round((remainMs / 3600000) * 10) / 10;
+    // pct = % remaining (100 = fresh, 0 = just expired)
     let pct = Math.round((remainMs / limitMs) * 100);
     pct = Math.max(0, Math.min(100, pct));
+    // consumedPct = % elapsed (0=fresh, 100+=overdue)
+    const consumedPct = Math.min(100, Math.max(0, 100 - pct));
     const isOverdue = remainMs <= 0;
+    // Label: positive hours remaining or negative hours overdue
+    let label;
+    if (isOverdue) {
+      const overdueH = Math.abs(Math.round((remainMs / 3600000) * 10) / 10);
+      label = `-${overdueH}h`;
+    } else {
+      label = `${remainH}h restantes`;
+    }
+    // Color based on consumed %: 0-40%=green, 40-70%=blue, 70-100%=yellow, overdue=red
+    let barColor;
+    if (isOverdue) barColor = '#dc2626';
+    else if (consumedPct <= 40) barColor = '#15803d';
+    else if (consumedPct <= 70) barColor = '#2563eb';
+    else barColor = '#d97706';
+    const labelColor = isOverdue ? '#dc2626' : consumedPct > 70 ? '#d97706' : consumedPct > 40 ? '#2563eb' : '#15803d';
     return {
       remaining: remainH,
       pct,
+      consumedPct,
       isOverdue,
-      label: isOverdue ? 'Expirado' : `${remainH}h restantes`,
+      label,
+      barColor,
+      labelColor,
       status: isOverdue ? 'danger' : pct < 30 ? 'warning' : 'ok'
     };
   }
@@ -292,9 +313,9 @@
 
       <!-- SEARCH BAR (pipeline only) -->
       <div id="sac-search-bar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-        <div style="position:relative;flex:1;max-width:320px;">
-          <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-          <input id="sac-search" type="text" placeholder="Busca por OS, cliente, equipamento..." style="width:100%;padding:7px 10px 7px 32px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="SAC.onSearch(this.value)">
+        <div style="position:relative;flex:1;max-width:360px;display:flex;align-items:center;">
+          <input id="sac-search" type="text" placeholder="Busca por OS, cliente, equipamento..." style="width:100%;padding:7px 38px 7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="SAC.onSearch(this.value)" onkeydown="if(event.key==='Enter'){SAC.onSearch(document.getElementById('sac-search').value)}">
+          <button onclick="SAC.onSearch(document.getElementById('sac-search').value)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:#1e293b;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'" title="Buscar"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
         </div>
         <select id="sac-filter-type" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;cursor:pointer;" onchange="SAC.onFilterType(this.value)">
           <option value="all">Todos os tipos</option>
@@ -425,9 +446,10 @@
   function renderCard(ticket, stage) {
     const type = TICKET_TYPES[ticket.typeKey] || { name: ticket.typeKey, icon: '❓', sla: 48 };
     const sla = getSLADetails(ticket);
-    const slaColor = sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d';
+    const slaColor = sla.labelColor || (sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d');
 
-    const slaConsumedPct = Math.min(100, Math.max(0, 100 - sla.pct));
+    const slaConsumedPct = sla.consumedPct !== undefined ? sla.consumedPct : Math.min(100, Math.max(0, 100 - sla.pct));
+    const slaBarColor = sla.barColor || slaColor;
 
     const clientShort = ticket.clientName.length > 15
       ? ticket.clientName.substring(0, 15) + '…'
@@ -491,7 +513,7 @@
         <span>Checklist: ${clChecked}/${cl.length}</span>
         <div class="sac-sla-bar" style="flex:1;"><div class="sac-sla-fill" style="width:${cl.length?Math.round(clChecked/cl.length*100):0}%;background:${clChecked===cl.length?'#15803d':'#f97316'};"></div></div>
       </div>` : ''}
-      <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaColor};"></div></div>
+      <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
       <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
         <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
         <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
@@ -1190,26 +1212,22 @@
     </div>`;
   }
 
-  // ── MODAL DE TRANSIÇÃO ────────────────────────────────────────
+  // -- MODAL DE TRANSICAO --------------------------------------------------
   async function openTransitionModal(ticketId, targetStageId) {
     const ticket = _tickets.find(t => t.id === ticketId);
     if (!ticket) return;
     const src = PIPELINE_STAGES.find(s => s.id === ticket.stage);
     const tgt = PIPELINE_STAGES.find(s => s.id === targetStageId);
-    
-    let usersList = [];
+    let usersList = window._sacUsersList || [];
     if (targetStageId === 'aguardando_setores') {
       try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch('/api/usuarios', { headers: { 'Authorization': Bearer  } });
         if (res.ok) usersList = await res.json();
-      } catch (e) {
-        console.error('Erro ao buscar usuários:', e);
-      }
+      } catch (e) { console.error('Erro ao buscar usuarios:', e); }
     }
-    
     _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId, usersList };
-    _transForm = { nextSteps:'', obs:'', sector:'Logística', closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
+    _transForm = { nextSteps:'', obs:'', sector:'Logistica', closingReason:'Concluido', checklistJustification:'', closingAttachments:[] };
     renderTransModal();
   }
 
@@ -1222,71 +1240,28 @@
     const isAguard  = pt.targetStageId === 'aguardando_setores';
     const cl = ticket ? getChecklist(ticket) : [];
     const hasUnchecked = cl.some(i => !i.checked);
-
-    ov.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:500px;max-width:95vw;padding:24px;" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div>
-          <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Transição de Etapa</div>
-          <h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">${pt.srcName} → ${pt.tgtName}</h3>
-        </div>
-        <button onclick="SAC.cancelTransition()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;">✕</button>
-      </div>
-
-      ${isAguard?`
-      <div class="sac-field">
-        <label>Setor Demandado <span style="color:#dc2626">*</span></label>
-        <select id="trans-sector" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
-          <option value="Logística">Logística</option>
-          <option value="Comercial">Comercial</option>
-          <option value="Financeiro">Financeiro</option>
-        </select>
-      </div>
-      <div class="sac-field">
-        <label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src = this.options[this.selectedIndex].dataset.photo || ''; document.getElementById('trans-assigned-photo').style.display = this.options[this.selectedIndex].dataset.photo ? 'block' : 'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;">
-            <option value="">Selecione um usuário...</option>
-            ${(pt.usersList||[]).filter(u => u.ativo).map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador || ''}" data-id="${u.id}">${u.nome}</option>`).join('')}
-          </select>
-          <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'">
-        </div>
-      </div>`:''}
-
-      ${isClosing?`
-      <div class="sac-field">
-        <label>Motivo de Encerramento <span style="color:#dc2626">*</span></label>
-        <select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
-          <option>Concluído</option>
-          <option>Improcedente</option>
-          <option>Cancelado pelo cliente</option>
-          <option>Outro</option>
-        </select>
-      </div>
-      <div class="sac-field">
-        <label>Resumo do Encerramento <span style="color:#dc2626">*</span></label>
-        <textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
-      </div>
-      ${showChecklistInStage(ticket?.stage||'') && hasUnchecked?`
-      <div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;">
-        <label style="color:#c2410c;">⚠ Justificativa (checklist incompleto) <span style="color:#dc2626">*</span></label>
-        <textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos (min. 10 caracteres)..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
-      </div>`:''}
-      `:`
-      <div class="sac-field">
-        <label>Próximos Passos <span style="color:#dc2626">*</span></label>
-        <textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
-      </div>
-      <div class="sac-field">
-        <label>Observação (opcional)</label>
-        <textarea id="trans-obs" rows="2" placeholder="Informação adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
-      </div>`}
-
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-        <button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button>
-        <button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button>
-      </div>
-    </div>`;
+    const sectorOpts = ['Logistica','Comercial','Financeiro'];
+    ov.innerHTML = '<div class="sac-modal sac-animated" style="width:500px;max-width:95vw;padding:24px;" onclick="event.stopPropagation()">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+        '<div><div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Transicao de Etapa</div>' +
+        '<h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">' + pt.srcName + ' &rarr; ' + pt.tgtName + '</h3></div>' +
+        '<button onclick="SAC.cancelTransition()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;">&times;</button>' +
+      '</div>' +
+      (isAguard ?
+        '<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>' +
+        '<select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logistica">Logistica</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>' +
+        '<div class="sac-field"><label>Usuario Atribuido <span style="color:#dc2626">*</span></label>' +
+        '<div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById(\'trans-assigned-photo\').src=this.options[this.selectedIndex].dataset.photo||'''';document.getElementById(\'trans-assigned-photo\').style.display=this.options[this.selectedIndex].dataset.photo?\'block\':\'none\';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuario...</option></select>' +
+        '<img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display=\'none\'"></div></div>' : '') +
+      (isClosing ?
+        '<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluido</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>' +
+        '<div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' +
+        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist nao foram concluidos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' : '') :
+        '<div class="sac-field"><label>Proximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que sera feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' +
+        '<div class="sac-field"><label>Observacao (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informacao adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>') +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transicao</button></div>' +
+      '</div>';
+    if (isAguard) setTimeout(() => SAC.filterTransUsers('Logistica'), 0);
   }
 
   // ── FILTRAGEM ─────────────────────────────────────────────────
@@ -1531,11 +1506,22 @@
     },
     deleteTicket(id) {
       if (!confirm('Excluir esta OS permanentemente?')) return;
-      _tickets = _tickets.filter(t=>t.id!==id);
-      saveTickets();
-      SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-      showToast('OS excluída.','warning');
-      renderAll();
+      const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+      fetch(`/api/sac/tickets/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} })
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(() => {
+          _tickets = _tickets.filter(t => t.id !== id);
+          SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
+          showToast('OS excluída com sucesso.','warning');
+          renderAll();
+        })
+        .catch(() => {
+          // Fallback: remove local mesmo que API falhe
+          _tickets = _tickets.filter(t => t.id !== id);
+          SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
+          showToast('OS excluída (modo local).','warning');
+          renderAll();
+        });
     },
     removeOccurrence(idx) {
       const t = _selectedTicket;
@@ -1649,10 +1635,22 @@
       const sel = document.getElementById('trans-assigned-user');
       const photo = document.getElementById('trans-assigned-photo');
       if (!sel) return;
-      // Mapeamento setor → campo departamento
-      const deptMap = { 'Logística': 'logística', 'Comercial': 'comercial', 'Financeiro': 'financeiro' };
-      const deptKey = deptMap[sector] || sector.toLowerCase();
-      const filtered = (pt.usersList||[]).filter(u => u.ativo && (u.departamento||'').toLowerCase().includes(deptKey));
+      // Mapeamento setor → campo departamento nos registros de usuário
+      const deptKey = sector.toLowerCase();
+      const allUsers = pt.usersList || [];
+      // Filtra por departamento do usuário
+      let filtered = allUsers.filter(u => u.ativo && (u.departamento||'').toLowerCase().includes(deptKey));
+      // Inclui gestor do departamento (via _globalDepartamentos)
+      const dept = _globalDepartamentos.find(d => (d.nome||'').toLowerCase().includes(deptKey));
+      if (dept && dept.responsavel_id) {
+        const gestorId = String(dept.responsavel_id);
+        const gestor = allUsers.find(u => String(u.id) === gestorId || (u.username||'').toLowerCase() === gestorId.toLowerCase());
+        if (gestor && gestor.ativo && !filtered.find(u => u.id === gestor.id)) {
+          filtered = [gestor, ...filtered];
+        }
+      }
+      // Se não encontrou nenhum, mostra todos ativos
+      if (filtered.length === 0) filtered = allUsers.filter(u => u.ativo);
       sel.innerHTML = `<option value="">Selecione um usuário...</option>` +
         filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
       if (photo) { photo.src=''; photo.style.display='none'; }

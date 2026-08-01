@@ -27799,6 +27799,14 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     });
 });
 
+app.delete('/api/sac/tickets/:id', authenticateToken, (req, res) => {
+    db.run("DELETE FROM sac_tickets WHERE id = ?", [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Ticket not found' });
+        res.json({ success: true, deleted: req.params.id });
+    });
+});
+
 // Run one-time formatting on startup
 setTimeout(() => {
     try {
