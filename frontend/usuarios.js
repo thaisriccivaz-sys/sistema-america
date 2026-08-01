@@ -70,7 +70,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
     { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
     // Módulo Processos
-    { modulo: 'Processos', pagina_id: 'sac', pagina_nome: 'SAC — Portal de Ocorrências', icone: 'ph-headset' },
+    { modulo: 'Processos', pagina_id: 'sac', pagina_nome: 'SAC (Ver Todos)', icone: 'ph-headset' },
+    { modulo: 'Processos', pagina_id: 'sac-atribuidos', pagina_nome: 'SAC (Atribuídos)', icone: 'ph-user-focus' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
     { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },

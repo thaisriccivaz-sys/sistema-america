@@ -434,8 +434,26 @@
     const hasPendingFin = ticket.financialTask && !ticket.financialTask.isCompleted;
     const anyPending = hasPendingLog || hasPendingCom || hasPendingFin;
 
+    let assignedUser = null;
+    let assignedUserPhoto = null;
+    if (hasPendingLog && ticket.logisticsTask.assignedTo) {
+        assignedUser = ticket.logisticsTask.assignedToName;
+        assignedUserPhoto = ticket.logisticsTask.assignedToPhoto;
+    } else if (hasPendingCom && ticket.commercialTask.assignedTo) {
+        assignedUser = ticket.commercialTask.assignedToName;
+        assignedUserPhoto = ticket.commercialTask.assignedToPhoto;
+    } else if (hasPendingFin && ticket.financialTask.assignedTo) {
+        assignedUser = ticket.financialTask.assignedToName;
+        assignedUserPhoto = ticket.financialTask.assignedToPhoto;
+    }
+
     const occText = ticket.occurrences && ticket.occurrences.length
       ? ticket.occurrences.slice(0,2).map(o => `<span style="background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:0.72rem;color:#475569;">${o.name}</span>`).join(' ')
+      : '';
+
+    const coverAttachment = (ticket.attachments || []).find(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url || a.originalName || a.name || a.filename));
+    const coverHtml = coverAttachment && coverAttachment.url 
+      ? `<div style="margin:-12px -12px 12px -12px;"><img src="${coverAttachment.url}" style="width:calc(100% + 24px);height:140px;object-fit:cover;border-radius:9px 9px 0 0;display:block;"></div>`
       : '';
 
     return `
@@ -443,6 +461,7 @@
       ondragstart="SAC.onDragStart(event,'${ticket.id}')"
       ondragend="SAC.onDragEnd(event,'${ticket.id}')"
       onclick="SAC.openDetail('${ticket.id}')">
+      ${coverHtml}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px;">
         <div>
           <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
@@ -460,6 +479,10 @@
         ${occText}
       </div>
       ${anyPending ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#854d0e;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendência ${hasPendingLog?'Logística':hasPendingCom?'Comercial':'Financeiro'}</div>` : ''}
+      ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
+        <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
+        <span style="font-size:0.7rem;color:#475569;font-weight:600;">Resp: ${assignedUser}</span>
+      </div>` : ''}
       ${showCL ? `<div style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:5px;">
         <i class="ph ph-check-square" style="color:#15803d;"></i>
         <span>Checklist: ${clChecked}/${cl.length}</span>
@@ -730,7 +753,7 @@
     const channelOpts = ['WhatsApp','E-mail','Telefone','Presencial'].map(c => `<option ${_wiz.channel===c?'selected':''}>${c}</option>`).join('');
 
     ov.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;position:relative;" onclick="event.stopPropagation()">
+    <div class="sac-modal sac-animated" style="width:1000px;max-width:95vw;max-height:95vh;overflow-y:auto;padding:28px;position:relative;" onclick="event.stopPropagation()">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:sticky;top:-28px;background:#fff;z-index:10;padding:10px 0;border-bottom:1px solid #f1f5f9;">
         <div>
           <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Novo Chamado de SAC</h2>
@@ -739,97 +762,105 @@
         <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;padding:4px;">✕</button>
       </div>
 
-      <!-- SEÇÃO 1: DADOS DA OS -->
-      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div class="sac-field">
-          <label>Protocolo / Nº Chamado</label>
-          <input type="text" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
-        </div>
-        <div class="sac-field">
-          <label>Nº OS (Logística/Comercial)</label>
-          <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
-          ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
-        </div>
-      </div>
-      <div class="sac-field">
-        <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
-        <input type="text" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div class="sac-field">
-          <label>CNPJ / CPF</label>
-          <input type="text" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
-        </div>
-        <div class="sac-field">
-          <label>Canal de Entrada</label>
-          <select onchange="_sacWiz('channel',this.value)">${channelOpts}</select>
-        </div>
-      </div>
-      <div class="sac-field">
-        <label>Equipamento <span style="color:#dc2626">*</span></label>
-        <input type="text" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
-      </div>
-      <div class="sac-field" style="margin-bottom:24px;">
-        <label>Endereço / Local</label>
-        <input type="text" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
-      </div>
-
-      <!-- SEÇÃO 2: CONTATO & TIPO -->
-      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;">Informações de Contato</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div class="sac-field">
-          <label>Nome do Contato <span style="color:#dc2626">*</span></label>
-          <input type="text" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
-        </div>
-        <div class="sac-field">
-          <label>Telefone</label>
-          <input type="text" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
-        </div>
-      </div>
-      <div class="sac-field" style="margin-bottom:24px;">
-        <label>E-mail</label>
-        <input type="email" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
-      </div>
-
-      <!-- SEÇÃO 3: OCORRÊNCIAS & DESCRIÇÃO -->
-      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #ef4444;padding-left:8px;">Detalhes do Problema</h3>
-      <div class="sac-field">
-        <label>Tipo de Chamado</label>
-        <select onchange="_sacWiz('typeKey',this.value)">${typeOptions}</select>
-      </div>
-      <div class="sac-field">
-        <label>Descrição / Detalhamento <span style="color:#dc2626">*</span></label>
-        <textarea rows="3" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
-      </div>
-
-      <div style="margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
-        <div class="sac-field" style="margin-bottom:8px;">
-          <label>Especificar Ocorrência (Opcional)</label>
-          <select id="wiz-occ-select" onchange="_sacWiz('currentOcc',this.value)">${occOptions}</select>
-        </div>
-        <div class="sac-field" style="margin-bottom:8px;">
-          <textarea rows="1" placeholder="Notas sobre a ocorrência específica..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
-        </div>
-        <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;width:100%;"><i class="ph ph-plus"></i> Adicionar Ocorrência à Lista</button>
-        <div id="wiz-occ-list">
-          ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">Nenhuma ocorrência adicionada</div>`:
-          _wiz.occList.map((o,i)=>`
-          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">
-            <div>
-              <div style="font-weight:700;font-size:0.85rem;color:#15803d;">${o.name}</div>
-              <div style="font-size:0.78rem;color:#64748b;">${o.note}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+        <!-- COLUNA 1 -->
+        <div>
+          <!-- SEÇÃO 1: DADOS DA OS -->
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div class="sac-field">
+              <label>Protocolo / Nº Chamado</label>
+              <input type="text" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
             </div>
-            <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.75rem;" onclick="SAC.wizRemoveOcc(${i})"><i class="ph ph-trash"></i></button>
-          </div>`).join('')}
-        </div>
-      </div>
+            <div class="sac-field">
+              <label>Nº OS (Logística/Comercial)</label>
+              <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
+              ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
+            </div>
+          </div>
+          <div class="sac-field">
+            <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
+            <input type="text" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div class="sac-field">
+              <label>CNPJ / CPF</label>
+              <input type="text" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
+            </div>
+            <div class="sac-field">
+              <label>Canal de Entrada</label>
+              <select onchange="_sacWiz('channel',this.value)">${channelOpts}</select>
+            </div>
+          </div>
+          <div class="sac-field">
+            <label>Equipamento <span style="color:#dc2626">*</span></label>
+            <input type="text" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
+          </div>
+          <div class="sac-field" style="margin-bottom:24px;">
+            <label>Endereço / Local</label>
+            <input type="text" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
+          </div>
 
-      <!-- SEÇÃO 4: ANEXOS -->
-      <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #10b981;padding-left:8px;">Anexos (Fotos / Vídeos / Documentos)</h3>
-      <div class="sac-field" style="margin-bottom:24px;">
-        <input type="file" multiple id="wiz-anexos" accept="image/*,video/*,application/pdf" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;cursor:pointer;">
-        <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Selecione um ou mais arquivos. (Limite recomendado: 30MB)</div>
+          <!-- SEÇÃO 2: CONTATO & TIPO -->
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;">Informações de Contato</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div class="sac-field">
+              <label>Nome do Contato <span style="color:#dc2626">*</span></label>
+              <input type="text" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
+            </div>
+            <div class="sac-field">
+              <label>Telefone</label>
+              <input type="text" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
+            </div>
+          </div>
+          <div class="sac-field" style="margin-bottom:24px;">
+            <label>E-mail</label>
+            <input type="email" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
+          </div>
+        </div>
+
+        <!-- COLUNA 2 -->
+        <div>
+          <!-- SEÇÃO 3: OCORRÊNCIAS & DESCRIÇÃO -->
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #ef4444;padding-left:8px;">Detalhes do Problema</h3>
+          <div class="sac-field">
+            <label>Tipo de Chamado</label>
+            <select onchange="_sacWiz('typeKey',this.value)">${typeOptions}</select>
+          </div>
+          <div class="sac-field">
+            <label>Descrição / Detalhamento <span style="color:#dc2626">*</span></label>
+            <textarea rows="3" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
+          </div>
+
+          <div style="margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
+            <div class="sac-field" style="margin-bottom:8px;">
+              <label>Especificar Ocorrência (Opcional)</label>
+              <select id="wiz-occ-select" onchange="_sacWiz('currentOcc',this.value)">${occOptions}</select>
+            </div>
+            <div class="sac-field" style="margin-bottom:8px;">
+              <textarea rows="1" placeholder="Notas sobre a ocorrência específica..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
+            </div>
+            <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;width:100%;"><i class="ph ph-plus"></i> Adicionar Ocorrência à Lista</button>
+            <div id="wiz-occ-list">
+              ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">Nenhuma ocorrência adicionada</div>`:
+              _wiz.occList.map((o,i)=>`
+              <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                  <div style="font-weight:700;font-size:0.85rem;color:#15803d;">${o.name}</div>
+                  <div style="font-size:0.78rem;color:#64748b;">${o.note}</div>
+                </div>
+                <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.75rem;" onclick="SAC.wizRemoveOcc(${i})"><i class="ph ph-trash"></i></button>
+              </div>`).join('')}
+            </div>
+          </div>
+
+          <!-- SEÇÃO 4: ANEXOS -->
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #10b981;padding-left:8px;">Anexos (Fotos / Vídeos / Documentos)</h3>
+          <div class="sac-field" style="margin-bottom:24px;">
+            <input type="file" multiple id="wiz-anexos" accept="image/*,video/*,application/pdf" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;cursor:pointer;">
+            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Selecione um ou mais arquivos. (Limite recomendado: 30MB)</div>
+          </div>
+        </div>
       </div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px;">
@@ -954,6 +985,10 @@
           <strong style="font-size:0.85rem;color:#1e293b;">${label}: </strong>
           <span style="font-size:0.8rem;color:#475569;">${task.name}</span>
         </div>
+        ${task.assignedTo ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
+          <img src="${task.assignedToPhoto||''}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
+          <span style="font-size:0.8rem;color:#475569;font-weight:600;">Atribuído a: ${task.assignedToName}</span>
+        </div>` : ''}
         ${task.isCompleted?`<div style="font-size:0.8rem;color:#15803d;padding:6px 10px;background:#dcfce7;border-radius:6px;"><strong>Resposta:</strong> ${task.feedback}</div>
         <button class="sac-btn sac-btn-secondary" style="margin-top:6px;padding:4px 10px;font-size:0.78rem;" onclick="SAC.reopenTask('${key}')"><i class="ph ph-arrow-counter-clockwise"></i> Reabrir</button>`:
         `<div id="task-feedback-${key}" style="margin-top:6px;">
@@ -1108,12 +1143,24 @@
   }
 
   // ── MODAL DE TRANSIÇÃO ────────────────────────────────────────
-  function openTransitionModal(ticketId, targetStageId) {
+  async function openTransitionModal(ticketId, targetStageId) {
     const ticket = _tickets.find(t => t.id === ticketId);
     if (!ticket) return;
     const src = PIPELINE_STAGES.find(s => s.id === ticket.stage);
     const tgt = PIPELINE_STAGES.find(s => s.id === targetStageId);
-    _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId };
+    
+    let usersList = [];
+    if (targetStageId === 'aguardando_setores') {
+      try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) usersList = await res.json();
+      } catch (e) {
+        console.error('Erro ao buscar usuários:', e);
+      }
+    }
+    
+    _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId, usersList };
     _transForm = { nextSteps:'', obs:'', sector:'Logística', closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
     renderTransModal();
   }
@@ -1146,6 +1193,16 @@
           <option value="Comercial">Comercial</option>
           <option value="Financeiro">Financeiro</option>
         </select>
+      </div>
+      <div class="sac-field">
+        <label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src = this.options[this.selectedIndex].dataset.photo || ''; document.getElementById('trans-assigned-photo').style.display = this.options[this.selectedIndex].dataset.photo ? 'block' : 'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;">
+            <option value="">Selecione um usuário...</option>
+            ${(pt.usersList||[]).filter(u => u.ativo).map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador || ''}" data-id="${u.id}">${u.nome}</option>`).join('')}
+          </select>
+          <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'">
+        </div>
       </div>`:''}
 
       ${isClosing?`
@@ -1195,7 +1252,17 @@
         (t.cnpjCpf||'').includes(s) ||
         (t.occurrences||[]).some(o => o.name.toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
-      return matchSearch && matchType;
+      
+      let matchPermission = true;
+      if (window.hasPermission && !window.hasPermission('sac', 'visualizar') && window.hasPermission('sac-atribuidos', 'visualizar')) {
+        const username = currentUsername();
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === username) ||
+                           (t.commercialTask && t.commercialTask.assignedTo === username) ||
+                           (t.financialTask && t.financialTask.assignedTo === username);
+        matchPermission = isAssigned;
+      }
+      
+      return matchSearch && matchType && matchPermission;
     });
   }
 
@@ -1534,9 +1601,16 @@
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
 
       if (isAguard) {
-        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[] } : null;
-        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[] } : null;
-        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[] } : null;
+        const userSelect = document.getElementById('trans-assigned-user');
+        const assignedUsername = userSelect?.value || '';
+        const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
+        const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
+        
+        if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
+
+        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
       }
 
       updateTicket(ticket);

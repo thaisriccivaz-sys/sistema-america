@@ -1,1 +1,8 @@
-const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('data/hr_system_v2.sqlite'); db.all('SELECT nome, conteudo FROM geradores WHERE nome LIKE \'%Sinistro%\'', (err, rows) => { const fs = require('fs'); fs.writeFileSync('test_db_output.txt', JSON.stringify(rows, null, 2)); });
+const sqlite3 = require('sqlite3');
+const path = require('path');
+const dbPath = path.join(__dirname, 'data', 'hr_system_v2.sqlite');
+const db = new sqlite3.Database(dbPath);
+db.all("SELECT cliente, endereco FROM os_logistica WHERE endereco LIKE '%MAU%' LIMIT 5;", (err, rows) => {
+    if(err) console.error(err);
+    else console.log(rows);
+});
