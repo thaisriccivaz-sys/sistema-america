@@ -16998,8 +16998,8 @@ function getNormalizedPageSearchData() {
         let targetKey = key;
         let rootCode = obj.code;
 
-        // Se a tela for interna (sem código), redireciona o clique para a root (a raiz, ex: Colaboradores)
-        if (!obj.code) {
+        // Se a tela for interna (sem código) e NÃO FOR UMA ABA, redireciona o clique para a root (a raiz, ex: Colaboradores)
+        if (!obj.code && !key.startsWith('tab:')) {
             const rootEntry = Object.entries(BREADCRUMB_MAP).find(([k, v]) => v.path === rootPath && v.code);
             if (rootEntry) {
                 targetKey = rootEntry[0];
@@ -17011,6 +17011,31 @@ function getNormalizedPageSearchData() {
                 } else if (rootPath.includes('EPI')) {
                     targetKey = 'ficha-epi'; rootCode = 'RHEPI01';
                 }
+            }
+        }
+
+        if (!window.isTopAdmin) {
+            let permId = targetKey;
+            
+            if (targetKey.startsWith('tab:')) {
+                const tabName = targetKey.replace('tab:', '').trim();
+                let foundPerm = Object.keys(window.PRONTUARIO_TAB_MAP || {}).find(k => 
+                    window.PRONTUARIO_TAB_MAP[k] === tabName || 
+                    window.PRONTUARIO_TAB_MAP[k].replace(/\s+/g,'') === tabName.replace(/\s+/g,'')
+                );
+                if (foundPerm) {
+                    permId = foundPerm;
+                } else {
+                    permId = 'colaboradores'; // fallback para abas não controladas
+                }
+            } else if (targetKey === 'form-usuario') {
+                permId = 'usuarios-permissoes';
+            } else if (targetKey === 'conf-integracao') {
+                permId = 'integracao';
+            }
+            
+            if (window.activeUserPerms && !window.activeUserPerms[permId]) {
+                continue; // Usuário não tem permissão
             }
         }
 
