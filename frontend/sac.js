@@ -426,17 +426,20 @@
     const type = TICKET_TYPES[ticket.typeKey] || { name: ticket.typeKey, icon: '❓', sla: 48 };
     const sla = getSLADetails(ticket);
     const slaColor = sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d';
-    const slaBg   = sla.status === 'danger' ? '#fee2e2' : sla.status === 'warning' ? '#fef9c3' : '#dcfce7';
 
-    // Checklist progress
+    const slaConsumedPct = Math.min(100, Math.max(0, 100 - sla.pct));
+
+    const clientShort = ticket.clientName.length > 15
+      ? ticket.clientName.substring(0, 15) + '…'
+      : ticket.clientName;
+
     const cl = getChecklist(ticket);
     const clChecked = cl.filter(i => i.checked).length;
     const showCL = showChecklistInStage(ticket.stage);
 
-    // Tasks
     const hasPendingLog = ticket.logisticsTask && !ticket.logisticsTask.isCompleted;
     const hasPendingCom = ticket.commercialTask && !ticket.commercialTask.isCompleted;
-    const hasPendingFin = ticket.financialTask && !ticket.financialTask.isCompleted;
+    const hasPendingFin = ticket.financialTask  && !ticket.financialTask.isCompleted;
     const anyPending = hasPendingLog || hasPendingCom || hasPendingFin;
 
     let assignedUser = null;
@@ -457,7 +460,7 @@
       : '';
 
     const coverAttachment = (ticket.attachments || []).find(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url || a.originalName || a.name || a.filename));
-    const coverHtml = coverAttachment && coverAttachment.url 
+    const coverHtml = coverAttachment && coverAttachment.url
       ? `<div style="margin:-12px -12px 12px -12px;overflow:hidden;border-radius:8.5px 8.5px 0 0;"><img src="${coverAttachment.url}" style="width:100%;height:140px;object-fit:cover;display:block;"></div>`
       : '';
 
@@ -467,14 +470,9 @@
       ondragend="SAC.onDragEnd(event,'${ticket.id}')"
       onclick="SAC.openDetail('${ticket.id}')">
       ${coverHtml}
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px;">
-        <div>
-          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
-          <div style="font-weight:700;font-size:0.88rem;color:#1e293b;margin-top:1px;line-height:1.3;">${ticket.clientName}</div>
-        </div>
-        <span style="background:${slaBg};color:${slaColor};border-radius:6px;padding:2px 6px;font-size:0.7rem;font-weight:700;white-space:nowrap;flex-shrink:0;">
-          ${sla.label}
-        </span>
+      <div style="margin-bottom:4px;">
+        <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
+        <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.clientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
         <i class="ph ph-package" style="margin-right:3px;"></i>${ticket.equipment}
@@ -488,18 +486,20 @@
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
         <span style="font-size:0.7rem;color:#475569;font-weight:600;">Resp: ${assignedUser}</span>
       </div>` : ''}
-      ${showCL ? `<div style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:5px;">
+      ${showCL ? `<div style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
         <i class="ph ph-check-square" style="color:#15803d;"></i>
         <span>Checklist: ${clChecked}/${cl.length}</span>
         <div class="sac-sla-bar" style="flex:1;"><div class="sac-sla-fill" style="width:${cl.length?Math.round(clChecked/cl.length*100):0}%;background:${clChecked===cl.length?'#15803d':'#f97316'};"></div></div>
       </div>` : ''}
-      <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${sla.pct}%;background:${slaColor};"></div></div>
-      <div style="font-size:0.68rem;color:#94a3b8;margin-top:4px;display:flex;justify-content:space-between;">
-        <span>${formatDateShort(ticket.openDate)}</span>
-        <span style="color:${stage.color}">${stage.name}</span>
+      <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaColor};"></div></div>
+      <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
+        <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
+        <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
       </div>
     </div>`;
   }
+
+
 
   // ── TABELA ───────────────────────────────────────────────────
   function renderTabela(container) {
@@ -1031,19 +1031,25 @@
     <div style="margin-top:20px;">
       <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Anexos</div>
       ${(t.attachments||[]).length?`
-      ${(t.attachments||[]).map(a=>`
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
-        <i class="ph ph-file-text" style="font-size:1.2rem;color:#64748b;flex-shrink:0;"></i>
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">
-            ${a.url ? `<a href="${a.url}" target="_blank" style="color:#1e293b;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">` : ''}
-            ${a.originalName||a.name||a.filename||'Arquivo'}
-            ${a.url ? `</a>` : ''}
-          </div>
-          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
-        </div>
-        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
-      </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:12px;">Nenhum arquivo anexado.</div>`}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:10px;">
+        ${(t.attachments||[]).map((a,ai)=>{
+          const fname = a.originalName||a.name||a.filename||'Arquivo';
+          const isImg = /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(fname) || /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url||'');
+          const key = a.r2Key||a.originalName||a.name||a.filename;
+          if(isImg && a.url) {
+            return `<div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer;border:1.5px solid #e2e8f0;" onclick="event.stopPropagation();SAC.openAttachmentViewer(${ai})" title="${fname}">
+              <img src="${a.url}" style="width:100%;height:100%;object-fit:cover;display:block;">
+              <button onclick="event.stopPropagation();SAC.removeAttachment('${key}')" style="position:absolute;top:3px;right:3px;background:rgba(220,38,38,0.85);color:#fff;border:none;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;"><i class="ph ph-trash"></i></button>
+            </div>`;
+          }
+          return `<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:6px;overflow:hidden;" onclick="${a.url?`event.stopPropagation();window.open('${a.url}','_blank')`:''}" title="${fname}">
+            <i class="ph ph-file-text" style="font-size:1.8rem;color:#64748b;"></i>
+            <span style="font-size:0.62rem;color:#475569;text-align:center;word-break:break-all;line-height:1.2;max-height:2.6em;overflow:hidden;">${fname}</span>
+            <button onclick="event.stopPropagation();SAC.removeAttachment('${key}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:4px;padding:1px 5px;font-size:0.65rem;cursor:pointer;margin-top:2px;"><i class="ph ph-trash"></i></button>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      ${!(t.attachments||[]).length?`<div style="text-align:center;color:#94a3b8;padding:12px;">Nenhum arquivo anexado.</div>`:''}
       <div style="margin-top:10px;background:#fff;border:1.5px dashed #e2e8f0;border-radius:10px;padding:14px;text-align:center;">
         <i class="ph ph-upload-simple" style="font-size:1.4rem;color:#94a3b8;display:block;margin-bottom:4px;"></i>
         <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
@@ -1630,6 +1636,45 @@
       cl[idx] = { ...cl[idx], checked:!cl[idx].checked };
       t.checklist = cl;
       updateTicket(t);
+    },
+    filterTransUsers(sector) {
+      const pt = _pendingTransition;
+      if (!pt) return;
+      const sel = document.getElementById('trans-assigned-user');
+      const photo = document.getElementById('trans-assigned-photo');
+      if (!sel) return;
+      // Mapeamento setor → campo departamento
+      const deptMap = { 'Logística': 'logística', 'Comercial': 'comercial', 'Financeiro': 'financeiro' };
+      const deptKey = deptMap[sector] || sector.toLowerCase();
+      const filtered = (pt.usersList||[]).filter(u => u.ativo && (u.departamento||'').toLowerCase().includes(deptKey));
+      sel.innerHTML = `<option value="">Selecione um usuário...</option>` +
+        filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
+      if (photo) { photo.src=''; photo.style.display='none'; }
+    },
+    openAttachmentViewer(idx) {
+      const t = _selectedTicket;
+      if (!t || !t.attachments) return;
+      const imgs = t.attachments.filter(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.originalName||a.name||a.filename||a.url||''));
+      if (!imgs[idx]) return;
+      // Remove viewer anterior se existir
+      const old = document.getElementById('sac-img-viewer');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'sac-img-viewer';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+      overlay.onclick = () => overlay.remove();
+      let _idx = idx;
+      const renderImg = () => {
+        overlay.innerHTML = `
+          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">✕</button>
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">‹</button>`:''}
+          <img src="${imgs[_idx].url}" style="max-width:90vw;max-height:88vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 48px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">›</button>`:''}
+          <div style="position:absolute;bottom:16px;color:#94a3b8;font-size:0.78rem;">${_idx+1} / ${imgs.length}</div>`;
+      };
+      SAC._viewerNav = (dir) => { _idx = (_idx+dir+imgs.length)%imgs.length; renderImg(); };
+      renderImg();
+      document.body.appendChild(overlay);
     },
     cancelTransition() {
       document.getElementById('sac-trans-overlay').style.display='none';
