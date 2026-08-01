@@ -100,6 +100,7 @@
   let _wiz = {
     step: 1,
     protocol: '',
+    osNumber: '',
     clientName: '',
     cnpjCpf: '',
     equipment: '',
@@ -606,9 +607,15 @@
       </div>
 
       ${_wiz.step===1?`
-      <div class="sac-field">
-        <label>Protocolo / Nº Chamado</label>
-        <input type="text" value="${_wiz.protocol}" id="wiz-protocol" oninput="_sacWiz('protocol',this.value)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="sac-field">
+          <label>Protocolo / Nº Chamado</label>
+          <input type="text" value="${_wiz.protocol}" id="wiz-protocol" oninput="_sacWiz('protocol',this.value)">
+        </div>
+        <div class="sac-field">
+          <label>Nº OS (Logística/Comercial)</label>
+          <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" oninput="_sacWiz('osNumber',this.value)">
+        </div>
       </div>
       <div class="sac-field">
         <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
@@ -781,6 +788,7 @@
         <div style="font-size:0.85rem;color:#1e293b;line-height:1.8;">
           <div><strong>Abertura:</strong> ${formatDate(t.openDate)}</div>
           ${t.closeDate?`<div><strong>Encerramento:</strong> ${formatDate(t.closeDate)}</div>`:''}
+          <div><strong>Nº OS Relacionada:</strong> ${t.osNumber||'—'}</div>
           <div><strong>Canal:</strong> ${t.channel||'—'}</div>
           <div><strong>CNPJ/CPF:</strong> ${t.cnpjCpf||'—'}</div>
           <div><strong>Contato:</strong> ${t.contactName||'—'} ${t.contactPhone?'· '+t.contactPhone:''}</div>
@@ -1143,6 +1151,7 @@
       const newTicket = {
         id: 'sac-'+Date.now(),
         protocol: proto,
+        osNumber: _wiz.osNumber.trim(),
         openDate: now,
         clientName: _wiz.clientName.trim(),
         cnpjCpf: _wiz.cnpjCpf.trim(),
@@ -1339,11 +1348,11 @@
     },
     exportCSV() {
       const all = getFilteredTickets();
-      const headers = ['Protocolo','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorrências'];
+      const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorrências'];
       const rows = all.map(t => {
         const sla = getSLADetails(t);
         return [
-          t.protocol, new Date(t.openDate).toLocaleString('pt-BR'), t.clientName, t.cnpjCpf||'',
+          t.protocol, t.osNumber||'', new Date(t.openDate).toLocaleString('pt-BR'), t.clientName, t.cnpjCpf||'',
           t.equipment, TICKET_TYPES[t.typeKey]?.name||t.typeKey,
           PIPELINE_STAGES.find(s=>s.id===t.stage)?.name||t.stage,
           sla.isOverdue?'Atrasado':'No Prazo',
