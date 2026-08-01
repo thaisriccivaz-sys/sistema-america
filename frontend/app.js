@@ -787,6 +787,12 @@ window.carregarPermissoesOnline = async function () {
         // Expõe se é acesso parcial para a tela de colaboradores usar
         window.isColaboradoresParcial = mapPerms['colaboradores-parcial'] && !mapPerms['colaboradores-total'];
 
+        // Usuário com acesso SAC (Atribuídos) deve ver a tela SAC no menu,
+        // mesmo que não tenha o item 'sac' completo liberado.
+        if (mapPerms['sac-atribuidos'] && !mapPerms['sac']) {
+            mapPerms['sac'] = true;
+        }
+
         window.activeUserPerms = mapPerms;
 
         // Percorre todos os botões de navegação (.nav-item)

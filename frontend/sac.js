@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // MÓDULO: SAC — Portal de Ocorrências (Kanban de Chamados)
 // Adaptado de: kanban-flow prototype (React → Vanilla JS)
 // ============================================================
@@ -92,6 +92,10 @@
   let _view = 'pipeline'; // 'pipeline' | 'tabela' | 'config'
   let _searchTerm = '';
   let _filterType = 'all';
+  let _filterDateType = 'abertura';
+  let _filterDateStart = '';
+  let _filterDateEnd = '';
+  let _filterUrgent = false;
   let _selectedTicket = null;
   let _modalTab = 'geral'; // 'geral' | 'historico' | 'custo' | 'anexos' | 'checklist'
   let _pendingTransition = null;
@@ -120,7 +124,8 @@
     occList: [],
     currentOcc: '',
     currentOccNote: '',
-    description: ''
+    description: '',
+    isUrgent: false
   };
 
   // CC form state
@@ -167,15 +172,23 @@
   }
 
   // ── HELPERS ──────────────────────────────────────────────────
+  function _normDate(str) {
+    if (!str) return str;
+    if (typeof str === 'string') return str.replace(' ', 'T');
+    return str;
+  }
+
   function formatDate(iso) {
     if (!iso) return '—';
-    const d = new Date(iso);
+    const d = new Date(_normDate(iso));
+    if (isNaN(d.getTime())) return '—';
     return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
   }
 
   function formatDateShort(iso) {
     if (!iso) return '—';
-    const d = new Date(iso);
+    const d = new Date(_normDate(iso));
+    if (isNaN(d.getTime())) return '—';
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const hh = String(d.getHours()).padStart(2,'0');
@@ -198,14 +211,24 @@
 
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
-    if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false };
-    const opened = new Date(ticket.openDate).getTime();
+    if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+    const openStr = _normDate(ticket.openDate || new Date().toISOString());
+    const opened = new Date(openStr).getTime();
     const limitMs = type.sla * 3600000;
-    const isClosed = ticket.stage === 'concluido' || ticket.stage === 'encerrado';
+    // isOpen = ticket ainda não encerrado ou concluído
+    const isConcluido = ticket.stage === 'concluido';
+    const isClosed = isConcluido || ticket.stage === 'encerrado';
+
+    // Se a data de abertura for inválida, retorna fallback seguro
+    if (isNaN(opened)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+
     let endCalc = Date.now();
     if (isClosed) {
       const log = ticket.timeline && ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado');
-      if (log) endCalc = new Date(log.time).getTime();
+      if (log) {
+        const t = new Date(_normDate(log.time)).getTime();
+        if (!isNaN(t)) endCalc = t;
+      }
     }
     const elapsedMs = endCalc - opened;
     const remainMs = limitMs - elapsedMs;
@@ -216,6 +239,28 @@
     // consumedPct = % elapsed (0=fresh, 100+=overdue)
     const consumedPct = Math.min(100, Math.max(0, 100 - pct));
     const isOverdue = remainMs <= 0;
+
+    // — Para chamados CONCLUÍDOS: exibe tempo total desde abertura —
+    if (isConcluido) {
+      const totalH = Math.round((elapsedMs / 3600000) * 10) / 10;
+      const withinSLA = elapsedMs <= limitMs;
+      const concludedLabel = `✓ ${totalH}h (${withinSLA ? 'no prazo' : 'em atraso'})`;
+      const concludedColor = withinSLA ? '#15803d' : '#dc2626';
+      const concludedBarPct = Math.min(100, Math.round((elapsedMs / limitMs) * 100));
+      return {
+        remaining: totalH,
+        pct: withinSLA ? (100 - concludedBarPct) : 0,
+        consumedPct: concludedBarPct,
+        isOverdue: !withinSLA,
+        isConcluido: true,
+        label: concludedLabel,
+        barColor: withinSLA ? '#15803d' : '#dc2626',
+        labelColor: concludedColor,
+        status: withinSLA ? 'ok' : 'danger',
+        closedDateMs: endCalc
+      };
+    }
+
     // Label: positive hours remaining or negative hours overdue
     let label;
     if (isOverdue) {
@@ -236,10 +281,12 @@
       pct,
       consumedPct,
       isOverdue,
+      isConcluido: false,
       label,
       barColor,
       labelColor,
-      status: isOverdue ? 'danger' : pct < 30 ? 'warning' : 'ok'
+      status: isOverdue ? 'danger' : pct < 30 ? 'warning' : 'ok',
+      closedDateMs: isClosed ? endCalc : null
     };
   }
 
@@ -313,16 +360,34 @@
       </div>
 
       <!-- SEARCH BAR (pipeline only) -->
-      <div id="sac-search-bar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-        <div style="position:relative;flex:1;max-width:360px;display:flex;align-items:center;">
+      <div id="sac-search-bar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;flex-shrink:0;">
+        <div style="position:relative;flex:1;min-width:260px;max-width:360px;display:flex;align-items:center;">
           <input id="sac-search" type="text" placeholder="Busca por OS, cliente, equipamento..." style="width:100%;padding:7px 38px 7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="SAC.onSearch(this.value)" onkeydown="if(event.key==='Enter'){SAC.onSearch(document.getElementById('sac-search').value)}">
           <button onclick="SAC.onSearch(document.getElementById('sac-search').value)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:#1e293b;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'" title="Buscar"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
         </div>
+        
+        <!-- Filters -->
         <select id="sac-filter-type" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;cursor:pointer;" onchange="SAC.onFilterType(this.value)">
           <option value="all">Todos os tipos</option>
           ${Object.entries(TICKET_TYPES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.name}</option>`).join('')}
         </select>
-        <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;"></span>
+        
+        <select id="sac-filter-datetype" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;cursor:pointer;" onchange="SAC.onFilterDateType(this.value)">
+          <option value="abertura">Data Abertura</option>
+          <option value="sla">Data Encerramento SLA</option>
+        </select>
+        
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;">
+          De: <input type="date" id="sac-filter-datestart" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" onchange="SAC.onFilterDate(this.value, document.getElementById('sac-filter-dateend').value)">
+          Até: <input type="date" id="sac-filter-dateend" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" onchange="SAC.onFilterDate(document.getElementById('sac-filter-datestart').value, this.value)">
+        </div>
+
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#1e293b;cursor:pointer;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;">
+          <input type="checkbox" id="sac-filter-urgent" onchange="SAC.onFilterUrgent(this.checked)" style="accent-color:#dc2626;width:16px;height:16px;cursor:pointer;">
+          <i class="ph ph-warning-circle" style="color:#dc2626;"></i> Urgentes
+        </label>
+        
+        <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;margin-left:auto;"></span>
       </div>
 
       <!-- MAIN CONTENT AREA -->
@@ -494,7 +559,10 @@
       onclick="SAC.openDetail('${ticket.id}')">
       ${coverHtml}
       <div style="margin-bottom:4px;">
-        <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
+          ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.65rem;font-weight:700;"><i class="ph ph-warning-circle"></i> URGENTE</span>' : ''}
+        </div>
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.clientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
@@ -582,7 +650,7 @@
             const sla   = getSLADetails(t);
             const slaColor = sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d';
             return `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-              <td style="padding:9px 12px;font-family:monospace;font-weight:700;color:#f97316;">${t.protocol}</td>
+              <td style="padding:9px 12px;font-family:monospace;font-weight:700;color:#f97316;">${t.protocol} ${t.isUrgent ? ' <i class="ph ph-warning-circle" style="color:#dc2626;" title="Urgente"></i>' : ''}</td>
               <td style="padding:9px 12px;color:#64748b;font-size:0.78rem;">${formatDateShort(t.openDate)}</td>
               <td style="padding:9px 12px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.clientName}</td>
               <td style="padding:9px 12px;color:#64748b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.equipment}</td>
@@ -799,7 +867,13 @@
         <!-- COLUNA 1 -->
         <div>
           <!-- SEÇÃO 1: DADOS DA OS -->
-          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:0;">
+            <h3 style="font-size:1rem;color:#0f172a;margin:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
+            <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:#1e293b;cursor:pointer;background:#fee2e2;padding:4px 8px;border-radius:6px;border:1px solid #fca5a5;">
+              <input type="checkbox" id="wiz-isUrgent" onchange="_sacWiz('isUrgent',this.checked)" ${_wiz.isUrgent?'checked':''} style="accent-color:#ef4444;width:14px;height:14px;cursor:pointer;">
+              <i class="ph-fill ph-warning-circle" style="color:#ef4444;"></i> Chamado Urgente
+            </label>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
               <label>Protocolo / Nº Chamado</label>
@@ -1297,6 +1371,31 @@
         (t.cnpjCpf||'').includes(s) ||
         (t.occurrences||[]).some(o => o.name.toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
+      const matchUrgent = !_filterUrgent || t.isUrgent;
+
+      let matchDate = true;
+      if (_filterDateStart || _filterDateEnd) {
+        let compareMs = 0;
+        if (_filterDateType === 'abertura') {
+          compareMs = new Date(_normDate(t.openDate || '')).getTime() || 0;
+        } else if (_filterDateType === 'sla') {
+          const sla = getSLADetails(t);
+          if (sla.closedDateMs) compareMs = sla.closedDateMs;
+          else compareMs = sla.closedDateMs || 0;
+        }
+        if (compareMs > 0) {
+          if (_filterDateStart) {
+            const startMs = new Date(_filterDateStart + 'T00:00:00').getTime();
+            if (compareMs < startMs) matchDate = false;
+          }
+          if (_filterDateEnd && matchDate) {
+            const endMs = new Date(_filterDateEnd + 'T23:59:59').getTime();
+            if (compareMs > endMs) matchDate = false;
+          }
+        } else {
+          matchDate = false;
+        }
+      }
 
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
@@ -1310,7 +1409,7 @@
         matchPermission = isAssigned || (canSeeAssigned && isManagerOfTicket);
       }
 
-      return matchSearch && matchType && matchPermission;
+      return matchSearch && matchType && matchUrgent && matchDate && matchPermission;
     });
   }
 
@@ -1378,6 +1477,9 @@
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
     onFilterType(v){ _filterType = v; renderAll(); },
+    onFilterDateType(v){ _filterDateType = v; renderAll(); },
+    onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
+    onFilterUrgent(checked){ _filterUrgent = checked; renderAll(); },
     sortTable(k)  { if (_sortKey===k) { _sortDir=_sortDir==='asc'?'desc':'asc'; } else { _sortKey=k; _sortDir='asc'; } _tablePage=1; renderAll(); },
     setPage(p)    { _tablePage=p; renderAll(); },
     setTableDate(pos,v){ if(pos==='start') _tableStartDate=v; else _tableEndDate=v; renderAll(); },
@@ -1446,6 +1548,7 @@
           contactEmail: _wiz.contactEmail.trim(),
           channel: _wiz.channel,
           typeKey: _wiz.typeKey,
+          isUrgent: _wiz.isUrgent,
           occurrences: _wiz.occList.length ? _wiz.occList : [{ name: _wiz.currentOcc||'Ocorrência geral', note: '', images:[] }],
           description: _wiz.description.trim(),
           stage: 'abertura',
@@ -1492,7 +1595,7 @@
       const t = _selectedTicket;
       if (!t || t.stage === targetId) return;
       const gate = checkGate(t, targetId);
-      if (gate) { alert(`Bloqueio: Pendência ${gate.sector} não concluída.\n${gate.task}`); renderDetailModal(); return; }
+      if (gate) { alert(`Bloqueio: Pend├¬ncia ${gate.sector} n├úo conclu├¡da.\n${gate.task}`); renderDetailModal(); return; }
       openTransitionModal(t.id, targetId);
     },
     changeTaskAssignment(key, newUsername) {
@@ -1507,7 +1610,7 @@
         assignedToPhoto: user ? (user.foto||user.photo||'') : ''
       };
       updateTicket(t);
-      showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
+      showToast(`Atribui├º├úo de ${key.replace('Task','')} atualizada.`, 'success');
     },
     deleteTicket(id) {
       if (!confirm('Excluir esta OS permanentemente?')) return;
@@ -1517,20 +1620,20 @@
         .then(() => {
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS excluída com sucesso.','warning');
+          showToast('OS exclu├¡da com sucesso.','warning');
           renderAll();
         })
         .catch(() => {
           // Fallback: remove local mesmo que API falhe
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS excluída (modo local).','warning');
+          showToast('OS exclu├¡da (modo local).','warning');
           renderAll();
         });
     },
     removeOccurrence(idx) {
       const t = _selectedTicket;
-      if (!t || t.occurrences.length<=1) { showToast('Mínimo de 1 ocorrência.','warning'); return; }
+      if (!t || t.occurrences.length<=1) { showToast('M├¡nimo de 1 ocorr├¬ncia.','warning'); return; }
       t.occurrences.splice(idx,1);
       updateTicket(t);
     },
@@ -1539,8 +1642,8 @@
       if (!t) return;
       const sel = document.getElementById('modal-occ-select');
       const note = document.getElementById('modal-occ-note');
-      if (!sel||!sel.value) { showToast('Selecione uma ocorrência.','warning'); return; }
-      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('Ocorrência já cadastrada.','warning'); return; }
+      if (!sel||!sel.value) { showToast('Selecione uma ocorr├¬ncia.','warning'); return; }
+      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('Ocorr├¬ncia j├í cadastrada.','warning'); return; }
       t.occurrences.push({ name:sel.value, note:(note&&note.value)||'', images:[] });
       if (note) note.value='';
       updateTicket(t);
@@ -1554,11 +1657,11 @@
       const isRedirect = t.stage === 'aguardando_setores';
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
-      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida. OS movida para Respondido.`, user }); }
-      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida: "${feedback}"`, user }); }
+      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} resolvida. OS movida para Respondido.`, user }); }
+      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
       if (isRedirect) { showToast(`OS ${t.protocol} respondida! Movida para Respondido.`,'warning'); }
-      else { showToast('Pendência marcada como resolvida!','success'); }
+      else { showToast('Pend├¬ncia marcada como resolvida!','success'); }
     },
     reopenTask(key) {
       const t = _selectedTicket;
@@ -1567,9 +1670,9 @@
       if (!reason||!reason.trim()) return;
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:false, feedback:'', history:[...(t[key].history||[]),{type:'reopen',time:new Date().toISOString(),feedback:reason,user}] };
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} reaberta: "${reason}"`, user });
+      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pend├¬ncia ${key.replace('Task','')} reaberta: "${reason}"`, user });
       updateTicket(t);
-      showToast('Pendência reaberta. Avanço bloqueado.','warning');
+      showToast('Pend├¬ncia reaberta. Avan├ºo bloqueado.','warning');
     },
     saveCostCenter() {
       const t = _selectedTicket;
@@ -1582,16 +1685,16 @@
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return; }
       const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:billing };
       t.costCenters = [...(t.costCenters||[]), cc];
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} — ${formatBRL(valor)}`, user:currentUsername() });
+      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} ÔÇö ${formatBRL(valor)}`, user:currentUsername() });
       updateTicket(t);
-      showToast('Lançamento adicionado!','success');
+      showToast('Lan├ºamento adicionado!','success');
     },
     removeCostCenter(ccId) {
       const t = _selectedTicket;
       if (!t) return;
       t.costCenters = (t.costCenters||[]).filter(c=>c.id!==ccId);
       updateTicket(t);
-      showToast('Lançamento removido.','warning');
+      showToast('Lan├ºamento removido.','warning');
     },
     async addAttachments(files) {
       const t = _selectedTicket;
@@ -1634,31 +1737,43 @@
       t.checklist = cl;
       updateTicket(t);
     },
+
+    // ── filterTransUsers: busca colaboradores por departamento na tabela colaboradores (HR)
+    // Inclui gestora Beatriz, Thaynara (afastada), Caroline e outros sem conta de sistema.
     filterTransUsers(sector) {
       const pt = _pendingTransition;
       if (!pt) return;
       const sel = document.getElementById('trans-assigned-user');
       const photo = document.getElementById('trans-assigned-photo');
       if (!sel) return;
-      // Mapeamento setor → campo departamento nos registros de usuário
-      const deptKey = sector.toLowerCase();
-      const allUsers = pt.usersList || [];
-      // Filtra por departamento do usuário
-      let filtered = allUsers.filter(u => u.ativo && (u.departamento||'').toLowerCase().includes(deptKey));
-      // Inclui gestor do departamento (via _globalDepartamentos)
-      const dept = _globalDepartamentos.find(d => (d.nome||'').toLowerCase().includes(deptKey));
-      if (dept && dept.responsavel_id) {
-        const gestorId = String(dept.responsavel_id);
-        const gestor = allUsers.find(u => String(u.id) === gestorId || (u.username||'').toLowerCase() === gestorId.toLowerCase());
-        if (gestor && gestor.ativo && !filtered.find(u => u.id === gestor.id)) {
-          filtered = [gestor, ...filtered];
-        }
-      }
-      // Se não encontrou nenhum, mostra todos ativos
-      if (filtered.length === 0) filtered = allUsers.filter(u => u.ativo);
-      sel.innerHTML = `<option value="">Selecione um usuário...</option>` +
-        filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
-      if (photo) { photo.src=''; photo.style.display='none'; }
+      sel.innerHTML = '<option value="">Buscando colaboradores...</option>';
+      const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+      fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(sector)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(lista => {
+        const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+        sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
+          lista.map(u => {
+            const val = u.username || normalizeId(u.nome);
+            const badge = u.status && u.status.toLowerCase().includes('afastado') ? ' (Afastado)' :
+                          u.status && u.status.toLowerCase().includes('ferias') ? ' (Férias)' : '';
+            return `<option value="${val}" data-photo="${u.foto_colaborador||''}" data-id="${u.id || ''}">${u.nome}${badge}</option>`;
+          }).join('');
+        if (photo) { photo.src = ''; photo.style.display = 'none'; }
+      })
+      .catch(err => {
+        console.warn('[SAC] Erro ao buscar colaboradores por setor, usando fallback:', err);
+        const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const deptKey = normalizeStr(sector);
+        const allUsers = pt.usersList || [];
+        let filtered = allUsers.filter(u => u.ativo && normalizeStr(u.departamento||'').includes(deptKey));
+        if (filtered.length === 0) filtered = allUsers.filter(u => u.ativo);
+        sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
+          filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
+        if (photo) { photo.src = ''; photo.style.display = 'none'; }
+      });
     },
     openAttachmentViewer(idx) {
       const t = _selectedTicket;
@@ -1675,10 +1790,10 @@
       let _idx = idx;
       const renderImg = () => {
         overlay.innerHTML = `
-          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">✕</button>
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">‹</button>`:''}
+          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">Ô£ò</button>
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">ÔÇ╣</button>`:''}
           <img src="${imgs[_idx].url}" style="max-width:90vw;max-height:88vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 48px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">›</button>`:''}
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">ÔÇ║</button>`:''}
           <div style="position:absolute;bottom:16px;color:#94a3b8;font-size:0.78rem;">${_idx+1} / ${imgs.length}</div>`;
       };
       SAC._viewerNav = (dir) => { _idx = (_idx+dir+imgs.length)%imgs.length; renderImg(); };
@@ -1703,21 +1818,21 @@
 
       let nextSteps  = (document.getElementById('trans-next')?.value||'').trim();
       let obs        = (document.getElementById('trans-obs')?.value||'').trim();
-      let sector     = document.getElementById('trans-sector')?.value || 'Logística';
-      let closeReason= document.getElementById('trans-closing-reason')?.value || 'Concluído';
+      let sector     = document.getElementById('trans-sector')?.value || 'Log├¡stica';
+      let closeReason= document.getElementById('trans-closing-reason')?.value || 'Conclu├¡do';
       let clJust     = (document.getElementById('trans-cl-just')?.value||'').trim();
 
       if (isClosing) {
-        if (!obs) { showToast('O resumo de encerramento é obrigatório.','warning'); return; }
-        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
-        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
+        if (!obs) { showToast('O resumo de encerramento ├® obrigat├│rio.','warning'); return; }
+        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto ├® obrigat├│ria.','warning'); return; }
+        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (m├¡n. 10 caracteres).','warning'); return; }
       } else {
-        if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
+        if (!nextSteps) { showToast('Os pr├│ximos passos s├úo obrigat├│rios.','warning'); return; }
       }
 
       let logNotes = isClosing
         ? `Encerramento: ${closeReason}. Resumo: "${obs}"` + (hasUnchecked?` | Justificativa checklist: "${clJust}"`:'' )
-        : `${pt.srcName} → ${pt.tgtName}. Próximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
+        : `${pt.srcName} ÔåÆ ${pt.tgtName}. Pr├│ximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
 
       ticket.stage = pt.targetStageId;
       ticket.nextSteps = isClosing ? `Encerrado: ${closeReason}` : nextSteps;
@@ -1730,11 +1845,11 @@
         const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
         const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
         
-        if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
+        if (!assignedUsername) { showToast('Selecione o usu├írio atribu├¡do.', 'warning'); return; }
 
-        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.logisticsTask  = sector==='Log├¡stica'  ? { name:`Pendente: Log├¡stica ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
       }
 
       updateTicket(ticket);
@@ -1745,7 +1860,7 @@
     },
     exportCSV() {
       const all = getFilteredTickets();
-      const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorrências'];
+      const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorr├¬ncias'];
       const rows = all.map(t => {
         const sla = getSLADetails(t);
         return [
@@ -1764,7 +1879,7 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       showToast('CSV exportado com sucesso!','success');
     },
-    // drag handlers públicos
+    // drag handlers p├║blicos
     onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop
   };
 

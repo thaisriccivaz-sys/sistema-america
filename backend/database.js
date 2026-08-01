@@ -1506,6 +1506,7 @@ db.run("PRAGMA foreign_keys = ON;");
                     contact_email TEXT,
                     channel TEXT,
                     type_key TEXT,
+                    is_urgent INTEGER DEFAULT 0,
                     occurrences TEXT,
                     description TEXT,
                     stage TEXT,
@@ -1513,6 +1514,13 @@ db.run("PRAGMA foreign_keys = ON;");
                     timeline TEXT,
                     cost_centers TEXT,
                     attachments TEXT,
+                    checklist TEXT,
+                    logistics_task TEXT,
+                    commercial_task TEXT,
+                    financial_task TEXT,
+                    db.run("ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0", () => {});
+                }
+            });
                     checklist TEXT,
                     logistics_task TEXT,
                     commercial_task TEXT,

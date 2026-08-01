@@ -27748,8 +27748,9 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         const parsed = rows.map(r => ({
             ...r,
+            openDate: r.open_date || r.created_at,
             osNumber: r.os_number, clientName: r.client_name, cnpjCpf: r.cnpj_cpf, contactName: r.contact_name,
-            contactPhone: r.contact_phone, contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps,
+            contactPhone: r.contact_phone, contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps, isUrgent: r.is_urgent === 1, isUrgent: r.is_urgent === 1,
             costCenters: r.cost_centers ? JSON.parse(r.cost_centers) : [],
             logisticsTask: r.logistics_task ? JSON.parse(r.logistics_task) : null,
             commercialTask: r.commercial_task ? JSON.parse(r.commercial_task) : null,
@@ -27767,13 +27768,13 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     const t = req.body;
     db.run(`INSERT INTO sac_tickets (
         id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
-        contact_name, contact_phone, contact_email, channel, type_key, occurrences,
+        contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
         logistics_task, commercial_task, financial_task
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
-        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, JSON.stringify(t.occurrences||[]),
+        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null)
@@ -27787,12 +27788,12 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
     db.run(`UPDATE sac_tickets SET
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
-        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, updated_at = CURRENT_TIMESTAMP
+        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, is_urgent = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
         t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
-        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), req.params.id
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), t.isUrgent ? 1 : 0, req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
@@ -27804,6 +27805,97 @@ app.delete('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Ticket not found' });
         res.json({ success: true, deleted: req.params.id });
+    });
+});
+
+// ── GET /api/sac/colaboradores-por-setor?setor=Comercial ──────────────────────
+// Retorna colaboradores do departamento informado (tabela colaboradores) + gestor
+// do departamento (tabela departamentos), enriquecidos com username do usuario
+// correspondente, se existir. Inclui todos os status exceto Desligado/Iniciado.
+app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
+    const setor = (req.query.setor || '').trim();
+    if (!setor) return res.status(400).json({ error: 'Parâmetro setor é obrigatório' });
+
+    const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const setorNorm = norm(setor);
+
+    db.all(`SELECT id, nome_completo, cargo, departamento, status, foto_base64, foto_path
+            FROM colaboradores
+            WHERE LOWER(status) NOT LIKE '%desligado%'
+              AND LOWER(status) NOT LIKE '%iniciado%'
+            ORDER BY nome_completo ASC`, [], (errC, colabs) => {
+        if (errC) return res.status(500).json({ error: errC.message });
+
+        // Filtra colaboradores cujo departamento bate com o setor solicitado
+        const filtered = (colabs || []).filter(c => norm(c.departamento).includes(setorNorm));
+
+        db.all(`SELECT * FROM departamentos ORDER BY nome ASC`, [], (errD, depts) => {
+            if (errD) return res.status(500).json({ error: errD.message });
+
+            // Busca o gestor do departamento pelo responsavel_id (pode ser username ou id)
+            const dept = (depts || []).find(d => norm(d.nome).includes(setorNorm));
+
+            db.all(`SELECT id, username, nome, email, departamento, ativo, grupo_permissao_id FROM usuarios`, [], (errU, usuarios) => {
+                if (errU) return res.status(500).json({ error: errU.message });
+
+                // Mapeia cada colaborador para o objeto de resposta, tentando associar um usuario pelo nome
+                const normNome = n => norm(n);
+                const result = filtered.map(c => {
+                    const uByNome = (usuarios || []).find(u =>
+                        normNome(u.nome) === normNome(c.nome_completo) ||
+                        normNome(c.nome_completo).includes(normNome(u.nome)) ||
+                        normNome(u.nome).includes(normNome(c.nome_completo))
+                    );
+                    return {
+                        id: c.id,
+                        nome: c.nome_completo,
+                        cargo: c.cargo,
+                        departamento: c.departamento,
+                        status: c.status,
+                        username: uByNome ? uByNome.username : null,
+                        foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
+                    };
+                });
+
+                // Adiciona o gestor do departamento no topo, se não estiver já na lista
+                if (dept && dept.responsavel_id) {
+                    const gestorId = String(dept.responsavel_id);
+                    // Tenta achar o gestor nos usuarios pelo id ou username
+                    const gestorUser = (usuarios || []).find(u =>
+                        String(u.id) === gestorId || norm(u.username) === norm(gestorId)
+                    );
+                    // Tenta achar nos colaboradores pelo nome do usuario ou pelo responsavel_nome
+                    const gestorNome = gestorUser ? gestorUser.nome : (dept.responsavel_nome || '');
+                    const gestorColab = gestorNome && (colabs || []).find(c =>
+                        normNome(c.nome_completo) === normNome(gestorNome) ||
+                        normNome(c.nome_completo).includes(normNome(gestorNome)) ||
+                        normNome(gestorNome).includes(normNome(c.nome_completo))
+                    );
+
+                    const alreadyIn = result.some(r =>
+                        (gestorUser && r.username === gestorUser.username) ||
+                        (gestorColab && r.id === gestorColab.id)
+                    );
+
+                    if (!alreadyIn) {
+                        const gestorEntry = {
+                            id: gestorColab ? gestorColab.id : (gestorUser ? gestorUser.id : null),
+                            nome: gestorNome || dept.responsavel_nome || gestorId,
+                            cargo: gestorColab ? gestorColab.cargo : 'Gestor',
+                            departamento: setor,
+                            status: gestorColab ? gestorColab.status : 'Ativo',
+                            username: gestorUser ? gestorUser.username : null,
+                            foto_colaborador: gestorColab
+                                ? (gestorColab.foto_base64 || (gestorColab.foto_path ? '/api/colaboradores/foto/' + gestorColab.id : null))
+                                : null
+                        };
+                        result.unshift(gestorEntry);
+                    }
+                }
+
+                res.json(result);
+            });
+        });
     });
 });
 

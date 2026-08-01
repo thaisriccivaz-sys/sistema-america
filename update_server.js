@@ -1,23 +1,58 @@
 const fs = require('fs');
-const path = 'backend/server.js';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
+const file = path.join(__dirname, 'backend', 'server.js');
+let code = fs.readFileSync(file, 'utf8');
 
-const insertion = `
-// Renomear Autorização de Desconto em Folha
-db.run("UPDATE geradores SET nome = 'Autorização de Desconto em Folha' WHERE nome LIKE '%AUTORIZA%DESCONTO%FOLHA%'");
-// Excluir permanentemente ORDEM DE SERVIÇO NR01
-db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'");
-`;
+function doReplace(find, replace, name) {
+    if (code.includes(find)) {
+        code = code.replace(find, replace);
+        console.log("Success replacing", name);
+    } else {
+        const altFind = find.replace(/\\n/g, '\\r\\n');
+        if (code.includes(altFind)) {
+            code = code.replace(altFind, replace);
+            console.log("Success replacing (with \\r\\n)", name);
+        } else {
+            console.log("FAILED to find:", name);
+        }
+    }
+}
 
-content = content.replace(
-    /db\.run\("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'"\);/,
-    "db.run(\"DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'\");" + insertion
+doReplace(
+    "contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps,",
+    "contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps, isUrgent: r.is_urgent === 1,",
+    "Fix 1: GET"
 );
 
-content = content.replace(
-    /db\.run\("INSERT OR IGNORE INTO geradores_excluidos \(nome\) VALUES \('Autorizar Desconto'\)"\);/,
-    "db.run(\"INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')\");\n    db.run(\"INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVIÇO NR01')\");"
+doReplace(
+    "contact_name, contact_phone, contact_email, channel, type_key, occurrences,",
+    "contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,",
+    "Fix 2a: INSERT columns"
 );
 
-fs.writeFileSync(path, content, 'utf8');
-console.log("Updated server.js");
+doReplace(
+    "    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,",
+    "    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,",
+    "Fix 2b: INSERT placeholders"
+);
+
+doReplace(
+    "        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, JSON.stringify(t.occurrences||[]),",
+    "        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),",
+    "Fix 2c: INSERT values"
+);
+
+doReplace(
+    "        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, updated_at = CURRENT_TIMESTAMP",
+    "        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, is_urgent = ?, updated_at = CURRENT_TIMESTAMP",
+    "Fix 3a: UPDATE columns"
+);
+
+doReplace(
+    "        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), req.params.id",
+    "        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), t.isUrgent ? 1 : 0, req.params.id",
+    "Fix 3b: UPDATE values"
+);
+
+fs.writeFileSync(file, code);
+console.log("Finished script!");

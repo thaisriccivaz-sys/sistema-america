@@ -1,19 +1,54 @@
 const fs = require('fs');
-const path = 'backend/database.js';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
+const file = path.join(__dirname, 'backend', 'database.js');
+let code = fs.readFileSync(file, 'utf8');
 
-const target = /token TEXT NOT NULL UNIQUE,\s*colaboradores_ids TEXT,\s*veiculos_ids TEXT,\s*docs_exigidos TEXT,/m;
-const replacement = `token TEXT NOT NULL UNIQUE,
-                    os TEXT DEFAULT '',
-                    observacoes TEXT DEFAULT '',
-                    colaboradores_ids TEXT,
-                    veiculos_ids TEXT,
-                    docs_exigidos TEXT,`;
+const backtick = String.fromCharCode(96);
 
-if (content.match(target)) {
-    content = content.replace(target, replacement);
-    fs.writeFileSync(path, content, 'utf8');
-    console.log("Fixed database.js CREATE TABLE");
-} else {
-    console.log("Regex not matched in database.js!");
-}
+const search = [
+    "                    cost_centers TEXT,",
+    "                    attachments TEXT,",
+    "                    checklist TEXT,",
+    "                    logistics_task TEXT,",
+    "                    commercial_task TEXT,",
+    "                    financial_task TEXT,",
+    "                    db.run(\"ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0\", () => {});",
+    "                }",
+    "            });",
+    "                    checklist TEXT,",
+    "                    logistics_task TEXT,",
+    "                    commercial_task TEXT,",
+    "                    financial_task TEXT,",
+    "                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,",
+    "                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+    "                )",
+    "            " + backtick + ", (err) => {",
+    "                if (!err) console.log('[SAC] Tabela sac_tickets OK.');",
+    "            });"
+].join('\n');
+
+const replacement = [
+    "                    cost_centers TEXT,",
+    "                    attachments TEXT,",
+    "                    checklist TEXT,",
+    "                    logistics_task TEXT,",
+    "                    commercial_task TEXT,",
+    "                    financial_task TEXT,",
+    "                    open_date DATETIME DEFAULT CURRENT_TIMESTAMP,",
+    "                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,",
+    "                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+    "                )",
+    "            " + backtick + ", (err) => {",
+    "                if (!err) {",
+    "                    console.log('[SAC] Tabela sac_tickets OK.');",
+    "                    db.run(\"ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0\", () => {});",
+    "                }",
+    "            });"
+].join('\n');
+
+code = code.replace(search, replacement);
+// Also fix line ending variations just in case
+code = code.replace(search.replace(/\\n/g, '\\r\\n'), replacement);
+
+fs.writeFileSync(file, code);
+console.log("Replaced successfully!");
