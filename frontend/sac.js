@@ -277,7 +277,7 @@
       <!-- TOPBAR -->
       <div id="sac-topbar" style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:0 20px;display:flex;align-items:center;gap:16px;min-height:56px;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,0.18);">
         <div style="display:flex;align-items:center;gap:10px;">
-          <i class="ph ph-headset" style="font-size:1.4rem;color:#f97316;"></i>
+          <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
           <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;">SAC <span style="font-weight:400;font-size:0.8rem;color:#94a3b8;margin-left:4px;">Portal de Ocorrências</span></span>
         </div>
         <div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:center;">
@@ -285,7 +285,7 @@
           <button class="sac-nav-btn" data-view="tabela"   onclick="SAC.setView('tabela')"><i class="ph ph-table"></i> Relatório</button>
           <button class="sac-nav-btn" data-view="config"   onclick="SAC.setView('config')"><i class="ph ph-sliders-horizontal"></i> Parametrizar</button>
         </div>
-        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#f97316;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#ea580c'" onmouseout="this.style.background='#f97316'">
+        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
           <i class="ph ph-plus-circle"></i> Abrir Chamado
         </button>
       </div>
@@ -311,7 +311,7 @@
       <div id="sac-modal-container" style="display:none;position:fixed;inset:0;z-index:9001;display:none;align-items:center;justify-content:center;pointer-events:none;"></div>
 
       <!-- WIZARD OVERLAY -->
-      <div id="sac-wizard-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9100;align-items:center;justify-content:center;"></div>
+      <div id="sac-wizard-overlay" style="display:none;position:fixed;inset:0;background:#f8fafc;z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;"></div>
 
       <!-- TRANSITION MODAL -->
       <div id="sac-trans-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:9200;align-items:center;justify-content:center;"></div>
@@ -758,16 +758,21 @@
     const channelOpts = ['WhatsApp','E-mail','Telefone','Presencial'].map(c => `<option ${_wiz.channel===c?'selected':''}>${c}</option>`).join('');
 
     ov.innerHTML = `
-    <div class="sac-modal sac-animated" style="width:1000px;max-width:95vw;max-height:95vh;overflow-y:auto;padding:28px;position:relative;" onclick="event.stopPropagation()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:sticky;top:-28px;background:#fff;z-index:10;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-        <div>
-          <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Novo Chamado de SAC</h2>
-          <div style="font-size:0.8rem;color:#64748b;">Preencha todas as informações abaixo para abrir a ocorrência.</div>
+    <div class="sac-modal sac-animated" style="width:100%;min-height:100vh;overflow-y:auto;padding:0;position:relative;border-radius:0;box-shadow:none;background:#f8fafc;" onclick="event.stopPropagation()">
+      <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;min-height:56px;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,0.18);position:sticky;top:0;z-index:10;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
+          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;">SAC <span style="font-weight:400;font-size:0.8rem;color:#94a3b8;margin-left:4px;">Novo Chamado</span></span>
         </div>
-        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;padding:4px;">✕</button>
+        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;transition:color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">✕</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+      <div style="max-width:1000px;margin:28px auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+        <div style="margin-bottom:24px;">
+          <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Detalhes da Solicitação</h2>
+          <div style="font-size:0.8rem;color:#64748b;">Preencha todas as informações abaixo para abrir a ocorrência.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
         <!-- COLUNA 1 -->
         <div>
           <!-- SEÇÃO 1: DADOS DA OS -->
@@ -869,7 +874,8 @@
       </div>
 
       <div style="display:flex;justify-content:flex-end;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:16px;">
-        <button id="wiz-submit-btn" class="sac-btn sac-btn-primary" onclick="SAC.wizSubmit()" style="font-size:1.05rem;padding:10px 24px;"><i class="ph ph-check-circle"></i> Criar Chamado</button>
+        <button id="wiz-submit-btn" class="sac-btn sac-btn-primary" onclick="SAC.wizSubmit()" style="font-size:1.05rem;padding:10px 24px;background:#dc2626;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'"><i class="ph ph-check-circle"></i> Criar Chamado</button>
+      </div>
       </div>
     </div>`;
   }
