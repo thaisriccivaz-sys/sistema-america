@@ -1064,6 +1064,31 @@
       t.financialTask && { label:'Financeiro', task:t.financialTask, key:'financialTask' }
     ].filter(Boolean);
 
+    const canEditAssignment = (ticket, taskLabel) => {
+      const cUser = currentUsername();
+      let cUserId = null, isAdmin = false;
+      try {
+        const u = JSON.parse(localStorage.getItem('erp_user'));
+        if (u) {
+          cUserId = String(u.id);
+          isAdmin = (u.perfil === 'Admin' || u.perfil === 'Administrador' || String(u.grupo_permissao_id) === '1');
+        }
+      } catch(e) {}
+      if (isAdmin) return true;
+      if (ticket.timeline && ticket.timeline.length > 0 && ticket.timeline[0].user === cUser) return true;
+      const deptNorm = (taskLabel||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const deptObj = _globalDepartamentos.find(d => {
+          const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+          return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
+      });
+      if (deptObj) {
+          const gestorId = deptObj.responsavel_id ? String(deptObj.responsavel_id) : null;
+          const gestorNome = deptObj.responsavel_nome ? String(deptObj.responsavel_nome) : null;
+          if ((gestorId && (gestorId === cUserId || gestorId === cUser)) || (gestorNome && gestorNome === cUser)) return true;
+      }
+      return false;
+    };
+
     return `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div>
@@ -1089,7 +1114,10 @@
     ${allTasks.length?`
     <div style="margin-bottom:16px;">
       <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Tarefas Setoriais</div>
-      ${allTasks.map(({label,task,key}) => `
+      ${allTasks.map(({label,task,key}) => {
+        const canEdit = canEditAssignment(t, label);
+        const disabledAttr = canEdit ? '' : 'disabled title="Apenas o criador do chamado ou gestor do setor podem alterar a atribuição"';
+        return `
       <div style="background:${task.isCompleted?'#f0fdf4':'#fffbeb'};border:1.5px solid ${task.isCompleted?'#86efac':'#fde68a'};border-radius:10px;padding:12px;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
           <i class="ph ph-${task.isCompleted?'check-circle':'clock'}" style="color:${task.isCompleted?'#15803d':'#d97706'};font-size:1rem;"></i>
@@ -1099,7 +1127,7 @@
         <!-- Edição de atribuição -->
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
           <img src="${task.assignedToPhoto||''}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;background:#cbd5e1;flex-shrink:0;" onerror="this.style.display='none'">
-          <select id="assign-select-${key}" style="flex:1;min-width:160px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:pointer;" onchange="SAC.changeTaskAssignment('${key}', this.value)">
+          <select id="assign-select-${key}" ${disabledAttr} style="flex:1;min-width:160px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:${canEdit?'pointer':'not-allowed'};opacity:${canEdit?'1':'0.7'};" onchange="SAC.changeTaskAssignment('${key}', this.value)">
             <option value="">— Nenhum —</option>
             ${(window._sacUsersList||[]).map(u=>`<option value="${u.username||u.login||u.email}" ${(task.assignedTo===(u.username||u.login||u.email))?'selected':''}>${u.nome||u.name||u.username}</option>`).join('')}
           </select>
@@ -1111,7 +1139,7 @@
           <textarea id="tf-${key}" rows="2" placeholder="Escreva a resposta/feedback do setor ${label}..." style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.82rem;outline:none;box-sizing:border-box;resize:vertical;"></textarea>
           <button class="sac-btn sac-btn-primary" style="margin-top:6px;padding:5px 12px;font-size:0.78rem;" onclick="SAC.completeTask('${key}')"><i class="ph ph-check-circle"></i> Marcar como Respondido</button>
         </div>`}
-      </div>`).join('')}
+      </div>`}).join('')}
     </div>`:''}
 
     <!-- OCORRÊNCIAS -->
