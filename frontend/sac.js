@@ -775,22 +775,22 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
               <label>Protocolo / Nº Chamado</label>
-              <input type="text" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
+              <input type="text" autocomplete="off" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
             </div>
             <div class="sac-field">
               <label>Nº OS (Logística/Comercial)</label>
-              <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
+              <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="Digite e aperte Enter" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); _sacBuscarOSLogistica(this.value);}">
               ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
             </div>
           </div>
           <div class="sac-field">
             <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
-            <input type="text" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
+            <input type="text" autocomplete="off" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
               <label>CNPJ / CPF</label>
-              <input type="text" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
+              <input type="text" autocomplete="off" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
             </div>
             <div class="sac-field">
               <label>Canal de Entrada</label>
@@ -799,11 +799,11 @@
           </div>
           <div class="sac-field">
             <label>Equipamento <span style="color:#dc2626">*</span></label>
-            <input type="text" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
+            <input type="text" autocomplete="off" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
           </div>
           <div class="sac-field" style="margin-bottom:24px;">
             <label>Endereço / Local</label>
-            <input type="text" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
+            <input type="text" autocomplete="off" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
           </div>
 
           <!-- SEÇÃO 2: CONTATO & TIPO -->
@@ -811,16 +811,16 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
               <label>Nome do Contato <span style="color:#dc2626">*</span></label>
-              <input type="text" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
+              <input type="text" autocomplete="off" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
             </div>
             <div class="sac-field">
               <label>Telefone</label>
-              <input type="text" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
+              <input type="text" autocomplete="off" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
             </div>
           </div>
           <div class="sac-field" style="margin-bottom:24px;">
             <label>E-mail</label>
-            <input type="email" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
+            <input type="email" autocomplete="off" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
           </div>
         </div>
 
