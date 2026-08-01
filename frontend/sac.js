@@ -705,7 +705,7 @@
         </div>
         <div class="sac-field">
           <label>Nº OS (Logística/Comercial)</label>
-          <input type="text" value="${_wiz.osNumber||\'\'}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
+          <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
           ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
         </div>
       </div>
