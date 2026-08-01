@@ -53,7 +53,8 @@
         return v !== null && v !== undefined ? v.toFixed(1) : '—';
     }
     function periodLabel(p) {
-        return `T${p.trimestre}/${p.ano}`;
+        const mesNome = { 1: 'Janeiro', 2: 'Abril', 3: 'Julho', 4: 'Setembro' }[p.trimestre] || `T${p.trimestre}`;
+        return `${mesNome} (${p.trimestre}º Trim. ${p.ano})`;
     }
     function grupoLabel(g) {
         return { escritorio: 'Escritório', motorista: 'Motoristas', manutencao: 'Manutenção' }[g] || g;
@@ -300,8 +301,7 @@
             html += `<div class="sat-table-wrap"><table class="sat-table">
                 <thead><tr>
                     <th>Tópico</th>
-                    ${periodos.map((p, i) => `<th>${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
-                    <th>Variação</th>
+                    ${periodos.map((p, i) => `<th style="text-align:center;">${periodLabel(p)}${i > 0 ? ' <span style="font-size:.7em;opacity:.5;">tendência</span>' : ''}</th>`).join('')}
                 </tr></thead>
                 <tbody>`;
 
@@ -309,25 +309,16 @@
                 const vals = periodos.map(p => t[`${p.ano}-T${p.trimestre}`] ?? null);
                 if (vals.every(v => v === null)) return; // Oculta tópicos sem dados
 
-                const firstValid = vals.find(v => v !== null);
-                const lastValid = [...vals].reverse().find(v => v !== null);
-                const variacao = (firstValid !== undefined && lastValid !== undefined && firstValid !== lastValid)
-                    ? lastValid - firstValid : null;
-
                 html += `<tr>
                     <td style="font-weight:600;color:#334155;">${t.topico}</td>
                     ${vals.map((v, i) => `
                         <td>
-                            <div style="display:flex;align-items:center;gap:.45rem;">
+                            <div style="display:flex;align-items:center;justify-content:center;gap:.45rem;">
                                 <span class="score-pill" style="background:${scoreBg(v)};color:${scoreColor(v)};">${fmtScore(v)}</span>
                                 ${trendIcon(vals, i)}
                             </div>
                         </td>
                     `).join('')}
-                    <td>${variacao !== null
-                        ? `<span style="color:${variacao >= 0 ? '#22c55e' : '#ef4444'};font-weight:700;">${variacao >= 0 ? '+' : ''}${variacao.toFixed(1)}</span>`
-                        : '<span style="color:#94a3b8;">—</span>'
-                    }</td>
                 </tr>`;
             });
 
@@ -340,12 +331,11 @@
             html += `<tr style="background:#f8fafc;font-weight:700;">
                 <td style="color:#7c3aed;">Média do grupo</td>
                 ${groupAvgs.map((v, i) => `<td>
-                    <div style="display:flex;align-items:center;gap:.45rem;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:.45rem;">
                         <span class="score-pill" style="background:${scoreBg(v)};color:${scoreColor(v)};font-weight:800;">${fmtScore(v)}</span>
                         ${trendIcon(groupAvgs, i)}
                     </div>
                 </td>`).join('')}
-                <td></td>
             </tr>`;
 
             html += `</tbody></table></div>`;
@@ -367,11 +357,7 @@
     }
 
     function grupoFromDeptCargo(dept, cargo) {
-        const d = (dept || '').toLowerCase();
-        const c = (cargo || '').toLowerCase();
-        if (c.includes('motorista') || d.includes('motorista') || d.includes('logística') || d.includes('logistica')) return 'motorista';
-        if (d.includes('manutencao') || d.includes('manutenção')) return 'manutencao';
-        return 'escritorio';
+        return window.matchTemplateGroup('satisfacao', dept, cargo);
     }
 
     /* ── COLABORADORES TABLE ─────────────────────────────────── */
@@ -432,9 +418,7 @@
         const lastP = lastKey ? c.pesquisas?.[lastKey] : null;
         const isNaoAdmitidoLast = lastP?.nao_admitido;
 
-        return `<tr>
-            <td>
-                <div class="sat-avatar-cell">
+        return `<tbody class="sat-colab-group"><tr>\n            <td>\n                <div class="sat-avatar-cell">\n                    <button class="btn-sat-toggle-history" onclick="window._satToggleHistory(this)" style="background:transparent;border:none;cursor:pointer;padding:0.2rem;margin-right:0.5rem;display:flex;align-items:center;justify-content:center;color:#64748b;transition:transform 0.2s;"><i class="ph ph-caret-right" style="font-size:1.1rem;font-weight:bold;"></i></button>
                     ${avatarHTML(c)}
                     <div>
                         <div style="font-weight:600;color:#1e293b;font-size:.83rem;" title="${c.nome_completo}">${c.nome_completo.length > 15 ? c.nome_completo.substring(0, 15) + '...' : c.nome_completo}</div>
@@ -463,16 +447,197 @@
                     data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                    data-respostas='${lastP && lastP.respostas ? JSON.stringify(lastP.respostas).replace(/'/g, "&#39;") : "{}"}'
+                    data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
                     onclick="window._satOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
             </td>
-        </tr>`;
+        </tr>
+        <tr class="sat-history-row" style="display:none;background:#f8fafc;">
+            <td colspan="100%" style="padding:1rem 2rem;border-bottom:1px solid #e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1rem;">
+                    <h4 style="margin:0 0 1rem 0;color:#334155;font-size:0.9rem;">Histórico e Evolução de Notas</h4>
+                    ${(() => {
+                        const grupo = window.matchTemplateGroup('satisfacao', c.departamento, c.cargo);
+                        const perguntasGroup = window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.satisfacao ? window.AVALIACAO_QUESTIONS.satisfacao[grupo] : null;
+
+                        if (!perguntasGroup) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário ou template de perguntas encontrado.</div>';
+                        }
+
+                        // Process periods data
+                        const periodosData = periodos.map(p => {
+                            const key = `${p.ano}-T${p.trimestre}`;
+                            const ps = c.pesquisas?.[key];
+                            if (!ps || !ps.respondido) return { ...p, notas: {}, media: null, hasDetails: false, psRaw: ps };
+
+                            let respostasObj = ps.respostas;
+                            if (typeof respostasObj === 'string') {
+                                try { respostasObj = JSON.parse(respostasObj); } catch(e) { respostasObj = null; }
+                            }
+
+                            let notas = {};
+                            let hasDetails = false;
+                            
+                            if (respostasObj && typeof respostasObj === 'object') {
+                                const isGrouped = Object.keys(respostasObj).some(k => !k.startsWith('__') && k !== 'info_adicional' && k !== 'scores' && typeof respostasObj[k] === 'object' && respostasObj[k] !== null);
+                                if (isGrouped) {
+                                    hasDetails = true;
+                                    Object.entries(respostasObj).forEach(([cat, notasObj]) => {
+                                        if (cat.startsWith('__') || cat === 'info_adicional' || cat === 'scores') return;
+                                        if (typeof notasObj !== 'object' || notasObj === null) return;
+                                        if (!notas[cat]) notas[cat] = {};
+                                        
+                                        if (Array.isArray(notasObj)) {
+                                            notasObj.forEach((n, idx) => {
+                                                notas[cat][idx] = n;
+                                            });
+                                        } else {
+                                            Object.entries(notasObj).forEach(([idxStr, n]) => {
+                                                const idx = parseInt(idxStr, 10);
+                                                notas[cat][idx] = n;
+                                            });
+                                        }
+                                    });
+                                }
+                            }
+
+                            return { ...p, notas, media: ps.media, hasDetails, psRaw: ps, respostasRaw: respostasObj };
+                        });
+
+                        const hasAnyResponse = periodosData.some(pd => pd.media !== null);
+                        if (!hasAnyResponse) {
+                            return '<div style="text-align:center;padding:1.5rem;color:#94a3b8;font-style:italic;font-size:0.82rem;">Nenhum formulário preenchido nos períodos anteriores.</div>';
+                        }
+
+                        // Build Table Header
+                        let theadHtml = `<tr>
+                            <th style="text-align:left;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:50%;">Perguntas</th>`;
+                        
+                        periodos.forEach(p => {
+                            theadHtml += `<th style="text-align:center;color:#64748b;font-weight:600;font-size:0.8rem;padding:8px 12px;border-bottom:2px solid #e2e8f0;width:12%;">${periodLabel(p)}</th>`;
+                        });
+                        theadHtml += '</tr>';
+
+                        let tbodyHtml = '';
+
+                        Object.entries(perguntasGroup).forEach(([cat, questions]) => {
+                            if (!questions || questions.length === 0) return;
+                            
+                            // Category Header Row
+                            tbodyHtml += `<tr>
+                                <td colspan="${periodos.length + 1}" style="padding:10px 12px 4px 12px;">
+                                    <div style="font-weight:800;font-size:0.75rem;text-transform:uppercase;letter-spacing:.05em;color:#7c3aed;">${cat}</div>
+                                </td>
+                            </tr>`;
+
+                            // Questions Rows
+                            questions.forEach((qText, idx) => {
+                                if (!qText || !qText.trim()) return;
+                                
+                                tbodyHtml += `<tr style="border-bottom:1px solid #f1f5f9;">
+                                    <td style="padding:6px 12px;font-size:0.78rem;color:#334155;line-height:1.35;">${qText}</td>`;
+                                
+                                periodosData.forEach(pd => {
+                                    let nVal = '—';
+                                    let nColor = '#cbd5e1'; // light gray for empty
+                                    let nBg = 'transparent';
+
+                                    if (pd.media !== null) {
+                                        if (pd.hasDetails && pd.notas[cat] && pd.notas[cat][idx] !== undefined) {
+                                            const v = pd.notas[cat][idx];
+                                            nVal = (v !== null && v !== undefined) ? v : '—';
+                                            const m = parseFloat(v);
+                                            if (!isNaN(m)) {
+                                                nColor = scoreColor(m);
+                                                nBg = scoreBg(m);
+                                            } else {
+                                                nColor = '#475569';
+                                            }
+                                        } else if (!pd.hasDetails) {
+                                            // Resposta existe mas sem detalhes
+                                            nVal = '<span style="font-size:0.7rem;color:#94a3b8;" title="Sem detalhes">S/D</span>';
+                                        }
+                                    }
+
+                                    const pillStyle = nVal !== '—' && nVal.indexOf('<span') === -1 ? `background:${nBg};color:${nColor};font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;display:inline-block;min-width:28px;` : `color:#cbd5e1;`;
+                                    
+                                    tbodyHtml += `<td style="text-align:center;padding:6px 12px;">
+                                        <span style="${pillStyle}">${nVal}</span>
+                                    </td>`;
+                                });
+                                
+                                tbodyHtml += '</tr>';
+                            });
+                        });
+
+                        // Medias row at the bottom
+                        tbodyHtml += `<tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+                            <td style="text-align:right;padding:10px 12px;font-weight:700;font-size:0.8rem;color:#334155;">Média Geral:</td>`;
+                        periodosData.forEach(pd => {
+                            if (pd.media !== null) {
+                                tbodyHtml += `<td style="text-align:center;padding:10px 12px;">
+                                    <span class="score-pill" style="background:${scoreBg(pd.media)};color:${scoreColor(pd.media)};font-size:0.8rem;font-weight:800;">${fmtScore(pd.media)}</span>
+                                </td>`;
+                            } else {
+                                 tbodyHtml += `<td style="text-align:center;padding:10px 12px;color:#cbd5e1;">—</td>`;
+                            }
+                        });
+                        tbodyHtml += '</tr>';
+
+                        // Ações row
+                        tbodyHtml += `<tr>
+                            <td style="text-align:right;padding:10px 12px;font-weight:600;font-size:0.75rem;color:#64748b;">Ações:</td>`;
+                        periodosData.forEach(pd => {
+                            if (pd.media !== null) {
+                                tbodyHtml += `<td style="text-align:center;padding:10px 12px;">
+                                    <button
+                                        data-colab-id="${c.id}"
+                                        data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
+                                        data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
+                                        data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
+                                        data-respostas="${pd.psRaw.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(pd.psRaw.respostas)))) : ''}"
+                                        data-ano="${pd.ano}"
+                                        data-trim="${pd.trimestre}"
+                                        onclick="window._satOpenFormBtn(this, true)"
+                                        style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;font-weight:600;transition:background 0.2s;">
+                                        <i class="ph ph-eye" style="margin-right:4px;"></i>Ver
+                                    </button>
+                                </td>`;
+                            } else {
+                                 tbodyHtml += `<td style="text-align:center;padding:10px 12px;color:#cbd5e1;"></td>`;
+                            }
+                        });
+                        tbodyHtml += '</tr>';
+
+                        return `
+                        <div style="border:1px solid #e2e8f0;border-radius:8px;overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;">
+                                <thead>${theadHtml}</thead>
+                                <tbody>${tbodyHtml}</tbody>
+                            </table>
+                        </div>`;
+                    })()}
+                </div>
+            </td>
+        </tr></tbody>`;
     }
 
-    /* ── FILTER & SORT ──────────────────────────────────────── */
+    
+    window._satToggleHistory = function(btn) {
+        const tbody = btn.closest('tbody');
+        const historyRow = tbody.querySelector('.sat-history-row');
+        const icon = btn.querySelector('i');
+        if (historyRow.style.display === 'none') {
+            historyRow.style.display = 'table-row';
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            historyRow.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
+    };
+/* ── FILTER & SORT ──────────────────────────────────────── */
     function getFilteredColabs() {
         let colabs = (_colabs.colaboradores || []).slice();
         if (_searchText) {
@@ -513,17 +678,23 @@
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._satOpenFormBtn = function(btn) {
+    window._satOpenFormBtn = function(btn, isReadonly = false) {
         const id = parseInt(btn.dataset.colabId, 10);
         const nome = btn.dataset.colabNome;
         const cargo = btn.dataset.colabCargo;
         const dept = btn.dataset.colabDept;
         let saved = {};
-        try { saved = JSON.parse(btn.dataset.respostas || '{}'); } catch(e) {}
-        window._satOpenForm(id, nome, cargo, dept, saved);
+        try { 
+            const raw = btn.dataset.respostas || '';
+            if (raw) {
+                // decodificar base64
+                try { saved = JSON.parse(decodeURIComponent(escape(atob(raw)))); } catch(e) { saved = {}; }
+            }
+        } catch(e) { saved = {}; }
+        const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._satOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
     };
 
-    window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}) {
+    window._satOpenForm = function(colabId, nome, cargo, dept, saved = {}, isReadonly = false, ano = null, trim = null) {
         if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.satisfacao) {
             alert('Erro: Perguntas de satisfação não carregadas.');
             return;
@@ -531,12 +702,39 @@
         if (typeof saved === 'string') {
             try { saved = JSON.parse(saved); } catch(e) { saved = {}; }
         }
+        // Normalizar formato legado { scores: {...}, topicos: [...] } — ignorar prefill, usar formulário limpo
+        if (saved && saved.scores && typeof saved.scores === 'object') {
+            // formato antigo do prontuário: não conseguimos preencher individualmente
+            saved = {};
+        }
+        // Garantir que saved tem __obs__
+        if (!saved.__obs__) saved.__obs__ = {};
         
         const grupo = grupoFromDeptCargo(dept, cargo);
+        if (!grupo) {
+            const overlay = document.createElement('div');
+            overlay.id = 'sat-modal-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;padding:2rem;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                    <i class="ph ph-warning-circle" style="font-size:3rem;color:#f59e0b;"></i>
+                    <h3 style="margin:1rem 0 0.5rem;color:#1e293b;">Template não cadastrado</h3>
+                    <p style="color:#64748b;margin-bottom:1.5rem;">
+                        Não há um template de avaliação de satisfação cadastrado para o departamento<br>
+                        <strong style="color:#0f4c81;">${dept || cargo || 'deste colaborador'}</strong>.
+                    </p>
+                    <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:1.5rem;">
+                        Acesse <strong>Avaliações → Gerenciar Avaliações</strong> e crie um template incluindo esse departamento.
+                    </p>
+                    <button onclick="document.getElementById('sat-modal-overlay').remove()" style="padding:0.6rem 1.5rem;background:#0f4c81;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fechar</button>
+                </div>`;
+            document.body.appendChild(overlay);
+            return;
+        }
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         
         let html = `<div id="sat-modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
-            <div style="background:#fff;border-radius:14px;width:100%;max-width:900px;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
+            <div style="background:#fff;border-radius:14px;width:100%;max-width:98%;height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.2);animation: satModalFadeIn 0.2s ease-out;">
                 <div style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#0f4c81;color:#fff;border-radius:14px 14px 0 0;">
                     <div>
                         <h2 style="margin:0;font-size:1.25rem;color:#fff;"><i class="ph ph-smiley" style="color:#cffafe;margin-right:.5rem;"></i>Avaliação de Satisfação</h2>
@@ -552,7 +750,7 @@
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
                     </style>
-                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}')">`;
+                    <form id="sat-modal-form" onsubmit="window._satSubmitForm(event, ${colabId}, '${grupo}', ${ano}, ${trim})">`;
 
         let catIdx = 0;
         Object.keys(perguntasGroup).forEach(topico => {
@@ -565,11 +763,15 @@
             `;
             
             perguntasGroup[topico].forEach((pergunta, idx) => {
-                const val = saved[topico] ? saved[topico][idx] : null;
-                const obsStr = (saved.__obs__ && saved.__obs__[topico] && saved.__obs__[topico][idx]) ? saved.__obs__[topico][idx] : '';
+                if (!pergunta || !pergunta.trim()) return; // pular perguntas vazias/undefined
+                // lookup: JSON salva como string key '0','1'... converter
+                const topicoSaved = saved[topico];
+                const val = topicoSaved != null ? (topicoSaved[idx] ?? topicoSaved[String(idx)] ?? null) : null;
+                const obsSaved = saved.__obs__ && saved.__obs__[topico] ? saved.__obs__[topico] : {};
+                const obsStr = (obsSaved[idx] ?? obsSaved[String(idx)]) || '';
                 html += `
                 <div style="display:flex; justify-content:space-between; align-items:center; gap:1.5rem; padding:0.75rem 0; border-bottom:1px dashed #e2e8f0; flex-wrap:wrap;">
-                    <div style="width:35%; min-width:280px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
+                    <div style="width:30%; min-width:250px; font-size:0.95rem; color:#475569; font-weight:500;">${pergunta}</div>
                     <div style="flex:1; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                         <div style="display:flex; gap:0.35rem; flex-shrink:0;">
                 `;
@@ -579,13 +781,18 @@
                 
                 for(let v=1; v<=5; v++) {
                     const c = qColors[v]; const bg = bgColors[v];
-                    const checked = (val == v) ? 'checked' : '';
+                    const isChecked = (val != null && parseInt(val) === v);
+                    const checkedAttr = isChecked ? 'checked' : '';
+                    const disabledAttr = isReadonly ? 'disabled' : '';
+                    const btnBg = isChecked ? c : '#fff';
+                    const btnColor = isChecked ? '#fff' : c;
+                    const btnBorder = isChecked ? c : '#cbd5e1';
                     html += `
                     <label style="cursor:pointer; position:relative; margin:0;" title="Nota ${v}">
-                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checked} required style="position:absolute; opacity:0; pointer-events:none;">
-                        <div class="radio-nota sat-rbtn" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:1px solid #cbd5e1; background:${checked?bg:'#fff'}; color:${checked?'#fff':c}; border-color:${checked?c:'#cbd5e1'}; transition:all 0.15s;" 
-                             onclick="this.parentElement.parentElement.querySelectorAll('.sat-rbtn').forEach(el=>{el.style.background='#fff'; el.style.color=el.dataset.color; el.style.borderColor='#cbd5e1'}); this.style.background=this.dataset.bg; this.style.color='#fff'; this.style.borderColor=this.dataset.color;"
-                             data-color="${c}" data-bg="${c}">
+                        <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} ${disabledAttr} style="position:absolute; opacity:0; pointer-events:none;">
+                        <div class="sat-rbtn" data-color="${c}" data-bg="${c}" data-group="av_${catIdx}_${idx}"
+                             style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:2px solid ${btnBorder}; background:${btnBg}; color:${btnColor}; transition:all 0.15s; cursor:pointer;"
+                             onclick="(function(el){if(isReadonly)return;var grp=el.dataset.group; document.querySelectorAll('.sat-rbtn[data-group=\''+grp+'\']').forEach(function(b){b.style.background='#fff';b.style.color=b.dataset.color;b.style.borderColor='#cbd5e1';}); el.style.background=el.dataset.bg; el.style.color='#fff'; el.style.borderColor=el.dataset.color; var inp=el.previousElementSibling; if(inp)inp.checked=true;})(this)">
                             ${v}
                         </div>
                     </label>`;
@@ -593,7 +800,7 @@
                 
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${obsStr.replace(/"/g, '&quot;')}" placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" ${isReadonly ? 'disabled' : ''} placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
                     </div>
                 </div>`;
             });
@@ -601,16 +808,16 @@
             catIdx++;
         });
 
-        const infoAdic = (saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '';
+        const infoAdic = saved.__obs_gerais__ ? saved.__obs_gerais__ : ((saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '');
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
-                            <textarea name="info_adicional" rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
+                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
                             <button type="button" onclick="window._satCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
-                            <button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>
+                            ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>`}
                         </div>
                     </form>
                 </div>
@@ -625,38 +832,48 @@
         if (overlay) overlay.remove();
     };
 
-    window._satSubmitForm = async function(e, colabId, grupo) {
+    window._satSubmitForm = async function(e, colabId, grupo, refAno, refTrim) {
         e.preventDefault();
         const form = e.target;
         const submitBtn = document.getElementById('sat-btn-submit');
         
         // current quarter
-        const currentYear = new Date().getFullYear();
-        const currentQ = Math.floor(new Date().getMonth() / 3) + 1;
+        const currentYear = refAno || new Date().getFullYear();
+        const currentQ = refTrim || Math.floor(new Date().getMonth() / 3) + 1;
         
-        // build respostas_json in exact format for backend
+        // build respostas_json — salva como arrays para compatibilidade com backend
         const respostas = { __obs__: {} };
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
+        let missingRequired = [];
         
         categories.forEach((cat, catIdx) => {
-            respostas[cat] = {};
-            respostas.__obs__[cat] = {};
+            respostas[cat] = [];
+            respostas.__obs__[cat] = [];
             perguntasGroup[cat].forEach((q, i) => {
+                if (!q || !q.trim()) { respostas[cat].push(null); respostas.__obs__[cat].push(''); return; }
                 const rads = form.elements[`av_${catIdx}_${i}`];
-                if (rads && rads.length) {
-                    const selected = Array.from(rads).find(r => r.checked);
-                    if (selected) respostas[cat][i] = parseInt(selected.value, 10);
+                const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
+                if (selected) {
+                    respostas[cat].push(parseInt(selected.value, 10));
+                } else {
+                    respostas[cat].push(null);
+                    missingRequired.push(`${cat} — Pergunta ${i+1}`);
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
-                if (obs && obs.value.trim().length > 0) {
-                    respostas.__obs__[cat][i] = obs.value.trim();
-                }
+                respostas.__obs__[cat].push((obs && obs.value.trim()) ? obs.value.trim() : '');
             });
+            // limpar array de obs vazio ao final
+            if (respostas.__obs__[cat].every(v => v === '')) delete respostas.__obs__[cat];
         });
         
+        if (missingRequired.length > 0) {
+            alert('Por favor, responda todas as perguntas antes de salvar.\n\nPendentes:\n' + missingRequired.slice(0,5).join('\n'));
+            return;
+        }
+        
         const infoAdicional = form.elements['info_adicional']?.value;
-        if (infoAdicional) respostas.__obs__.info_adicional = infoAdicional.trim();
+        if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
         
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';

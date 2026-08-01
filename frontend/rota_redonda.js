@@ -1239,7 +1239,18 @@ async function carregarOsPorNumero(numOs) {
               }
             throw new Error(`HTTP ${resp.status}`);
         }
-        const registros = await resp.json(); // array de OS com esse número
+        let registros = await resp.json(); // array de OS com esse número
+        const fixStr = (str) => {
+            if (!str || typeof str !== 'string') return str;
+            try { if (/[\\xC2\\xC3][\\x80-\\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+            return str;
+        };
+        if (Array.isArray(registros)) {
+            registros.forEach(r => {
+                if (r.endereco) r.endereco = fixStr(r.endereco);
+                if (r.cliente) r.cliente = fixStr(r.cliente);
+            });
+        }
         if (!registros || registros.length === 0) {
             btn.style.background = '';
             if (numOs) mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
@@ -1739,6 +1750,11 @@ if (!document.getElementById('rr-keyframes')) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function parseOsText(texto) {
+    try {
+        if (/[\xC2\xC3][\x80-\xBF]/.test(texto)) {
+            texto = decodeURIComponent(escape(texto));
+        }
+    } catch(e) {}
     texto = texto.replace(/\t/g, '\n');
     const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l);
     const resultado = {
@@ -2962,6 +2978,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
                     // Atualiza histórico automaticamente
                     if (typeof window._rrRecarregarHistorico === 'function') window._rrRecarregarHistorico();
+
+                    // ── Disparo automático de chamado SAC para Visita Técnica ────
+                    const _ts = (payloadsParaEnviar[0].tipo_servico || '').toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    if (_ts.includes('visita')) {
+                        const _p0 = payloadsParaEnviar[0];
+                        const _prods = Array.isArray(_p0.produtos) ? _p0.produtos.map(p => [p.qtd, p.desc].filter(Boolean).join('x ')) : [];
+                        const _osData = {
+                            number: _p0.numero_os || String(firstId || ''),
+                            client: _p0.cliente || '',
+                            equipment: _prods.join(', '),
+                            address: [_p0.endereco, _p0.complemento].filter(Boolean).join(', ')
+                        };
+                        if (typeof window.createSACTicketFromOS === 'function') {
+                            setTimeout(() => {
+                                if (confirm('🔧 OS de Visita Técnica salva!\n\nDeseja abrir automaticamente um chamado no SAC para esta visita?')) {
+                                    window.createSACTicketFromOS(_osData);
+                                }
+                            }, 800);
+                        }
+                    }
+                    // ─────────────────────────────────────────────────────────────
                 } else if (salvosComSucesso > 0) {
                     mostrarToastAviso(`Atenção: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
                 } else {
@@ -4380,7 +4418,19 @@ function _rrMontarDrawerHistorico() {
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const res = await fetch('/api/logistica/os/buscar', { headers: { Authorization: `Bearer ${token}` } });
-            _dados = await res.json();
+            const rawData = await res.json();
+            const fixStr = (str) => {
+                if (!str || typeof str !== 'string') return str;
+                try { if (/[\\xC2\\xC3][\\x80-\\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+                return str;
+            };
+            if (Array.isArray(rawData)) {
+                rawData.forEach(r => {
+                    if (r.endereco) r.endereco = fixStr(r.endereco);
+                    if (r.cliente) r.cliente = fixStr(r.cliente);
+                });
+            }
+            _dados = rawData;
             if (!Array.isArray(_dados)) _dados = [];
             const count = document.getElementById('rr-hist-count');
             if (count) count.textContent = _dados.length;

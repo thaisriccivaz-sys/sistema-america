@@ -1,3 +1,19 @@
+
+function getBadgeColors(nome, isLow) {
+    if (isLow) return { bg: '#fef2f2', color: '#ef4444', border: '#fca5a5' };
+    const n = (nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (n.includes('terreno')) {
+        return { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }; // green
+    } else if (n.includes('almoxarifado')) {
+        return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' }; // blue
+    } else if (n.includes('loja')) {
+        return { bg: '#fefce8', color: '#a16207', border: '#fef08a' }; // yellow
+    } else if (n.includes('galpao')) {
+        return { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' }; // purple
+    }
+    return { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' }; // default slate
+}
+
 // frontend/estoque.js
 
 // Cache global de enderecos
@@ -22,11 +38,16 @@ async function _carregarEnderecos() {
 }
 
 // ── TABELA PRINCIPAL ──────────────────────────────────────────────────────────
-window.renderEstoqueTable = async function() {
+window.renderEstoqueTable = async function(preserveScroll = false) {
     const table = document.getElementById("table-estoque");
     if (!table) return;
+    
+    const lastScrollY = window.scrollY;
+    
     try {
-        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
+        if (!preserveScroll) {
+            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando...</td></tr>';
+        }
         const dept   = document.getElementById("filtro-estoque-dept").value;
         const cat    = document.getElementById("filtro-estoque-cat").value;
         const statusEl = document.getElementById("filtro-estoque-status");
@@ -95,21 +116,17 @@ window.renderEstoqueTable = async function() {
                 const saldos = saldosMap[i.id] || [];
                 if (tipoFilter === "sem_tipo") {
                     if (saldos.length === 0) return true;
-                    return saldos.every(s => {
-                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
-                        return !endObj || !endObj.tipo_notificacao;
-                    });
+                    return saldos.every(s => !s.tipo_estoque || s.tipo_estoque === 'matriz');
                 } else {
-                    return saldos.some(s => {
-                        const endObj = window._estoqueEnderecos.find(e => String(e.id) === String(s.endereco_id));
-                        return endObj && endObj.tipo_notificacao === tipoFilter;
-                    });
+                    // tipoFilter: 'reposicao' ou 'compra'
+                    const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
+                    return saldos.some(s => (s.tipo_estoque || 'matriz') === tipoEsperado);
                 }
             });
         }
 
         if (data.length === 0) {
-            table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
+            table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">Nenhum item encontrado.</td></tr>';
             return;
         }
 
@@ -157,9 +174,22 @@ window.renderEstoqueTable = async function() {
             // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
             const linhasEndereco = saldos.length > 0 ? saldos : [null];
 
-            linhasEndereco.forEach(function(s, idx) {
+            // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
+            let linhasParaRenderizar = linhasEndereco;
+            if (tipoFilter && tipoFilter !== 'sem_tipo') {
+                const tipoEsperado = tipoFilter === 'reposicao' ? 'reposicao' : 'matriz';
+                const filtroAtivo = linhasEndereco.filter(s => {
+                    if (!s) return false;
+                    if ((s.tipo_estoque || 'matriz') !== tipoEsperado) return false;
+                    const minRef = (parseInt(s.quantidade_minima) > 0) ? parseInt(s.quantidade_minima) : parseInt(item.quantidade_minima) || 0;
+                    return minRef > 0 && (parseInt(s.quantidade) || 0) < minRef;
+                });
+                if (filtroAtivo.length > 0) linhasParaRenderizar = filtroAtivo;
+            }
+
+            linhasParaRenderizar.forEach(function(s, idx) {
                 const primeiraLinha = idx === 0;
-                const ultimaLinha  = idx === linhasEndereco.length - 1;
+                const ultimaLinha  = idx === linhasParaRenderizar.length - 1;
 
                 // Cor/estado deste endereço
                 let lowEnd = false;
@@ -185,9 +215,9 @@ window.renderEstoqueTable = async function() {
                     const hasMax = s.quantidade_maxima > 0;
                     if (hasMin || hasMax) {
                         let parts = [];
-                        if (hasMin) parts.push('<span style="color:#64748b;font-size:0.8rem;">min ' + s.quantidade_minima + '</span>');
-                        if (hasMax) parts.push('<span style="color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>');
-                        minMaxCell = parts.join('<span style="color:#cbd5e1;margin:0 6px;">|</span>');
+                        if (hasMin) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">min ' + s.quantidade_minima + '</span>');
+                        if (hasMax) parts.push('<span style="white-space:nowrap;color:#64748b;font-size:0.8rem;">max ' + s.quantidade_maxima + '</span>');
+                        minMaxCell = '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">' + parts.join('<span style="color:#cbd5e1;">|</span>') + '</div>';
                     } else {
                         minMaxCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                     }
@@ -195,10 +225,17 @@ window.renderEstoqueTable = async function() {
 
                 // Endereço badge
                 let endCell;
+                let tipoCell;
                 if (!s) {
                     endCell = '<span style="color:#94a3b8;font-size:0.78rem;font-style:italic;">Sem endereço</span>';
+                    tipoCell = '<span style="color:#94a3b8;font-size:0.78rem;">—</span>';
                 } else {
-                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + (lowEnd ? '#fef2f2' : '#eff6ff') + ';color:' + (lowEnd ? '#ef4444' : '#1d4ed8') + ';border:1px solid ' + (lowEnd ? '#fca5a5' : '#bfdbfe') + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
+                    const tipoEstoque = s.tipo_estoque || 'matriz';
+                    tipoCell = tipoEstoque === 'reposicao'
+                        ? '<span style="display:inline-flex;align-items:center;gap:2px;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🔄 Reposição</span>'
+                        : '<span style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.72rem;font-weight:600;">🏢 Matriz</span>';
+                    const endColors = getBadgeColors(s.nome, lowEnd);
+                    endCell = '<span style="display:inline-flex;align-items:center;gap:4px;background:' + endColors.bg + ';color:' + endColors.color + ';border:1px solid ' + endColors.border + ';border-radius:6px;padding:3px 8px;font-size:0.7rem;font-weight:600;white-space:nowrap;">' +
                         s.nome +
                         (lowEnd ? ' <i class="ph ph-warning" style="color:#ef4444;font-size:0.78rem;"></i>' : '') +
                         '</span>';
@@ -208,38 +245,34 @@ window.renderEstoqueTable = async function() {
                 const borderTop = primeiraLinha ? '' : 'border-top:1px dashed #e2e8f0;';
                 const bgRow = lowEnd ? 'background:#fff5f5;' : '';
 
-                const rowSpanAttr = linhasEndereco.length > 1 && primeiraLinha ? ' rowspan="' + linhasEndereco.length + '"' : '';
+                const rowSpanAttr = linhasParaRenderizar.length > 1 && primeiraLinha ? ' rowspan="' + linhasParaRenderizar.length + '"' : '';
 
                 rows += '<tr style="border-left:' + rowBorderLeft + ';' + bgRow + borderTop + '">';
                 
                 // Nome + foto
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;font-weight:500;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 '<div style="display:flex;align-items:center;gap:12px;">' + fotoHtml + '<div>' + warnIcon + item.nome + '</div></div>' +
                             '</td>';
                             
                     // Categoria
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 (item.categoria || '-') +
-                            '</td>';
-
-                    // Placas
-                    const hasPlacas = item.placas_vinculadas && item.placas_vinculadas.trim().length > 0;
-                    rows += '<td' + rowSpanAttr + ' style="vertical-align:middle; max-width:200px; overflow:hidden; text-overflow:ellipsis;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
-                                (hasPlacas ? (window.formatarPlacas(item.placas_vinculadas) || '<span style="color:#94a3b8;font-style:italic;">-</span>') : '<span style="color:#94a3b8;font-style:italic;">-</span>') +
                             '</td>';
                 }
                 
                 // Qtd. Atual
                 rows += '<td style="vertical-align:middle;">' + qtdCell + '</td>';
                 // Min/Máx
-                rows += '<td style="vertical-align:middle;">' + minMaxCell + '</td>';
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + minMaxCell + '</td>';
                 // Endereço
                 rows += '<td style="vertical-align:middle;">' + endCell + '</td>';
+                // Tipo
+                rows += '<td style="vertical-align:middle;white-space:nowrap;">' + tipoCell + '</td>';
                 
                 // Ações
                 if (primeiraLinha) {
-                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasEndereco.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
+                    rows += '<td' + rowSpanAttr + ' style="text-align:right;white-space:nowrap;vertical-align:middle;' + (linhasParaRenderizar.length > 1 ? 'border-bottom:1px solid #e2e8f0;' : '') + '">' +
                                 acoesBtns +
                             '</td>';
                 }
@@ -248,9 +281,14 @@ window.renderEstoqueTable = async function() {
         });
 
         table.innerHTML = rows;
+        if (preserveScroll) {
+            window.scrollTo(0, lastScrollY);
+            setTimeout(() => window.scrollTo(0, lastScrollY), 10);
+            setTimeout(() => window.scrollTo(0, lastScrollY), 50);
+        }
     } catch (e) {
         console.error(e);
-        table.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
+        table.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;">' + e.message + '</td></tr>';
     }
 };
 
@@ -343,6 +381,7 @@ window._renderLinhasEndereco = function() {
         const opcoesEnd = window._estoqueEnderecos.map(e =>
             '<option value="' + e.id + '"' + (e.id === linha.endereco_id ? ' selected' : '') + '>' + e.nome + '</option>'
         ).join('');
+        const tipoAtual = linha.tipo_estoque || 'matriz';
         return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:2px;">' +
             // Linha 1: ícone + select endereço + botão remover
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
@@ -355,6 +394,15 @@ window._renderLinhasEndereco = function() {
                     'style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;flex-shrink:0;" title="Remover">' +
                     '<i class="ph ph-trash"></i>' +
                 '</button>' +
+            '</div>' +
+            // Linha 1b: Tipo de Estoque
+            '<div style="margin-bottom:6px;">' +
+                '<label style="display:block;font-size:0.72rem;font-weight:600;color:#7c3aed;margin-bottom:2px;">Tipo de Estoque</label>' +
+                '<select onchange="window._enderecoLinhas[' + idx + '].tipo_estoque = this.value" ' +
+                    'style="width:100%;border:1.5px solid #ddd6fe;border-radius:6px;padding:4px 8px;font-size:0.85rem;background:#faf5ff;color:#5b21b6;font-weight:600;">' +
+                    '<option value="matriz"' + (tipoAtual === 'matriz' ? ' selected' : '') + '>🏢 Estoque Matriz (Pedido de Compra)</option>' +
+                    '<option value="reposicao"' + (tipoAtual === 'reposicao' ? ' selected' : '') + '>🔄 Estoque de Reposição (Pedido de Reposição)</option>' +
+                '</select>' +
             '</div>' +
             // Linha 2: Qtd Atual | Qtd Mínima | Qtd Máxima
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">' +
@@ -383,7 +431,7 @@ window._renderLinhasEndereco = function() {
 };
 
 window._adicionarLinhaEndereco = function() {
-    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0 });
+    window._enderecoLinhas.push({ endereco_id: null, quantidade: 0, quantidade_minima: 0, quantidade_maxima: 0, tipo_estoque: 'matriz' });
     window._renderLinhasEndereco();
 };
 
@@ -474,7 +522,8 @@ window.editarEstoque = async function(item) {
                 endereco_id:       s.endereco_id,
                 quantidade:        s.quantidade,
                 quantidade_minima: s.quantidade_minima || 0,
-                quantidade_maxima: s.quantidade_maxima || 0
+                quantidade_maxima: s.quantidade_maxima || 0,
+                tipo_estoque:      s.tipo_estoque || 'matriz'
             }));
         }
     } catch(e) { console.warn("[editarEstoque] erro ao carregar saldos:", e.message); }
@@ -527,7 +576,7 @@ window.salvarEstoque = async function(e) {
         const res = await fetch(url, {
             method,
             headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...payload, skip_history: (method === 'PUT' && linhasValidas.length > 0) })
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Erro ao salvar"); }
         const result = await res.json();
@@ -543,7 +592,8 @@ window.salvarEstoque = async function(e) {
                         endereco_id:       l.endereco_id,
                         quantidade:        l.quantidade,
                         quantidade_minima: l.quantidade_minima || 0,
-                        quantidade_maxima: l.quantidade_maxima || 0
+                        quantidade_maxima: l.quantidade_maxima || 0,
+                        tipo_estoque:      l.tipo_estoque || 'matriz'
                     }))
                 })
             });
@@ -551,7 +601,7 @@ window.salvarEstoque = async function(e) {
 
         Swal.fire({ icon: "success", title: "Sucesso", text: "Item salvo com sucesso", timer: 1500, showConfirmButton: false });
         window.fecharModalEstoque();
-        window.renderEstoqueTable();
+        window.renderEstoqueTable(true);
     } catch (err) {
         Swal.fire("Erro", err.message, "error");
     } finally {
@@ -576,7 +626,7 @@ window.ajustarEstoqueRapido = async function(id, qtdAtual, variacao) {
             body: JSON.stringify({ nome: item.nome, departamento: item.departamento, categoria: item.categoria, quantidade_atual: novaQtd, quantidade_minima: item.quantidade_minima, quantidade_maxima: item.quantidade_maxima })
         });
         if (!ur.ok) throw new Error("Erro ao atualizar");
-        window.renderEstoqueTable();
+        window.renderEstoqueTable(true);
     } catch(e) { Swal.fire("Erro", "Não foi possível atualizar a quantidade.", "error"); }
 };
 
@@ -718,16 +768,20 @@ window.renderEstoqueHistorico = async function() {
             let raw = h.data_hora || "";
             if (raw && !raw.includes("T")) raw = raw.replace(" ","T") + "Z";
             const dt = new Date(raw);
-            const tipoColor = h.tipo === "Entrada" ? "#16a34a" : (h.tipo === "Saida" ? "#ef4444" : "#eab308");
-            const tipoBg    = h.tipo === "Entrada" ? "#f0fdf4" : (h.tipo === "Saida" ? "#fef2f2" : "#fefce8");
-            const sinal     = h.tipo === "Saida" ? "-" : "+";
+            const tipoNorm = (h.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g,'');
+            const isSaida  = tipoNorm === 'SAIDA' || tipoNorm.startsWith('SAI');
+            const isEntrad = tipoNorm === 'ENTRADA' || tipoNorm.startsWith('ENT');
+            const tipoDisplay = isEntrad ? 'Entrada' : (isSaida ? 'Sa\u00edda' : (h.tipo || 'Ajuste'));
+            const tipoColor = isEntrad ? "#16a34a" : (isSaida ? "#ef4444" : "#eab308");
+            const tipoBg    = isEntrad ? "#f0fdf4" : (isSaida ? "#fef2f2" : "#fefce8");
+            const sinal     = isSaida  ? "-" : "+";
             const endHtml   = h.endereco_nome
                 ? '<span style="display:inline-flex;align-items:center;gap:3px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:600;"><i class="ph ph-map-pin" style="font-size:0.75rem;"></i>' + h.endereco_nome + '</span>'
                 : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
             tr.innerHTML =
                 '<td><div style="font-weight:500;">' + dt.toLocaleDateString("pt-BR") + '</div><div style="font-size:0.8em;color:#64748b;">' + dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) + '</div></td>' +
                 '<td><div style="font-weight:600;color:#1e293b;">' + h.estoque_nome + '</div><div style="margin-top:2px;">' + endHtml + '</div></td>' +
-                '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + h.tipo + '</span></td>' +
+                '<td><span style="background:' + tipoBg + ';color:' + tipoColor + ';padding:2px 8px;border-radius:12px;font-size:0.8em;font-weight:600;">' + tipoDisplay + '</span></td>' +
                 '<td style="font-weight:700;color:' + tipoColor + '">' + sinal + h.quantidade + '</td>' +
                 '<td>' + (h.usuario || "-") + '</td>';
             table.appendChild(tr);
@@ -825,13 +879,18 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
 
     const optsProdutos = produtos.map(p => `<option value="${p.id}">${p.nome} (Total: ${p.quantidade_atual})</option>`).join('');
 
+    // Gerar lista de produtos para busca rápida
+    const produtosJSON = JSON.stringify(produtos.map(p => ({ id: p.id, nome: p.nome, quantidade_atual: p.quantidade_atual })));
+
     let html = `<div style="text-align:left;">
         <div style="margin-bottom:12px;">
             <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Produto *</label>
-            <select id="swal-global-produto" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;">
-                <option value="">Selecione o produto</option>
-                ${optsProdutos}
-            </select>
+            <input type="text" id="swal-global-produto-busca" placeholder="Digite para buscar o produto..." autocomplete="off"
+                style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+            <div id="swal-global-produto-lista" style="max-height:180px;overflow-y:auto;border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;background:#fff;display:none;">
+            </div>
+            <input type="hidden" id="swal-global-produto" value="">
+            <div id="swal-global-produto-selecionado" style="display:none;margin-top:6px;padding:6px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:0.85rem;color:#15803d;font-weight:600;"></div>
         </div>
         <div style="margin-bottom:12px;">
             <label style="font-weight:600;font-size:0.85rem;color:#475569;display:block;margin-bottom:4px;">Endereço *</label>
@@ -862,18 +921,26 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
         cancelButtonText: 'Cancelar',
         confirmButtonColor: corBtn,
         didOpen: () => {
-            const selProd = document.getElementById('swal-global-produto');
+            const allProdutos = JSON.parse(document.getElementById('swal-global-produto').dataset.produtos || produtosJSON);
+            // Armazenar os produtos no elemento hidden para acesso posterior
+            document.getElementById('swal-global-produto').dataset.produtos = produtosJSON;
+
+            const inputBusca = document.getElementById('swal-global-produto-busca');
+            const listaProdutos = document.getElementById('swal-global-produto-lista');
+            const hiddenProduto = document.getElementById('swal-global-produto');
+            const labelSelecionado = document.getElementById('swal-global-produto-selecionado');
             const selEnd = document.getElementById('swal-global-endereco');
             const hint = document.getElementById('swal-global-endereco-hint');
-            
-            selProd.addEventListener('change', async (e) => {
-                const pId = e.target.value;
+
+            // Função para carregar endereços ao selecionar produto
+            async function carregarEnderecosProduto(pId, prodNome, prodQtd) {
+                hiddenProduto.value = pId;
+                labelSelecionado.textContent = prodNome + ' (Total: ' + prodQtd + ')';
+                labelSelecionado.style.display = 'block';
+                inputBusca.value = '';
+                listaProdutos.style.display = 'none';
+
                 selEnd.innerHTML = '<option value="">Selecione o endereço</option>';
-                if (!pId) {
-                    selEnd.disabled = true;
-                    return;
-                }
-                
                 selEnd.disabled = true;
                 hint.style.display = 'block';
 
@@ -895,7 +962,6 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                         }).join('');
                     } else {
                         let avail = saldos.filter(s => s.quantidade > 0);
-                        // Filtra para garantir que o usuário só pode dar saída de endereços que ele tem acesso
                         avail = avail.filter(s => window._estoqueEnderecos.some(e => String(e.id) === String(s.endereco_id)));
                         if (avail.length === 0) {
                             optionsHTML = '<option value="">(Sem saldo em nenhum endereço permitido)</option>';
@@ -908,7 +974,59 @@ window.abrirModalGlobalMovimentacao = async function(tipo) {
                 } catch(err) {
                     hint.style.display = 'none';
                 }
+            }
+
+            // Renderiza lista filtrada
+            function renderListaProdutos(texto) {
+                const t = texto.trim().toLowerCase();
+                const filtrados = t ? allProdutos.filter(p => p.nome.toLowerCase().includes(t)) : allProdutos;
+                if (filtrados.length === 0) {
+                    listaProdutos.innerHTML = '<div style="padding:10px 14px;color:#94a3b8;font-size:0.85rem;">Nenhum produto encontrado</div>';
+                } else {
+                    listaProdutos.innerHTML = filtrados.map(p =>
+                        `<div data-id="${p.id}" data-nome="${p.nome}" data-qtd="${p.quantidade_atual}"
+                            style="padding:8px 14px;cursor:pointer;font-size:0.88rem;border-bottom:1px solid #f1f5f9;
+                            transition:background 0.15s;"
+                            onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+                            <span style="font-weight:600;color:#1e293b;">${p.nome}</span>
+                            <span style="color:#94a3b8;font-size:0.8rem;margin-left:6px;">(Total: ${p.quantidade_atual})</span>
+                        </div>`
+                    ).join('');
+                    // Evento de clique nos itens da lista
+                    listaProdutos.querySelectorAll('[data-id]').forEach(el => {
+                        el.addEventListener('click', () => {
+                            carregarEnderecosProduto(el.dataset.id, el.dataset.nome, el.dataset.qtd);
+                        });
+                    });
+                }
+                listaProdutos.style.display = 'block';
+            }
+
+            // Listener no campo de busca
+            inputBusca.addEventListener('input', (e) => {
+                const t = e.target.value.trim();
+                if (!t) {
+                    listaProdutos.style.display = 'none';
+                    return;
+                }
+                renderListaProdutos(t);
             });
+
+            // Mostrar lista ao focar
+            inputBusca.addEventListener('focus', (e) => {
+                if (e.target.value.trim()) renderListaProdutos(e.target.value);
+            });
+
+            // Fechar lista ao clicar fora
+            document.addEventListener('click', function fecharLista(ev) {
+                if (!listaProdutos.contains(ev.target) && ev.target !== inputBusca) {
+                    listaProdutos.style.display = 'none';
+                    document.removeEventListener('click', fecharLista);
+                }
+            });
+
+            // Foco automático
+            setTimeout(() => inputBusca.focus(), 100);
         },
         preConfirm: () => {
             const pId = document.getElementById('swal-global-produto').value;
@@ -999,7 +1117,7 @@ window.abrirModalGlobalSaida = () => window.abrirModalGlobalMovimentacao('saida'
             html += `
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0;">
                     <input type="checkbox" class="estoque-placa-chk" value="${v.placa}" ${chk} onchange="window.verificarTodasPlacasEstoque()">
-                    <span>${v.placa} ${v.modelo ? ' - '+v.modelo : ''}</span>
+                    <span>${v.marca_modelo_versao ? v.marca_modelo_versao + ' - ' : ''}${v.placa}</span>
                 </label>
             `;
         });

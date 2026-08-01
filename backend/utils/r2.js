@@ -77,8 +77,30 @@ async function deleteFromR2(destinationKey) {
     }
 }
 
+async function downloadStreamFromR2(destinationKey) {
+    if (!s3Client) throw new Error("Cliente R2 não configurado.");
+    
+    const command = new GetObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: destinationKey,
+    });
+    
+    try {
+        const response = await s3Client.send(command);
+        return {
+            stream: response.Body,
+            contentType: response.ContentType,
+            contentLength: response.ContentLength
+        };
+    } catch (e) {
+        console.error(`[R2 Storage] Erro ao baixar ${destinationKey}:`, e.message);
+        throw e;
+    }
+}
+
 module.exports = {
     uploadToR2,
     deleteFromR2,
+    downloadStreamFromR2,
     isReady: () => s3Client !== null
 };

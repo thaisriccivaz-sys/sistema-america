@@ -168,6 +168,13 @@ function renderSenhasAdm() {
     viewList.forEach((s) => {
         const tr = document.createElement('tr');
         
+        const escUser = (s.usuario || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const copyBtn = s.usuario ? `<button type="button" onclick="navigator.clipboard.writeText('${escUser}'); mostrarToastSucesso('Usuário copiado!'); event.stopPropagation();" style="background:none; border:none; cursor:pointer; color:#64748b; padding:0; display:flex; align-items:center;" title="Copiar Usuário"><i class="ph ph-copy"></i></button>` : '';
+        const usuarioHtml = `<div style="display:flex; align-items:center; gap:6px; justify-content:space-between;">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escUser}">${s.usuario || '-'}</span>
+            ${copyBtn}
+        </div>`;
+        
         let linkHtml = s.link ? `<a href="${s.link}" target="_blank" style="color:#228be6; text-decoration:none; display:flex; align-items:center; gap:4px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${s.link}"><i class="ph ph-link" style="flex-shrink:0;"></i> <span style="overflow:hidden; text-overflow:ellipsis;">${s.link}</span></a>` : '<span style="color:#94a3b8;">-</span>';
         
         const pwdId = `table-pwd-${s.id}`;
@@ -192,7 +199,7 @@ function renderSenhasAdm() {
             <td style="font-weight:600; color:#1e293b;">${s.nome || '<span style="color:#94a3b8;">-</span>'}</td>
             <td>${s.servico || '-'}</td>
             <td>${linkHtml}</td>
-            <td style="font-family:monospace; font-size:0.95rem;">${s.usuario}</td>
+            <td style="font-family:monospace; font-size:0.95rem;">${usuarioHtml}</td>
             ${donoHtml}
             <td>${pwdHtml}</td>
             <td style="text-align: right;">

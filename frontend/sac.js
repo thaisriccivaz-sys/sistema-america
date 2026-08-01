@@ -896,16 +896,27 @@
     const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
 
     mc.innerHTML = `
+<<<<<<< HEAD
+    <div class="sac-modal sac-animated" style="width:780px;max-width:96vw;min-height:520px;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+      <!-- MODAL HEADER -->
+      <div style="padding:20px 24px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
+=======
     <div class="sac-modal sac-animated" style="width:98vw;max-width:98vw;height:96vh;max-height:96vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
       <!-- MODAL HEADER -->
       <div style="padding:14px 24px 0;border-bottom:1px solid #f1f5f9;flex-shrink:0;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">
+>>>>>>> main
           <div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">Nº ${t.protocol}</span>
               <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
               <span class="sac-tag" style="background:#fff7ed;color:#c2410c;">${type.icon} ${type.name}</span>
+<<<<<<< HEAD
+              <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};">${sla.label}</span>
+=======
               <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"> ${sla.label}</span>
+>>>>>>> main
             </div>
             <h2 style="margin:4px 0 0;font-size:1.1rem;color:#1e293b;">${t.clientName}</h2>
             <div style="font-size:0.82rem;color:#64748b;margin-top:2px;">${t.equipment} ${t.address?'· '+t.address:''}</div>
@@ -913,17 +924,29 @@
           <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;flex-shrink:0;">✕</button>
         </div>
         <!-- TROCA DE ETAPA -->
+<<<<<<< HEAD
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0 0;flex-wrap:wrap;">
+=======
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0 0;flex-wrap:wrap;">
+>>>>>>> main
           <span style="font-size:0.75rem;font-weight:700;color:#64748b;">MOVER PARA:</span>
           <select style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.82rem;outline:none;cursor:pointer;" onchange="SAC.changeStageFromModal(this.value)">${stageOpts}</select>
           <button class="sac-btn sac-btn-danger" style="padding:5px 12px;font-size:0.78rem;margin-left:auto;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
         </div>
         <!-- TABS -->
+<<<<<<< HEAD
+        <div style="display:flex;gap:0;margin-top:10px;">
+          <button class="sac-tab-btn ${_modalTab==='geral'?'active':''}" onclick="SAC.setModalTab('geral')">Geral</button>
+          <button class="sac-tab-btn ${_modalTab==='historico'?'active':''}" onclick="SAC.setModalTab('historico')">Histórico</button>
+          <button class="sac-tab-btn ${_modalTab==='custo'?'active':''}" onclick="SAC.setModalTab('custo')">Centro de Custo</button>
+          <button class="sac-tab-btn ${_modalTab==='anexos'?'active':''}" onclick="SAC.setModalTab('anexos')">Anexos</button>
+=======
         <div style="display:flex;gap:0;margin-top:8px;">
           <button class="sac-tab-btn ${_modalTab==='geral'?'active':''}" onclick="SAC.setModalTab('geral')">Geral</button>
           <button class="sac-tab-btn ${_modalTab==='comentarios'?'active':''}" onclick="SAC.setModalTab('comentarios')">Comentários</button>
           <button class="sac-tab-btn ${_modalTab==='historico'?'active':''}" onclick="SAC.setModalTab('historico')">Histórico</button>
           <button class="sac-tab-btn ${_modalTab==='custo'?'active':''}" onclick="SAC.setModalTab('custo')">Centro de Custo</button>
+>>>>>>> main
           ${showChecklistInStage(t.stage)?`<button class="sac-tab-btn ${_modalTab==='checklist'?'active':''}" onclick="SAC.setModalTab('checklist')">Checklist (${clChecked}/${cl.length})</button>`:''}
         </div>
       </div>
@@ -953,12 +976,17 @@
       t.financialTask && { label:'Financeiro', task:t.financialTask, key:'financialTask' }
     ].filter(Boolean);
 
+<<<<<<< HEAD
+    return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+=======
     const attachList = t.attachments || [];
     const imgAttachments = attachList.filter(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url||a.originalName||a.name||a.filename||''));
     const otherAttachments = attachList.filter(a => !/\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url||a.originalName||a.name||a.filename||''));
 
     return `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+>>>>>>> main
       <div>
         <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Dados da OS</div>
         <div style="font-size:0.85rem;color:#1e293b;line-height:1.8;">
@@ -976,6 +1004,8 @@
         <div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:0.84rem;color:#475569;border:1px solid #e2e8f0;">${t.nextSteps||'Nenhum próximo passo registrado.'}</div>
         ${t.description?`<div style="margin-top:10px;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;">Descrição</div><div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:0.84rem;color:#475569;border:1px solid #e2e8f0;">${t.description}</div>`:''}
       </div>
+<<<<<<< HEAD
+=======
       <div>
         <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Anexos (${attachList.length})</div>
         ${imgAttachments.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:5px;margin-bottom:8px;">${imgAttachments.map(a=>`<a href="${a.url}" target="_blank" title="${a.originalName||a.name||''}"><img src="${a.url}" style="width:100%;height:68px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;"></a>`).join('')}</div>` : ''}
@@ -987,6 +1017,7 @@
           </label>
         </div>
       </div>
+>>>>>>> main
     </div>
 
     <!-- TAREFAS SETORIAIS -->
@@ -1107,6 +1138,33 @@
     </div>`;
   }
 
+<<<<<<< HEAD
+  function renderModalAnexos(t) {
+    const list = t.attachments || [];
+    return `
+    <div>
+      ${list.length?`
+      ${list.map(a=>`
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+        <i class="ph ph-file-text" style="font-size:1.2rem;color:#64748b;flex-shrink:0;"></i>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.85rem;color:#1e293b;">
+            ${a.url ? `<a href="${a.url}" target="_blank" style="color:#1e293b;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">` : ''}
+            ${a.originalName||a.name||a.filename||'Arquivo'}
+            ${a.url ? `</a>` : ''}
+          </div>
+          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
+        </div>
+        <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
+      </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum arquivo anexado.</div>`}
+      <div style="margin-top:16px;background:#fff;border:1.5px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center;">
+        <i class="ph ph-upload-simple" style="font-size:1.5rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>
+        <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
+          <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
+          Selecionar arquivos para upload (serão enviados na hora)
+        </label>
+        <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">PDF, imagens, documentos</div>
+=======
   function renderModalComentarios(t) {
     const comments = (t.comments || []).slice().reverse();
     const me = currentUsername();
@@ -1128,6 +1186,7 @@
       <div style="border-top:1px solid #f1f5f9;padding-top:12px;flex-shrink:0;display:flex;gap:10px;align-items:flex-end;">
         <textarea id="sac-comment-input" rows="2" placeholder="Escreva um comentário..." style="flex:1;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:none;outline:none;font-family:inherit;"></textarea>
         <button class="sac-btn sac-btn-primary" onclick="SAC.addComment()" style="padding:9px 18px;white-space:nowrap;"><i class="ph ph-paper-plane-tilt"></i> Enviar</button>
+>>>>>>> main
       </div>
     </div>`;
   }
@@ -1199,7 +1258,11 @@
       ${isAguard?`
       <div class="sac-field">
         <label>Setor Demandado <span style="color:#dc2626">*</span></label>
+<<<<<<< HEAD
+        <select id="trans-sector" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
+=======
         <select id="trans-sector" onchange="_sacFilterUsersByDept(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
+>>>>>>> main
           <option value="Logística">Logística</option>
           <option value="Comercial">Comercial</option>
           <option value="Financeiro">Financeiro</option>
@@ -1207,6 +1270,14 @@
       </div>
       <div class="sac-field">
         <label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
+<<<<<<< HEAD
+        <div style="display:flex;align-items:center;gap:10px;">
+          <select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src = this.options[this.selectedIndex].dataset.photo || ''; document.getElementById('trans-assigned-photo').style.display = this.options[this.selectedIndex].dataset.photo ? 'block' : 'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;">
+            <option value="">Selecione um usuário...</option>
+            ${(pt.usersList||[]).filter(u => u.ativo).map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador || ''}" data-id="${u.id}">${u.nome}</option>`).join('')}
+          </select>
+          <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'">
+=======
         <div style="position:relative;">
           <div style="display:flex;align-items:center;gap:8px;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;background:#fff;">
             <img id="trans-assigned-photo" src="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;flex-shrink:0;" onerror="this.style.display='none'">
@@ -1226,6 +1297,7 @@
               <div><div style="font-weight:600;font-size:0.85rem;color:#1e293b;">${u.nome}</div><div style="font-size:0.72rem;color:#94a3b8;">${u.departamento||''}</div></div>
             </div>`).join('')}
           </div>
+>>>>>>> main
         </div>
       </div>`:''}
 
@@ -1268,6 +1340,8 @@
   // ── FILTRAGEM ─────────────────────────────────────────────────
   function getFilteredTickets() {
     const s = _searchTerm.toLowerCase();
+<<<<<<< HEAD
+=======
     const cu = window.currentUser;
     const userDept = cu ? (cu.departamento || cu.grupo_nome || '') : '';
     const isTopAdmin = cu && (cu.role === 'Diretoria' || cu.role === 'Administrador' ||
@@ -1276,6 +1350,7 @@
     const isManager = cu && (cu.role === 'Gestor' || cu.cargo === 'Gestor' || cu.isGestor);
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
 
+>>>>>>> main
     return _tickets.filter(t => {
       const matchSearch = !s ||
         t.protocol.toLowerCase().includes(s) ||
@@ -1286,15 +1361,23 @@
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
       
       let matchPermission = true;
+<<<<<<< HEAD
+      if (window.hasPermission && !window.hasPermission('sac', 'visualizar') && window.hasPermission('sac-atribuidos', 'visualizar')) {
+=======
       if (!isTopAdmin && window.hasPermission && !window.hasPermission('sac', 'visualizar')) {
+>>>>>>> main
         const username = currentUsername();
         const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === username) ||
                            (t.commercialTask && t.commercialTask.assignedTo === username) ||
                            (t.financialTask && t.financialTask.assignedTo === username);
+<<<<<<< HEAD
+        matchPermission = isAssigned;
+=======
         // Gestor vê todos os SACs que têm tarefa do seu departamento
         const deptKey = deptMap[userDept];
         const isManagerOfTicket = isManager && deptKey && !!t[deptKey];
         matchPermission = isAssigned || isManagerOfTicket;
+>>>>>>> main
       }
       
       return matchSearch && matchType && matchPermission;
@@ -1581,6 +1664,8 @@
         showToast('Erro ao enviar os arquivos', 'error');
       }
     },
+<<<<<<< HEAD
+=======
     addComment() {
       const t = _selectedTicket;
       if (!t) return;
@@ -1600,6 +1685,7 @@
       updateTicket(t);
       showToast('Comentário enviado!','success');
     },
+>>>>>>> main
     removeAttachment(r2Key) {
       const t = _selectedTicket;
       if (!t) return;
@@ -1655,11 +1741,18 @@
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
 
       if (isAguard) {
+<<<<<<< HEAD
+        const userSelect = document.getElementById('trans-assigned-user');
+        const assignedUsername = userSelect?.value || '';
+        const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
+        const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
+=======
         const hiddenUser = document.getElementById('trans-assigned-user');
         const assignedUsername = hiddenUser?.value || '';
         const searchInput = document.getElementById('trans-user-search');
         const assignedUserNome = searchInput?.dataset.selectedName || searchInput?.value || '';
         const assignedUserPhoto = searchInput?.dataset.selectedPhoto || '';
+>>>>>>> main
         
         if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
@@ -1721,6 +1814,11 @@
     // Fechar modal overlay clicando fora
     const ov = document.getElementById('sac-modal-overlay');
     if (ov) ov.onclick = (e) => { if (e.target===ov) SAC.closeModal(e); };
+<<<<<<< HEAD
+  }
+
+})();
+=======
     // Fechar dropdown de usuário ao clicar fora
     document.addEventListener('click', (e) => {
       const dd = document.getElementById('trans-user-dropdown');
@@ -1788,3 +1886,4 @@ window._sacSelectUser = function(el) {
   }
   if (dd) dd.style.display = 'none';
 };
+>>>>>>> main

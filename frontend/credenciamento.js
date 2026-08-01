@@ -154,19 +154,18 @@ async function loadColaboradoresCred() {
         const res = await fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error(`Erro ${res.status}`);
         const data = await res.json();
-        
-        credenciamentoState.colaboradores = (data || []).filter(c => {
+
+        // Mostrar todos os colaboradores não desligados
+        let colabsList = (data || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            const dept = (c.departamento || '').toLowerCase().trim();
-            // Operacional (qualquer depto) + Logística + Supervisão
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
-            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
+            const dep = (c.departamento || '').toLowerCase();
+            const depTipo = (c.departamento_tipo || '').toLowerCase();
+            const excludedDeps = ['comercial', 'processo', 'financeiro', 'rh', 'administrativo', 'diretoria'];
+            const isExcluded = excludedDeps.some(ex => dep.includes(ex) || depTipo.includes(ex));
+            return s !== 'desligado' && !isExcluded;
         });
-
-
+        colabsList.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
+        credenciamentoState.colaboradores = colabsList;
 
         renderListaColabsCred();
     } catch (e) {
@@ -487,14 +486,24 @@ function atualizarResumoColabs() {
         list.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum colaborador selecionado.</p>';
         return;
     }
-    list.innerHTML = credenciamentoState.selecionadosColabs.map(idStr => {
+    let html = credenciamentoState.selecionadosColabs.map(idStr => {
         const c = credenciamentoState.colaboradores.find(col => String(col.id) === idStr);
         if (!c) return '';
-        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
+        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; margin-bottom:6px; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
             <span style="font-size:14px; font-weight:500; color:#334155;">${c.nome_completo}</span>
             <i class="ph ph-trash" style="color:#ef4444; cursor:pointer;" onclick="removerCredColab('${idStr}')" title="Remover"></i>
         </div>`;
     }).join('');
+
+    let warning = '';
+    const max = window._credLimites ? window._credLimites.colabs : -1;
+    if (max !== -1 && credenciamentoState.selecionadosColabs.length > max) {
+        warning = `<div style="margin-bottom:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-warning-circle" style="font-size:16px;"></i>
+            Atenção: A solicitação limitou a ${max} colaborador(es), mas você selecionou ${credenciamentoState.selecionadosColabs.length}.
+        </div>`;
+    }
+    list.innerHTML = warning + html;
 }
 
 // ── Resumo de veículos selecionados ───────────────────────────────────────────
@@ -505,14 +514,24 @@ function atualizarResumoVeiculos() {
         list.innerHTML = '<p style="color:#94a3b8; font-size:13px; font-style:italic;">Nenhum veículo selecionado.</p>';
         return;
     }
-    list.innerHTML = credenciamentoState.selecionadosVeic.map(idStr => {
+    let html = credenciamentoState.selecionadosVeic.map(idStr => {
         const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
         if (!v) return '';
-        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
+        return `<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; margin-bottom:6px; padding:6px 10px; border-radius:4px; border:1px solid #e2e8f0;">
             <span style="font-size:14px; font-weight:500; color:#334155;"><b>${v.placa}</b> — ${v.marca_modelo_versao || ''}</span>
             <i class="ph ph-trash" style="color:#ef4444; cursor:pointer;" onclick="removerCredVeic('${idStr}')" title="Remover"></i>
         </div>`;
     }).join('');
+
+    let warning = '';
+    const max = window._credLimites ? window._credLimites.veics : -1;
+    if (max !== -1 && credenciamentoState.selecionadosVeic.length > max) {
+        warning = `<div style="margin-bottom:10px; padding:8px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:6px; color:#b91c1c; font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px;">
+            <i class="ph ph-warning-circle" style="font-size:16px;"></i>
+            Atenção: A solicitação limitou a ${max} veículo(s), mas você selecionou ${credenciamentoState.selecionadosVeic.length}.
+        </div>`;
+    }
+    list.innerHTML = warning + html;
 }
 
 // ── Validação de vencimentos antes de enviar ──────────────────────────────────
@@ -589,15 +608,33 @@ async function validarVencimentosCredenciamento() {
                         continue;
                     }
 
-                    const docFound = (docs || []).find(d => {
+                    const matchingDocs = (docs || []).filter(d => {
                         const val = mapDocTypeToValue(d.document_type);
                         return val === reqDoc;
                     });
+                    
+                    // Ordenar para pegar o mais recente (maior vencimento ou maior ID)
+                    matchingDocs.sort((a, b) => {
+                        if (a.vencimento && b.vencimento) {
+                            return new Date(b.vencimento) - new Date(a.vencimento);
+                        }
+                        if (a.vencimento) return -1;
+                        if (b.vencimento) return 1;
+                        return b.id - a.id;
+                    });
+                    
+                    const docFound = matchingDocs[0];
 
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
-                    } else if (reqDoc !== 'cpf' && docFound.vencimento && new Date(docFound.vencimento + 'T12:00:00') < hoje) {
-                        erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${docFound.vencimento.split('-').reverse().join('/')}). Contacte o setor de RH.`);
+                    } else if (reqDoc !== 'cpf' && docFound.vencimento) {
+                        let dataVencimento = new Date(docFound.vencimento + 'T12:00:00');
+                        if (reqDoc === 'aso') {
+                            dataVencimento.setFullYear(dataVencimento.getFullYear() + 1);
+                        }
+                        if (dataVencimento < hoje) {
+                            erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${dataVencimento.toLocaleDateString('pt-BR')}). Contacte o setor de RH.`);
+                        }
                     }
                 }
             }
@@ -660,12 +697,26 @@ window.gerarEnviarCredenciamento = async function() {
             const v = credenciamentoState.veiculos.find(ve => String(ve.id) === idStr);
             return { id: parseInt(idStr), placa: v ? v.placa : idStr, modelo: v ? v.marca_modelo_versao : '' };
         }),
-        licencas: Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked')).map(cb => ({
-            id: cb.value,
-            nome: cb.dataset.nome || '',
-            empresa: cb.dataset.empresa || '',
-            validade: cb.dataset.validade || null
-        })),
+        licencas: (() => {
+            // Coleta dos dois sistemas de checkboxes de licenças:
+            // 1. Modal antigo (#cred-licencas-quadro) com name="cred_licencas"
+            // 2. Novo painel com abas (#cred-licencas-empresas) que não tem name
+            const fromOldModal = Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked'));
+            const fromNewPanel = Array.from(document.querySelectorAll('#cred-licencas-empresas input[type="checkbox"]:checked'));
+            const todos = [...fromOldModal, ...fromNewPanel];
+            // Deduplica por id
+            const vistos = new Set();
+            return todos.filter(cb => {
+                if (vistos.has(cb.value)) return false;
+                vistos.add(cb.value);
+                return true;
+            }).map(cb => ({
+                id: cb.value,
+                nome: cb.dataset.nome || '',
+                empresa: cb.dataset.empresa || '',
+                validade: cb.dataset.validade || null
+            }));
+        })(),
         docs_exigidos: Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value)
     };
 
@@ -686,10 +737,44 @@ window.gerarEnviarCredenciamento = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar credenciamento.');
 
-        if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
-            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
+        if (solId) {
+            try {
+                // Usa POST para enviar as licenças selecionadas no body (mais confiável que query param)
+                const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ licencas: payload.licencas || [] })
+                });
+                if (zipRes.ok) {
+                    const blob = await zipRes.blob();
+                    const urlBlob = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = urlBlob;
+                    const disposition = zipRes.headers.get('Content-Disposition');
+                    let filename = `Credenciamento_${solId}.zip`;
+                    if (disposition && disposition.indexOf('filename=') !== -1) {
+                        filename = disposition.split('filename=')[1].replace(/["']/g, '');
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(urlBlob);
+                    a.remove();
+                }
+            } catch (err) { console.error('Erro ZIP:', err); }
+            
+            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, 'Credenciamento atendido! O ZIP com os documentos será baixado.');
         } else {
-            alert('✅ Credenciamento gerado e e-mail enviado com sucesso!');
+            // Comercial criando
+            if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
+                window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, data.message);
+            } else {
+                alert('✅ Credenciamento gerado com sucesso!');
+            }
         }
 
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
@@ -725,7 +810,9 @@ window._credSolicitacaoId = null;
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span'); if (spanModalColabs) spanModalColabs.textContent = '(Ilimitado)';
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span'); if (spanModalVeics) spanModalVeics.textContent = '(Ilimitado)'; // ID da solicitação sendo cumprida (ou null para novo)
 
-window.abrirModalNovoCredenciamento = function() {
+window.abrirModalNovoCredenciamento = async function() {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
     window._credSolicitacaoId = null;
     // Limpar campos e seleções
     const nome = document.getElementById('cred-cliente-nome'); if (nome) nome.value = '';
@@ -754,36 +841,47 @@ window.abrirModalNovoCredenciamento = function() {
 };
 
 // ── Cumprir uma Solicitação existente (botão Adicionar na tabela da Logística) ─
-window.abrirModalCumprirSolicitacao = function(id) {
+window.abrirModalCumprirSolicitacao = async function(id) {
+    if (credenciamentoState.colaboradores.length === 0) await loadColaboradoresCred();
+    if (credenciamentoState.veiculos.length === 0) await loadVeiculosCred();
+
     // Pega os dados da solicitação do histórico já carregado
     const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
     
     window._credSolicitacaoId = id;
 
     window._credLimites = {
-        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
-        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
+        colabs: dados && dados.qtd_max_colaboradores === 'Todos' ? -1 : (dados && dados.qtd_max_colaboradores ? parseInt(dados.qtd_max_colaboradores) || 0 : -1),
+        veics: dados && dados.qtd_max_veiculos === 'Todos' ? -1 : (dados && dados.qtd_max_veiculos ? parseInt(dados.qtd_max_veiculos) || 0 : -1)
     };
     
-    const maxColabsText = window._credLimites.colabs === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.colabs})`;
-    const maxVeicsText = window._credLimites.veics === -1 ? '(Ilimitado)' : `(Máx: ${window._credLimites.veics})`;
+    const maxColabsText = window._credLimites.colabs === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.colabs})</span>`;
+    const maxVeicsText = window._credLimites.veics === -1 ? '<span style="color:#10b981;font-weight:700;">(Ilimitado)</span>' : `<span style="color:#ef4444;font-weight:700;font-size:14px;padding:2px 6px;background:#fef2f2;border-radius:4px;border:1px solid #fecaca;">(Lim: ${window._credLimites.veics})</span>`;
     
     const spanColabs = document.getElementById('cred-limit-colabs-span');
-    if (spanColabs) spanColabs.textContent = maxColabsText;
+    if (spanColabs) spanColabs.innerHTML = maxColabsText;
     
     const spanVeics = document.getElementById('cred-limit-veics-span');
-    if (spanVeics) spanVeics.textContent = maxVeicsText;
+    if (spanVeics) spanVeics.innerHTML = maxVeicsText;
     
     const spanModalColabs = document.getElementById('cred-modal-limit-colabs-span');
-    if (spanModalColabs) spanModalColabs.textContent = maxColabsText;
+    if (spanModalColabs) spanModalColabs.innerHTML = maxColabsText;
     
     const spanModalVeics = document.getElementById('cred-modal-limit-veics-span');
-    if (spanModalVeics) spanModalVeics.textContent = maxVeicsText;
+    if (spanModalVeics) spanModalVeics.innerHTML = maxVeicsText;
 
-    // Limpar seleções anteriores
+    // Limpar ou restaurar seleções anteriores
     credenciamentoState.selecionadosColabs = [];
     credenciamentoState.selecionadosVeic = [];
     credenciamentoState.selecionadosLicencas = [];
+    
+    if (dados && dados.colaboradores_ids) {
+        try { credenciamentoState.selecionadosColabs = JSON.parse(dados.colaboradores_ids).map(c => String(c.id)); } catch(e){}
+    }
+    if (dados && dados.veiculos_ids) {
+        try { credenciamentoState.selecionadosVeic = JSON.parse(dados.veiculos_ids).map(v => String(v.id)); } catch(e){}
+    }
+    
     atualizarResumoColabs();
     atualizarResumoVeiculos();
     atualizarResumoLicencas();
@@ -827,7 +925,8 @@ window.fecharModalNovoCredenciamento = function() {
 };
 
 window.mudarTipoEnvioLogistica = function() {
-    const tipo = document.getElementById('cred-tipo-envio').value;
+    const tipoEnvioElem = document.getElementById('cred-tipo-envio');
+    const tipo = tipoEnvioElem ? tipoEnvioElem.value : 'email';
     const gEmail = document.getElementById('grupo-cred-email');
     const gWhats = document.getElementById('grupo-cred-whatsapp');
     
@@ -840,22 +939,17 @@ window.mudarTipoEnvioLogistica = function() {
     if (tipo === 'email') {
         if(gEmail) gEmail.style.display = 'block';
         if(gWhats) gWhats.style.display = 'none';
-        
-        if(iconeDesc) iconeDesc.className = 'ph ph-envelope-simple';
-        if(tituloDesc) tituloDesc.textContent = 'Enviar Credenciamento';
-        if(txtDesc) txtDesc.textContent = 'Um e-mail será enviado com um link seguro válido por 7 dias, contendo todos os documentos e certificados da equipe selecionada.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-paper-plane-right';
-        if(txtBtn) txtBtn.textContent = 'Gerar e Enviar E-mail';
     } else {
         if(gEmail) gEmail.style.display = 'none';
         if(gWhats) gWhats.style.display = 'block';
-        
-        if(iconeDesc) iconeDesc.className = 'ph ph-whatsapp-logo';
-        if(tituloDesc) tituloDesc.textContent = 'Gerar para WhatsApp';
-        if(txtDesc) txtDesc.textContent = 'Um link de credenciamento será gerado. Você poderá enviá-lo diretamente pelo WhatsApp do cliente selecionado.';
-        if(iconeBtn) iconeBtn.className = 'ph ph-whatsapp-logo';
-        if(txtBtn) txtBtn.textContent = 'Gerar para WhatsApp';
     }
+    
+    // Sempre o mesmo título/descrição independente do tipo
+    if(iconeDesc) iconeDesc.className = 'ph ph-file-zip';
+    if(tituloDesc) tituloDesc.textContent = 'Baixar documentos em ZIP';
+    if(txtDesc) txtDesc.textContent = '⚠️ Os documentos dos colaboradores são sigilosos e devem ser compartilhados com responsabilidade, conforme a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018). Repasse apenas ao destinatário autorizado.';
+    if(iconeBtn) iconeBtn.className = 'ph ph-download-simple';
+    if(txtBtn) txtBtn.textContent = 'Baixar documentos';
 }
 
 window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message) {
@@ -1074,18 +1168,9 @@ window._renderizarTabelaHistorico = function(dados) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (expirado) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
-        } else if (cred.tipo_envio === 'whatsapp') {
-            // WhatsApp: sempre verde ao ser enviado (sem link para rastrear acesso)
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-whatsapp-logo"></i> Enviado</span>`;
-        } else if (cred.acessado_em) {
-            // E-mail: verde quando o link foi acessado
-            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-eye"></i> Visualizado</span>`;
+            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Aguardando</span>`;
         } else {
-            // E-mail: azul quando enviado mas ainda não acessado
-            statusBadge = `<span style="color:#2563eb; font-weight:600;"><i class="ph ph-paper-plane-right"></i> Enviado</span>`;
+            statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-check-circle"></i> Enviado</span>`;
         }
 
         return `
@@ -1109,7 +1194,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="font-size:0.85rem;">${statusBadge}</td>
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
-                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-plus"></i> Atender</button>` : (cred.tipo_envio === 'whatsapp' ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosCredenciamento('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i> Copiar Dados</button>` : (cred.token ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')"><i class="ph ph-envelope-simple"></i> Reenviar</button>` : ''))}
+                ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-download-simple"></i> Atender</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar</button>`}
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">
@@ -1405,16 +1490,17 @@ window.solDocsProximo = async function() {
             fetch('/api/colaboradores', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/frota/veiculos', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
-        // Operacional (qualquer depto) + Logística + Supervisão
-        _solDocState.colaboradores = ((await rC.json()) || []).filter(c => {
+        // Mostrar todos os colaboradores não desligados
+        let _docsColabs = ((await rC.json()) || []).filter(c => {
             const s = (c.status || '').toLowerCase();
-            const isActive = s === 'ativo' || s === 'férias' || s === 'ferias' || s === 'afastado';
-            const deptTipo = (c.departamento_tipo || '').toLowerCase().trim();
-            const dept = (c.departamento || '').toLowerCase().trim();
-            const isLogistica = dept.includes('logística') || dept.includes('logistica');
-            const isSupervisao = dept.includes('supervisão') || dept.includes('supervisao') || dept.includes('supervis');
-            return isActive && (deptTipo === 'operacional' || isLogistica || isSupervisao);
+            const dep = (c.departamento || '').toLowerCase();
+            const depTipo = (c.departamento_tipo || '').toLowerCase();
+            const excludedDeps = ['comercial', 'processo', 'financeiro', 'rh', 'administrativo', 'diretoria'];
+            const isExcluded = excludedDeps.some(ex => dep.includes(ex) || depTipo.includes(ex));
+            return s !== 'desligado' && !isExcluded;
         });
+        _docsColabs.sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
+        _solDocState.colaboradores = _docsColabs;
 
 
 

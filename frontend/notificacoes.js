@@ -3,10 +3,10 @@
 // Define the notification types available in the system
 const TIPOS_NOTIFICACAO = [
     { id: 'nova_solicitacao_credenciamento', nome: 'Nova Solicitação de Credenciamento', icone: 'ph-identification-card' },
-    { id: 'credenciamento_solicitado', nome: 'Credenciamento Solicitado (Legado)', icone: 'ph-identification-card' },
     { id: 'aviso_faltas', nome: 'Aviso de Faltas', icone: 'ph-warning' },
     { id: 'aviso_equipes', nome: 'Aviso de Equipe Desfalcada', icone: 'ph-users-three' },
     { id: 'formulario_experiencia', nome: 'Formulário de Experiência Preenchido', icone: 'ph-clipboard-text' },
+    { id: 'formulario_desempenho', nome: 'Avaliação de Desempenho Preenchida', icone: 'ph-chart-line-up' },
     { id: 'documentos_assinados', nome: 'Documentos Assinados', icone: 'ph-signature' },
     { id: 'licenca_vencida', nome: 'Aviso de Licença Vencida', icone: 'ph-warning-circle' },
     { id: 'novo_sinistro', nome: 'Novo Sinistro Registrado', icone: 'ph-warning' },
@@ -17,7 +17,8 @@ const TIPOS_NOTIFICACAO = [
     { id: 'estoque_reposicao', nome: 'Mínimo para reposição de estoque', icone: 'ph-arrows-left-right', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Reposição" atinge o estoque mínimo.' },
     { id: 'novo_colaborador_equipe', nome: 'Equipe para distribuição', icone: 'ph-users-three' },
     { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' },
-    { id: 'pesquisa_satisfacao_treinamento', nome: 'Pesquisa de Satisfação de Treinamentos', icone: 'ph-star' }
+    { id: 'pesquisa_satisfacao_treinamento', nome: 'Pesquisa de Satisfação de Treinamentos', icone: 'ph-star' },
+    { id: 'atualizacao_cnds', nome: 'Atualização de CNDs', icone: 'ph-file-pdf', descricao: 'Notificado para fazer upload externo de novas CNDs vencidas.' }
 ];
 
 const TIPOS_NOTIFICACAO_CELULARES = [

@@ -2,3 +2,7 @@ node_modules/
 tmp_xlsx_tool/
 *.exe
 *.dll
+# Arquivos de administração - nunca enviar para produção
+backend/reset_pass.js
+scratch_fix_ids.js
+*.sqlite

@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -10,7 +11,7 @@ const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
 const cron = require('node-cron');
 const rateLimit = require('express-rate-limit');
-// ─── MULTAS ANTIGAS: AITs já tratados e encerrados ──────────────────────────
+// ????????? MULTAS ANTIGAS: AITs já tratados e encerrados ??????????????????????????????????????????????????????????????????????????????
 // Quando o sistema detectar qualquer um desses AITs (criação manual ou webhook
 // Mônaco), registra automaticamente com status "Antiga".
 const AITS_ANTIGAS = new Set([
@@ -53,13 +54,13 @@ function isAitAntiga(ait) {
   return AITS_ANTIGAS.has(String(ait).toUpperCase().trim());
 }
 
-// ── PDF helpers ─────────────────────────────────────────────────────────────
-// Nota: conversão PDF→imagem via Puppeteer desabilitada (OOM em 512MB).
+// ?????? PDF helpers ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// Nota: conversão PDF???imagem via Puppeteer desabilitada (OOM em 512MB).
 // PDFs são exibidos via <embed> no documento HTML.
 
-// --- CONFIGURAÇÃO SMTP (credenciais via variáveis de ambiente do Render) ---
-// PRODUÇÃO:    SMTP_USER=americasistema48@gmail.com  | SMTP_PASS=<senha_producao>
-// HOMOLOGAÇÃO: SMTP_USER=sistemaamericarental@gmail.com | SMTP_PASS=<senha_homolog>
+// --- CONFIGURA????O SMTP (credenciais via vari??veis de ambiente do Render) ---
+// PRODU????O:    SMTP_USER=americasistema48@gmail.com  | SMTP_PASS=<senha_producao>
+// HOMOLOGA????O: SMTP_USER=sistemaamericarental@gmail.com | SMTP_PASS=<senha_homolog>
 // NUNCA colocar senhas diretamente aqui no código.
 const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 465;
 const SMTP_CONFIG = {
@@ -73,7 +74,7 @@ const SMTP_CONFIG = {
 };
 
 
-// ── Transporter global + helper anti-spam ──────────────────────────────────────────
+// ?????? Transporter global + helper anti-spam ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Injeta headers que reduzem chance de cair em spam em todos os envios.
 const _globalTransporter = nodemailer.createTransport(SMTP_CONFIG);
 async function sendMailHelper(opts) {
@@ -112,7 +113,7 @@ async function sendMailHelper(opts) {
 
 /**
  * Utilitário: envia e-mail para todos os usuários configurados para receber um tipo de notificação.
- * Usa múltiplas estratégias de busca de e-mail para garantir entrega:
+ * Usa m??ltiplas estratégias de busca de e-mail para garantir entrega:
  *   1. email_corporativo do colaborador (JOIN por nome)
  *   2. email do colaborador (JOIN por nome)
  *   3. email_corporativo do colaborador (JOIN por username)
@@ -127,7 +128,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
-        // Busca todos os usuários configurados para o tipo, com múltiplas fontes de e-mail
+        // Busca todos os usuários configurados para o tipo, com m??ltiplas fontes de e-mail
         db.all(`
             SELECT
                 u.id as uid, u.nome as unome, u.username, u.email as uemail,
@@ -152,7 +153,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 0: email_override direto na config (mais confiável)
+                // Estratégia 0: email_override direto na config (mais confi??vel)
                 if (r.email_override && r.email_override.includes('@')) { emails.add(r.email_override.trim()); return; }
                 // Estratégia 1: email_corporativo via JOIN por nome completo
                 if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
@@ -162,7 +163,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                 else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
                 // Estratégia 4: email do colaborador via JOIN por username
                 else if (r.ce_by_uname && r.ce_by_uname.includes('@')) emails.add(r.ce_by_uname.trim());
-                // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci → Thais Ricci)
+                // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci - Thais Ricci)
                 else if (r.ec_by_upart && r.ec_by_upart.includes('@')) emails.add(r.ec_by_upart.trim());
                 // Estratégia 6: email do colaborador via JOIN por partes do username
                 else if (r.ce_by_upart && r.ce_by_upart.includes('@')) emails.add(r.ce_by_upart.trim());
@@ -170,13 +171,13 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                 else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
                 // Estratégia 8: username parece um e-mail
                 else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
-                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}") — configure email_override na tela de Notificações`);
+                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}") - configure email_override na tela de Notificações`);
             });
             if (emails.size === 0) {
-                console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores têm email_corporativo cadastrado.`);
+                console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores t??m email_corporativo cadastrado.`);
                 return;
             }
-            console.log(`[Notif Email] Tipo="${tipo}" — enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
+            console.log(`[Notif Email] Tipo="${tipo}" - enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
             try {
                 await sendMailHelper({
                     to: [...emails].join(', '),
@@ -194,17 +195,108 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
     }
 }
 
+/**
+ * Utilitário GLOBAL: Verifica e notifica estoque mínimo por endereço.
+ * Dispara notificação de tela e e-mail sempre que qtdAtual <= minEnd.
+ * @param {object} db - instância do banco de dados
+ * @param {number} itemId - ID do item no estoque
+ * @param {string} itemNome - Nome do item
+ * @param {string} itemDepto - Departamento do item (não usado no email, mantido por compatibilidade)
+ * @param {number} enderecoId - ID do endereço
+ * @param {number} qtdAnterior - Quantidade antes da movimentação
+ * @param {number} qtdAtual - Quantidade após a movimentação
+ * @param {number} minEnd - Quantidade mínima configurada
+ * @param {string} tipoNotifEnd - Tipo de notificação: 'reposicao' ou 'compra'
+ */
+function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd) {
+    if (!(minEnd > 0 && qtdAtual <= minEnd)) return;
+
+    console.log('[ESTOQUE MINIMO] "' + itemNome + '" atingiu mínimo. qtdAnterior=' + qtdAnterior + ', qtdAtual=' + qtdAtual + ', min=' + minEnd + ', tipo=' + tipoNotifEnd);
+
+    // Busca o nome do endereço e a quantidade máxima do item para enriquecer a notificação
+    const buscarEnderecoEMaximo = (cb) => {
+        db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [enderecoId || 0], (errE, rowEnd) => {
+            const enderecoNome = rowEnd ? rowEnd.nome : null;
+            db.get('SELECT quantidade_maxima FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [itemId, enderecoId || 0], (errM, rowItem) => {
+                let qtdMax = rowItem ? (rowItem.quantidade_maxima || null) : null;
+                if (qtdMax === null || qtdMax === 0) {
+                    db.get('SELECT quantidade_maxima FROM estoque WHERE id = ?', [itemId], (errM2, rowItem2) => {
+                        qtdMax = rowItem2 ? (rowItem2.quantidade_maxima || null) : null;
+                        cb(enderecoNome, qtdMax);
+                    });
+                } else {
+                    cb(enderecoNome, qtdMax);
+                }
+            });
+        });
+    };
+
+    buscarEnderecoEMaximo((enderecoNome, qtdMax) => {
+        const msg = 'ESTOQUE BAIXO: O item "' + itemNome + '" atingiu o estoque mínimo. Quantidade Atual: ' + qtdAtual + ' (Mínimo: ' + minEnd + ').';
+        const dadosStr = JSON.stringify({
+            item_id: itemId,
+            nome: itemNome,
+            quantidade_atual: qtdAtual,
+            quantidade_minima: minEnd,
+            quantidade_maxima: qtdMax,
+            endereco_nome: enderecoNome,
+            endereco_id: enderecoId
+        });
+
+        const tiposNotif = (tipoNotifEnd && tipoNotifEnd.trim() !== '') ? [tipoNotifEnd] : ['compra'];
+
+        tiposNotif.forEach(tipoNotif => {
+            const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
+
+            // 1. Inserir notificação de popup na tela para todos configurados
+            db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [dbTipo], (errCR, rowsCR) => {
+                if (!errCR && rowsCR && rowsCR.length > 0) {
+                    rowsCR.forEach(c => {
+                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
+                    });
+                    console.log('[ESTOQUE MINIMO] Notificações inseridas (' + rowsCR.length + ' usuários) para tipo="' + dbTipo + '"');
+                } else {
+                    console.warn('[ESTOQUE MINIMO] Nenhum usuário configurado para tipo="' + dbTipo + '"');
+                }
+            });
+
+            // 2. Enviar e-mail com endereço e quantidades completas
+            const labelTipo = dbTipo === 'estoque_reposicao' ? 'Pedido de Reposi&ccedil;&atilde;o' : 'Pedido de Compra';
+            const enderecoLabel = enderecoNome || '—';
+            const qtdMaxLabel = qtdMax !== null ? String(qtdMax) : '—';
+            const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
+                '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
+                '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque M&iacute;nimo Atingido</h2>' +
+                '<p>Um item do estoque atingiu ou est&aacute; abaixo da quantidade m&iacute;nima ap&oacute;s <b>' + labelTipo + '</b>:</p>' +
+                '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Item</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;font-size:15px;">' + itemNome + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Endere&ccedil;o</th><td style="padding:8px;border:1px solid #fed7aa;">' + enderecoLabel + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade Atual</th><td style="padding:8px;border:1px solid #fed7aa;color:#dc2626;font-weight:bold;">' + qtdAtual + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&iacute;nima</th><td style="padding:8px;border:1px solid #fed7aa;">' + minEnd + '</td></tr>' +
+                '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Quantidade M&aacute;xima</th><td style="padding:8px;border:1px solid #fed7aa;">' + qtdMaxLabel + '</td></tr>' +
+                '</table>' +
+                '<p style="color:#ea580c;font-weight:bold;">Por favor, providencie a reposi&ccedil;&atilde;o o mais breve poss&iacute;vel.</p>' +
+                '<p style="font-size:12px;color:#64748b;">Acesse o sistema para reabastecer o estoque.</p></div>';
+
+            sendEmailParaNotificados(dbTipo, {
+                subject: `[ESTOQUE] ` + (dbTipo === 'estoque_reposicao' ? 'M\u00EDnimo para Reposi\u00E7\u00E3o' : 'Estoque M\u00EDnimo') + ` Atingido - ` + itemNome,
+                html: emailHtml
+            }).catch(e => console.error('[ESTOQUE MINIMO] Erro ao enviar email:', e));
+        });
+    });
+}
+
 const db = require('./database');
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
 db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
 
 // AUTO-PATCH: Corrigir OS 2 de Rota Redonda (BRK -> ATTEND)
-db.run("UPDATE os_logistica SET cliente = '💦🚨 ATTEND AMBIENTAL' WHERE numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
-db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(dados, 'BRK AMBIENTAL', '💦🚨 ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
+db.run("UPDATE os_logistica SET cliente = '???????? ATTEND AMBIENTAL' WHERE numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
+db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(dados, 'BRK AMBIENTAL', '???????? ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
 
-// Excluir Contrato Academia de teste do Abner Abrahão
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrahão%')", err => { });
+// Excluir Contrato Academia de teste do Abner Abrah??o
+db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrah??o%')", err => { });
 // Excluir Contrato Faculdade de teste da Debora
 db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')", err => { });
 // Excluir Contrato Faculdade de teste da Eduarda
@@ -214,15 +306,15 @@ db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA D
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
 // Renomear Autorização de Desconto em Folha
 db.run("UPDATE geradores SET nome = 'Autorização de Desconto em Folha' WHERE nome LIKE '%AUTORIZA%DESCONTO%FOLHA%'");
-// Excluir permanentemente ORDEM DE SERVIÇO NR01
-db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVIÇO NR01'");
+// Excluir permanentemente ORDEM DE SERVI??O NR01
+db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVI??O NR01'");
 
 // Registrar exclusoes permanentes para que o seed nao recrie
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Autorizar Desconto')");
-    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVIÇO NR01')");
+    db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('ORDEM DE SERVI??O NR01')");
 });
 
 // Migração: Cofre de Senhas da Logística
@@ -320,9 +412,35 @@ db.run(`
 // Blacklist de cargos e departamentos excluidos manualmente (impede que o seed os recrie)
 db.run("CREATE TABLE IF NOT EXISTS cargos_excluidos (nome TEXT PRIMARY KEY)");
 db.run("CREATE TABLE IF NOT EXISTS departamentos_excluidos (nome TEXT PRIMARY KEY)", () => {
+    db.run("ALTER TABLE departamentos ADD COLUMN nome_aso TEXT", () => {}); // migracao: campo ASO para e-mail IACI
     // Excluir permanentemente o departamento duplicado 'Recursos Humanos' (ID 1136)
     db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES ('Recursos Humanos')");
     db.run("DELETE FROM departamentos WHERE nome = 'Recursos Humanos' AND id = 1136");
+});
+
+// MIGRATION: Anexos de Cargos (Word)
+db.run(`CREATE TABLE IF NOT EXISTS cargo_anexos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cargo_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    nome_arquivo TEXT NOT NULL,
+    r2_key TEXT,
+    data_upload DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(cargo_id) REFERENCES cargos(id)
+)`);
+
+// MIGRATION: coluna status em cargos (Ativo/Inativo)
+db.run("ALTER TABLE cargos ADD COLUMN status TEXT DEFAULT 'Ativo'", (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('[Migration] cargos.status:', err.message);
+    }
+});
+
+// Auto-adicionar coluna observacoes
+db.run("ALTER TABLE cargo_anexos ADD COLUMN observacoes TEXT", (err) => {
+    if (err && err.message.indexOf('duplicate column') === -1 && err.message.indexOf('already exists') === -1) {
+        // Ignora erro se a coluna já existe
+    }
 });
 
 // MIGRATION: Assinaturas Admin Templates & Fila
@@ -348,7 +466,7 @@ db.run(`CREATE TABLE IF NOT EXISTS assinaturas_pendentes (
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id),
     FOREIGN KEY(template_id) REFERENCES assinatura_templates(id)
 )`);
-// Migração: adicionar colunas de exibição se não existirem
+// Migração: adicionar colunas de exibi????o se não existirem
 ['nome_exibicao','email_exibicao','dept_exibicao','cargo_exibicao'].forEach(col => {
     db.run(`ALTER TABLE assinaturas_pendentes ADD COLUMN ${col} TEXT`, () => {});
 });
@@ -383,32 +501,137 @@ sinistroNomes.forEach(nome => {
 // Formato da regra JSON:
 // { dropdown_todos: bool, visivel_automatico: bool, condicao: 'campo=valor'|null, departamentos: ['Nome1']|null }
 const REGRAS_VISIBILIDADE = [
-    { nome: 'Autorização de Desconto em Folha', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Contrato Academia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'academia_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Faculdade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'faculdade_participa=Sim', departamentos: null } },
-    { nome: 'Contrato Intermitente', regra: { dropdown_todos: false, visivel_automatico: true, condicao: 'tipo_contrato=Intermitente', departamentos: null } },
-    { nome: 'Ordem de Serviço NR01', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Ajudante Geral', 'Ajudante de Pátio', 'Liderança', 'Limpeza', 'Manutenção', 'Motoristas'] } },
-    { nome: 'Responsabilidade Bilhete Único', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null } },
-    { nome: 'Responsabilidade Celular', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'celular_participa=Sim', departamentos: null } },
-    { nome: 'Responsabilidade Chaves', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'chaves_participa=Sim', departamentos: null } },
-    { nome: 'Termo de Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Sim', departamentos: null } },
-    { nome: 'Termo de NÃO Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Nao', departamentos: null } },
-    { nome: 'Acordo Individual Benefícios', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Autorização de Uso de Imagem', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Bloqueio de Farmácia e Mercado', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null } },
-    { nome: 'Compartilhamento de Dados', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Recebimento de Regimento Interno', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Regras Sorteio Final de Ano', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Responsabilidade Equipamento', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Administrativo'] } },
-    { nome: 'Responsabilidade Veículo', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Motoristas', 'Liderança'] } },
-    { nome: 'Termo de Confidencialidade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
-    { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null } },
+    { nome: 'Autorização de Desconto em Folha', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Academia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'academia_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Faculdade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'faculdade_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Contrato Intermitente', regra: { dropdown_todos: false, visivel_automatico: true, condicao: 'tipo_contrato=Intermitente', departamentos: null, tipos_departamento: null } },
+    { nome: 'Ordem de Serviço NR01', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Ajudante Geral', 'Ajudante de Pátio', 'Liderança', 'Limpeza', 'Manutenção', 'Motoristas'], tipos_departamento: null } },
+    { nome: 'Responsabilidade Bilhete Único', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null, tipos_departamento: null } },
+    { nome: 'Responsabilidade Celular', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'celular_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Responsabilidade Chaves', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'chaves_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Termo de Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Sim', departamentos: null, tipos_departamento: null } },
+    { nome: 'Termo de NÃO Interesse Terapia', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'terapia_participa=Nao', departamentos: null, tipos_departamento: null } },
+    { nome: 'Acordo Individual Benefícios', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Autorização de Uso de Imagem', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Bloqueio de Farmácia e Mercado', regra: { dropdown_todos: true, visivel_automatico: false, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Compartilhamento de Dados', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Recebimento de Regimento Interno', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Regras Sorteio Final de Ano', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    // Responsabilidade Equipamento: apenas para colaboradores de departamento TIPO Administrativo
+    { nome: 'Responsabilidade Equipamento', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: ['Administrativo'] } },
+    { nome: 'Responsabilidade Veículo', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: ['Motoristas', 'Liderança'], tipos_departamento: null } },
+    { nome: 'Termo de Confidencialidade', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
+    // NR1: apenas para colaboradores de departamento TIPO Operacional
+    { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: ['Operacional'] } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
         [JSON.stringify(regra), nome]);
 });
+
+// MIGRATION: Corrigir nomes de geradores com encoding quebrado (??nico, Autoriza????o, etc.)
+const ENCODING_FIXES = [
+    { de: 'Responsabilidade Bilhete ??nico',   para: 'Responsabilidade Bilhete \u00danico' },
+    { de: 'Acordo Individual Benef??cios',      para: 'Acordo Individual Benef\u00edcios' },
+    { de: 'Bloqueio de Farm??cia e Mercado',    para: 'Bloqueio de Farm\u00e1cia e Mercado' },
+    { de: 'Autoriza????o de Desconto em Folha', para: 'Autoriza\u00e7\u00e3o de Desconto em Folha' },
+    { de: 'Autoriza????o de Uso de Imagem',     para: 'Autoriza\u00e7\u00e3o de Uso de Imagem' },
+    { de: 'Solicita????o de VT',               para: 'Solicita\u00e7\u00e3o de VT' },
+    { de: 'Responsabilidade Bilhete Un\u0301ico', para: 'Responsabilidade Bilhete \u00danico' },
+    // Termo de NÃO Interesse Terapia — variações com encoding quebrado
+    { de: 'Termo de N??O Interesse Terapia',   para: 'Termo de N\u00c3O Interesse Terapia' },
+    { de: 'Termo de N\u00c3\u00c3O Interesse Terapia', para: 'Termo de N\u00c3O Interesse Terapia' },
+    { de: 'Termo de NAO Interesse Terapia',    para: 'Termo de N\u00c3O Interesse Terapia' },
+];
+ENCODING_FIXES.forEach(({ de, para }) => {
+    // Renomear o registro com nome quebrado para o nome correto
+    db.get("SELECT id FROM geradores WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id FROM geradores WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                // Renomear: nome errado → nome correto
+                db.run("UPDATE geradores SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) console.log(`[ENCODING FIX] Renomeado: "${de}" → "${para}"`);
+                });
+            } else if (existeErrado && existeCorreto) {
+                // Ambos existem: apagar o duplicado com encoding errado
+                db.run("DELETE FROM geradores WHERE TRIM(nome) = ?", [de], (err) => {
+                    if (!err) console.log(`[ENCODING FIX] Removido duplicado: "${de}"`);
+                });
+            }
+        });
+    });
+});
+
+
+// MIGRATION: Corrigir nomes de cargos e departamentos com encoding quebrado
+const CARGOS_ENCODING_FIXES = [
+    { de: 'Ajudante P??tio', para: 'Ajudante P\u00e1tio' },
+    { de: 'Sup. P??tio', para: 'Sup. P\u00e1tio' },
+    { de: 'Aux. Log??stica', para: 'Aux. Log\u00edstica' },
+    { de: 'Ass. Log??stica 1', para: 'Ass. Log\u00edstica 1' },
+    { de: 'Ass. Log??stica 2', para: 'Ass. Log\u00edstica 2' },
+    { de: 'Sup. Log??stica', para: 'Sup. Log\u00edstica' },
+    { de: 'Ger. Log??stica', para: 'Ger. Log\u00edstica' },
+    { de: 'Lid. Log??stica', para: 'Lid. Log\u00edstica' },
+    { de: 'Manuten????o', para: 'Manuten\u00e7\u00e3o' }
+];
+
+CARGOS_ENCODING_FIXES.forEach(({ de, para }) => {
+    // Para Cargos
+    db.get("SELECT id, nome FROM cargos WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id, nome FROM cargos WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                db.run("UPDATE cargos SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("UPDATE colaboradores SET cargo = ? WHERE TRIM(cargo) = ?", [para, de]);
+                        console.log(`[CARGOS FIX] Renomeado: "${de}" → "${para}"`);
+                    }
+                });
+            } else if (existeErrado && existeCorreto) {
+                db.run("UPDATE colaboradores SET cargo = ? WHERE TRIM(cargo) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("DELETE FROM cargos WHERE id = ?", [existeErrado.id], (err2) => {
+                            if (!err2) console.log(`[CARGOS FIX] Removido duplicado e atualizado colaboradores: "${de}" → "${para}"`);
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    // Para Departamentos
+    db.get("SELECT id, nome FROM departamentos WHERE TRIM(nome) = ?", [para], (errCheck, existeCorreto) => {
+        db.get("SELECT id, nome FROM departamentos WHERE TRIM(nome) = ?", [de], (errOld, existeErrado) => {
+            if (existeErrado && !existeCorreto) {
+                db.run("UPDATE departamentos SET nome = ? WHERE TRIM(nome) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("UPDATE colaboradores SET departamento = ? WHERE TRIM(departamento) = ?", [para, de]);
+                        console.log(`[DEPT FIX] Renomeado: "${de}" → "${para}"`);
+                    }
+                });
+            } else if (existeErrado && existeCorreto) {
+                db.run("UPDATE colaboradores SET departamento = ? WHERE TRIM(departamento) = ?", [para, de], (err) => {
+                    if (!err) {
+                        db.run("DELETE FROM departamentos WHERE id = ?", [existeErrado.id], (err2) => {
+                            if (!err2) console.log(`[DEPT FIX] Removido duplicado e atualizado colaboradores: "${de}" → "${para}"`);
+                        });
+                    }
+                });
+            }
+        });
+    });
+});
+
+// FIX LOGISTICA IN DEPARTMENTS DB: Handles cases where Logística was saved as Log??stica in the DB
+db.run("UPDATE departamentos SET nome = 'Logística' WHERE nome LIKE '%Log%stica%' AND nome != 'Logística'");
+db.run("UPDATE colaboradores SET departamento = 'Logística' WHERE departamento LIKE '%Log%stica%' AND departamento != 'Logística'");
+db.run("UPDATE cargos SET departamento = 'Logística' WHERE departamento LIKE '%Log%stica%' AND departamento != 'Logística'");
+db.run("UPDATE logistica_agenda SET tipo = 'Logística' WHERE tipo LIKE '%Log%stica%' AND tipo != 'Logística'");
+
+db.run("UPDATE departamentos SET nome = 'Manutenção' WHERE nome LIKE '%Manuten%o%' AND nome != 'Manutenção'");
+db.run("UPDATE colaboradores SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
+db.run("UPDATE cargos SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
 
 
 // Recarregar configurações do sistema (ex: certificado)
@@ -422,13 +645,13 @@ db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
     }
 });
 
-// -- DIAGNÓSTICO DE PERSISTÊNCIA ----------------------------------------
+// -- DIAGN??STICO DE PERSIST??NCIA ----------------------------------------
 const dbPathAtual = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
 if (!process.env.DATABASE_PATH) {
-    console.warn('??  AVISO: DATABASE_PATH não definido! O banco está em disco efêmero.');
-    console.warn('??  Todos os dados serão PERDIDOS a cada restart do servidor (Render free tier).');
+    console.warn('??  AVISO: DATABASE_PATH não definido! O banco está em disco ef??mero.');
+    console.warn('??  Todos os dados ser??o PERDIDOS a cada restart do servidor (Render free tier).');
     console.warn(`??  Caminho atual: ${dbPathAtual}`);
-    console.warn('??  Configure DATABASE_PATH como variável de ambiente apontando para um Render Disk.');
+    console.warn('??  Configure DATABASE_PATH como vari??vel de ambiente apontando para um Render Disk.');
 } else {
     console.log(`?  DATABASE_PATH configurado: ${dbPathAtual}`);
 }
@@ -438,6 +661,12 @@ if (!process.env.DATABASE_PATH) {
 db.run("UPDATE documentos SET document_type = 'Exames Complementares' WHERE document_type = 'Audiometria'", (err) => {
     if (err) console.error("Erro na migration Exames Complementares:", err);
     else console.log("Migration 'Audiometria -> Exames Complementares' executada (se houver registros).");
+});
+
+// MIGRATION: Renomear 'ASO Padrão' para 'ASO Periódico'
+db.run("UPDATE documentos SET document_type = 'ASO Periódico' WHERE document_type IN ('ASO Padrão', 'ASO Padrao')", (err) => {
+    if (err) console.error("Erro na migration ASO Periódico:", err);
+    else console.log("Migration 'ASO Padrão -> ASO Periódico' executada (se houver registros).");
 });
 
 // MIGRATION: Novas colunas financeiras
@@ -508,7 +737,7 @@ db.run(`ALTER TABLE celulares_atribuicoes ADD COLUMN chip_id2 INTEGER`, (err) =>
     if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_atribuicoes.chip_id2:', err.message);
 });
 
-// MIGRATION: Multas de Trânsito
+// MIGRATION: Multas de Tr??nsito
 
 // MIGRATION: Sinistros
 db.run(`CREATE TABLE IF NOT EXISTS sinistros (
@@ -588,7 +817,7 @@ const _multasMigCols = [
 _multasMigCols.forEach(sql => {
     db.run(sql, err => {
         if (err && !err.message.includes('duplicate column')) {
-            // silent — column already exists
+            // silent ??? column already exists
         }
     });
 });
@@ -625,7 +854,7 @@ db.all("SELECT id, documentos_extras FROM multas_logistica WHERE documentos_extr
             fixed++;
         }
     });
-    if (fixed > 0) console.log(`[MIGRATION] ${fixed} declaração(ões) movida(s) do slot 0 para slot 1 (Termo Assinado).`);
+    if (fixed > 0) console.log(`[MIGRATION] ${fixed} declaração(??es) movida(s) do slot 0 para slot 1 (Termo Assinado).`);
 });
 
 function getNowBR() {
@@ -643,7 +872,7 @@ db.run("DELETE FROM cargos WHERE nome = 'teste' OR nome = 'Teste'", (err) => {
     if (err) console.error("Erro ao remover cargo teste:", err);
 });
 
-// MIGRATION: Limpar duplicatas de geradores — executado em sequência garantida
+// MIGRATION: Limpar duplicatas de geradores - executado em sequência garantida
 db.serialize(() => {
 db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -665,11 +894,11 @@ db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
     url TEXT NOT NULL,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
-// Migration: renomear dados_base64 → url (se tabela antiga existir)
+// Migration: renomear dados_base64 ??? url (se tabela antiga existir)
 db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN url TEXT`, () => {});
 db.run(`ALTER TABLE ocorrencias_anexos ADD COLUMN r2_key TEXT`, () => {});
 
-// Tabela de Webhooks — armazena URLs assinantes por evento
+// Tabela de Webhooks ??? armazena URLs assinantes por evento
 db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     evento TEXT NOT NULL,
@@ -679,7 +908,7 @@ db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-    // 1. Renomear ORDEM DE SERVIÇO NR01 (maiúsculo) para caixa mista
+    // 1. Renomear ORDEM DE SERVI??O NR01 (maiúsculo) para caixa mista
     db.run("UPDATE geradores SET nome = 'Ordem de Servi\u00e7o NR01' WHERE nome LIKE 'ORDEM%NR01' OR nome LIKE 'ORDEM%NR 01'", (err) => {
         if (err) console.error('Erro ao renomear NR01 maiúsculo:', err);
         else console.log('MIGRATION: ORDEM NR01 maiúsculo renomeado (se existia).');
@@ -690,12 +919,12 @@ db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
         else console.log('MIGRATION: Duplicatas NR01 removidas (se existiam).');
     });
     // 3. Remover AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO (maiúsculo extra)
-    //    Mantém apenas o de ID menor (Autorização de Desconto em Folha, criado antes)
+    //    Mant??m apenas o de ID menor (Autorização de Desconto em Folha, criado antes)
     db.run("DELETE FROM geradores WHERE nome LIKE 'AUTORI%DESCONTO%PAGAMENTO'", (err) => {
         if (err) console.error('Erro ao remover AUTORIZACAO DESCONTO PAGAMENTO maiúsculo:', err);
         else console.log('MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO maiúsculo removido (se existia).');
     });
-    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) — exceto os já tratados
+    // 4. Remover qualquer outro gerador em CAIXA ALTA cujo nome = UPPER(nome) - exceto os já tratados
     //    Detecta nomes 100% maiúsculos contendo mais de 3 palavras
     db.run("DELETE FROM geradores WHERE nome = UPPER(nome) AND LENGTH(nome) > 10 AND nome NOT LIKE 'Ordem%'", (err) => {
         if (err) console.error('Err ao remover geradores all-caps extra:', err);
@@ -705,32 +934,32 @@ db.run(`CREATE TABLE IF NOT EXISTS webhooks_config (
 
 // MIGRATION: Inserir Gerador NR1 automaticamente se não existir
 const htmlNR1 = `
-<p style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem;">ORDEM DE SERVIÇO - NR1</p>
+<p style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem;">ORDEM DE SERVI??O - NR1</p>
 
 <p style="font-weight: bold; text-decoration: underline;">DESCRIÇÃO DA ATIVIDADE</p>
-<p style="text-transform: uppercase;">FAZER SUCÇÃO COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QUÍMICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIATO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
+<p style="text-transform: uppercase;">FAZER SUC????O COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QU??MICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIATO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
 
-<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">IDENTIFICAÇÃO DOS RISCOS AMBIENTAIS</p>
+<p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">IDENTIFICA????O DOS RISCOS AMBIENTAIS</p>
 <p style="font-weight: bold;">RISCOS / FONTES GERADORAS</p>
 <ul style="list-style-type: none; padding-left: 0; margin-top: 0.5rem; line-height: 1.6;">
-    <li><b>Físicos:</b> Ruído peculiar a ambientes externos e umidade da lavagem dos sanitários.</li>
-    <li><b>Químicos:</b> Produtos saneantes: desinfetantes, bactericida e desodorização sanitária.</li>
+    <li><b>Físicos:</b> Ru??do peculiar a ambientes externos e umidade da lavagem dos sanitários.</li>
+    <li><b>Qu??micos:</b> Produtos saneantes: desinfetantes, bactericida e desodorização sanitária.</li>
     <li><b>Biológicos:</b> Sucção de dejetos e limpeza de sanitários químicos.</li>
-    <li><b>Ergonômicos:</b> intensidade pequena (possível postura inadequada, possível stress).</li>
-    <li><b>Acidentes:</b> intensidade pequena (possíveis acidentes de quedas, cortes e perfurações e outros).</li>
+    <li><b>Ergonômicos:</b> intensidade pequena (poss??vel postura inadequada, poss??vel stress).</li>
+    <li><b>Acidentes:</b> intensidade pequena (poss??veis acidentes de quedas, cortes e perfurações e outros).</li>
 </ul>
 
 <p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS PREVENTIVAS</p>
 <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;" border="1">
     <thead>
         <tr style="background-color: #f1f5f9;">
-            <th style="padding: 8px; text-align: left;">EPI’s (Equipamentos de Proteção Individual)</th>
-            <th style="padding: 8px; text-align: left;">OBSERVAÇÕES</th>
+            <th style="padding: 8px; text-align: left;">EPI?às (Equipamentos de Prote????o Individual)</th>
+            <th style="padding: 8px; text-align: left;">OBSERVA????ES</th>
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td style="padding: 8px;">ÓCULOS DE PROTEÇÃO, LUVA DE NEOLATEX, CAPACETE COM JUGULAR, BOTA TIPO B COM BICO DE AÇO, UNIFORME COMPLETO, PROTETOR SOLAR, PROTETOR AUDITIVO, CAPA DE CHUVA.</td>
+            <td style="padding: 8px;">??CULOS DE PROTEÇÃO, LUVA DE NEOLATEX, CAPACETE COM JUGULAR, BOTA TIPO B COM BICO DE A??O, UNIFORME COMPLETO, PROTETOR SOLAR, PROTETOR AUDITIVO, CAPA DE CHUVA.</td>
             <td style="padding: 8px;">SEM MAIS</td>
         </tr>
     </tbody>
@@ -739,10 +968,10 @@ const htmlNR1 = `
 <p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS ADMINISTRATIVAS</p>
 <ul style="margin-top: 0.5rem; line-height: 1.6;">
     <li>TREINAMENTO E MONITORAMENTO DAS ATIVIDADES.</li>
-    <li>ORIENTAÇÕES DE SEGURANÇA DOS LOCAIS DE PRESTAÇÃO DE SERVIÇOS.</li>
+    <li>ORIENTAÇÕES DE SEGURAN??A DOS LOCAIS DE PRESTAÇÃO DE SERVI??OS.</li>
 </ul>
 
-<p style="margin-top: 2rem;">Declaro ter recebido as instruções de Segurança e Saúde no Trabalho de acordo com a NR-1, bem como os EPIs necessários e comprometo-me a cumprir todas as normas estabelecidas.</p>
+<p style="margin-top: 2rem;">Declaro ter recebido as instru????es de Segurança e Sa??de no Trabalho de acordo com a NR-1, bem como os EPIs necessários e comprometo-me a cumprir todas as normas estabelecidas.</p>
 `;
 
 db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
@@ -818,7 +1047,7 @@ db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE 
 db.run("UPDATE OR IGNORE grupos_permissao SET nome = REPLACE(nome, ' - Total', '') WHERE nome LIKE '% - Total'", (err) => {
     if (err) console.error("Erro ao atualizar grupos:", err);
     else {
-        // Remover duplicatas criadas pela remoção de " - Total" (ex: manter apenas 1 linha por nome)
+        // Remover duplicatas criadas pela remo????o de " - Total" (ex: manter apenas 1 linha por nome)
         db.run("DELETE FROM grupos_permissao WHERE id NOT IN (SELECT MIN(id) FROM grupos_permissao GROUP BY TRIM(nome))", (errD) => {
             if (errD) console.error("Erro ao limpar grupos duplicados:", errD);
         });
@@ -879,11 +1108,9 @@ db.run(`ALTER TABLE config_notificacoes ADD COLUMN email_override TEXT`, (err) =
 // MIGRATION: Garantir que os geradores baseados em perfil do colaborador existam no banco
 const GERADORES_PERFIL = [
     'Termo de NÃO Interesse Terapia',
-
     'Termo de Interesse Terapia',
     'Responsabilidade Bilhete Único',
     'Responsabilidade Celular',
-
     'Contrato Faculdade',
     'Contrato Academia',
     // 'Termo de Responsabilidade de Chaves' -- removido permanentemente
@@ -903,9 +1130,9 @@ GERADORES_PERFIL.forEach(nome => {
 // MIGRATION: Seed do gerador "Aceite de Recebimento por E-mail"
 (function seedAceiteEmail() {
     const nomeGerador = 'Aceite de Recebimento por E-mail';
-    const conteudoHTML = `<p><b>ACEITE DE RECEBIMENTO POR E-MAIL</b></p><br><p>Eu, <b>\${NOME_COMPLETO}</b>, portador(a) do CPF n° <b>\${CPF}</b>, ocupando o cargo de <b>\${CARGO}</b> no departamento de <b>\${DEPARTAMENTO}</b>, admitido(a) em <b>\${DATA_ADMISSAO}</b>, venho por meio deste documento <b>declarar meu aceite e ciência</b> de que:</p><p>1. Estou ciente de que a empresa <b>América Rental Equipamentos Ltda.</b> poderá me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <b>e-mail</b>, inclusive com validade legal.</p><p>2. O endereço de e-mail cadastrado para recebimento dessas comunicações é: <b>\${EMAIL}</b>.</p><p>3. Reconheço que sou o(a) <b>responsável pela guarda, confidencialidade e acesso</b> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</p><p>4. Comprometo-me a comunicar imediatamente ao setor de Recursos Humanos caso ocorra qualquer alteração no endereço de e-mail acima informado ou caso eu perca o acesso a ele.</p><p>5. Estou ciente de que a América Rental Equipamentos Ltda. não se responsabiliza pelo uso indevido da minha conta de e-mail por terceiros, nem por acessos não autorizados decorrentes de negligência de minha parte na guarda da minha senha.</p>`;
+    const conteudoHTML = `<p><b>ACEITE DE RECEBIMENTO POR E-MAIL</b></p><br><p>Eu, <b>\${NOME_COMPLETO}</b>, portador(a) do CPF n?? <b>\${CPF}</b>, ocupando o cargo de <b>\${CARGO}</b> no departamento de <b>\${DEPARTAMENTO}</b>, admitido(a) em <b>\${DATA_ADMISSAO}</b>, venho por meio deste documento <b>declarar meu aceite e ciência</b> de que:</p><p>1. Estou ciente de que a empresa <b>América Rental Equipamentos Ltda.</b> poder?? me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <b>e-mail</b>, inclusive com validade legal.</p><p>2. O endereço de e-mail cadastrado para recebimento dessas comunicações ??: <b>\${EMAIL}</b>.</p><p>3. Reconhe??o que sou o(a) <b>responsável pela guarda, confidencialidade e acesso</b> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</p><p>4. Comprometo-me a comunicar imediatamente ao setor de Recursos Humanos caso ocorra qualquer alteração no endereço de e-mail acima informado ou caso eu perca o acesso a ele.</p><p>5. Estou ciente de que a América Rental Equipamentos Ltda. não se responsabiliza pelo uso indevido da minha conta de e-mail por terceiros, nem por acessos não autorizados decorrentes de neglig??ncia de minha parte na guarda da minha senha.</p>`;
 
-    // Forçar atualização do conteúdo para quem já tem a tabela
+    // Forçar atualização do conte??do para quem já tem a tabela
     db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
 
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
@@ -919,7 +1146,7 @@ GERADORES_PERFIL.forEach(nome => {
         });
     });
 
-    // Regra de visibilidade: aparece no dropdown para todos, e é visível automaticamente na aba contratos
+    // Regra de visibilidade: aparece no dropdown para todos, e à vis??vel automaticamente na aba contratos
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
         [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
     );
@@ -934,17 +1161,17 @@ GERADORES_PERFIL.forEach(nome => {
     <tr><td colspan="3" style="text-align:center;font-weight:bold;font-size:14px;border:1px solid #000;padding:6px 0;">SOLICITAÇÃO DO VALE - TRANSPORTE</td></tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nome Empregado:</b> \${NOME_COMPLETO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>Nº Reg.:</b> \${ID}</td>
+      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>N?? Reg.:</b> \${ID}</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;"><b>Função:</b> \${CARGO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;"><b>CTPS Nº:</b> \${CTPS}</td>
-      <td style="border:1px solid #000;padding:5px 8px;"><b>Série:</b></td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>CTPS N??:</b> \${CTPS}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>S??rie:</b></td>
     </tr>
   </table>
   <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
     <tr>
-      <td style="border:1px solid #000;padding:5px 8px;" colspan="3">À</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="3">à</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Empresa:</b> AMERICA RENTAL EQUIPAMENTOS LTDA</td>
@@ -969,19 +1196,19 @@ GERADORES_PERFIL.forEach(nome => {
   <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
     <tr>
       <td style="padding:8px 8px;font-size:10.5px;line-height:1.6;" colspan="3">
-        Nos termos do artigo 7º do Decreto Nº 95.247 de 17 de novembro de 1987 solicito receber o Vale - Transporte e comprometo-me:<br>
+        Nos termos do artigo 7º do Decreto N?? 95.247 de 17 de novembro de 1987 solicito receber o Vale - Transporte e comprometo-me:<br>
         a) a utilizá-lo exclusivamente para meu efetivo deslocamento residência - trabalho e vice-versa;<br>
-        b) a renovar anualmente ou sempre que ocorrer alteração no meu endereço residencial ou dos serviços e meios de transporte mais adequados ao meu deslocamento residência/trabalho e vice-versa;<br>
-        c) autorizo a descontar até 6% ( seis por cento ) do meu salário básico mensal para concorrer ao custeio do Vale-Transporte (conforme o artigo 9º do Decreto nº 95.247/87).<br>
-        d) declaro estar ciente de que a declaração falsa ou o uso indevido do Vale - Transporte constituem falta grave (conforme o parágrafo 3º do artigo 7º do Decreto nº 95.247/87).
+        b) a renovar anualmente ou sempre que ocorrer alteração no meu endereço residencial ou dos servi??os e meios de transporte mais adequados ao meu deslocamento residência/trabalho e vice-versa;<br>
+        c) autorizo a descontar até 6% ( seis por cento ) do meu sal??rio bàsico mensal para concorrer ao custeio do Vale-Transporte (conforme o artigo 9º do Decreto n?? 95.247/87).<br>
+        d) declaro estar ciente de que a declaração falsa ou o uso indevido do Vale - Transporte constituem falta grave (conforme o parágrafo 3?? do artigo 7º do Decreto n?? 95.247/87).
       </td>
     </tr>
   </table>
   <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
-    <tr><td style="padding:6px 8px;font-size:11px;" colspan="5"><b>Minha Residência Atual:</b></td></tr>
+    <tr><td style="padding:6px 8px;font-size:11px;" colspan="5"><b>Minha Resid??ncia Atual:</b></td></tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Rua/Av.:</b> \${VT_ENDERECO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nº:</b> \${VT_NUMERO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>N??:</b> \${VT_NUMERO}</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;"><b>Bairro:</b> \${VT_BAIRRO}</td>
@@ -1016,7 +1243,7 @@ GERADORES_PERFIL.forEach(nome => {
         });
     });
 
-    // Visível para todos os colaboradores automaticamente na aba Contratos
+    // Vis??vel para todos os colaboradores automaticamente na aba Contratos
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
         [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
     );
@@ -1074,7 +1301,7 @@ try {
     console.error('Falha ao carregar modulo R2:', e);
 }
 
-// --- CONFIGURAÃ‡ÃƒO DE PASTAS PADRÃƒO ---
+// --- CONFIGURA?????????O DE PASTAS PADR????O ---
 const FOLDERS = [
     '00_CHECKLIST',
     '01_FICHA_CADASTRAL',
@@ -1106,6 +1333,122 @@ const FOLDERS = [
  * Helper para sincronizar pastas no OneDrive automaticamente
  * @param {string} nomeCompleto 
  */
+
+(function seedHabilitacao() {
+const habBHtml = `<div style="text-align:center; font-weight:bold; text-decoration:underline;">ACORDO INDIVIDUAL PARA CONCESSÃO DO BENEFÍCIO DE PRIMEIRA HABILITAÇÃO – CATEGORIA B</div><br><br>
+<div style="text-align:justify;">
+A empresa <strong>AMÉRICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada, Guarulhos/SP, denominada <strong>EMPREGADOR</strong>, e o <strong>COLABORADOR</strong>, de comum acordo e na melhor forma do direito, celebram o presente Acordo Individual para Concessão do Benefício de Primeira Habilitação – Categoria B, com fundamento nos artigos 444, 456, 462 e 468 da Consolidação das Leis do Trabalho – CLT.<br><br>
+O presente acordo tem por objeto disciplinar exclusivamente as condições para concessão do benefício de custeio da primeira Carteira Nacional de Habilitação – Categoria B, permanecendo inalteradas as demais cláusulas do contrato de trabalho.<br><br>
+O benefício possui caráter exclusivamente educacional e de desenvolvimento profissional, não possuindo natureza salarial, não se incorporando à remuneração do colaborador para quaisquer fins e não constituindo obrigação permanente do empregador.<br><br>
+<strong>CLÁUSULA PRIMEIRA – DA CONCESSÃO DO BENEFÍCIO</strong><br>
+1.1. O empregador concederá ao colaborador o benefício consistente no custeio da obtenção da primeira Carteira Nacional de Habilitação – Categoria B, conforme as regras estabelecidas no Programa Rota de Sucesso para o Futuro.<br>
+1.2. O benefício será concedido exclusivamente por meio de autoescola credenciada ou indicada pelo empregador.<br>
+1.3. O benefício compreende exclusivamente as despesas previamente aprovadas pelo empregador para a realização do processo de primeira habilitação.<br><br>
+<strong>CLÁUSULA SEGUNDA – DAS OBRIGAÇÕES DO COLABORADOR</strong><br>
+2.1. O colaborador compromete-se a:<br>
+a) frequentar regularmente as aulas teóricas e práticas;<br>
+b) comparecer aos exames obrigatórios;<br>
+c) cumprir todas as exigências da legislação de trânsito e da autoescola;<br>
+d) manter comportamento compatível com as normas internas da empresa;<br>
+e) comunicar imediatamente qualquer fato que impeça a continuidade do processo de habilitação.<br><br>
+<strong>CLÁUSULA TERCEIRA – DAS REPROVAÇÕES</strong><br>
+3.1. O empregador custeará apenas o processo inicialmente contratado.<br>
+3.2. As despesas decorrentes de reprovação em exames médicos, psicológicos, teóricos ou práticos, bem como taxas de remarcação, aulas adicionais e novas provas, serão de responsabilidade exclusiva do colaborador, salvo autorização expressa do empregador.<br><br>
+<strong>CLÁUSULA QUARTA – DO COMPROMISSO DE PERMANÊNCIA</strong><br>
+4.1. Em razão do investimento realizado pelo empregador, o colaborador compromete-se a permanecer vinculado à empresa pelo período mínimo de 12 (doze) meses, contados da emissão da Carteira Nacional de Habilitação – Categoria B.<br><br>
+<strong>CLÁUSULA QUINTA – DO RESSARCIMENTO</strong><br>
+5.1. Caso o colaborador solicite desligamento da empresa ou tenha seu contrato rescindido por justa causa antes do término do prazo previsto na Cláusula Quarta, compromete-se a ressarcir os valores investidos pelo empregador de forma proporcional ao período restante do compromisso de permanência.<br>
+5.2. O valor a ser ressarcido será calculado considerando o custo efetivamente suportado pelo empregador para a obtenção da primeira habilitação.<br>
+5.3. O colaborador autoriza, desde já, observados os limites previstos na legislação trabalhista, o desconto do valor devido nas verbas rescisórias, nos termos do artigo 462 da CLT, sem prejuízo da cobrança da diferença remanescente, caso o saldo rescisório seja insuficiente.<br><br>
+<strong>CLÁUSULA SEXTA – DA NÃO GARANTIA DE PROMOÇÃO</strong><br>
+6.1. O colaborador declara estar ciente de que a obtenção da Carteira Nacional de Habilitação – Categoria B não garante promoção, alteração de cargo, aumento salarial ou mudança de função.<br>
+6.2. Eventual promoção dependerá exclusivamente da existência de vaga, da necessidade da empresa e da aprovação nos processos internos de seleção.<br><br>
+<strong>CLÁUSULA SÉTIMA – DO CANCELAMENTO DO BENEFÍCIO</strong><br>
+7.1. O empregador poderá cancelar a concessão do benefício antes da conclusão do processo de habilitação caso o colaborador:<br>
+1) deixe de cumprir as normas internas da empresa;<br>
+2) apresente comportamento incompatível com os valores organizacionais;<br>
+3) receba penalidades disciplinares relevantes;<br>
+4) abandone o curso ou deixe de comparecer às aulas e exames sem justificativa;<br>
+5) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
+<strong>CLÁUSULA OITAVA – DA NATUREZA DO BENEFÍCIO</strong><br>
+8.1. O benefício previsto neste acordo possui natureza exclusivamente indenizatória e de desenvolvimento profissional.<br>
+8.2. O benefício não possui natureza salarial, não integra a remuneração do colaborador para quaisquer efeitos trabalhistas, previdenciários ou fundiários e não gera direito adquirido.<br><br>
+<strong>CLÁUSULA NONA – DAS DISPOSIÇÕES GERAIS</strong><br>
+9.1. O colaborador declara ter recebido e lido o Regulamento do Programa Rota de Sucesso para o Futuro, comprometendo-se a cumprir todas as suas disposições.<br>
+9.2. A concessão do benefício constitui ato de liberalidade do empregador, podendo o programa ser alterado, suspenso ou encerrado para novas concessões, sem prejuízo dos benefícios já formalizados.<br>
+9.3. As partes firmam o presente acordo de comum acordo, reconhecendo sua validade e eficácia legal.<br><br>
+[ASSINATURAS]
+</div>`;
+
+const habDHtml = `<div style="text-align:center; font-weight:bold; text-decoration:underline;">ACORDO INDIVIDUAL PARA CONCESSÃO DO BENEFÍCIO DE ALTERAÇÃO DA CARTEIRA NACIONAL DE HABILITAÇÃO – CATEGORIA D</div><br><br>
+<div style="text-align:justify;">
+A empresa <strong>AMÉRICA RENTAL EQUIPAMENTOS LTDA</strong>, inscrita no CNPJ sob o nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07252-300, Parque Alvorada, Guarulhos/SP, denominada <strong>EMPREGADOR</strong>, e o <strong>COLABORADOR</strong>, de comum acordo e na melhor forma do direito, celebram o presente Acordo Individual para Concessão do Benefício de Alteração da Carteira Nacional de Habilitação – Categoria D, com fundamento nos artigos 444, 456, 462 e 468 da Consolidação das Leis do Trabalho – CLT.<br><br>
+O presente acordo tem por objeto disciplinar exclusivamente as condições para concessão do benefício de custeio da alteração da Carteira Nacional de Habilitação da Categoria B para a Categoria D, permanecendo inalteradas as demais cláusulas do contrato de trabalho.<br><br>
+O benefício possui caráter exclusivamente educacional e de desenvolvimento profissional, não possuindo natureza salarial, não se incorporando à remuneração do colaborador para quaisquer fins e não constituindo obrigação permanente do empregador.<br><br>
+1.1. Poderá inscrever-se no Programa Rota de Sucesso para o Futuro para obtenção do benefício de alteração da Carteira Nacional de Habilitação para a Categoria D o colaborador que atender, cumulativamente, aos seguintes requisitos:<br>
+a) possuir Carteira Nacional de Habilitação – Categoria B há, no mínimo, 12 (doze) meses, contados da data de emissão da categoria;<br>
+b) estar exercendo efetivamente a função de Motorista I na América Rental;<br>
+c) possuir, no mínimo, 6 (seis) meses de exercício na função de Motorista I;<br>
+d) atender aos demais critérios de elegibilidade previstos no Regulamento do Programa.<br>
+1.2. O benefício será concedido exclusivamente por meio de autoescola credenciada ou indicada pelo empregador.<br>
+1.3. O benefício compreende exclusivamente as despesas previamente aprovadas pelo empregador para a realização do processo de alteração da categoria da habilitação.<br><br>
+<strong>CLÁUSULA SEGUNDA – DAS OBRIGAÇÕES DO COLABORADOR</strong><br>
+2.1. O colaborador compromete-se a:<br>
+a) frequentar regularmente as aulas e treinamentos exigidos;<br>
+b) comparecer aos exames obrigatórios;<br>
+c) cumprir todas as exigências da legislação de trânsito e da autoescola;<br>
+d) manter comportamento compatível com as normas internas da empresa;<br>
+e) comunicar imediatamente qualquer fato que impeça a continuidade do processo de alteração da categoria da habilitação.<br><br>
+<strong>CLÁUSULA TERCEIRA – DAS REPROVAÇÕES</strong><br>
+3.1. O empregador custeará apenas o processo inicialmente contratado.<br>
+3.2. As despesas decorrentes de reprovação em exames médicos, psicológicos, teóricos ou práticos, bem como taxas de remarcação, aulas adicionais e novas provas, serão de responsabilidade exclusiva do colaborador, salvo autorização expressa do empregador.<br><br>
+<strong>CLÁUSULA QUARTA – DO COMPROMISSO DE PERMANÊNCIA</strong><br>
+4.1. Em razão do investimento realizado pelo empregador, o colaborador compromete-se a permanecer vinculado à empresa pelo período mínimo de 12 (doze) meses, contados da conclusão da alteração da Carteira Nacional de Habilitação para a Categoria D.<br><br>
+<strong>CLÁUSULA QUINTA – DO RESSARCIMENTO</strong><br>
+5.1. Caso o colaborador solicite desligamento da empresa ou tenha seu contrato rescindido por justa causa antes do término do prazo previsto na Cláusula Quarta, compromete-se a ressarcir os valores investidos pelo empregador de forma proporcional ao período restante do compromisso de permanência.<br>
+5.2. O valor a ser ressarcido será calculado considerando o custo efetivamente suportado pelo empregador para a alteração da Carteira Nacional de Habilitação da Categoria B para a Categoria D.<br>
+5.3. O colaborador autoriza, desde já, observados os limites previstos na legislação trabalhista, o desconto do valor devido nas verbas rescisórias, nos termos do artigo 462 da CLT, sem prejuízo da cobrança da diferença remanescente, caso o saldo rescisório seja insuficiente.<br><br>
+<strong>CLÁUSULA SEXTA – DA NÃO GARANTIA DE PROMOÇÃO</strong><br>
+6.1. O colaborador declara estar ciente de que a obtenção da Carteira Nacional de Habilitação Categoria D não garante promoção, alteração de cargo, aumento salarial ou mudança de função.<br>
+6.2. Eventual promoção para o cargo de Motorista II, ou qualquer outra função, dependerá exclusivamente da existência de vaga, da necessidade da empresa e da aprovação nos processos internos de seleção previstos no Programa Rota de Sucesso para o Futuro.<br><br>
+<strong>CLÁUSULA SÉTIMA – DO CANCELAMENTO DO BENEFÍCIO</strong><br>
+7.1. O empregador poderá cancelar a concessão do benefício antes da conclusão do processo de alteração da categoria da habilitação caso o colaborador:<br>
+a) deixe de cumprir as normas internas da empresa;<br>
+b) apresente comportamento incompatível com os valores organizacionais;<br>
+c) receba penalidades disciplinares relevantes;<br>
+d) abandone o curso ou deixe de comparecer às aulas e exames sem justificativa;<br>
+e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
+<strong>CLÁUSULA OITAVA – DA NATUREZA DO BENEFÍCIO</strong><br>
+8.1. O benefício previsto neste acordo possui natureza exclusivamente indenizatória e de desenvolvimento profissional.<br>
+8.2. O benefício não possui natureza salarial, não integra a remuneração do colaborador para quaisquer efeitos trabalhistas, previdenciários ou fundiários e não gera direito adquirido.<br><br>
+<strong>CLÁUSULA NONA – DAS DISPOSIÇÕES GERAIS</strong><br>
+9.1. O colaborador declara ter recebido e lido o Regulamento do Programa Rota de Sucesso para o Futuro, comprometendo-se a cumprir integralmente suas disposições.<br>
+9.2. A concessão do benefício constitui ato de liberalidade do empregador, podendo o programa ser alterado, suspenso ou encerrado para novas concessões, sem prejuízo dos benefícios já formalizados.<br>
+9.3. As partes firmam o presente acordo de comum acordo, reconhecendo sua validade e eficácia legal.<br><br>
+[ASSINATURAS]
+</div>`;
+
+// Cleanup old lowercase seeded generators to prevent duplicates
+db.run("DELETE FROM geradores WHERE nome IN ('habilitação categoria b', 'habilitação categoria d')");
+
+db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria B'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
+db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria B'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria B', habBHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
+            if(!err) console.log("[SEED] Gerador Habilitação Categoria B criado.");
+        });
+    }
+});
+db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria D'", [habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}']);
+db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria D'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria D', habDHtml, '{"dropdown_todos":true,"visivel_automatico":true,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
+            if(!err) console.log("[SEED] Gerador Habilitação Categoria D criado.");
+        });
+    }
+});
+})();
+
 async function syncColaboradorOneDrive(nomeCompleto) {
     if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) {
         console.warn("[OneDrive] Pulando sincronização: OneDrive desabilitado ou não configurado.");
@@ -1114,10 +1457,10 @@ async function syncColaboradorOneDrive(nomeCompleto) {
 
     // Calcula o caminho ANTERIOR para retornar na resposta
     const nomePasta = formatarNome(nomeCompleto);
-    // V21: Usando ID do SharePoint diretamente. O Drive ID já é a pasta 'Documentos - America Rental'.
+    // V21: Usando ID do SharePoint diretamente. O Drive ID já à a pasta 'Documentos - America Rental'.
     const onedriveBasePath = "RH/1.Colaboradores/Sistema";
     const onedrivePath = `${onedriveBasePath}/${nomePasta}`;
-    // DISPARAR MODO SINCRONO (O Render irá aguardar para não congelar o processo)
+    // DISPARAR MODO SINCRONO (O Render ir?? aguardar para não congelar o processo)
     console.log(`[OneDrive V24] Modo SharePoint ativo para ${nomeCompleto}. Alvo: ${onedriveBasePath}`);
 
     let msgRetorno = "Pastas do SharePoint criadas com sucesso!";
@@ -1204,8 +1547,8 @@ async function uploadDocToOneDrive(docId) {
         if (doc.tab_name === 'AVALIACAO') {
             cloudName = doc.file_name;
         } else if (isAtestado) {
-            // Se o file_name já é o nome limpo (cloud_name salvo diretamente), usar as-is
-            // Caso contrário tentar remover sufixo _YYYYMMDD_HHMMSS
+            // Se o file_name já à o nome limpo (cloud_name salvo diretamente), usar as-is
+            // Caso contr??rio tentar remover sufixo _YYYYMMDD_HHMMSS
             const hasTimestamp = /_\d{8}_\d{6}(\.[^.]+)?$/.test(doc.file_name);
             cloudName = hasTimestamp
                 ? doc.file_name.replace(/_\d{8}_\d{6}(\.[^.]+)$/, '$1')
@@ -1215,7 +1558,7 @@ async function uploadDocToOneDrive(docId) {
         } else if (safeTab === '01_FICHA_CADASTRAL') {
             cloudName = `${(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (doc.tab_name === 'CONTRATOS') {
-            // Contratos de Admissão: NomeDoc_NomeColab.pdf (sem timestamp, documento único)
+            // Contratos de Admissão: NomeDoc_NomeColab.pdf (sem timestamp, documento ??nico)
             cloudName = `${formatarPasta(doc.document_type || doc.tab_name).replace(/\s+/g, '_')}_${safeColab}.pdf`;
         } else if (doc.tab_name === 'CONTRATOS_AVULSOS') {
             // Outros Contratos: usa o file_name que já tem código único do timestamp
@@ -1253,9 +1596,15 @@ async function uploadDocToOneDrive(docId) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'america_rental_secret_key_123';
+if (!process.env.SECRET_KEY) {
+    console.error('\n\n🚨 ERRO CRÍTICO: A variável de ambiente SECRET_KEY não está definida!');
+    console.error('🚨 O servidor NÃO pode iniciar sem ela. Adicione SECRET_KEY no painel do Render.');
+    console.error('🚨 Use um valor longo e aleatório (ex: openssl rand -hex 32)\n');
+    process.exit(1);
+}
+const SECRET_KEY = process.env.SECRET_KEY;
 
-// Configuração de Armazenamento (Dinâmico para Render/Linux ou Disco Persistente)
+// Configuração de Armazenamento (Din??mico para Render/Linux ou Disco Persistente)
 const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
@@ -1315,10 +1664,10 @@ function extractSignedUrl(docData) {
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
         fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
-        console.log("DIRETÃ“RIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
+        console.log("DIRETÓRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
     }
 } catch (e) {
-    console.error("AVISO CRÍTICO: Não foi possível criar a pasta base de upload:", e.message);
+    console.error("AVISO CR??TICO: Não foi poss??vel criar a pasta base de upload:", e.message);
     console.error("Caminho tentado:", BASE_UPLOAD_PATH);
     // Não encerramos o processo para permitir que o servidor suba em modo leitura ou com falhas parciais
 }
@@ -1365,12 +1714,12 @@ const storage = multer.diskStorage({
         try {
             if (!fs.existsSync(finalDir)) {
                 fs.mkdirSync(finalDir, { recursive: true });
-                console.log("DIRETÃ“RIO CRIADO:", finalDir);
+                console.log("DIRETÓRIO CRIADO:", finalDir);
             }
             cb(null, finalDir);
         } catch (err) {
-            console.error("ERRO AO CRIAR DIRETÃ“RIO DE UPLOAD:", err);
-            cb(new Error("Não foi possível criar a pasta de destino para o upload. Verifique as permissões de gravação."));
+            console.error("ERRO AO CRIAR DIRETÓRIO DE UPLOAD:", err);
+            cb(new Error("Não foi poss??vel criar a pasta de destino para o upload. Verifique as permissões de gravação."));
         }
     },
     filename: function (req, file, cb) {
@@ -1394,7 +1743,7 @@ const storage = multer.diskStorage({
             base = `${safeType}_${safeColab}`;
         }
 
-        // Timestamp formatado YYYYMMDD_HHMM para ser mais legível que milissegundos
+        // Timestamp formatado YYYYMMDD_HHMM para ser mais leg??vel que milissegundos
         const d = new Date();
         const ts = d.getFullYear() +
             String(d.getMonth() + 1).padStart(2, '0') +
@@ -1408,13 +1757,38 @@ const storage = multer.diskStorage({
         cb(null, finalFilename);
     }
 });
-const upload = multer({ storage: storage });
+// 🔒 Extensões permitidas no upload de documentos
+const ALLOWED_MIMETYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'video/mp4',
+    'video/mpeg',
+    'video/quicktime',
+];
+
+const uploadFileFilter = (req, file, cb) => {
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}. Apenas PDF, imagens, documentos Word/Excel e vídeos são aceitos.`), false);
+    }
+};
+
+const upload = multer({ storage: storage, fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } }); // Limite de 30MB por arquivo
 
 const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
 
 
-// --- CONFIGURAÃ‡ÃƒO DE MIDDLEWARES ---
+// --- CONFIGURA?????????O DE MIDDLEWARES ---
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
@@ -1440,10 +1814,16 @@ app.use(cors({
     return callback(new Error('Acesso bloqueado por CORS (Segurança)'), false);
   }
 }));
+
+// 🔒 Cabeçalhos de segurança HTTP (helmet)
+app.use(helmet({
+    contentSecurityPolicy: false, // Desabilitado pois o frontend usa inline scripts/styles
+    crossOriginEmbedderPolicy: false // Necessário para embeds de PDF/iframe
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// ROTA DE VERSÃO (Para verificar implantação)
+// ROTA DE VERS??O (Para verificar implantação)
 app.get('/api/version', (req, res) => res.json({ version: 'V51_FIX_CONTRATOS_AVULSOS_PATH' }));
 
 app.get('/api/debug-pfx3', authenticateToken, async (req, res) => {
@@ -1484,7 +1864,7 @@ app.get('/api/get-system-logs', authenticateToken, (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }) }
 });
 
-// ─── ADMIN: Auditar assinaturas com falso-positivo ───────────────────────────
+// ????????? ADMIN: Auditar assinaturas com falso-positivo ?????????????????????????????????????????????????????????????????????????????????
 // GET /api/admin/auditar-assinaturas?colaborador_id=X  (ou sem param = todos)
 app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
     const { colaborador_id } = req.query;
@@ -1559,7 +1939,7 @@ app.post('/api/admin/resetar-assinatura-falsa', authenticateToken, async (req, r
         // Modo 2: resetar um documento específico
         if (doc_id && tabela) {
             const tabelaValida = ['documentos', 'admissao_assinaturas'].includes(tabela);
-            if (!tabelaValida) return res.status(400).json({ error: 'Tabela inválida' });
+            if (!tabelaValida) return res.status(400).json({ error: 'Tabela inv??lida' });
 
             if (tabela === 'documentos') {
                 await new Promise((resolve, reject) =>
@@ -1598,7 +1978,7 @@ app.get('/api/check-pfx', authenticateToken, (req, res) => {
 const signPdfPfx = require('./sign_pdf_pfx');
 // -----------------------------------------------------------------------------
 
-// --- POLLING AUTOMÁTICO: Atualizar status de documentos de admissão -----------
+// --- POLLING AUTOM??TICO: Atualizar status de documentos de admissão -----------
 // Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
 async function pollAdmissaoAssinaturas() {
     try {
@@ -1665,7 +2045,7 @@ async function pollAdmissaoAssinaturas() {
                 };
 
                 // Status do Assinafy que indicam assinatura EFETIVAMENTE completa.
-                // ATENÇÃO: 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
+                // ATEN????O: 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
                 // Apenas 'certificated' e o código '4' indicam que TODOS assinaram e o certificado foi emitido.
                 const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
                 if (!isSigned) {
@@ -1675,7 +2055,7 @@ async function pollAdmissaoAssinaturas() {
 
                 console.log(`[POLL-ADMISSAO] ? Doc ${doc.assinafy_id} ASSINADO!`);
 
-                // Baixar PDF do Assinafy em memória (evita dependência de disco efêmero)
+                // Baixar PDF do Assinafy em memória (evita depend??ncia de disco ef??mero)
                 let pdfBuffer = null;
                 const signedUrl = extractSignedUrl(docData);
                 if (signedUrl) {
@@ -1709,13 +2089,13 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
-                // O buffer final que será salvo (com cert se disponível, ou apenas assinado pelo colab)
+                // O buffer final que ser?? salvo (com cert se dispon??vel, ou apenas assinado pelo colab)
                 const finalBuffer = certSignedBuffer || pdfBuffer;
 
                 // Tentar sincronizar com OneDrive diretamente da memória (sem salvar em disco)
                 let onedriveOk = false;
                 // Regra de OneDrive por subtipo de Advertência:
-                //  Ocorrência / Verbal -> não sincroniza no poll (já sincronizou após testemunhas ou nunca)
+                //  ocorrência / Verbal -> não sincroniza no poll (já sincronizou após testemunhas ou nunca)
                 //  Escrita / Suspensão -> sobrescreve após assinatura do colaborador
                 const _tipoSimplesP = (doc.document_type || '').split('###')[1] || '';
                 const _skipOneDriveP = /ocorr|verbal/i.test(_tipoSimplesP);
@@ -1736,7 +2116,7 @@ async function pollAdmissaoAssinaturas() {
                             const isContratosAvulso = doc.tab_name === 'CONTRATOS_AVULSOS';
 
                             if (isContratos || isContratosAvulso) {
-                                // Ambos vão para pasta CONTRATOS/ no OneDrive
+                                // Ambos v??o para pasta CONTRATOS/ no OneDrive
                                 targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                                 if (isContratosAvulso) {
                                     // Contratos Avulsos: sufixo _ASSINADO para nao sobrepor o original pendente
@@ -1790,14 +2170,14 @@ async function pollAdmissaoAssinaturas() {
                         fs.writeFileSync(destPath, finalBuffer);
                         signedPath = destPath;
                     } catch (e) {
-                        console.warn(`[POLL-ADMISSAO] Disco local indisponível (normal no Render): ${e.message}`);
+                        console.warn(`[POLL-ADMISSAO] Disco local indispon??vel (normal no Render): ${e.message}`);
                     }
                 }
 
                 // PROTEÇÃO: só marca 'Assinado' se o PDF assinado foi efetivamente baixado.
                 // Sem PDF, significa que o Assinafy ainda não gerou o certificado (falso positivo).
                 if (!finalBuffer) {
-                    console.warn(`[POLL-ADMISSAO] ⚠ Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF disponível. Mantendo como Pendente.`);
+                    console.warn(`[POLL-ADMISSAO] ??? Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF dispon??vel. Mantendo como Pendente.`);
                 } else {
                     // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
                     db.run(
@@ -1808,7 +2188,7 @@ async function pollAdmissaoAssinaturas() {
                         `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
                         [signedPath, doc.assinafy_id]
                     );
-                    console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id}`);
+                    console.log(`[POLL-ADMISSAO] ??? Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id}`);
                 }
             } catch (e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
@@ -1819,12 +2199,13 @@ async function pollAdmissaoAssinaturas() {
     }
 }
 
-// Iniciar polling após o servidor subir (aguarda 30s e depois a cada 30 segundos)
+// Iniciar polling após o servidor subir (aguarda 60s e depois a cada 3 minutos)
+// Intervalo aumentado para reduzir carga na memória do Render (era 30s)
 setTimeout(() => {
     pollAdmissaoAssinaturas();
-    setInterval(pollAdmissaoAssinaturas, 30 * 1000);
-}, 30000);
-console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 30 segundos).');
+    setInterval(pollAdmissaoAssinaturas, 3 * 60 * 1000);
+}, 60000);
+console.log('[POLL-ADMISSAO] Job de polling configurado (a cada 3 minutos).');
 // -----------------------------------------------------------------------------
 
 // Endpoint de alertas realtime: retorna documentos de admissão e prontuário assinados nas últimas 24h
@@ -1834,7 +2215,7 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
 
     // Verifica se este usuário está habilitado para receber notif de 'documentos_assinados'
     db.get(`SELECT 1 FROM config_notificacoes WHERE tipo = 'documentos_assinados' AND usuario_id = ?`, [userId], (errPref, rowPref) => {
-        if (errPref || !rowPref) return res.json([]); // Usuário não configurado — silencioso
+        if (errPref || !rowPref) return res.json([]); // Usuário não configurado - silencioso
 
         db.all(`
             SELECT * FROM (
@@ -1955,10 +2336,10 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     return res.json({ success: true, messsage: 'E-mail enviado com sucesso.', link: signLink });
                 }
             }
-            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend fará fallback ou dirá q o e-mail não foi encontrado)
+            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend far?? fallback ou dir?? q o e-mail não foi encontrado)
             res.json({ success: true, warn: 'Colaborador sem e-mail cadastrado. URL recuperada, mas não enviada via sistema.', link: signLink });
         } else {
-            res.status(400).json({ error: 'Não foi possível detectar o link do documento na nuvem.' });
+            res.status(400).json({ error: 'Não foi poss??vel detectar o link do documento na nuvem.' });
         }
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -2016,7 +2397,7 @@ app.post('/api/assinaturas/sync', authenticateToken, async (req, res) => {
             }
             return res.json({ success: true, message: 'Status já está atualizado.', oldStatus: doc.assinafy_status, newStatus });
         }
-        res.status(400).json({ error: 'Não foi possível detectar o status do documento na nuvem.' });
+        res.status(400).json({ error: 'Não foi poss??vel detectar o status do documento na nuvem.' });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -2071,10 +2452,10 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             WHERE aa.assinafy_id IS NOT NULL
         `, []);
 
-        // Query 2: Documentos do prontuário (ASO, EPI, etc.) — sem coluna assinafy_sent_at/signed_at para compatibilidade
+        // Query 2: Documentos do prontuário (ASO, EPI, etc.) ??? sem coluna assinafy_sent_at/signed_at para compatibilidade
         const docRows = await dbAll(`
             SELECT d.id, d.document_type AS nome_documento, d.assinafy_status, d.assinafy_id,
-                   d.colaborador_id,
+                   d.colaborador_id, d.tab_name,
                    c.nome_completo AS colaborador_nome,
                    c.departamento  AS colaborador_departamento,
                    c.cargo         AS colaborador_cargo,
@@ -2188,7 +2569,7 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
     }
 });
 
-// DIAGNÓSTICO: compara tabelas e status real no Assinafy
+// DIAGN??STICO: compara tabelas e status real no Assinafy
 app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateToken, async (req, res) => {
     const { colaborador_id } = req.params;
     try {
@@ -2238,7 +2619,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 
     try {
-        // --- TRAVA DE SEGURANÇA: VERIFICAR SE JÁ ESTÁ ASSINADO NO ASSINAFY ANTES DE GERAR NOVO ---
+        // --- TRAVA DE SEGURAN??A: VERIFICAR SE J?? EST?? ASSINADO NO ASSINAFY ANTES DE GERAR NOVO ---
         const docExistente = await new Promise((res, rej) => db.get('SELECT assinafy_id, assinafy_status, signed_file_path FROM documentos WHERE id = ?', [document_id], (err, row) => err ? rej(err) : res(row)));
         
         if (docExistente && docExistente.assinafy_id) {
@@ -2326,7 +2707,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 });
 
-// Middleware de Autenticação (Bypass temporário para facilitar dev do frontend)
+// Middleware de Autenticação (Bypass tempor??rio para facilitar dev do frontend)
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
@@ -2341,15 +2722,41 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// --- ROTAS DE AUTENTICAÃ‡ÃƒO ---
+// --- ROTAS DE AUTENTICA?????????O ---
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 3, // Limite de 3 tentativas por IP
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 
-app.post('/api/auth/login', loginLimiter, (req, res) => {
-    const { username, password } = req.body;
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+    const { username, password, turnstileToken } = req.body;
+
+    const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+    if (!TURNSTILE_SECRET_KEY) {
+        console.error('🚨 ATENÇÃO: TURNSTILE_SECRET_KEY não configurada! CAPTCHA desabilitado.');
+    }
+    if (!turnstileToken) {
+        return res.status(401).json({ error: 'Validação de robô (Turnstile) ausente.' });
+    }
+    try {
+        const formData = new URLSearchParams();
+        formData.append('secret', TURNSTILE_SECRET_KEY);
+        formData.append('response', turnstileToken);
+        
+        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: formData
+        });
+        const cfData = await cfRes.json();
+        if (!cfData.success) {
+            return res.status(401).json({ error: 'Validação de robô falhou.' });
+        }
+    } catch (e) {
+        console.error('Turnstile validation error:', e);
+        return res.status(500).json({ error: 'Erro interno ao validar CAPTCHA.' });
+    }
+
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
         if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
@@ -2406,14 +2813,7 @@ app.get('/api/cbo', (req, res) => {
     res.json(results);
 });
 
-app.post('/api/auth/setup', (req, res) => {
-    const { username, password } = req.body;
-    const hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO usuarios (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'RH'], function (err) {
-        if (err) return res.status(400).json({ error: 'Erro ao criar admin' });
-        res.json({ message: 'Admin criado com sucesso' });
-    });
-});
+
 
 // --- ROTAS DE DASHBOARD ---
 app.get('/api/dashboard', authenticateToken, (req, res) => {
@@ -2484,7 +2884,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                 WHERE (d.tab_name LIKE '%ASO%' OR d.document_type LIKE '%ASO%')
                   AND d.vencimento IS NOT NULL
                   AND d.vencimento != ''
-                  AND c.status = 'Ativo'
+                  AND UPPER(TRIM(c.status)) IN ('ATIVO', 'AFASTADO', 'FERIAS', 'FÉRIAS')
             `;
             db.all(query, [], (err, rows) => {
                 if (err) return reject(err);
@@ -2583,7 +2983,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                     const diasTrabalhados = Math.floor((today - admDias) / 86400000);
                     const anosCompletos = Math.floor(diasTrabalhados / 365);
 
-                    // Ainda em período aquisitivo (menos de 1 ano) → não exibir no dashboard
+                    // Ainda em período aquisitivo (menos de 1 ano) - não exibir no dashboard
                     if (anosCompletos < 1) return null;
 
                     // aquisitivoFim = quando o direito nasceu = adm + anosCompletos anos
@@ -2612,7 +3012,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
 
                     const diffDays = Math.ceil((concessivoEnd - today) / (1000 * 60 * 60 * 24));
 
-                    // Formatar data de início das férias agendadas para exibição
+                    // Formatar data de início das férias agendadas para exibi????o
                     let feriasInicioFmt = null;
                     if (feriasValidasAtual && r.ferias_programadas_inicio) {
                         const dStr = r.ferias_programadas_inicio;
@@ -2634,10 +3034,10 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
                         ferias_agendadas: feriasValidasAtual,
                         ferias_inicio_fmt: feriasInicioFmt
                     };
-                    // Mostrar: agendados (sempre visíveis) + sem agenda dentro de 90 dias + vencidos
+                    // Mostrar: agendados (sempre vis??veis) + sem agenda dentro de 90 dias + vencidos
                 }).filter(r => r !== null && (r.ferias_agendadas || r.dias_restantes <= 90))
                     .sort((a, b) => {
-                        // Agendados vêm depois dos urgentes
+                        // Agendados v??m depois dos urgentes
                         if (a.ferias_agendadas && !b.ferias_agendadas) return 1;
                         if (!a.ferias_agendadas && b.ferias_agendadas) return -1;
                         return a.dias_restantes - b.dias_restantes;
@@ -2694,32 +3094,32 @@ db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (e
     }
 });
 
-// Auto-migration: fix broken document_type encoding for Pensão Alimentícia
+// Auto-migration: fix broken document_type encoding for Pensão Aliment??cia
 const brokenVariants = [
     'Pens\u00c3\u00a3o Aliment\u00c3\u00adcia',
     'Pens\u00c3o Aliment\u00c3\u00adcia',
-    'PensÃ£o AlimentÃ­cia',
+    'Pens????o Aliment????cia',
     'Pens\xc3\xa3o Aliment\xc3\xadcia'
 ];
 brokenVariants.forEach(broken => {
     db.run(
-        "UPDATE documentos SET document_type = 'Pensão Alimentícia' WHERE document_type = ?",
+        "UPDATE documentos SET document_type = 'Pensão Aliment??cia' WHERE document_type = ?",
         [broken],
-        (err) => { if (err) console.error('[Migration] Erro ao corrigir Pensão Alimentícia:', err.message); }
+        (err) => { if (err) console.error('[Migration] Erro ao corrigir Pensão Aliment??cia:', err.message); }
     );
     db.run(
-        "UPDATE documentos SET tab_name = 'Pensão Alimentícia' WHERE tab_name = ?",
+        "UPDATE documentos SET tab_name = 'Pensão Aliment??cia' WHERE tab_name = ?",
         [broken],
         () => { }
     );
 });
-console.log('[Migration] Pensão Alimentícia encoding fix applied');
+console.log('[Migration] Pensão Aliment??cia encoding fix applied');
 
 
 // --- ROTAS DE COLABORADORES ---
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // EQUIPES (TEAMS MODULE)
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // MIGRATION: tabelas de equipes
 db.run(`CREATE TABLE IF NOT EXISTS equipes (
@@ -2752,10 +3152,10 @@ db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Equipe 07h' OR nome = 'E
     if (!err && row && row.c > 0) {
         db.run("DELETE FROM equipes_membros");
         db.run("DELETE FROM equipes", () => {
-            console.log('[MIGRATION] Equipes antigas limpas com sucesso. Frontend irá recriar as novas.');
+            console.log('[MIGRATION] Equipes antigas limpas com sucesso. Frontend ir?? recriar as novas.');
         });
     } else {
-        // Se não tem antigas, remove duplicadas geradas por concorrência
+        // Se não tem antigas, remove duplicadas geradas por concorr??ncia
         db.run(`
             DELETE FROM equipes_membros
             WHERE equipe_id NOT IN (
@@ -2778,7 +3178,7 @@ db.get("SELECT COUNT(*) as c FROM equipes WHERE nome = 'Equipe 07h' OR nome = 'E
     }
 });
 
-// ── GET /api/equipes ──────────────────────────────────────────────────────────
+// ?????? GET /api/equipes ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/equipes', authenticateToken, (req, res) => {
     db.all(`SELECT e.*,
         (SELECT COUNT(*) FROM equipes_membros em WHERE em.equipe_id = e.id) as total_membros
@@ -2811,7 +3211,7 @@ setTimeout(() => {
     });
 }, 3000);
 
-// ── POST /api/equipes ─────────────────────────────────────────────────────────
+// ?????? POST /api/equipes ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/equipes', authenticateToken, (req, res) => {
     const { nome, tipo = 'rota', cor = '#2563eb', icone = 'ph-users', descricao = '', ordem = 0 } = req.body;
     if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -2822,7 +3222,7 @@ app.post('/api/equipes', authenticateToken, (req, res) => {
         });
 });
 
-// ── PUT /api/equipes/:id ──────────────────────────────────────────────────────
+// ?????? PUT /api/equipes/:id ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.put('/api/equipes/:id', authenticateToken, (req, res) => {
     const { nome, tipo, cor, icone, descricao, ordem } = req.body;
     db.run(`UPDATE equipes SET nome=COALESCE(?,nome), tipo=COALESCE(?,tipo), cor=COALESCE(?,cor),
@@ -2834,7 +3234,7 @@ app.put('/api/equipes/:id', authenticateToken, (req, res) => {
         });
 });
 
-// ── DELETE /api/equipes/:id ───────────────────────────────────────────────────
+// ?????? DELETE /api/equipes/:id ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.delete('/api/equipes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM equipes_membros WHERE equipe_id = ?', [req.params.id], () => {
         db.run('UPDATE equipes SET ativa = 0 WHERE id = ?', [req.params.id], function (err) {
@@ -2844,7 +3244,7 @@ app.delete('/api/equipes/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── POST /api/equipes/:id/membros ─────────────────────────────────────────────
+// ?????? POST /api/equipes/:id/membros ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/equipes/:id/membros', authenticateToken, (req, res) => {
     const { colaborador_id, funcao = 'motorista', escala = '', observacao = '', ordem = 0 } = req.body;
     if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório' });
@@ -2859,7 +3259,7 @@ app.post('/api/equipes/:id/membros', authenticateToken, (req, res) => {
     });
 });
 
-// ── DELETE /api/equipes/:id/membros/:colaborador_id ───────────────────────────
+// ?????? DELETE /api/equipes/:id/membros/:colaborador_id ?????????????????????????????????????????????????????????????????????????????????
 app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, res) => {
     db.run('DELETE FROM equipes_membros WHERE equipe_id = ? AND colaborador_id = ?',
         [req.params.id, req.params.colaborador_id], function (err) {
@@ -2868,7 +3268,7 @@ app.delete('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, 
         });
 });
 
-// ── PATCH /api/colaboradores/:id/destaque ──────────────────────────────────────────
+// ?????? PATCH /api/colaboradores/:id/destaque ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/colaboradores/:id/destaque', authenticateToken, (req, res) => {
     db.run('UPDATE colaboradores SET destaque_equipe = CASE WHEN destaque_equipe = 1 THEN 0 ELSE 1 END WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -2876,7 +3276,7 @@ app.patch('/api/colaboradores/:id/destaque', authenticateToken, (req, res) => {
     });
 });
 
-// ── PATCH /api/equipes/trocar ────────────────────────────────────────────────────────
+// ?????? PATCH /api/equipes/trocar ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Troca dois colaboradores de lugar (incluindo função e ordem)
 app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
     const { membro_id, alvo_id } = req.body;
@@ -2910,7 +3310,7 @@ app.patch('/api/equipes/trocar', authenticateToken, (req, res) => {
     });
 });
 
-// ── PATCH /api/equipes/reordenar ──────────────────────────────────────────────
+// ?????? PATCH /api/equipes/reordenar ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/equipes/reordenar', authenticateToken, (req, res) => {
     const { equipe_id, membros_ids } = req.body;
     if (!equipe_id || !Array.isArray(membros_ids)) return res.status(400).json({ error: 'Dados inválidos' });
@@ -2927,7 +3327,7 @@ app.patch('/api/equipes/reordenar', authenticateToken, (req, res) => {
     });
 });
 
-// ── PATCH /api/equipes/mover ──────────────────────────────────────────────────
+// ?????? PATCH /api/equipes/mover ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Move um colaborador de uma equipe para outra (ou apenas muda a função)
 app.patch('/api/equipes/mover', authenticateToken, (req, res) => {
     const { colaborador_id, equipe_origem_id, equipe_destino_id, funcao, escala, observacao, ordem } = req.body;
@@ -2950,7 +3350,7 @@ app.patch('/api/equipes/mover', authenticateToken, (req, res) => {
     }
 });
 
-// ── PATCH /api/equipes/:id/membros/:colaborador_id ────────────────────────────
+// ?????? PATCH /api/equipes/:id/membros/:colaborador_id ????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, res) => {
     const { funcao, escala, observacao } = req.body;
     db.run(`UPDATE equipes_membros SET funcao=COALESCE(?,funcao), escala=COALESCE(?,escala),
@@ -2961,21 +3361,21 @@ app.patch('/api/equipes/:id/membros/:colaborador_id', authenticateToken, (req, r
         });
 });
 
-// ── POST /api/equipes/verificar-ferias ────────────────────────────────────────
+// ?????? POST /api/equipes/verificar-ferias ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Disparo manual da verificacao de ferias (chamado ao abrir a tela de equipes)
 app.post('/api/equipes/verificar-ferias', authenticateToken, (req, res) => {
     verificarFeriasEquipes();
     res.json({ ok: true });
 });
 
-// ── GET /api/equipes/colaboradores-sem-equipe ─────────────────────────────────
+// ?????? GET /api/equipes/colaboradores-sem-equipe ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) => {
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path, c.cnh_categoria, c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim, c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio, c.horario_entrada, c.horario_saida, c.destaque_equipe
         FROM colaboradores c
         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
         AND c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
-        AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))
+        AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'P??TIO', 'MOTORISTA FREE')))
         AND (c.departamento IS NULL OR LOWER(c.departamento) NOT LIKE '%manuten%')
         AND (c.cargo IS NULL OR LOWER(c.cargo) NOT LIKE '%manuten%')
         GROUP BY c.id
@@ -2985,7 +3385,7 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
     });
 });
 
-// ── GET /api/equipes/colaboradores-disponiveis ────────────────────────────────
+// ?????? GET /api/equipes/colaboradores-disponiveis ????????????????????????????????????????????????????????????????????????????????????????????????
 // Retorna todos os colaboradores operacionais ativos, com status de disponibilidade
 // para a data informada (folga, férias, afastado são marcados mas retornados)
 app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) => {
@@ -3005,7 +3405,7 @@ app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) 
         WHERE LOWER(c.status) NOT LIKE '%desligado%'
           AND LOWER(c.status) NOT LIKE '%iniciado%'
           AND (d.tipo = 'Operacional'
-               OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE'))
+               OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'P??TIO', 'MOTORISTA FREE'))
                OR em.equipe_id IS NOT NULL)
         GROUP BY c.id
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
@@ -3016,30 +3416,37 @@ app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) 
 
 console.log('[EQUIPES] Endpoints registrados.');
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 app.get('/api/colaboradores', authenticateToken, (req, res) => {
 
     const query = `
         SELECT c.*,
-            (SELECT COUNT(*) FROM faltas f 
-             WHERE f.colaborador_id = c.id 
-               AND strftime('%Y', f.data_falta) = strftime('%Y', 'now') 
-               AND NOT EXISTS (
-                   SELECT 1 FROM documentos d 
-                   WHERE d.colaborador_id = c.id 
-                     AND (d.tab_name LIKE '%ATESTADO%' OR d.document_type LIKE '%Atestado%')
-                     AND f.data_falta >= d.atestado_inicio 
-                     AND f.data_falta <= d.atestado_fim
-               )
-            ) as faltas_ano,
-            (SELECT COUNT(*) FROM documentos d 
-             WHERE d.colaborador_id = c.id 
-               AND (d.document_type LIKE '%Advertência%' OR d.document_type LIKE '%Suspensão%' OR d.tab_name LIKE '%Advertência%' OR d.tab_name LIKE '%Suspensão%')
-            ) as punicoes,
+            COALESCE(fa.faltas_ano, 0) as faltas_ano,
+            COALESCE(pu.punicoes, 0) as punicoes,
             d.tipo as departamento_tipo
         FROM colaboradores c
         LEFT JOIN departamentos d ON c.departamento = d.nome
+        LEFT JOIN (
+            SELECT f.colaborador_id, COUNT(*) as faltas_ano
+            FROM faltas f
+            WHERE strftime('%Y', f.data_falta) = strftime('%Y', 'now')
+              AND NOT EXISTS (
+                  SELECT 1 FROM documentos d2
+                  WHERE d2.colaborador_id = f.colaborador_id
+                    AND (d2.tab_name LIKE '%ATESTADO%' OR d2.document_type LIKE '%Atestado%')
+                    AND f.data_falta >= d2.atestado_inicio
+                    AND f.data_falta <= d2.atestado_fim
+              )
+            GROUP BY f.colaborador_id
+        ) fa ON fa.colaborador_id = c.id
+        LEFT JOIN (
+            SELECT colaborador_id, COUNT(*) as punicoes
+            FROM documentos
+            WHERE (document_type LIKE '%Advertência%' OR document_type LIKE '%Suspensão%'
+                OR tab_name LIKE '%Advertência%' OR tab_name LIKE '%Suspensão%')
+            GROUP BY colaborador_id
+        ) pu ON pu.colaborador_id = c.id
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -3134,6 +3541,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
+        'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];
@@ -3162,7 +3570,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
 
-        // ── Notificação de Computadores: novo colaborador administrativo ──
+        // ?????? Notificação de Computadores: novo colaborador administrativo ??????
         const _novoStatusComp = values[colunas.indexOf('status')] || 'Ativo';
         const _novoDeptComp   = values[colunas.indexOf('departamento')] || '';
         const _statusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
@@ -3172,7 +3580,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 const isAdmin = (rowCD && rowCD.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_novoDeptComp.trim().toLowerCase());
                 if (!isAdmin) return;
 
-                // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                        // ?????? ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ??????
                 db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
                     if (rowTpl) {
                         db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [newColabId, rowTpl.id]);
@@ -3180,11 +3588,18 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                 });
                 // Checar se notificação já foi enviada para este colaborador
                 db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [newColabId], (errLog, rowLog) => {
-                    if (rowLog) return; // Já enviada antes — não reenvia
+                    if (rowLog) return; // J?? enviada antes - não reenvia
                     // Marcar como enviada
                     db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [newColabId, _novoStatusComp]);
                     // Popup in-app para cada usuário inscrito
                     const _nomeCB = nomeOriginal || 'Colaborador';
+                    const _novoRawAdmissao = data.data_admissao;
+                    let _novoAdmissao = '-';
+                    if (_novoRawAdmissao) {
+                        const parts = _novoRawAdmissao.split('-');
+                        if (parts.length === 3) _novoAdmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        else _novoAdmissao = _novoRawAdmissao;
+                    }
                     const _msgComp = `Novo colaborador administrativo cadastrado: ${_nomeCB} (${_novoDeptComp}) — Situação: ${_novoStatusComp}. Verifique se precisa de computador.`;
                     db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCN, rowsCN) => {
                         if (!errCN && rowsCN) rowsCN.forEach(r => {
@@ -3195,7 +3610,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                     // E-mail
                     const _logoPathCp = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                     sendEmailParaNotificados('computador_controle', {
-                        subject: `💻 Novo Colaborador Administrativo – ${_nomeCB} – Verificar Computador`,
+                        subject: `💻 Novo Colaborador Administrativo — ${_nomeCB} — Verificar Computador`,
                         html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                             <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                 <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -3207,6 +3622,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
                                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_nomeCB}</p>
                                     <p style="margin:4px 0;"><strong>Departamento:</strong> ${_novoDeptComp || '-'}</p>
                                     <p style="margin:4px 0;"><strong>Cargo:</strong> ${data.cargo || '-'}</p>
+                                    <p style="margin:4px 0;"><strong>Data de Admissão:</strong> ${_novoAdmissao}</p>
                                     <p style="margin:4px 0;"><strong>Situação:</strong> <span style="color:#6366f1;font-weight:700;">${_novoStatusComp}</span></p>
                                 </div>
                                 <p>Acesse o módulo <strong>Computadores Corporativos</strong> para verificar a necessidade de atribuição de equipamento.</p>
@@ -3219,18 +3635,18 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             });
         }
 
-        // Nova notificação de distribuição de equipe na criação
+        // Nova notificação de distribui????o de equipe na criação
 
         const novoStatus = values[colunas.indexOf('status')];
         const dept = values[colunas.indexOf('departamento')];
-        const isOperacional = ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(dept);
+        const isOperacional = ['EXTERNO', 'P??TIO', 'MOTORISTA FREE'].includes(dept);
 
         if (novoStatus && novoStatus !== 'Desligado' && novoStatus !== 'Iniciado' && !novoStatus.toLowerCase().includes('iniciado')) {
             db.get(`SELECT d.tipo as tipo_dept FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [dept], (errD, rowD) => {
                 if (isOperacional || (rowD && rowD.tipo_dept === 'Operacional')) {
-                    const msg = `O colaborador <strong>${nomeOriginal}</strong> é um novo colaborador disponível para distribuição de equipe (Fora de Equipe).`;
+                    const msg = `O colaborador <strong>${nomeOriginal}</strong> à um novo colaborador dispon??vel para distribui????o de equipe (Fora de Equipe).`;
                     if (typeof notificarResponsaveisEquipes === 'function') {
-                        notificarResponsaveisEquipes(msg, 'Novo Colaborador Disponível', 'ph-user-plus', '#ec4899', false);
+                        notificarResponsaveisEquipes(msg, 'Novo Colaborador Dispon??vel', 'ph-user-plus', '#ec4899', false);
                     }
                 }
             });
@@ -3294,12 +3710,12 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
 });
 
 /**
- * ROTA DE DIAGNÓSTICO: Buscar colaborador por e-mail
+ * ROTA DE DIAGN??STICO: Buscar colaborador por e-mail
  * GET /api/maintenance/buscar-email?email=xxx
  */
 app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
     const addr = (req.query.email || '').toLowerCase().trim();
-    if (!addr) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
+    if (!addr) return res.status(400).json({ error: 'Par??metro ?email= obrigatório' });
     db.all(
         `SELECT id, nome_completo, email, email_corporativo, status, departamento, cargo
          FROM colaboradores
@@ -3314,12 +3730,12 @@ app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
 });
 
 /**
- * DIAGNÓSTICO: Consultar signatário diretamente na API Assinafy
+ * DIAGN??STICO: Consultar signatério diretamente na API Assinafy
  * GET /api/maintenance/assinafy-signer?email=xxx
  */
 app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) => {
     const email = (req.query.email || '').trim();
-    if (!email) return res.status(400).json({ error: 'Parâmetro ?email= obrigatório' });
+    if (!email) return res.status(400).json({ error: 'Par??metro ?email= obrigatório' });
     const https2 = require('https');
     const _AK   = process.env.ASSINAFY_API_KEY || '';
     const _ACID = process.env.ASSINAFY_ACCOUNT_ID || '';
@@ -3349,7 +3765,7 @@ app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) 
 });
 
 /**
- * ROTA DE DIAGNÓSTICO: Verificar Persistência do Banco
+ * ROTA DE DIAGN??STICO: Verificar Persist??ncia do Banco
  */
 app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
     const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
@@ -3368,7 +3784,7 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
                         is_persistent: isPersistent,
                         aviso: isPersistent
                             ? '? Banco em disco persistente (Render Disk configurado)'
-                            : '??  BANCO EFÊMERO! Dados serão perdidos ao reiniciar o servidor. Configure DATABASE_PATH apontando para um Render Disk.',
+                            : '??  BANCO EF??MERO! Dados ser??o perdidos ao reiniciar o servidor. Configure DATABASE_PATH apontando para um Render Disk.',
                         tamanho_bytes: tamanho,
                         contagens: {
                             usuarios: r1 ? r1.total : '?',
@@ -3384,7 +3800,7 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
 });
 
 /**
- * ROTA DE DIAGNÃ“STICO: Testar Conexão OneDrive
+ * ROTA DE DIAGN?????STICO: Testar Conex??o OneDrive
  */
 app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
     try {
@@ -3395,7 +3811,7 @@ app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
 
         const downloadUrl = await onedrive.getDownloadUrl(path);
 
-        if (!downloadUrl) throw new Error('Não foi possível gerar a URL de download para este arquivo.');
+        if (!downloadUrl) throw new Error('Não foi poss??vel gerar a URL de download para este arquivo.');
 
         res.redirect(downloadUrl);
     } catch (e) {
@@ -3450,7 +3866,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
             rhLocation = searchGlobal.value?.[0]?.hitsContainers?.[0]?.hits?.[0]?.resource || null;
         } catch (gpsErr) { console.warn("Erro GPS:", gpsErr.message); }
 
-        // Variáveis de diagnóstico
+        // Vari??veis de diagnóstico
         let driveName = infoRaiz ? (infoRaiz.name || (driveId ? "SharePoint" : "OneDrive")) : "OneDrive";
         let infoPasta = null;
         let basePathItems = [];
@@ -3468,7 +3884,7 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
                 const items = await client.api(`${drivePrefix}:/${encodedBasePath}:/children`).get();
                 basePathItems = items.value.map(i => i.name);
             } catch (pErr) {
-                basePathItems = [`âš ï¸  Erro no caminho: ${pErr.message}`];
+                basePathItems = [`??????????  Erro no caminho: ${pErr.message}`];
             }
         } catch (dErr) {
             driveInfo = { name: "ERRO", error: dErr.message };
@@ -3506,16 +3922,16 @@ app.get('/api/maintenance/onedrive-test', authenticateToken, async (req, res) =>
         console.error("OneDrive Test Failure:", e);
         res.status(500).json({
             sucesso: false,
-            error: "Falha na conexão: " + e.message,
+            error: "Falha na conex??o: " + e.message,
             code: e.code,
             details: e.body ? JSON.parse(e.body) : null
         });
     }
 });
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // CHECK: Colaborador desligado que era responsável por departamento
-// Envia e-mail automático para a Diretoria solicitar substituição
-// ─────────────────────────────────────────────────────────────────────────────
+// Envia e-mail automático para a Diretoria solicitar substitui????o
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 async function checkColaboradorDesligado(colaboradorId) {
     try {
         // 1. Buscar dados do colaborador desligado
@@ -3526,7 +3942,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         });
         if (!colab) return;
 
-        // 2. Verificar se é responsável por algum departamento
+        // 2. Verificar se à responsável por algum departamento
         const deptos = await new Promise((resolve, reject) => {
             db.all('SELECT id, nome, tipo FROM departamentos WHERE responsavel_id = ?', [colaboradorId], (err, rows) => {
                 if (err) reject(err); else resolve(rows || []);
@@ -3602,7 +4018,7 @@ async function checkColaboradorDesligado(colaboradorId) {
             html: htmlContent,
             attachments
         });
-        console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} — ${deptos.length} departamento(s) afetado(s)`);
+        console.log(`[checkColaboradorDesligado] E-mail enviado para ${emailsUnicos.join(', ')} ??? ${deptos.length} departamento(s) afetado(s)`);
         // Remover colaborador de todas as equipes ao ser desligado
         db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [colaboradorId], (errEq) => {
             if (errEq) console.error('[EQUIPES] Erro ao remover desligado das equipes:', errEq.message);
@@ -3704,6 +4120,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'adiantamento_salarial', 'adiantamento_valor', 'insalubridade', 'insalubridade_valor',
         'conjuge_nome', 'conjuge_cpf',
         'santander_ficha_data',
+        'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade'
     ];
@@ -3801,7 +4218,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
-            // ── Notificações de Controle de Celulares ────────────────────────────
+            // ?????? Notificações de Controle de Celulares ????????????????????????????????????????????????????????????????????????????????????
             const _logoPathCel = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
             console.log('[Notif Celular] data.celular_participa=', data.celular_participa, '| oldColab.celular_participa=', oldColab.celular_participa);
 
@@ -3818,13 +4235,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 });
                 sendEmailParaNotificados('celular_controle', {
-                    subject: `📱 Novo Participante de Celular Corporativo – ${nomeColab}`,
+                    subject: `📱 Novo Participante - Celular Corporativo - ${nomeColab}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📱 Novo Participante – Celular Corporativo</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📱 Novo Participante - Celular Corporativo</h2>
                             <p>Um colaborador foi marcado para receber celular corporativo:</p>
                             <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
@@ -3853,13 +4270,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                     });
                 });
                 sendEmailParaNotificados('celular_controle', {
-                    subject: `📴 Mudança de Situação – Celular Corporativo – ${nomeColab2}`,
+                    subject: `⚠️ Mudança de Situação - Celular Corporativo - ${nomeColab2}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">📴 Mudança de Situação – Celular Corporativo</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Mudança de Situação - Celular Corporativo</h2>
                             <p>Um colaborador com Celular Corporativo teve sua situação alterada:</p>
                             <div style="background:#fff3e0;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #e67700;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab2}</p>
@@ -3875,7 +4292,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
-            // Novo colaborador para distribuição de equipe (status mudou de Iniciado para Ativo/Experiência ou similar)
+            // Novo colaborador para distribui????o de equipe (status mudou de Iniciado para Ativo/Experiência ou similar)
             const novoStatus = data.status;
             const velhoStatus = oldColab.status;
             if (novoStatus && novoStatus !== velhoStatus && novoStatus !== 'Desligado' && !novoStatus.toLowerCase().includes('iniciado') && (velhoStatus.toLowerCase().includes('iniciado') || velhoStatus === 'Desligado')) {
@@ -3886,11 +4303,11 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
                         WHERE c.id = ?`, [id], (errC, rowC) => {
                     if (!errC && rowC && rowC.tem_equipe === 0) {
-                        const isOperacional = rowC.tipo_dept === 'Operacional' || ['EXTERNO', 'PÁTIO', 'MOTORISTA FREE'].includes(rowC.departamento);
+                        const isOperacional = rowC.tipo_dept === 'Operacional' || ['EXTERNO', 'P??TIO', 'MOTORISTA FREE'].includes(rowC.departamento);
                         if (isOperacional) {
                             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_colaborador_equipe'", [], (errConf, rowsConf) => {
                                 if (!errConf && rowsConf) {
-                                    const msg = `O colaborador ${rowC.nome_completo} é um novo colaborador para distribuição de equipe.`;
+                                    const msg = `O colaborador ${rowC.nome_completo} à um novo colaborador para distribui????o de equipe.`;
                                     const dadosStr = JSON.stringify({ nome: rowC.nome_completo, id: rowC.id });
                                     rowsConf.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", 
@@ -3909,22 +4326,22 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                 });
             }
 
-            // ── Notificação de Computadores (PUT): status mudou para algo válido em colaborador admin ──
-            // Só dispara se nunca houve notificação antes para este colaborador
+            // ?????? Notificação de Computadores (PUT): status mudou para algo válido em colaborador admin ??????
+            // S?? dispara se nunca houve notificação antes para este colaborador
             const _puStatusNovo  = data.status;
             const _puStatusVelho = oldColab.status;
             const _puStatusesValidos = ['Ativo', 'Em Integração', 'Processo iniciado', 'Aguardando início'];
             const _puStatusMatch = _puStatusNovo && _puStatusesValidos.some(s => s.toLowerCase() === _puStatusNovo.toLowerCase());
             if (_puStatusMatch && _puStatusNovo !== _puStatusVelho) {
                 db.get(`SELECT id FROM computadores_notif_log WHERE colaborador_id = ?`, [id], (errLogPu, rowLogPu) => {
-                    if (rowLogPu) return; // Notificação já enviada antes — regra "apenas primeira vez"
-                    // Verificar se é departamento Administrativo
+                    if (rowLogPu) return; // Notificação já enviada antes - regra "apenas primeira vez"
+                    // Verificar se à departamento Administrativo
                     const _puDept = data.departamento || oldColab.departamento || '';
                     db.get(`SELECT d.tipo FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [_puDept], (errDPu, rowDPu) => {
                         const isAdmin = (rowDPu && rowDPu.tipo === 'Administrativo') || ['administrativo', 'financeiro', 'comercial', 'recursos humanos', 'rh', 'diretoria', 'marketing', 'ti'].includes(_puDept.trim().toLowerCase());
                         if (!isAdmin) return;
 
-                        // ── ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ──
+                        // ?????? ASSINATURAS: GERAR AUTOMATICAMENTE PARA ADMIN ??????
                         db.get(`SELECT id FROM assinatura_templates WHERE is_active = 1 LIMIT 1`, [], (errTpl, rowTpl) => {
                             if (rowTpl) {
                                 db.run(`INSERT INTO assinaturas_pendentes (colaborador_id, template_id) VALUES (?, ?)`, [id, rowTpl.id]);
@@ -3934,6 +4351,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         db.run(`INSERT OR IGNORE INTO computadores_notif_log (colaborador_id, status_inicial) VALUES (?, ?)`, [id, _puStatusNovo]);
                         const _puNome = data.nome_completo || oldColab.nome_completo || 'Colaborador';
                         const _puCargo = data.cargo || oldColab.cargo || '-';
+                        const _puRawAdmissao = data.data_admissao || oldColab.data_admissao;
+                        let _puAdmissao = '-';
+                        if (_puRawAdmissao) {
+                            const parts = _puRawAdmissao.split('-');
+                            if (parts.length === 3) _puAdmissao = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            else _puAdmissao = _puRawAdmissao;
+                        }
                         const _puMsgComp = `Colaborador administrativo ${_puNome} (${_puDept}) com situação "${_puStatusNovo}" — verifique necessidade de computador.`;
                         // Popup in-app
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'computador_controle'", [], (errCNP, rowsCNP) => {
@@ -3945,7 +4369,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         // E-mail
                         const _logoPathPu = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                         sendEmailParaNotificados('computador_controle', {
-                            subject: `💻 Colaborador Administrativo Ativo – ${_puNome} – Verificar Computador`,
+                            subject: `💻 Colaborador Administrativo Ativo — ${_puNome} — Verificar Computador`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -3957,6 +4381,7 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${_puNome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${_puDept || '-'}</p>
                                         <p style="margin:4px 0;"><strong>Cargo:</strong> ${_puCargo}</p>
+                                        <p style="margin:4px 0;"><strong>Data de Admissão:</strong> ${_puAdmissao}</p>
                                         <p style="margin:4px 0;"><strong>Situação anterior:</strong> ${_puStatusVelho || '-'}</p>
                                         <p style="margin:4px 0;"><strong>Nova situação:</strong> <span style="color:#6366f1;font-weight:700;">${_puStatusNovo}</span></p>
                                     </div>
@@ -3993,11 +4418,11 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
                         list = list.map(x => x.trim().toLowerCase());
                         const gLow = (t.grupo || '').trim().toLowerCase();
                         let score = 0;
-                        // Cargo: match exato na lista do template (ex: lista tem 'manutencao', cargo é 'manutencao')
+                        // Cargo: match exato na lista do template (ex: lista tem 'manutencao', cargo à 'manutencao')
                         if (cLow && list.includes(cLow)) score = Math.max(score, 100);
                         // Cargo: igual ao nome do grupo do template
                         if (cLow && gLow === cLow) score = Math.max(score, 90);
-                        // Cargo: CONTÉM algum item da lista (ex: 'ass. de manutencao 1' contém 'manutencao')
+                        // Cargo: CONT??M algum item da lista (ex: 'ass. de manutencao 1' contém 'manutencao')
                         if (cLow && list.some(l => l.length > 3 && cLow.includes(l))) score = Math.max(score, 70);
                         // Cargo: contém o nome do grupo
                         if (cLow && gLow.length > 3 && cLow.includes(gLow)) score = Math.max(score, 60);
@@ -4065,7 +4490,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
                 const result = await syncColaboradorOneDrive(row.nome_completo);
                 res.json({
                     sucesso: true,
-                    message: "Pastas básicas criadas! (Subpastas seguem em background)",
+                    message: "Pastas bàsicas criadas! (Subpastas seguem em background)",
                     path: result.caminho,
                     versao: "V24_AUTO_SYNC",
                     basePath: result.basePath
@@ -4082,7 +4507,7 @@ app.post('/api/colaboradores/:id/sync-onedrive', authenticateToken, async (req, 
     } catch (e) {
         console.error("[OneDrive Endpoint Error]:", e);
         res.status(500).json({
-            error: "Erro na requisição de sincronização",
+            error: "Erro na requisi????o de sincronização",
             message: e.message,
             details: e.body ? (typeof e.body === 'string' ? JSON.parse(e.body) : e.body) : null
         });
@@ -4094,7 +4519,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
     const force = req.query.force === 'true';
 
     db.get("SELECT status, nome_completo FROM colaboradores WHERE id = ?", [id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
 
         const excluirDefinitivamente = () => {
             // Limpar todos os dados relacionados
@@ -4133,7 +4558,7 @@ app.delete('/api/colaboradores/:id', authenticateToken, (req, res) => {
 });
 
 
-// Photo Upload Endpoint com Filtro de IA de Estúdio
+// Photo Upload Endpoint com Filtro de IA de Est??dio
 app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
@@ -4157,7 +4582,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const pasta = path.join(BASE_PATH, safeNome, "FOTOS");
         if (!fs.existsSync(pasta)) fs.mkdirSync(pasta, { recursive: true });
 
-        // Timestamp garante unicidade mesmo em servidores efêmeros (Render)
+        // Timestamp garante unicidade mesmo em servidores ef??meros (Render)
         const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14); // ex: 20260327230900
         const filename = `Foto_${safeNome}_${timestamp}.jpg`;
         const filepath = path.join(pasta, filename);
@@ -4165,7 +4590,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
 
 
-        // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
+        // Processamento Autom??tico (Sharp) - buffer reutilizado para ambos os destinos
         const processedBuffer = await sharp(req.file.buffer)
             .resize(800, 1000, {
                 fit: sharp.fit.cover,
@@ -4183,7 +4608,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         if (!fs.existsSync(pastaFicha)) fs.mkdirSync(pastaFicha, { recursive: true });
         const fichaFilepath = path.join(pastaFicha, `Foto_${safeNome}.jpg`);
         fs.writeFileSync(fichaFilepath, processedBuffer);
-        console.log("Foto principal salva/substituída:", fichaFilepath);
+        console.log("Foto principal salva/substitu??da:", fichaFilepath);
 
         // 3. Salva base64 e caminho no banco de dados (base64 persiste entre deploys)
         const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
@@ -4192,7 +4617,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         // Também registrar na aba "Fotos" do Prontuário Digital
         db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?)`, [id, filename, caminhoRelativo]);
 
-        // 4. Upload assíncrono para OneDrive
+        // 4. Upload ass??ncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
             (async () => {
                 try {
@@ -4234,7 +4659,7 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             }
         }
 
-        // Prioridade 2: arquivo físico via foto_path
+        // Prioridade 2: arquivo fàsico via foto_path
         if (!row.foto_path) {
             return res.status(404).json({ error: 'Foto não encontrada' });
         }
@@ -4249,7 +4674,7 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
         if (!path.isAbsolute(file_path)) file_path = path.resolve(file_path);
 
         if (!fs.existsSync(file_path)) {
-            return res.status(404).json({ error: 'Arquivo físico não encontrado' });
+            return res.status(404).json({ error: 'Arquivo fàsico não encontrado' });
         }
 
         res.sendFile(file_path);
@@ -4285,7 +4710,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
 app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Excluído com sucesso' });
+        res.json({ message: 'Exclu??do com sucesso' });
     });
 });
 
@@ -4416,7 +4841,7 @@ app.put('/api/dependentes/:id', authenticateToken, (req, res) => {
 app.delete('/api/dependentes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM dependentes WHERE id = ?', [req.params.id], err => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Excluído com sucesso' });
+        res.json({ message: 'Exclu??do com sucesso' });
     });
 });
 
@@ -4510,7 +4935,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         const pdfData = await parser.getText();
         const text = pdfData.text || '';
         // Eliminar espacos duplicados para ajudar a regex
-        const cleanText = text.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
+        const cleanText = text.replace(/[\n]+/g, ' ').replace(/\s+/g, ' ');
 
         // Boletim No: "FR6269-1/2026" ou "FR 6269-1/2026"
         let boletim = '';
@@ -4518,21 +4943,21 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
-        // Ocorrencia: "13/04/2026 as 13:30" ou "Ocorrência: Comunicação: 11/05/2026 às 11:30"
+        // Ocorrencia: "13/04/2026 as 13:30" ou "ocorrência: Comunicação: 11/05/2026 às 11:30"
         let dataHoraStr = '';
-        const matOc = cleanText.match(/Ocorr[eê]ncia.*?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s+(\d{2}:\d{2})/i)
+        const matOc = cleanText.match(/Ocorr[e??]ncia.*?(\d{2}\/\d{2}\/\d{4})\s+[a??]s?\s+(\d{2}:\d{2})/i)
             || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
             || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
         if (matOc) dataHoraStr = matOc[1] + ' às ' + matOc[2];
 
         // Natureza
         let natureza = '';
-        // Captura o que vem logo após Naturezas da Ocorrência... até encontrar Dados da Ocorrência ou Crime Consumado
-        const matN = cleanText.match(/Naturezas? da Ocorr[eê]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
+        // Captura o que vem logo após Naturezas da ocorrência... até encontrar Dados da ocorrência ou Crime Consumado
+        const matN = cleanText.match(/Naturezas? da Ocorr[e??]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
         if (matN && matN[1].trim().length > 3) {
             natureza = matN[1].trim();
         } else {
-            const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[eê]ncia)/i);
+            const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[e??]ncia)/i);
             if (matN2) natureza = matN2[1].trim();
         }
 
@@ -4552,7 +4977,7 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
         console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
-        // _debug_text ainda é retornado para log no console do frontend (não mais em alert)
+        // _debug_text ainda à retornado para log no console do frontend (não mais em alert)
         res.json({ sucesso: true, boletim, data_hora: dataHoraStr, natureza, placa, marca_modelo: marcaModelo, _debug_text: text.substring(0, 2000) });
     } catch (e) {
         console.error('[EXTRAIR-BO] Erro:', e.message);
@@ -4709,12 +5134,12 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                                                 <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
                                             </div>
                                             <div style="padding:24px;">
-                                                <h2 style="color:#059669;margin-top:0;">⚠️ Novo Sinistro Registrado</h2>
+                                                <h2 style="color:#059669;margin-top:0;">?????? Novo Sinistro Registrado</h2>
                                                 <p>Olá!</p>
                                                 <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
                                                 <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
                                                     <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
-                                                    <p style="margin:4px 0;"><strong>Data da Ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
+                                                    <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
                                                     <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
                                                     <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
                                                 </div>
@@ -4752,9 +5177,9 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
     }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH: Editar sinistro (somente se status = 'pendente' — sem assinaturas)
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// PATCH: Editar sinistro (somente se status = 'pendente' ??? sem assinaturas)
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         const { id: colabId, sinistroId } = req.params;
@@ -4791,7 +5216,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
             novoHistorico = JSON.stringify(historico);
         }
 
-        // Atualizar campos básicos
+        // Atualizar campos bàsicos
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE sinistros SET
@@ -4893,7 +5318,23 @@ const multerMediaStorage = multer.diskStorage({
         cb(null, 'r2_midia_' + Date.now() + '_' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_'));
     }
 });
-const uploadMediaFile = multer({ storage: multerMediaStorage, limits: { fileSize: 500 * 1024 * 1024 } }); // 500MB
+const MEDIA_ALLOWED_MIMETYPES = [
+    'application/pdf',
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm',
+    'audio/mpeg', 'audio/mp4',
+];
+const uploadMediaFile = multer({
+    storage: multerMediaStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 🔒 50MB (reduzido de 500MB)
+    fileFilter: (req, file, cb) => {
+        if (MEDIA_ALLOWED_MIMETYPES.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}. Use PDF, imagens ou vídeos.`), false);
+        }
+    }
+});
 
 app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('file'), async (req, res) => {
     try {
@@ -4935,7 +5376,7 @@ app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('
     }
 });
 
-// DELETE: Remove uma mídia específica do sinistro pelo índice (só se status=pendente)
+// DELETE: Remove uma média específica do sinistro pelo ??ndice (só se status=pendente)
 app.delete('/api/sinistros/:id/midia/:idx', authenticateToken, async (req, res) => {
     try {
         const { id: sinId, idx } = req.params;
@@ -4946,14 +5387,14 @@ app.delete('/api/sinistros/:id/midia/:idx', authenticateToken, async (req, res) 
         });
         if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
         if (sinistro.status !== 'pendente') {
-            return res.status(403).json({ error: 'Remoção não permitida: sinistro já possui assinaturas.' });
+            return res.status(403).json({ error: 'Remo????o não permitida: sinistro já possui assinaturas.' });
         }
 
         let midias = [];
         try { midias = JSON.parse(sinistro.midias_paths || '[]'); } catch (e) { }
 
         if (index < 0 || index >= midias.length) {
-            return res.status(400).json({ error: 'Índice de mídia inválido.' });
+            return res.status(400).json({ error: '??ndice de média inválido.' });
         }
 
         // Remove do array
@@ -4986,7 +5427,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g => g.nome));
         let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
             || todosGeradores.find(g => tipoNorm.split(' ').filter(w => w.length > 3).every(w => normalize(g.nome).includes(w)))
-            || todosGeradores[0] // fallback: pega o primeiro gerador de sinistro disponível
+            || todosGeradores[0] // fallback: pega o primeiro gerador de sinistro dispon??vel
             || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
 
@@ -4997,7 +5438,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 + "<p><strong>Tipo de Sinistro:</strong> " + sin.tipo_sinistro + "</p>"
                 + "<p><strong>BO:</strong> " + sin.numero_boletim + " - " + sin.data_hora + "</p>"
                 + "<p><strong>Placa/Veículo:</strong> " + sin.placa + " / " + sin.veiculo + "</p>"
-                + "<p><strong>Condições de Desconto:</strong> " + sin.parcelas + "x de " + (sin.valor_parcela || '0,00') + "</p>"
+                + "<p><strong>Condi????es de Desconto:</strong> " + sin.parcelas + "x de " + (sin.valor_parcela || '0,00') + "</p>"
                 + "<br/><br/><br/>";
         } else {
             template = gerador.conteudo;
@@ -5045,7 +5486,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 `;
             }
 
-            // 3. O template original (com conteúdo do gerador) formatado
+            // 3. O template original (com conte??do do gerador) formatado
             injectedHTML += `
                 <div style="margin-top: 0.6rem; text-align: justify; font-size: 0.82rem; line-height: 1.45;">
                     <style>
@@ -5063,7 +5504,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             htmlFinal = injectedHTML;
         }
 
-        // Substituições via placeholders {{}} ou {} (gerador padrão)
+        // Substitui????es via placeholders {{}} ou {} (gerador padrão)
         htmlFinal = htmlFinal.replace(/\{NOME_COMPLETO\}|\{NOME_COLABORADOR\}|\{COLABORADOR\}|\{\{NOME_COMPLETO\}\}|\{\{COLABORADOR\}\}/gi, colabNome);
         htmlFinal = htmlFinal.replace(/\{CPF\}|\{\{CPF\}\}/gi, colab.cpf || '');
         htmlFinal = htmlFinal.replace(/\{RG\}|\{\{RG\}\}/gi, colab.rg || '');
@@ -5074,14 +5515,14 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}/gi, sin.placa || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
         const isIsento = (sin.valor_total === '0,00' || sin.valor_total === '0' || sin.valor_total === 0);
-        const condicoesTexto = isIsento ? 'ISENTO DE COBRANÇA' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
+        const condicoesTexto = isIsento ? 'ISENTO DE COBRAN??A' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
         
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, String(sin.parcelas || 1));
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VALOR_PARCELA\}|\{VALOR_PARCELA\}/gi, sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{VALOR_TOTAL\}|\{VALOR_DANO\}/gi, sin.valor_total || sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_TIPO\}|\{TIPO_SINISTRO\}/gi, sin.tipo_sinistro || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_CONDICOES\}|\{DESCRICAO_DESCONTO\}/gi, condicoesTexto);
-        // Substituições com chaves duplas (padrão {{CAMPO}})
+        // Substitui????es com chaves duplas (padrão {{CAMPO}})
         const dataAtualFmt = new Date().toLocaleDateString('pt-BR');
         htmlFinal = htmlFinal.replace(/\{\{DATA_ATUAL\}\}/gi, dataAtualFmt);
         htmlFinal = htmlFinal.replace(/\{\{DATA_OCORRENCIA\}\}/gi, sin.data_hora || '');
@@ -5092,7 +5533,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{\{VALOR_PARCELA\}\}/gi, sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{\{QTDE_PARCELAS\}\}/gi, String(sin.parcelas || 1));
 
-        // ===== SUBSTITUIÇÃO INTELIGENTE DE CAMPOS BLANK NO HTML =====
+        // ===== SUBSTITUI????O INTELIGENTE DE CAMPOS BLANK NO HTML =====
         // Separa data e hora da string "DD/MM/YYYY às HH:MM"
         const dataHoraStr = sin.data_hora || '';
         const parteData = dataHoraStr.split(' ')[0] || '';   // DD/MM/YYYY
@@ -5129,7 +5570,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             `$1<strong>${naturezaFormatada}</strong>`
         );
 
-        // 3. Boletim de Ocorrência
+        // 3. Boletim de ocorrência
         htmlFinal = htmlFinal.replace(
             /(Boletim[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1<strong>${sin.numero_boletim || ''}</strong>`
@@ -5152,7 +5593,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             || (sin.valor_parcela && sin.parcelas ? (parseFloat((sin.valor_parcela || '0').replace(',', '.')) * (sin.parcelas || 1)).toFixed(2).replace('.', ',') : sin.valor_parcela)
             || '';
 
-        // Padrão: Valor total do dano
+        // Padr??o: Valor total do dano
         htmlFinal = htmlFinal.replace(
             /(Valor\s+total[^:]*:[\s\S]{0,80}?R\$[\s\S]{0,50}?)_{3,}/gi,
             `$1 <strong>${valorTotal}</strong>`
@@ -5161,7 +5602,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             /(Valor\s+total[^:]*:[\s\S]{0,80}?)_{3,}/gi,
             `$1 R$ <strong>${valorTotal}</strong>`
         );
-        // Padrão: Valor do dano
+        // Padr??o: Valor do dano
         htmlFinal = htmlFinal.replace(
             /(Valor\s+do\s+dano[^:]*:[\s\S]{0,80}?R\$[\s\S]{0,50}?)_{3,}/gi,
             `$1 <strong>${valorTotal}</strong>`
@@ -5186,7 +5627,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             (nParc === 3 ? '(<strong>X</strong>) 3x' : '(   ) 3x')
         );
 
-        // ===== AJUSTES PARA SINISTRO ISENTO DE COBRANÇA =====
+        // ===== AJUSTES PARA SINISTRO ISENTO DE COBRAN??A =====
         if (isIsento) {
             // 1. Remove linhas que exibam "Valor total do dano: R$ 0,00"
             htmlFinal = htmlFinal.replace(
@@ -5198,25 +5639,25 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 ''
             );
 
-            // 2. Altera CLÁUSULA PRIMEIRA – DO OBJETO (texto 1.1)
+            // 2. Altera CL??USULA PRIMEIRA ??? DO OBJETO (texto 1.1)
             htmlFinal = htmlFinal.replace(
                 /1\.1\.\s*O\s+presente\s+termo\s+tem\s+por\s+objeto\s+formalizar\s+a\s+autoriza[çc][ãa]o\s+de\s+desconto\s+em\s+folha[\s\S]{0,400}?danos\s+ao\s+ve[íi]culo\s+da\s+pr[óo]pria\s+empresa\s+e\/ou\s+a\s+terceiros\./gi,
                 '1.1. O presente termo tem por objeto formalizar a ci\u00eancia do colaborador sobre o sinistro aberto.'
             );
 
-            // 3. Remove a CLÁUSULA TERCEIRA atual inteira até o início da próxima cláusula (para limpar a de COBRANÇA)
+            // 3. Remove a CL??USULA TERCEIRA atual inteira até o início da próxima cl??usula (para limpar a de COBRAN??A)
             htmlFinal = htmlFinal.replace(
-                /CL[ÁA]USULA\s+TERCEIRA\s*[–\-]\s*DO\s+VALOR\s+DO\s+DANO[\s\S]{0,800}?(?=CL[ÁA]USULA\s+QUARTA|CL[ÁA]USULA\s+4|<p[^>]*>\s*4\.1\.)/gi,
+                /CL[??A]USULA\s+TERCEIRA\s*[???\-]\s*DO\s+VALOR\s+DO\s+DANO[\s\S]{0,800}?(?=CL[??A]USULA\s+QUARTA|CL[??A]USULA\s+4|<p[^>]*>\s*4\.1\.)/gi,
                 ''
             );
 
-            // 4. Substitui a CLÁUSULA QUARTA inteira pelo novo bloco da Cláusula Terceira (Isento)
+            // 4. Substitui a CL??USULA QUARTA inteira pelo novo bloco da Cl??usula Terceira (Isento)
             htmlFinal = htmlFinal.replace(
-                /CL[ÁA]USULA\s+QUARTA\s*[–\-]\s*DA\s+AUTORIZA[ÇC][ÃA]O\s+DE\s+DESCONTO[\s\S]{0,800}?(?=CL[ÁA]USULA\s+QUINTA|CL[ÁA]USULA\s+5|<\/p>[\s\S]{0,50}<p[^>]*>[\s\S]{0,10}CL[ÁA]USULA)/gi,
+                /CL[??A]USULA\s+QUARTA\s*[???\-]\s*DA\s+AUTORIZA[??C][??A]O\s+DE\s+DESCONTO[\s\S]{0,800}?(?=CL[??A]USULA\s+QUINTA|CL[??A]USULA\s+5|<\/p>[\s\S]{0,50}<p[^>]*>[\s\S]{0,10}CL[??A]USULA)/gi,
                 'CL\u00c1USULA TERCEIRA \u2013 DO VALOR DO DANO\n<br/>3.1. Colaborador fica <strong>ISENTO DE COBRAN\u00c7A</strong> para o dano relatado no BO.'
             );
 
-            // Fallback: se não encontrou a cláusula quarta por título, procura pelo texto 4.1 e limpa tudo de desconto
+            // Fallback: se não encontrou a cl??usula quarta por título, procura pelo texto 4.1 e limpa tudo de desconto
             if (htmlFinal.includes('4.1.') && htmlFinal.includes('artigo 462')) {
                 htmlFinal = htmlFinal.replace(
                     /4\.1\.\s*O\s+colaborador\s+autoriza[\s\S]{0,500}?artigo\s+462[\s\S]{0,100}?CLT\./gi,
@@ -5224,21 +5665,21 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 );
             }
 
-            // 5. Renomear o título do termo (agora o usuário pediu apenas "TERMO DE CIÊNCIA DE SINISTRO")
+            // 5. Renomear o título do termo (agora o usuário pediu apenas "TERMO DE CI??NCIA DE SINISTRO")
             htmlFinal = htmlFinal.replace(
-                /TERMO\s+DE\s+AUTORIZA[ÇC][ÃA]O\s+DE\s+DESCONTO\s+EM\s+FOLHA/gi,
+                /TERMO\s+DE\s+AUTORIZA[??C][??A]O\s+DE\s+DESCONTO\s+EM\s+FOLHA/gi,
                 'TERMO DE CI\u00caNCIA DE SINISTRO'
             );
         } else {
-            // ===== AJUSTES PARA SINISTRO COM COBRANÇA =====
+            // ===== AJUSTES PARA SINISTRO COM COBRAN??A =====
 
-            // 1. Remove a cláusula 3.2 (fica acordado o desconto a título de ressarcimento)
+            // 1. Remove a cl??usula 3.2 (fica acordado o desconto a título de ressarcimento)
             htmlFinal = htmlFinal.replace(
-                /3\.2\.\s*Fica\s+acordado\s+entre\s+as\s+partes\s+o\s+desconto\s+a\s+t[íi]tulo\s+de\s+ressarcimento\s+dos\s+preju[íi]zos\s+decorrentes\s+do\s+sinistro\./gi,
+                /3\.2\.\s*Fica\s+acordado\s+entre\s+as\s+partes\s+o\s+desconto\s+a\s+t[??i]tulo\s+de\s+ressarcimento\s+dos\s+preju[íi]zos\s+decorrentes\s+do\s+sinistro\./gi,
                 ''
             );
 
-            // 2. Altera cláusula 4.1 — acrescenta "a título de ressarcimento dos prejuízos decorrentes do sinistro"
+            // 2. Altera cl??usula 4.1 - acrescenta "a título de ressarcimento dos prejuízos decorrentes do sinistro"
             htmlFinal = htmlFinal.replace(
                 /(4\.1\.\s*O\s+colaborador\s+autoriza[\s\S]{0,400}?artigo\s+462\s+da\s*\n?\s*CLT)\s*\./gi,
                 '$1 a t\u00edtulo de ressarcimento dos preju\u00edzos decorrentes do sinistro.'
@@ -5255,7 +5696,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 
 
         // ===== LOGO =====
-        // Injeta logo da América Rental no topo — usa Base64 para garantir que apareça no PDF gerado server-side
+        // Injeta logo da América Rental no topo - usa Base64 para garantir que apareça no PDF gerado server-side
         const _logoB64ForBanner = getLogoBase64DataUri();
         const _logoSrc = _logoB64ForBanner || `${process.env.PUBLIC_URL || ''}/assets/logo-header.png`;
         const bannerHtml = `<div style="margin:0;padding:0;line-height:0;"><img src="${_logoSrc}" style="width:100%;display:block;margin:0;padding:0;"></div>`;
@@ -5275,7 +5716,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 
 
 
-        // ===== ANEXOS DO SINISTRO (ordem: BO → Fotos → Vídeos → Orçamentos) =====
+        // ===== ANEXOS DO SINISTRO (ordem: BO ??? Fotos ??? V??deos ??? Or??amentos) =====
         try {
             let anxsHtml = '';
             let added = false;
@@ -5300,13 +5741,13 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 return buf ? buf.toString('base64') : null;
             };
 
-            // Helper: PDF → renderização client-side via PDF.js (cada página ocupa sua própria área)
+            // Helper: PDF - renderização client-side via PDF.js (cada página ocupa sua pr??pria área)
             const pdfBufToImgHtml = async (buf, label) => {
                 const b64 = buf.toString('base64');
                 return `<div class="sin-pdf-render" data-pdf-b64="${b64}" style="page-break-before:always;width:100%;margin-bottom:0;"><p style="font-size:0.85rem;font-weight:700;color:#333;margin:6px 0;text-align:center;">${label}</p><div class="sin-pdf-pages" style="width:100%;min-height:200px;"><p style="text-align:center;color:#888;padding:2rem;font-size:0.8rem;">&#x1F4C4; Carregando PDF...</p></div></div>`;
             };
 
-            // 1) BOLETIM DE OCORRÊNCIA — páginas 2, 3, 4 (cada página do PDF fica sequencial)
+            // 1) BOLETIM DE OCORRÊNCIA - páginas 2, 3, 4 (cada página do PDF fica sequencial)
             if (sin.boletim_path) {
                 try {
                     const buf = await downloadToBuffer(sin.boletim_path);
@@ -5317,7 +5758,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 } catch (e) { console.error('[Anexo BO]', e.message); }
             }
 
-            // 2) FOTOS — cada foto em sua própria página (max 1 página por foto)
+            // 2) FOTOS - cada foto em sua pr??pria página (max 1 página por foto)
             let mids = []; try { mids = JSON.parse(sin.midias_paths || '[]'); } catch (e) { }
             const videoLinks = []; // coleta vídeos para exibir depois de todas as fotos
 
@@ -5336,9 +5777,9 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                         if (imgRes.ok) {
                             const b64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
                             const mime = tipo || 'image/jpeg';
-                            // Página exclusiva para cada foto
+                            // P??gina exclusiva para cada foto
                             anxsHtml += `<div style="page-break-before:always;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem 2rem;">
-                                <p style="font-size:0.85rem;font-weight:700;color:#333;margin:0 0 10px;text-align:center;">&#x1F4F7; Foto do Dano${m.nome ? ' — ' + m.nome : ''}</p>
+                                <p style="font-size:0.85rem;font-weight:700;color:#333;margin:0 0 10px;text-align:center;">&#x1F4F7; Foto do Dano${m.nome ? ' ??? ' + m.nome : ''}</p>
                                 <img src="data:${mime};base64,${b64}" style="max-width:100%;max-height:90vh;object-fit:contain;border:1px solid #ddd;border-radius:4px;"/>
                             </div>`;
                             added = true;
@@ -5351,7 +5792,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 }
             }
 
-            // 3) LINKS DE VÍDEOS — todos em uma única página após as fotos
+            // 3) LINKS DE V??DEOS - todos em uma única página após as fotos
             if (videoLinks.length > 0) {
                 let videoHtml = `<div style="page-break-before:always;padding:2rem 2.5rem;">
                     <h3 style="font-size:1rem;font-weight:700;color:#1e293b;border-bottom:2px solid #334155;padding-bottom:0.6rem;margin-bottom:1.5rem;text-align:center;">&#x1F3A5; V&iacute;deos do Dano</h3>`;
@@ -5365,7 +5806,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 anxsHtml += videoHtml;
             }
 
-            // 4) ORÇAMENTOS — após os vídeos (cada um em sua página)
+            // 4) ORÇAMENTOS - após os vídeos (cada um em sua página)
             let orcs = []; try { orcs = JSON.parse(sin.orcamentos_paths || '[]'); } catch (e) { }
             for (let p of orcs) {
                 if (!p || typeof p !== 'string') continue;
@@ -5404,8 +5845,8 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         } catch (e) { console.error('[Anexar imagens sinistro]', e.message); }
 
 
-        // Salvar versão LEVE no banco (sem base64 — evita OOM na requisição de assinatura)
-        // A versão completa com imagens é retornada ao cliente apenas para exibição
+        // Salvar versão LEVE no banco (sem base64 ??? evita OOM na requisi????o de assinatura)
+        // A versão completa com imagens à retornada ao cliente apenas para exibi????o
         function _stripBase64(html) {
             return html
                 .replace(/src="data:[^"]{20,}"/g, 'src="[IMG]"')
@@ -5424,7 +5865,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
 });
 
 // Helper: gera PDF a partir de HTML e salva no OneDrive do colaborador
-// Helper: lê o logo do disco e retorna data URI base64 para embutir em PDF
+// Helper: l?? o logo do disco e retorna data URI base64 para embutir em PDF
 function getLogoBase64DataUri() {
     try {
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -5433,7 +5874,7 @@ function getLogoBase64DataUri() {
             return `data:image/png;base64,${logoBuffer.toString('base64')}`;
         }
     } catch (e) {
-        console.warn('[PDF] Não foi possível carregar logo-header.png:', e.message);
+        console.warn('[PDF] Não foi poss??vel carregar logo-header.png:', e.message);
     }
     return null;
 }
@@ -5526,7 +5967,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
                 err => err ? reject(err) : resolve())
         );
 
-        // --- Auditoria Jurídica ---
+        // --- Auditoria Jur??dica ---
         try {
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
             const payloadHash = JSON.stringify({ t1_nome, t1_base64, t2_nome, t2_base64, finalizar_sem_condutor });
@@ -5538,7 +5979,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-testemunhas', aut
             );
         } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
-        // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
+        // Responde imediatamente - PDF gerado de forma ass??ncrona para não causar OOM
         res.json({ sucesso: true });
 
         // Geração de PDF em background (fire-and-forget)
@@ -5576,7 +6017,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
                 err => err ? reject(err) : resolve())
         );
 
-        // --- Auditoria Jurídica ---
+        // --- Auditoria Jur??dica ---
         try {
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
             const payloadHash = JSON.stringify({ assinatura_base64, tipo_sinistro, parcelas, valor_parcela, valor_total });
@@ -5588,7 +6029,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
             );
         } catch (errAudit) { console.error('[AUDITORIA] Erro:', errAudit); }
 
-        // Responde imediatamente — PDF gerado de forma assíncrona para não causar OOM
+        // Responde imediatamente - PDF gerado de forma ass??ncrona para não causar OOM
         res.json({ sucesso: true });
 
         // Geração de PDF em background (fire-and-forget)
@@ -5615,12 +6056,18 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/assinar-condutor', authen
 
 // =============================================================================
 
-// --- ROTAS MULTAS LOGÍSTICA ---------------------------------------------------
+// --- ROTAS MULTAS LOG??STICA ---------------------------------------------------
 // ==========================================
-// MÓDULO LOGÍSTICA: COFRE DE SENHAS
+// MÓDULO LOG??STICA: COFRE DE SENHAS
 // ==========================================
 const crypto = require('crypto');
-const SENHAS_ENCRYPTION_KEY = crypto.scryptSync(process.env.JWT_SECRET || 'america-rental-secreto-super-seguro-2026', 'salt', 32);
+
+// 🔒 SEGURANÇA: Usa COFRE_ENCRYPTION_KEY dedicada (não mais compartilhada com JWT_SECRET)
+const _cofreKeySource = process.env.COFRE_ENCRYPTION_KEY || process.env.JWT_SECRET || 'america-rental-secreto-super-seguro-2026';
+if (!process.env.COFRE_ENCRYPTION_KEY) {
+    console.error('🚨 ATENÇÃO: COFRE_ENCRYPTION_KEY não configurada! Usando chave de fallback insegura. Configure a variável de ambiente.');
+}
+const SENHAS_ENCRYPTION_KEY = crypto.scryptSync(_cofreKeySource, 'salt', 32);
 const SENHAS_ENCRYPTION_ALGORITHM = 'aes-256-cbc';
 const SENHAS_IV_LENGTH = 16;
 
@@ -5642,6 +6089,94 @@ function decryptPassword(text) {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
 }
+
+// ==========================================
+// ROTA DE MIGRAÇÃO DO COFRE DE SENHAS
+// Re-criptografa senhas da chave antiga para a nova COFRE_ENCRYPTION_KEY
+// Só pode ser executada UMA VEZ por usuários da Diretoria
+// ==========================================
+app.post('/api/maintenance/migrar-cofre', authenticateToken, (req, res) => {
+    const isDiretoria = req.user?.role === 'Diretoria' ||
+        req.user?.username === 'admin' ||
+        req.user?.username === 'Thais.Ricci' ||
+        req.user?.grupo_permissao_id === 1;
+    if (!isDiretoria) return res.status(403).json({ error: 'Acesso negado.' });
+
+    if (!process.env.COFRE_ENCRYPTION_KEY) {
+        return res.status(400).json({ error: 'COFRE_ENCRYPTION_KEY não configurada no ambiente. Configure antes de migrar.' });
+    }
+
+    const { senhaAtual } = req.body;
+    if (!senhaAtual) return res.status(400).json({ error: 'Informe a senhaAtual (chave antiga) para confirmar a migração.' });
+
+    // Monta a chave ANTIGA (fallback público ou JWT_SECRET)
+    const oldKeySource = senhaAtual;
+    const oldKey = crypto.scryptSync(oldKeySource, 'salt', 32);
+
+    function decryptWithKey(text, key) {
+        try {
+            let parts = text.split(':');
+            if (parts.length !== 2) return null;
+            let iv = Buffer.from(parts[0], 'hex');
+            let enc = Buffer.from(parts[1], 'hex');
+            let decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+            let dec = decipher.update(enc);
+            dec = Buffer.concat([dec, decipher.final()]);
+            return dec.toString();
+        } catch (e) { return null; }
+    }
+
+    const tabelas = [
+        { tabela: 'logistica_senhas', coluna: 'senha_encriptada' },
+        { tabela: 'administrativo_senhas', coluna: 'senha_encriptada' }
+    ];
+
+    let resultado = { migradas: 0, ignoradas: 0, erros: 0, detalhes: [] };
+    let pendentes = tabelas.length;
+
+    tabelas.forEach(({ tabela, coluna }) => {
+        db.all(`SELECT id, ${coluna} FROM ${tabela} WHERE ${coluna} IS NOT NULL AND ${coluna} != ''`, [], (err, rows) => {
+            if (err) {
+                resultado.erros++;
+                resultado.detalhes.push({ tabela, erro: err.message });
+                if (--pendentes === 0) res.json(resultado);
+                return;
+            }
+
+            let rowsPendentes = rows.length;
+            if (rowsPendentes === 0) {
+                resultado.detalhes.push({ tabela, migradas: 0, msg: 'Nenhuma senha encontrada' });
+                if (--pendentes === 0) res.json(resultado);
+                return;
+            }
+
+            let migradasTab = 0, errosTab = 0;
+            rows.forEach(row => {
+                const senhaPlana = decryptWithKey(row[coluna], oldKey);
+                if (senhaPlana === null) {
+                    // Já pode estar criptografada com a nova chave ou inválida
+                    resultado.ignoradas++;
+                    errosTab++;
+                    if (--rowsPendentes === 0) {
+                        resultado.detalhes.push({ tabela, migradas: migradasTab, ignoradas: errosTab });
+                        if (--pendentes === 0) res.json(resultado);
+                    }
+                    return;
+                }
+                const novaCriptografada = encryptPassword(senhaPlana); // usa a nova SENHAS_ENCRYPTION_KEY
+                db.run(`UPDATE ${tabela} SET ${coluna} = ? WHERE id = ?`, [novaCriptografada, row.id], (err2) => {
+                    if (err2) { resultado.erros++; errosTab++; }
+                    else { resultado.migradas++; migradasTab++; }
+                    if (--rowsPendentes === 0) {
+                        resultado.detalhes.push({ tabela, migradas: migradasTab, ignoradas: errosTab });
+                        if (--pendentes === 0) res.json(resultado);
+                    }
+                });
+            });
+        });
+    });
+});
+
 
 app.get('/api/logistica/senhas', authenticateToken, (req, res) => {
     const isDiretoria = req.user && (String(req.user.departamento).toLowerCase().includes('diretoria') || String(req.user.role).toLowerCase() === 'diretoria' || String(req.user.username).toLowerCase() === 'diretoria.1');
@@ -5736,7 +6271,7 @@ app.delete('/api/logistica/senhas/:id', authenticateToken, (req, res) => {
     db.get("SELECT * FROM logistica_senhas WHERE id = ?", [req.params.id], (err, row) => {
         db.run("DELETE FROM logistica_senhas WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Registra exclusão no histórico (mantém registro orphan)
+            // Registra exclusão no histórico (mant??m registro orphan)
             db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'exclusao', 'servico', ?, null, ?, ?)",
                 [req.params.id, row ? row.servico : '?', req.user.id, req.user.nome || req.user.username]);
             res.json({ message: 'Senha deletada com sucesso' });
@@ -5941,7 +6476,7 @@ app.post('/api/administrativo/protocolos/:id/comentarios', authenticateToken, (r
             [JSON.stringify(comentarios), req.params.id],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ message: 'Comentário adicionado', comentarios });
+                res.json({ message: 'Coment??rio adicionado', comentarios });
             }
         );
     });
@@ -6043,7 +6578,7 @@ app.delete('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/multas — lista todas as multas
+// GET /api/logistica/multas ??? lista todas as multas
 app.get('/api/logistica/multas', authenticateToken, (req, res) => {
     db.all(`SELECT ml.*, c.nome_completo as motorista_nome_colab, c.cpf as motorista_cpf, c.cnh_numero as motorista_habilitacao
             FROM multas_logistica ml
@@ -6060,7 +6595,7 @@ db.run("ALTER TABLE frota_veiculos ADD COLUMN foto_base64 TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documento_base64]', err.message);
 });
 
-// POST /api/logistica/multas — cria nova multa
+// POST /api/logistica/multas ??? cria nova multa
 const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
     const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, motorista_id, motorista_nome, status, parcelas } = req.body;
@@ -6083,7 +6618,7 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
         }
     }
 
-    // Se o AIT está na lista de multas antigas, força status 'Antiga'
+    // Se o AIT está na lista de multas antigas, for??a status 'Antiga'
     const finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
     const statusUpdatedAt = getNowBR();
     // Captura usuário logado
@@ -6104,7 +6639,7 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 
 async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dataInfracao, numAit, multaExtra) {
     return new Promise((resolve, reject) => {
-        if (!motoristaId) return reject(new Error('Motorista não informado. Não é possível notificar o RH.'));
+        if (!motoristaId) return reject(new Error('Motorista não informado. Não à poss??vel notificar o RH.'));
         db.get('SELECT * FROM colaboradores WHERE id = ?', [motoristaId], async (err, colab) => {
             if (err || !colab) return reject(new Error('Motorista não encontrado no banco de dados.'));
 
@@ -6129,7 +6664,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
             const dataInfracaoFmt = d ? `${d}/${m}/${y}` : 'Não informada';
 
             const extra = multaExtra || {};
-            const prazoFmt = extra.data_limite ? extra.data_limite.split('-').reverse().join('/') : '—';
+            const prazoFmt = extra.data_limite ? extra.data_limite.split('-').reverse().join('/') : '???';
 
             const htmlContent = `
                 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -6137,7 +6672,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
+                        <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Tr??nsito</h2>
                         <p>Olá, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
                         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                             <p><strong>Colaborador:</strong> ${colab.nome_completo || colab.nome}</p>
@@ -6185,7 +6720,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
     });
 }
 
-// PUT /api/logistica/multas/:id — atualiza campos da multa (motorista, status, obs, link)
+// PUT /api/logistica/multas/:id ??? atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
     const autorComentario = req.user?.username || req.user?.nome || req.user?.login || 'Usuário';
@@ -6315,7 +6850,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 finalAit || '',
                                 pontuacaoInt,
                                 valorOriginal,
-                                'nic', // Para forçar cobrança
+                                'nic', // Para forçar cobran??a
                                 finalParcelas
                             ],
                             function(errInsert) {
@@ -6376,7 +6911,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     // 2. Envia popup (sem e-mail) para usuários configurados com tipo 'multa_rec_indeferida'
                     db.get('SELECT nome_completo, nome FROM colaboradores WHERE id = ?', [finalMotorista], (errColab, colab) => {
                         const nomeColab = (colab && (colab.nome_completo || colab.nome)) || 'Colaborador não identificado';
-                        const msgNotif = `Recurso Indeferido: Multa AIT ${finalAit || 'S/N'} — ${nomeColab}. Multa enviada ao prontuário.`;
+                        const msgNotif = `Recurso Indeferido: Multa AIT ${finalAit || 'S/N'} ??? ${nomeColab}. Multa enviada ao prontuário.`;
                         const dadosNotif = JSON.stringify({ ait: finalAit, motorista: nomeColab, status: 'Rec. Indeferida', multa_id: req.params.id });
 
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'multa_rec_indeferida'", [], (errN, rowsN) => {
@@ -6404,13 +6939,13 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/logistica/multas/:id/salvar-declaracao — gera e salva a Declaração de Responsabilidade assinada
+// POST /api/logistica/multas/:id/salvar-declaracao - gera e salva a Declaração de Responsabilidade assinada
 app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async (req, res) => {
     const multaId = req.params.id;
     const { opcao, parcelas, assinatura_base64, selfie_base64 } = req.body;
 
     if (!opcao || !['indicacao', 'nic', 'prazo_perdido'].includes(opcao)) {
-        return res.status(400).json({ error: 'Opção inválida. Use "indicacao", "nic" ou "prazo_perdido".' });
+        return res.status(400).json({ error: 'Op????o inv??lida. Use "indicacao", "nic" ou "prazo_perdido".' });
     }
 
     db.get(`SELECT ml.*, c.nome_completo as colab_nome, c.cpf as colab_cpf
@@ -6433,9 +6968,9 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
         const valorBase = (opcao === 'nic') ? valorTotal : valorOriginal;
         const valorParcela = valorBase / numParcelas;
 
-        const checkInd  = opcao === 'indicacao'    ? '✓' : '&nbsp;';
-        const checkNic  = opcao === 'nic'           ? '✓' : '&nbsp;';
-        const checkPraz = opcao === 'prazo_perdido' ? '✓' : '&nbsp;';
+        const checkInd  = opcao === 'indicacao'    ? '???' : '&nbsp;';
+        const checkNic  = opcao === 'nic'           ? '???' : '&nbsp;';
+        const checkPraz = opcao === 'prazo_perdido' ? '???' : '&nbsp;';
 
         const now = new Date();
         const dataDeclFmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
@@ -6451,8 +6986,8 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
             ? `<div style="text-align:center;"><img src="${selfie_base64}" style="max-width:320px;max-height:240px;border-radius:8px;border:2px solid #e2e8f0;" alt="Selfie"><p style="font-size:0.85rem;color:#64748b;margin-top:6px;">Selfie (Comprovante)</p></div>`
             : '';
         const assinaturaHtml = assinatura_base64
-            ? `<div style="text-align:center;"><img src="${assinatura_base64}" style="max-width:280px;max-height:90px;border-bottom:1px solid #000;display:inline-block;" alt="Assinatura"><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p></div>`
-            : `<div style="text-align:center;"><div style="border-bottom:1px solid #000;width:280px;height:60px;margin:0 auto;"></div><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '—'}</p></div>`;
+            ? `<div style="text-align:center;"><img src="${assinatura_base64}" style="max-width:280px;max-height:90px;border-bottom:1px solid #000;display:inline-block;" alt="Assinatura"><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '???'}</p></div>`
+            : `<div style="text-align:center;"><div style="border-bottom:1px solid #000;width:280px;height:60px;margin:0 auto;"></div><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '???'}</p></div>`;
 
         const termoHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaração de Responsabilidade por Infração</title>
@@ -6473,14 +7008,14 @@ table.dados td:first-child{font-weight:600;width:170px}
 .rodape{font-size:11px;color:#64748b;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
 p{line-height:1.5;margin:5px 0}
 </style></head><body>
-<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AMÉRICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
-<h1>Declaração de Responsabilidade por Infração de Trânsito</h1>
-<h2>CNPJ nº 03.434.448/0001-01 — Rua Salto da Divisa, nº 97, Parque Alvorada – Guarulhos/SP</h2>
+<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AM??RICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
+<h1>Declaração de Responsabilidade por Infração de Tr??nsito</h1>
+<h2>CNPJ n?? 03.434.448/0001-01 ??? Rua Salto da Divisa, n?? 97, Parque Alvorada ??? Guarulhos/SP</h2>
 <div class="bloco">
   <div class="bloco-title">Dados do Colaborador</div>
   <table class="dados">
-    <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '—'}</td></tr>
-    <tr><td>CPF:</td><td>${m.colab_cpf || '—'}</td></tr>
+    <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '???'}</td></tr>
+    <tr><td>CPF:</td><td>${m.colab_cpf || '???'}</td></tr>
     <tr><td>Data da Declaração:</td><td>${dataDeclFmt}</td></tr>
   </table>
 </div>
@@ -6488,37 +7023,37 @@ p{line-height:1.5;margin:5px 0}
   <div class="bloco-title">Dados da Infração</div>
   <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veículo e único responsável pela infração de trânsito abaixo:</p>
   <table class="dados">
-    <tr><td>PLACA:</td><td>${m.placa || '—'}</td></tr>
-    <tr><td>AUTO DE INFRAÇÃO (AIT):</td><td>${m.numero_ait || '—'}</td></tr>
+    <tr><td>PLACA:</td><td>${m.placa || '???'}</td></tr>
+    <tr><td>AUTO DE INFRAÇÃO (AIT):</td><td>${m.numero_ait || '???'}</td></tr>
     <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infracao)}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</td></tr>
-    <tr><td>ENDEREÇO:</td><td>${m.local_infracao || '—'}</td></tr>
-    <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '—'}</td></tr>
+    <tr><td>ENDEREÇO:</td><td>${m.local_infracao || '???'}</td></tr>
+    <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '???'}</td></tr>
   </table>
-  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeitável órgão que a pontuação seja lançada em meu prontuário, nos termos do artigo 257, parágrafo 7° do Código de Trânsito Brasileiro e da Resolução do Contran n° 918, de 28 de março de 2022, em todos os órgãos que se fizer necessário.</p>
-  <p style="font-size:11px;color:#475569;">Resolução CONTRAN nº 918, de 28 de março de 2022 — Seção I — Da Identificação do Condutor Infrator — Art. 5º § 1º. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8° do CTB, que prevê que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jurídica, será lavrada nova multa, cujo valor será o dobro da multa originária. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
+  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeit??vel ??rg??o que a pontuação seja lan??ada em meu prontuário, nos termos do artigo 257, parágrafo 7º do C??digo de Tr??nsito Brasileiro e da Resolu????o do Contran n?? 918, de 28 de março de 2022, em todos os ??rg??os que se fizer necessário.</p>
+  <p style="font-size:11px;color:#475569;">Resolu????o CONTRAN n?? 918, de 28 de março de 2022 - Se????o I - Da Identificação do Condutor Infrator - Art. 5?? à 1??. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8º do CTB, que prev?? que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jur??dica, ser?? lavrada nova multa, cujo valor ser?? o dobro da multa origin??ria. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
 </div>
 <div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPÇÃO 1 – INDICAÇÃO DO CONDUTOR</div>
-  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente, evitando a aplicação de multa por Não Identificação de Condutor (NIC).</p>
+  <div class="opcao-titulo">OPÇÃO 1 - INDICA????O DO CONDUTOR</div>
+  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao ??rg??o competente, evitando a aplicação de multa por Não Identificação de Condutor (NIC).</p>
   <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto à pontuação em minha CNH.</p>
-  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '—'} pontos</span></p>
+  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '???'} pontos</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPÇÃO 2 – NÃO INDICAÇÃO DO CONDUTOR (NIC)</div>
-  <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que será aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
-  <p><strong>Valor da Multa Originária:</strong> ${fmtMoney(valorOriginal)}</p>
-  <p><strong>Valor da Multa NIC</strong> (2x a originária): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICA????O DO CONDUTOR (NIC)</div>
+  <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que ser?? aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
+  <p><strong>Valor da Multa Origin??ria:</strong> ${fmtMoney(valorOriginal)}</p>
+  <p><strong>Valor da Multa NIC</strong> (2x a origin??ria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
-  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, § 8º, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
-  <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07242-300, Parque Alvorada – Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
-  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x &nbsp; (${numParcelas>3?'✓':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
+  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, à 8º, do C??digo de Tr??nsito Brasileiro, no valor correspondente ao dobro da multa origin??ria.</p>
+  <p>Autorizo a empresa AM??RICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ n?? 03.434.448/0001-01, com sede na Rua Salto da Divisa, n?? 97, CEP 07242-300, Parque Alvorada ??? Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x &nbsp; (${numParcelas>3?'???':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
-  <div class="opcao-titulo">OPÇÃO 3 – COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</div>
-  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicação de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
+  <div class="opcao-titulo">OPÇÃO 3 - COBRAN??A DE MULTA, PRAZO DE INDICA????O PERDIDO</div>
+  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Al??m disso, estou ciente de que não ser?? feita nenhuma indicação de pontuação na minha carteira de habilitação, por??m assumo integralmente as responsabilidades legais.</p>
   <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
-  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'✓':' '}) 1x &nbsp; (${numParcelas===2?'✓':' '}) 2x &nbsp; (${numParcelas===3?'✓':' '}) 3x</p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
@@ -6530,7 +7065,7 @@ p{line-height:1.5;margin:5px 0}
     ${selfieHtml}
   </div>` : ''}
 </div>
-<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão — América Rental Equipamentos Ltda.</div>
+<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão - América Rental Equipamentos Ltda.</div>
 </body></html>`;
 
         const termoBase64 = Buffer.from(termoHTML).toString('base64');
@@ -6541,7 +7076,7 @@ p{line-height:1.5;margin:5px 0}
             let extras = [];
             try { extras = JSON.parse(rowDoc.documentos_extras || '[]'); } catch(_) {}
 
-            // Insere o Termo Assinado no slot 1 (índice fixo) para aparecer no ícone correto
+            // Insere o Termo Assinado no slot 1 (??ndice fixo) para aparecer no ??cone correto
             while (extras.length <= 1) extras.push(null);
             extras[1] = {
                 nome: `Declaracao_Responsabilidade_${m.numero_ait || multaId}.html`,
@@ -6578,17 +7113,17 @@ p{line-height:1.5;margin:5px 0}
                             }).catch(e => console.error('[salvar-declaracao] Notif error:', e.message));
                         }
 
-                        // Trilha de auditoria — Declaração de Responsabilidade por Infração
+                        // Trilha de auditoria - Declaração de Responsabilidade por Infração
                         const opcaoLabel = opcao === 'indicacao' ? 'Indicação do Condutor' : 'Não Indicação (NIC)';
                         const usuarioAudit = (req.user && (req.user.nome || req.user.email)) || 'Colaborador';
                         db.run(
                             `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
                             [
                                 m.colab_nome || m.motorista_nome || usuarioAudit,
-                                'Multas — Declaração de Responsabilidade',
+                                'Multas - Declaração de Responsabilidade',
                                 `AIT ${m.numero_ait || multaId} | Assinatura Digital`,
                                 oldStatus,
-                                `${novoStatus} | Opção: ${opcaoLabel} | Parcelas: ${numParcelas}x | Selfie: ${selfie_base64 ? 'Sim' : 'Não'}`
+                                `${novoStatus} | Op????o: ${opcaoLabel} | Parcelas: ${numParcelas}x | Selfie: ${selfie_base64 ? 'Sim' : 'Não'}`
                             ],
                             (errAud) => { if (errAud) console.error('[salvar-declaracao] Erro auditoria:', errAud.message); }
                         );
@@ -6602,7 +7137,7 @@ p{line-height:1.5;margin:5px 0}
                                 `INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                                 [
                                     multaId,
-                                    'Multa — Declaração de Responsabilidade',
+                                    'Multa - Declaração de Responsabilidade',
                                     m.motorista_id || -1,
                                     m.colab_nome || m.motorista_nome || usuarioAudit,
                                     gps_lat || '',
@@ -6629,7 +7164,7 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
 
         if (row.status === 'Indicado' || row.status === 'Multa NIC') {
-            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser excluída.' });
+            return res.status(403).json({ error: 'Esta multa já foi enviada ao RH e não pode ser exclu??da.' });
         }
 
         db.run('DELETE FROM multas_logistica WHERE id = ?', [req.params.id], function (errDel) {
@@ -6639,14 +7174,14 @@ app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/multas/:id/pdf — serve a Declaração Assinada (armazenada como HTML no documentos_extras)
-app.get('/api/logistica/multas/:id/pdf', (req, res) => {
+// GET /api/logistica/multas/:id/pdf - serve a Declaração Assinada (armazenada como HTML no documentos_extras)
+app.get('/api/logistica/multas/:id/pdf', authenticateToken, (req, res) => {
     // Tenta pegar token via query (usado em abas do navegador)
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
-    // Ignoramos a verificação de token rígida caso não tenha para facilitar abertura em nova aba (ou apenas permitimos)
-    // Opcional: verificar o token aqui se req.query.token for enviado, mas no JS de app.js o onclick passa só url:
+    // Ignoramos a verificação de token r??gida caso não tenha para facilitar abertura em nova aba (ou apenas permitimos)
+    // Opcional: verificar o token aqui se req.query.token for enviado, mas no JS de app.js o onclick passa s?? url:
     // window.open('${baseApi}/api/logistica/multas/${m.id || idx}/pdf', '_blank') -> sem token na URL.
-    // Então vamos servir publicamente se tiver a URL, ou forçar token? 
+    // Ent??o vamos servir publicamente se tiver a URL, ou forçar token? 
     // Em multas_logistica.js: /pdf não passava token. Vamos deixar sem autenticação dura para o PDF, ou tentar resgatar o cookie.
 
     db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
@@ -6667,7 +7202,7 @@ app.get('/api/logistica/multas/:id/pdf', (req, res) => {
     });
 });
 
-// GET /api/logistica/multas/:id/documento — serve o PDF da multa (armazenado como base64 no banco)
+// GET /api/logistica/multas/:id/documento ??? serve o PDF da multa (armazenado como base64 no banco)
 app.get('/api/logistica/multas/:id/documento', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -6696,11 +7231,11 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
             return res.sendFile(path.resolve(row.documento_path));
         }
 
-        return res.status(404).json({ error: 'Arquivo não disponível. Faça o upload novamente.' });
+        return res.status(404).json({ error: 'Arquivo não dispon??vel. Fa??a o upload novamente.' });
     });
 });
 
-// GET /api/logistica/multas/:id/termo-desconto — serve o PDF da declaração de desconto (armazenado como base64 no banco)
+// GET /api/logistica/multas/:id/termo-desconto ??? serve o PDF da declaração de desconto (armazenado como base64 no banco)
 app.get('/api/logistica/multas/:id/termo-desconto', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -6714,7 +7249,7 @@ app.get('/api/logistica/multas/:id/termo-desconto', (req, res) => {
     db.get('SELECT termo_desconto_base64, termo_desconto_nome FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
 
-        if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não disponível.' });
+        if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não dispon??vel.' });
 
         const nome = row.termo_desconto_nome || 'termo_desconto.pdf';
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
@@ -6741,7 +7276,7 @@ db.run("ALTER TABLE multas_logistica ADD COLUMN obs_historico TEXT DEFAULT '[]'"
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica obs_historico]', err.message);
 });
 
-// POST /api/logistica/multas/:id/documento-extra — adiciona um documento extra à multa
+// POST /api/logistica/multas/:id/documento-extra - adiciona um documento extra à multa
 const multaExtraUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaExtraUpload.single('documento'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
@@ -6763,7 +7298,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
             adicionado_em: new Date().toISOString()
         };
 
-        // Se foi passado um slot específico, inserir/substituir nesse índice
+        // Se foi passado um slot específico, inserir/substituir nesse ??ndice
         const slot = req.body.slot !== undefined ? parseInt(req.body.slot) : -1;
         if (slot >= 0) {
             // Garante que o array tem tamanho suficiente
@@ -6785,7 +7320,7 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
     });
 });
 
-// DELETE /api/logistica/multas/:id/documento-extra/:idx — deleta um documento extra pelo índice
+// DELETE /api/logistica/multas/:id/documento-extra/:idx ??? deleta um documento extra pelo ??ndice
 app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, (req, res) => {
     db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -6811,7 +7346,7 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
     });
 });
 
-// GET /api/logistica/multas/:id/documento-extra-meta/:idx — retorna metadados do documento (tipo, nome) sem o conteúdo
+// GET /api/logistica/multas/:id/documento-extra-meta/:idx ??? retorna metadados do documento (tipo, nome) sem o conte??do
 app.get('/api/logistica/multas/:id/documento-extra-meta/:idx', authenticateToken, (req, res) => {
     db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
@@ -6824,7 +7359,7 @@ app.get('/api/logistica/multas/:id/documento-extra-meta/:idx', authenticateToken
     });
 });
 
-// GET /api/logistica/multas/:id/documento-extra/:idx — serve um documento extra pelo índice
+// GET /api/logistica/multas/:id/documento-extra/:idx ??? serve um documento extra pelo ??ndice
 app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -6845,17 +7380,17 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     });
 });
 
-// GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador
+// GET /api/colaboradores/:id/arquivo/cnh ??? serve o arquivo de CNH do colaborador
 app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
-    // Primeiro busca dados básicos (sempre existem)
+    // Primeiro busca dados bàsicos (sempre existem)
     db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
-        // Tenta buscar o arquivo de CNH (coluna pode não existir em instâncias antigas)
+        // Tenta buscar o arquivo de CNH (coluna pode não existir em inst??ncias antigas)
         db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
             const cnh = rowCnh && rowCnh.cnh_arquivo;
             if (!cnh) {
@@ -6865,7 +7400,7 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
                         return res.download(rowDoc.file_path, rowDoc.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
                     } else {
                         return res.status(404).json({
-                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital ??? Ficha Cadastral para fazer o upload da CNH.`
                         });
                     }
                 });
@@ -6878,7 +7413,7 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     });
 });
 
-// GET /api/colaboradores/:id/arquivo/cpf_rg — serve o arquivo de CPF ou RG do colaborador
+// GET /api/colaboradores/:id/arquivo/cpf_rg ??? serve o arquivo de CPF ou RG do colaborador
 app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
@@ -6891,7 +7426,7 @@ app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
             if (!err3 && rowDoc && rowDoc.file_path && require('fs').existsSync(rowDoc.file_path)) {
                 return res.download(rowDoc.file_path, rowDoc.file_name || `Doc_Pessoal_${encodeURIComponent(row.nome_completo)}.pdf`);
             } else {
-                return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o Prontuário Digital para anexar.`);
+                return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital para anexar.`);
             }
         });
     });
@@ -6900,9 +7435,9 @@ app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
 
 // =============================================================================
 
-// --- ROTAS DE MULTAS DE TRÂNSITO ----------------------------------------------
+// --- ROTAS DE MULTAS DE TR??NSITO ----------------------------------------------
 
-// GET /api/colaboradores/:id/multas — lista todas as multas de um colaborador
+// GET /api/colaboradores/:id/multas ??? lista todas as multas de um colaborador
 app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     db.all('SELECT * FROM multas WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -6911,7 +7446,7 @@ app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
 });
 
 
-// PUT /api/multas/:id — atualiza status ou confirmação de uma multa
+// PUT /api/multas/:id ??? atualiza status ou confirmação de uma multa
 app.put('/api/multas/:id', authenticateToken, (req, res) => {
     const { status, monaco_confirmado } = req.body;
     db.run(
@@ -7113,7 +7648,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                 if (tab_name === 'CONTRATOS' || tab_name === 'CONTRATOS_AVULSOS') {
                                     // Todos os Contratos na raiz de CONTRATOS, sem subpastas
                                     targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                    cloudFileName = fileNameToStore; // O multer ou fallback já aplica timestamp / cód único
+                                    cloudFileName = fileNameToStore; // O multer ou fallback já aplica timestamp / c??d único
                                 }
 
                                 console.log(`[OD-INLINE] ${tab_name} => ${targetDir}/${cloudFileName}`);
@@ -7153,19 +7688,19 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                                                 });
                                                 
                                                 sendEmailParaNotificados('nova_ocorrencia', {
-                                                    subject: '📋 Nova Ocorrência Registrada',
+                                                    subject: '🚨 Nova Ocorr\u00eancia Registrada',
                                                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                                         </div>
                                                         <div style="padding:24px;">
-                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">📋 Nova Ocorrência Registrada</h2>
-                                                            <p style="text-align:center;">Uma nova ocorrência disciplinar foi inserida no sistema.</p>
+                                                            <h2 style="color:#d9480f;text-align:center;margin-top:0;">🚨 Nova Ocorr&ecirc;ncia Registrada</h2>
+                                                            <p style="text-align:center;">Uma nova ocorr&ecirc;ncia disciplinar foi inserida no sistema.</p>
                                                             <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #d9480f;">
                                                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                                             </div>
                                                             <div style="text-align:center;margin-top:20px;">
-                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontuário Digital</a>
+                                                                <a href="${process.env.PUBLIC_URL || 'https://sistema.america.onrender.com'}/?app=rh" style="display:inline-block;padding:12px 24px;background:#d9480f;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;">Acessar Prontu&aacute;rio Digital</a>
                                                             </div>
                                                             <p style="font-size:12px;color:#999;text-align:center;margin-top:16px;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
                                                         </div>
@@ -7271,7 +7806,7 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
+        return res.status(404).json({ error: 'Arquivo fàsico não encontrado no servidor.' });
     });
 });
 
@@ -7340,7 +7875,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
+        return res.status(404).json({ error: 'Arquivo fàsico não encontrado no servidor.' });
     });
 });
 
@@ -7352,20 +7887,47 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
 // Cargos
 app.get('/api/cargos', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM cargos ORDER BY nome ASC", [], (err, rows) => {
+    const query = `
+        SELECT c.*, 
+            (SELECT COUNT(*) FROM cargo_anexos ca WHERE ca.cargo_id = c.id) as qtd_anexos
+        FROM cargos c 
+        ORDER BY c.nome ASC
+    `;
+    db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
+// Busca cargo por nome exato (ou aproximado) e retorna seus anexos
+// Usado pela aba Contratos para buscar a Descrição de Atividades do cargo do colaborador
+app.get('/api/cargos/por-nome', authenticateToken, (req, res) => {
+    const nome = (req.query.nome || '').trim();
+    if (!nome) return res.status(400).json({ error: 'Parâmetro nome obrigatório.' });
+
+    // Busca pelo nome exato (TRIM + LOWER para tolerância)
+    db.get("SELECT * FROM cargos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nome], (err, cargo) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!cargo) return res.status(404).json({ error: 'Cargo não encontrado.' });
+
+        // Busca os anexos do cargo
+        db.all("SELECT id, titulo, nome_arquivo, observacoes, r2_key, data_upload FROM cargo_anexos WHERE cargo_id = ? ORDER BY data_upload DESC", [cargo.id], (err2, anexos) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            cargo.anexos = anexos || [];
+            res.json(cargo);
+        });
+    });
+});
+
+
 app.post('/api/cargos', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, status } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento) VALUES (?, ?, ?)",
-        [nome, documentos_obrigatorios || "", departamento || ""], function (err) {
+    db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento, status) VALUES (?, ?, ?, ?)",
+        [nome, documentos_obrigatorios || "", departamento || "", status || "Ativo"], function (err) {
             if (err) {
                 if (err.message.includes('UNIQUE constraint failed')) {
-                    return res.status(400).json({ error: `Já existe um cargo com o nome "${nome}".` });
+                    return res.status(400).json({ error: `J?? existe um cargo com o nome "${nome}".` });
                 }
                 return res.status(400).json({ error: err.message });
             }
@@ -7377,15 +7939,15 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 });
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
-    const { nome, documentos_obrigatorios, departamento } = req.body;
+    const { nome, documentos_obrigatorios, departamento, status } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
-    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento });
+    console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento, status });
 
     db.get("SELECT * FROM cargos WHERE id = ?", [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?";
-        let params = [documentos_obrigatorios || "", departamento || ""];
+        let query = "UPDATE cargos SET documentos_obrigatorios = ?, departamento = ?, status = COALESCE(?, 'Ativo')";
+        let params = [documentos_obrigatorios || "", departamento || "", status || "Ativo"];
 
         const nomeMotorista = row && row.nome.trim().toUpperCase() === 'MOTORISTA';
         if (!nomeMotorista) {
@@ -7414,7 +7976,7 @@ app.put('/api/cargos/:id', authenticateToken, (req, res) => {
                 changes.push({ campo: 'Departamento', old: row.departamento || '', new: departamento || '' });
             }
             if (row && row.documentos_obrigatorios !== (documentos_obrigatorios || '')) {
-                changes.push({ campo: 'Documentos Obrigatórios', old: row.documentos_obrigatorios || '', new: documentos_obrigatorios || '' });
+                changes.push({ campo: 'Documentos Obrigatérios', old: row.documentos_obrigatorios || '', new: documentos_obrigatorios || '' });
             }
             if (changes.length === 0) {
                 changes.push({ campo: 'Atualização', old: '', new: nome || (row && row.nome) || '' });
@@ -7446,13 +8008,13 @@ app.delete('/api/cargos/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Cargo não encontrado.' });
         if (row.nome.trim().toUpperCase() === 'MOTORISTA') {
-            return res.status(403).json({ error: 'O cargo Motorista é fixo e não pode ser apagado do sistema.' });
+            return res.status(403).json({ error: 'O cargo Motorista à fixo e não pode ser apagado do sistema.' });
         }
         // Verificar se algum colaborador usa este cargo
         db.get("SELECT COUNT(*) as total FROM colaboradores WHERE LOWER(TRIM(cargo)) = LOWER(TRIM(?))", [row.nome], (err2, count) => {
             if (err2) return res.status(500).json({ error: err2.message });
             if (count && count.total > 0) {
-                return res.status(409).json({ error: `Não é possível excluir o cargo "${row.nome}" pois há ${count.total} colaborador(es) cadastrado(s) com ele.` });
+                return res.status(409).json({ error: `Não à poss??vel excluir o cargo "${row.nome}" pois h?? ${count.total} colaborador(es) cadastrado(s) com ele.` });
             }
             db.serialize(() => {
                 db.run("INSERT OR IGNORE INTO cargos_excluidos (nome) VALUES (?)", [row.nome]);
@@ -7511,6 +8073,142 @@ app.delete('/api/cargos/:id/documentos', authenticateToken, (req, res) => {
         });
 });
 
+// --- CARGO ANEXOS (Word) ---
+app.get('/api/cargos/:id/anexos', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM cargo_anexos WHERE cargo_id = ? ORDER BY data_upload DESC", [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-844cb15b9c244c4fa56930ef899cfbc8.r2.dev';
+        const mapped = rows.map(r => ({
+            ...r,
+            url: r.r2_key.startsWith('http') ? r.r2_key : `${R2_PUBLIC_URL}/${r.r2_key}`
+        }));
+        res.json(mapped);
+    });
+});
+
+app.get('/api/cargos/anexos/download', authenticateToken, async (req, res) => {
+    try {
+        const { r2_key, nome } = req.query;
+        if (!r2_key) return res.status(400).send('Chave R2 não fornecida');
+
+        const fileData = await r2.downloadStreamFromR2(r2_key);
+        
+        res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
+        if (fileData.contentLength) {
+            res.setHeader('Content-Length', fileData.contentLength);
+        }
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nome || 'anexo')}"`);
+        
+        if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+            fileData.stream.pipe(res);
+        } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+            const bytes = await fileData.stream.transformToByteArray();
+            res.end(Buffer.from(bytes));
+        } else {
+            throw new Error("Formato de stream não suportado pela SDK.");
+        }
+    } catch (e) {
+        require('fs').appendFileSync('r2_debug.log', new Date().toISOString() + ' ERROR: ' + e.message + '\n');
+        res.status(404).send('Arquivo não encontrado no armazenamento. Detalhes: ' + e.message);
+    }
+});
+
+// Download de cargo_anexo por ID (para vinculação de Descrição de Atividades)
+app.get('/api/cargos/anexos/:id/download', authenticateToken, async (req, res) => {
+    try {
+        const anexoId = req.params.id;
+        db.get("SELECT * FROM cargo_anexos WHERE id = ?", [anexoId], async (err, anexo) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!anexo) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+            try {
+                const fileData = await r2.downloadStreamFromR2(anexo.r2_key);
+                const contentType = fileData.contentType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                res.setHeader('Content-Type', contentType);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                const safeName = encodeURIComponent(anexo.nome_arquivo || `anexo_${anexoId}.docx`);
+                res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    res.end(Buffer.from(bytes));
+                } else {
+                    throw new Error("Formato de stream não suportado.");
+                }
+            } catch (e2) {
+                console.error('Erro ao baixar cargo_anexo:', e2.message);
+                res.status(500).json({ error: 'Falha ao baixar arquivo do armazenamento: ' + e2.message });
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/cargos/:id/anexos', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
+    try {
+        const cargoId = req.params.id;
+        const titulo = req.body.titulo;
+        if (!titulo || !req.file) return res.status(400).json({ error: 'Título e arquivo são obrigatórios' });
+
+        const originalName = req.file.originalname;
+        const ext = originalName.split('.').pop().toLowerCase();
+        if (ext !== 'doc' && ext !== 'docx') {
+            return res.status(400).json({ error: 'Apenas arquivos Word (.doc, .docx) são permitidos.' });
+        }
+
+        // Corrige problemas de encoding limpando o nome do arquivo
+        const cleanName = Buffer.from(originalName, 'latin1').toString('utf8');
+        const safeName = cleanName.normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.\-_]/g, "_");
+
+        const r2Key = `cargos/${cargoId}/anexos/${Date.now()}_${safeName}`;
+        let publicUrl = '';
+        if (typeof r2 !== 'undefined' && r2.isReady()) {
+            publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+        } else {
+            throw new Error("Serviço R2 indisponível.");
+        }
+        const observacoes = req.body.observacoes || "";
+
+        db.run("INSERT INTO cargo_anexos (cargo_id, titulo, r2_key, nome_arquivo, observacoes) VALUES (?, ?, ?, ?, ?)",
+            [cargoId, titulo, r2Key, originalName, observacoes], function (err) {
+                if (err) throw err;
+                const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [loggedUser, 'Cargos', 'Anexo Word Adicionado', '', titulo, cargoId]);
+                res.json({ ok: true, anexo: { id: this.lastID, titulo, r2_key: r2Key, nome_arquivo: originalName, observacoes, data_upload: new Date().toISOString() } });
+            });
+    } catch (err) {
+        console.error("Erro no upload do anexo do cargo:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/cargos/:id/anexos/:anexoId', authenticateToken, (req, res) => {
+    const { id, anexoId } = req.params;
+    db.get("SELECT r2_key, titulo FROM cargo_anexos WHERE id = ? AND cargo_id = ?", [anexoId, id], async (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Anexo não encontrado' });
+        
+        try {
+            if (typeof r2 !== 'undefined' && r2.isReady()) {
+                await r2.deleteFromR2(row.r2_key);
+            }
+        } catch (e) {
+            console.error("Falha ao excluir do R2:", e);
+        }
+
+        db.run("DELETE FROM cargo_anexos WHERE id = ?", [anexoId], function (errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [loggedUser, 'Cargos', 'Anexo Word Removido', row.titulo, '', id]);
+            res.json({ ok: true });
+        });
+    });
+});
+
 // Departamentos
 app.get('/api/departamentos', authenticateToken, (req, res) => {
     db.all("SELECT * FROM departamentos ORDER BY nome ASC", [], (err, rows) => {
@@ -7520,21 +8218,21 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 });
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
-    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome) VALUES (?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null], function (err) {
+    const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome, nome_aso) VALUES (?, ?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null], function (err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
                 return res.status(400).json({ error: `Já existe um departamento com o nome "${nome}".` });
             }
             return res.status(400).json({ error: err.message });
         }
-        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null });
+        res.status(201).json({ id: this.lastID, nome, tipo: tipo || 'Operacional', responsavel_id: responsavel_id || null, responsavel_nome: responsavel_nome || null, nome_aso: nome_aso || null });
     });
 });
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
-    const { nome, tipo, responsavel_id, responsavel_nome } = req.body;
-    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, req.params.id], function (updateErr) {
+    const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ?, nome_aso = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null, req.params.id], function (updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
     });
@@ -7548,7 +8246,7 @@ app.delete('/api/departamentos/:id', authenticateToken, (req, res) => {
         db.get("SELECT COUNT(*) as total FROM colaboradores WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?))", [row.nome], (err2, count) => {
             if (err2) return res.status(500).json({ error: err2.message });
             if (count && count.total > 0) {
-                return res.status(409).json({ error: `Não é possível excluir o departamento "${row.nome}" pois há ${count.total} colaborador(es) cadastrado(s) nele.` });
+                return res.status(409).json({ error: `Não à poss??vel excluir o departamento "${row.nome}" pois h?? ${count.total} colaborador(es) cadastrado(s) nele.` });
             }
             // Registra na blacklist para que o seed nao recrie
             db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES (?)", [row.nome]);
@@ -7600,11 +8298,11 @@ app.put('/api/cursos-faculdade/:id', authenticateToken, (req, res) => {
 
                 const changes = [];
                 if (oldRow.nome_curso !== nome_curso) changes.push({ campo: 'Nome do Curso', old: oldRow.nome_curso, new: nome_curso });
-                if (oldRow.instituicao !== instituicao) changes.push({ campo: 'Instituição', old: oldRow.instituicao, new: instituicao });
+                if (oldRow.instituicao !== instituicao) changes.push({ campo: 'Institui????o', old: oldRow.instituicao, new: instituicao });
                 if (String(oldRow.tempo_curso) !== String(tempo_curso)) changes.push({ campo: 'Tempo de Curso (meses)', old: String(oldRow.tempo_curso), new: String(tempo_curso) });
                 if (String(oldRow.valor_mensalidade) !== String(valor_mensalidade || 0)) changes.push({ campo: 'Valor Mensalidade', old: String(oldRow.valor_mensalidade), new: String(valor_mensalidade || 0) });
                 if (oldRow.data_inicio !== data_inicio) changes.push({ campo: 'Data Início', old: oldRow.data_inicio || '', new: data_inicio || '' });
-                if (oldRow.data_termino_prevista !== data_termino_prevista) changes.push({ campo: 'Data Término Prevista', old: oldRow.data_termino_prevista || '', new: data_termino_prevista || '' });
+                if (oldRow.data_termino_prevista !== data_termino_prevista) changes.push({ campo: 'Data T??rmino Prevista', old: oldRow.data_termino_prevista || '', new: data_termino_prevista || '' });
 
                 if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: nome_curso });
 
@@ -7682,9 +8380,9 @@ db.run(`CREATE TABLE IF NOT EXISTS admissao_assinaturas (
     UNIQUE(colaborador_id, nome_documento)
 )`);
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// HISTÓRICO DE RECIBOS GERADOS E ANEXAÇÃO (DOCS EM MASSA)
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// HIST??RICO DE RECIBOS GERADOS E ANEXA????O (DOCS EM MASSA)
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // GET: Recupera as observações do mês e do mês anterior
 app.get('/api/recibos/observacoes/:mes/:ano', authenticateToken, (req, res) => {
@@ -7744,7 +8442,7 @@ app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
 // POST: Salva o estado atual da tabela de recibos (histórico editável)
 app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
     const { mes, ano, itens } = req.body;
-    if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Par??metros inválidos' });
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
@@ -7818,7 +8516,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
 // POST: Anexar recibo gerado individualmente aos Docs. em Massa (prontuário digital + Assinafy)
 app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
     const { htmlContent, colaborador_id, mes, ano } = req.body;
-    if (!htmlContent || !colaborador_id || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    if (!htmlContent || !colaborador_id || !mes || !ano) return res.status(400).json({ error: 'Par??metros inválidos' });
 
     try {
         const htmlPdf = require('html-pdf-node');
@@ -7854,7 +8552,7 @@ app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
             basePath: BASE_UPLOAD_PATH,
         });
 
-        // Tentar enviar para o Assinafy se possível
+        // Tentar enviar para o Assinafy se poss??vel
         let urlAssinatura = null;
         if (colab.email) {
             try {
@@ -7872,8 +8570,8 @@ app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
     }
 });
 
-// POST: Anexar recibos em lote otimizado (usa uma única instância do navegador)
-// ─── Upload de PDF gerado pelo browser (sem Chromium no servidor) ──────────────
+// POST: Anexar recibos em lote otimizado (usa uma única inst??ncia do navegador)
+// ????????? Upload de PDF gerado pelo browser (sem Chromium no servidor) ??????????????????????????????????????????
 app.post('/api/recibos/upload-pdf-colab',
     authenticateToken,
     multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('pdf'),
@@ -7881,35 +8579,13 @@ app.post('/api/recibos/upload-pdf-colab',
         try {
             const { colaborador_id, mes, ano, nomeArquivo } = req.body;
             if (!colaborador_id || !mes || !ano || !req.file) {
-                return res.status(400).json({ error: 'Parâmetros inválidos' });
+                return res.status(400).json({ error: 'Par??metros inválidos' });
             }
 
             let bufferPDF = req.file.buffer;
             const nome = nomeArquivo || `Pagamentos_${colaborador_id}_${mes}${ano}.pdf`;
 
-            // ── Mesclar cartão de ponto (igual ao fluxo anterior) ──────────────
-            try {
-                const colab = await new Promise((resolve, reject) =>
-                    db.get('SELECT * FROM colaboradores WHERE id = ?', [Number(colaborador_id)], (e, r) => e ? reject(e) : resolve(r))
-                );
-                const historico = await new Promise(res =>
-                    db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?',
-                        [colaborador_id, mes, ano], (e, r) => res(r))
-                );
-                if (colab && historico && historico.apuracao_diaria) {
-                    const apuracao = JSON.parse(historico.apuracao_diaria);
-                    if (Array.isArray(apuracao) && apuracao.length > 0) {
-                        const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
-                        const { mergePdfPonto } = require('./cartao_ponto_generator');
-                        bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
-                        console.log(`[UPLOAD-PDF] Cartão de ponto mesclado — colaborador ${colaborador_id}`);
-                    }
-                }
-            } catch (errPonto) {
-                console.error('[UPLOAD-PDF] Erro ao mesclar cartão de ponto (continuando sem ele):', errPonto.message);
-                // Não interrompe — salva o recibo sem o cartão de ponto
-            }
-            // ──────────────────────────────────────────────────────────────────
+
 
             const { docId, filePath: savedPath } = await pagamentosMassa.salvarDocumentoNoBanco({
                 colaboradorId: Number(colaborador_id),
@@ -7922,7 +8598,7 @@ app.post('/api/recibos/upload-pdf-colab',
                 basePath: BASE_UPLOAD_PATH,
             });
 
-            // Salvar cópia _base.pdf para permitir reconstrução ao processar holerites sem duplicação
+            // Salvar cópia _base.pdf para reconstrução futura (sem ponto)
             try {
                 const path = require('path');
                 const fs = require('fs');
@@ -7931,7 +8607,7 @@ app.post('/api/recibos/upload-pdf-colab',
             } catch(errBase) { console.warn('[UPLOAD-PDF] Erro ao salvar _base.pdf:', errBase.message); }
 
             uploadDocToOneDrive(docId).catch(e => console.warn('[UPLOAD-PDF] OneDrive bg:', e.message));
-            console.log(`[UPLOAD-PDF] ✅ Colaborador ${colaborador_id} — ${nome}`);
+            console.log(`[UPLOAD-PDF] ??? Colaborador ${colaborador_id} ??? ${nome}`);
             res.json({ ok: true, docId });
         } catch (e) {
             console.error('[UPLOAD-PDF] Erro:', e.message);
@@ -7942,7 +8618,7 @@ app.post('/api/recibos/upload-pdf-colab',
 
 app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) => {
     const { lote, mes, ano } = req.body;
-    if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    if (!lote || !Array.isArray(lote) || !mes || !ano) return res.status(400).json({ error: 'Par??metros inválidos' });
 
     // Responde imediatamente para evitar timeout do proxy (502)
     // O processamento continua em background
@@ -8005,15 +8681,6 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
                     const { item, colab } = sublote[idx];
                     let bufferPDF = generatedPdfs[idx].buffer;
 
-                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, mes, ano], (e, r) => res(r)));
-                    if (historico && historico.apuracao_diaria) {
-                        try {
-                            const apuracao = JSON.parse(historico.apuracao_diaria);
-                            const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mes)-1];
-                            const { mergePdfPonto } = require('./cartao_ponto_generator');
-                            bufferPDF = await mergePdfPonto(bufferPDF, colab, apuracao, String(mes).padStart(2, '0'), ano, mesNome);
-                        } catch(e) { console.error('[RECIBOS-LOTE] Erro merge ponto:', e.message); }
-                    }
 
                     const safeNome = (colab.nome_completo || 'Colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
                     const nomeArquivo = `Pagamentos_${safeNome}_${mes}${ano}.pdf`;
@@ -8031,7 +8698,7 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
 
                     uploadDocToOneDrive(docId).catch(e2 => console.warn('[RECIBOS-LOTE] Erro bg OneDrive:', e2.message));
                     sucesso++;
-                    console.log(`[RECIBOS-LOTE] ✅ ${sucesso}/${loteProcessar.length} — ${sublote[idx].colab.nome_completo}`);
+                    console.log(`[RECIBOS-LOTE] ??? ${sucesso}/${loteProcessar.length} ??? ${sublote[idx].colab.nome_completo}`);
                 } catch (errSalvar) {
                     console.error(`[RECIBOS-LOTE] Erro ao salvar PDF:`, errSalvar.message);
                     falha++;
@@ -8044,28 +8711,28 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
             }
         }
 
-        console.log(`[RECIBOS-LOTE] Concluído: ${sucesso} ok, ${falha} falhas`);
+        console.log(`[RECIBOS-LOTE] Conclu??do: ${sucesso} ok, ${falha} falhas`);
     } catch (e) {
         console.error('[RECIBOS-LOTE] Erro geral:', e.message);
     }
 });
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // ENVIO EM MASSA DE DOCUMENTOS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 let pagamentosMassa = null;
 try {
     pagamentosMassa = require('./pagamentos_massa');
-    console.log('[PAGAMENTOS-MASSA] Módulo carregado com sucesso.');
+    console.log('[PAGAMENTOS-MASSA] M??dulo carregado com sucesso.');
 } catch (e) {
     console.error('[PAGAMENTOS-MASSA] ERRO ao carregar módulo:', e.message);
 }
-const _massaJobs = {}; // jobId → { total, done, erros, resultados }
+const _massaJobs = {}; // jobId ??? { total, done, erros, resultados }
 
 app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).any(), async (req, res) => {
     try {
-        if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não disponível. Verifique os logs do servidor.' });
+        if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não dispon??vel. Verifique os logs do servidor.' });
         
         const tipoDocumento = req.body.tipoDocumento || 'Holerite Adiantamento';
         const files = req.files || [];
@@ -8257,14 +8924,14 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
 
     } catch (e) {
         console.error('[PAGAMENTOS-MASSA] Erro no preview-merge:', e);
-        res.status(500).send('Erro ao gerar a pré-visualização: ' + e.message);
+        res.status(500).send('Erro ao gerar a pr??-visualização: ' + e.message);
     }
 });
 
 // POST: Enviar documentos individuais para assinatura (em massa)
 app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => {
     const { pdfBase64, pdfDuploBase64, itens, tipoDocumento, ano, mes } = req.body;
-    if (!itens || !itens.length) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    if (!itens || !itens.length) return res.status(400).json({ error: 'Par??metros inválidos' });
 
     const jobId = Date.now().toString();
     _massaJobs[jobId] = { total: itens.length, done: 0, erros: 0, resultados: [] };
@@ -8378,8 +9045,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                     }
                     // Se não encontrou o arquivo, cai no fluxo normal abaixo (item.docId=null tratado depois)
                 } else {
-                    // forcarAnexar sem holerites novos — mantém o docId e apenas registra
-                    console.log(`[PAGAMENTOS-MASSA] forcarAnexar sem novos holerites para doc ${docId} — sem alteração no arquivo.`);
+                    // forcarAnexar sem holerites novos ??? mant??m o docId e apenas registra
+                    console.log(`[PAGAMENTOS-MASSA] forcarAnexar sem novos holerites para doc ${docId} ??? sem alteração no arquivo.`);
                 }
 
                 // Pula os demais blocos de criação/merge
@@ -8406,19 +9073,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 if (!colab) throw new Error(`Colaborador ID ${item.colaborador_id} não encontrado`);
                 colabNome = colab.nome_completo;
 
-                // Merge do Cartão de Ponto se for "Pagamentos"
-                if (tipo === 'Pagamentos') {
-                    const mesFormatado = String(mesDoc).padStart(2, '0');
-                    const historico = await new Promise(res => db.get('SELECT apuracao_diaria FROM recibos_historico WHERE colaborador_id = ? AND mes = ? AND ano = ?', [item.colaborador_id, mesFormatado, anoDoc], (e, r) => res(r)));
-                    if (historico && historico.apuracao_diaria) {
-                        try {
-                            const apuracao = JSON.parse(historico.apuracao_diaria);
-                            const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mesDoc)-1];
-                            const { mergePdfPonto } = require('./cartao_ponto_generator');
-                            bufPagina = await mergePdfPonto(bufPagina, colab, apuracao, String(mesDoc).padStart(2, '0'), anoDoc, mesNome);
-                        } catch(e) { console.error('[PAGAMENTOS-MASSA] Erro ponto:', e); }
-                    }
-                }
+
+
 
                 // 3. Gerar nome do arquivo
                 const safeNome = pagamentosMassa.normalizarNome(colab.nome_completo).replace(/\s+/g, '_');
@@ -8444,7 +9100,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive skip:', e2.message); }
             } else if (tipo === 'Pagamentos') {
                 // Se o documento base já existe (Ponto + VR + VT), juntar os Holerites SE fornecidos
-                // Quando não há páginas de adiantamento/holerite, o doc já está completo — apenas enviar
+                // Quando não h?? páginas de adiantamento/holerite, o doc já está completo - apenas enviar
                 const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
 
                 if (hasNewHolerites) {
@@ -8462,7 +9118,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             const baseCopyPath = fullPath.replace(/\.pdf$/i, '_base.pdf');
                             let baseBytes;
                             if (fsSync.existsSync(baseCopyPath)) {
-                                // Usa a cópia base — sem holerites, 100% limpo
+                                // Usa a cópia base - sem holerites, 100% limpo
                                 baseBytes = await fs.readFile(baseCopyPath);
                                 console.log(`[PAGAMENTOS-MASSA] Usando _base.pdf para colaborador ${item.colaborador_id}`);
                             } else {
@@ -8517,14 +9173,14 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         }
                     }
                 } else {
-                    // Documento já foi salvo com adiantamento/holerite incluídos — apenas enviar
+                    // Documento já foi salvo com adiantamento/holerite incluídos - apenas enviar
                     console.log(`[PAGAMENTOS-MASSA] Documento ${docId} já completo (salvo com holerites). Enviando diretamente para Assinafy.`);
                 }
             }
 
 
 
-            // 5. Enviar para Assinafy (se solicitado) — com retry em Rate Limit (429)
+            // 5. Enviar para Assinafy (se solicitado) ??? com retry em Rate Limit (429)
             let urlAssinatura = null;
             if (item.enviarEmail !== false) {
                 const MAX_RETRIES = 4;
@@ -8542,7 +9198,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                         const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate limit');
                         if (!isRateLimit || tentativa >= MAX_RETRIES - 1) break;
                         const wait = [8000, 15000, 25000][tentativa] || 30000;
-                        console.warn(`[PAGAMENTOS-MASSA] Rate limit Assinafy — aguardando ${wait/1000}s (tentativa ${tentativa+1}/${MAX_RETRIES})`);
+                        console.warn(`[PAGAMENTOS-MASSA] Rate limit Assinafy ??? aguardando ${wait/1000}s (tentativa ${tentativa+1}/${MAX_RETRIES})`);
                         await new Promise(r => setTimeout(r, wait));
                         tentativa++;
                     }
@@ -8760,7 +9416,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
     if (!colaborador_id || !Array.isArray(rawIds) || rawIds.length === 0) {
         return res.status(400).json({ error: 'colaborador_id e geradores_ids são obrigatórios' });
     }
-    // Dedup absoluto: garantir IDs únicos independente do que o cliente mande
+    // Dedup absoluto: garantir IDs ??nicos independente do que o cliente mande
     const geradores_ids = [...new Set(rawIds.map(Number).filter(n => !isNaN(n) && n > 0))];
 
     const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -8803,9 +9459,9 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
             fs.writeFileSync(filePath, pdfBuffer);
         }
 
-        // A assinatura da empresa via certificado digital (PFX) é feita APÓS
+        // A assinatura da empresa via certificado digital (PFX) à feita APÓS
         // o colaborador assinar no Assinafy, para que ambas as assinaturas
-        // apareçam válidas no validador gov.br.
+        // apareçam v??lidas no validador gov.br.
 
 
         // --- DEDUP CRITICAL: Verificar se já foi enviado (Pendente ou Assinado) ---
@@ -8815,7 +9471,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
         );
 
         // Se já existe com assinafy_id (já enviado para Assinafy), NÃO re-enviar
-        // EXCEÇÃO: se está como 'Assinado' mas sem signed_file_path, é falso positivo → permite reenvio
+        // EXCE????O: se está como 'Assinado' mas sem signed_file_path, à falso positivo - permite reenvio
         const estaAssinadoSemPdf = existente?.assinafy_status === 'Assinado' && !existente?.signed_file_path;
         if (existente && existente.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existente.assinafy_status) && !estaAssinadoSemPdf) {
             console.log(`[ADMISSAO-DEDUP] Documento "${gerador.nome}" já foi enviado (status: ${existente.assinafy_status}). Pulando.`);
@@ -8831,7 +9487,7 @@ app.post('/api/admissao-assinaturas/enviar-lote', authenticateToken, async (req,
         );
 
         // Se doc já tem assinafy_id ativo, não duplicar
-        // EXCEÇÃO: falso positivo (Assinado sem PDF real) → permite reenvio
+        // EXCE????O: falso positivo (Assinado sem PDF real) ??? permite reenvio
         const docEstaAssinadoSemPdf = existenteDoc?.assinafy_status === 'Assinado' && !existenteDoc?.signed_file_path;
         if (existenteDoc && existenteDoc.assinafy_id && ['Pendente', 'Aguardando', 'Assinado'].includes(existenteDoc.assinafy_status) && !docEstaAssinadoSemPdf) {
             console.log(`[ADMISSAO-DEDUP] Doc "${gerador.nome}" já tem assinafy_id no banco. Pulando.`);
@@ -8891,7 +9547,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
         );
         if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
 
-        // 1. Arquivo local como fonte primária
+        // 1. Arquivo local como fonte prim??ria
         let pathToFile = row.signed_file_path;
 
         if (pathToFile && fs.existsSync(pathToFile)) {
@@ -8955,7 +9611,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
         const pfxDisp = signPdfPfx.verificarDisponibilidade();
         if (!pfxDisp.disponivel) return res.status(400).json({ ok: false, error: `Certificado digital não configurado: ${pfxDisp.motivo}` });
 
-        // Buscar o PDF assinado — primeiro local, depois Assinafy
+        // Buscar o PDF assinado ??? primeiro local, depois Assinafy
         let pdfBuffer = null;
         const localPath = doc.signed_file_path || doc.file_path;
         if (localPath && fs.existsSync(localPath)) {
@@ -8968,7 +9624,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             const docInfo = await new Promise((resolve, reject) => {
                 const opts = {
                     hostname: 'api.assinafy.com.br', path: `/v1/documents/${doc.assinafy_id}`, method: 'GET',
-                    headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd', 'Accept': 'application/json' }
+                    headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
                 };
                 const r = https.request(opts, resp => { const c = []; resp.on('data', d => c.push(d)); resp.on('end', () => resolve(JSON.parse(Buffer.concat(c).toString()))); });
                 r.on('error', reject); r.end();
@@ -8976,22 +9632,22 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             const docData = docInfo.data || docInfo;
             const signedUrl = docData?.artifacts?.find(a => a.type === 'signed_document')?.url ||
                 docData?.signed_url || docData?.download_url;
-            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não disponível no Assinafy.' });
+            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não dispon??vel no Assinafy.' });
 
             pdfBuffer = await new Promise((resolve, reject) => {
-                https.get(signedUrl, { headers: { 'X-Api-Key': 'AxaT-FiXBckHqEYV0s_MtUhLF3pReRz3dX4zVpC173vmjDwzLGHYtDJuQje4-4Pd' } }, resp => {
+                https.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, resp => {
                     const chunks = [];
                     resp.on('data', c => chunks.push(c));
                     resp.on('end', () => resolve(Buffer.concat(chunks)));
                 }).on('error', reject);
             });
         }
-        if (!pdfBuffer) return res.status(400).json({ ok: false, error: 'Não foi possível obter o PDF assinado para aplicar o certificado.' });
+        if (!pdfBuffer) return res.status(400).json({ ok: false, error: 'Não foi poss??vel obter o PDF assinado para aplicar o certificado.' });
 
         // Aplicar certificado A1 da empresa
         console.log(`[CERT-POST] Aplicando certificado A1 no PDF (${pdfBuffer.length} bytes)...`);
         const pdfAssinado = await signPdfPfx.assinarPDF(pdfBuffer, {
-            motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda — Certificado A1`,
+            motivo: `Assinado digitalmente pela empresa America Rental Equipamentos Ltda ??? Certificado A1`,
             local: 'Brasil',
             nome: 'America Rental Equipamentos Ltda'
         });
@@ -9024,7 +9680,7 @@ app.post('/api/admissao-assinaturas/sync-status', authenticateToken, (req, res) 
         });
 });
 
-// DELETE: excluir registro de admissão-assinatura (mesmo quando assinado — senha verificada no frontend)
+// DELETE: excluir registro de admissão-assinatura (mesmo quando assinado ??? senha verificada no frontend)
 app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(400).json({ error: 'ID inválido' });
@@ -9099,7 +9755,7 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
                 const changes = [];
                 if (oldRow.nome !== nome) changes.push({ campo: 'Nome', old: oldRow.nome, new: nome });
                 if (oldRow.conteudo !== conteudo) changes.push({ campo: 'Conteudo HTML', old: '[Anterior Modificado]', new: '[Novo HTML]' });
-                if (oldRow.variaveis !== variaveis) changes.push({ campo: 'Variáveis', old: oldRow.variaveis, new: variaveis });
+                if (oldRow.variaveis !== variaveis) changes.push({ campo: 'Vari??veis', old: oldRow.variaveis, new: variaveis });
 
                 changes.forEach(c => {
                     db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -9133,7 +9789,7 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
         ];
 
         const originalName = (row.nome || '').trim();
-        const u = originalName.toLowerCase();
+        const u = originalName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
         const BAD_EXACT_NAMES = [
             'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO',
@@ -9141,7 +9797,7 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
         ];
 
         if (!BAD_EXACT_NAMES.includes(originalName) && PROTECTED_NAMES.some(pn => u.includes(pn))) {
-            return res.status(403).json({ error: 'Este documento é padrão do sistema e não pode ser excluído.' });
+            return res.status(403).json({ error: 'Este documento à padrão do sistema e não pode ser excluído.' });
         }
 
         if (row && row.arquivo_pdf && fs.existsSync(row.arquivo_pdf)) {
@@ -9206,7 +9862,7 @@ app.put('/api/geradores/:id/replace-pdf', authenticateToken, uploadGeradorPdf.si
     });
 });
 
-// Servir PDF estático dos geradores externos
+// Servir PDF est??tico dos geradores externos
 app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
     db.get("SELECT arquivo_pdf, nome FROM geradores WHERE id = ? AND tipo = 'pdf'", [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'PDF não encontrado' });
@@ -9218,7 +9874,7 @@ app.get('/api/geradores/:id/pdf', authenticateToken, (req, res) => {
 });
 
 
-// Endpoint de geração (Substituição de Variáveis)
+// Endpoint de geração (Substitui????o de Vari??veis)
 app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'], authenticateToken, (req, res) => {
     const id = req.params.id;
     const colaborador_id = req.params.colaborador_id || req.body.colaborador_id || req.body.colabId;
@@ -9274,14 +9930,14 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     'EMAIL': colaborador.email || '',
                     'SALARIO': colaborador.salario ? `R$ ${parseFloat(colaborador.salario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---',
                     'CHAVES': listaChaves || 'Nenhuma chave cadastrada',
-                    // Variáveis de Faculdade
+                    // Vari??veis de Faculdade
                     'INSTITUICAO': colaborador.f_inst || '---',
                     'CURSO': colaborador.f_nome || '---',
                     'DURACAO': colaborador.f_tempo || '---',
                     'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'
                 };
 
-                // Valores Dinâmicos Form (se presentes no body)
+                // Valores Din??micos Form (se presentes no body)
                 if (req.body) {
                     mapping['MODAL_DESCRICAO'] = req.body.desconto_descricao || '';
                     mapping['MODAL_VALOR'] = req.body.desconto_valor || '0,00';
@@ -9293,7 +9949,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     mapping['PARCELA_2'] = p === 2 ? 'X' : '&nbsp;&nbsp;';
                     mapping['PARCELA_3'] = p === 3 ? 'X' : '&nbsp;&nbsp;';
 
-                    // ── Variáveis para Solicitação de VT ──────────────────────────
+                    // ?????? Vari??veis para Solicitação de VT ??????????????????????????????????????????????????????????????????????????????
                     const vtOpcao = (req.body.vt_opcao || '').toLowerCase(); // 'sim' | 'nao'
                     mapping['VT_OPTA_SIM'] = vtOpcao === 'sim' ? '&#10003;' : '&nbsp;&nbsp;';
                     mapping['VT_OPTA_NAO'] = vtOpcao === 'nao' ? '&#10003;' : '&nbsp;&nbsp;';
@@ -9334,11 +9990,11 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     mapping['VT_CIDADE'] = endCidade;
                     mapping['VT_UF'] = endUF;
                     mapping['VT_CEP'] = endCEP;
-                    // ─────────────────────────────────────────────────────────────
+                    // ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
                 }
 
 
-                // Substituição bruta (suporta tanto ${CHAVE} quanto {CHAVE})
+                // Substitui????o bruta (suporta tanto ${CHAVE} quanto {CHAVE})
                 Object.keys(mapping).forEach(key => {
                     // Try ${CHAVE} format
                     let regex = new RegExp(`\\$\\{${key}\\}`, 'g');
@@ -9388,7 +10044,7 @@ app.delete('/api/chaves/:id', authenticateToken, (req, res) => {
         // Se no futuro houver chaves vinculadas, podemos avisar.
         db.run("DELETE FROM chaves WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Chave excluída' });
+            res.json({ message: 'Chave exclu??da' });
         });
     });
 });
@@ -9428,13 +10084,13 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
                 // Envio de e-mail para quem recebe aviso_faltas
                 const _logoPathFaltas = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                 sendEmailParaNotificados('aviso_faltas', {
-                    subject: `⚠️ Aviso de Falta – ${nomeColab}`,
+                    subject: `[FALTA] Aviso de Falta - ${nomeColab}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Falta Registrada</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">?????? Aviso de Falta Registrada</h2>
                             <p>Uma falta foi registrada no sistema:</p>
                             <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
@@ -9462,11 +10118,18 @@ app.delete('/api/faltas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// --- ROTAS DE AVALIAÇÃO ---
+// --- ROTAS DE AVALIA????O ---
 app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
     db.all('SELECT * FROM avaliacoes WHERE colaborador_id = ? ORDER BY ano DESC, trimestre ASC', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
+    });
+});
+
+app.get('/api/migrate-avaliacoes', authenticateToken, (req, res) => {
+    db.run("UPDATE avaliacoes SET tipo = 'desempenho' WHERE tipo = 'satisfacao' AND respostas_json LIKE '%Liderança%'", function(err) {
+        if (err) return res.status(500).json({error: err.message});
+        res.json({success: true, changes: this.changes, message: "Migração concluída"});
     });
 });
 
@@ -9490,11 +10153,11 @@ app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Avaliação não encontrada.' });
-        res.json({ deleted: this.changes, message: 'Avaliação excluída com sucesso' });
+        res.json({ deleted: this.changes, message: 'Avaliação exclu??da com sucesso' });
     });
 });
 
-// --- ROTAS DE TEMPLATES DE AVALIAÇÃO ---
+// --- ROTAS DE TEMPLATES DE AVALIA????O ---
 app.get('/api/avaliacao-templates', authenticateToken, (req, res) => {
     db.all('SELECT * FROM avaliacao_templates ORDER BY tipo, nome', (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -9533,7 +10196,7 @@ app.delete('/api/avaliacao-templates/:id', authenticateToken, (req, res) => {
 });
 
 // Limpeza de duplicatas de avaliacao_templates:
-// Mantém apenas o registro de MAIOR id por (tipo, nome), removendo os mais antigos.
+// Mant??m apenas o registro de MAIOR id por (tipo, nome), removendo os mais antigos.
 app.post('/api/avaliacao-templates/dedup', authenticateToken, (req, res) => {
     db.all('SELECT id, tipo, nome FROM avaliacao_templates ORDER BY tipo, nome, id', (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -9564,21 +10227,44 @@ app.post('/api/avaliacao-templates/dedup', authenticateToken, (req, res) => {
     });
 });
 
-// ─── DASHBOARD DE SATISFAÇÃO ──────────────────────────────────────────────────
+// ????????? DASHBOARD DE SATISFA????O ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+
+// DEBUG: ver formato real dos dados
+app.get('/api/debug/satisfacao-raw', authenticateToken, (req, res) => {
+    db.all(`SELECT a.id, a.colaborador_id, c.nome_completo, a.ano, a.trimestre, a.respostas_json
+            FROM avaliacoes a JOIN colaboradores c ON c.id=a.colaborador_id
+            WHERE a.tipo='satisfacao' ORDER BY a.created_at DESC LIMIT 10`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const result = (rows||[]).map(r => {
+            let parsed = null, keys = [], firstTopicKey = null, firstTopicSample = null;
+            try {
+                parsed = JSON.parse(r.respostas_json || '{}');
+                keys = Object.keys(parsed);
+                firstTopicKey = keys.find(k => k !== '__obs__' && k !== 'scores' && k !== 'topicos' && k !== 'info_adicional');
+                if (firstTopicKey) firstTopicSample = JSON.stringify(parsed[firstTopicKey]).substring(0, 120);
+                if (parsed.scores) firstTopicSample = 'OLD_FORMAT scores: ' + JSON.stringify(parsed.scores).substring(0, 120);
+            } catch(e) { firstTopicSample = 'PARSE_ERROR: ' + e.message; }
+            return { id: r.id, nome: r.nome_completo, ano: r.ano, tri: r.trimestre, keys, firstTopicKey, firstTopicSample };
+        });
+        res.json(result);
+    });
+});
 
 // GET /api/avaliacoes/satisfacao/dashboard
-// Retorna médias por departamento/grupo/tópico nas últimas 4 pesquisas (ano+trimestre distintos)
-app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) => {
-    // Buscar as 4 últimas combinações distintas de ano+trimestre para satisfação
+// Retorna médias por departamento/grupo/t??pico nas últimas 4 pesquisas (ano+trimestre distintos)
+app.get('/api/avaliacoes/:tipo/dashboard', authenticateToken, (req, res) => {
+    const tipoAval = req.params.tipo || 'satisfacao';
+    // Buscar as 4 últimas combinações distintas de ano+trimestre para o tipo
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
-        [],
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
             if (!periodos || periodos.length === 0) return res.json({ periodos: [], departamentos: [], resumo: [] });
 
             // Buscar todas as avaliações de satisfação dos últimos 4 períodos
-            const placeholders = periodos.map(() => '(?,?)').join(',');
+            // NOTA: SQLite não suporta tuplas em IN - usar OR expl??cito
+            const orClauses = periodos.map(() => '(a.ano = ? AND a.trimestre = ?)').join(' OR ');
             const params = periodos.flatMap(p => [p.ano, p.trimestre]);
 
             db.all(
@@ -9586,25 +10272,30 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                         c.departamento, c.cargo
                  FROM avaliacoes a
                  JOIN colaboradores c ON c.id = a.colaborador_id
-                 WHERE a.tipo = 'satisfacao'
-                   AND (a.ano, a.trimestre) IN (${placeholders})`,
-                params,
+                 WHERE a.tipo = ?
+                   AND (${orClauses})`,
+                [tipoAval, ...params],
                 (err2, rows) => {
                     if (err2) return res.status(500).json({ error: err2.message });
 
                     // Estrutura: { grupo: { topico: { 'ano-trimestre': [notas] } } }
                     const agregado = {};
 
-                    (rows || []).forEach(row => {
+                    console.log(`[DASHBOARD] rows encontrados: ${(rows||[]).length}`);
+
+                    (rows || []).forEach((row, ri) => {
                         let respostas = {};
                         try { respostas = JSON.parse(row.respostas_json || '{}'); } catch(e) {}
                         const periodo = `${row.ano}-T${row.trimestre}`;
+                        const topKeys = Object.keys(respostas).slice(0, 5);
+                        console.log(`[ROW ${ri}] colab=${row.colaborador_id} dept=${row.departamento} cargo=${row.cargo} periodo=${periodo} keys=${JSON.stringify(topKeys)} formato=${respostas.scores?'LEGADO_SCORES': respostas['Ambiente de trabalho']?'NOVO_ARRAY':'DESCONHECIDO'}`);
+                        if (ri === 0) console.log(`[ROW 0 AMOSTRA] ${JSON.stringify(respostas).substring(0, 300)}`);
 
                         // Determinar grupo baseado no departamento/cargo
                         const dept = (row.departamento || '').toLowerCase();
                         const cargo = (row.cargo || '').toLowerCase();
                         let grupo = 'escritorio';
-                        if (cargo.includes('motorista') || dept.includes('motorista') || dept.includes('logística') || dept.includes('logistica')) {
+                        if (cargo.includes('motorista') || dept.includes('motorista') || dept.includes('logàstica') || dept.includes('logistica')) {
                             grupo = 'motorista';
                         } else if (dept.includes('manutencao') || dept.includes('manutenção')) {
                             grupo = 'manutencao';
@@ -9612,27 +10303,42 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
 
                         if (!agregado[grupo]) agregado[grupo] = {};
 
-                        // respostas_json: { 'Tópico': [nota1, nota2, ...] } ou { 'Tópico': { media: X } }
+                        // respostas_json: { 'T??pico': [nota1, nota2, ...] } ou { 'T??pico': { media: X } } ou formato legado { scores: {...} }
+                        
+                        // Detectar formato legado: { scores: { 'Topico': avg }, topicos: [...] }
+                        if (respostas.scores && typeof respostas.scores === 'object' && !Array.isArray(respostas.scores)) {
+                            Object.entries(respostas.scores).forEach(([topico, avg]) => {
+                                if (typeof avg === 'number' && !isNaN(avg)) {
+                                    if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
+                                    if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
+                                    agregado[grupo][topico][periodo].push(avg);
+                                }
+                            });
+                            return; // formato legado processado, pular o resto
+                        }
+                        
                         Object.entries(respostas).forEach(([topico, notas]) => {
                             if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
                             if (!agregado[grupo][topico]) agregado[grupo][topico] = {};
                             if (!agregado[grupo][topico][periodo]) agregado[grupo][topico][periodo] = [];
                             if (Array.isArray(notas)) {
-                                const nums = notas.filter(n => typeof n === 'number' && !isNaN(n));
+                                const nums = notas.map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
                                     agregado[grupo][topico][periodo].push(media);
                                 }
-                            } else if (typeof notas === 'object' && notas !== null && typeof notas.media === 'number') {
-                                agregado[grupo][topico][periodo].push(notas.media);
+                            } else if (typeof notas === 'object' && notas !== null && notas.media !== undefined) {
+                                const m = parseFloat(notas.media);
+                                if (!isNaN(m)) agregado[grupo][topico][periodo].push(m);
                             } else if (typeof notas === 'object' && notas !== null) {
-                                const nums = Object.values(notas).filter(n => typeof n === 'number' && !isNaN(n));
+                                const nums = Object.values(notas).map(n => parseFloat(n)).filter(n => !isNaN(n));
                                 if (nums.length > 0) {
                                     const media = nums.reduce((a, b) => a + b, 0) / nums.length;
                                     agregado[grupo][topico][periodo].push(media);
                                 }
-                            } else if (typeof notas === 'number') {
-                                agregado[grupo][topico][periodo].push(notas);
+                            } else if (notas !== null && notas !== undefined) {
+                                const num = parseFloat(notas);
+                                if (!isNaN(num)) agregado[grupo][topico][periodo].push(num);
                             }
                         });
                     });
@@ -9657,10 +10363,10 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
                                 COUNT(a.id) as responderam
                          FROM avaliacoes a
                          JOIN colaboradores c ON c.id = a.colaborador_id
-                         WHERE a.tipo = 'satisfacao'
-                           AND (a.ano, a.trimestre) IN (${placeholders})
+                         WHERE a.tipo = ?
+                           AND (${orClauses})
                          GROUP BY c.departamento, c.cargo, a.ano, a.trimestre`,
-                        params,
+                        [tipoAval, ...params],
                         (err3, contagens) => {
                             if (err3) return res.status(500).json({ error: err3.message });
                             res.json({ periodos: periodos.reverse(), dashboard: resultado, contagens: contagens || [] });
@@ -9674,18 +10380,21 @@ app.get('/api/avaliacoes/satisfacao/dashboard', authenticateToken, (req, res) =>
 
 // GET /api/avaliacoes/satisfacao/colaboradores
 // Retorna todos os colaboradores ativos com histórico de satisfação (últimas 4 pesquisas)
-app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res) => {
+app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => {
+    const tipoAval = req.params.tipo || 'satisfacao';
     db.all(
-        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = 'satisfacao' ORDER BY ano DESC, trimestre DESC LIMIT 4`,
-        [],
+        `SELECT DISTINCT ano, trimestre FROM avaliacoes WHERE tipo = ? ORDER BY ano DESC, trimestre DESC LIMIT 4`,
+        [tipoAval],
         (err, periodos) => {
             if (err) return res.status(500).json({ error: err.message });
             const periodosOrdenados = (periodos || []).slice().reverse();
 
             db.all(
                 `SELECT c.id, c.nome_completo, c.departamento, c.cargo,
-                        c.foto_path, c.foto_base64, c.data_admissao, c.status
+                        c.foto_path, c.foto_base64, c.data_admissao, c.status,
+                        (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
                  FROM colaboradores c
+                 LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
                  WHERE c.status != 'Desligado'
                  ORDER BY c.nome_completo ASC`,
                 [],
@@ -9699,9 +10408,9 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                     db.all(
                         `SELECT colaborador_id, ano, trimestre, respostas_json, created_at
                          FROM avaliacoes
-                         WHERE tipo = 'satisfacao' AND colaborador_id IN (${placeholders2})
+                         WHERE tipo = ? AND colaborador_id IN (${placeholders2})
                          ORDER BY ano DESC, trimestre DESC`,
-                        colabIds,
+                        [tipoAval, ...colabIds],
                         (err3, avaliacoes) => {
                             if (err3) return res.status(500).json({ error: err3.message });
 
@@ -9714,21 +10423,29 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                 try { respostas = JSON.parse(a.respostas_json || '{}'); } catch(e) {}
                                 // Calcular média geral de todas as notas do JSON
                                 let todas = [];
-                                Object.entries(respostas).forEach(([topico, val]) => {
-                                    if (topico === '__obs__' || topico === '__status__') return; // ignorar observações
-                                    if (Array.isArray(val)) {
-                                        todas = todas.concat(val.filter(n => typeof n === 'number' && !isNaN(n)));
-                                    } else if (typeof val === 'number' && !isNaN(val)) {
-                                        todas.push(val);
-                                    } else if (val && typeof val.media === 'number') {
-                                        todas.push(val.media);
-                                    } else if (typeof val === 'object' && val !== null) {
-                                        // formato { '0': 3, '1': 5, ... }
-                                        Object.values(val).forEach(n => {
-                                            if (typeof n === 'number' && !isNaN(n)) todas.push(n);
-                                        });
-                                    }
-                                });
+                                
+                                // Formato legado: { scores: { 'Topico': avg } }
+                                if (respostas.scores && typeof respostas.scores === 'object') {
+                                    todas = Object.values(respostas.scores).map(n => parseFloat(n)).filter(n => !isNaN(n));
+                                } else {
+                                    Object.entries(respostas).forEach(([topico, val]) => {
+                                        if (topico === '__obs__' || topico === '__status__' || topico === 'scores' || topico === 'topicos' || topico === 'info_adicional') return;
+                                        if (Array.isArray(val)) {
+                                            todas = todas.concat(val.map(n => parseFloat(n)).filter(n => !isNaN(n)));
+                                        } else if (val !== null && val !== undefined && typeof val !== 'object') {
+                                            const n = parseFloat(val);
+                                            if (!isNaN(n)) todas.push(n);
+                                        } else if (val && val.media !== undefined) {
+                                            const m = parseFloat(val.media);
+                                            if (!isNaN(m)) todas.push(m);
+                                        } else if (typeof val === 'object' && val !== null) {
+                                            Object.values(val).forEach(n => {
+                                                const p = parseFloat(n);
+                                                if (!isNaN(p)) todas.push(p);
+                                            });
+                                        }
+                                    });
+                                }
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
                                 avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas };
                             });
@@ -9737,10 +10454,11 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
                                 const pesquisas = {};
                                 periodosOrdenados.forEach(p => {
                                     const key = `${p.ano}-T${p.trimestre}`;
-                                    // Verificar se o colaborador estava admitido nessa época
+                                    // Verificar se o colaborador estava admitido nessa ??poca
                                     const dataAdmissao = c.data_admissao ? new Date(c.data_admissao) : null;
-                                    // Referência da pesquisa: 1o dia do trimestre
-                                    const mesInicio = (p.trimestre - 1) * 3 + 1;
+                                    // Refer??ncia da pesquisa: 1o dia do trimestre
+                                    const _mesInicioMap = { 1: 1, 2: 4, 3: 7, 4: 9 };
+                                    const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
                                     const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
                                     const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
                                     pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, nao_admitido: naoAdmitido };
@@ -9760,7 +10478,7 @@ app.get('/api/avaliacoes/satisfacao/colaboradores', authenticateToken, (req, res
     );
 });
 
-// ─── FIM DASHBOARD DE SATISFAÇÃO ─────────────────────────────────────────────
+// ????????? FIM DASHBOARD DE SATISFA????O ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // --- ROTA DE ENVIO DE E-MAIL ASO ---
 app.post('/api/send-aso-email', authenticateToken, (req, res) => {
@@ -9769,21 +10487,27 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
     db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (err, colab) => {
         if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
 
-        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const exames = (colab.cargo || '').toLowerCase().includes('motorista')
-            ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
-            : 'Exame Padrão';
+        // Buscar nome ASO do departamento (campo específico para o e-mail da IACI)
+        db.get('SELECT nome_aso FROM departamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND nome_aso IS NOT NULL AND nome_aso != ""',
+            [colab.departamento || ''],
+            (errDept, deptRow) => {
+                const nomeDeptEmail = (deptRow && deptRow.nome_aso) ? deptRow.nome_aso : (colab.departamento || '-');
 
-        // Formatar data: YYYY-MM-DD to DD/MM/YYYY
-        const [y, m, d] = data_exame.split('-');
-        const dataFormatada = `${d}/${m}/${y}`;
-        const tipoExameStr = tipo_exame || 'Admissional';
+                const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                const exames = (colab.cargo || '').toLowerCase().includes('motorista')
+                    ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
+                    : 'Exame Padrão';
 
-        const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao) 
-            ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>` 
-            : '';
+                // Formatar data: YYYY-MM-DD to DD/MM/YYYY
+                const [y, m, d] = data_exame.split('-');
+                const dataFormatada = `${d}/${m}/${y}`;
+                const tipoExameStr = tipo_exame || 'Admissional';
 
-        const htmlContent = `
+                const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao)
+                    ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>`
+                    : '';
+
+                const htmlContent = `
             <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px;">
@@ -9797,7 +10521,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                     <p><strong>CPF:</strong> ${colab.cpf}</p>
                     <p><strong>Função Atual:</strong> ${colab.cargo || '-'}</p>
                     ${novaFuncaoHtml}
-                    <p><strong>Departamento:</strong> ${colab.departamento || '-'}</p>
+                    <p><strong>Departamento:</strong> ${nomeDeptEmail}</p>
                 </div>
 
                 <p><strong>Exames a serem realizados:</strong><br>
@@ -9805,7 +10529,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
                 <div style="margin-top: 30px; padding: 15px; border: 2px solid #e74c3c; border-radius: 8px; background: #fff5f5; text-align: center;">
                     <p style="color: #c0392b; font-weight: bold; font-size: 1.1rem; margin: 0;">
-                        ?? IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
+                        ⚠️ IMPORTANTE:<br>Após o exame ficar pronto, favor enviar o documento por e-mail diretamente para:<br>
                         <span style="font-size: 1.2rem; color: #2c3e50;">rh@americarental.com.br</span>
                     </p>
                 </div>
@@ -9848,7 +10572,11 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
             db.run('UPDATE colaboradores SET aso_email_enviado = ?, aso_exame_data = ? WHERE id = ?', [dataEnvioStr, dataAgendadaStr, colaborador_id], (err) => {
                 if (err) console.error('Erro ao salvar aso_email_enviado/aso_exame_data:', err);
 
-                const tipoASO = `ASO ${tipoExameStr}`;
+                // ASO Periódico e ASO Padrão são o mesmo quadro — sempre usa 'ASO Periódico'
+                const tipoExameNorm = tipoExameStr.toLowerCase().replace(/[áàãâä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[íìîï]/g, 'i').replace(/[óòõôö]/g, 'o').replace(/[úùûü]/g, 'u');
+                const tipoASO = (tipoExameNorm === 'periodico' || tipoExameNorm === 'padrao' || tipoExameStr === 'Periódico' || tipoExameStr === 'Padrão')
+                    ? 'ASO Periódico'
+                    : `ASO ${tipoExameStr}`;
                 db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, year) VALUES (?, ?, ?, ?)`,
                     [colaborador_id, 'ASO', tipoASO, y],
                     function (insertErr) {
@@ -9867,8 +10595,10 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 );
             });
         });
-    });
-});
+            } // fim deptRow callback
+        ); // fim db.get departamento
+    }); // fim db.get colaborador
+}); // fim app.post /api/send-aso-email
 
 /**
  * Envio de Atestado para a Contabilidade (eSocial)
@@ -9894,7 +10624,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado não encontrado no servidor.' });
         }
 
-        // Extrair CID e descrição de document_type (formato: "Z57 - Problemas laborais")
+        // Extrair CID e descri????o de document_type (formato: "Z57 - Problemas laborais")
         const docTypeParts = (doc.document_type || '').split(' - ');
         const cidCode = docTypeParts[0] || '-';
         const cidDesc = docTypeParts.slice(1).join(' - ') || '-';
@@ -9921,16 +10651,16 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         }
         const ehEsocial = duracaoDias >= 16;
 
-        // Textos dinâmicos conforme período
+        // Textos din??micos conforme período
         const emailTitulo = ehEsocial
-            ? '📋 Documento RH — Afastamento para eSocial'
-            : '📋 Documento RH — Controle de Afastamento';
+            ? '???? Documento RH ??? Afastamento para eSocial'
+            : '???? Documento RH ??? Controle de Afastamento';
         const emailSubject = ehEsocial
-            ? `Documento RH enviado por América Rental — ${colab.nome_completo} (eSocial)`
-            : `Documento RH enviado por América Rental — ${colab.nome_completo} (Controle)`;
+            ? `Documento RH enviado por América Rental - ${colab.nome_completo} (eSocial)`
+            : `Documento RH enviado por América Rental - ${colab.nome_completo} (Controle)`;
         const emailIntro = ehEsocial
-            ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento é de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
-            : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lançamento</strong>.`;
+            ? `Encaminhamos o atestado m??dico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento à de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado m??dico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lan??amento</strong>.`;
         const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
 
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
@@ -9960,14 +10690,14 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
                 </div>
 
                 <div style="background:#fff; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin:20px 0;">
-                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:${tituloColor}; font-weight:700;">${cidCode}</span> — ${cidDesc}</p>
+                    <p style="margin:4px 0;"><strong>CID:</strong> <span style="color:${tituloColor}; font-weight:700;">${cidCode}</span> ??? ${cidDesc}</p>
                     <p style="margin:4px 0;"><strong>Início do afastamento:</strong> ${dataInicio}</p>
                     <p style="margin:4px 0;"><strong>Fim do afastamento:</strong> ${dataFim}</p>
                     <p style="margin:4px 0;"><strong>Tipo:</strong> Atestado em ${tipo}${duracaoDias > 0 ? ` (${duracaoDias} dia(s))` : ''}</p>
                 </div>
 
                 <p>O documento em PDF está em anexo neste e-mail.</p>
-                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - América Rental</p>
             </div>
         `;
 
@@ -10008,7 +10738,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
     }
 
-    // Nodemailer requer vírgula para múltiplos destinatários, substituindo ; por ,
+    // Nodemailer requer v??rgula para m??ltiplos destinatários, substituindo ; por ,
     email_to = email_to.replace(/;/g, ',');
 
     try {
@@ -10047,13 +10777,13 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">📉 Boleto Faculdade</h2>
+                <h2 style="color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">???? Boleto Faculdade</h2>
                 <p>Informamos que o colaborador anexou o boleto da <strong>Faculdade</strong> referente à competência ${md}/${yyyy}.</p>
 
                 <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:20px 0; border: 1px solid #bbf7d0;">
                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                     <p style="margin:4px 0;"><strong>CPF:</strong> ${colab.cpf || '-'}</p>
-                    <p style="margin:4px 0;"><strong>Competência:</strong> ${md}/${yyyy}</p>
+                    <p style="margin:4px 0;"><strong>Compet??ncia:</strong> ${md}/${yyyy}</p>
                     <p style="margin:4px 0;"><strong>Data do upload:</strong> ${dataDoc}</p>
                 </div>
 
@@ -10064,7 +10794,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
                 </div>
 
                 ${attachments.length > 1 ? '<p>O documento em PDF está em anexo neste e-mail.</p>' : ''}
-                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - América Rental</p>
             </div>
         `;
 
@@ -10073,7 +10803,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
-            subject: `📉 Boleto Faculdade - ${colab.nome_completo}`,
+            subject: `[BOLETO] Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
             attachments: attachments
         });
@@ -10114,7 +10844,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
             : new Date().toLocaleDateString('pt-BR');
 
         // Garantir que o documento está assinado (pelo menos pelas testemunhas)
-        // Suspensões podem ser enviadas à contabilidade apenas com a assinatura das testemunhas
+        // Suspens??es podem ser enviadas à contabilidade apenas com a assinatura das testemunhas
         if (doc.assinafy_status !== 'Assinado' && doc.assinafy_status !== 'Testemunhas') {
             return res.status(400).json({ sucesso: false, error: 'O documento ainda não foi assinado. Aguarde a assinatura do colaborador ou das testemunhas antes de enviar.' });
         }
@@ -10160,13 +10890,13 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
                 <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
                     <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
-                        ?? Atenção: Este documento disciplinar deve ser considerado na folha de pagamento do colaborador.<br>
+                        à Atenção: Este documento disciplinar deve ser considerado na folha de pagamento do colaborador.<br>
                         Favor analisar para o fechamento do mês.
                     </p>
                 </div>
 
                 ${attachments.length > 1 ? `<p>O documento de ${isAdvertencia ? 'advertência' : 'suspensão'} está em anexo neste e-mail.</p>` : ''}
-                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH — América Rental</p>
+                <p style="margin-top:30px; font-size:0.9em; color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - América Rental</p>
             </div>
         `;
 
@@ -10174,7 +10904,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: email_to,
-            subject: `?? Documento Disciplinar para Folha — ${colab.nome_completo} (${tipoDocumento})`,
+            subject: `[DISCIPLINAR] Documento para Folha - ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
             attachments
         });
@@ -10241,7 +10971,7 @@ app.post("/webhook/assinafy", async (req, res) => {
 
         // 3. Processamento Unificado de Assinatura Completa via Polling
         // Em vez de duplicar a lógica complexa de downlaod, Assinatura Digital (PFX) por cima, 
-        // Sync Onedrive e Updates de DB, nós simplesmente acionamos nosso POLLING.
+        // Sync Onedrive e Updates de DB, nàs simplesmente acionamos nosso POLLING.
         const event = (payload.event || '').toLowerCase();
         if (event.includes('ready') || event.includes('signed') || event.includes('completed') || event.includes('certificated')) {
             setTimeout(() => {
@@ -10251,7 +10981,7 @@ app.post("/webhook/assinafy", async (req, res) => {
         }
 
     } catch (e) {
-        console.error('[WEBHOOK] Erro gravíssimo:', e);
+        console.error('[WEBHOOK] Erro gravàssimo:', e);
     }
 });
 
@@ -10289,7 +11019,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
                 const assinafyRes = await getDocData();
                 const docData = assinafyRes.data || assinafyRes;
 
-                // Forçar o recálculo da melhor URL pra evitar cache do antigo (sem certificado)
+                // Forçar o rec??lculo da melhor URL pra evitar cache do antigo (sem certificado)
                 let targetUrl = extractSignedUrl(docData);
 
                 if (targetUrl) {
@@ -10360,7 +11090,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
             }
         }
 
-        return res.status(404).json({ error: 'PDF assinado ainda não disponível. Aguarde alguns instantes.' });
+        return res.status(404).json({ error: 'PDF assinado ainda não dispon??vel. Aguarde alguns instantes.' });
     });
 });
 /**
@@ -10411,9 +11141,9 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         let newStatus = doc.assinafy_status;
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
-        // status possíveis no assinafy: certificated (assinado), completed (envelope criado, aguardando), pending, waiting_signatures, error
+        // status poss??veis no assinafy: certificated (assinado), completed (envelope criado, aguardando), pending, waiting_signatures, error
         // CORREÇÃO: 'completed' indica que o envelope foi CRIADO com sucesso, NÃO que foi assinado!
-        // Apenas 'certificated' e código numérico '4' indicam assinatura efetiva de TODOS os signatários.
+        // Apenas 'certificated' e código num??rico '4' indicam assinatura efetiva de TODOS os signatérios.
         if (pStatus.includes('certificat') || pStatus === '4') {
             newStatus = 'Assinado';
         } else if (pStatus.includes('complet') || pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
@@ -10523,7 +11253,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 });
 
 /**
- * DIAGNÓSTICO: Força re-envio de documento assinado ao OneDrive e retorna log detalhado
+ * DIAGN??STICO: Força re-envio de documento assinado ao OneDrive e retorna log detalhado
  */
 app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (req, res) => {
     const docId = req.params.id;
@@ -10574,7 +11304,7 @@ app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (re
             addLog(`Artifacts: ${JSON.stringify(docData.artifacts || 'nenhum')}`);
 
             const signedUrl = extractSignedUrl(docData);
-            addLog(`URL extraída: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
+            addLog(`URL extra??da: ${signedUrl || 'NENHUMA URL ENCONTRADA'}`);
             if (!signedUrl) return res.json({ log, error: 'URL do PDF assinado não encontrada.', raw: docData });
 
             const storagePath = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'uploads');
@@ -10709,6 +11439,13 @@ app.post('/api/maintenance/upload-db', authenticateToken, uploadDB.single('datab
  * ROTA TEMPORÁRIA: Reset de Sistema
  */
 app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
+    const isDiretoria = req.user?.role === 'Diretoria' ||
+        req.user?.username === 'admin' ||
+        req.user?.username === 'Thais.Ricci' ||
+        req.user?.grupo_permissao_id === 1;
+    if (!isDiretoria) {
+        return res.status(403).json({ error: 'Acesso negado. Apenas Diretoria pode executar esta operação.' });
+    }
     db.serialize(() => {
         db.run("DELETE FROM colaborador_chaves");
         db.run("DELETE FROM dependentes");
@@ -10760,7 +11497,7 @@ app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res
         res.json({ ok, fail, total: (rows || []).length });
     });
 });
-// DIAGNÓSTICO: Verificar estado de um documento e seus campos
+// DIAGN??STICO: Verificar estado de um documento e seus campos
 app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res) => {
     const { docId } = req.params;
     db.get('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, assinafy_id FROM documentos WHERE id = ?', [docId], (err, row) => {
@@ -10776,7 +11513,7 @@ app.get('/avaliacao-publica.html', (req, res) => {
 
 // --- SERVIR ARQUIVOS ESTÁTICOS ---
 app.use(express.static(path.join(__dirname, '../frontend')));
-app.use('/files', express.static(path.join(__dirname, '..', '..')));
+// 🔒 SEGURANÇA: Rota /files removida — expunha toda a árvore de arquivos do servidor sem autenticação.
 
 // ====================================================================
 // EPI TEMPLATES - CRUD
@@ -10801,7 +11538,7 @@ app.put('/api/epi-templates/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM epi_templates WHERE id=?', [templateId], (err, old) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // Preservar a categoria original — nunca mudar via edição de nome/lista
+        // Preservar a categoria original ??? nunca mudar via edição de nome/lista
         const categoriaOriginal = old ? (old.categoria || 'Outros') : 'Outros';
 
         db.run(
@@ -10891,7 +11628,7 @@ app.post('/api/colaboradores/:id/epi-fichas', authenticateToken, (req, res) => {
     const colaboradorId = req.params.id;
 
     db.run(
-        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Substituída por nova ficha manual' WHERE colaborador_id=? AND status='ativa'`,
+        `UPDATE colaborador_epi_fichas SET status='fechada', fechada_em=CURRENT_TIMESTAMP, motivo_fechamento='Substitu??da por nova ficha manual' WHERE colaborador_id=? AND status='ativa'`,
         [colaboradorId],
         () => {
             db.run(
@@ -10997,7 +11734,7 @@ app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
             if (e1) return res.status(500).json({ error: e1.message });
             db.run('DELETE FROM colaborador_epi_fichas WHERE id = ?', [fichaId], (e2) => {
                 if (e2) return res.status(500).json({ error: e2.message });
-                res.json({ sucesso: true, mensagem: 'Ficha excluída com sucesso.' });
+                res.json({ sucesso: true, mensagem: 'Ficha exclu??da com sucesso.' });
             });
         });
     });
@@ -11137,7 +11874,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
 
-            // --- Auditoria Jurídica de Assinatura (tabela correta: assinaturas_auditoria) ---
+            // --- Auditoria Jur??dica de Assinatura (tabela correta: assinaturas_auditoria) ---
             try {
                 const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
                 const { dispositivo, gps_lat, gps_lon } = req.body;
@@ -11194,6 +11931,11 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         epiContagem[key].count++;
                     });
 
+                    // HELPER: Delega para a função global notificarEstoqueMinimo
+                    function verificarENotificarEstoqueMinimoPorEndereco(itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd, fotoUrl, fotoBase64) {
+                        notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtdAnterior, qtdAtual, minEnd, tipoNotifEnd);
+                    }
+
                     // Função central para processar a baixa de um item com quantidade total e endereço opcional
                 function processarBaixaEstoque(item, count, enderecoId, enderecoNome) {
                     if (!item || item.quantidade_atual < count) {
@@ -11201,166 +11943,50 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                         count = item ? Math.max(0, item.quantidade_atual) : 0;
                         if (count === 0) return;
                     }
-                    const newQtd = item.quantidade_atual - count;
-                    // UPDATE atômico no total
-                    db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
-                        if (!errUpd) {
-                            console.log(`[ESTOQUE] Baixa de ${count}x "${item.nome}" efetuada (endereço: ${enderecoNome || 'Geral'}). Novo saldo: ${newQtd}.`);
-                            // Se tem endereço, debita do saldo por endereço
-                            if (enderecoId) {
-                                db.run(
-                                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                                    [count, item.id, enderecoId],
-                                    (errSaldo) => { if (errSaldo) console.error('[ESTOQUE] Erro ao debitar saldo por endereço:', errSaldo.message); }
-                                );
-                            } else {
-                                // Sem endereço específico: debita do 'Geral'
-                                db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
-                                    if (!errG && rowG) {
-                                        db.run(
-                                            'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                                            [count, item.id, rowG.id],
-                                            () => {}
-                                        );
-                                    }
-                                });
-                            }
-                            // Grava Histórico de Saída
-                            db.run(
-                                'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                [item.id, count, 'Saída', registrado_por || 'Sistema', 'Baixa Prontuário Colaborador', enderecoId || null, enderecoNome || null],
-                                () => {}
-                            );
-                        } else {
-                            console.error(`[ESTOQUE] Erro ao baixar item ${item.id}:`, errUpd.message);
-                        }
-
-                        // Alerta de estoque mínimo
-                        if (!errUpd && newQtd < item.quantidade_minima && item.quantidade_atual >= item.quantidade_minima) {
-                            const msg = `ESTOQUE BAIXO: O item "${item.nome}" (${item.departamento}) atingiu o estoque mínimo. Quantidade Atual: ${newQtd}.`;
-                            const dadosStr = JSON.stringify({ item_id: item.id, nome: item.nome, quantidade_atual: newQtd, quantidade_minima: item.quantidade_minima });
-
-                            // Buscar tipo de notificação dos endereços onde o item tem saldo
-        db.all(
-            `SELECT DISTINCT ee.tipo_notificacao FROM estoque_saldo_por_endereco s
-             JOIN estoque_enderecos ee ON s.endereco_id = ee.id
-             WHERE s.estoque_id = ? AND s.quantidade > 0 AND ee.tipo_notificacao != '' AND ee.tipo_notificacao IS NOT NULL`,
-            [id], (errT, tiposRows) => {
-                const tiposSet = new Set((tiposRows || []).map(r => r.tipo_notificacao));
-                const tiposNotif = tiposSet.size > 0 ? Array.from(tiposSet) : ['compra']; // fallback: compra
-                tiposNotif.forEach(tipoNotif => {
-                    const dbTipo = tipoNotif === 'reposicao' ? 'estoque_reposicao' : 'estoque_minimo';
-                    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = '${dbTipo}'`, [], (errCR, rowsCR) => {
-                        if (!errCR && rowsCR && rowsCR.length > 0) {
-                            rowsCR.forEach(c => {
-                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, dbTipo, msg, dadosStr]);
+                    
+                    db.get('SELECT s.quantidade, s.quantidade_minima, ee.tipo_notificacao, ee.id as e_id FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ?', [item.id, enderecoId || 0], (errS, rowS) => {
+                        if (!rowS && !enderecoId) {
+                            // Tenta pegar o 'Geral'
+                            db.get("SELECT id, tipo_notificacao FROM estoque_enderecos WHERE nome = 'Geral'", [], (errG, rowG) => {
+                                if (rowG) efetuarBaixa(rowG.id, rowG.tipo_notificacao, null);
+                                else efetuarBaixa(null, null, null);
                             });
+                        } else if (rowS) {
+                            efetuarBaixa(rowS.e_id, rowS.tipo_notificacao, rowS);
+                        } else {
+                            efetuarBaixa(enderecoId, null, null);
                         }
                     });
-                });
-            }
-        );
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'estoque_minimo'", [], (errC, rowsC) => {
-                                if (!errC && rowsC && rowsC.length > 0) {
-                                    rowsC.forEach(c => {
-                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'estoque_minimo', msg, dadosStr]);
-                                    });
-                                    const qIds = rowsC.map(r => r.usuario_id).join(',');
-                                    db.all(`
-                                        SELECT u.email as user_email, c.email_corporativo as colab_email
-                                        FROM usuarios u
-                                        LEFT JOIN colaboradores c ON u.nome = c.nome_completo
-                                        WHERE u.id IN (${qIds})
-                                    `, [], (errU, users) => {
-                                        if (!errU && users && users.length > 0) {
-                                            const emailsArray = users.map(u => u.colab_email || u.user_email).filter(e => e && e.trim() !== '');
-                                            if (emailsArray.length > 0) {
-                                                const emails = [...new Set(emailsArray)].join(',');
-                                                const _logoPath8 = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-
-                                                // IIFE async para permitir await ao baixar a foto do R2
-                                                (async () => {
-                                                    let fotoHtml = '';
-                                                    let fotoAttachment = null;
-
-                                                    // Tenta embutir a foto como CID inline para evitar bloqueio do Outlook
-                                                    if (item.foto_url && item.foto_url.startsWith('http')) {
-                                                        try {
-                                                            const https = require('https');
-                                                            const http = require('http');
-                                                            const fotoBuffer = await new Promise((resolve, reject) => {
-                                                                const mod = item.foto_url.startsWith('https') ? https : http;
-                                                                mod.get(item.foto_url, (resp) => {
-                                                                    const chunks = [];
-                                                                    resp.on('data', c => chunks.push(c));
-                                                                    resp.on('end', () => resolve(Buffer.concat(chunks)));
-                                                                    resp.on('error', reject);
-                                                                }).on('error', reject);
-                                                            });
-                                                            const contentType = item.foto_url.endsWith('.png') ? 'image/png' : (item.foto_url.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
-                                                            const fotoExt = contentType.split('/')[1].replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + fotoExt, content: fotoBuffer, contentType, cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        } catch(eFoto) {
-                                                            console.warn('[ESTOQUE] Não foi possível baixar foto do R2 para CID:', eFoto.message);
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="' + item.foto_url + '" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    } else if (item.foto_base64 && item.foto_base64.startsWith('data:image')) {
-                                                        const _fm = item.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                                                        if (_fm) {
-                                                            const _fext = (_fm[1].split('/')[1] || 'jpg').replace('jpeg','jpg');
-                                                            fotoAttachment = { filename: 'produto.' + _fext, content: Buffer.from(_fm[2], 'base64'), cid: 'produto-foto' };
-                                                            fotoHtml = '<div style="text-align:center;margin:15px 0 20px;"><img src="cid:produto-foto" alt="' + item.nome + '" width="200" height="200" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;" /><p style="margin:6px 0 0;font-size:12px;color:#64748b;">Foto do produto</p></div>';
-                                                        }
-                                                    }
-
-                                                    const mailOptions = {
-                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                                                        to: emails,
-                                                        subject: 'ALERTA DE ESTOQUE MÍNIMO - America Rental',
-                                                        html: `
-                                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                                                                <div style="text-align: center; margin-bottom: 20px;">
-                                                                    <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
-                                                                </div>
-                                                                <h2 style="color: #dc2626; text-align: center;">Aviso de Estoque Mínimo</h2>
-                                                                <p>O seguinte item atingiu ou está abaixo da quantidade mínima em estoque:</p>
-                                                                ${fotoHtml}
-                                                                <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px;">
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Item</th><td style="padding: 8px; border: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Departamento</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.departamento}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Atual</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #dc2626; font-weight: bold;">${newQtd}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">Quantidade Máxima</th><td style="padding: 8px; border: 1px solid #e2e8f0;">${item.quantidade_maxima || '-'}</td></tr>
-                                                                    <tr><th style="text-align: left; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0;">A Adquirir</th><td style="padding: 8px; border: 1px solid #e2e8f0; color: #16a34a; font-weight: bold;">${item.quantidade_maxima ? Math.max(0, item.quantidade_maxima - newQtd) : '-'}</td></tr>
-                                                                </table>
-                                                                <p>Por favor, providencie a reposição o mais breve possível.</p>
-                                                            </div>
-                                                        `,
-                                                        attachments: [
-                                                            { filename: 'logo.png', path: _logoPath8, cid: 'empresa-logo' },
-                                                            ...(fotoAttachment ? [fotoAttachment] : [])
-                                                        ]
-                                                    };
-                                                    sendMailHelper(mailOptions).catch(e => console.error('[ESTOQUE] Erro ao enviar e-mail:', e));
-                                                })().catch(e => console.error('[ESTOQUE] Erro async ao montar email:', e));
-                                            }
-
-                                        }
+                    
+                    function efetuarBaixa(finalEnderecoId, tipoNotificacao, rowS) {
+                        const oldSaldo = rowS ? rowS.quantidade : 0;
+                        const minSaldo = rowS ? (rowS.quantidade_minima || item.quantidade_minima || 0) : (item.quantidade_minima || 0);
+                        
+                        db.run("UPDATE estoque SET quantidade_atual = quantidade_atual - ? WHERE id = ? AND quantidade_atual >= ?", [count, item.id, count], (errUpd) => {
+                            if (!errUpd) {
+                                if (finalEnderecoId) {
+                                    db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?', [count, item.id, finalEnderecoId], () => {
+                                        const newSaldo = Math.max(0, oldSaldo - count);
+                                        verificarENotificarEstoqueMinimoPorEndereco(item.id, item.nome, item.departamento, finalEnderecoId, oldSaldo, newSaldo, minSaldo, tipoNotificacao, item.foto_url, item.foto_base64);
                                     });
                                 }
-                            });
-                        }
-                    });
+                                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [item.id, count, 'Saida', 'Sistema', 'Baixa prontuário Colaborador', finalEnderecoId, enderecoNome], () => {});
+                            }
+                        });
+                    }
                 }
-
+                
                 // Carregar todo o estoque para a memória
                 db.all("SELECT * FROM estoque", [], (errEstoque, todosItens) => {
                     if (errEstoque || !todosItens) return;
 
                     Object.values(epiContagem).forEach(({ count, original }) => {
                         const originalNome = original.trim();
-                        const nomeNormalizado = originalNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                        // Preprocessar: converte "(TAM 38)" → "38" para alinhar com nomes do estoque
+                        const nomePreprocessado = originalNome
+                            .replace(/\(TAM\s+([^)]+)\)/gi, ' $1 ')
+                            .replace(/\s+/g, ' ').trim();
+                        const nomeNormalizado = nomePreprocessado.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                         
                         console.log(`[ESTOQUE] Tentando baixar EPI entregue: "${nomeNormalizado}" (Sexo Colab: ${isFeminino?'F':(isMasculino?'M':'-')})`);
 
@@ -11422,7 +12048,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                                 // Inclusão total da string
                                 if (itemNomeNorm.includes(nomeNormalizado)) score += 50;
 
-                                // Match de Gênero
+                                // Match de G??nero
                                 const hasFeminina = itemNomeNorm.includes('FEMININ');
                                 const hasMasculina = itemNomeNorm.includes('MASCULIN');
                                 if (colabFeminino) {
@@ -11504,10 +12130,10 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
         const pdfBuffer = Buffer.from(base64Data, 'base64');
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
-        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, número sequencial)
+        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, n??mero sequencial)
         const epiFolder = `${onedriveBase}/EPI`;
         await onedrive.ensurePath(epiFolder);
-        // EPI: um único arquivo por ficha (sobrescreve a cada entrega)
+        // EPI: um ??nico arquivo por ficha (sobrescreve a cada entrega)
         const epiFileName = `FichaEPI_${fichaId}_${safeNome}.pdf`;
         await onedrive.uploadToOneDrive(epiFolder, epiFileName, pdfBuffer);
         res.json({ success: true, arquivo_epi: epiFileName });
@@ -11547,7 +12173,7 @@ app.get('/api/colaboradores/:id/epi-entregas', authenticateToken, (req, res) => 
     );
 });
 
-// DELETE: remover um EPI específico de uma entrega (ou toda a entrega se for o único)
+// DELETE: remover um EPI específico de uma entrega (ou toda a entrega se for o ??nico)
 app.delete('/api/epi-entregas/:id/epi', authenticateToken, (req, res) => {
     const { epi_nome, senha } = req.body;
     if (senha !== 'EXEPI2499!') return res.status(403).json({ error: 'Senha incorreta.' });
@@ -11561,13 +12187,13 @@ app.delete('/api/epi-entregas/:id/epi', authenticateToken, (req, res) => {
         const novoArray = epis.filter(e => e !== epi_nome);
 
         if (novoArray.length === 0) {
-            // Último EPI da entrega — exclui o registro inteiro
+            // ??ltimo EPI da entrega ??? exclui o registro inteiro
             db.run('DELETE FROM epi_entregas WHERE id = ?', [req.params.id], function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ success: true, entrega_excluida: true });
             });
         } else {
-            // Ainda restam EPIs — apenas atualiza o array
+            // Ainda restam EPIs ??? apenas atualiza o array
             db.run('UPDATE epi_entregas SET epis_entregues = ? WHERE id = ?',
                 [JSON.stringify(novoArray), req.params.id],
                 function (err2) {
@@ -11580,10 +12206,10 @@ app.delete('/api/epi-entregas/:id/epi', authenticateToken, (req, res) => {
 });
 
 // ============================================================
-// EPI EMPRÉSTIMOS — Equipamentos com Devolução Obrigatória
+// EPI EMPRÉSTIMOS - Equipamentos com Devolução Obrigatéria
 // ============================================================
 
-// GET: lista todos os empréstimos pendentes de devolução
+// GET: lista todos os empràstimos pendentes de devolução
 app.get('/api/epi-emprestimos', authenticateToken, (req, res) => {
     db.all(
         `SELECT ee.*, c.nome_completo AS colaborador_nome
@@ -11607,7 +12233,7 @@ app.post('/api/epi-emprestimos/:id/devolver', authenticateToken, (req, res) => {
 
     db.get('SELECT * FROM epi_emprestimos WHERE id = ?', [empId], (err, emprestimo) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!emprestimo) return res.status(404).json({ error: 'Empréstimo não encontrado.' });
+        if (!emprestimo) return res.status(404).json({ error: 'Empràstimo não encontrado.' });
         if (emprestimo.data_devolvido) return res.status(400).json({ error: 'Equipamento já foi devolvido.' });
 
         db.run(
@@ -11656,7 +12282,7 @@ app.post('/api/epi-emprestimos/:id/devolver', authenticateToken, (req, res) => {
                                         [bestItem.id, devolvido_por]
                                     );
                                 }
-                                console.log(`[EPI_EMPRESTIMOS] Devolvido: "${emprestimo.epi_nome}" → estoque "${bestItem.nome}" +1`);
+                                console.log(`[EPI_EMPRESTIMOS] Devolvido: "${emprestimo.epi_nome}" ??? estoque "${bestItem.nome}" +1`);
                                 res.json({ success: true, estoque_reposto: true, item_estoque: bestItem.nome });
                             }
                         );
@@ -11707,7 +12333,7 @@ app.delete('/api/epi-templates/:id', authenticateToken, (req, res) => {
 
 
 // ============================================================
-// ROTAS: USUÁRIOS E GRUPOS DE PERMISSÃO
+// ROTAS: USUÁRIOS E GRUPOS DE PERMISS??O
 // ============================================================
 
 // --- USUÁRIOS ---
@@ -11785,7 +12411,7 @@ app.put('/api/usuarios/:id', authenticateToken, (req, res) => {
 });
 
 
-// DELETE Autenticado: Limpar toda a tabela de credenciamentos (Botão Limpar Lista)
+// DELETE Autenticado: Limpar toda a tabela de credenciamentos (Bot??o Limpar Lista)
 app.delete('/api/logistica/credenciamentos/limpar-lista', authenticateToken, (req, res) => {
     db.run('DELETE FROM credenciamentos', (err) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -11799,7 +12425,7 @@ app.delete('/api/usuarios/:id', authenticateToken, (req, res) => {
         res.json({ message: 'Usuário inativado' });
     });
 });
-// --- CONFIGURAÇÕES DE NOTIFICAÇÕES (POPUP) ---
+// --- CONFIGURA????ES DE NOTIFICA????ES (POPUP) ---
 app.get('/api/config-notificacoes', authenticateToken, (req, res) => {
     db.all('SELECT tipo, usuario_id, email_override FROM config_notificacoes', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -11854,7 +12480,7 @@ app.post('/api/internal/trigger-notif-test', (req, res) => {
             email_override: r.email_override,
             email_usuario: r.email
         }));
-        console.log('[TESTE INTERNO] Destinatários config:', JSON.stringify(destinatarios));
+        console.log('[TESTE INTERNO] Destinatérios config:', JSON.stringify(destinatarios));
 
         // Insert popup notifications
         destinatarios.forEach(d => {
@@ -11873,15 +12499,10 @@ app.post('/api/internal/trigger-notif-test', (req, res) => {
 });
 
 
-app.get('/api/wipe-credenciamentos', (req, res) => {
-    db.run('DELETE FROM credenciamentos', (err) => {
-        res.json({ message: 'Todos os credenciamentos foram limpos.', error: err });
-    });
-});
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// WEBHOOKS — Gerenciamento e Disparo
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// WEBHOOKS ??? Gerenciamento e Disparo
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 /**
  * Dispara um evento webhook para todas as URLs ativas registradas.
@@ -11906,7 +12527,7 @@ async function dispararWebhook(evento, payload) {
                         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'User-Agent': 'AmericaRental-Webhook/1.0' }
                     };
                     const req2 = lib.request(options, (r2) => {
-                        console.log(`[Webhook] ${evento} → ${row.url} — HTTP ${r2.statusCode}`);
+                        console.log(`[Webhook] ${evento} ??? ${row.url} ??? HTTP ${r2.statusCode}`);
                         r2.resume();
                         resolve();
                     });
@@ -11915,12 +12536,12 @@ async function dispararWebhook(evento, payload) {
                     req2.write(body);
                     req2.end();
                 });
-            } catch(e) { console.error(`[Webhook] URL inválida (${row.url}):`, e.message); }
+            } catch(e) { console.error(`[Webhook] URL inv??lida (${row.url}):`, e.message); }
         }
     });
 }
 
-// GET /api/webhooks — lista todos os webhooks cadastrados
+// GET /api/webhooks ??? lista todos os webhooks cadastrados
 app.get('/api/webhooks', authenticateToken, (req, res) => {
     db.all('SELECT * FROM webhooks_config ORDER BY evento, criado_em', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -11928,11 +12549,11 @@ app.get('/api/webhooks', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/webhooks — cadastra nova URL assinante
+// POST /api/webhooks ??? cadastra nova URL assinante
 app.post('/api/webhooks', authenticateToken, (req, res) => {
     const { evento, nome, url } = req.body;
     if (!evento || !url) return res.status(400).json({ error: 'evento e url são obrigatórios' });
-    try { new URL(url); } catch(e) { return res.status(400).json({ error: 'URL inválida' }); }
+    try { new URL(url); } catch(e) { return res.status(400).json({ error: 'URL inv??lida' }); }
     db.run('INSERT INTO webhooks_config (evento, nome, url) VALUES (?, ?, ?)',
         [evento, nome || '', url],
         function(err) {
@@ -11941,7 +12562,7 @@ app.post('/api/webhooks', authenticateToken, (req, res) => {
         });
 });
 
-// PATCH /api/webhooks/:id/toggle — ativa ou desativa
+// PATCH /api/webhooks/:id/toggle ??? ativa ou desativa
 app.patch('/api/webhooks/:id/toggle', authenticateToken, (req, res) => {
     db.run('UPDATE webhooks_config SET ativo = CASE WHEN ativo = 1 THEN 0 ELSE 1 END WHERE id = ?',
         [req.params.id], function(err) {
@@ -11950,7 +12571,7 @@ app.patch('/api/webhooks/:id/toggle', authenticateToken, (req, res) => {
         });
 });
 
-// DELETE /api/webhooks/:id — remove uma URL assinante
+// DELETE /api/webhooks/:id ??? remove uma URL assinante
 app.delete('/api/webhooks/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM webhooks_config WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -11958,10 +12579,10 @@ app.delete('/api/webhooks/:id', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/webhooks/testar/:id — faz disparo de teste para uma URL específica
+// POST /api/webhooks/testar/:id ??? faz disparo de teste para uma URL espec??fica
 app.post('/api/webhooks/testar/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM webhooks_config WHERE id = ?', [req.params.id], async (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
+            if (err || !row) return res.status(404).json({ error: 'Não encontrado' });
         const https = require('https');
         const http = require('http');
         const payload = { evento: row.evento, timestamp: new Date().toISOString(), dados: { teste: true, mensagem: 'Este é um webhook de teste da América Rental.' } };
@@ -11984,15 +12605,15 @@ app.post('/api/webhooks/testar/:id', authenticateToken, (req, res) => {
                 req2.setTimeout(10000, () => { req2.destroy(); res.status(504).json({ ok: false, erro: 'Timeout (10s)' }); resolve(); });
                 req2.write(body); req2.end();
             });
-        } catch(e) { res.status(400).json({ ok: false, erro: 'URL inválida: ' + e.message }); }
+        } catch(e) { res.status(400).json({ ok: false, erro: 'URL inv??lida: ' + e.message }); }
     });
 });
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-// ── ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ────────────────────────────────────
+// ?????? ANEXOS DE OCORRÊNCIAS (Cloudflare R2) ????????????????????????????????????????????????????????????????????????????????????????????????????????????
 const multerOcorrAnexo = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-// GET /api/ocorrencias/:id/anexos — lista anexos da ocorrência
+// GET /api/ocorrencias/:id/anexos ??? lista anexos da ocorrência
 app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
     db.all('SELECT id, nome_arquivo, mime_type, tamanho, url, criado_em FROM ocorrencias_anexos WHERE ocorrencia_id = ? ORDER BY criado_em ASC',
         [req.params.id], (err, rows) => {
@@ -12008,7 +12629,7 @@ app.get('/api/ocorrencias/:id/anexos', authenticateToken, (req, res) => {
         });
 });
 
-// POST /api/ocorrencias/:id/anexos — faz upload para R2
+// POST /api/ocorrencias/:id/anexos ??? faz upload para R2
 app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     if (!r2 || !r2.isReady()) return res.status(503).json({ error: 'R2 Storage não configurado.' });
@@ -12033,7 +12654,7 @@ app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.sing
     }
 });
 
-// DELETE /api/ocorrencias/:id/anexos/:aid — remove do R2 e do banco
+// DELETE /api/ocorrencias/:id/anexos/:aid ??? remove do R2 e do banco
 app.delete('/api/ocorrencias/:id/anexos/:aid', authenticateToken, (req, res) => {
     db.get('SELECT r2_key FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
         [req.params.aid, req.params.id], async (err, row) => {
@@ -12046,13 +12667,13 @@ app.delete('/api/ocorrencias/:id/anexos/:aid', authenticateToken, (req, res) => 
             db.run('DELETE FROM ocorrencias_anexos WHERE id = ? AND ocorrencia_id = ?',
                 [req.params.aid, req.params.id], function(err2) {
                     if (err2) return res.status(500).json({ error: err2.message });
-                    res.json({ message: 'Excluído' });
+                res.json({ message: "Exclu??do" });
                 });
         });
 });
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-// --- GRUPOS DE PERMISSÃO ---
+// --- GRUPOS DE PERMISS??O ---
 app.get('/api/grupos-permissao', authenticateToken, (req, res) => {
     db.all('SELECT * FROM grupos_permissao ORDER BY nome', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -12068,7 +12689,7 @@ app.post('/api/grupos-permissao', authenticateToken, (req, res) => {
         [nome, descricao || '', departamento || 'Todas', tipo || 'personalizado', base_usuario_id || null],
         function (err) {
             if (err) {
-                const msg = err.message.includes('UNIQUE') ? 'Já existe um grupo com este nome.' : err.message;
+                const msg = err.message.includes('UNIQUE') ? 'J?? existe um grupo com este nome.' : err.message;
                 return res.status(400).json({ error: msg });
             }
             res.status(201).json({ id: this.lastID, message: 'Grupo criado' });
@@ -12095,7 +12716,7 @@ app.delete('/api/grupos-permissao/:id', authenticateToken, (req, res) => {
     });
 });
 
-// --- PERMISSÕES POR GRUPO ---
+// --- PERMISS??ES POR GRUPO ---
 app.get('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) => {
     db.all('SELECT * FROM permissoes_grupo WHERE grupo_id = ? ORDER BY modulo, pagina_nome', [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -12143,8 +12764,8 @@ app.put('/api/grupos-permissao/:id/permissoes', authenticateToken, (req, res) =>
                         db.run('ROLLBACK');
                         return res.status(500).json({ error: 'Erro ao confirmar transação: ' + errCommit.message });
                     }
-                    console.log(`[PERMISSÕES] Grupo ${gid}: ${permissoes.length} permissões salvas com sucesso.`);
-                    res.json({ message: 'Permissões salvas com sucesso', count: permissoes.length });
+                    console.log(`[PERMISS??ES] Grupo ${gid}: ${permissoes.length} permissões salvas com sucesso.`);
+                    res.json({ message: 'Permiss??es salvas com sucesso', count: permissoes.length });
                 });
             });
         });
@@ -12177,7 +12798,7 @@ app.post('/api/grupos-permissao/:id/copiar-usuario/:uid', authenticateToken, (re
                     if (err4) return res.status(500).json({ error: err4.message });
                     // Atualizar base_usuario_id no grupo
                     db.run('UPDATE grupos_permissao SET base_usuario_id = ? WHERE id = ?', [uid, gid]);
-                    res.json({ message: 'Permissões copiadas com sucesso', count: perms.length });
+                    res.json({ message: 'Permiss??es copiadas com sucesso', count: perms.length });
                 });
             });
         });
@@ -12381,16 +13002,16 @@ app.post('/api/gerador-outros-contratos-templates/batch', authenticateToken, (re
 // ROTAS DE GERENCIAMENTO DO CERTIFICADO DIGITAL (.PFX)
 // ---------------------------------------------------------------------------
 
-// Diretório persistente para o certificado: mesmo disco do banco de dados
+// Diret??rio persistente para o certificado: mesmo disco do banco de dados
 const CERT_DIR = (() => {
     if (process.env.DATABASE_PATH) {
-        // Salva no mesmo diretório do banco (disco persistente do Render)
+        // Salva no mesmo diret??rio do banco (disco persistente do Render)
         return path.join(path.dirname(process.env.DATABASE_PATH), '_certificados');
     }
     return path.join(__dirname, 'data', '_certificados');
 })();
 if (!fs.existsSync(CERT_DIR)) { try { fs.mkdirSync(CERT_DIR, { recursive: true }); } catch (e) { } }
-console.log(`[CERT] Diretório do certificado: ${CERT_DIR}`);
+console.log(`[CERT] Diret??rio do certificado: ${CERT_DIR}`);
 
 const uploadCertificado = multer({
     storage: multer.diskStorage({
@@ -12493,7 +13114,7 @@ app.post('/api/certificado-digital/upload', authenticateToken, uploadCertificado
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_path', ?)`, [pfxPath]);
     db.run(`INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('pfx_password_b64', ?)`, [senha64]);
 
-    // Atualiza variáveis em memória para acesso imediato sem precisar reiniciar o app
+    // Atualiza vari??veis em memória para acesso imediato sem precisar reiniciar o app
     process.env.PFX_PATH = pfxPath;
     process.env.PFX_PASSWORD = senha;
 
@@ -12515,7 +13136,7 @@ app.delete('/api/certificado-digital', authenticateToken, (req, res) => {
     }
     // Remover do banco
     db.run(`DELETE FROM configuracoes_sistema WHERE chave IN ('pfx_path','pfx_password_b64')`);
-    // Remover arquivo físico do CERT_DIR
+    // Remover arquivo fàsico do CERT_DIR
     const certFile = path.join(CERT_DIR, 'certificado.pfx');
     if (fs.existsSync(certFile)) { try { fs.unlinkSync(certFile); } catch (e) { } }
     // Limpar env vars em memória
@@ -12552,14 +13173,14 @@ app.post('/api/certificado-digital/testar', authenticateToken, async (req, res) 
 
 // Ao inicializar o servidor: carregar PFX_PATH e PFX_PASSWORD do banco se não estiverem no env
 setTimeout(() => {
-    // 1º: Verificar se o arquivo existe direto no CERT_DIR (persistência automática)
+    // 1??: Verificar se o arquivo existe direto no CERT_DIR (persistência automática)
     const certFilePadrao = path.join(CERT_DIR, 'certificado.pfx');
     if (!process.env.PFX_PATH && fs.existsSync(certFilePadrao)) {
         process.env.PFX_PATH = certFilePadrao;
         console.log(`[CERT] Certificado encontrado automaticamente no disco: ${certFilePadrao}`);
     }
 
-    // 2º: Carregar do banco de dados (fallback)
+    // 2??: Carregar do banco de dados (fallback)
     db.run(`CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)`, () => {
         if (!process.env.PFX_PATH) {
             db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'pfx_path'`, [], (err, row) => {
@@ -12580,13 +13201,13 @@ setTimeout(() => {
         if (process.env.PFX_PATH) {
             console.log(`[CERT] ? Certificado digital pronto para uso: ${process.env.PFX_PATH}`);
         } else {
-            console.log(`[CERT] ??  Nenhum certificado configurado. Configure em Diretoria ? Certificado Digital.`);
+            console.log(`[CERT] à  Nenhum certificado configurado. Configure em Diretoria ? Certificado Digital.`);
         }
     });
 }, 3000);
 
 
-// --- NOVAS ROTAS DA FICHA DE ADMISSÃO ---
+// --- NOVAS ROTAS DA FICHA DE ADMISS??O ---
 const { getFichaAdmissaoHtml } = require('./fichaAdmissao');
 
 // Helper para Layout de e-mail padronizado
@@ -12620,7 +13241,7 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
         <td style="padding:24px 28px 8px;">
           <table cellpadding="0" cellspacing="0">
             <tr>
-              <td style="width:24px;height:24px;background:#e8f5e9;border-radius:4px;text-align:center;line-height:24px;font-size:14px;">📋</td>
+              <td style="width:24px;height:24px;background:#e8f5e9;border-radius:4px;text-align:center;line-height:24px;font-size:14px;">📝</td>
               <td style="padding-left:10px;">
                 <span style="font-size:1.15rem;font-weight:800;color:#0f4c81;">Avaliação de</span>
                 <span style="font-size:1.15rem;font-weight:800;color:#2db0d8;"> Experiência</span>
@@ -12651,7 +13272,7 @@ function gerarEmailExperienciaHTML({ respNome, nomeCompleto, cargo, prazos, dias
           ${temRascunho ? `
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;margin-bottom:16px;">
             <tr><td style="padding:16px 20px;text-align:center;">
-              <p style="margin:0 0 4px;color:#78350f;font-weight:800;font-size:1rem;">⏳ Formulário Iniciado e Pendente de Finalização</p>
+              <p style="margin:0 0 4px;color:#78350f;font-weight:800;font-size:1rem;">⚠️ Formulário Iniciado e Pendente de Finalização</p>
               <p style="margin:0;color:#92400e;font-size:0.88rem;">Este formulário foi parcialmente preenchido. Clique no botão abaixo para continuar de onde parou e finalizá-lo.</p>
             </td></tr>
           </table>
@@ -12726,7 +13347,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
     const id = req.params.id;
     const { email, data_inicio } = req.body;
     if (!email) return res.status(400).json({ error: 'Email destino é obrigatório' });
-    if (!data_inicio) return res.status(400).json({ error: 'Data de início é obrigatória' });
+    if (!data_inicio) return res.status(400).json({ error: 'Data de início à obrigatéria' });
 
     db.get('SELECT * FROM colaboradores WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado' });
@@ -12787,7 +13408,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
                 if (localPath) {
                     const ext = path.extname(localPath) || '.pdf';
-                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 áéíóúãõçÁÉÍÓÚÃÕÇ-]/g, '').trim();
+                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 ????????????????????????????????-]/g, '').trim();
                     // For ASO, annotate if it's the signed version
                     let signedTag = (doc.tab_name === 'ASO' && isSigned) ? ' (Assinado)' : '';
                     let safeName = `${baseType}${signedTag} - ${row.nome_completo || row.nome}${ext}`;
@@ -12812,7 +13433,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 </div>
                 <div style="padding:30px;">
                     <p style="font-size:1.1rem;margin-top:0;"><strong>Olá, Contabilidade!</strong></p>
-                    <p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro contábil admissional do colaborador abaixo.</p>
+                    <p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro cont??bil admissional do colaborador abaixo.</p>
                     <div style="background:#f8fafc;border-left:4px solid #f503c5;padding:15px;margin:20px 0;border-radius:0 8px 8px 0;">
                         <p style="margin:0 0 5px 0;"><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</p>
                         <p style="margin:0 0 5px 0;"><strong>Função / Cargo:</strong> ${row.cargo || 'Não informado'}</p>
@@ -12864,33 +13485,33 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('--- PROMESSA NÃƒO TRATADA (Unhandled Rejection) ---');
+    console.error('--- PROMESSA N????O TRATADA (Unhandled Rejection) ---');
     console.error(reason);
 });
 
 // ============================================================
-// MULTAS DE TRÂNSITO
+// MULTAS DE TR??NSITO
 // ============================================================
 
 // Tabela CTB: código ? { pontuacao, valor }
 const CTB_TABLE = {
-    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do semáforo' },
+    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do sem??foro' },
     '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicação ao volante' },
     '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de segurança' },
     '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em até 20%' },
     '5556': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
     '5553': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
-    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à máxima permitida em até 20%' },
-    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à máxima entre 20% e 50%' },
-    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à máxima em mais de 50%' },
+    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à m??xima permitida em até 20%' },
+    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à m??xima entre 20% e 50%' },
+    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à m??xima em mais de 50%' },
     '6050': { pontuacao: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
     '6010': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
-    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avançar sobre calçada' },
+    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avan??ar sobre cal??ada' },
     '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o veículo sujo' },
-    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influência de álcool' },
-    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emergência' },
+    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influ??ncia de ??lcool' },
+    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emerg??ncia' },
     '5762': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Trafegar em acostamento' },
-    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Não sinalizar redução de velocidade' },
+    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Não sinalizar redu????o de velocidade' },
     '5312': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Executar conversão proibida' },
     '6289': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Usar buzina em local proibido' },
 };
@@ -12907,7 +13528,7 @@ app.get('/api/colaboradores/:id/multas', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/ctb/:codigo — lookup de código de infração
+// GET /api/ctb/:codigo - lookup de código de infração
 app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
     const { codigo } = req.params;
     const entry = CTB_TABLE[codigo];
@@ -12915,7 +13536,7 @@ app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
     res.json({ codigo, pontuacao: null, valor: null, descricao: null, found: false });
 });
 
-// POST /api/colaboradores/:id/multas/upload-notificacao — extrai dados do PDF
+// POST /api/colaboradores/:id/multas/upload-notificacao ??? extrai dados do PDF
 app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, multaUpload.single('arquivo'), async (req, res) => {
     try {
         const { id } = req.params;
@@ -12933,14 +13554,14 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
         // Regex adaptados para o layout SENATRAN
         const placa = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
         const veiculo = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
-        const codigoInfracao = extract(/C[ÓO]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
-        const descricao = extract(/DESCRI[ÇC][ÃA]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
+        const codigoInfracao = extract(/C[??O]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
+        const descricao = extract(/DESCRI[??C][??A]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
         const dataInfracao = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
         const horaInfracao = extract(/\bHORA\b\s*\n(\d{2}:\d{2})/i);
         const localInfracao = extract(/LOCAL DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
         const valorMulta = extract(/VALOR DA MULTA\s*\nRS?\s*([\d.,]+)/i);
-        const numeroAit = extract(/N[ÚU]MERO DO AUTO DE INFRA[ÇC][ÃA]O\s*\n([A-Z0-9]+)/i) ||
-            extract(/IDENTIFICA[ÇC][ÃA]O DO AUTO DE INFRA[ÇC][ÃA]O[^\n]*\n([A-Z0-9]+)/i);
+        const numeroAit = extract(/N[??U]MERO DO AUTO DE INFRA[ÇC][ÃA]O\s*\n([A-Z0-9]+)/i) ||
+            extract(/IDENTIFICA[??C][??A]O DO AUTO DE INFRA[ÇC][ÃA]O[^\n]*\n([A-Z0-9]+)/i);
 
         // Lookup CTB para pontuação/valor oficial
         const ctb = CTB_TABLE[codigoInfracao] || {};
@@ -13002,7 +13623,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
 
                 res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
-                // Notificação de Nova Multa no Prontuário
+                // Notificação de Nova Multa no prontuário
                 db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuario'", [], (err, rowsC) => {
                     if (!err && rowsC && rowsC.length > 0) {
                         const colabNome = colab.nome_completo || colab.nome || 'Colaborador';
@@ -13021,10 +13642,10 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                         const htmlContent = `
                             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;padding:10px;">
-                                    <h3 style="color:#1e293b;margin:0;">AMÉRICA RENTAL EQUIPAMENTOS</h3>
+                                    <h3 style="color:#1e293b;margin:0;">AM??RICA RENTAL EQUIPAMENTOS</h3>
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no Prontuário</h2>
+                                    <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no prontuário</h2>
                                     <p>Uma nova multa foi incluída no prontuário do colaborador abaixo:</p>
                                     <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                                         <p><strong>Colaborador:</strong> ${colabNome}</p>
@@ -13046,7 +13667,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                     }
                 });
 
-                // Upload da notificacao no OneDrive via Graph API (assíncrono)
+                // Upload da notificacao no OneDrive via Graph API (ass??ncrono)
                 if (req.file && onedrive) {
                     ; (async () => {
                         try {
@@ -13070,7 +13691,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
     }
 });
 
-// PUT /api/colaboradores/:id/multas/:multaId — atualiza multa (tipo, parcelas, status, etc.)
+// PUT /api/colaboradores/:id/multas/:multaId ??? atualiza multa (tipo, parcelas, status, etc.)
 app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const fields = req.body;
@@ -13082,14 +13703,14 @@ app.put('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) 
     });
 });
 
-// DELETE /api/colaboradores/:id/multas/:multaId — remove multa não assinada
+// DELETE /api/colaboradores/:id/multas/:multaId - remove multa não assinada
 app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     db.get('SELECT * FROM multas WHERE id = ?', [multaId], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Multa não encontrada.' });
         if (row.status === 'assinado' || row.status === 'confirmado') {
-            return res.status(403).json({ error: 'Não é possível excluir uma multa já assinada ou confirmada.' });
+            return res.status(403).json({ error: 'Não à poss??vel excluir uma multa já assinada ou confirmada.' });
         }
         db.run('DELETE FROM multas WHERE id = ?', [multaId], function (e) {
             if (e) return res.status(500).json({ error: e.message });
@@ -13098,13 +13719,13 @@ app.delete('/api/colaboradores/:id/multas/:multaId', authenticateToken, (req, re
     });
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/gerar-documento — gera HTML do termo
+// POST /api/colaboradores/:id/multas/:multaId/gerar-documento ??? gera HTML do termo
 app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateToken, async (req, res) => {
     try {
         const { id, multaId } = req.params;
         const { tipo } = req.body; // 'indicacao' | 'nic'
 
-        // Valida se o id do colaborador é válido (pode vir como 'undefined' do frontend)
+        // Valida se o id do colaborador à válido (pode vir como 'undefined' do frontend)
         if (!id || id === 'undefined' || id === 'null' || isNaN(Number(id))) {
             return res.status(400).json({ error: 'Nenhum colaborador vinculado a esta multa. Vincule um motorista antes de iniciar o processo.' });
         }
@@ -13137,14 +13758,14 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         const email = colab.email || '---';
 
         const tituloDoc = tipo === 'indicacao'
-            ? 'TERMO DE AUTORIZAÇÃO DE DESCONTO E INDICAÇÃO DE CONDUTOR MULTA DE TRÂNSITO'
-            : 'TERMO DE RESPONSABILIDADE POR INFRAÇÃO DE TRÂNSITO E AUTORIZAÇÃO DE DESCONTO EM FOLHA';
+            ? 'TERMO DE AUTORIZAÇÃO DE DESCONTO E INDICA????O DE CONDUTOR MULTA DE TR??NSITO'
+            : 'TERMO DE RESPONSABILIDADE POR INFRAÇÃO DE TR??NSITO E AUTORIZAÇÃO DE DESCONTO EM FOLHA';
 
         const textoDoc = tipo === 'indicacao' ? `
             <p>Declaro estar ciente de que a infração ocorreu durante a condução do referido veículo sob
             minha responsabilidade e, portanto, assumo a responsabilidade pela infração cometida.</p>
             <p>Autorizo a empresa América Rental Equipamentos Ltda a realizar minha indicação como
-            condutor responsável pela infração junto ao órgão de trânsito competente, para fins de
+            condutor responsável pela infração junto ao ??rg??o de trânsito competente, para fins de
             registro da pontuação correspondente em minha Carteira Nacional de Habilitação (CNH).</p>
             <p>Declaro também estar ciente do valor da multa, e autorizo expressamente a empresa a
             efetuar o desconto do valor correspondente em minha remuneração, caso o pagamento seja
@@ -13154,15 +13775,15 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
             <p>Declaro estar ciente de que a referida infração ocorreu durante a condução do veículo sob
             minha responsabilidade.</p>
             <p>Por minha livre e espontânea vontade, opto por não realizar a indicação de condutor junto ao
-            órgão de trânsito, estando ciente de que essa decisão poderá gerar a aplicação de multa por
-            Não Identificação do Condutor (NIC) ao proprietário do veículo.</p>
+            ??rg??o de trânsito, estando ciente de que essa decisão poder?? gerar a aplicação de multa por
+            Não Identificação do Condutor (NIC) ao propriet??rio do veículo.</p>
             <p>Dessa forma, assumo integral responsabilidade pelo pagamento da multa original e também
             pela eventual multa NIC, autorizando expressamente a empresa América Rental Equipamentos Ltda
             a realizar o desconto dos valores correspondentes em minha remuneração, caso os pagamentos sejam
             realizados pela empresa, respeitando os limites previstos no artigo 462 da Consolidação das
             Leis do Trabalho (CLT).</p>
             <p>Declaro estar ciente de que os valores poderão ser descontados integralmente ou parcelados,
-            conforme acordo com a empresa, até a quitação total do débito.</p>
+            conforme acordo com a empresa, até a quitação total do d??bito.</p>
         `;
 
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -13195,10 +13816,10 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         <table class="info">
             <tr>
                 <td><b>PLACA:</b> ${multa.placa || ''}</td>
-                <td><b>VEÍCULO:</b> ${multa.veiculo || ''}</td>
+                <td><b>VE??CULO:</b> ${multa.veiculo || ''}</td>
             </tr>
             <tr>
-                <td><b>CÓDIGO INFRAÇÃO:</b> ${multa.codigo_infracao || ''}</td>
+                <td><b>C??DIGO INFRAÇÃO:</b> ${multa.codigo_infracao || ''}</td>
                 <td><b>INFRAÇÃO:</b> ${multa.descricao_infracao || ''}</td>
             </tr>
             <tr>
@@ -13208,15 +13829,15 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
                 <td colspan="2"><b>LOCAL DA INFRAÇÃO:</b> ${multa.local_infracao || ''}</td>
             </tr>
             <tr>
-                <td><b>PONTUAÇÃO:</b> ${multa.pontuacao || ''}</td>
+                <td><b>PONTUA????O:</b> ${multa.pontuacao || ''}</td>
                 <td><b>VALOR DA MULTA:</b> ${multa.valor_multa || ''}</td>
             </tr>
         </table>
         ${textoDoc}
         <p class="parcelas"><strong>Solicito que o desconto seja feito em:</strong><br>
-            (${check1x}) <strong>1x</strong>${_v1 ? ' — ' + _v1 : ''} &nbsp;&nbsp;&nbsp;
-            (${check2x}) <strong>2x</strong>${_v2 ? ' — ' + _v2 + '/mês' : ''} &nbsp;&nbsp;&nbsp;
-            (${check3x}) <strong>3x</strong>${_v3 ? ' — ' + _v3 + '/mês' : ''}
+            (${check1x}) <strong>1x</strong>${_v1 ? ' ??? ' + _v1 : ''} &nbsp;&nbsp;&nbsp;
+            (${check2x}) <strong>2x</strong>${_v2 ? ' - ' + _v2 + '/mês' : ''} &nbsp;&nbsp;&nbsp;
+            (${check3x}) <strong>3x</strong>${_v3 ? ' - ' + _v3 + '/mês' : ''}
         </p>
         ${(function () {
                 var meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -13235,7 +13856,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
     }
 });
 
-// POST /api/colaboradores/:id/multas/:multaId/iniciar-processo — salva tipo/parcelas e marca processo iniciado
+// POST /api/colaboradores/:id/multas/:multaId/iniciar-processo ??? salva tipo/parcelas e marca processo iniciado
 app.post('/api/colaboradores/:id/multas/:multaId/iniciar-processo', authenticateToken, (req, res) => {
     const { multaId } = req.params;
     const { tipo_resolucao, parcelas, documento_html } = req.body;
@@ -13269,7 +13890,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
 
-            // --- Auditoria Jurídica ---
+        // --- Auditoria Jur??dica ---
             try {
                 const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
                 const payloadHash = JSON.stringify({ testemunha1_nome, testemunha1_assinatura, testemunha2_nome, testemunha2_assinatura });
@@ -13307,7 +13928,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
                         await onedrive.ensurePath(targetDir);
                         const pdf = require('html-pdf-node');
                         const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-                        // Nome fixo: Termo_CODIGO_DDMMYYYY.pdf — mesmo nome que sera sobreposto pelo condutor
+                        // Nome fixo: Termo_CODIGO_DDMMYYYY.pdf ??? mesmo nome que sera sobreposto pelo condutor
                         const nomeArquivo = 'Termo_' + codigo + (dataStr ? '_' + dataStr.replace(/^_/, '') : '') + '.pdf';
                         await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
                         console.log('[MULTA-TESTEMUNHAS] PDF salvo: ' + targetDir + '/' + nomeArquivo);
@@ -13331,7 +13952,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
         const sqlParams = documento_html ? [assinatura_base64, documento_html, multaId] : [assinatura_base64, multaId];
         await new Promise((resolve, reject) => db.run(sqlUpdate, sqlParams, (e) => e ? reject(e) : resolve()));
 
-        // --- Auditoria Jurídica ---
+        // --- Auditoria Jur??dica ---
         try {
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '';
             const payloadHash = JSON.stringify({ assinatura_base64 });
@@ -13368,7 +13989,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
                     await onedrive.ensurePath(targetDir);
                     const pdf = require('html-pdf-node');
                     const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-                    // MESMO nome das testemunhas — sobrepoe automaticamente
+                    // MESMO nome das testemunhas ??? sobrepoe automaticamente
                     const nomeArquivo = 'Termo_' + codigo + (dataStr ? '_' + dataStr.replace(/^_/, '') : '') + '.pdf';
                     await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
                     console.log('[MULTA-CONDUTOR] PDF final salvo: ' + targetDir + '/' + nomeArquivo);
@@ -13382,7 +14003,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
 });
 
 // =============================================
-// DISSÍDIO - Reajuste de Salário em Massa
+// DISS??DIO - Reajuste de Salário em Massa
 // =============================================
 
 // Migration: Excluir cargo genérico 'Manutenção' e adicionar cargos específicos de manutenção
@@ -13396,7 +14017,7 @@ db.serialize(() => {
         'Aux. de Manutenção',
         'Ass. de Manutenção 1',
         'Ass. de Manutenção 2',
-        'Téc. de Manutenção',
+        'T??c. de Manutenção',
         'Sup. de Manutenção'
     ];
     cargosManut.forEach(nome => {
@@ -13404,7 +14025,7 @@ db.serialize(() => {
     });
 });
 
-// Migration: criar tabela de histórico de dissídios
+// Migration: criar tabela de histórico de diss??dios
 db.run(`CREATE TABLE IF NOT EXISTS dissidios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cargo TEXT NOT NULL,
@@ -13414,11 +14035,11 @@ db.run(`CREATE TABLE IF NOT EXISTS dissidios (
     total_colaboradores INTEGER DEFAULT 0,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => {
-    if (err) console.error('[Migration] Dissídios:', err.message);
+    if (err) console.error('[Migration] Diss??dios:', err.message);
     else console.log('[Migration] Tabela dissidios OK');
 });
 
-// GET /api/assinaturas-auditoria — retorna a trilha de auditoria jurídica (GPS, IP, Hash)
+// GET /api/assinaturas-auditoria ??? retorna a trilha de auditoria jur??dica (GPS, IP, Hash)
 app.get('/api/assinaturas-auditoria', authenticateToken, (req, res) => {
     db.all(
         `SELECT
@@ -13450,7 +14071,7 @@ db.run(`INSERT OR IGNORE INTO configuracoes_sistema (chave, valor) VALUES ('valo
     if (!err) console.log('[Config] valor_vr seed OK');
 });
 
-// GET /api/configuracoes/valor_vr — retorna o valor atual do VR
+// GET /api/configuracoes/valor_vr ??? retorna o valor atual do VR
 app.get('/api/configuracoes/valor_vr', authenticateToken, (req, res) => {
     db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'valor_vr'`, [], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -13458,7 +14079,7 @@ app.get('/api/configuracoes/valor_vr', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/dissidio/aplicar — aplica reajuste em massa por cargo
+// POST /api/dissidio/aplicar ??? aplica reajuste em massa por cargo
 app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
     const { cargo, novo_salario } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
@@ -13477,7 +14098,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
                     err ? reject(err) : resolve(rows || []))
             );
         } else if (cargo === 'VALE_REFEICAO') {
-            // VR é um valor global — lê o valor antigo ANTES de atualizar
+            // VR à um valor global - l?? o valor antigo ANTES de atualizar
             const oldRow = await new Promise((resolve) =>
                 db.get(`SELECT valor FROM configuracoes_sistema WHERE chave = 'valor_vr'`, [], (e, r) => resolve(r)));
             const oldVal = oldRow ? parseFloat(oldRow.valor) : 35.00;
@@ -13491,7 +14112,7 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
                     ['VALE_REFEICAO', pct, oldVal, targetSalary, 1], (err) => err ? reject(err) : resolve())
             );
             db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [loggedUser, 'Dissídio', 'Reajuste: VALE_REFEICAO', `VR antes: R$ ${oldVal.toFixed(2)}`, `VR depois: R$ ${targetSalary.toFixed(2)}`, 0]);
+                [loggedUser, 'Diss??dio', 'Reajuste: VALE_REFEICAO', `VR antes: R$ ${oldVal.toFixed(2)}`, `VR depois: R$ ${targetSalary.toFixed(2)}`, 0]);
             return res.json({ ok: true, atualizados: 1, cargo: 'VALE_REFEICAO', novo_salario: targetSalary, percentual: pct });
         } else {
             colabs = await new Promise((resolve, reject) =>
@@ -13559,20 +14180,20 @@ app.post('/api/dissidio/aplicar', authenticateToken, async (req, res) => {
 
         // Auditoria
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [loggedUser, 'Dissídio', `Reajuste: ${cargo}`,
+            [loggedUser, 'Diss??dio', `Reajuste: ${cargo}`,
                 `Média antes: ${formatBRL(mediaAntes)} (${atualizados} colab.)`,
-                `Novo salário: ${salNewStr} | Reajuste: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
+                `Novo sal??rio: ${salNewStr} | Reajuste: ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`,
                 0]);
 
         res.json({ ok: true, atualizados, cargo, novo_salario: targetSalary, percentual: pct });
     } catch (e) {
-        console.error('[Dissídio] Erro ao aplicar:', e.message);
+        console.error('[Diss??dio] Erro ao aplicar:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
 
 
-// GET /api/dissidio/historico — retorna histórico de dissídios
+// GET /api/dissidio/historico - retorna histórico de diss??dios
 app.get('/api/dissidio/historico', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM dissidios ORDER BY criado_em DESC LIMIT 200`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -13582,7 +14203,7 @@ app.get('/api/dissidio/historico', authenticateToken, (req, res) => {
 
 
 // =====================================================================
-// MÓDULO: CONTROLE DE EXPERIÊNCIA (Período de Experiência)
+// MÓDULO: CONTROLE DE EXPERI??NCIA (Per??odo de Experiência)
 // =====================================================================
 
 // Migration: create experiencia tables
@@ -13632,7 +14253,7 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     lido INTEGER DEFAULT 0
 )`);
 
-// Função para calcular 2º prazo de experiência (45+45 = 90 dias corridos)
+// Função para calcular 2?? prazo de experiência (45+45 = 90 dias corridos)
 function calcPrazoExp(dataAdmissao) {
     if (!dataAdmissao) return null;
     let adm;
@@ -13651,7 +14272,7 @@ function calcPrazoExp(dataAdmissao) {
     };
 }
 
-// DEBUG TEMPORÁRIO — remover após diagnóstico
+// DEBUG TEMPOR??RIO - remover após diagnóstico
 app.get('/api/debug-exp-templates', (req, res) => {
     db.all("SELECT id, nome, tipo, grupo_key, SUBSTR(categorias_json, 1, 200) as cat_preview FROM avaliacao_templates WHERE tipo = 'experiencia'", [], (e, r) => {
         if (e) return res.json({ error: e.message });
@@ -13717,12 +14338,12 @@ app.get('/api/experiencia/publico/info', (req, res) => {
                     let templateRetornado = null;
                     if (templateBanco) {
                         try {
-                            // categorias_json é um OBJETO: { "Nome Categoria": ["pergunta1", ...] }
+                            // categorias_json à um OBJETO: { "Nome Categoria": ["pergunta1", ...] }
                             const categorias = typeof templateBanco.categorias_json === 'string'
                                 ? JSON.parse(templateBanco.categorias_json)
                                 : templateBanco.categorias_json;
                             const secoes = Array.isArray(categorias)
-                                ? categorias.map((cat, ci) => ({ nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(), itens: (cat.itens || cat.items || cat.perguntas || []) }))
+                            ? categorias.map((cat, ci) => ({ nome: `${ci + 1}. ${cat.nome || cat.name || 'Se????o'}`.toUpperCase(), itens: (cat.itens || cat.items || cat.perguntas || []) }))
                                 : Object.entries(categorias || {}).map(([nome, perguntas], ci) => ({ nome: `${ci + 1}. ${nome}`.toUpperCase(), itens: Array.isArray(perguntas) ? perguntas.filter(p => p) : [] }));
                             templateRetornado = { titulo: templateBanco.nome, grupo_key: templateBanco.grupo_key, secoes };
                         } catch (parseErr) {
@@ -13775,9 +14396,9 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
                 <p><strong>Situação:</strong> ${situacao_avaliacao || 'Pendente'}</p>
                 <p><strong>Pontuação Total:</strong> ${pontuacao || 0}</p>
             </div>
-            <h2>Comentários Adicionais</h2>
+            <h2>Coment??rios Adicionais</h2>
             <p>${comentarios || 'Nenhum comentário adicionado.'}</p>
-            <h2>Respostas do Formulário</h2>
+            <h2>Respostas do Formul??rio</h2>
             <div class="respostas">
                 ${htmlRespostas}
             </div>
@@ -13828,9 +14449,9 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 }
                             });
                             // E-mail para quem recebe formulario_experiencia
-                            const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
                             sendEmailParaNotificados('formulario_experiencia', {
-                                subject: `📋 Formulário de Experiência Finalizado – ${colab.nome_completo}`,
+                                subject: `📋 Formulário de Experiência Finalizado - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -13840,15 +14461,20 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                         <p>O formulário de período de experiência foi preenchido e finalizado.</p>
                                         <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
-                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '—'}</p>
+                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
                                             <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                            <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
                                         </div>
                                         <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                     </div>
                                 </div>`
                             });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            if (situacao_avaliacao === 'Aprovado') {
+                                db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
+                                    if(err) console.error("Erro ao liberar integracao de experiencia:", err);
+                                });
+                            }
                             res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
                 } else {
@@ -13865,9 +14491,9 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 }
                             });
                             // E-mail para quem recebe formulario_experiencia
-                            const _resSit2 = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                            const _resSit2 = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
                             sendEmailParaNotificados('formulario_experiencia', {
-                                subject: `📋 Formulário de Experiência Finalizado – ${colab.nome_completo}`,
+                                subject: `📋 Formulário de Experiência Finalizado - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -13877,15 +14503,20 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                         <p>O formulário de período de experiência foi preenchido e finalizado.</p>
                                         <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
-                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '—'}</p>
+                                            <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
                                             <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit2}</p>
-                                            <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
                                         </div>
                                         <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                     </div>
                                 </div>`
                             });
                             gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            if (situacao_avaliacao === 'Aprovado') {
+                                db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
+                                    if(err) console.error("Erro ao liberar integracao de experiencia:", err);
+                                });
+                            }
                             res.json({ ok: true, form_id: this.lastID, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
                 }
@@ -13896,7 +14527,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
     }
 });
 
-// POST /api/experiencia/publico/rascunho — Salva respostas parciais (sem finalizar)
+// POST /api/experiencia/publico/rascunho ??? Salva respostas parciais (sem finalizar)
 app.post('/api/experiencia/publico/rascunho', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
@@ -13925,7 +14556,7 @@ app.post('/api/experiencia/publico/rascunho', (req, res) => {
     }
 });
 
-// GET /api/experiencia — Lista colaboradores em ou que passaram pelo período de experiência
+// GET /api/experiencia - Lista colaboradores em ou que passaram pelo período de experiência
 app.get('/api/experiencia', authenticateToken, (req, res) => {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     // Show all active collaborators with up to 90 days + those who already have a form
@@ -13978,7 +14609,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/experiencia/:colaborador_id — Detalhes + formulário
+// GET /api/experiencia/:colaborador_id - Detalhes + formulário
 app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
     const { colaborador_id } = req.params;
     db.get(`SELECT c.*, 
@@ -14018,12 +14649,12 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
                 let templateRetornado = null;
                 if (templateBanco) {
                     try {
-                        // categorias_json é um OBJETO: { "Nome Categoria": ["pergunta1", ...] }
+                        // categorias_json à um OBJETO: { "Nome Categoria": ["pergunta1", ...] }
                         const categorias = typeof templateBanco.categorias_json === 'string'
                             ? JSON.parse(templateBanco.categorias_json)
                             : templateBanco.categorias_json;
                         const secoes = Array.isArray(categorias)
-                            ? categorias.map((cat, ci) => ({ nome: `${ci + 1}. ${cat.nome || cat.name || 'Seção'}`.toUpperCase(), itens: (cat.itens || cat.items || cat.perguntas || []) }))
+                            ? categorias.map((cat, ci) => ({ nome: `${ci + 1}. ${cat.nome || cat.name || 'Se????o'}`.toUpperCase(), itens: (cat.itens || cat.items || cat.perguntas || []) }))
                             : Object.entries(categorias || {}).map(([nome, perguntas], ci) => ({ nome: `${ci + 1}. ${nome}`.toUpperCase(), itens: Array.isArray(perguntas) ? perguntas.filter(p => p) : [] }));
                         templateRetornado = { titulo: templateBanco.nome, grupo_key: templateBanco.grupo_key, secoes };
                     } catch (parseErr) {
@@ -14037,7 +14668,7 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/experiencia/formulario — Cria formulário
+// POST /api/experiencia/formulario - Cria formulário
 app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
     const { colaborador_id, respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
     if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório.' });
@@ -14068,9 +14699,9 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                                 });
                             }
                         });
-                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
                         sendEmailParaNotificados('formulario_experiencia', {
-                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            subject: `📋 Formulário de Experiência Finalizado - ${c.nome_completo}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -14080,9 +14711,9 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                                     <p>O formulário de período de experiência foi preenchido e finalizado.</p>
                                     <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
-                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
                                         <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                 </div>
@@ -14105,7 +14736,7 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
     );
 });
 
-// PUT /api/experiencia/formulario/:id — Atualiza formulário
+// PUT /api/experiencia/formulario/:id - Atualiza formulário
 app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
@@ -14133,9 +14764,9 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                                 });
                             }
                         });
-                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
                         sendEmailParaNotificados('formulario_experiencia', {
-                            subject: `📋 Formulário de Experiência Finalizado – ${c.nome_completo}`,
+                            subject: `📋 Formulário de Experiência Finalizado - ${c.nome_completo}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -14145,9 +14776,9 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                                     <p>O formulário de período de experiência foi preenchido e finalizado.</p>
                                     <div style="background:#eff6ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #1d4ed8;">
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
-                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
                                         <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                 </div>
@@ -14170,7 +14801,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     );
 });
 
-// GET /api/experiencia/notificacoes/pendentes — Polling para popup de RH
+// GET /api/experiencia/notificacoes/pendentes ??? Polling para popup de RH
 app.get('/api/experiencia/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM experiencia_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14178,7 +14809,7 @@ app.get('/api/experiencia/notificacoes/pendentes', authenticateToken, (req, res)
     });
 });
 
-// PUT /api/experiencia/notificacoes/:id/lida — Marca como lida
+// PUT /api/experiencia/notificacoes/:id/lida ??? Marca como lida
 app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) => {
     db.run(`UPDATE experiencia_notificacoes_pendentes SET lido = 1 WHERE id = ?`, [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14219,7 +14850,7 @@ app.put('/api/diretoria/notificacoes/:id/lida', authenticateToken, (req, res) =>
     });
 });
 
-// GET /api/logistica/notificacoes/pendentes — Polling para popup de Logística
+// GET /api/logistica/notificacoes/pendentes - Polling para popup de Logística
 app.get('/api/logistica/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM logistica_notificacoes_pendentes WHERE lido = 0 ORDER BY criado_em DESC LIMIT 20`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14227,7 +14858,7 @@ app.get('/api/logistica/notificacoes/pendentes', authenticateToken, (req, res) =
     });
 });
 
-// PUT /api/logistica/notificacoes/:id/lida — Marca como lida
+// PUT /api/logistica/notificacoes/:id/lida ??? Marca como lida
 app.put('/api/logistica/notificacoes/:id/lida', authenticateToken, (req, res) => {
     db.run(`UPDATE logistica_notificacoes_pendentes SET lido = 1 WHERE id = ?`, [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14235,11 +14866,15 @@ app.put('/api/logistica/notificacoes/:id/lida', authenticateToken, (req, res) =>
     });
 });
 
-// POST /api/experiencia/enviar-email/:id — Envia e-mail manualmente para o gestor
+// POST /api/experiencia/enviar-email/:id ??? Envia e-mail manualmente para o gestor
 app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
     db.get(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                   ) as resp_email,
                    (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
                    ef.id as form_id, ef.situacao
             FROM colaboradores c
@@ -14253,7 +14888,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
         const prazos = calcPrazoExp(r.data_admissao);
         const diasRestantes = prazos ? Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - new Date()) / 86400000) : '-';
         if (!emailDestino) return res.status(400).json({ error: 'Responsável do departamento não possui e-mail cadastrado.' });
-        if (r.situacao === 'finalizado') return res.status(400).json({ error: 'O formulário já foi respondido e finalizado.' });
+        // Permitido reenviar mesmo que o formulário já tenha sido finalizado
         if (diasRestantes !== '-' && diasRestantes < 0) return res.status(400).json({ error: 'O prazo de experiência deste colaborador já expirou.' });
 
         try {
@@ -14277,7 +14912,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
             await sendMailHelper({
                 from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                 to: emailDestino,
-                subject: `Avaliação de Experiência — ${r.nome_completo}`,
+                subject: `Avaliação de Experiência - ${r.nome_completo}`,
                 html: gerarEmailExperienciaHTML({
                     respNome: r.resp_nome,
                     nomeCompleto: r.nome_completo,
@@ -14304,7 +14939,7 @@ app.post('/api/experiencia/enviar-email/:id', authenticateToken, (req, res) => {
     });
 });
 
-// CRON JOB — Verificar vencimentos de 15 dias e enviar e-mails
+// CRON JOB ??? Verificar vencimentos de 15 dias e enviar e-mails
 function verificarExperienciasVencendo() {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const em15Dias = new Date(hoje); em15Dias.setDate(em15Dias.getDate() + 15);
@@ -14312,8 +14947,12 @@ function verificarExperienciasVencendo() {
 
     db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao, c.email_corporativo,
                    d.responsavel_id,
-                   (SELECT COALESCE(NULLIF(email_corporativo, ''), NULLIF(email, '')) FROM colaboradores WHERE id = d.responsavel_id) as resp_email,
-                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE (id = d.responsavel_id OR (d.responsavel_id IS NULL AND TRIM(LOWER(nome_completo)) = TRIM(LOWER(d.responsavel_nome)))) LIMIT 1),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE (id = d.responsavel_id OR (d.responsavel_id IS NULL AND TRIM(LOWER(nome_completo)) = TRIM(LOWER(d.responsavel_nome)))) LIMIT 1),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER(COALESCE((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id), d.responsavel_nome))) LIMIT 1)
+                   ) as resp_email,
+                   COALESCE((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id), d.responsavel_nome) as resp_nome,
                    ef.id as form_id, ef.notificacao_15d_enviada, ef.situacao
             FROM colaboradores c
             LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
@@ -14341,7 +14980,7 @@ function verificarExperienciasVencendo() {
                 continue;
             }
 
-            // ── Envio diário: envia todos os dias dentro da janela até finalizar ──────
+            // ?????? Envio di??rio: envia todos os dias dentro da janela até finalizar ??????????????????
             const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada; // mantido p/ auditoria
             const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;  // mantido p/ auditoria
 
@@ -14361,12 +15000,12 @@ function verificarExperienciasVencendo() {
 
                 const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
                 const formLink = `${baseUrl}/avaliacao-publica.html?token=${tokenPayload}`;
-                const tipoAviso = deveEnviar7d ? '⚠️ URGENTE — 7 dias' : '15 dias';
+                const tipoAviso = deveEnviar7d ? '?????? URGENTE ??? 7 dias' : '15 dias';
 
                 await sendMailHelper({
                     from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                     to: emailDestino,
-                    subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
+                    subject: `Avaliação de Experiência - ${r.nome_completo} (${diasRestantes} dias restantes)`,
                     html: gerarEmailExperienciaHTML({
                         respNome: r.resp_nome,
                         nomeCompleto: r.nome_completo,
@@ -14393,7 +15032,7 @@ function verificarExperienciasVencendo() {
                         [r.id, col15, col7, dataEnvio]);
                 }
 
-                console.log(`[Experiência CRON] ✅ E-mail (${tipoAviso}) enviado para ${emailDestino} — ${r.nome_completo} (${diasRestantes}d restantes).`);
+                console.log(`[Experiência CRON] - E-mail (${tipoAviso}) enviado para ${emailDestino} - ${r.nome_completo} (${diasRestantes}d restantes).`);
             } catch (emailErr) {
                 console.error(`[Experiência CRON] Erro no e-mail para ${r.nome_completo}:`, emailErr.message);
             }
@@ -14491,7 +15130,7 @@ async function verificarFeriasEquipes() {
                 await new Promise((res) => db.run('DELETE FROM equipes_membros WHERE colaborador_id = ?', [m.colaborador_id], res));
                 const nomeEq = (m.equipe_nome || '').toLowerCase();
                 if (!nomeEq.includes('reserva') && !nomeEq.includes('intermitente')) {
-                    const msg = `O colaborador <strong>${m.nome_completo}</strong> entrou em férias/afastamento e foi <strong>removido</strong> da <strong>${m.equipe_nome}</strong>. É necessário realocar alguém para a equipe.`;
+                    const msg = `O colaborador <strong>${m.nome_completo}</strong> entrou em férias/afastamento e foi <strong>removido</strong> da <strong>${m.equipe_nome}</strong>. à necessário realocar algu??m para a equipe.`;
                     await notificarResponsaveisEquipes(msg, 'Equipe Desfalcada por Férias', 'ph-warning', '#eab308', true);
                 }
             }
@@ -14505,7 +15144,7 @@ async function verificarFeriasEquipes() {
                     LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
                     WHERE c.id NOT IN (SELECT colaborador_id FROM equipes_membros)
                     AND LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
-                    AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'PÁTIO', 'MOTORISTA FREE')))`, (err, rows) => {
+                    AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'P??TIO', 'MOTORISTA FREE')))`, (err, rows) => {
                 if (err) reject(err); else resolve(rows);
             });
         });
@@ -14534,7 +15173,7 @@ async function verificarFeriasEquipes() {
     }
 }
 
-// CRON JOB — Verificar atestados vencidos e retornar para Ativo
+// CRON JOB ??? Verificar atestados vencidos e retornar para Ativo
 function verificarAtestadosVencidos() {
     const todayStr = new Date().toISOString().split('T')[0];
     console.log(`[Atestados CRON] Verificando colaboradores Afastados em ${todayStr}...`);
@@ -14563,7 +15202,7 @@ function verificarAtestadosVencidos() {
         });
     });
 }
-// CRON JOB — Verificar CRLV Vencido (Logística)
+// CRON JOB - Verificar CRLV Vencido (Logística)
 function verificarCRLVVencidoCron() {
     console.log('[CRON] Verificando vencimento de CRLV...');
     db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
@@ -14666,11 +15305,11 @@ function enviarEmailAlertaCRLV(v) {
 }
 
 // =====================================================================
-// CRON JOBS — Agendamento robusto com node-cron
+// CRON JOBS ??? Agendamento robusto com node-cron
 // =====================================================================
 
-// ── ATIVAR COLABORADORES NA DATA DE ADMISSÃO ──────────────────────────────────
-// Quando a data_admissao chega, muda status de 'Aguardando início' / 'Processo iniciado' → 'Ativo'
+// ?????? ATIVAR COLABORADORES NA DATA DE ADMISS??O ??????????????????????????????????????????????????????????????????????????????????????????????????????
+// Quando a data_admissao chega, muda status de 'Aguardando início' / 'Processo iniciado' - 'Ativo'
 function ativarColaboradoresPorAdmissao() {
     const hoje = new Date();
     const hojeStr = hoje.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -14697,7 +15336,7 @@ function ativarColaboradoresPorAdmissao() {
                         if (updateErr) {
                             console.error(`[CRON-ADMISSAO] Erro ao ativar colab ${colab.id}:`, updateErr.message);
                         } else if (this.changes > 0) {
-                            console.log(`[CRON-ADMISSAO] ✅ Colaborador ativado: ${colab.nome_completo} (admissao: ${colab.data_admissao}, era: ${colab.status})`);
+                            console.log(`[CRON-ADMISSAO] ??? Colaborador ativado: ${colab.nome_completo} (admissao: ${colab.data_admissao}, era: ${colab.status})`);
                         }
                     }
                 );
@@ -14709,12 +15348,153 @@ function ativarColaboradoresPorAdmissao() {
 // Variavel para rastrear a ultima execucao do cron
 let _cronUltimaExecucao = null;
 
+function verificarDesempenhosPendentes() {
+    const hoje = new Date();
+    // Determinando o trimestre esperado baseado na data atual
+    let expectedTrim = 1;
+    let expectedAno = hoje.getFullYear();
+    const mes = hoje.getMonth();
+    
+    if (mes >= 0 && mes <= 2) {
+        expectedTrim = 1;
+    } else if (mes >= 3 && mes <= 5) {
+        expectedTrim = 2;
+    } else {
+        expectedTrim = 3;
+    }
+
+    db.all(`SELECT c.id, c.nome_completo, c.departamento,
+                   d.responsavel_id,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                   ) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
+        if (err) { console.error('[Desempenho CRON]', err.message); return; }
+
+        for (const r of rows) {
+            // Se já tem avaliação finalizada para este trimestre, pula
+            if (r.has_avaliation > 0) continue;
+
+            const emailDestino = r.resp_email;
+            if (!emailDestino) {
+                console.log(`[Desempenho CRON] Sem e-mail do responsavel para ${r.nome_completo} (${r.departamento}).`);
+                continue;
+            }
+
+            const tokenPayload = jwt.sign({
+                colab_id: r.id,
+                ano: expectedAno,
+                trimestre: expectedTrim
+            }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias de validade
+            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
+            const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
+            const managerName = (r.resp_nome || 'Gestor').split(' ')[0];
+            const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
+            
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                </div>
+                <div style="padding:24px;">
+                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
+                    <p>Olá <strong>${managerName}</strong>,</p>
+                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                    <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
+                    <div style="text-align:center;margin:30px 0;">
+                        <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
+                            Preencher Avaliação de Desempenho
+                        </a>
+                    </div>
+                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+                </div>
+            </div>`;
+            
+            try {
+                await sendMailHelper({ 
+                    to: emailDestino, 
+                    subject: subject, 
+                    html: html,
+                    attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                });
+                console.log(`[Desempenho CRON] E-mail enviado para ${emailDestino} ref. ${r.nome_completo}`);
+                await new Promise(res => setTimeout(res, 2000));
+            } catch (err) {
+                console.error(`[Desempenho CRON] Erro ao enviar para ${emailDestino}`, err.message);
+            }
+        }
+    });
+}
+
 // Roda todos os dias às 08:00 (horário do servidor)
 cron.schedule('0 8 * * *', () => {
-    console.log('[CRON] Iniciando verificações diárias de 08:00...');
+    console.log('[CRON] Iniciando verificações di??rias de 08:00...');
     _cronUltimaExecucao = new Date().toISOString();
+
+        // -- VERIFICAÇÃO DE CNDs ----------------------------------------------------
+        // CNDs vencidas ou no dia de vencer (validade <= hoje) e notificar 'atualizacao_cnds'
+        try {
+            console.log('[CRON] Verificando CNDs vencidas para notificação por e-mail...');
+            const cndNomes = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista'];
+            const placeholders = cndNomes.map(()=>'?').join(',');
+            
+            // Buscar CNDs que estão vencidas (validade <= hoje)
+            const sqlCnd = `SELECT * FROM licencas WHERE nome IN (${placeholders}) AND validade <= date('now')`;
+            
+            db.all(sqlCnd, cndNomes, async (errCnd, cndsVencidas) => {
+                if (errCnd) {
+                    console.error('[CRON CND] Erro ao buscar CNDs vencidas:', errCnd);
+                    return;
+                }
+                
+                if (cndsVencidas.length > 0) {
+                    // Tem CND vencida. Precisa gerar links de upload e mandar e-mail.
+                    // 1. Quem deve receber?
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_cnds'", [], async (errN, rowsN) => {
+                        if (errN || !rowsN || rowsN.length === 0) return;
+                        
+                        const requireCrypto = require('crypto');
+                        const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
+
+                        for (const cnd of cndsVencidas) {
+                            const token = requireCrypto.randomBytes(24).toString('hex');
+                            
+                            await new Promise(r => db.run('DELETE FROM cnd_upload_tokens WHERE cnd_nome = ?', [cnd.nome], r));
+                            await new Promise(r => db.run('INSERT INTO cnd_upload_tokens (token, cnd_nome) VALUES (?, ?)', [token, cnd.nome], r));
+
+                            const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
+                            
+                            const htmlMail = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+<div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
+<div style="padding:1.5rem 2rem;">
+<h2 style="color:#0e7490;margin-top:0;text-align:center;">Atualização de Documento</h2>
+
+<p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>
+<p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>
+<div style="text-align:center; margin: 30px 0;"><a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a></div>
+<p style="font-size:12px; color:#94a3b8; text-align:center;">*Este link expira assim que o envio for concluído com sucesso.</p>
+</div><hr style="border:none;border-top:1px solid #eee;margin:0;"><div style="padding: 1rem 2rem; background: #f8fafc;"><p style="color:#999;font-size:11px; text-align:center; margin:0;">Este é um e-mail automático, por favor não responda.</p></div></div>`;
+
+                            sendEmailParaNotificados('atualizacao_cnds', {
+                                subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
+                                html: htmlMail
+                            });
+                        }
+                    });
+                }
+            });
+        } catch(cronCndErr) {
+            console.error('[CRON CND] Erro geral:', cronCndErr);
+        }
+
     ativarColaboradoresPorAdmissao();
     verificarExperienciasVencendo();
+    verificarDesempenhosPendentes();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
     verificarLicencasVencimentoCron();
@@ -14733,6 +15513,74 @@ cron.schedule('1 0 * * *', () => {
 setImmediate(() => ativarColaboradoresPorAdmissao());
 
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
+app.post('/api/desempenho/cron/forcar', authenticateToken, async (req, res) => {
+    try {
+        verificarDesempenhosPendentes();
+        return res.json({ ok: true, msg: 'Rotina de envio de desempenho iniciada em background.' });
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/desempenho/test-email', async (req, res) => {
+    try {
+        const hoje = new Date();
+        let expectedTrim = 1;
+        const mes = hoje.getMonth();
+        if (mes >= 3 && mes <= 5) expectedTrim = 2;
+        else if (mes > 5) expectedTrim = 3;
+        const expectedAno = hoje.getFullYear();
+
+        const targets = ['vivian', 'abner'];
+        for (const target of targets) {
+            db.get(`SELECT id, nome_completo, departamento FROM colaboradores WHERE LOWER(nome_completo) LIKE ? AND status = 'Ativo' LIMIT 1`, [`%${target}%`], async (err, r) => {
+                if (err || !r) return;
+                
+                const tokenPayload = jwt.sign({
+                    colab_id: r.id,
+                    ano: expectedAno,
+                    trimestre: expectedTrim
+                }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias
+                const baseUrl = req.protocol + '://' + req.get('host');
+                const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
+                const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
+                
+                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                    </div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
+                        <p>Olá <strong>Thais</strong>,</p>
+                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
+                        <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
+                        <div style="text-align:center;margin:30px 0;">
+                            <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
+                                Preencher Avaliação de Desempenho
+                            </a>
+                        </div>
+                        <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+                    </div>
+                </div>`;
+                try {
+                    await sendMailHelper({ 
+                        to: 'thais.ricci@americarental.com.br', 
+                        subject: subject, 
+                        html: html,
+                        attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                    });
+                    console.log('Test email sent for', r.nome_completo);
+                } catch (e) {
+                    console.error('Error sending test email:', e.message);
+                }
+            });
+        }
+        res.json({ ok: true, msg: 'Test emails triggered' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => {
     console.log('[Disparar] Envio em lote iniciado por:', req.user?.username || 'sistema');
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -14759,7 +15607,7 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
 
             const diasRestantes = Math.ceil((new Date(prazos.prazo2_fim + 'T23:59:59') - hoje) / 86400000);
 
-            // Só envia para colaboradores dentro da janela de 1 a 15 dias
+            // S?? envia para colaboradores dentro da janela de 1 a 15 dias
             if (diasRestantes < 0 || diasRestantes > 15) { pulados++; continue; }
             if (r.situacao === 'finalizado') { pulados++; continue; }
 
@@ -14791,7 +15639,7 @@ app.post('/api/experiencia/cron/forcar', authenticateToken, async (req, res) => 
                 await sendMailHelper({
                     from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || SMTP_CONFIG.auth.user}>`,
                     to: emailDestino,
-                    subject: `Avaliação de Experiência — ${r.nome_completo} (${diasRestantes} dias restantes)`,
+                    subject: `Avaliação de Experiência - ${r.nome_completo} (${diasRestantes} dias restantes)`,
                     html: gerarEmailExperienciaHTML({
                         respNome: r.resp_nome,
                         nomeCompleto: r.nome_completo,
@@ -14830,17 +15678,17 @@ app.get('/api/experiencia/cron/status', authenticateToken, (req, res) => {
 
 // NÃO executa verificarExperienciasVencendo() na inicialização do servidor
 // para evitar disparo de e-mails a cada deploy/reinício.
-// O CRON diário às 08:00 já cobre todos os casos.
+// O CRON di??rio às 08:00 já cobre todos os casos.
 setTimeout(() => {
     console.log('[CRON] Verificação inicial ao iniciar servidor (apenas atestados)...');
     verificarAtestadosVencidos();
 }, 15000);
 
 // =====================================================================
-// MÓDULO: LOGÍSTICA — Ordens de Serviço (Rota Redonda)
+// MÓDULO: LOG??STICA - Ordens de Serviço (Rota Redonda)
 // =====================================================================
 
-// Cria tabela de OS de logística com suporte a coordenadas GPS
+// Cria tabela de OS de logàstica com suporte a coordenadas GPS
 db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     numero_os TEXT,
@@ -14899,18 +15747,18 @@ db.run(`CREATE TABLE IF NOT EXISTS os_videos (
     caminho_arquivo TEXT NOT NULL,
     criado_em TEXT DEFAULT (datetime('now'))
 )`, (err) => {
-    if (err) console.error('[OS Vídeos] Erro na criação da tabela:', err.message);
+    if (err) console.error('[OS V??deos] Erro na criação da tabela:', err.message);
     else {
-        console.log('[OS Vídeos] Tabela os_videos OK');
+        console.log('[OS V??deos] Tabela os_videos OK');
         db.run("ALTER TABLE os_videos ADD COLUMN short_code TEXT", () => { });
     }
 });
 
-// Diretório de vídeos das OS
+// Diret??rio de vídeos das OS
 const OS_VIDEO_DIR = path.join(__dirname, 'uploads', 'os_videos');
 if (!fs.existsSync(OS_VIDEO_DIR)) fs.mkdirSync(OS_VIDEO_DIR, { recursive: true });
 
-// Multer para vídeos (sem limite de tamanho fixo — ajustar conforme necessário)
+// Multer para vídeos (sem limite de tamanho fixo - ajustar conforme necessário)
 const multerVideo = require('multer')({
     storage: require('multer').diskStorage({
         destination: (req, file, cb) => cb(null, OS_VIDEO_DIR),
@@ -14924,11 +15772,11 @@ const multerVideo = require('multer')({
     limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('video/')) cb(null, true);
-        else cb(new Error('Apenas arquivos de vídeo são aceitos.'));
+        else cb(new Error('Apenas arquivos de v??deo são aceitos.'));
     }
 });
 
-// Gera short_code único de 6 chars (alfanumérico case-insensitive)
+// Gera short_code ??nico de 6 chars (alfanum??rico case-insensitive)
 function gerarShortCode() {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // sem 0,1,i,l,o para evitar confusão
     let code = '';
@@ -14936,7 +15784,7 @@ function gerarShortCode() {
     return code;
 }
 
-// ── UPLOAD DE VÍDEO (autenticado) ────────────────────────────────────────────
+// ?????? UPLOAD DE V??DEO (autenticado) ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single('video'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
@@ -14963,7 +15811,7 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [token, shortCode, os_id || null, numero_os || null, req.file.originalname, req.file.mimetype, req.file.size, publicUrl],
             function (err) {
-                if (err) console.error('[OS Videos] Erro ao registrar vídeo no banco:', err.message);
+                if (err) console.error('[OS Videos] Erro ao registrar v??deo no banco:', err.message);
 
                 if (os_id) {
                     db.get('SELECT link_video FROM os_logistica WHERE id = ?', [os_id], (errSelect, row) => {
@@ -15012,13 +15860,13 @@ app.post('/api/logistica/os/upload-video', authenticateToken, multerVideo.single
     }
 });
 
-// ── ROTA CURTA PÚBLICA: /v/:code → redireciona para streaming ─────────────────
+// ?????? ROTA CURTA P??BLICA: /v/:code ??? redireciona para streaming ???????????????????????????????????????????????????
 // Link amigável para compartilhar (ex: /v/abc123)
 app.get('/v/:code', (req, res) => {
     const code = (req.params.code || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
-    if (!code) return res.status(400).send('Código inválido.');
+    if (!code) return res.status(400).send('C??digo inválido.');
     db.get(`SELECT token, caminho_arquivo FROM os_videos WHERE short_code = ?`, [code], (err, row) => {
-        if (err || !row) return res.status(404).send('Vídeo não encontrado.');
+        if (err || !row) return res.status(404).send('V??deo não encontrado.');
         
         if (row.caminho_arquivo && row.caminho_arquivo.startsWith('http')) {
             res.redirect(302, row.caminho_arquivo);
@@ -15028,14 +15876,14 @@ app.get('/v/:code', (req, res) => {
     });
 });
 
-// ── STREAMING PÚBLICO DE VÍDEO (SEM autenticação, SEM dados do sistema) ──────
-// Acesso apenas via token UUID — não expõe nenhuma informação interna
+// ?????? STREAMING PÚBLICO DE V??DEO (SEM autenticação, SEM dados do sistema) ??????????????????
+// Acesso apenas via token UUID - não exp??e nenhuma informação interna
 app.get('/api/video/:token', (req, res) => {
     const token = (req.params.token || '').replace(/[^a-zA-Z0-9\-]/g, '');
     if (!token) return res.status(400).send('Token inválido.');
 
     db.get(`SELECT caminho_arquivo, mime_type, nome_original, tamanho FROM os_videos WHERE token = ?`, [token], (err, row) => {
-        if (err || !row) return res.status(404).send('Vídeo não encontrado.');
+        if (err || !row) return res.status(404).send('V??deo não encontrado.');
         if (!fs.existsSync(row.caminho_arquivo)) return res.status(404).send('Arquivo não localizado.');
 
         const stat = fs.statSync(row.caminho_arquivo);
@@ -15044,7 +15892,7 @@ app.get('/api/video/:token', (req, res) => {
         const range = req.headers.range;
 
         if (range) {
-            // Suporte a streaming por range (para reprodução no browser)
+            // Suporte a streaming por range (para reprodu????o no browser)
             const parts = range.replace(/bytes=/, '').split('-');
             const start = parseInt(parts[0], 10);
             const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -15071,7 +15919,7 @@ app.get('/api/video/:token', (req, res) => {
     });
 });
 
-// Função Haversine — calcula distância em km entre duas coordenadas GPS
+// Função Haversine - calcula dist??ncia em km entre duas coordenadas GPS
 function haversineKm(lat1, lng1, lat2, lng2) {
     const parseCoord = (c) => typeof c === 'string' ? parseFloat(c.replace(',', '.')) : parseFloat(c);
     const l1 = parseCoord(lat1);
@@ -15090,11 +15938,6 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-app.get('/api/limpar-os-teste', (req, res) => {
-    db.run("DELETE FROM os_logistica");
-    db.run("DELETE FROM os_videos");
-    res.json({ ok: true, message: "Base de OS Logística resetada para testes." });
-});
 
 // GET /api/logistica/os/agenda-endereco
 // Busca OS de manutenção pelo endereço (exata e parcial).
@@ -15102,15 +15945,15 @@ app.get('/api/limpar-os-teste', (req, res) => {
 app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
     const { endereco, lat, lng } = req.query;
     if (!endereco && (!lat || !lng)) {
-        return res.status(400).json({ error: 'Forneça "endereco" ou "lat" e "lng".' });
+        return res.status(400).json({ error: 'Forne??a "endereco" ou "lat" e "lng".' });
     }
 
     // 1. Busca exata e parcial pelo texto do endereço
     const endTrimmed = (endereco || '').trim();
-    // Separa por espaços/vírgulas e pega até os 6 primeiros termos (inclui número da casa)
+    // Separa por espa??os/v??rgulas e pega até os 6 primeiros termos (inclui n??mero da casa)
     const endTokens = endTrimmed.split(/[\s,]+/).filter(t => t.length >= 1).slice(0, 6);
 
-    // Gera condições LIKE dinâmicas para todos os tokens extraídos
+    // Gera condi????es LIKE din??micas para todos os tokens extra??dos
     const likeConditions = endTokens.map(() => `endereco LIKE ?`).join(' AND ');
     const likeParams = endTokens.map(t => `%${t}%`);
 
@@ -15126,7 +15969,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
     db.all(sqlExato, finalParams, (err, rowsExatos) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // 2. Se tiver coordenadas, busca e classifica APENAS por distância (haversine)
+        // 2. Se tiver coordenadas, busca e classifica APENAS por dist??ncia (haversine)
         if (lat && lng) {
             const userLat = typeof lat === 'string' ? parseFloat(lat.replace(',', '.')) : parseFloat(lat);
             const userLng = typeof lng === 'string' ? parseFloat(lng.replace(',', '.')) : parseFloat(lng);
@@ -15135,7 +15978,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                     FROM os_logistica WHERE status = 'ativo' AND lat IS NOT NULL AND lng IS NOT NULL`, [], (err2, todasOs) => {
                 if (err2) return res.status(500).json({ error: err2.message });
 
-                // Classifica TODAS as OS por distância real (ignora texto) e filtra apenas RECORRENTES
+                // Classifica TODAS as OS por dist??ncia real (ignora texto) e filtra apenas RECORRENTES
                 const todasComDistancia = (todasOs || [])
                     .filter(os => isRecorrente(os.tipo_servico))
                     .map(os => {
@@ -15145,16 +15988,16 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                     .filter(os => os.distancia_km <= 3) // só retorna até 3km
                     .sort((a, b) => a.distancia_km - b.distancia_km);
 
-                // Faixas de distância: ≤1km (muito próximo), 1-3km (próximo)
+                // Faixas de dist??ncia: ???1km (muito próximo), 1-3km (próximo)
                 const os1km = todasComDistancia.filter(os => os.distancia_km <= 1);
                 const os3km = todasComDistancia.filter(os => os.distancia_km > 1 && os.distancia_km <= 3);
 
-                // "Exatos por coordenada": OS a menos de 0.1km (100m) — realmente no mesmo local
+                // "Exatos por coordenada": OS a menos de 0.1km (100m) ??? realmente no mesmo local
                 const exatosCoord = todasComDistancia
                     .filter(os => os.distancia_km <= 0.1)
                     .slice(0, 15);
 
-                // "Próximos" = tudo de 0.1km até 3km
+                // "Pr??ximos" = tudo de 0.1km até 3km
                 const proximosCoord = todasComDistancia
                     .filter(os => os.distancia_km > 0.1)
                     .slice(0, 15)
@@ -15164,9 +16007,9 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                 const diasSugeridos3km = agregaDias(os3km);
 
                 res.json({
-                    exatos: exatosCoord,                    // OS a ≤100m (coordenada)
-                    dias_sugeridos_2km: diasSugeridos1km,  // mantém nome do campo para compat. frontend
-                    dias_sugeridos_5km: diasSugeridos3km,  // mantém nome do campo para compat. frontend
+                    exatos: exatosCoord,                    // OS a ???100m (coordenada)
+                    dias_sugeridos_2km: diasSugeridos1km,  // mant??m nome do campo para compat. frontend
+                    dias_sugeridos_5km: diasSugeridos3km,  // mant??m nome do campo para compat. frontend
                     proximos: proximosCoord,               // 0.1 a 3km
                     total_exatos: exatosCoord.length,
                     total_proximos: proximosCoord.length,
@@ -15175,7 +16018,7 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
                 });
             });
         } else {
-            // Sem coordenadas: usa só busca por texto
+            // Sem coordenadas: usa s?? busca por texto
             const exatosFiltrados = (rowsExatos || []).filter(os => isRecorrente(os.tipo_servico));
             const diasAgregados = agregaDias(exatosFiltrados);
             res.json({
@@ -15210,8 +16053,8 @@ function agregaDias(rows) {
         .sort((a, b) => b.ocorrencias - a.ocorrencias);
 }
 
-// GET /api/logistica/os/buscar — Busca OS por número
-// Retorna array de todos os serviços registrados para esse número de OS
+// GET /api/logistica/os/buscar ??? Busca OS por n??mero
+// Retorna array de todos os servi??os registrados para esse n??mero de OS
 app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     const { numero_os, cliente, contrato, endereco, patrimonio } = req.query;
     if (!numero_os && !cliente && !contrato && !endereco && !patrimonio) {
@@ -15248,8 +16091,8 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
 
                 const filtered = (rows || []).filter(r => {
                     if (!r.cliente) return false;
-                    // Remove emojis e espaços extras apenas para a comparação
-                    let c = r.cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘]+/u, '').trim();
+                    // Remove emojis e espa??os extras apenas para a comparação
+                    let c = r.cliente.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s???????????????????????????????????????????????????????????????????????????????????????]+/u, '').trim();
                     c = c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
                     return c.includes(term);
                 });
@@ -15299,7 +16142,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     }
 });
 
-// POST /api/logistica/os — Salvar nova OS (com validação de conflito de cliente)
+// POST /api/logistica/os ??? Salvar nova OS (com validação de conflito de cliente)
 app.post('/api/logistica/os', authenticateToken, (req, res) => {
     const {
         numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
@@ -15316,7 +16159,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
 
     const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
 
-    // Verifica se já existe uma OS com esse número mas cliente DIFERENTE
+    // Verifica se já existe uma OS com esse n??mero mas cliente DIFERENTE
     db.get(
         `SELECT cliente FROM os_logistica WHERE numero_os = ? AND status = 'ativo' LIMIT 1`,
         [numero_os.trim()],
@@ -15328,13 +16171,13 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                 const clienteNovo = sanitizeCliente(cliente);
                 if (clienteExistente !== clienteNovo) {
                     return res.status(409).json({
-                        error: `O número de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não é possível usar este número para outro cliente.`,
+                        error: `O n??mero de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não à poss??vel usar este n??mero para outro cliente.`,
                         cliente_existente: existente.cliente
                     });
                 }
             }
 
-            // Cliente OK (mesmo ou nova OS) — insere
+            // Cliente OK (mesmo ou nova OS) ??? insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
                 turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao)
@@ -15376,7 +16219,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const osId = req.params.id;
 
     // Ao editar uma OS existente, o usuário pode alterar o cliente livremente.
-    // A validação de conflito de cliente só se aplica ao criar uma nova OS (POST).
+    // A validação de conflito de cliente s?? se aplica ao criar uma nova OS (POST).
     db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
         if (errOld) return res.status(500).json({ error: errOld.message });
 
@@ -15410,7 +16253,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                     if (oldRow.telefone !== telefone) changes.push({ campo: 'Telefone', old: oldRow.telefone || '', new: telefone || '' });
                     if (oldRow.observacoes !== observacoes) changes.push({ campo: 'Observações', old: oldRow.observacoes || '', new: observacoes || '' });
                     if (oldRow.turno !== turno) changes.push({ campo: 'Turno', old: oldRow.turno || '', new: turno || '' });
-                    if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Horário', old: `${oldRow.hora_inicio || ''}-${oldRow.hora_fim || ''}`, new: `${hora_inicio || ''}-${hora_fim || ''}` });
+                    if (oldRow.hora_inicio !== hora_inicio || oldRow.hora_fim !== hora_fim) changes.push({ campo: 'Hor??rio', old: `${oldRow.hora_inicio || ''}-${oldRow.hora_fim || ''}`, new: `${hora_inicio || ''}-${hora_fim || ''}` });
                     if (changes.length === 0) changes.push({ campo: 'Atualização', old: '', new: `OS ${numero_os} | ${cliente}` });
                     changes.forEach(c => {
                         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -15424,7 +16267,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
-// PATCH /api/logistica/os/:id/observacoes — Atualiza apenas a obs do motorista
+// PATCH /api/logistica/os/:id/observacoes ??? Atualiza apenas a obs do motorista
 app.patch('/api/logistica/os/:id/observacoes', authenticateToken, (req, res) => {
     const { observacoes } = req.body;
     const osId = req.params.id;
@@ -15447,7 +16290,7 @@ app.patch('/api/logistica/os/:id/observacoes', authenticateToken, (req, res) => 
 
 
 
-// DELETE /api/logistica/os/:id — Excluir OS
+// DELETE /api/logistica/os/:id ??? Excluir OS
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.get('SELECT numero_os, cliente FROM os_logistica WHERE id = ?', [req.params.id], (err, row) => {
@@ -15462,7 +16305,7 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/logistica/os/:id/historico — Histórico de alterações de uma OS específica
+// GET /api/logistica/os/:id/historico - Histórico de alterações de uma OS específica
 app.get('/api/logistica/os/:id/historico', authenticateToken, (req, res) => {
     db.all(`SELECT a.* FROM auditoria a WHERE a.programa = 'OS Logística' AND a.registro_id = ?
             ORDER BY a.data_hora DESC LIMIT 100`,
@@ -15472,7 +16315,7 @@ app.get('/api/logistica/os/:id/historico', authenticateToken, (req, res) => {
         });
 });
 
-// POST /api/logistica/import-bulk — Importação em massa
+// POST /api/logistica/import-bulk ??? Importação em massa
 app.post('/api/logistica/import-bulk', (req, res) => {
     const records = req.body;
     if (!Array.isArray(records)) return res.status(400).json({ error: 'Expected array' });
@@ -15506,7 +16349,7 @@ app.post('/api/logistica/import-bulk', (req, res) => {
 // GET /api/logistica/frota - Agrupa OS por data para resumo de frota
 app.get('/api/logistica/frota', authenticateToken, (req, res) => {
     const { data } = req.query;
-    if (!data) return res.status(400).json({ error: 'Parâmetro data é obrigatório.' });
+    if (!data) return res.status(400).json({ error: 'Par??metro data é obrigatório.' });
     db.all(
         `SELECT * FROM os_logistica WHERE data_os = ? AND status = 'ativo' ORDER BY cliente ASC`,
         [data],
@@ -15522,7 +16365,7 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
                 try { habs = JSON.parse(r.habilidades || '[]'); } catch (e) { habs = []; }
                 let diasSemana = [];
                 try { diasSemana = JSON.parse(r.dias_semana || '[]'); } catch (e) { diasSemana = []; }
-                const veiculo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VEÍCULO';
+                const veiculo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VE??CULO';
                 if (!result[veiculo]) result[veiculo] = { rotas: [], totalQtd: 0, servicosContagem: {}, produtosContagem: {} };
                 result[veiculo].rotas.push({ ...r, produtos: prods, variaveis: vars, habilidades: habs, dias_semana: diasSemana });
                 prods.forEach(p => {
@@ -15540,7 +16383,7 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
 });
 
 
-// GET /api/logistica/os/:id — Busca OS específica pelo ID
+// GET /api/logistica/os/:id ??? Busca OS espec??fica pelo ID
 app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ error: 'ID inválido.' });
@@ -15552,20 +16395,20 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DELETE /api/logistica/os/:id — Exclui (soft-delete) uma OS do histórico
+// DELETE /api/logistica/os/:id - Exclui (soft-delete) uma OS do histórico
 app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ error: 'ID inválido.' });
     db.run(`UPDATE os_logistica SET status = 'excluido' WHERE id = ?`, [id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'OS não encontrada.' });
-        console.log(`[OS-DELETE] OS id=${id} excluída por ${req.user?.nome || req.user?.username || 'usuário'}`);
-        res.json({ ok: true, message: 'OS excluída com sucesso.' });
+        console.log(`[OS-DELETE] OS id=${id} exclu??da por ${req.user?.nome || req.user?.username || 'usuário'}`);
+        res.json({ ok: true, message: 'OS exclu??da com sucesso.' });
     });
 });
 
-// Verifica se o tipo de serviço é recorrente (Manutenção regular ou VAC)
-// Manutenções AVULSAS são pontuais (filtradas por data_os) — não são recorrentes
+// Verifica se o tipo de servi??o à recorrente (Manutenção regular ou VAC)
+// Manuten????es AVULSAS são pontuais (filtradas por data_os) - não são recorrentes
 function isRecorrente(tipoServico) {
     const t = (tipoServico || '').toLowerCase();
     if (t.includes('avulsa')) return false; // Avulsa = pontual, ignora dias da semana
@@ -15598,7 +16441,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
     // Agrupa linhas por ID de referencia
     const uniqueMap = {};
     data.forEach(r => {
-        const idRaw = r['Identificação de referência'] || r['Identificacao de referencia'] || r['ID'] || '';
+        const idRaw = r['Identificação de refer??ncia'] || r['Identificacao de referencia'] || r['ID'] || '';
         const id = String(idRaw).trim();
         if (id && id !== 'undefined') {
             if (!uniqueMap[id]) uniqueMap[id] = [];
@@ -15607,7 +16450,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
     });
 
     const keys = Object.keys(uniqueMap);
-    if (keys.length === 0) return res.status(400).json({ error: 'Nenhum ID de referência válido encontrado na planilha.' });
+    if (keys.length === 0) return res.status(400).json({ error: 'Nenhum ID de refer??ncia válido encontrado na planilha.' });
 
     let inseridos = 0;
     let erros = 0;
@@ -15632,10 +16475,10 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
         const hora_fim = r['Janela de horário final'] || r['Janela de horario final'] || (turno === 'Noturno' ? '05:00' : '18:00');
         const obs_int = r['Observacoes_Internas'] || '';
         const telefone = r['Telefone de contato'] || '';
-        const email = r['Correio eletrônico de contato'] || r['Correio eletronico de contato'] || '';
+        const email = r['Correio eletr??nico de contato'] || r['Correio eletronico de contato'] || '';
         const tipo_serv = r['Tipo de visita'] || '';
 
-        // Produtos — agrega todas as linhas do mesmo ID
+        // Produtos ??? agrega todas as linhas do mesmo ID
         const prodMap = {};
         rows.forEach(row => {
             const anot = row['Anotações2'] || row['Anotacoes2'] || '';
@@ -15687,7 +16530,7 @@ app.delete('/api/logistica/pipeline/excluir-selecionadas', authenticateToken, ex
 
 // DELETE /api/logistica/pipeline/limpar - Remove todas as OS
 app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
-    // ATENÇÃO: Isso vai remover permanentemente TODAS as OS da base
+    // ATEN????O: Isso vai remover permanentemente TODAS as OS da base
     db.run(`DELETE FROM os_logistica`, [], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         const changes = this.changes;
@@ -15710,18 +16553,18 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
 
     // Abreviações e nomes completos para suportar OS antigas e novas
     const DIAS_ABBR = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const DIAS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const DIAS_FULL = ['Domingo', 'Segunda', 'Ter??a', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
     // Retorna Set com abreviações e nomes completos dos dias presentes no intervalo [de, ate]
     function diasNoIntervalo(de, ate) {
         const set = new Set();
-        // Se falta o 'De' ou o 'Até', o intervalo é aberto/infinito, então não há restrição de dias da semana
+        // Se falta o 'De' ou o 'Até', o intervalo à aberto/infinito, então não h?? restrição de dias da semana
         if (!de || !ate) return set;
 
         const fim = new Date(ate + 'T12:00:00');
         const cur = new Date(de + 'T12:00:00');
         let limit = 0;
-        while (cur <= fim && limit < 8) { // no máximo 8 dias, depois disso todos os dias já estão no Set
+        while (cur <= fim && limit < 8) { // no m??ximo 8 dias, depois disso todos os dias já estão no Set
             set.add(DIAS_ABBR[cur.getDay()]);
             set.add(DIAS_FULL[cur.getDay()]);
             cur.setDate(cur.getDate() + 1);
@@ -15752,7 +16595,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
             if (!temFiltroData && !diaFiltro) return true; // sem filtro de data nem dia: retorna tudo que passou no SQL
 
             if (isRecorrente(r.tipo_servico)) {
-                // Recorrente: data_os é a data de início da recorrência
+                // Recorrente: data_os à a data de início da recorr??ncia
                 const dataInicio = r.data_os || '';
                 // Só aparece se já iniciou (data_os <= data_ate ou data_os <= data_de se sem ate)
                 // Usar a data atual como fallback se for apenas busca por dia de semana
@@ -15774,13 +16617,13 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
                     
                     const diffWeeks = Math.round((checkMonday - startMonday) / (7 * msPerDay));
                     
-                    // Se não estiver na mesma semana inicial (diff=0), nem em uma quinzena válida (diff=2, 4, 6...), filtra fora.
+                    // Se não estiver na mesma semana inicial (diff=0), nem em uma quinzena v??lida (diff=2, 4, 6...), filtra fora.
                     if (diffWeeks < 0 || diffWeeks % 2 !== 0) {
                         return false; 
                     }
                 }
 
-                // Verifica se algum dia da semana da OS bate com o intervalo ou filtro explícito
+                // Verifica se algum dia da semana da OS bate com o intervalo ou filtro expl??cito
                 let dias = [];
                 try { dias = JSON.parse(r.dias_semana || '[]'); } catch (e) { }
 
@@ -15927,11 +16770,11 @@ app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
 // POST - cadastrar novo veículo
 app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
     const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
-    if (!placa) return res.status(400).json({ error: 'Placa é obrigatória' });
+    if (!placa) return res.status(400).json({ error: 'Placa à obrigatéria' });
     db.run(
         `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminhão', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null, foto_base64 || null],
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null, foto_base64 || null],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -15988,7 +16831,7 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
     const { km_na_manutencao, custo, fornecedor, observacoes } = req.body;
     const now = new Date().toISOString().split('T')[0];
     try {
-        // Finalizar todas as manutenções ativas (agendada ou em_andamento) do veículo
+        // Finalizar todas as manuten????es ativas (agendada ou em_andamento) do veículo
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE frota_manutencoes
@@ -16060,7 +16903,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
                 );
             });
         } else {
-            // Registra manutenções preventivas (uma por serviço selecionado)
+            // Registra manuten????es preventivas (uma por servi??o selecionado)
             const servicos = Array.isArray(servicos_preventivos) ? servicos_preventivos : [];
             for (const s of servicos) {
                 await new Promise((resolve, reject) => {
@@ -16085,7 +16928,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
     }
 });
 
-// GET - listar manutenções corretivas com dias parado calculado
+// GET - listar manuten????es corretivas com dias parado calculado
 app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     const { status, veiculo_id } = req.query;
     let sql = `
@@ -16135,7 +16978,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
 
     db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        // Se concluída ou cancelada, verificar se o veículo ainda tem manutenções ativas
+        // Se concluída ou cancelada, verificar se o veículo ainda tem manuten????es ativas
         if (status === 'concluida' || status === 'cancelada') {
             db.get(
                 `SELECT fm.veiculo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
@@ -16179,7 +17022,7 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
         const hoje = new Date();
         const alertas = (rows || []).filter(v => {
             if (!v.exercicio) return false;
-            // exercicio vem como ano (ex: "2025"). Vencimento é 31/dez desse ano
+            // exercicio vem como ano (ex: "2025"). Vencimento à 31/dez desse ano
             const ano = parseInt(v.exercicio);
             if (isNaN(ano)) return false;
             const vencimento = new Date(ano, 11, 31); // 31 de dezembro
@@ -16198,7 +17041,7 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // MANUTENÇÕES DE FROTA
 // =====================================================================
 
-// GET - listar manutenções (todas ou por veículo)
+// GET - listar manuten????es (todas ou por veículo)
 
 // GET - listar categorias
 app.get('/api/frota/categorias', authenticateToken, (req, res) => {
@@ -16235,7 +17078,7 @@ app.post('/api/frota/catalogo', authenticateToken, (req, res) => {
     );
 });
 
-// DELETE - excluir serviço do catálogo
+// DELETE - excluir servi??o do catélogo
 app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM frota_servicos_catalogo WHERE id=?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -16243,7 +17086,7 @@ app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DEBUG - ver últimas manutenções (temporário)
+// DEBUG - ver últimas manuten????es (tempor??rio)
 app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
     db.all(`SELECT id, veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, created_at 
             FROM frota_manutencoes ORDER BY id DESC LIMIT 30`, [], (err, rows) => {
@@ -16252,15 +17095,15 @@ app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
     });
 });
 
-// GET - preventivo por veiculo usando catálogo (plano ou padrão)
+// GET - preventivo por veiculo usando catélogo (plano ou padrão)
 app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
     const vid = req.params.veiculo_id;
     db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, v) => {
-        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manutenções
+        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manuten????es
         const kmAtual = v?.km_atual || 0;
         const emManutencao = v?.em_manutencao || 0;
 
-        // Apenas serviços registrados para este veículo (preventiva, concluída ou não)
+        // Apenas servi??os registrados para este veículo (preventiva, concluída ou não)
         db.all(`
             SELECT
                 m.id,
@@ -16292,15 +17135,15 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
         `, [vid], (err2, rows) => {
             if (err2) { console.error('[PREV ERROR]', err2.message); return res.status(500).json({ error: err2.message }); }
 
-            console.log(`[PREV] veiculo_id=${vid} → ${(rows||[]).length} registros encontrados`);
+            console.log(`[PREV] veiculo_id=${vid} ??? ${(rows||[]).length} registros encontrados`);
 
-            // Para cada serviço distinto, guardar tanto o último concluído (km, data) quanto o agendado
+            // Para cada servi??o distinto, guardar tanto o ??ltimo concluído (km, data) quanto o agendado
             const porDescricao = {};
             (rows || []).forEach(r => {
                 const key = r.servico_catalogo_id ? `cat_${r.servico_catalogo_id}` : `desc_${r.descricao || r.id}`;
                 if (!porDescricao[key]) porDescricao[key] = { concluida: null, agendada: null, em_andamento: null, base: null };
 
-                // O registro com maior KM = última manutenção concluída
+                // O registro com maior KM = ??ltima manutenção concluída
                 if (r.status === 'concluida') {
                     if (!porDescricao[key].concluida || (r.km_na_manutencao || 0) > (porDescricao[key].concluida.km_na_manutencao || 0)) {
                         porDescricao[key].concluida = r;
@@ -16330,7 +17173,7 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 const kmUlt = concluida ? (concluida.km_na_manutencao || 0) : 0;
                 const intervKm = item.periodicidade_padrao || 10000;
                 const alerta = Math.floor(intervKm * 0.1);
-                // Preferência de kmProx: agendada (se já foi editada) > concluida > calculado
+                // Prefer??ncia de kmProx: agendada (se já foi editada) > concluida > calculado
                 const kmProx = (agendada?.km_proxima_manutencao > 0)
                     ? agendada.km_proxima_manutencao
                     : (concluida
@@ -16406,7 +17249,7 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
         [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Se status é 'em_andamento', marcar veículo como em manutenção
+            // Se status à 'em_andamento', marcar veículo como em manutenção
             if (status === 'em_andamento') {
                 db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [veiculo_id]);
             }
@@ -16415,7 +17258,7 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
     );
 });
 
-// PUT - editar em massa (catálogo e histórico)
+// PUT - editar em massa (catélogo e histórico)
 app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
     const { veiculo_id, itens } = req.body;
     if (!veiculo_id || !Array.isArray(itens)) return res.status(400).json({ error: 'veiculo_id e itens são obrigatórios' });
@@ -16427,7 +17270,7 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
 
         itens.forEach(item => {
             if (errorOccurred) return;
-            // 1. Atualizar o catálogo
+            // 1. Atualizar o catélogo
             if (item.servico_id) {
                 db.run(
                     `UPDATE frota_servicos_catalogo 
@@ -16452,7 +17295,7 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
         db.run('COMMIT', err => {
             if (err || errorOccurred) {
                 db.run('ROLLBACK');
-                return res.status(500).json({ error: 'Erro ao salvar edições em massa' });
+                return res.status(500).json({ error: 'Erro ao salvar edi????es em massa' });
             }
             res.json({ message: 'Edições em massa salvas com sucesso' });
         });
@@ -16478,7 +17321,7 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
                 );
             }
 
-            // 2. Atualizar observações na última manutenção concluída deste veículo e serviço
+            // 2. Atualizar observações na ??ltima manutenção concluída deste veículo e servi??o
             if (observacoes !== undefined && observacoes !== null && observacoes !== '') {
                 db.get('SELECT nome FROM frota_servicos_catalogo WHERE id=?', [servico_id], (errSrv, srv) => {
                     if (errSrv) { console.error(errSrv); errorOccurred = errSrv.message; return; }
@@ -16506,7 +17349,7 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
         // A better approach in serialize is just to wait a tick, or use a counter. We'll use a simple timeout for safety in this transaction.
         setTimeout(() => {
             db.run(errorOccurred ? 'ROLLBACK' : 'COMMIT', err => {
-                if (err || errorOccurred) return res.status(500).json({ error: 'Erro ao salvar edições: ' + (errorOccurred || err.message) });
+                if (err || errorOccurred) return res.status(500).json({ error: 'Erro ao salvar edi????es: ' + (errorOccurred || err.message) });
                 res.json({ message: 'Edições salvas com sucesso' });
             });
         }, 1000);
@@ -16524,7 +17367,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
 
         // Modo edição rápida: só atualiza observações e km_proxima_manutencao (calculado pelo intervalo)
         if (_apenas_intervalo_obs) {
-            // km_ultima é passado pelo frontend para calcular corretamente mesmo em registros agendados
+            // km_ultima à passado pelo frontend para calcular corretamente mesmo em registros agendados
             const kmBase = req.body.km_ultima != null ? parseInt(req.body.km_ultima) : (row.km_na_manutencao || 0);
             const novoKmProx = intervalo_km ? (kmBase + parseInt(intervalo_km)) : row.km_proxima_manutencao;
             const novaObs = observacoes !== undefined ? (observacoes || null) : row.observacoes;
@@ -16536,7 +17379,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                 (err2) => {
                     if (err2) return res.status(500).json({ error: err2.message });
 
-                    // Se este registro é agendado, também atualiza o último concluído do mesmo veículo/descrição
+                    // Se este registro à agendado, também atualiza o ??ltimo concluído do mesmo veículo/descri????o
                     // para que o plano preventivo exiba o novo intervalo imediatamente
                     if (row.status === 'agendada' && intervalo_km) {
                         db.run(
@@ -16546,7 +17389,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                                AND status='concluida'
                                ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
                             [novoKmProx, row.veiculo_id, row.descricao, row.servico_catalogo_id],
-                            () => {} // ignora erro, não é crítico
+                            () => {} // ignora erro, não à crítico
                         );
                     }
 
@@ -16613,7 +17456,7 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
 app.delete('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM frota_manutencoes WHERE id=?', [req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Manutenção excluída' });
+        res.json({ message: 'Manutenção exclu??da' });
     });
 });
 
@@ -16627,7 +17470,7 @@ app.get('/api/frota/preventivo/:veiculo_id', authenticateToken, (req, res) => {
         db.all('SELECT * FROM frota_plano_preventivo WHERE ativo=1', [], (err2, plano) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
-            // Para cada item preventivo, buscar a última manutenção concluída desse tipo
+            // Para cada item preventivo, buscar a ??ltima manutenção concluída desse tipo
             const promises = (plano || []).map(item => new Promise(resolve => {
                 db.get(
                     `SELECT km_na_manutencao FROM frota_manutencoes
@@ -16694,7 +17537,7 @@ app.get('/api/frota/veiculos/:id/alertas', authenticateToken, (req, res) => {
                             vencidaData = true;
                         }
 
-                        // Status geral: vencida se qualquer critério > proxima se qualquer critério > ok
+                        // Status geral: vencida se qualquer crit??rio > proxima se qualquer crit??rio > ok
                         let statusItem = 'ok';
                         if (vencidaKm || vencidaData) statusItem = 'vencida';
                         else if (proximaKm || proximaData) statusItem = 'proxima';
@@ -16784,7 +17627,7 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     const hoje = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, vid], (err) => {
         if (err) return res.status(500).json({ error: err.message });
-        // Salvar no histórico diário usando INSERT OR REPLACE (mais compatível)
+        // Salvar no histórico di??rio usando INSERT OR REPLACE (mais compatével)
         db.run('DELETE FROM frota_km_historico WHERE veiculo_id=? AND data=?', [vid, hoje], () => {
             db.run(
                 'INSERT INTO frota_km_historico(veiculo_id, km, data) VALUES(?,?,?)',
@@ -16796,14 +17639,14 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     });
 });
 
-// POST - agendar manutenções preventivas em massa (atualiza registros existentes)
+// POST - agendar manuten????es preventivas em massa (atualiza registros existentes)
 app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async (req, res) => {
     const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
         return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
     }
     if (!data_agendamento) {
-        return res.status(400).json({ error: 'data_agendamento é obrigatória' });
+        return res.status(400).json({ error: 'data_agendamento à obrigatéria' });
     }
     const usuario_nome = req.user?.username || 'sistema';
     try {
@@ -16857,7 +17700,7 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
                 });
             });
         }
-        res.json({ message: `${servicos_ids.length} manutenção(ões) agendada(s) com sucesso` });
+        res.json({ message: `${servicos_ids.length} manutenção(??es) agendada(s) com sucesso` });
     } catch (e) {
         console.error('[AGENDAR-SEL]', e.message);
         res.status(500).json({ error: e.message });
@@ -16868,9 +17711,9 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
 app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { data } = req.query;
-    if (!data) return res.status(400).json({ error: 'data é obrigatória' });
+    if (!data) return res.status(400).json({ error: 'data à obrigatéria' });
     
-    // TEMPORÁRIO HOMOLOGAÇÃO: Força o retorno de 500 para teste
+    // TEMPOR??RIO HOMOLOGA????O: Força o retorno de 500 para teste
     if (data === '2026-05-25') {
         db.get("SELECT placa FROM frota_veiculos WHERE id = ?", [id], (e, v) => {
             if (v && v.placa && v.placa.includes('BXR4663')) {
@@ -16895,7 +17738,7 @@ app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
     }
 });
 
-// GET - histórico de manutenções realizadas (Drawer)
+// GET - histórico de manuten????es realizadas (Drawer)
 app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     db.all(`
         SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo,
@@ -16913,7 +17756,7 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     });
 });
 
-// POST - finalizar manutenções agendadas em massa
+// POST - finalizar manuten????es agendadas em massa
 app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, res) => {
     const { veiculo_id, servicos_ids, data_conclusao, observacoes, km_realizado } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
@@ -16942,13 +17785,13 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                 let errorMsg = null;
 
                 servicos_ids.forEach(servico_id => {
-                    // Buscar intervalo do serviço no catálogo para calcular próxima KM
+                    // Buscar intervalo do servi??o no catélogo para calcular próxima KM
                     db.get('SELECT nome, periodicidade_padrao FROM frota_servicos_catalogo WHERE id=?', [servico_id], (errSrv, srv) => {
                         if (errSrv || !srv) {
                             count++;
                             if (count === servicos_ids.length) {
                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
                             }
                             return;
                         }
@@ -16956,7 +17799,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                         const kmProxima = km && srv.periodicidade_padrao ? (parseInt(km) + parseInt(srv.periodicidade_padrao)) : null;
                         const nomeServico = srv.nome;
 
-                        // Buscar manutenção agendada ou em andamento existente para este veículo/serviço
+                        // Buscar manutenção agendada ou em andamento existente para este veículo/servi??o
                         db.get(
                             `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status IN ('agendada', 'em_andamento') ORDER BY id DESC LIMIT 1`,
                             [veiculo_id, nomeServico],
@@ -16977,7 +17820,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                             count++;
                                             if (count === servicos_ids.length) {
                                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
                                             }
                                         }
                                     );
@@ -16993,7 +17836,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                             count++;
                                             if (count === servicos_ids.length) {
                                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                                res.json({ message: 'Manutenções finalizadas com sucesso' });
+                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
                                             }
                                         }
                                     );
@@ -17020,20 +17863,20 @@ app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {
 });
 
 // =====================================================================
-// CREDENCIAMENTO DE LOGÍSTICA
+// CREDENCIAMENTO DE LOG??STICA
 // =====================================================================
 
 
 // =====================================================================
-// CREDENCIAMENTO COMERCIAL (SOLICITAÇÕES)
+// CREDENCIAMENTO COMERCIAL (SOLICITA????ES)
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     if (!cliente_nome || (!cliente_email && !cliente_whatsapp)) return res.status(400).json({ error: 'Nome e E-mail ou WhatsApp são obrigatórios.' });
 
-    // Token placeholder único para satisfazer a constraint NOT NULL + UNIQUE
-    // O token real só é gerado quando a Logística processar via /enviar
+    // Token placeholder ??nico para satisfazer a constraint NOT NULL + UNIQUE
+    // O token real só à gerado quando a Logística processar via /enviar
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
@@ -17085,13 +17928,13 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             const _logoPathCred = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
             const dtLimiteCred = data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada';
             sendEmailParaNotificados('nova_solicitacao_credenciamento', {
-                subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
+                        subject: `📋 Nova Solicitação de Credenciamento - ${cliente_nome}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color:#7048e8;text-align:center;margin-top:0;">📋 Nova Solicitação de Credenciamento</h2>
+                                <h2 style="color: #7048e8; text-align: center; margin-top: 0;">📋 Nova Solicitação de Credenciamento</h2>
                         <p>Uma nova solicitação foi registrada por <strong>${req.user ? req.user.username : 'Comercial'}</strong> e aguarda ação da Logística.</p>
                         <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #7048e8;">
                             <p style="margin:4px 0;"><strong>Cliente / Obra:</strong> ${cliente_nome}</p>
@@ -17117,14 +17960,14 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 LEFT JOIN grupos_permissao gp ON u.grupo_permissao_id = gp.id
                 LEFT JOIN colaboradores c ON u.nome = c.nome_completo
                 WHERE u.ativo = 1 
-                  AND (gp.departamento LIKE '%ogíst%' OR gp.departamento LIKE '%ogist%' 
-                       OR u.departamento LIKE '%ogíst%' OR u.departamento LIKE '%ogist%'
+                  AND (gp.departamento LIKE '%ogàst%' OR gp.departamento LIKE '%ogist%' 
+                       OR u.departamento LIKE '%ogàst%' OR u.departamento LIKE '%ogist%'
                        OR u.role LIKE '%ogist%'
                        OR gp.permissoes LIKE '%logistica-credenciamento%')
                 UNION
                 SELECT email_corporativo, email as c_email, null as u_email
                 FROM colaboradores 
-                WHERE status = 'Ativo' AND (departamento LIKE '%ogist%' OR departamento LIKE '%ogíst%' OR cargo LIKE '%ogist%')
+                WHERE status = 'Ativo' AND (departamento LIKE '%ogist%' OR departamento LIKE '%ogàst%' OR cargo LIKE '%ogist%')
             `, [], async (errColabs, rows) => {
                 const emails = new Set();
                 (rows || []).forEach(r => {
@@ -17147,12 +17990,12 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         licGroups[comp].push(l.nome);
                     });
                     const licNames = Object.keys(licGroups).length > 0
-                        ? Object.entries(licGroups).map(([comp, nomes]) => `• ${comp}: ${nomes.join(' - ')}`).join('<br>')
+                        ? Object.entries(licGroups).map(([comp, nomes]) => `??? ${comp}: ${nomes.join(' - ')}`).join('<br>')
                         : 'Nenhuma';
 
                     const docNamesMap = {
                         'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
-                        'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
                         'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
                     };
                     const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
@@ -17207,7 +18050,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             if (cliente_email && cliente_email.includes('@')) {
                 const docNamesMap = {
                     'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
-                    'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
+            'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
                     'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
                 };
                 const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
@@ -17226,7 +18069,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     : '<p style="color:#94a3b8; font-style:italic; margin:4px 0;">Nenhum documento específico solicitado.</p>';
 
                 const licsHtml = Object.keys(licGroups).length > 0
-                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">🏷️ Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${Object.entries(licGroups).map(([comp, nomes]) => `<li><strong>${comp}:</strong> ${nomes.join(' - ')}</li>`).join('')}</ul>`
+                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">??????? Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${Object.entries(licGroups).map(([comp, nomes]) => `<li><strong>${comp}:</strong> ${nomes.join(' - ')}</li>`).join('')}</ul>`
                     : '';
 
                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -17237,23 +18080,23 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
                     </div>
                     <div style="background: #7048e8; padding: 24px 20px; text-align:center;">
-                        <h2 style="color:#fff; margin:0; font-size:1.3rem;">📋 Solicitação de Credenciamento Recebida</h2>
+                        <h2 style="color:#fff; margin:0; font-size:1.3rem;">???? Solicitação de Credenciamento Recebida</h2>
                     </div>
                     <div style="padding:24px 20px;">
                         <p>Olá, <strong>${cliente_nome}</strong>!</p>
                         <p>Sua solicitação de credenciamento foi recebida e encaminhada ao nosso setor de <strong>Logística</strong>. Em breve enviaremos os documentos da equipe alocada para o seu projeto.</p>
 
                         <div style="background:#f8fafc; border-left:4px solid #7048e8; border-radius:6px; padding:16px; margin:20px 0;">
-                            <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">📄 Documentos Solicitados</h3>
+                            <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">???? Documentos Solicitados</h3>
                             ${docsHtml}
                             ${licsHtml}
                         </div>
 
-                        ${dtLimCliente ? `<p style="font-size:13px; color:#64748b;">⏰ <strong>Prazo estimado de envio:</strong> ${dtLimCliente}</p>` : ''}
-                        ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>📝 Observações:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
+                        ${dtLimCliente ? `<p style="font-size:13px; color:#64748b;">??? <strong>Prazo estimado de envio:</strong> ${dtLimCliente}</p>` : ''}
+                        ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>???? Observações:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
 
-                        <p style="margin-top:24px;">Em caso de dúvidas, entre em contato com nossa equipe.</p>
-                        <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>América Rental — Logística</strong></p>
+                        <p style="margin-top:24px;">Em caso de d??vidas, entre em contato com nossa equipe.</p>
+                        <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>América Rental - Logística</strong></p>
                     </div>
                     <div style="background:#f1f5f9; padding:12px; text-align:center; font-size:11px; color:#94a3b8;">
                         Esta mensagem foi enviada automaticamente pelo Sistema América Rental.
@@ -17262,7 +18105,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
                 sendMailHelper({
                     to: cliente_email,
-                    subject: `✅ Solicitação de Credenciamento Recebida — América Rental`,
+                    subject: `[CREDENCIAMENTO] Solicitação Recebida - América Rental`,
                     html: htmlCliente,
                     attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                 }).then(() => {
@@ -17305,7 +18148,7 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, res) => {
-    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp } = req.body;
+    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp, licencas } = req.body;
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
     const veicIds = (veiculos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
 
@@ -17317,7 +18160,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
     // Buscar cnh e dados do banco para enriquecer os colaboradores antes de salvar
     const fetchAndEnrich = (callback) => {
         if (colabIds.length === 0) return callback(colaboradores || []);
-        db.all(`SELECT id, nome_completo, cpf, cnh, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cnh_numero as cnh, cargo FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return callback(colaboradores || []);
             const enriched = (colaboradores || []).map(c => {
                 const cData = (colabRows || []).find(r => r.id === c.id);
@@ -17341,8 +18184,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
         const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
         const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
-            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, licencas_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
+            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(licencas || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -17351,108 +18194,259 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
                 // Construir texto_copia para o WhatsApp (sem link)
-                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n`;
+                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n\nSeguem dados dos colaboradores para credenciamento, em anexo documentos solicitados.\n`;
                 if (colabsEnriquecidos && colabsEnriquecidos.length > 0) {
-                    textoCopia += `\n👷*Equipe:*\n`;
-                    colabsEnriquecidos.forEach(c => {
-                        const isMotorista = (c.cargo || '').toUpperCase().includes('MOTORISTA');
-                        textoCopia += `- ${c.nome || c.nome_completo}\n`;
-                        if (c.cargo) textoCopia += `  Cargo: ${c.cargo}\n`;
-                        if (c.cpf) textoCopia += `  CPF: ${c.cpf}\n`;
-                        if (isMotorista && c.cnh) textoCopia += `  CNH: ${c.cnh}\n`;
-                    });
-                }
-                if (veiculos && veiculos.length > 0) {
-                    textoCopia += `\n🛻*Veículos:*\n`;
+                    textoCopia += `\n*Veículos:*\n`;
                     veiculos.forEach(v => {
                         textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
                     });
                 }
                 textoCopia = textoCopia.trim();
 
-                if (finalTipoEnvio === 'whatsapp') {
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado.', link: cred.apenas_dados ? null : link, texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados, whatsapp: finalWhatsapp, tipo_envio: finalTipoEnvio });
-                } else {
-                    if (cred.cliente_email && cred.cliente_email.includes('@')) {
-                        // Build HTML...
-                        let htmlCols = (colaboradores || []).map(c => {
-                            const cpfInfo = c.cpf ? ` - CPF: ${c.cpf}` : '';
-                            const cnhInfo = (c.isMotorista && c.cnh) ? ` - CNH: ${c.cnh}` : '';
-                            const cargoInfo = c.cargo ? ` - Cargo: ${c.cargo}` : '';
-                            return `<li><b>${c.nome || c.nome_completo}</b>${cargoInfo}${cpfInfo}${cnhInfo}</li>`;
-                        }).join('');
-                        let htmlVeics = (veiculos || []).map(v => {
-                            return `<li><b>${v.placa}</b> - ${v.modelo || v.marca_modelo_versao}</li>`;
-                        }).join('');
-
-                        let emailHtml = '';
-                        if (cred.apenas_dados) {
-                            emailHtml = `
-                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                                <div style="text-align: center; margin-bottom: 0;">
-                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
-                                </div>
-                                <h2 style="color: #2d9e5f; text-align: center;">Dados do Credenciamento</h2>
-                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
-                                <p>Abaixo estão os dados dos colaboradores e veículos credenciados para a sua obra/evento:</p>
-                                
-                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
-                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
-                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
-                                </div>
-                                <p style="text-align: center; font-size: 12px; color: #999;"><i>Este envio contém apenas os dados solicitados, sem anexos adicionais.</i></p>
-                            </div>`;
-                        } else {
-                            emailHtml = `
-                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow:hidden;">
-                                <div style="text-align: center; margin-bottom: 0;">
-                                    <img src="cid:cred-logo" alt="América Rental" style="width:100%; max-height:120px; display:block; object-fit:cover;">
-                                </div>
-                                <h2 style="color: #2d9e5f; text-align: center;">Credenciamento de Equipe Liberado</h2>
-                                <p>Olá <b>${cred.cliente_nome}</b>,</p>
-                                <p>Os documentos e certificados da equipe alocada para sua obra/evento foram liberados e estão disponíveis para download.</p>
-                                
-                                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                    <h4 style="margin-top: 0; color: #0f172a;">Equipe:</h4>
-                                    <ul style="margin: 0; padding-left: 20px;">${htmlCols}</ul>
-                                    ${htmlVeics ? `<h4 style="margin-top: 15px; color: #0f172a;">Veículos:</h4><ul style="margin: 0; padding-left: 20px;">${htmlVeics}</ul>` : ''}
-                                </div>
-
-                                <div style="text-align: center; margin: 30px 0;">
-                                    <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                                        Acessar Prontuários e Documentos
-                                    </a>
-                                </div>
-                                <p style="text-align: center; font-size: 12px; color: #999;">
-                                    <i>Este link expira automaticamente em 7 dias (até ${validUntil.toLocaleDateString('pt-BR')}).</i>
-                                </p>
-                            </div>`;
-                        }
-
-                        const mailOptions = {
-                            from: `"América Rental - Sistema" <${process.env.EMAIL_USER}>`,
-                            to: cred.cliente_email,
-                            subject: `Credenciamento de Equipe - América Rental`,
-                            html: emailHtml
-                        };
-
-                        sendMailHelper(mailOptions).then(() => {
-                            console.log('E-mail de credenciamento enviado com sucesso.');
-                        }).catch(error => {
-                            console.error('Erro ao enviar e-mail de credenciamento:', error.message);
-                        });
-                    }
-
-                    db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [cred.solicitado_por_id, `A Logística enviou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
-                    res.json({ message: 'Credenciamento processado com sucesso.', link, texto_copia: textoCopia, apenas_dados: false, whatsapp: cred.cliente_whatsapp });
-                }
+                // Notificar o solicitante (Comercial)
+                db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", 
+                    [cred.solicitado_por_id, `A Logística processou o credenciamento da OS ${cred.os || '-'} para o cliente ${cred.cliente_nome}.`, JSON.stringify({ cliente_nome: cred.cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
+                
+                // Sempre retornar o texto de cópia, pois agora o envio é manual (download zip e copy text)
+                res.json({ message: 'Credenciamento processado com sucesso.', texto_copia: textoCopia, apenas_dados: !!cred.apenas_dados });
             }
         );
         }); // fechamento fetchAndEnrich
     });
 });
+
+// Baixar ZIP dos documentos do credenciamento
+// Aceita tanto GET (licencas_ids como query param) quanto POST (licencas no body)
+const _handleDownloadZip = async (req, res) => {
+    db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], async (err, cred) => {
+        if (err || !cred) return res.status(404).send('Credenciamento não encontrado');
+
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip();
+        let hasFiles = false;
+
+        let colabsIds = [];
+        let veicIds = [];
+        let docsExigidos = [];
+        let licencasSolicitadas = [];
+
+        try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
+        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
+        try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
+
+        // Prioridade 1: licencas no body do POST
+        const bodyLicencas = req.body && req.body.licencas;
+        if (Array.isArray(bodyLicencas) && bodyLicencas.length > 0) {
+            licencasSolicitadas = bodyLicencas.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+            console.log(`[ZIP] Licencas via body POST: ${JSON.stringify(licencasSolicitadas)}`);
+        }
+
+        // Prioridade 2: licencas via query param (GET)
+        if (licencasSolicitadas.length === 0 && req.query.licencas_ids) {
+            try {
+                const fromQuery = JSON.parse(decodeURIComponent(req.query.licencas_ids));
+                licencasSolicitadas = fromQuery.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+                console.log(`[ZIP] Licencas via query param: ${JSON.stringify(licencasSolicitadas)}`);
+            } catch (e) { console.warn('[ZIP] Erro ao parsear licencas_ids do query param:', e.message); }
+        }
+
+        // Prioridade 3 (fallback): o que está salvo no banco
+        if (licencasSolicitadas.length === 0) {
+            try { 
+                const parsedLics = JSON.parse(cred.licencas_ids || '[]'); 
+                licencasSolicitadas = parsedLics.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
+                console.log(`[ZIP] Licencas do banco (fallback): ${JSON.stringify(licencasSolicitadas)}`);
+            } catch (e) {}
+        }
+
+        console.log(`[ZIP] FINAL licencasSolicitadas para o ZIP: ${JSON.stringify(licencasSolicitadas)}`);
+
+
+        const path = require('path');
+        const fs = require('fs');
+
+        const addLocalFileIfExists = (filePath, nameInZip) => {
+            // Suporta caminhos absolutos e relativos (ao repo e ao disco persistente)
+            let absolutePath;
+            if (path.isAbsolute(filePath)) {
+                absolutePath = filePath;
+            } else {
+                absolutePath = path.resolve(__dirname, '..', '..', filePath);
+                if (!fs.existsSync(absolutePath)) {
+                    // Fallback: relativo ao diretório pai do storage (disco persistente)
+                    absolutePath = path.resolve(BASE_PATH, '..', filePath);
+                }
+            }
+            if (fs.existsSync(absolutePath)) {
+                const parts = nameInZip.split('/');
+                const fileName = parts.pop();
+                const folderPath = parts.join('/');
+                zip.addLocalFile(absolutePath, folderPath, fileName);
+                hasFiles = true;
+            } else {
+                console.warn('[ZIP] Arquivo nao encontrado:', filePath, '->', absolutePath);
+            }
+        };
+
+        const addBase64IfExists = (base64Data, filenameInZip) => {
+            if (base64Data) {
+                const b64 = base64Data.replace(/^data:([A-Za-z-+\/]+);base64,/, '');
+                zip.addFile(filenameInZip, Buffer.from(b64, 'base64'));
+                hasFiles = true;
+            }
+        };
+
+        // 1. Licencas
+        if (licencasSolicitadas.length > 0) {
+            const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
+            console.log(`[ZIP] Licencas solicitadas: ${JSON.stringify(licencasSolicitadas)} | Encontradas no DB: ${lics.length}`);
+            lics.forEach(lic => {
+                if (!lic.file_path) return;
+                console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
+                const empresaSafe = (lic.empresa || 'Empresa')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+                    .replace(/\s+/g, '')                               // remove espaços
+                    .replace(/[^a-zA-Z0-9]/g, '');                    // remove caracteres especiais
+                const ext = path.extname(lic.file_name || '.pdf') || '.pdf';
+                const nomeSafe = (lic.nome || path.basename(lic.file_name || 'Licenca', ext))
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9]/g, '_')
+                    .replace(/_+/g, '_')
+                    .replace(/^_|_$/g, '')
+                    .toUpperCase();
+                const zipName = `Licencas/${empresaSafe}_${nomeSafe}${ext}`;
+
+                // Estrategia multi-caminho para encontrar o arquivo no disco
+                const candidatos = [
+                    lic.file_path, // se for absoluto
+                    // CORREÇÃO PRINCIPAL: o file_path é relativo à raiz do filesystem
+                    // (foi salvo como path.relative('/', filePath)), então '/' + file_path é o caminho absoluto correto
+                    path.join('/', lic.file_path),
+                    // Inverso matemático de como foi salvo: path.relative(path.join(BASE,'..','..'), filePath)
+                    path.resolve(BASE_UPLOAD_PATH, '..', '..', lic.file_path),
+                    path.resolve(__dirname, '..', '..', lic.file_path), // relativo ao repo
+                    path.resolve(BASE_PATH, '..', lic.file_path), // relativo ao diretorio pai do storage
+                    path.join(LICENCAS_UPLOAD_PATH, path.basename(lic.file_path)), // direto na pasta LICENCAS (sem subpasta empresa)
+                    // Tenta encontrar dentro da pasta LICENCAS com subpasta empresa extraída do path
+                    path.join(LICENCAS_UPLOAD_PATH, lic.file_path.split('/').slice(-2).join('/')),
+                ];
+                let found = false;
+                for (const candidato of candidatos) {
+                    try {
+                        if (fs.existsSync(candidato)) {
+                            console.log(`[ZIP] Licenca encontrada em: ${candidato}`);
+                            const parts = zipName.split('/');
+                            const fn = parts.pop();
+                            zip.addLocalFile(candidato, parts.join('/'), fn);
+                            hasFiles = true;
+                            found = true;
+                            break;
+                        }
+                    } catch(e) {}
+                }
+                if (!found) {
+                    console.warn(`[ZIP] Licenca NAO ENCONTRADA id=${lic.id}. Caminhos tentados: ${candidatos.join(' | ')}`);
+                }
+            });
+        }
+
+        // 2. Veículos (CRLV)
+        if (veicIds.length > 0) {
+            const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veiculos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            veics.forEach(v => {
+                addBase64IfExists(v.crlv_base64, `Veiculos/${v.placa}_${v.crlv_filename || 'CRLV.pdf'}`);
+            });
+        }
+
+        // 3. Colaboradores (Documentos)
+        if (colabsIds.length > 0) {
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            
+            // Mapeamento de categoria → label amigável para o nome do arquivo
+            const docCategoryLabel = {
+                'cnh':             'CNH',
+                'cpf':             'CPF',
+                'aso':             'ASO',
+                'ficha_registro':  'Ficha_Registro',
+                'treinamento':     'Carteira_Vacinacao',
+                'epi':             'EPI',
+                'contrato_esocial':'Contrato_eSocial',
+                'nr1':             'NR1',
+                'foto_colaborador':'Foto',
+            };
+
+            for (const colab of colabs) {
+                // Nome limpo do colaborador para usar no nome do arquivo
+                const nomeColabSafe = (colab.nome_completo || 'Colaborador')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9 ]/g, '')
+                    .trim()
+                    .replace(/\s+/g, '_');
+
+                const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
+                
+                if (docsExigidos.includes('foto_colaborador')) {
+                    if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/${nomeColabSafe}_Foto.png`);
+                    else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`);
+                }
+
+                // Buscar documentos da tabela documentos
+                const docs = await new Promise(resolve => db.all(`SELECT * FROM documentos WHERE colaborador_id = ?`, [colab.id], (err, rows) => resolve(rows || [])));
+                
+                const addedFilePaths = new Set(); // Evita duplicatas no zip
+                docs.forEach(doc => {
+                    const docTypeLower = (doc.document_type || '').toLowerCase();
+                    const tabName = doc.tab_name || '';
+                    let matchedCategory = null;
+                    
+                    if (docsExigidos.includes('cnh') && (docTypeLower.includes('cnh') || docTypeLower.includes('habilita'))) matchedCategory = 'cnh';
+                    else if (docsExigidos.includes('cpf') && docTypeLower.includes('cpf')) matchedCategory = 'cpf';
+                    else if (docsExigidos.includes('aso') && docTypeLower.includes('aso')) matchedCategory = 'aso';
+                    else if (docsExigidos.includes('ficha_registro') && (docTypeLower.includes('ficha de registro') || docTypeLower.includes('registro'))) matchedCategory = 'ficha_registro';
+                    else if (docsExigidos.includes('treinamento') && (docTypeLower.includes('vacina') || docTypeLower.includes('treinamento'))) matchedCategory = 'treinamento';
+                    else if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
+                    else if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') matchedCategory = 'contrato_esocial';
+                    else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
+                    
+                    if (matchedCategory) {
+                        const filePath = doc.signed_file_path || doc.file_path;
+                        if (filePath) {
+                            const normalizedPath = filePath.replace(/\\/g, '/');
+                            if (!addedFilePaths.has(normalizedPath)) {
+                                addedFilePaths.add(normalizedPath);
+                                const ext = path.extname(doc.file_name || '.pdf') || '.pdf';
+                                const label = docCategoryLabel[matchedCategory] || matchedCategory.toUpperCase();
+                                const nomeArquivo = `${nomeColabSafe}_${label}${ext}`;
+                                addLocalFileIfExists(filePath, `${folderName}/${nomeArquivo}`);
+                            }
+                        }
+                    }
+                });
+
+                // Buscar Ficha EPI ativa se EPI exigido
+                if (docsExigidos.includes('epi')) {
+                    const epi = await new Promise(resolve => db.get(`SELECT ficha_pdf_path FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = 'ativa' ORDER BY id DESC LIMIT 1`, [colab.id], (err, row) => resolve(row)));
+                    if (epi && epi.ficha_pdf_path) {
+                        addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/${nomeColabSafe}_Ficha_EPI.pdf`);
+                    }
+                }
+            }
+        }
+
+
+        if (!hasFiles) {
+            // Retorna um zip vazio com um readme
+            zip.addFile('README.txt', Buffer.from('Nenhum documento encontrado para este credenciamento.'));
+        }
+
+        const zipBuffer = zip.toBuffer();
+        res.set('Content-Type', 'application/zip');
+        res.set('Content-Disposition', `attachment; filename="Credenciamento_${cred.os || cred.id}.zip"`);
+        res.send(zipBuffer);
+    });
+};
+app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
+app.post('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
@@ -17468,9 +18462,9 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         const docMap = {
             'cnh': ['CNH'],
             'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-            'aso': ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
             'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
-            'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
+                'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
             'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
             'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
@@ -17483,7 +18477,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             'foto_colaborador': 'Foto do Colaborador'
         };
 
-        // Se há exigências de documentos, validar para cada colaborador
+        // Se h?? exig??ncias de documentos, validar para cada colaborador
         if (colabIds.length > 0 && docs_exigidos && docs_exigidos.length > 0) {
             for (let cid of colabIds) {
                 const cDocs = docsData
@@ -17595,8 +18589,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 
                 const emailBodyDados = `
-                    ${htmlCols ? `<p style="margin:0 0 6px 0;">👷 <b>Equipe:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlCols}</ul>` : ''}
-                    ${htmlVeic ? `<p style="margin:0 0 6px 0;">🛻 <b>Veículos:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlVeic}</ul>` : ''}
+                    ${htmlCols ? `<p style="margin:0 0 6px 0;">???? <b>Equipe:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlCols}</ul>` : ''}
+                    ${htmlVeic ? `<p style="margin:0 0 6px 0;">???? <b>Veículos:</b></p><ul style="margin:0 0 16px 0; padding-left:20px;">${htmlVeic}</ul>` : ''}
                     ${htmlLicencas}
                 `;
 
@@ -17616,7 +18610,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                                 <p style="margin:0 0 4px 0;">OS: <b>${os || '-'}</b></p>
                                 <hr style="border:none; border-top:1px solid #e2e8f0; margin:12px 0;">
                                 ${emailBodyDados}
-                                <p>Os documentos em PDF estão em anexo neste e-mail. <b>O link para acessar o portal de documentos é válido por 7 dias.</b></p>
+                                <p>Os documentos em PDF estão em anexo neste e-mail. <b>O link para acessar o portal de documentos à válido por 7 dias.</b></p>
                                 <div style="text-align: center; margin: 30px 0;">
                                     <a href="${link}" style="background:#16a34a;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Acessar Portal de Documentos</a>
                                 </div>
@@ -17633,7 +18627,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
                 const envTipo = tipo_envio || 'email';
 
-                // ── Monta texto para cópia WhatsApp (sem link) ─────────────────
+                // ?????? Monta texto para cópia WhatsApp (sem link) ???????????????????????????????????????????????????
                 const buildTextoCopia = (colabs, veics, lics) => {
                     const linhasCol = (colabs || []).map(c => {
                         const cData = colabData.find(col => col.id === c.id);
@@ -17652,16 +18646,16 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     const linhasLic = (lics || []).map(l => `- ${l.nome} (${l.empresa || 'América Rental'})`);
 
                     let txt = `*Credenciamento - ${cliente_nome}*\nOS: ${os || '-'}\n`;
-                    if (linhasCol.length) txt += `\n👷*Equipe:*\n${linhasCol.join('\n')}\n`;
-                    if (linhasVeic.length) txt += `\n🛻*Veículos:*\n${linhasVeic.join('\n')}\n`;
-                    if (linhasLic.length) txt += `\n📋*Licenças:*\n${linhasLic.join('\n')}\n`;
+                    if (linhasCol.length) txt += `\n????*Equipe:*\n${linhasCol.join('\n')}\n`;
+                    if (linhasVeic.length) txt += `\n????*Veículos:*\n${linhasVeic.join('\n')}\n`;
+                    if (linhasLic.length) txt += `\n????*Licenças:*\n${linhasLic.join('\n')}\n`;
                     return txt.trim();
                 };
 
                 const texto_copia = buildTextoCopia(colaboradores, veiculos, licencas);
 
                 if (envTipo === 'whatsapp') {
-                    // WhatsApp: só envia dados copiados, sem link (documentos PDF apenas por e-mail)
+                    // WhatsApp: s?? envia dados copiados, sem link (documentos PDF apenas por e-mail)
                     db.run("INSERT INTO comercial_notificacoes (usuario_id, mensagem, tipo, dados) VALUES (?, ?, 'credenciamento_enviado', ?)", [req.user.id, `A Logística gerou os dados de credenciamento da OS ${os || '-'} para o cliente ${cliente_nome} via WhatsApp.`, JSON.stringify({ cliente_nome: cliente_nome, remetente: req.user ? req.user.nome_completo : 'Logística' })]);
                     return res.json({ ok: true, message: 'Dados gerados com sucesso.', texto_copia, apenas_dados, whatsapp: cliente_whatsapp });
                 } else {
@@ -17702,7 +18696,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     };
 
     if (colabIds.length > 0) {
-        db.all(`SELECT id, nome_completo, cpf, cnh, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
+        db.all(`SELECT id, nome_completo, cpf, cnh_numero as cnh, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabIds.join(',')})`, (err, colabRows) => {
             if (err) return res.status(500).json({ error: err.message });
             db.all(`SELECT colaborador_id, document_type, tab_name FROM documentos WHERE colaborador_id IN (${colabIds.join(',')})`, (err2, docRows) => {
                 if (err2) return res.status(500).json({ error: err2.message });
@@ -17760,7 +18754,7 @@ app.put('/api/comercial/notificacoes/:id/lida', authenticateToken, (req, res) =>
 app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE id = ?', [req.params.id], (err, cred) => {
         if (err || !cred) return res.status(500).json({ error: 'Credenciamento não encontrado' });
-        if (!cred.token) return res.status(400).json({ error: 'Este credenciamento ainda não possui um link gerado pela logística.' });
+        if (!cred.token) return res.status(400).json({ error: 'Este credenciamento ainda não possui um link gerado pela logàstica.' });
 
         const { novoEmail } = req.body || {};
         const emailToUse = novoEmail ? novoEmail.trim() : cred.cliente_email;
@@ -17789,7 +18783,7 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
                         <p>Abaixo está o link para acesso aos documentos da equipe alocada para sua obra/evento.</p>
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="${link}" style="background: #2d9e5f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-                                Acessar Prontuários e Documentos
+                                Acessar prontuários e Documentos
                             </a>
                         </div>
                         <p style="text-align: center; font-size: 12px; color: #999;">
@@ -17862,7 +18856,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const colabFotoPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
             const placeholders = colabIds.map(() => '?').join(',');
-            db.all(`SELECT id, cpf, cnh, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
+            db.all(`SELECT id, cpf, cnh_numero as cnh, foto_base64, foto_path FROM colaboradores WHERE id IN (${placeholders})`, colabIds, (err, rows) => {
                 resolve(rows || []);
             });
         });
@@ -17921,7 +18915,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
             const docMapPublico = {
                 'cnh': ['CNH'],
                 'cpf': ['RG-CPF', 'CIN-CPF', 'CPF', 'rg cpf', 'cin cpf'],
-                'aso': ['ASO', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
+                'aso': ['ASO', 'ASO Periodico', 'ASO Periódico', 'ASO Padrao', 'ASO Padrão', 'Atestado de Saúde Ocupacional'],
                 'ficha_registro': ['Ficha de Registro', 'Ficha Cadastral', 'Ficha de registro'],
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
@@ -17940,11 +18934,11 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 (docMapPublico[chave] || []).forEach(nome => tiposPermitidos.add(norm(nome)));
             });
 
-            // Função para saber se um documento é permitido
+            // Função para saber se um documento à permitido
             const isApenasDados = docsExigidos.includes('apenas_dados');
             const isPermitido = (d) => {
                 if (isApenasDados) return false; // Se for apenas dados, não envia nenhum documento
-                if (tiposPermitidos.size === 0) return true; // se não há filtro, libera tudo
+                if (tiposPermitidos.size === 0) return true; // se não h?? filtro, libera tudo
                 const dn = norm(d.document_type);
                 return Array.from(tiposPermitidos).some(acc => dn.includes(acc) || acc.includes(dn));
             };
@@ -18031,7 +19025,7 @@ app.get('/api/publico/credenciamento/:token/doc/:docId', (req, res) => {
             if (fs_module.existsSync(absolutePath)) {
                 res.download(absolutePath, doc.file_name);
             } else {
-                res.status(404).send('Arquivo físico não encontrado no servidor');
+                res.status(404).send('Arquivo fàsico não encontrado no servidor');
             }
         });
     });
@@ -18047,7 +19041,7 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
 
             let veics = [];
             try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
-            // Nota: JSON parsing converte números para int/string. Vamos comparar como string.
+            // Nota: JSON parsing converte n??meros para int/string. Vamos comparar como string.
             if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
 
             const base64Data = row.crlv_base64.replace(/^data:application\/pdf;base64,/, "");
@@ -18084,7 +19078,7 @@ app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
                 const finalPath = path.join(empresaDir, row.file_name);
                 if (fs.existsSync(finalPath)) absPath = finalPath;
             }
-            if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo físico não encontrado');
+            if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo fàsico não encontrado');
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'attachment; filename="' + row.file_name + '"');
@@ -18146,11 +19140,11 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
     });
 });
 
-// ══════════════════════════════════════════════════════════════════════
-// CLIENTES ITINERANTES — Endpoint de Localização Google Maps
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// CLIENTES ITINERANTES ??? Endpoint de Localização Google Maps
 // Usa engenharia reversa (cookie-based) para buscar localizações
 // compartilhadas na conta Google do usuário.
-// ══════════════════════════════════════════════════════════════════════
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), async (req, res) => {
     const { cookies } = req.body;
     if (!Array.isArray(cookies) || cookies.length === 0) {
@@ -18160,7 +19154,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
     try {
         const https = require('https');
 
-        // Filtra apenas cookies do domínio Google
+        // Filtra apenas cookies do dom??nio Google
         const cookieStr = cookies
             .filter(c => c.domain && c.domain.includes('google'))
             .map(c => `${c.name}=${c.value}`)
@@ -18170,7 +19164,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
             return res.status(400).json({ error: 'Nenhum cookie do Google encontrado. Exporte em maps.google.com.' });
         }
 
-        // Endpoint correto — usado internamente pelo Google Maps Web (reverse-engineered)
+        // Endpoint correto ??? usado internamente pelo Google Maps Web (reverse-engineered)
         // A URL com pb= populado retorna os dados de location sharing
         const rawData = await new Promise((resolve, reject) => {
             const urlStr = 'https://www.google.com/maps/rpc/locationsharing/read?authuser=0&hl=pt-BR&gl=BR&pb=!1m7!8m6!1m3!1i14!2i8413!3i5680!2i6!3x4095!2m9!1e0!2sm!3m5!1e0!2b1!5e8!7e41!11e4!3e0&_=1';
@@ -18216,8 +19210,8 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
 
         // Se vier HTML = não está autenticado
         if (!jsonStr || jsonStr.startsWith('<')) {
-            console.error('[Itinerantes] Google retornou HTML — cookies inválidos.');
-            return res.status(401).json({ error: 'Sessão inválida. Exporte os cookies novamente em guia anônima logada em maps.google.com.' });
+            console.error('[Itinerantes] Google retornou HTML - cookies inválidos.');
+            return res.status(401).json({ error: 'Sessão inv??lida. Exporte os cookies novamente em guia an??nima logada em maps.google.com.' });
         }
 
         if (!jsonStr.startsWith('[')) {
@@ -18231,10 +19225,10 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
             parsed = JSON.parse(jsonStr);
         } catch (e) {
             console.error('[Itinerantes] Falha ao parsear resposta do Google:', jsonStr.substring(0, 300));
-            return res.status(502).json({ error: 'Resposta inválida do Google. Os cookies podem ter expirado.' });
+            return res.status(502).json({ error: 'Resposta inv??lida do Google. Os cookies podem ter expirado.' });
         }
 
-        // Estrutura do Google Location Sharing: parsed[0] é array de pessoas/devices
+        // Estrutura do Google Location Sharing: parsed[0] à array de pessoas/devices
         const pessoas = Array.isArray(parsed[0]) ? parsed[0] : [];
 
         const tags = pessoas.map(p => {
@@ -18245,9 +19239,9 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
                 // p[1][0] = Latitude * 1e-7
                 // p[1][1] = Longitude * 1e-7
                 // p[1][2] = Precisão em metros
-                // p[1][6] = Timestamp da última atualização (ms)
+                // p[1][6] = Timestamp da ??ltima atualização (ms)
                 // p[1][4] = Endereço/localização textual
-                // p[1][3] = Nível de bateria (0-4 aprox) — ou null
+                // p[1][3] = N??vel de bateria (0-4 aprox) ??? ou null
                 const nome = p[0]?.[1] || p[0]?.[3] || 'Desconhecido';
                 const photoUrl = p[0]?.[6]?.[1] || null;
                 const lat = p[1]?.[0] ? p[1][0] / 1e7 : null;
@@ -18265,7 +19259,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
 
         // Se não encontrou tags, devolve a estrutura bruta para diagnóstico
         const debugInfo = tags.length === 0 ? {
-            rawLength: Array.isArray(parsed) ? parsed.length : 'não é array',
+            rawLength: Array.isArray(parsed) ? parsed.length : 'não à array',
             nivel0: Array.isArray(parsed[0]) ? `array com ${parsed[0].length} itens` : typeof parsed[0],
             nivel1: Array.isArray(parsed[1]) ? `array com ${parsed[1].length} itens` : typeof parsed[1],
             nivel2: Array.isArray(parsed[2]) ? `array com ${parsed[2].length} itens` : typeof parsed[2],
@@ -18283,9 +19277,9 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
     }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// AGENDA LOGÍSTICA
-// ═══════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// AGENDA LOG??STICA
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // Auto-criação da tabela
 db.run(`CREATE TABLE IF NOT EXISTS logistica_agenda (
@@ -18320,7 +19314,7 @@ setTimeout(() => {
     ].forEach(q => db.run(q, () => { }));
 }, 1500);
 
-// GET – lista cards do mês
+// GET - lista cards do mês
 app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
     const { ano, mes, setor, inicio, fim } = req.query;
     let where = '1=1';
@@ -18342,7 +19336,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
         db.all(`SELECT id, departamento FROM colaboradores`, [], (errDept, allColabs) => {
             const deptMap = {};
             (allColabs || []).forEach(c => deptMap[c.id] = c.departamento);
-            const opSectors = ['Ajudante Geral', 'Ajudante Pátio', 'Liderança', 'Logística', 'Manutenção', 'Motorista'];
+            const opSectors = ['Ajudante Geral', 'Ajudante P??tio', 'Liderança', 'Logística', 'Manutenção', 'Motorista'];
             let rows = [];
             const seenManual = new Set();
             (rawRows || []).forEach(card => {
@@ -18395,7 +19389,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                         data: dataStr,
                         tipo: 'ferias',
                         titulo: 'Férias: ' + c.nome_completo.split(' ')[0],
-                        descricao: 'Período de férias agendado para ' + c.nome_completo,
+                        descricao: 'Per??odo de férias agendado para ' + c.nome_completo,
                         horario: '',
                         setor: 'logistica',
                         responsaveis: '[]',
@@ -18430,7 +19424,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                 data: dataStr,
                                 tipo: 'afastado',
                                 titulo: 'Afastado: ' + a.nome_completo.split(' ')[0],
-                                descricao: 'Afastamento médico para ' + a.nome_completo,
+                                descricao: 'Afastamento m??dico para ' + a.nome_completo,
                                 horario: '',
                                 setor: 'logistica',
                                 responsaveis: '[]',
@@ -18520,7 +19514,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
 });
         });
 
-// GET – Escala operacional: retorna colaboradores ativos do operacional com dados de escala e ausências no período
+// GET - Escala operacional: retorna colaboradores ativos do operacional com dados de escala e aus??ncias no período
 app.get('/api/logistica/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
@@ -18536,7 +19530,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
             ORDER BY nome_completo`, DEPTS_EXCLUIDOS, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        // Coletar ausências no período (férias, atestados, faltas)
+        // Coletar aus??ncias no período (férias, atestados, faltas)
         const promises = [];
 
         // Férias
@@ -18618,7 +19612,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 });
         }));
 
-        // Terapias e ausências registradas na agenda manual (logistica_agenda)
+        // Terapias e aus??ncias registradas na agenda manual (logistica_agenda)
         promises.push(new Promise(resolve => {
             const ids = (colabs || []).map(c => c.id);
             if (!ids.length) return resolve({});
@@ -18669,18 +19663,18 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 const escalaStr = (c.escala_tipo || '').toLowerCase();
                 const folgas = (c.escala_folgas || '').toLowerCase();
 
-                // Mapeamento de nome do dia → getDay() index (0=Dom)
+                // Mapeamento de nome do dia ??? getDay() index (0=Dom)
                 const DIA_MAP = {
                     'dom': 0, 'domingo': 0,
                     'seg': 1, 'segunda': 1,
-                    'ter': 2, 'terça': 2, 'terca': 2,
+                    'ter': 2, 'ter??a': 2, 'terca': 2,
                     'qua': 3, 'quarta': 3,
                     'qui': 4, 'quinta': 4,
                     'sex': 5, 'sexta': 5,
-                    'sáb': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
+                    's??b': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
                 };
 
-                // Dias de folga explícitos cadastrados (campo escala_folgas é JSON array ex: ["Qua"])
+                // Dias de folga expl??citos cadastrados (campo escala_folgas à JSON array ex: ["Qua"])
                 let folgasExplicitas = [];
                 try {
                     const parsed = JSON.parse(c.escala_folgas || '[]');
@@ -18692,18 +19686,18 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                 }
                 const folgasDow = folgasExplicitas.map(f => DIA_MAP[f]).filter(v => v !== undefined);
 
-                // ── LÓGICA DOMINGO DE LEI ──────────────────────────────────────────
+                // ?????? L??GICA DOMINGO DE LEI ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
                 // Ciclo: domingo 0 = trabalha, 1 = trabalha, 2 = FOLGA, 3 = trabalha...
                 const temCiclo = c.escala_ciclo_inicio && (escalaStr.includes('uma_folga') || escalaStr.includes('duas_folgas') || escalaStr.includes('folga'));
                 const cicloBase = temCiclo ? new Date(c.escala_ciclo_inicio + 'T12:00:00') : null;
 
-                // Índice do 1º dia fixo de folga (para Tipo B: é o 1º dia que "cede" ao domingo de lei, virando trabalho)
+                // ??ndice do 1?? dia fixo de folga (para Tipo B: à o 1?? dia que "cede" ao domingo de lei, virando trabalho)
                 const ultimoFolgaDow = folgasDow.length >= 2 ? folgasDow[0] : null;
 
                 const isDomingoDeLei = (dateStr) => {
                     if (!temCiclo || !cicloBase) return false;
                     const d = new Date(dateStr + 'T12:00:00');
-                    if (d.getDay() !== 0) return false; // só testa domingos
+                    if (d.getDay() !== 0) return false; // s?? testa domingos
                     // Contar quantos domingos desde o ciclo_inicio
                     const diffMs = d - cicloBase;
                     if (diffMs < 0) return false; // antes do ciclo
@@ -18716,51 +19710,51 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                     const d = new Date(dateStr + 'T12:00:00');
                     const dow = d.getDay(); // 0=dom, 1=seg..6=sab
 
-                    // ── 12x36: ciclo alternado (dia trabalha / dia folga) ──────────
+                    // ?????? 12x36: ciclo alternado (dia trabalha / dia folga) ??????????????????????????????
                     if (escalaStr.includes('12x36')) {
                         if (c.escala_ciclo_inicio) {
                             const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
                             const diffMs = d - ciclo12;
-                            if (diffMs < 0) return false; // antes do início do ciclo: disponível
+                            if (diffMs < 0) return false; // antes do início do ciclo: dispon??vel
                             const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
                             return diffDias % 2 === 1; // par = trabalha, ímpar = folga (36h)
                         }
-                        return false; // sem data de referência: sempre disponível
+                        return false; // sem data de refer??ncia: sempre dispon??vel
                     }
 
-                    // ── Verificar Domingo de Lei ───────────────────────────────────
+                    // ?????? Verificar Domingo de Lei ?????????????????????????????????????????????????????????????????????????????????????????????????????????
                     if (dow === 0 && isDomingoDeLei(dateStr)) {
-                        return true; // domingo é folga
+                        return true; // domingo à folga
                     }
 
-                    // ── Para Tipo B (2 folgas): na semana do domingo de lei,
-                    //    o último dia fixo de folga vira trabalho (compensação)
+                    // ?????? Para Tipo B (2 folgas): na semana do domingo de lei,
+                    //    o ??ltimo dia fixo de folga vira trabalho (compensação)
                     if (ultimoFolgaDow !== null && dow === ultimoFolgaDow) {
-                        // Calcular se o domingo desta semana é Domingo de Lei
+                        // Calcular se o domingo desta semana à Domingo de Lei
                         const thisSunday = new Date(dateStr + 'T12:00:00');
                         thisSunday.setDate(thisSunday.getDate() - dow); // retrocede ao domingo da semana
                         const thisSundayStr = thisSunday.toISOString().split('T')[0];
                         if (isDomingoDeLei(thisSundayStr)) {
-                            return false; // o 2º dia fixo TRABALHA nesta semana (domingo folga)
+                            return false; // o 2?? dia fixo TRABALHA nesta semana (domingo folga)
                         }
                     }
 
-                    // ── Folgas fixas do cadastro ───────────────────────────────────
+                    // ?????? Folgas fixas do cadastro ?????????????????????????????????????????????????????????????????????????????????????????????????????????
                     if (escalaStr.includes('escala_uma_folga') || escalaStr.includes('escala_duas_folgas')) {
                         if (folgasDow.length > 0) {
                             return folgasDow.includes(dow);
                         }
                     }
 
-                    // ── Fallback por tipo de escala ────────────────────────────────
+                    // ?????? Fallback por tipo de escala ????????????????????????????????????????????????????????????????????????????????????????????????
                     if (escalaStr.includes('sab_alternado') || escalaStr.includes('sabado_alternado')) {
-                        if (dow === 0) return true; // domingo é folga fixa
+                        if (dow === 0) return true; // domingo à folga fixa
                         if (dow === 6 && c.escala_ciclo_inicio) {
-                            // Contar quantos sábados desde o sábado de referência
+                            // Contar quantos sábados desde o sábado de refer??ncia
                             const sabRef = new Date(c.escala_ciclo_inicio + 'T12:00:00');
                             const d = new Date(dateStr + 'T12:00:00');
                             const diffMs = d - sabRef;
-                            if (diffMs < 0) return false; // antes da referência
+                            if (diffMs < 0) return false; // antes da refer??ncia
                             const diffSemanas = Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
                             return diffSemanas % 2 === 1; // 0=trabalha, 1=folga, 2=trabalha...
                         }
@@ -18808,7 +19802,7 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 app.get('/api/rh/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
-    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Manutenção', 'RH', 'Supervisão', 'Ajudante Geral', 'Ajudante Pátio', 'Liderança', 'Motorista'];
+    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Manutenção', 'RH', 'Supervisão', 'Ajudante Geral', 'Ajudante P??tio', 'Liderança', 'Motorista'];
     const incStr = INCL.map(() => '?').join(',');
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
@@ -18879,7 +19873,7 @@ app.get('/api/rh/escala', authenticateToken, (req, res) => {
                 });
         });
 
-        // Terapias e ausências registradas manualmente na agenda logistica
+        // Terapias e aus??ncias registradas manualmente na agenda logistica
         const p4 = new Promise(resolve => {
             db.all(`SELECT referente_ids, tipo, data FROM logistica_agenda
                     WHERE data >= ? AND data <= ? AND tipo IN ('terapia','falta','afastado','ferias')`,
@@ -18966,9 +19960,9 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
 
     const DIA_MAP = {
         'dom': 0, 'domingo': 0, 'seg': 1, 'segunda': 1,
-        'ter': 2, 'terça': 2, 'terca': 2, 'qua': 3, 'quarta': 3,
+        'ter': 2, 'ter??a': 2, 'terca': 2, 'qua': 3, 'quarta': 3,
         'qui': 4, 'quinta': 4, 'sex': 5, 'sexta': 5,
-        'sáb': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
+        's??b': 6, 'sab': 6, 'sabado': 6, 'sábado': 6
     };
 
     // Função de folga reutilizada do endpoint de escala
@@ -19052,7 +20046,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     });
             });
 
-            // Agenda: falta/ausencia/terapia marcada na agenda da logística para essa data referente ao colaborador
+            // Agenda: falta/ausencia/terapia marcada na agenda da logàstica para essa data referente ao colaborador
             const pAgenda = new Promise(resolve => {
                 db.all(`SELECT referente_ids, tipo FROM logistica_agenda WHERE data = ? AND tipo IN ('falta','afastado','ferias','terapia')`, [data], (e, rows) => {
                     const agendaMap = new Map(); // id -> tipo
@@ -19073,7 +20067,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                 });
             });
 
-            // Avisos: cards de aviso na agenda logística para essa data referentes a colaboradores
+            // Avisos: cards de aviso na agenda logàstica para essa data referentes a colaboradores
             const pAviso = new Promise(resolve => {
                 db.all(`SELECT referente_ids, titulo FROM logistica_agenda WHERE data = ? AND tipo = 'aviso'`, [data], (e, rows) => {
                     const avisoMap = new Map(); // id -> [titulo, ...]
@@ -19109,7 +20103,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         motivo = 'Colaborador desligado';
                     } else if (statusSistema === 'férias' || statusSistema === 'ferias') {
                         if (c.ferias_programadas_fim && data > c.ferias_programadas_fim) {
-                            // Data da rota é DEPOIS das férias, então está disponível
+                            // Data da rota à DEPOIS das férias, então está dispon??vel
                         } else {
                             status = 'ferias';
                             motivo = 'Em Férias (status cadastro)';
@@ -19129,7 +20123,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         }
                     }
 
-                    // Atestado no período (armazena a data fim para exibição)
+                    // Atestado no período (armazena a data fim para exibi????o)
                     if (atestSet[c.id] !== undefined && atestSet[c.id] !== null) {
                         const fimAtestado = atestSet[c.id];
                         const fimFmt = fimAtestado
@@ -19143,16 +20137,16 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     // Falta registrada na tabela de faltas
                     if (faltSet[c.id]) { status = 'falta'; motivo = 'Falta registrada no dia'; }
 
-                    // Agenda logística — respeita o tipo do card (falta, afastado, ferias ou terapia)
+                    // Agenda logàstica - respeita o tipo do card (falta, afastado, ferias ou terapia)
                     if (agendaMap.has(c.id)) {
                         const tipoAgenda = agendaMap.get(c.id);
-                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
-                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lançada na Agenda'; }
+                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lan??ada na Agenda'; }
+                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lan??ada na Agenda'; }
                         else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
                         else if (tipoAgenda === 'terapia' && status === 'disponivel') { status = 'terapia'; motivo = 'Terapia agendada para hoje'; }
                     }
 
-                    // Folga da escala (só se ainda disponível)
+                    // Folga da escala (s?? se ainda dispon??vel)
                     if (status === 'disponivel') {
                         if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
                     }
@@ -19180,10 +20174,10 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
         });
 });
 
-// POST – criar card
+// POST ??? criar card
 app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) => {
     const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
-    if (!data) return res.status(400).json({ error: 'Data obrigatória.' });
+    if (!data) return res.status(400).json({ error: 'Data obrigatéria.' });
     const criado_por = req.user ? (req.user.username || '') : '';
     db.run(`INSERT INTO logistica_agenda (setor, titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, criado_por, criado_em, atualizado_em)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))`,
@@ -19202,19 +20196,38 @@ app.post('/api/logistica/agenda', authenticateToken, express.json(), (req, res) 
     );
 });
 
-// PUT – atualizar card
+// PUT ??? atualizar card
 app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, res) => {
-    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [req.params.id], (err, oldRow) => {
+    const idParam = req.params.id;
+    const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
+
+    if (String(idParam).startsWith('falta_')) {
+        const parts = idParam.split('_');
+        if (parts.length >= 3) {
+            const colabId = parts[1];
+            const dataFalta = parts.slice(2).join('_');
+            
+            if (!data) return res.status(400).json({ error: 'Nova data é obrigatória.' });
+
+            db.run(`UPDATE faltas SET data_falta = ? WHERE colaborador_id = ? AND data_falta = ?`, [data, colabId, dataFalta], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [req.user ? req.user.username : '', 'Agenda Logística', 'Edição de Falta', dataFalta, `Alterou data para ${data}`, idParam]);
+                return res.json({ ok: true, msg: 'Falta atualizada' });
+            });
+            return;
+        }
+    }
+
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [idParam], (err, oldRow) => {
         if (err || !oldRow) return res.status(404).json({ error: 'Card não encontrado' });
-        
-        const { titulo, descricao, data, horario, tipo, responsaveis, referente_ids, acoes, setor } = req.body;
         
         let anterior = [];
         let atual = [];
         if ((oldRow.titulo || '') !== (titulo || '')) { anterior.push(`Título: ${oldRow.titulo || ''}`); atual.push(`Título: ${titulo || ''}`); }
         if ((oldRow.descricao || '') !== (descricao || '')) { anterior.push(`Descrição: ${oldRow.descricao || ''}`); atual.push(`Descrição: ${descricao || ''}`); }
         if ((oldRow.data || '') !== (data || '')) { anterior.push(`Data: ${oldRow.data || ''}`); atual.push(`Data: ${data || ''}`); }
-        if ((oldRow.horario || '') !== (horario || '')) { anterior.push(`Horário: ${oldRow.horario || ''}`); atual.push(`Horário: ${horario || ''}`); }
+        if ((oldRow.horario || '') !== (horario || '')) { anterior.push(`Hor??rio: ${oldRow.horario || ''}`); atual.push(`Hor??rio: ${horario || ''}`); }
         if ((oldRow.tipo || '') !== (tipo || '')) { anterior.push(`Tipo: ${oldRow.tipo || ''}`); atual.push(`Tipo: ${tipo || ''}`); }
         
         try {
@@ -19245,17 +20258,51 @@ app.put('/api/logistica/agenda/:id', authenticateToken, express.json(), (req, re
     });
 });
 
-// DELETE – excluir card
+// DELETE — excluir card
 app.delete('/api/logistica/agenda/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM logistica_agenda WHERE id = ?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
-        res.json({ ok: true });
+    const idParam = req.params.id;
+    if (String(idParam).startsWith('falta_')) {
+        // Exemplo de id: falta_15_2026-07-31
+        const parts = idParam.split('_');
+        if (parts.length >= 3) {
+            const colabId = parts[1];
+            const dataFalta = parts.slice(2).join('_');
+            db.run(`DELETE FROM faltas WHERE colaborador_id = ? AND data_falta = ?`, [colabId, dataFalta], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                    [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Falta', null, `Excluiu a falta do colab ${colabId} no dia ${dataFalta}`, idParam]);
+                return res.json({ ok: true });
+            });
+            return;
+        }
+    }
+
+    db.get('SELECT * FROM logistica_agenda WHERE id = ?', [idParam], (err, card) => {
+        if (err || !card) return res.status(404).json({ error: 'Card não encontrado' });
+        
+        db.run('DELETE FROM logistica_agenda WHERE id = ?', [idParam], function (errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            
+            // Sincronizar com prontuário: excluir falta vinculada se for um card de falta
+            if (card.tipo === 'falta' && card.data) {
+                let referente_ids = [];
+                try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch(e){}
+                if (referente_ids.length > 0) {
+                    const placeholders = referente_ids.map(()=>'?').join(',');
+                    db.run(`DELETE FROM faltas WHERE data_falta = ? AND colaborador_id IN (${placeholders})`, [card.data, ...referente_ids], errFalta => {
+                        if (errFalta) console.error("Erro ao deletar falta vinculada:", errFalta.message);
+                    });
+                }
+            }
+
+            db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [req.user ? req.user.username : '', 'Agenda Logística', 'Exclusão de Card', null, `Excluiu o card ID: ${req.params.id}`, req.params.id]);
+            res.json({ ok: true });
+        });
     });
 });
 
-// GET – histórico de auditoria para agenda (logística ou RH)
+// GET - histórico de auditoria para agenda (logàstica ou RH)
 app.get('/api/logistica/agenda-auditoria', authenticateToken, (req, res) => {
     const programa = req.query.programa || 'Agenda Logística';
     db.all(
@@ -19300,7 +20347,7 @@ app.get('/api/logistica/agenda-auditoria', authenticateToken, (req, res) => {
     );
 });
 
-// GET – histórico de auditoria para Resumo de Rota
+// GET - histórico de auditoria para Resumo de Rota
 app.get('/api/logistica/resumo-rota-auditoria', authenticateToken, (req, res) => {
     db.all(
         `SELECT * FROM resumo_rota_auditoria ORDER BY created_at DESC LIMIT 500`,
@@ -19311,7 +20358,7 @@ app.get('/api/logistica/resumo-rota-auditoria', authenticateToken, (req, res) =>
     );
 });
 
-// POST – registrar auditoria de alteração no Resumo de Rota
+// POST ??? registrar auditoria de alteração no Resumo de Rota
 app.post('/api/logistica/resumo-rota-auditoria', authenticateToken, express.json(), (req, res) => {
     console.log('[AUDITORIA] POST recebido:', req.body);
     const { data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual } = req.body;
@@ -19367,7 +20414,7 @@ async function dispararAcoesAgenda(card) {
                         });
                         // E-mail para aviso_faltas da agenda
                         sendEmailParaNotificados('aviso_faltas', {
-                            subject: `⚠️ Aviso de Falta (Agenda) – ${nomes}`,
+                            subject: `⚠️ Aviso de Falta (Agenda) - ${nomes}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -19377,7 +20424,7 @@ async function dispararAcoesAgenda(card) {
                                     <p>Uma falta foi registrada via Agenda da Logística:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Colaborador(es):</strong> ${nomes}</p>
-                                        <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '—'}</p>
+                                        <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '---'}</p>
                                         ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
                                         ${card.criado_por ? `<p style="margin:4px 0;"><strong>Registrado por:</strong> ${card.criado_por}</p>` : ''}
                                     </div>
@@ -19413,7 +20460,7 @@ async function dispararAcoesAgenda(card) {
                         <img src="cid:logo-agenda" style="max-height:60px;" alt="América Rental">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color:#2d9e5f;margin-top:0;">📅 Agenda Logística — ${tipo_label}</h2>
+                        <h2 style="color:#2d9e5f;margin-top:0;">???? Agenda Logística - ${tipo_label}</h2>
                         <p>Olá, <strong>${c.nome_completo}</strong>!</p>
                         <p>Você foi marcado como responsável em um item da agenda do dia <strong>${dataFmt}</strong>.</p>
                         <div style="background:#f0fdf4;border-left:4px solid #2d9e5f;border-radius:8px;padding:16px;margin:16px 0;">
@@ -19440,37 +20487,7 @@ async function dispararAcoesAgenda(card) {
         }
     );
 }
-app.get('/api/frota/force-dedup', (req, res) => {
-    const db = require('./database');
-    db.run(`DELETE FROM frota_categorias_manutencao WHERE id NOT IN (SELECT MIN(id) FROM frota_categorias_manutencao GROUP BY nome)`);
-    db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
-    
-    setTimeout(() => {
-        db.all('SELECT COUNT(*) as c FROM frota_categorias_manutencao', [], (err, rows1) => {
-            db.all('SELECT COUNT(*) as s FROM frota_servicos_catalogo', [], (err, rows2) => {
-                res.json({ 
-                    success: true, 
-                    dedup_only: true, 
-                    categorias: rows1[0].c,
-                    servicos: rows2[0].s
-                });
-            });
-        });
-    }, 1000);
-});
 
-app.get('/api/frota/force-seed', (req, res) => {
-    const db = require('./database');
-    const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]];
-    cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c));
-    const servicos = [ [1,'Troca de óleo do motor','KM/Tempo',10000,'km','Alta',1,1,1,0,1], [1,'Troca do filtro de óleo','KM',10000,'km','Alta',0.5,1,1,0,1], [1,'Troca do filtro de ar','KM',20000,'km','Media',0.5,0,0,0,1], [1,'Troca do filtro de combustível','KM',20000,'km','Media',0.5,0,0,0,1], [1,'Troca do filtro cabine/ar-cond.','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1], [1,'Troca de correia dentada','KM/Tempo',60000,'km','Critica',3,1,1,1,1], [1,'Troca da correia auxiliar','KM',40000,'km','Alta',1,1,1,0,1], [1,'Verificação de vazamentos','Inspecao',5000,'km','Alta',0.5,0,0,0,1], [1,'Limpeza de bicos injetores','KM',40000,'km','Media',2,1,0,0,1], [1,'Regulagem de válvulas','KM',40000,'km','Alta',3,1,1,0,1], [1,'Troca do líquido de arrefecimento','Tempo',24,'meses','Alta',1,1,1,0,1], [2,'Troca de pastilhas de freio','KM',20000,'km','Alta',1.5,1,1,1,1], [2,'Troca de lonas','KM',30000,'km','Alta',2,1,1,1,1], [2,'Troca de disco de freio','KM',40000,'km','Alta',2,1,1,1,1], [2,'Sangria do sistema de freio','Tempo',12,'meses','Alta',1,1,1,0,1], [2,'Troca de fluido de freio','Tempo',12,'meses','Alta',1,1,1,0,1], [2,'Regulagem de freio','Inspecao',10000,'km','Alta',0.5,0,0,0,1], [2,'Verificação de mangueiras','Inspecao',5000,'km','Alta',0.5,0,0,0,1], [3,'Rodízio de pneus','KM',10000,'km','Media',1,0,0,0,1], [3,'Alinhamento','KM',10000,'km','Media',1,0,0,0,1], [3,'Balanceamento','KM',10000,'km','Media',1,0,0,0,1], [3,'Calibragem','Inspecao',1000,'km','Baixa',0.25,0,0,0,1], [3,'Troca de pneus','KM',60000,'km','Alta',2,1,1,1,1], [4,'Troca de amortecedores','KM',80000,'km','Alta',3,1,1,0,1], [4,'Troca de pivôs','KM',60000,'km','Alta',2,1,1,0,1], [4,'Troca de buchas','KM',40000,'km','Media',2,1,0,0,1], [4,'Lubrificação de suspensão','Tempo',6,'meses','Baixa',0.5,0,0,0,1], [5,'Troca de óleo do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1], [5,'Troca de filtro do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1], [5,'Troca de kit embreagem','KM',80000,'km','Alta',4,1,1,1,1], [5,'Troca de óleo diferencial','KM',40000,'km','Alta',1.5,1,1,0,1], [6,'Teste de bateria','Tempo',6,'meses','Media',0.5,0,0,0,1], [6,'Troca de bateria','Tempo',24,'meses','Alta',0.5,0,0,0,1], [6,'Verificação elétrica geral','Inspecao',10000,'km','Media',1,0,0,0,1], [7,'Higienização do ar-cond.','Tempo',6,'meses','Baixa',1,0,0,0,1], [7,'Recarga de gás','Tempo',12,'meses','Media',1,0,0,0,1], [7,'Troca de filtro cabine','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1], [8,'Troca de óleo hidráulico','Horimetro',250,'horas','Alta',2,1,1,1,1], [8,'Troca de filtro hidráulico','Horimetro',250,'horas','Alta',1,1,1,0,1], [8,'Lubrificação de bomba','Horimetro',100,'horas','Alta',0.5,0,0,0,1], [8,'Revisão de bomba de sucção','Horimetro',500,'horas','Critica',4,1,1,1,1], [8,'Verificação de mangotes','Inspecao',100,'horas','Alta',0.5,0,0,0,1], [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,0,1], [9,'Revisão do motor de sucção','Horimetro',500,'horas','Critica',4,1,1,1,1], [9,'Troca de óleo do motor de sucção','Horimetro',250,'horas','Alta',1,1,1,0,1], [9,'Troca de filtro do motor de sucção','Horimetro',100,'horas','Alta',0.5,1,1,0,1], [9,'Revisão da bomba de vácuo','Horimetro',500,'horas','Critica',4,1,1,1,1], [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,0,1], [9,'Inspeção estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1], [9,'Verificação de válvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1], [9,'Verificação do sistema hidráulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1], [10,'Inspeção estrutural','Tempo',6,'meses','Alta',2,0,0,0,1], [10,'Pintura preventiva','Tempo',24,'meses','Baixa',8,0,0,0,1], [10,'Verificação de ferrugem','Inspecao',3,'meses','Media',0.5,0,0,0,1], [11,'Extintor','Validade',12,'meses','Critica',0.25,0,1,1,1], [11,'Tacógrafo','Tempo',12,'meses','Critica',1,0,1,0,1], [11,'Licenciamento','Anual',12,'meses','Critica',0.5,0,1,0,1], [11,'Inspeção ambiental','Tempo',12,'meses','Alta',1,0,1,0,1] ];
-    db.serialize(() => {
-        servicos.forEach(s => db.run('INSERT OR IGNORE INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao) VALUES(?,?,?,?,?,?,?,?,?,?,?)', s));
-        db.run(`DELETE FROM frota_categorias_manutencao WHERE id NOT IN (SELECT MIN(id) FROM frota_categorias_manutencao GROUP BY nome)`);
-        db.run(`DELETE FROM frota_servicos_catalogo WHERE id NOT IN (SELECT MIN(id) FROM frota_servicos_catalogo GROUP BY categoria_id, nome)`);
-    });
-    setTimeout(() => res.json({ success: true, dedup: true, serialized: true }), 1000);
-});
 
 // ============================================================================
 // CONTROLE DE ESTOQUE
@@ -19521,10 +20538,11 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_enderecos (
     // Seed: criar endereço 'Geral' se não existir
     db.run("INSERT OR IGNORE INTO estoque_enderecos (nome) VALUES ('Geral')", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN tipo_notificacao TEXT DEFAULT ''", () => {});
+    db.run("ALTER TABLE estoque_saldo_por_endereco ADD COLUMN tipo_estoque TEXT DEFAULT 'matriz'", () => {});
     db.run("ALTER TABLE estoque_enderecos ADD COLUMN departamentos_vinculados TEXT DEFAULT '[]'", () => {});
 });
 
-// Tabela de saldo por produto × endereço
+// Tabela de saldo por produto à endereço
 db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     estoque_id  INTEGER NOT NULL,
@@ -19557,7 +20575,7 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque_saldo_por_endereco (
     });
 });
 
-// Tabela de empréstimos de EPI (equipamentos que devem ser devolvidos)
+// Tabela de empràstimos de EPI (equipamentos que devem ser devolvidos)
 db.run(`CREATE TABLE IF NOT EXISTS epi_emprestimos (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id          INTEGER NOT NULL,
@@ -19571,7 +20589,7 @@ db.run(`CREATE TABLE IF NOT EXISTS epi_emprestimos (
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[EPI_EMPRESTIMOS] Erro ao criar tabela:', err.message); });
 
 // Listar Estoque
-// ── Endpoint de TESTE: dispara email de estoque mínimo com foto ───────────────
+// ?????? Endpoint de TESTE: dispara email de estoque mínimo com foto ?????????????????????????????????????????????
 app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
     try {
         const emailDestino = req.body.email || req.user?.email || 'americasistema48@gmail.com';
@@ -19618,19 +20636,19 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
         const mailOpts = {
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailDestino,
-            subject: '[TESTE] ALERTA DE ESTOQUE MÍNIMO - America Rental',
+            subject: '[TESTE] ALERTA DE ESTOQUE M??NIMO - America Rental',
             html: `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">
                 <div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>
-                <h2 style="color:#dc2626;text-align:center;">⚠️ [TESTE] Aviso de Estoque Mínimo</h2>
+                <h2 style="color:#dc2626;text-align:center;">?????? [TESTE] Aviso de Estoque M??nimo</h2>
                 <p>Este é um e-mail de <b>TESTE</b>. Produto usado: <b>${item.nome}</b></p>
                 ${fotoHtml}
                 <table style="width:100%;border-collapse:collapse;margin-top:15px;">
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Item</th><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">${item.nome}</td></tr>
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Departamento</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.departamento || '-'}</td></tr>
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Atual</th><td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626;font-weight:bold;">${item.quantidade_atual}</td></tr>
-                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
+                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade M??nima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
                 </table>
-                <p style="margin-top:16px;color:#64748b;font-size:12px;">Foto veiculada via: ${fotoAttachment ? 'CID inline ✅' : (item.foto_url ? 'URL direta (pode ser bloqueada pelo Outlook)' : 'Sem foto cadastrada')}</p>
+                <p style="margin-top:16px;color:#64748b;font-size:12px;">Foto veiculada via: ${fotoAttachment ? 'CID inline ???' : (item.foto_url ? 'URL direta (pode ser bloqueada pelo Outlook)' : 'Sem foto cadastrada')}</p>
             </div>`,
             attachments: [
                 { filename: 'logo.png', path: _logoPath, cid: 'empresa-logo' },
@@ -19645,85 +20663,7 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/api/trigger-rescue', (req, res) => {
-    try {
-        db.get("SELECT id FROM estoque_enderecos WHERE nome = 'Geral'", (err, row) => {
-            if (err) return res.status(500).send("Err 1: " + err.message);
-            
-            let geralId;
-            if (row) {
-                geralId = row.id;
-                runMigration(geralId);
-            } else {
-                db.run("INSERT INTO estoque_enderecos (nome) VALUES ('Geral')", function(errI) {
-                    if (errI) return res.status(500).send("Err 2: " + errI.message);
-                    geralId = this.lastID;
-                    runMigration(geralId);
-                });
-            }
-        });
 
-        function runMigration(geralId) {
-            db.all("SELECT id, quantidade_atual, quantidade_minima, quantidade_maxima FROM estoque", (err, produtos) => {
-                if (err) return res.status(500).send("Err 3: " + err.message);
-                
-                db.serialize(() => {
-                    db.run("BEGIN TRANSACTION");
-                    let processados = 0;
-                    
-                    if (produtos.length === 0) {
-                        db.run("COMMIT");
-                        return res.send("No products to migrate.");
-                    }
-
-                    produtos.forEach(p => {
-                        db.all("SELECT * FROM estoque_saldo_por_endereco WHERE estoque_id = ?", [p.id], (err2, saldos) => {
-                            if (err2) {
-                                console.error("Err 4: " + err2.message);
-                                processados++;
-                                return;
-                            }
-                            
-                            const origMin = p.quantidade_minima || 0;
-                            const origMax = p.quantidade_maxima || 0;
-                            const origQtd = p.quantidade_atual || 0;
-
-                            const checkDone = () => {
-                                processados++;
-                                if (processados === produtos.length) {
-                                    db.run("COMMIT", () => {
-                                        res.send("Migration finished successfully.");
-                                    });
-                                }
-                            };
-
-                            if (!saldos || saldos.length === 0) {
-                                db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`, 
-                                    [p.id, geralId, origQtd, origMin, origMax], checkDone);
-                            } else {
-                                let hasAnyMinMax = saldos.some(s => s.quantidade_minima > 0 || s.quantidade_maxima > 0);
-                                if (!hasAnyMinMax && (origMin > 0 || origMax > 0)) {
-                                    let saldoGeral = saldos.find(s => s.endereco_id === geralId);
-                                    if (saldoGeral) {
-                                        db.run(`UPDATE estoque_saldo_por_endereco SET quantidade_minima = ?, quantidade_maxima = ? WHERE estoque_id = ? AND endereco_id = ?`,
-                                            [origMin, origMax, p.id, geralId], checkDone);
-                                    } else {
-                                        db.run(`INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima) VALUES (?, ?, ?, ?, ?)`,
-                                            [p.id, geralId, 0, origMin, origMax], checkDone);
-                                    }
-                                } else {
-                                    checkDone();
-                                }
-                            }
-                        });
-                    });
-                });
-            });
-        }
-    } catch (e) {
-        res.status(500).send("Error triggering rescue: " + e.message);
-    }
-});
 
 app.get('/api/estoque', authenticateToken, (req, res) => {
 
@@ -19768,10 +20708,11 @@ app.get('/api/estoque/historico', authenticateToken, (req, res) => {
 // Adicionar Item
 app.post('/api/estoque', authenticateToken, async (req, res) => {
     try {
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
-        // Upload da foto para R2 se disponível
+        // Upload da foto para R2 se dispon??vel
         let foto_url = null;
         let foto_b64_salvar = null;
         if (foto_base64 && foto_base64.startsWith('data:')) {
@@ -19790,7 +20731,7 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
                     foto_b64_salvar = foto_base64;
                 }
             } else {
-                // R2 não configurado — fallback para base64
+                // R2 não configurado - fallback para base64
                 foto_b64_salvar = foto_base64;
             }
         }
@@ -19823,7 +20764,8 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
     let oldRow;
     try {
         const id = req.params.id;
-        const { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas } = req.body;
+        let { nome, departamento, categoria, quantidade_atual, quantidade_minima, quantidade_maxima, foto_base64, placas_vinculadas, skip_history } = req.body;
+        if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
         // Obter dados antigos
@@ -19851,7 +20793,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                     foto_b64_salvar = foto_base64;
                 }
             } else {
-                // R2 não configurado — fallback para base64
+                // R2 não configurado - fallback para base64
                 foto_b64_salvar = foto_base64;
                 foto_url = null;
             }
@@ -19865,10 +20807,11 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         });
 
-        // Grava histórico se houver diferença de quantidade
+        // Grava histórico se houver diferença de quantidade e skip_history não foi solicitado
+        // (skip_history=true quando sync-enderecos irá gravar histórico por endereço)
         const diferenca = quantidade_atual - oldRow.quantidade_atual;
-        if (diferenca !== 0) {
-            const tipo = diferenca > 0 ? 'Entrada' : 'Saída';
+        if (diferenca !== 0 && !skip_history) {
+            const tipo = diferenca > 0 ? 'Entrada' : 'Saida';
             db.run(
                 'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo) VALUES (?, ?, ?, ?, ?)',
                 [id, Math.abs(diferenca), tipo, usuario, 'Ajuste Manual'],
@@ -19876,7 +20819,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         }
 
-        // Lógica de Notificação de Estoque Mínimo
+        // Lógica de Notificação de Estoque M??nimo
         try {
             if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
                 const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
@@ -19888,19 +20831,19 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
                         });
                         // E-mail de estoque mínimo (ajuste manual)
                         sendEmailParaNotificados('estoque_minimo', {
-                            subject: `📦 Estoque Mínimo Atingido – ${nome}`,
+                            subject: `[ESTOQUE] Estoque M\u00EDnimo Atingido - ${nome}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    <img src="cid:empresa-logo" alt="Am&eacute;rica Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                 </div>
                                 <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">📦 Estoque Mínimo Atingido</h2>
-                                    <p>Um item do estoque atingiu a quantidade mínima após ajuste manual:</p>
+                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">&#9888; Estoque M&iacute;nimo Atingido</h2>
+                                    <p>Um item do estoque atingiu a quantidade m&iacute;nima ap&oacute;s ajuste manual:</p>
                                     <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                         <p style="margin:4px 0;"><strong>Item:</strong> ${nome}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${departamento}</p>
                                         <p style="margin:4px 0;"><strong>Quantidade Atual:</strong> ${quantidade_atual}</p>
-                                        <p style="margin:4px 0;"><strong>Quantidade Mínima:</strong> ${quantidade_minima}</p>
+                                        <p style="margin:4px 0;"><strong>Quantidade M&iacute;nima:</strong> ${quantidade_minima}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para reabastecer o estoque.</i></p>
                                 </div>
@@ -19946,7 +20889,7 @@ app.delete('/api/estoque/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── Endereços de Estoque (CRUD) ────────────────────────────────────────────────
+// ?????? Endereços de Estoque (CRUD) ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // Listar todos os endereços globais
 app.get('/api/estoque-enderecos', authenticateToken, (req, res) => {
@@ -20026,39 +20969,74 @@ app.get('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
 
 // Sincronizar saldos de endereços de um produto (substitui os existentes pelos novos)
 app.post('/api/estoque/:id/sync-enderecos', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    const enderecos = req.body.enderecos || [];
-    
-    db.serialize(() => {
-        const enderecoIds = enderecos.map(e => e.endereco_id);
-        const placeholders = enderecoIds.map(() => '?').join(',');
+    try {
+        const { id } = req.params;
+        const enderecos = req.body.enderecos || [];
+        const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
         
-        const deleteQuery = enderecoIds.length > 0 
-            ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
-            : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
-        
-        const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
-        
-        db.run(deleteQuery, deleteParams, (err) => {
-            if (err) return res.status(500).json({ error: err.message });
+        // 1. Busca quantidades antigas ANTES de alterar
+        db.all('SELECT endereco_id, quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ?', [id], (errQ, oldSaldos) => {
+            const oldMap = {};
+            (oldSaldos || []).forEach(s => { oldMap[s.endereco_id] = s.quantidade; });
             
-            const stmt = db.prepare(`
-                INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
-                    quantidade = EXCLUDED.quantidade,
-                    quantidade_minima = EXCLUDED.quantidade_minima,
-                    quantidade_maxima = EXCLUDED.quantidade_maxima
-            `);
-            
-            enderecos.forEach(e => {
-                stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0]);
+            db.serialize(() => {
+                const enderecoIds = enderecos.map(e => e.endereco_id);
+                const placeholders = enderecoIds.map(() => '?').join(',');
+                
+                const deleteQuery = enderecoIds.length > 0 
+                    ? `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id NOT IN (${placeholders})`
+                    : `DELETE FROM estoque_saldo_por_endereco WHERE estoque_id = ?`;
+                
+                const deleteParams = enderecoIds.length > 0 ? [id, ...enderecoIds] : [id];
+                
+                db.run(deleteQuery, deleteParams, (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    
+                    try {
+                        const stmt = db.prepare(`
+                            INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima, tipo_estoque)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET
+                                quantidade = EXCLUDED.quantidade,
+                                quantidade_minima = EXCLUDED.quantidade_minima,
+                                quantidade_maxima = EXCLUDED.quantidade_maxima,
+                                tipo_estoque = EXCLUDED.tipo_estoque
+                        `);
+                        
+                        enderecos.forEach(e => {
+                            stmt.run([id, e.endereco_id, parseInt(e.quantidade) || 0, parseInt(e.quantidade_minima) || 0, parseInt(e.quantidade_maxima) || 0, e.tipo_estoque || 'matriz']);
+                        });
+                        
+                        stmt.finalize(() => {
+                            // 2. Grava histórico por endereço para quantidades que mudaram
+                            enderecos.forEach(e => {
+                                const oldQtd = (oldMap[e.endereco_id] !== undefined) ? (oldMap[e.endereco_id] || 0) : 0;
+                                const newQtd = parseInt(e.quantidade) || 0;
+                                const diff = newQtd - oldQtd;
+                                if (diff !== 0) {
+                                    db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [e.endereco_id], (errE, rowE) => {
+                                        const endNome = rowE ? rowE.nome : null;
+                                        db.run(
+                                            'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                            [id, Math.abs(diff), diff > 0 ? 'Entrada' : 'Saida', usuario, 'Edi\u00e7\u00e3o de Estoque', e.endereco_id, endNome],
+                                            () => {}
+                                        );
+                                    });
+                                }
+                            });
+                            res.json({ success: true });
+                        });
+                    } catch (eStmt) {
+                        console.error('[ESTOQUE SYNC] Erro interno:', eStmt.message);
+                        if (!res.headersSent) res.status(500).json({ error: 'Erro ao sincronizar endereços.' });
+                    }
+                });
             });
-            
-            stmt.finalize();
-            res.json({ success: true });
         });
-    });
+    } catch (e) {
+        console.error('[ESTOQUE SYNC] Erro fatal:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
@@ -20072,12 +21050,12 @@ app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
     const qmin = parseInt(quantidade_minima) || 0;
     const qmax = parseInt(quantidade_maxima) || 0;
 
-    // Primeiro busca o saldo atual para calcular a diferença no total
+    // Primeiro busca o saldo atual para calcular a diferen??a no total
     db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, endereco_id], (errS, saldoAtual) => {
         const qtdAnterior = saldoAtual ? (saldoAtual.quantidade || 0) : 0;
-        const diff = qtd - qtdAnterior; // diferença para atualizar o total do produto
+        const diff = qtd - qtdAnterior; // diferen??a para atualizar o total do produto
 
-        // Upsert no saldo por endereço — SET absoluto (não soma)
+        // Upsert no saldo por endereço - SET absoluto (não soma)
         db.run(
             `INSERT INTO estoque_saldo_por_endereco (estoque_id, endereco_id, quantidade, quantidade_minima, quantidade_maxima)
              VALUES (?, ?, ?, ?, ?)
@@ -20089,7 +21067,7 @@ app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
             (err) => {
                 if (err) return res.status(500).json({ error: err.message });
 
-                // Atualiza o total geral do produto pela diferença
+                // Atualiza o total geral do produto pela diferen??a
                 db.run('UPDATE estoque SET quantidade_atual = MAX(0, quantidade_atual + ?), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [diff, id], (errU) => {
                     if (errU) return res.status(500).json({ error: errU.message });
 
@@ -20116,7 +21094,7 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { endereco_id, quantidade, motivo } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
-    if (!quantidade || quantidade <= 0) return res.status(400).json({ error: 'Quantidade inválida.' });
+    if (!quantidade || quantidade <= 0) return res.status(400).json({ error: 'Quantidade inv??lida.' });
     const qtd = parseInt(quantidade);
 
     db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
@@ -20127,32 +21105,30 @@ app.post('/api/estoque/:id/baixa', authenticateToken, (req, res) => {
         db.run('UPDATE estoque SET quantidade_atual = quantidade_atual - ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [qtd, id], (errU) => {
             if (errU) return res.status(500).json({ error: errU.message });
 
-            // Debita do endereço se informado
             if (endereco_id) {
-                db.run(
-                    'UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?',
-                    [qtd, id, endereco_id], () => {}
-                );
+                db.get('SELECT s.quantidade, s.quantidade_minima, ee.tipo_notificacao, ee.nome as e_nome FROM estoque_saldo_por_endereco s JOIN estoque_enderecos ee ON ee.id = s.endereco_id WHERE s.estoque_id = ? AND s.endereco_id = ?', [id, endereco_id], (errS, rowS) => {
+                    if (rowS) {
+                        const oldSaldo = rowS.quantidade;
+                        const minSaldo = rowS.quantidade_minima || item.quantidade_minima || 0;
+                        db.run('UPDATE estoque_saldo_por_endereco SET quantidade = MAX(0, quantidade - ?) WHERE estoque_id = ? AND endereco_id = ?', [qtd, id, endereco_id], () => {
+                            const newSaldo = Math.max(0, oldSaldo - qtd);
+                            notificarEstoqueMinimo(db, item.id, item.nome, item.departamento, endereco_id, oldSaldo, newSaldo, minSaldo, rowS.tipo_notificacao);
+                        });
+                        db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', endereco_id, rowS.e_nome], () => {});
+                    }
+                });
+            } else {
+                db.run('INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, qtd, 'Saida', usuario, motivo || 'Baixa Manual', null, null], () => {});
             }
-
-            // Grava histórico
-            db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [endereco_id || null], (errE, rowE) => {
-                const endNome = rowE ? rowE.nome : null;
-                db.run(
-                    'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [id, qtd, 'Saída', usuario, motivo || 'Baixa Manual', endereco_id || null, endNome],
-                    () => {}
-                );
-            });
 
             res.json({ success: true });
         });
     });
 });
 
-// ── Movimentar estoque (Entrada ou Saída) ────────────────────────────────────
-// Chamado pelo frontend (estoque.js) nos botões "Entrada de produtos" e "Saída de produtos"
-// Recebe: { quantidade: Number (+ = entrada, - = saída), endereco_id?: Number, motivo?: String }
+// ?????? Movimentar estoque (Entrada ou Sa??da) ????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// Chamado pelo frontend (estoque.js) nos botões "Entrada de produtos" e "Sa??da de produtos"
+// Recebe: { quantidade: Number (+ = entrada, - = sa??da), endereco_id?: Number, motivo?: String }
 app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { quantidade, endereco_id, motivo } = req.body;
@@ -20160,21 +21136,21 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
 
     const qtdRaw = parseInt(quantidade);
     if (isNaN(qtdRaw) || qtdRaw === 0) {
-        return res.status(400).json({ error: 'Quantidade inválida. Informe um número diferente de zero.' });
+        return res.status(400).json({ error: 'Quantidade inv??lida. Informe um n??mero diferente de zero.' });
     }
 
     const isEntrada = qtdRaw > 0;
     const qtdAbs    = Math.abs(qtdRaw);
-    const tipo      = isEntrada ? 'Entrada' : 'Saída';
-    const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Saída de produtos');
+    const tipo      = isEntrada ? 'Entrada' : 'Saida';
+    const motivoFinal = motivo || (isEntrada ? 'Entrada de produtos' : 'Sa??da de produtos');
 
     db.get('SELECT * FROM estoque WHERE id = ?', [id], (err, item) => {
         if (err)   return res.status(500).json({ error: err.message });
         if (!item) return res.status(404).json({ error: 'Item de estoque não encontrado.' });
 
-        // Validação de saldo apenas para saídas
+        // Validação de saldo apenas para sa??das
         if (!isEntrada && item.quantidade_atual < qtdAbs) {
-            return res.status(400).json({ error: `Estoque insuficiente. Disponível: ${item.quantidade_atual} unid.` });
+            return res.status(400).json({ error: `Estoque insuficiente. Dispon??vel: ${item.quantidade_atual} unid.` });
         }
 
         const novaQtd = isEntrada
@@ -20239,7 +21215,7 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
         db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, origem_id], (errO, saldoRow) => {
             if (errO) return res.status(500).json({ error: errO.message });
             const saldoOrigem = saldoRow ? saldoRow.quantidade : 0;
-            if (saldoOrigem < qtd) return res.status(400).json({ error: `Saldo insuficiente no endereço de origem (disponível: ${saldoOrigem}).` });
+            if (saldoOrigem < qtd) return res.status(400).json({ error: `Saldo insuficiente no endereço de origem (dispon??vel: ${saldoOrigem}).` });
 
             // Debitar da origem
             db.run(
@@ -20253,12 +21229,12 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
                          ON CONFLICT(estoque_id, endereco_id) DO UPDATE SET quantidade = quantidade + ?`,
                         [id, destino_id, qtd, qtd], (errC) => {
                             if (errC) return res.status(500).json({ error: errC.message });
-                            // Registrar no histórico (origem: saída, destino: entrada)
+                            // Registrar no histórico (origem: sa??da, destino: entrada)
                             db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [origem_id], (errN1, rowN1) => {
                                 db.get('SELECT nome FROM estoque_enderecos WHERE id = ?', [destino_id], (errN2, rowN2) => {
                                     const nomeOrigem = rowN1 ? rowN1.nome : String(origem_id);
                                     const nomeDestino = rowN2 ? rowN2.nome : String(destino_id);
-                                    const mot = motivo || `Transferência de ${nomeOrigem} → ${nomeDestino}`;
+                                    const mot = motivo || `Transferência de ${nomeOrigem} - ${nomeDestino}`;
                                     db.run(
                                         'INSERT INTO estoque_historico (estoque_id, quantidade, tipo, usuario, motivo, endereco_id, endereco_nome) VALUES (?, ?, ?, ?, ?, ?, ?)',
                                         [id, qtd, 'Transferência', usuario, mot, destino_id, nomeDestino], () => {}
@@ -20274,10 +21250,11 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
     });
 });
 
-// Obter todos os saldos por endereço (para todos os itens de uma vez — usado na listagem geral)
+// Obter todos os saldos por endereço (para todos os itens de uma vez - usado na listagem geral)
 app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
     db.all(
-        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, e.id as endereco_id, e.nome as endereco_nome
+        `SELECT s.estoque_id, s.quantidade, s.quantidade_minima, s.quantidade_maxima, s.tipo_estoque,
+                e.id as endereco_id, e.nome as endereco_nome, e.tipo_notificacao
          FROM estoque_saldo_por_endereco s
          JOIN estoque_enderecos e ON s.endereco_id = e.id
          ORDER BY e.nome ASC`,
@@ -20288,10 +21265,12 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
                 if (!map[r.estoque_id]) map[r.estoque_id] = [];
                 map[r.estoque_id].push({ 
                     endereco_id: r.endereco_id, 
-                    nome: r.endereco_nome, 
+                    nome: r.endereco_nome,
+                    tipo_notificacao: r.tipo_notificacao || '',
                     quantidade: r.quantidade,
                     quantidade_minima: r.quantidade_minima,
-                    quantidade_maxima: r.quantidade_maxima
+                    quantidade_maxima: r.quantidade_maxima,
+                    tipo_estoque: r.tipo_estoque || 'matriz'
                 });
             });
             res.json(map);
@@ -20300,7 +21279,7 @@ app.get('/api/estoque-saldos', authenticateToken, (req, res) => {
 });
 app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res) => {
     const { epis, colaborador_id } = req.body;
-    if (!epis || !Array.isArray(epis)) return res.status(400).json({ error: 'Lista de EPIs inválida.' });
+    if (!epis || !Array.isArray(epis)) return res.status(400).json({ error: 'Lista de EPIs inv??lida.' });
 
     db.get("SELECT sexo FROM colaboradores WHERE id = ?", [colaborador_id], (errC, rowC) => {
         const colabSexo = (rowC && rowC.sexo) ? rowC.sexo.trim().toLowerCase() : '';
@@ -20317,7 +21296,11 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
             const episUnicos = [...new Set(epis)];
 
             episUnicos.forEach(originalNome => {
-                const nomeNormalizado = (originalNome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                // Preprocessar: converte "(TAM 38)" → "38" para alinhar com nomes do estoque
+                const nomePreprocessado = (originalNome || '').trim()
+                    .replace(/\(TAM\s+([^)]+)\)/gi, ' $1 ')
+                    .replace(/\s+/g, ' ').trim();
+                const nomeNormalizado = nomePreprocessado.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
                 let match = todosItens.find(i => (i.nome || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === nomeNormalizado);
                 
                 if (!match) {
@@ -20394,18 +21377,7 @@ app.post('/api/estoque/enderecos-disponiveis-epi', authenticateToken, (req, res)
 });
 
 
-app.get('/api/fix-thais', (req, res) => {
-    db.serialize(() => {
-        // Apaga apenas os departamentos duplicados (mantendo o ID original / mais antigo, ex: ID 1)
-        db.run("DELETE FROM departamentos WHERE id NOT IN (SELECT MIN(id) FROM departamentos GROUP BY LOWER(TRIM(nome)))", function(err) {
-            if (err) {
-                console.error("Error cleaning depts:", err);
-                return res.status(500).send("Erro ao limpar departamentos: " + err.message);
-            }
-            res.send(`Limpeza concluida! ${this.changes || 0} departamentos duplicados apagados (mantivemos o original de menor ID). Os formulários NÃO foram apagados. Pode fechar esta aba e atualizar o sistema.`);
-        });
-    });
-});
+
 
 // Integração Control iD (RHID)
 try {
@@ -20419,7 +21391,7 @@ try {
 
 
 
-// ── Criação das tabelas ───────────────────────────────────────────────────────
+// ?????? Criação das tabelas ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   nome        TEXT NOT NULL,
@@ -20428,6 +21400,8 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamentos (
   criado_em   DATETIME DEFAULT CURRENT_TIMESTAMP,
   criado_por  TEXT DEFAULT ''
 )`);
+
+db.run("ALTER TABLE treinamentos ADD COLUMN data_treinamento TEXT DEFAULT ''", (err) => { if (err && !err.message.includes("duplicate column name", (err) => {})) console.error(err); });
 db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("Migração (treinamentos.tipo):", err.message);
@@ -20436,6 +21410,11 @@ db.run("ALTER TABLE treinamentos ADD COLUMN tipo TEXT DEFAULT 'treinamento'", (e
 db.run("ALTER TABLE treinamentos ADD COLUMN departamento TEXT DEFAULT 'Todos'", (err) => {
   if (err && !err.message.includes("duplicate column name")) {
     console.error("Migração (treinamentos.departamento):", err.message);
+  }
+});
+db.run("ALTER TABLE treinamentos ADD COLUMN colaboradores_avulsos TEXT DEFAULT ''", (err) => {
+  if (err && !err.message.includes("duplicate column name")) {
+    console.error("Migração (treinamentos.colaboradores_avulsos):", err.message);
   }
 });
 db.run("ALTER TABLE treinamentos ADD COLUMN capa_url TEXT DEFAULT ''", (err) => {
@@ -20495,7 +21474,7 @@ db.run(`CREATE TABLE IF NOT EXISTS treinamento_anexos (
   enviado_em       DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-// ── Multer (disk storage → Cloudinary → unlinkSync) ──────────────────────────
+// ?????? Multer (disk storage ??? Cloudinary ??? unlinkSync) ??????????????????????????????????????????????????????????????????????????????
 const multerTrein = require('multer')({
   storage: require('multer').diskStorage({
     destination: (req, file, cb) => cb(null, require('os').tmpdir()),
@@ -20512,7 +21491,7 @@ function _fixFileName(nome) {
   try { return Buffer.from(nome, 'latin1').toString('utf8'); } catch (e) { return nome; }
 }
 
-// ── GET /api/treinamentos — Lista todos com count de anexos ──────────────────
+// ?????? GET /api/treinamentos ??? Lista todos com count de anexos ??????????????????????????????????????????????????????
 app.get('/api/treinamentos', authenticateToken, (req, res) => {
   const tipo = req.query.tipo || 'treinamento';
   const sql = `
@@ -20572,15 +21551,15 @@ app.get('/api/debug2-treinamentos', (req, res) => {
   });
 });
 
-// ── POST /api/treinamentos — Cria treinamento ─────────────────────────────────
+// ?????? POST /api/treinamentos ??? Cria treinamento ???????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/treinamentos', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento' } = req.body || {};
+  const { nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, pesquisa_perguntas, tipo = 'treinamento', is_integracao = 0, data_treinamento = '' } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   const criado_por = req.user?.nome || req.user?.email || '';
   
   db.run(
-    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, capa_url, validade_dias, tipo) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim()],
+    `INSERT INTO treinamentos (nome, descricao, criado_por, departamento, colaboradores_avulsos, capa_url, validade_dias, tipo, is_integracao, data_treinamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [nome.trim(), (descricao || '').trim(), criado_por, (departamento || 'Todos').trim(), (colaboradores_avulsos || ''), (capa_url || '').trim(), parseInt(validade_dias) || 0, tipo.trim(), parseInt(is_integracao) ? 1 : 0, (data_treinamento || '').trim()],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       const newId = this.lastID;
@@ -20605,13 +21584,13 @@ app.post('/api/treinamentos', authenticateToken, (req, res) => {
     }
   );
 });
-// ── PUT /api/treinamentos/:id — Atualiza treinamento ─────────────────────────
+// ?????? PUT /api/treinamentos/:id ??? Atualiza treinamento ???????????????????????????????????????????????????????????????????????????
 app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
-  const { nome, descricao, departamento, capa_url, validade_dias, tipo } = req.body || {};
+  const { nome, descricao, departamento, colaboradores_avulsos, capa_url, validade_dias, tipo, is_integracao, data_treinamento } = req.body || {};
   if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
   db.run(
-    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, capa_url = ?, validade_dias = ?, tipo = ? WHERE id = ?`,
-    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', req.params.id],
+    `UPDATE treinamentos SET nome = ?, descricao = ?, departamento = ?, colaboradores_avulsos = ?, capa_url = ?, validade_dias = ?, tipo = ?, is_integracao = ?, data_treinamento = ? WHERE id = ?`,
+    [nome.trim(), (descricao || '').trim(), (departamento || 'Todos').trim(), (colaboradores_avulsos || ''), (capa_url !== undefined ? capa_url : ''), parseInt(validade_dias) || 0, tipo ? tipo.trim() : 'treinamento', parseInt(is_integracao) ? 1 : 0, (data_treinamento || ''), req.params.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Treinamento não encontrado.' });
@@ -20620,7 +21599,7 @@ app.put('/api/treinamentos/:id', authenticateToken, (req, res) => {
   );
 });
 
-// ── PUT /api/treinamentos/:id/arquivar — Arquivar / Desarquivar ───────────────
+// ?????? PUT /api/treinamentos/:id/arquivar ??? Arquivar / Desarquivar ?????????????????????????????????????????????
 app.put('/api/treinamentos/:id/arquivar', authenticateToken, (req, res) => {
   const { acao } = req.body || {};
   let sql;
@@ -20638,7 +21617,7 @@ app.put('/api/treinamentos/:id/arquivar', authenticateToken, (req, res) => {
   });
 });
 
-// ── GET /api/treinamentos/:id/pesquisa — Retorna perguntas da pesquisa ──────────
+// ?????? GET /api/treinamentos/:id/pesquisa ??? Retorna perguntas da pesquisa ??????????????????????????????
 app.get('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
   db.all(`SELECT * FROM treinamento_pesquisa_perguntas WHERE treinamento_id = ? ORDER BY ordem ASC`, [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -20646,7 +21625,7 @@ app.get('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
   });
 });
 
-// ── POST /api/treinamentos/:id/pesquisa — Salva perguntas da pesquisa ──────────
+// ?????? POST /api/treinamentos/:id/pesquisa ??? Salva perguntas da pesquisa ??????????????????????????????
 app.post('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
   const perguntas = req.body.perguntas || [];
   const treinId = req.params.id;
@@ -20680,13 +21659,13 @@ app.post('/api/treinamentos/:id/pesquisa', authenticateToken, (req, res) => {
   });
 });
 
-// ── POST /api/treinamentos/:id/enviar-pesquisa — Envia link para o WhatsApp ────
+// ?????? POST /api/treinamentos/:id/enviar-pesquisa ??? Envia link para o WhatsApp ????????????
 app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) => {
   const { colaborador_id } = req.body;
   if (!colaborador_id) return res.status(400).json({ error: 'Colaborador não especificado.' });
   const treinId = req.params.id;
 
-  // Gerar token único
+  // Gerar token ??nico
   const token = require('crypto').randomBytes(16).toString('hex');
 
   // Buscar dados do treinamento e colaborador
@@ -20702,7 +21681,7 @@ app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) 
       const link = `${baseUrl}/pesquisa-treinamento.html?token=${token}`;
 
       // Mensagem para o WhatsApp
-      const texto = `Olá ${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n${link}\n\nSua opinião é muito importante para nós!`;
+      const texto = `Olá ${info.nome_completo.split(' ')[0]}, vi que você participou do treinamento de *${info.trein_nome}*.\n\nPor favor, reserve 1 minuto para responder nossa pesquisa de avaliação clicando no link abaixo:\n${link}\n\nSua opinião à muito importante para nós!`;
 
       // Disparar WhatsApp (utilizando a API existente ou simulação do sistema)
       let phone = info.telefone ? info.telefone.replace(/\\D/g, '') : '';
@@ -20716,7 +21695,7 @@ app.post('/api/treinamentos/:id/enviar-pesquisa', authenticateToken, (req, res) 
   });
 });
 
-// ── GET /api/treinamentos/:id/resultado-pesquisa/:colab_id — Retorna resposta do colaborador
+// ?????? GET /api/treinamentos/:id/resultado-pesquisa/:colab_id ??? Retorna resposta do colaborador
 app.get('/api/treinamentos/:id/resultado-pesquisa/:colab_id', authenticateToken, (req, res) => {
   db.get(`SELECT * FROM treinamento_pesquisa_respostas WHERE treinamento_id = ? AND colaborador_id = ? ORDER BY id DESC LIMIT 1`, [req.params.id, req.params.colab_id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -20724,7 +21703,7 @@ app.get('/api/treinamentos/:id/resultado-pesquisa/:colab_id', authenticateToken,
   });
 });
 
-// ── GET /api/public/pesquisa-treinamento/:token — Retorna dados da pesquisa (Público) ────
+// ?????? GET /api/public/pesquisa-treinamento/:token - Retorna dados da pesquisa (Público) ????????????
 app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
   const token = req.params.token;
   db.get(
@@ -20744,9 +21723,9 @@ app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
         if (!perguntas || perguntas.length === 0) {
             // Fallback for old trainings that have no questions configured
             perguntas = [
-                { id: 'default1', pergunta: 'O conteúdo do treinamento foi claro e bem estruturado?', ordem: 1 },
-                { id: 'default2', pergunta: 'O instrutor demonstrou domínio sobre o assunto?', ordem: 2 },
-                { id: 'default3', pergunta: 'Como você avalia este treinamento no geral?', ordem: 3 }
+                { id: 'default1', pergunta: 'O conte??do do treinamento foi claro e bem estruturado?', ordem: 1 },
+                { id: 'default2', pergunta: 'O instrutor demonstrou dom??nio sobre o assunto?', ordem: 2 },
+                { id: 'default3', pergunta: 'Como voc?? avalia este treinamento no geral?', ordem: 3 }
             ];
         }
 
@@ -20755,12 +21734,12 @@ app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
   });
 });
 
-// ── POST /api/public/pesquisa-treinamento/:token — Salva respostas (Público) ────
+// ?????? POST /api/public/pesquisa-treinamento/:token - Salva respostas (Público) ????????????
 app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
   const token = req.params.token;
   const { respostas } = req.body; // array de objetos: { pergunta_id, nota }
   
-  if (!respostas || !Array.isArray(respostas)) return res.status(400).json({ error: 'Respostas inválidas.' });
+  if (!respostas || !Array.isArray(respostas)) return res.status(400).json({ error: 'Respostas inv??lidas.' });
   
   db.run(
     `UPDATE treinamento_pesquisa_respostas SET respostas_json = ?, respondido_em = CURRENT_TIMESTAMP WHERE token = ? AND respondido_em IS NULL`,
@@ -20769,12 +21748,12 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(400).json({ error: 'Pesquisa já respondida ou token inválido.' });
       
-      // Notificações e e-mail (Assíncrono para não travar a resposta)
+      // Notificações e e-mail (Ass??ncrono para não travar a resposta)
       (async () => {
           try {
               const info = await new Promise((resolve, reject) => {
                   db.get(`
-                      SELECT t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
+                      SELECT t.id AS treinamento_id, c.id AS colaborador_id, t.nome AS treinamento_nome, c.nome_completo AS colaborador_nome
                       FROM treinamento_pesquisa_respostas r
                       JOIN treinamentos t ON t.id = r.treinamento_id
                       JOIN colaboradores c ON c.id = r.colaborador_id
@@ -20795,7 +21774,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
 
                   if (configs.length > 0) {
                       const msg = `O colaborador ${info.colaborador_nome} respondeu à pesquisa do treinamento ${info.treinamento_nome}.`;
-                      const dadosStr = JSON.stringify({ treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
+                      const dadosStr = JSON.stringify({ treinamento_id: info.treinamento_id, colaborador_id: info.colaborador_id, treinamento_nome: info.treinamento_nome, colaborador_nome: info.colaborador_nome });
                       
                       // Inserir notificação no sistema (para popup via polling no frontend)
                       for (const cfg of configs) {
@@ -20850,7 +21829,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
   );
 });
 
-// ── DELETE /api/treinamentos/:id — Remove treinamento + anexos Cloudinary ────
+// ?????? DELETE /api/treinamentos/:id ??? Remove treinamento + anexos Cloudinary ????????????
 app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
   try {
     // Buscar public_ids dos anexos para deletar do Cloudinary
@@ -20884,7 +21863,7 @@ app.delete('/api/treinamentos/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ── GET /api/treinamentos/:id/anexos — Lista anexos ──────────────────────────
+// ?????? GET /api/treinamentos/:id/anexos ??? Lista anexos ??????????????????????????????????????????????????????????????????????????????
 app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
   db.all(
     `SELECT * FROM treinamento_anexos WHERE treinamento_id = ? ORDER BY enviado_em DESC`,
@@ -20896,7 +21875,7 @@ app.get('/api/treinamentos/:id/anexos', authenticateToken, (req, res) => {
   );
 });
 
-// ── POST /api/treinamentos/:id/anexos — Upload de arquivo ────────────────────
+// ?????? POST /api/treinamentos/:id/anexos ??? Upload de arquivo ????????????????????????????????????????????????????????????
 app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('arquivo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
@@ -20928,7 +21907,7 @@ app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('
     const urlCloud = await r2.uploadToR2(r2Key, tmpPath, mime);
     const publicId = r2Key;
 
-    // Limpar arquivo temporário
+    // Limpar arquivo tempor??rio
     try { fs.unlinkSync(tmpPath); } catch (_) {}
 
     // Salvar no banco
@@ -20956,7 +21935,7 @@ app.post('/api/treinamentos/:id/anexos', authenticateToken, multerTrein.single('
   }
 });
 
-// ── DELETE /api/treinamentos/:id/anexos/:anexoId — Remove anexo ──────────────
+// ?????? DELETE /api/treinamentos/:id/anexos/:anexoId ??? Remove anexo ??????????????????????????????????????????
 app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (req, res) => {
   try {
     const anexo = await new Promise((resolve, reject) =>
@@ -20982,7 +21961,7 @@ app.delete('/api/treinamentos/:id/anexos/:anexoId', authenticateToken, async (re
   }
 });
 
-// ── GET /api/treinamentos/:id/presencas — Lista presenças ─────────────────────
+// ?????? GET /api/treinamentos/:id/presencas - Lista presenças ???????????????????????????????????????????????????????????????
 app.get('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
   const sql = `
     SELECT tp.id, tp.treinamento_id, tp.usuario_id, tp.instrutor_id, tp.data_presenca,
@@ -20998,7 +21977,7 @@ app.get('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
   });
 });
 
-// ── POST /api/treinamentos/:id/presencas — Adiciona presença ──────────────────
+// ?????? POST /api/treinamentos/:id/presencas - Adiciona presença ??????????????????????????????????????????????????????
 app.post('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
   const { usuario_id } = req.body;
   const instrutor_id = req.user.id;
@@ -21019,7 +21998,7 @@ app.post('/api/treinamentos/:id/presencas', authenticateToken, (req, res) => {
   );
 });
 
-// ── DELETE /api/treinamentos/:id/presencas/:usuarioId — Remove presença ───────
+// ?????? DELETE /api/treinamentos/:id/presencas/:usuarioId - Remove presença ?????????????????????
 app.delete('/api/treinamentos/:id/presencas/:usuarioId', authenticateToken, (req, res) => {
   db.run(
     `DELETE FROM treinamento_presenca WHERE treinamento_id = ? AND usuario_id = ?`,
@@ -21031,22 +22010,22 @@ app.delete('/api/treinamentos/:id/presencas/:usuarioId', authenticateToken, (req
   );
 });
 
-// ── Helper: extrai public_id de URL Cloudinary ────────────────────────────────
+// ?????? Helper: extrai public_id de URL Cloudinary ????????????????????????????????????????????????????????????????????????????????????????????????
 function _extrairPublicId(url) {
   if (!url) return '';
   try {
     // Ex: https://res.cloudinary.com/xxx/video/upload/v123/treinamentos/abc.mp4
-    //     → public_id = treinamentos/abc
+    //     ??? public_id = treinamentos/abc
     const m = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
     return m ? m[1] : '';
   } catch (_) { return ''; }
 }
 
-console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
+console.log('[TREINAMENTO] M??dulo de treinamentos carregado.');
 
-// ── MIGRAÇÃO: colunas de assinatura/selfie na tabela treinamento_presenca ────
-['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome'].forEach(col => {
-  const type = col === 'colaborador_id' ? 'INTEGER' : "TEXT DEFAULT ''";
+// ?????? MIGRA????O: colunas de assinatura/selfie na tabela treinamento_presenca ????????????
+['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome', 'optou_nao_participar'].forEach(col => {
+  const type = col === 'colaborador_id' ? 'INTEGER' : (col === 'optou_nao_participar' ? 'INTEGER DEFAULT 0' : "TEXT DEFAULT ''");
   db.run(`ALTER TABLE treinamento_presenca ADD COLUMN ${col} ${type}`, err => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error(`[PRESENÇA] Migração (${col}):`, err.message);
@@ -21055,7 +22034,7 @@ console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
 });
 
 
-// ── MIGRAÇÃO: Remover UNIQUE(treinamento_id, usuario_id) que apagava registros de outros colaboradores
+// ?????? MIGRA????O: Remover UNIQUE(treinamento_id, usuario_id) que apagava registros de outros colaboradores
 db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_presenca'", (err, row) => {
     if (row && row.sql.includes('UNIQUE(treinamento_id, usuario_id)')) {
         console.log('[PRESENÇA] Iniciando migração para corrigir UNIQUE constraint...');
@@ -21077,7 +22056,7 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
             db.run(`INSERT OR REPLACE INTO treinamento_presenca_v2 (id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
                     SELECT id, treinamento_id, usuario_id, colaborador_id, instrutor_id, data_presenca, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome FROM treinamento_presenca`);
             db.run(`DROP TABLE treinamento_presenca`);
-            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`);
+            db.run(`ALTER TABLE treinamento_presenca_v2 RENAME TO treinamento_presenca`, (err) => {});
             db.run('COMMIT', (err) => {
                 if (err) console.error('[PRESENÇA] Erro na migração de constraint:', err.message);
                 else console.log('[PRESENÇA] Migração de constraint concluída com sucesso!');
@@ -21086,98 +22065,164 @@ db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='treinamento_p
     }
 });
 
-// ── GET /api/treinamento-presenca/colaboradores ──────────────────────────────
+// ?????? GET /api/treinamento-presenca/colaboradores ??????????????????????????????????????????????????????????????????????????????????????????
 // Retorna lista de colaboradores com seus treinamentos aplicáveis (por depto)
 // e o status de conclusão de cada treinamento
-app.get('/api/treinamento-presenca/colaboradores', authenticateToken, (req, res) => {
-  const sqlColabs = `
-    SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status, c.foto_path, c.foto_base64,
-           d.tipo AS departamento_tipo
-    FROM colaboradores c
-    LEFT JOIN departamentos d ON c.departamento = d.nome
-    ORDER BY c.nome_completo ASC
-  `;
-  const sqlTrein = `
-    SELECT id, nome, descricao, departamento, capa_url, validade_dias, IFNULL(tipo, 'treinamento') AS tipo
-    FROM treinamentos
-    WHERE IFNULL(status, 'ativo') = 'ativo'
-    ORDER BY nome ASC
-  `;
-  const sqlPresencas = `
-    SELECT tp.colaborador_id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
-           (SELECT pr.respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em
-    FROM treinamento_presenca tp
-    WHERE tp.colaborador_id IS NOT NULL
-  `;
-
-  db.all(sqlColabs, [], (err, colabs) => {
-    if (err) return res.status(500).json({ error: err.message });
-    db.all(sqlTrein, [], (err2, treinamentos) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      db.all(sqlPresencas, [], (err3, presencas) => {
-        if (err3) return res.status(500).json({ error: err3.message });
-
-        const agora = new Date();
-
-        const resultado = colabs.map(c => {
-          // Treinamentos aplicáveis: departamento 'Todos' ou contém o depto do colaborador
-          const aplicaveis = treinamentos.filter(t => {
-            if (!t.departamento || t.departamento === 'Todos') return true;
-            const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
-            return deptos.includes((c.departamento || '').trim().toLowerCase());
-          });
-
-          const treinamentosComStatus = aplicaveis.map(t => {
-            const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
-            const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
-
-            // Verificar se treinamento está vencido (validade_dias > 0)
-            let vencido = false;
-            if (presenca && dataConclusao && t.validade_dias > 0) {
-              const dtConclusao = new Date(dataConclusao);
-              const dtVencimento = new Date(dtConclusao);
-              dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
-              if (agora > dtVencimento) vencido = true;
-            }
-
-            // Se vencido, tratar como não concluído
-            const concluido = !!presenca && !vencido;
-
-            return {
-              id: t.id,
-              nome: t.nome,
-              descricao: t.descricao,
-              capa_url: t.capa_url,
-              validade_dias: t.validade_dias || 0,
-              tipo: t.tipo || 'treinamento',
-              concluido,
-              vencido,
-              data_conclusao: dataConclusao,
-              respondido_em: presenca ? presenca.respondido_em : null
-            };
-          });
-
-          return {
-            id: c.id,
-            nome_completo: c.nome_completo,
-            departamento: c.departamento,
-            departamento_tipo: c.departamento_tipo,
-            cargo: c.cargo,
-            foto_path: c.foto_path,
-            foto_base64: c.foto_base64,
-            treinamentos: treinamentosComStatus,
-            total: treinamentosComStatus.length,
-            concluidos: treinamentosComStatus.filter(t => t.concluido).length
-          };
-        });
-
-        res.json(resultado);
+app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req, res) => {
+  try {
+    // Helper: retorna lista de nomes de colunas de uma tabela
+    const getCols = (tabela) => new Promise((resolve) => {
+      db.all(`PRAGMA table_info(${tabela})`, [], (err, rows) => {
+        resolve(err ? [] : rows.map(r => r.name));
       });
     });
-  });
+
+    // Verifica colunas existentes nas tabelas relevantes (sem lançar exceção se não existirem)
+    const [treinCols, colabCols, presencaCols] = await Promise.all([
+      getCols('treinamentos'),
+      getCols('colaboradores'),
+      getCols('treinamento_presenca')
+    ]);
+
+    const has = (cols, col) => cols.includes(col);
+
+    // ── Query colaboradores ──────────────────────────────────────────────
+    const sqlColabs = `
+      SELECT c.id, c.nome_completo, c.departamento, c.cargo, c.status,
+             ${has(colabCols, 'foto_path')        ? "IFNULL(c.foto_path, '')"        : "''"} AS foto_path,
+             ${has(colabCols, 'foto_base64')      ? "IFNULL(c.foto_base64, '')"      : "''"} AS foto_base64,
+             ${has(colabCols, 'data_admissao')    ? "IFNULL(c.data_admissao, '')"    : "''"} AS data_admissao,
+             ${has(colabCols, 'tipo_contratacao') ? "IFNULL(c.tipo_contratacao, '')" : "''"} AS tipo_contratacao,
+             IFNULL(d.tipo, '') AS departamento_tipo
+      FROM colaboradores c
+      LEFT JOIN departamentos d ON c.departamento = d.nome
+      ORDER BY c.nome_completo ASC
+    `;
+
+    // ── Query treinamentos ───────────────────────────────────────────────
+    const sqlTrein = `
+      SELECT id, nome, IFNULL(descricao, '') AS descricao,
+             ${has(treinCols, 'departamento')          ? "IFNULL(departamento, 'Todos')"       : "'Todos'"      } AS departamento,
+             ${has(treinCols, 'colaboradores_avulsos') ? "IFNULL(colaboradores_avulsos, '')"   : "''"           } AS colaboradores_avulsos,
+             ${has(treinCols, 'capa_url')              ? "IFNULL(capa_url, '')"                : "''"           } AS capa_url,
+             ${has(treinCols, 'validade_dias')         ? "IFNULL(validade_dias, 0)"            : "0"            } AS validade_dias,
+             ${has(treinCols, 'tipo')                  ? "IFNULL(tipo, 'treinamento')"         : "'treinamento'"} AS tipo,
+             ${has(treinCols, 'is_integracao')         ? "IFNULL(is_integracao, 0)"            : "0"            } AS is_integracao,
+             ${has(treinCols, 'data_treinamento')      ? "IFNULL(data_treinamento, '')"        : "''"           } AS data_treinamento
+      FROM treinamentos
+      WHERE ${has(treinCols, 'status') ? "IFNULL(status, 'ativo') = 'ativo'" : "1=1"}
+      ORDER BY nome ASC
+    `;
+
+    // ── Query presenças ──────────────────────────────────────────────────
+    const sqlPresencas = `
+      SELECT tp.colaborador_id, tp.treinamento_id,
+             ${has(presencaCols, 'data_conclusao')       ? 'tp.data_conclusao'                         : 'NULL'} AS data_conclusao,
+             ${has(presencaCols, 'data_presenca')        ? 'tp.data_presenca'                          : 'NULL'} AS data_presenca,
+             ${has(presencaCols, 'optou_nao_participar') ? 'IFNULL(tp.optou_nao_participar, 0)'        : '0'   } AS optou_nao_participar,
+             pr.respondido_em
+      FROM treinamento_presenca tp
+      LEFT JOIN treinamento_pesquisa_respostas pr
+        ON pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id
+      WHERE tp.colaborador_id IS NOT NULL
+    `;
+
+    // ── Executar as queries em paralelo ──────────────────────────────────
+    const dbAll = (sql, params) => new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
+
+    const [colabs, treinamentos, presencas] = await Promise.all([
+      dbAll(sqlColabs, []),
+      dbAll(sqlTrein, []),
+      dbAll(sqlPresencas, [])
+    ]);
+
+    const agora = new Date();
+
+    const resultado = colabs.map(c => {
+      const aplicaveis = treinamentos.filter(t => {
+        if (!t.departamento || t.departamento === 'Todos') {
+          // aplica a todos
+        } else {
+          const deptos = t.departamento.split(',').map(d => d.trim().toLowerCase());
+          const noDepto = deptos.includes((c.departamento || '').trim().toLowerCase());
+          const avulsos = (t.colaboradores_avulsos || '').split(',').map(x => x.trim()).filter(Boolean);
+          const eAvulso = avulsos.includes(String(c.id));
+          if (!noDepto && !eAvulso) return false;
+        }
+
+        // Palestra com data definida: ocultar se data_treinamento < data_admissao do colaborador
+        if (t.tipo === 'terapia' && t.data_treinamento && c.data_admissao) {
+          const dtPalestra = new Date(t.data_treinamento + 'T12:00:00');
+          let dtAdmissao;
+          const adm = String(c.data_admissao);
+          if (adm.includes('/')) {
+            const pts = adm.split('/');
+            dtAdmissao = new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00`);
+          } else {
+            dtAdmissao = new Date(adm + 'T12:00:00');
+          }
+          if (!isNaN(dtPalestra) && !isNaN(dtAdmissao) && dtPalestra < dtAdmissao) return false;
+        }
+
+        return true;
+      });
+
+      const treinamentosComStatus = aplicaveis.map(t => {
+        const presenca = presencas.find(p => p.colaborador_id === c.id && p.treinamento_id === t.id);
+        const dataConclusao = presenca ? (presenca.data_conclusao || presenca.data_presenca) : null;
+
+        let vencido = false;
+        if (presenca && dataConclusao && t.validade_dias > 0) {
+          const dtConclusao = new Date(dataConclusao);
+          const dtVencimento = new Date(dtConclusao);
+          dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+          if (agora > dtVencimento) vencido = true;
+        }
+
+        const concluido = !!presenca && !vencido;
+
+        return {
+          id: t.id,
+          nome: t.nome,
+          descricao: t.descricao,
+          capa_url: t.capa_url,
+          validade_dias: t.validade_dias || 0,
+          tipo: t.tipo || 'treinamento',
+          concluido,
+          vencido,
+          data_conclusao: dataConclusao,
+          respondido_em: presenca ? presenca.respondido_em : null,
+          optou_nao_participar: presenca ? presenca.optou_nao_participar : 0
+        };
+      });
+
+      return {
+        id: c.id,
+        nome_completo: c.nome_completo,
+        departamento: c.departamento,
+        departamento_tipo: c.departamento_tipo,
+        cargo: c.cargo,
+        status: c.status,
+        foto_path: c.foto_path,
+        foto_base64: c.foto_base64,
+        tipo_contratacao: c.tipo_contratacao,
+        treinamentos: treinamentosComStatus,
+        total: treinamentosComStatus.length,
+        concluidos: treinamentosComStatus.filter(t => t.concluido).length
+      };
+    });
+
+    res.json(resultado);
+
+  } catch (err) {
+    console.error('[PRESENÇA] Erro FATAL no endpoint colaboradores:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// ── GET /api/treinamento-presenca/historico/:colaboradorId ─────────────────────
+// ?????? GET /api/treinamento-presenca/historico/:colaboradorId ???????????????????????????????????????????????????????????????
 // Retorna histórico completo de presenças de um colaborador (incluindo vencidos)
 app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken, (req, res) => {
   const { colaboradorId } = req.params;
@@ -21211,7 +22256,7 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
   );
 });
 
-// ── POST /api/treinamento-presenca/assinar ────────────────────────────────────
+// ?????? POST /api/treinamento-presenca/assinar ????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Registra presença com assinatura digital e selfie
 
 // DELETE signature based on colaborador_id
@@ -21243,7 +22288,7 @@ app.get('/api/treinamento-presenca/auditoria/:id', authenticateToken, (req, res)
     );
 });
 
-// GET /api/treinamento-presenca/auditoria/:id/pdf — Gera PDF do comprovante de assinatura
+// GET /api/treinamento-presenca/auditoria/:id/pdf ??? Gera PDF do comprovante de assinatura
 app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async (req, res) => {
     try {
         const htmlPdf = require('html-pdf-node');
@@ -21265,7 +22310,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
 
         const dtFormatada = row.data_conclusao || row.data_presenca
             ? new Date((row.data_conclusao || row.data_presenca).replace(' ', 'T') + (!(row.data_conclusao || row.data_presenca).includes('Z') ? 'Z' : '')).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-            : '—';
+            : '???';
 
         // Converte a imagem da capa (URL) para base64 para embutir no PDF
         let capaBase64 = '';
@@ -21306,7 +22351,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Comprovante – ${(row.treinamento_nome || '').replace(/</g,'&lt;')}</title>
+<title>Comprovante ??? ${(row.treinamento_nome || '').replace(/</g,'&lt;')}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1e293b; background: #fff; }
@@ -21330,8 +22375,8 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
   <div class="col-left">
     <div class="header-box">
       <h1>${(row.treinamento_nome || 'Treinamento').replace(/</g,'&lt;')}</h1>
-      <p>&#128203; Tipo: ${(row.treinamento_tipo || '—').replace(/</g,'&lt;')}</p>
-      <p>&#128100; ${(row.colaborador_nome || '—').replace(/</g,'&lt;')}</p>
+      <p>&#128203; Tipo: ${(row.treinamento_tipo || '???').replace(/</g,'&lt;')}</p>
+      <p>&#128100; ${(row.colaborador_nome || '???').replace(/</g,'&lt;')}</p>
       <p>&#128197; ${dtFormatada}</p>
       ${row.instrutor_nome ? `<p>&#127891; Instrutor: ${row.instrutor_nome.replace(/</g,'&lt;')}</p>` : ''}
     </div>
@@ -21346,7 +22391,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
       <div class="section-label">ASSINATURA DIGITAL</div>
       <div class="assinatura-box">
         ${assinaturaHtml}
-        <div class="nome-linha"><strong>${(row.colaborador_nome || '—').replace(/</g,'&lt;')}</strong></div>
+        <div class="nome-linha"><strong>${(row.colaborador_nome || '???').replace(/</g,'&lt;')}</strong></div>
       </div>
     </div>
 
@@ -21359,7 +22404,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
     </div>` : ''}
 
     <div class="rodape">
-      Gerado em ${dtFormatada} | Sistema de Gestao — America Rental Equipamentos Ltda.
+      Gerado em ${dtFormatada} | Sistema de Gestao ??? America Rental Equipamentos Ltda.
     </div>
   </div>
 </div>
@@ -21385,7 +22430,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const {
     colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,
-    gps_lat, gps_lon, dispositivo
+    gps_lat, gps_lon, dispositivo, optou_nao_participar
   } = req.body;
 
   if (!colaborador_id || !treinamento_id) {
@@ -21448,8 +22493,8 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
                       const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                       sendMailHelper({
                         to: colab.email.trim(),
-                        subject: `Pesquisa de Satisfação — ${treinNome}`,
-                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação — sua opinião é muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div>`,
+                        subject: `Pesquisa de Satisfação - ${treinNome}`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação - sua opinião à muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div>`,
                         attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                       }).then(() => console.log(`[PRESENÇA-EMAIL] Pesquisa enviada para ${colab.email}`))
                         .catch(e => console.error(`[PRESENÇA-EMAIL] Erro ao enviar:`, e.message));
@@ -21480,7 +22525,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 
 
   // Verificar se já existe registro para esse par (colaborador + treinamento)
-  // A tabela tem UNIQUE(treinamento_id, usuario_id) — usamos isso para o UPSERT
+  // A tabela tem UNIQUE(treinamento_id, usuario_id) ??? usamos isso para o UPSERT
   db.get(
     `SELECT id FROM treinamento_presenca
      WHERE treinamento_id = ?
@@ -21491,7 +22536,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
 
       if (existing) {
-        // Atualiza registro existente — garante que colaborador_id está preenchido
+        // Atualiza registro existente ??? garante que colaborador_id está preenchido
         db.run(
           `UPDATE treinamento_presenca
            SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
@@ -21508,18 +22553,18 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
         db.run(
           `INSERT INTO treinamento_presenca
-             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome],
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_nao_participar)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0],
           function(err2) {
             if (err2) {
               // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
               db.run(
                 `UPDATE treinamento_presenca
                  SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
-                     data_conclusao = ?, instrutor_nome = ?
+                     data_conclusao = ?, instrutor_nome = ?, optou_nao_participar = ?
                  WHERE treinamento_id = ? AND usuario_id = ?`,
-                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, treinamento_id, usuarioId],
+                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0, treinamento_id, usuarioId],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
                   db.get(
@@ -21543,11 +22588,11 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 });
 
 
-// ── GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ───────
-// Busca registro completo (assinatura + selfie) para exibição pós-assinatura
+// ?????? GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ?????????????????????
+// Busca registro completo (assinatura + selfie) para exibi????o pàs-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -21558,11 +22603,11 @@ app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', auth
   );
 });
 
-// ── GET /api/treinamento-presenca/:colaboradorId/:treinamentoId ───────────────
+// ?????? GET /api/treinamento-presenca/:colaboradorId/:treinamentoId ?????????????????????????????????????????????
 // Verifica se um colaborador já concluiu um treinamento específico
 app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64
+    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -21575,17 +22620,18 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
 
 
 
-// ── Migration: Add pesquisa columns to assinaturas_auditoria ──────────────
-try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`); } catch(_) {}
-try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`); } catch(_) {}
+// ?????? Migration: Add pesquisa columns to assinaturas_auditoria ??????????????????????????????????????????
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_token TEXT`, (err) => {}); } catch(_) {}
+try { db.run(`ALTER TABLE assinaturas_auditoria ADD COLUMN pesquisa_respondida_em DATETIME`, (err) => {}); } catch(_) {}
 
 
-// ── Job: Migração Assíncrona de Imagens Base64 para Cloudflare R2 ───────────
+// ?????? Job: Migração Ass??ncrona de Imagens Base64 para Cloudflare R2 ?????????????????????????????????
 async function syncBase64ToR2() {
     if (!r2 || !r2.isReady()) return;
     
     // 1. Treinamentos (Selfie e Assinatura)
-    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 15`, async (err, rows) => {
+    // LIMIT 5 por ciclo para não sobrecarregar a memória do Render (era 15)
+    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 5`, async (err, rows) => {
         if (err || !rows) return;
         for (const row of rows) {
             let updated = false;
@@ -21629,7 +22675,8 @@ async function syncBase64ToR2() {
     });
 
     // 2. EPIs (Selfie)
-    db.all(`SELECT id, selfie_base64 FROM epi_selfies WHERE selfie_base64 LIKE 'data:image/%' LIMIT 15`, async (err, rows) => {
+    // LIMIT 5 por ciclo para não sobrecarregar a memória do Render (era 15)
+    db.all(`SELECT id, selfie_base64 FROM epi_selfies WHERE selfie_base64 LIKE 'data:image/%' LIMIT 5`, async (err, rows) => {
         if (err || !rows) return;
         for (const row of rows) {
             try {
@@ -21652,11 +22699,11 @@ async function syncBase64ToR2() {
     });
 }
 
-// Rodar a cada 5 minutos
-setInterval(syncBase64ToR2, 5 * 60 * 1000);
-// E 10 segundos após a inicialização do servidor
-setTimeout(syncBase64ToR2, 10000);
-// ────────────────────────────────────────────────────────────────────────────
+// Rodar a cada 15 minutos (era 5min) ??? reduz carga no Render Starter
+setInterval(syncBase64ToR2, 15 * 60 * 1000);
+// E 2 minutos após a inicialização do servidor (era 10s)
+setTimeout(syncBase64ToR2, 2 * 60 * 1000);
+// ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // ============================================================================
 // ROTAS DE ASSINATURAS
@@ -21682,7 +22729,7 @@ app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_
                 const key = `assinaturas/templates/bg_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                 bg_image_path = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
             } else {
-                return res.status(500).json({ error: "Serviço de upload indisponível (R2 não configurado)." });
+                return res.status(500).json({ error: "Serviço de upload indispon??vel (R2 não configurado)." });
             }
         }
 
@@ -21732,7 +22779,7 @@ app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
             if (!row) return res.status(404).json({ error: "Template não encontrado." });
 
             if (row.is_active == 1) {
-                return res.status(400).json({ error: "Não é possível excluir um template ativo. Altere-o para inativo primeiro." });
+                return res.status(400).json({ error: "Não à poss??vel excluir um template ativo. Altere-o para inativo primeiro." });
             }
 
             if (row.bg_image_path && r2 && typeof r2.isReady === 'function' && r2.isReady()) {
@@ -21749,7 +22796,7 @@ app.delete('/api/assinaturas/templates/:id', authenticateToken, (req, res) => {
             }
             db.run(`DELETE FROM assinatura_templates WHERE id = ?`, [req.params.id], (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                res.json({ message: "Excluído" });
+                res.json({ message: "Exclu??do" });
             });
         } catch (innerErr) {
             console.error("Erro no delete template:", innerErr);
@@ -21769,11 +22816,17 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
                COALESCE(p.email_exibicao, c.email_corporativo) as email_exibicao,
                COALESCE(p.dept_exibicao, c.departamento) as dept_exibicao,
                COALESCE(p.cargo_exibicao, c.cargo) as cargo_exibicao,
-               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id
-        FROM colaboradores c
+               t.bg_image_path, t.config_json, t.nome as template_nome, t.id as template_id        FROM colaboradores c
         JOIN departamentos d ON c.departamento = d.nome
         LEFT JOIN assinatura_templates t ON t.is_active = 1
-        LEFT JOIN assinaturas_pendentes p ON c.id = p.colaborador_id AND p.template_id = t.id
+        LEFT JOIN (
+            SELECT p1.* FROM assinaturas_pendentes p1
+            INNER JOIN (
+                SELECT colaborador_id, template_id, MAX(id) as max_id 
+                FROM assinaturas_pendentes 
+                GROUP BY colaborador_id, template_id
+            ) pm ON p1.id = pm.max_id
+        ) p ON c.id = p.colaborador_id AND p.template_id = t.id
         WHERE d.tipo = 'Administrativo'
           AND LOWER(TRIM(c.departamento)) NOT LIKE '%limpeza%'
           AND c.status != 'Desligado'
@@ -21786,7 +22839,7 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
     });
 });
 
-// Salvar dados de exibição editados (não afeta cadastro do colaborador)
+// Salvar dados de exibi????o editados (não afeta cadastro do colaborador)
 app.patch('/api/assinaturas/pendentes/:colabId/dados', authenticateToken, (req, res) => {
     const colabId = req.params.colabId;
     const { nome_exibicao, email_exibicao, dept_exibicao, cargo_exibicao } = req.body;
@@ -21860,26 +22913,1430 @@ app.post('/api/assinaturas/gerar-manual', authenticateToken, (req, res) => {
     });
 });
 
+
+// --- AVALIA????O DE DESEMPENHO P??BLICA ---
+app.get('/api/desempenho/publico', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        
+        db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colabId], (err2, colab) => {
+            if (err2 || !colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+            
+            db.get(`SELECT * FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err3, avaliacao) => {
+                if (err3) return res.status(500).json({ error: 'Erro ao buscar avaliação' });
+                
+                res.json({
+                    colaborador: colab,
+                    ano: ano,
+                    trimestre: trimestre,
+                    avaliacao: avaliacao || null
+                });
+            });
+        });
+    });
+});
+
+app.post('/api/desempenho/publico/rascunho', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        const respostasJson = req.body.respostas_json;
+        const responsavelNome = req.body.responsavel_nome || null;
+        
+        db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
+            if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+
+            const finalizarAvaliacao = (idToUpdate, isInsert) => {
+                const query = isInsert 
+                    ? `INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`
+                    : `UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`;
+                
+                const params = isInsert 
+                    ? [colabId, ano, trimestre, respostasJson, responsavelNome]
+                    : [respostasJson, responsavelNome, idToUpdate];
+
+                db.run(query, params, (err3) => {
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avalia��o' : 'Erro ao finalizar avalia��o' });
+                    
+                    // Disparar email de notifica��o
+                    db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
+                        if (!err4 && colab) {
+                            sendEmailParaNotificados('formulario_desempenho', {
+                                subject: `Avalia��o de Desempenho Preenchida - ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avalia��o de Desempenho Preenchida</h2>
+                                    </div>
+                                    <div style="padding:20px;background:#f9fafb;color:#333;">
+                                        <p>Ol�,</p>
+                                        <p>A avalia��o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Respons�vel pela avalia��o: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p style="margin-top:20px;text-align:center;">
+                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                        </p>
+                                    </div>
+                                </div>`
+                            });
+                        }
+                    });
+
+                    res.json({ success: true, message: isInsert ? 'Avalia��o criada e finalizada' : 'Avalia��o finalizada' });
+                });
+            };
+
+            if (exist) {
+                finalizarAvaliacao(exist.id, false);
+            } else {
+                finalizarAvaliacao(null, true);
+            }
+        });
+    });
+});
+
+app.post('/api/desempenho/publico/finalizar', (req, res) => {
+    const token = req.query.token;
+    if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return res.status(401).json({ error: 'Token inválido ou expirado' });
+        
+        const colabId = decoded.colab_id;
+        const ano = decoded.ano;
+        const trimestre = decoded.trimestre;
+        const respostasJson = req.body.respostas_json;
+        const responsavelNome = req.body.responsavel_nome || null;
+        
+        db.get(`SELECT id FROM avaliacoes WHERE colaborador_id = ? AND tipo = 'desempenho' AND ano = ? AND trimestre = ?`, [colabId, ano, trimestre], (err2, exist) => {
+            if (err2) return res.status(500).json({ error: 'Erro no banco de dados' });
+
+            const finalizarAvaliacao = (idToUpdate, isInsert) => {
+                const query = isInsert 
+                    ? `INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json, situacao, responsavel_nome) VALUES (?, 'desempenho', ?, ?, ?, 'finalizado', ?)`
+                    : `UPDATE avaliacoes SET respostas_json = ?, situacao = 'finalizado', responsavel_nome = ? WHERE id = ?`;
+                
+                const params = isInsert 
+                    ? [colabId, ano, trimestre, respostasJson, responsavelNome]
+                    : [respostasJson, responsavelNome, idToUpdate];
+
+                db.run(query, params, (err3) => {
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avalia��o' : 'Erro ao finalizar avalia��o' });
+                    
+                    // Disparar email de notifica��o
+                    db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
+                        if (!err4 && colab) {
+                            sendEmailParaNotificados('formulario_desempenho', {
+                                subject: `Avalia��o de Desempenho Preenchida - ${colab.nome_completo}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avalia��o de Desempenho Preenchida</h2>
+                                    </div>
+                                    <div style="padding:20px;background:#f9fafb;color:#333;">
+                                        <p>Ol�,</p>
+                                        <p>A avalia��o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>Respons�vel pela avalia��o: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p style="margin-top:20px;text-align:center;">
+                                            <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
+                                        </p>
+                                    </div>
+                                </div>`
+                            });
+                        }
+                    });
+
+                    res.json({ success: true, message: isInsert ? 'Avalia��o criada e finalizada' : 'Avalia��o finalizada' });
+                });
+            };
+
+            if (exist) {
+                finalizarAvaliacao(exist.id, false);
+            } else {
+                finalizarAvaliacao(null, true);
+            }
+        });
+    });
+});
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// MÓDULO: INTEGRAÇÃO DE COLABORADORES
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+// --- Migration: Tabelas do módulo de integração ---
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_passos_config (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        descricao TEXT,
+        grupo TEXT NOT NULL DEFAULT 'todos',
+        condicao TEXT,
+        responsavel_user_id INTEGER,
+        ordem INTEGER DEFAULT 0,
+        tipo TEXT NOT NULL DEFAULT 'checkbox',
+        ativo INTEGER NOT NULL DEFAULT 1,
+        criado_em TEXT DEFAULT (datetime('now','localtime'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_processos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        colaborador_id INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pendente',
+        criado_em TEXT DEFAULT (datetime('now','localtime')),
+        iniciado_em TEXT,
+        concluido_em TEXT,
+        FOREIGN KEY (colaborador_id) REFERENCES colaboradores(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_passos_status (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        processo_id INTEGER NOT NULL,
+        passo_config_id INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pendente',
+        responsavel_user_id INTEGER,
+        feito_em TEXT,
+        obs TEXT,
+        FOREIGN KEY (processo_id) REFERENCES integracao_processos(id),
+        FOREIGN KEY (passo_config_id) REFERENCES integracao_passos_config(id)
+    )`);
+
+    // Migration: colunas para passos custom (templates por departamento)
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN titulo TEXT`, (err) => {});
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN descricao_custom TEXT`, (err) => {});
+    db.run(`ALTER TABLE integracao_passos_status ADD COLUMN is_custom INTEGER DEFAULT 0`, (err) => {});
+
+    // Novas tabelas: Templates por Departamento
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        departamento_id INTEGER,
+        descricao TEXT,
+        ativo INTEGER NOT NULL DEFAULT 1,
+        criado_em TEXT DEFAULT (datetime('now','localtime'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_template_grupos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        grupo TEXT NOT NULL
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integracao_template_acoes_custom (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        titulo TEXT NOT NULL,
+        descricao TEXT,
+        responsavel_user_id INTEGER,
+        condicao TEXT,
+        ordem INTEGER DEFAULT 0,
+        tipo TEXT DEFAULT 'checkbox',
+        ativo INTEGER NOT NULL DEFAULT 1
+    )`);
+
+    // Seed: passos padrão (só insere se tabela estiver vazia)
+    db.get('SELECT COUNT(*) as cnt FROM integracao_passos_config', [], (err, row) => {
+        if (err || (row && row.cnt > 0)) return;
+        const passosSeed = [
+            { titulo: 'Cartão de Vale Transporte', descricao: 'Providenciar e entregar cartão VT ao colaborador', grupo: 'todos', condicao: 'vt', ordem: 1 },
+            { titulo: 'Cartão de VR', descricao: 'Providenciar e entregar cartão de Vale Refeição', grupo: 'todos', condicao: null, ordem: 2 },
+            { titulo: 'Cartão VC', descricao: 'Providenciar e entregar cartão de Vale Combustível', grupo: 'todos', condicao: 'vc', ordem: 3 },
+            { titulo: 'Montagem de kit de boas-vindas', descricao: 'Preparar e entregar kit de boas-vindas ao colaborador', grupo: 'todos', condicao: null, ordem: 4 },
+            { titulo: 'Configurar ponto eletrônico', descricao: 'Cadastrar colaborador no sistema de ponto eletrônico', grupo: 'todos', condicao: null, ordem: 5 },
+            { titulo: 'Treinamentos específicos', descricao: 'Realizar treinamentos obrigatórios e específicos do cargo', grupo: 'todos', condicao: null, ordem: 6 },
+            { titulo: 'Apresentação da empresa', descricao: 'Apresentar história, valores e cultura da América Rental', grupo: 'todos', condicao: null, ordem: 7 },
+            { titulo: 'Apresentação do time', descricao: 'Apresentar o colaborador à equipe e ao gestor direto', grupo: 'todos', condicao: null, ordem: 8 },
+            { titulo: 'Providenciar mesa', descricao: 'Preparar e organizar mesa de trabalho', grupo: 'administrativo', condicao: null, ordem: 9 },
+            { titulo: 'Providenciar cadeira', descricao: 'Providenciar cadeira ergonômica para o posto de trabalho', grupo: 'administrativo', condicao: null, ordem: 10 },
+            { titulo: 'Providenciar computador', descricao: 'Preparar e configurar computador', grupo: 'administrativo', condicao: null, ordem: 11 },
+            { titulo: 'Criar e-mail Gmail', descricao: 'Criar conta no Gmail e converter para Microsoft', grupo: 'administrativo', condicao: null, ordem: 12 },
+            { titulo: 'Criar e-mail Microsoft 365', descricao: 'Criar conta e licença no Microsoft 365', grupo: 'administrativo', condicao: null, ordem: 13 },
+            { titulo: 'Criar assinatura de e-mail', descricao: 'Configurar assinatura padrão de e-mail', grupo: 'administrativo', condicao: null, ordem: 14 },
+            { titulo: 'Liberar acessos OneDrive', descricao: 'Conceder acesso às pastas compartilhadas no OneDrive', grupo: 'administrativo', condicao: null, ordem: 15 },
+            { titulo: 'Configurar Outlook', descricao: 'Instalar e configurar o Outlook no computador', grupo: 'administrativo', condicao: null, ordem: 16 },
+            { titulo: 'Instalar impressoras', descricao: 'Configurar impressoras no computador do colaborador', grupo: 'administrativo', condicao: null, ordem: 17 },
+            { titulo: 'Providenciar Celular', descricao: 'Separar e preparar celular corporativo', grupo: 'motorista', condicao: null, ordem: 18 },
+            { titulo: 'Configurar e-mail Gmail padrão', descricao: 'Configurar conta Gmail padrão no celular', grupo: 'motorista', condicao: null, ordem: 19 },
+            { titulo: 'Instalar SimpliRoute', descricao: 'Instalar aplicativo SimpliRoute no celular', grupo: 'motorista', condicao: null, ordem: 20 },
+            { titulo: 'Criar senha do SimpliRoute', descricao: 'Criar acesso e senha no SimpliRoute', grupo: 'motorista', condicao: null, ordem: 21 },
+            { titulo: 'Criar senha do Cobli', descricao: 'Criar acesso e senha no sistema Cobli', grupo: 'motorista', condicao: null, ordem: 22 },
+            { titulo: 'Instalar WhatsApp Business', descricao: 'Instalar e configurar WhatsApp Business', grupo: 'motorista', condicao: null, ordem: 23 },
+            { titulo: 'Instalar Controle de acessos', descricao: 'Instalar aplicativo de controle de acessos', grupo: 'motorista', condicao: null, ordem: 24 },
+            { titulo: 'Configurar liberação de acesso à localização', descricao: 'Habilitar GPS e permissões de localização', grupo: 'motorista', condicao: null, ordem: 25 },
+            { titulo: 'Instalar capa nova', descricao: 'Colocar capa protetora nova no celular', grupo: 'motorista', condicao: null, ordem: 26 },
+            { titulo: 'Instalar película nova', descricao: 'Colocar película protetora nova na tela', grupo: 'motorista', condicao: null, ordem: 27 },
+            { titulo: 'Incluir etiqueta de patrimônio no celular', descricao: 'Fixar etiqueta de patrimônio no celular', grupo: 'motorista', condicao: null, ordem: 28 },
+            { titulo: 'Identificação de armário', descricao: 'Identificar e entregar armário para o colaborador', grupo: 'operacional', condicao: null, ordem: 29 },
+            { titulo: 'Conversa com gestor — final da 1ª semana', descricao: 'Reunião de check-in com gestor ao final da primeira semana', grupo: 'acompanhamento', condicao: null, ordem: 30 },
+            { titulo: 'Conversa com gestor — 30 dias', descricao: 'Reunião de acompanhamento com gestor após 30 dias', grupo: 'acompanhamento', condicao: null, ordem: 31 },
+            { titulo: 'Conversa com RH — 1º período de experiência (45 dias)', descricao: 'Reunião de avaliação com RH ao final do 1º período de experiência', grupo: 'acompanhamento', condicao: null, ordem: 32 },
+            { titulo: 'Conversa com RH e Gestor — 2º período de experiência', descricao: 'Reunião de encerramento do período de experiência com RH e gestor', grupo: 'acompanhamento', condicao: null, ordem: 33 },
+        ];
+        const stmt = db.prepare(`INSERT INTO integracao_passos_config (titulo, descricao, grupo, condicao, ordem) VALUES (?, ?, ?, ?, ?)`);
+        passosSeed.forEach(p => stmt.run(p.titulo, p.descricao, p.grupo, p.condicao, p.ordem));
+        stmt.finalize();
+        console.log('[INTEGRAÇÃO] Seed de passos inserido com sucesso.');
+    });
+});
+
+// ── Helpers de integração ──────────────────────────────────────────────────────
+function _grupoAplicavel(colab, grupo) {
+    const tipo = (colab.tipo_departamento || '').toLowerCase();
+    const cargo = (colab.cargo || '').toLowerCase();
+    if (grupo === 'todos') return true;
+    if (grupo === 'administrativo') return tipo === 'administrativo';
+    if (grupo === 'motorista') return cargo.includes('motorista');
+    if (grupo === 'operacional') return tipo === 'operacional';
+    if (grupo === 'acompanhamento') return true;
+    return false;
+}
+function _condicaoAplicavel(colab, condicao) {
+    if (!condicao) return true;
+    const transporte = (colab.meio_transporte || '').toLowerCase();
+    if (condicao === 'vt') return transporte.includes('vt') || transporte.includes('vale transporte') || transporte.includes('vale-transporte');
+    if (condicao === 'vc') return transporte.includes('vc') || transporte.includes('combustivel') || transporte.includes('combustível') || transporte.includes('vale combust');
+    if (condicao === 'terapia') return (colab.terapia_participa || '').toLowerCase() === 'sim';
+    if (condicao === 'experiencia_aprovado') return true;
+    return true;
+}
+
+function gerarEmailIntegracaoHTML({ respNome, nomeColaborador, cargoColaborador, passos, baseUrl, dataAdmissao }) {
+    const apiBase = baseUrl || (process.env.BASE_URL || 'https://sistema-america.onrender.com');
+    const logoUrl = `${apiBase}/assets/logo-header.png`;
+    const gruposMap = { todos: 'Geral', administrativo: 'Administrativo', motorista: 'Motorista', operacional: 'Operacional', acompanhamento: 'Acompanhamento' };
+    const passosHtml = passos.map(p => `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:0.88rem;color:#334155;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:8px;vertical-align:middle;"></span>
+            ${p.titulo}
+            ${p.grupo ? `<span style="margin-left:8px;font-size:0.73rem;background:#f0f9ff;color:#0369a1;padding:1px 6px;border-radius:4px;">${gruposMap[p.grupo] || p.grupo}</span>` : ''}
+          </td>
+        </tr>`).join('');
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><title>Integração — América Rental</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+      <tr><td style="padding:0;text-align:center;border-bottom:1px solid #eee;">
+        <img src="${logoUrl}" alt="América Rental" width="600" style="width:100%;max-width:600px;height:auto;display:block;">
+      </td></tr>
+      <tr><td style="padding:24px 28px 8px;">
+        <table cellpadding="0" cellspacing="0"><tr>
+          <td style="width:24px;height:24px;background:#e8f5e9;border-radius:4px;text-align:center;line-height:24px;font-size:14px;">🤝</td>
+          <td style="padding-left:10px;">
+            <span style="font-size:1.15rem;font-weight:800;color:#0f4c81;">Integração de</span>
+            <span style="font-size:1.15rem;font-weight:800;color:#059669;"> Colaborador</span>
+          </td>
+        </tr></table>
+        <div style="height:3px;background:linear-gradient(90deg,#0f4c81,#059669,#f59e0b);border-radius:2px;margin-top:10px;"></div>
+      </td></tr>
+      <tr><td style="padding:8px 28px 16px;">
+        <p style="color:#334155;font-size:0.95rem;margin:0 0 12px;">Olá, <strong>${respNome || 'Responsável'}</strong>,</p>
+        <p style="color:#334155;font-size:0.95rem;margin:0 0 16px;">Um novo colaborador foi liberado para integração e você tem atividades pendentes:</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;margin-bottom:16px;">
+          <tr><td style="padding:14px 18px;">
+            <p style="margin:0 0 4px;color:#334155;font-size:0.9rem;"><strong>Colaborador:</strong> ${nomeColaborador}</p>
+            <p style="margin:0;color:#334155;font-size:0.9rem;"><strong>Cargo:</strong> ${cargoColaborador}</p>
+            <p style="margin:4px 0 0;color:#334155;font-size:0.9rem;"><strong>Data de Admissão:</strong> ${dataAdmissao ? new Date(dataAdmissao).toLocaleDateString('pt-BR', {timeZone:'UTC'}) : 'Não informada'}</p>
+          </td></tr>
+        </table>
+        <p style="color:#334155;font-size:0.9rem;font-weight:700;margin:0 0 8px;">Suas atividades pendentes:</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;overflow:hidden;">
+          ${passosHtml}
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;margin-bottom:20px;">
+          <tr><td style="padding:14px 18px;text-align:center;">
+            <p style="margin:0;color:#92400e;font-weight:700;font-size:0.9rem;">Acesse o sistema para confirmar cada atividade realizada.</p>
+          </td></tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-bottom:20px;">
+          <a href="${apiBase}" style="display:inline-block;background:#0f4c81;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.95rem;">Acessar Sistema</a>
+        </td></tr></table>
+      </td></tr>
+      <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:14px 28px;text-align:center;">
+        <p style="margin:0;color:#94a3b8;font-size:0.78rem;">América Rental — Sistema de Gestão de Colaboradores | E-mail automático.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+// ── API: Configuração dos passos ───────────────────────────────────────────────
+app.get('/api/integracao/config', authenticateToken, (req, res) => {
+    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+            FROM integracao_passos_config p
+            LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+            WHERE p.ativo = 1
+            ORDER BY p.grupo, p.ordem`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/integracao/config/all', authenticateToken, (req, res) => {
+    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+            FROM integracao_passos_config p
+            LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+            ORDER BY p.grupo, p.ordem`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/integracao/config', authenticateToken, (req, res) => {
+    const { id, titulo, descricao, grupo, condicao, responsavel_user_id, ordem, tipo } = req.body;
+    if (!titulo || !grupo) return res.status(400).json({ error: 'titulo e grupo são obrigatórios' });
+    if (id) {
+        db.run(`UPDATE integracao_passos_config SET titulo=?, descricao=?, grupo=?, condicao=?, responsavel_user_id=?, ordem=?, tipo=? WHERE id=?`,
+            [titulo, descricao || null, grupo, condicao || null, responsavel_user_id || null, ordem || 0, tipo || 'checkbox', id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id });
+            });
+    } else {
+        db.run(`INSERT INTO integracao_passos_config (titulo, descricao, grupo, condicao, responsavel_user_id, ordem, tipo) VALUES (?,?,?,?,?,?,?)`,
+            [titulo, descricao || null, grupo, condicao || null, responsavel_user_id || null, ordem || 0, tipo || 'checkbox'],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id: this.lastID });
+            });
+    }
+});
+
+app.delete('/api/integracao/config/:id', authenticateToken, (req, res) => {
+    db.run(`UPDATE integracao_passos_config SET ativo=0 WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── API: Iniciar processo de integração ───────────────────────────────────────
+app.post('/api/integracao/iniciar/:colaboradorId', authenticateToken, async (req, res) => {
+    const colaboradorId = parseInt(req.params.colaboradorId);
+    if (!colaboradorId) return res.status(400).json({ error: 'colaborador_id inválido' });
+    try {
+        const colab = await new Promise((resolve, reject) =>
+            db.get(`SELECT c.*, d.tipo as tipo_departamento FROM colaboradores c
+                    LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+                    WHERE c.id = ?`, [colaboradorId], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
+
+        const existente = await new Promise((resolve, reject) =>
+            db.get(`SELECT id FROM integracao_processos WHERE colaborador_id = ? AND status != 'concluido'`, [colaboradorId], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (existente) return res.json({ ok: true, processo_id: existente.id, ja_existia: true });
+
+        const processoId = await new Promise((resolve, reject) =>
+            db.run(`INSERT INTO integracao_processos (colaborador_id, status) VALUES (?, 'pendente')`, [colaboradorId],
+                function(err) { err ? reject(err) : resolve(this.lastID); })
+        );
+
+        // ── Verificar se há template para o departamento do colaborador ──────
+        const template = colab.departamento_id
+            ? await new Promise(resolve =>
+                db.get(`SELECT t.* FROM integracao_templates t
+                        WHERE t.departamento_id = ? AND t.ativo = 1
+                        LIMIT 1`, [colab.departamento_id], (e, r) => resolve(r || null)))
+            : null;
+
+        let passosAplicaveis = [];
+        let acoesCustom = [];
+
+        if (template) {
+            // ── Com template: usar grupos selecionados + ações exclusivas ────
+            console.log(`[INTEGRAÇÃO] Usando template "${template.nome}" (id ${template.id}) para ${colab.nome_completo}`);
+
+            const grupos = await new Promise(resolve =>
+                db.all(`SELECT grupo FROM integracao_template_grupos WHERE template_id=?`, [template.id],
+                    (e, g) => resolve((g || []).map(x => x.grupo))));
+
+            for (const grupo of grupos) {
+                const passosGrupo = await new Promise(resolve =>
+                    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+                            FROM integracao_passos_config p
+                            LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+                            WHERE p.ativo = 1 AND p.grupo = ? ORDER BY p.ordem`, [grupo],
+                        (e, r) => resolve(r || [])));
+                passosAplicaveis.push(...passosGrupo.filter(p => _condicaoAplicavel(colab, p.condicao)));
+            }
+
+            acoesCustom = await new Promise(resolve =>
+                db.all(`SELECT a.*, u.nome as responsavel_nome, u.email as responsavel_email
+                        FROM integracao_template_acoes_custom a
+                        LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+                        WHERE a.template_id = ? AND a.ativo = 1 ORDER BY a.ordem`, [template.id],
+                    (e, r) => resolve(r || [])));
+            acoesCustom = acoesCustom.filter(a => _condicaoAplicavel(colab, a.condicao));
+
+        } else {
+            // ── Sem template: verificar novo sistema (integ_acoes) ────────────
+            const cntNovas = await new Promise(resolve =>
+                db.get(`SELECT COUNT(*) as cnt FROM integ_acoes WHERE ativo=1`, [], (e, r) => resolve(r?.cnt || 0)));
+
+            // Novo sistema: buscar template pelo tipo do departamento do colaborador
+            const tipoDepto = (colab.tipo_departamento || '').toLowerCase();
+            const templateMatch = await new Promise(resolve =>
+                db.get(`SELECT t.* FROM integ_templates t WHERE LOWER(t.tipo_key)=? AND t.ativo=1 LIMIT 1`,
+                    [tipoDepto], (e, r) => resolve(r || null)));
+
+            if (templateMatch) {
+                console.log(`[INTEG] Usando template "${templateMatch.nome}" para ${colab.nome_completo}`);
+                const acoesTpl = await new Promise(resolve =>
+                    db.all(`SELECT a.*, u.nome as responsavel_nome, u.email as responsavel_email
+                            FROM integ_template_acoes a
+                            LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+                            WHERE a.template_id=? AND a.ativo=1 ORDER BY a.ordem`,
+                        [templateMatch.id], (e, r) => resolve(r || [])));
+                const deptoIdStr = String(colab.departamento_id || '');
+                const acoesFiltradas = acoesTpl.filter(a => {
+                    if (_condicaoAplicavel && !_condicaoAplicavel(colab, a.condicao)) return false;
+                    if (!a.departamentos || a.departamentos === 'todos') return true;
+                    try {
+                        const deptos = JSON.parse(a.departamentos);
+                        return deptos.includes(deptoIdStr) || deptos.includes('todos') || deptos.length === 0;
+                    } catch { return true; }
+                });
+                for (const a of acoesFiltradas) {
+                    let respFinalId = a.responsavel_user_id;
+                    if (!respFinalId && a.responsavel_depto_id) {
+                        if (parseInt(a.responsavel_depto_id) === -1) {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [colab.departamento_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        } else {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        }
+                    }
+                    if (!respFinalId && a.grupo_responsavel_user_id) respFinalId = a.grupo_responsavel_user_id;
+                    if (!respFinalId && a.grupo_responsavel_depto_id) {
+                        if (parseInt(a.grupo_responsavel_depto_id) === -1) {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [colab.departamento_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        } else {
+                            respFinalId = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE id=?`, [a.grupo_responsavel_depto_id], (e, row) => r(row ? row.responsavel_id : null)));
+                        }
+                    }
+                    
+                    let initialStatus = (a.condicao === 'experiencia_aprovado') ? 'aguardando_experiencia' : 'pendente';
+                    await new Promise((resolve, reject) =>
+                        db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom, treinamento_id) VALUES (?, NULL, ?, ?, ?, ?, 1, ?)`,
+                            [processoId, initialStatus, respFinalId || null, a.titulo, a.descricao || null, a.treinamento_id || null],
+                            err => err ? reject(err) : resolve()));
+                }
+                passosAplicaveis = acoesFiltradas; // para e-mail
+            } else {
+                // Fallback: sistema legado integracao_passos_config
+                const todosPassos = await new Promise(resolve =>
+                    db.all(`SELECT p.*, u.nome as responsavel_nome, u.email as responsavel_email
+                            FROM integracao_passos_config p
+                            LEFT JOIN usuarios u ON u.id = p.responsavel_user_id
+                            WHERE p.ativo = 1 ORDER BY p.grupo, p.ordem`, [], (e, r) => resolve(r || [])));
+                passosAplicaveis = todosPassos.filter(p => _grupoAplicavel(colab, p.grupo) && _condicaoAplicavel(colab, p.condicao));
+            }
+        }
+
+        // ── Inserir passos padrão ────────────────────────────────────────────
+        for (const p of passosAplicaveis) {
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id) VALUES (?, ?, 'pendente', ?)`,
+                    [processoId, p.id, p.responsavel_user_id || null],
+                    err => err ? reject(err) : resolve())
+            );
+        }
+
+        // ── Inserir ações customizadas do template ───────────────────────────
+        for (const a of acoesCustom) {
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_passos_status (processo_id, passo_config_id, status, responsavel_user_id, titulo, descricao_custom, is_custom) VALUES (?, NULL, 'pendente', ?, ?, ?, 1)`,
+                    [processoId, a.responsavel_user_id || a.grupo_responsavel_user_id || null, a.titulo, a.descricao || null],
+                    err => err ? reject(err) : resolve())
+            );
+        }
+
+        await new Promise((resolve, reject) =>
+            db.run(`UPDATE colaboradores SET status = 'Em Integração' WHERE id = ?`, [colaboradorId],
+                err => err ? reject(err) : resolve())
+        );
+
+        // ── Enviar e-mails por responsável ───────────────────────────────────
+        const todosPassosEmail = [...passosAplicaveis, ...acoesCustom];
+        const responsaveisMapa = {};
+        for (const p of todosPassosEmail) {
+            if (p.responsavel_user_id && p.responsavel_email) {
+                if (!responsaveisMapa[p.responsavel_user_id]) {
+                    responsaveisMapa[p.responsavel_user_id] = { nome: p.responsavel_nome, email: p.responsavel_email, passos: [] };
+                }
+                responsaveisMapa[p.responsavel_user_id].passos.push(p);
+            }
+        }
+        const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
+        for (const resp of Object.values(responsaveisMapa)) {
+            try {
+                await sendMailHelper({
+                    to: resp.email,
+                    subject: `🤝 Integração: ${colab.nome_completo} — Atividades Pendentes`,
+                    html: gerarEmailIntegracaoHTML({ respNome: resp.nome, nomeColaborador: colab.nome_completo, cargoColaborador: colab.cargo || '', passos: resp.passos, baseUrl, dataAdmissao: colab.data_admissao })
+                });
+            } catch(mailErr) {
+                console.error('[INTEGRAÇÃO] Erro ao enviar e-mail para', resp.email, mailErr.message);
+            }
+        }
+        const totalPassos = passosAplicaveis.length + acoesCustom.length;
+        console.log(`[INTEGRAÇÃO] Processo ${processoId} criado para ${colab.nome_completo} — ${passosAplicaveis.length} passos padrão + ${acoesCustom.length} ações custom${template ? ` (template: ${template.nome})` : ' (auto)'}`);
+        res.json({ ok: true, processo_id: processoId, passos_criados: totalPassos, template_usado: template ? template.nome : null });
+    } catch(e) {
+        console.error('[INTEGRAÇÃO] Erro ao iniciar processo:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── API: Listar processos ─────────────────────────────────────────────────────
+app.get('/api/integracao/processos', authenticateToken, (req, res) => {
+    const userId = req.user && req.user.id;
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
+    let sql, params;
+    if (isAdmin) {
+        sql = `SELECT p.*, c.nome_completo, c.cargo, c.foto_base64, c.departamento, c.meio_transporte,
+                      d.tipo as tipo_departamento,
+                      (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.status = 'pendente') as pendentes,
+                      (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id) as total
+               FROM integracao_processos p
+               JOIN colaboradores c ON c.id = p.colaborador_id
+               LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+               WHERE p.status != 'concluido'
+               ORDER BY p.criado_em DESC`;
+        params = [];
+    } else {
+        sql = `SELECT DISTINCT p.*, c.nome_completo, c.cargo, c.foto_base64, c.departamento, c.meio_transporte,
+                      d.tipo as tipo_departamento,
+                      (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.responsavel_user_id = ? AND ps.status = 'pendente') as pendentes,
+                      (SELECT COUNT(*) FROM integracao_passos_status ps WHERE ps.processo_id = p.id AND ps.responsavel_user_id = ?) as total
+               FROM integracao_processos p
+               JOIN colaboradores c ON c.id = p.colaborador_id
+               LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+               JOIN integracao_passos_status ips ON ips.processo_id = p.id AND ips.responsavel_user_id = ?
+               WHERE p.status != 'concluido'
+               ORDER BY p.criado_em DESC`;
+        params = [userId, userId, userId];
+    }
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── API: Detalhe de um processo ───────────────────────────────────────────────
+app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
+    const processoId = req.params.id;
+    const userId = req.user && req.user.id;
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
+    db.get(`SELECT p.*, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.meio_transporte,
+                   d.tipo as tipo_departamento
+            FROM integracao_processos p
+            JOIN colaboradores c ON c.id = p.colaborador_id
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            WHERE p.id = ?`, [processoId], (err, processo) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!processo) return res.status(404).json({ error: 'Processo não encontrado' });
+        const stepSql = isAdmin
+            ? `SELECT ps.*,
+                      COALESCE(ps.titulo, pc.titulo)    AS titulo,
+                      COALESCE(ps.descricao_custom, pc.descricao) AS descricao,
+                      COALESCE(pc.grupo, 'todos')       AS grupo,
+                      COALESCE(pc.condicao, '')         AS condicao,
+                      COALESCE(pc.tipo, 'checkbox')     AS tipo,
+                      COALESCE(pc.ordem, 9999)          AS ordem,
+                      u.nome as responsavel_nome
+               FROM integracao_passos_status ps
+               LEFT JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
+               LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
+               WHERE ps.processo_id = ?
+               ORDER BY COALESCE(pc.grupo,'todos'), COALESCE(pc.ordem,9999)`
+            : `SELECT ps.*,
+                      COALESCE(ps.titulo, pc.titulo)    AS titulo,
+                      COALESCE(ps.descricao_custom, pc.descricao) AS descricao,
+                      COALESCE(pc.grupo, 'todos')       AS grupo,
+                      COALESCE(pc.condicao, '')         AS condicao,
+                      COALESCE(pc.tipo, 'checkbox')     AS tipo,
+                      COALESCE(pc.ordem, 9999)          AS ordem,
+                      u.nome as responsavel_nome
+               FROM integracao_passos_status ps
+               LEFT JOIN integracao_passos_config pc ON pc.id = ps.passo_config_id
+               LEFT JOIN usuarios u ON u.id = ps.responsavel_user_id
+               WHERE ps.processo_id = ? AND ps.responsavel_user_id = ?
+               ORDER BY COALESCE(pc.grupo,'todos'), COALESCE(pc.ordem,9999)`;
+        const stepParams = isAdmin ? [processoId] : [processoId, userId];
+        db.all(stepSql, stepParams, (err2, passos) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ...processo, passos: passos || [] });
+        });
+    });
+});
+
+// ── API: Atualizar status de um passo ────────────────────────────────────────
+app.put('/api/integracao/passos-status/:id', authenticateToken, (req, res) => {
+    const { status, obs } = req.body;
+    if (!['pendente', 'feito', 'nao_aplica'].includes(status)) {
+        return res.status(400).json({ error: 'Status inválido. Use: pendente, feito, nao_aplica' });
+    }
+    const feito_em = status === 'feito' ? new Date().toISOString() : null;
+    db.run(`UPDATE integracao_passos_status SET status=?, feito_em=?, obs=? WHERE id=?`,
+        [status, feito_em, obs || null, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            db.get(`SELECT ps.processo_id FROM integracao_passos_status ps WHERE ps.id = ?`, [req.params.id], (e, row) => {
+                if (!row) return res.json({ ok: true });
+                db.get(`SELECT COUNT(*) as pendentes FROM integracao_passos_status WHERE processo_id = ? AND status = 'pendente'`,
+                    [row.processo_id], (e2, cnt) => {
+                        if (!e2 && cnt && cnt.pendentes === 0) {
+                            db.run(`UPDATE integracao_processos SET status='concluido', concluido_em=datetime('now','localtime') WHERE id=?`,
+                                [row.processo_id]);
+                        }
+                        res.json({ ok: true });
+                    });
+            });
+        });
+});
+
+// ── API: Badge — pendências do usuário logado ─────────────────────────────────
+app.get('/api/integracao/notificacoes/count', authenticateToken, (req, res) => {
+    const userId = req.user && req.user.id;
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.nivel_acesso === 'admin' || (req.user.username && req.user.username.toLowerCase() === 'thais.ricci'));
+    const sql = isAdmin
+        ? `SELECT COUNT(*) as cnt FROM integracao_passos_status ps
+           JOIN integracao_processos p ON p.id = ps.processo_id
+           WHERE ps.status = 'pendente' AND p.status != 'concluido'`
+        : `SELECT COUNT(*) as cnt FROM integracao_passos_status ps
+           JOIN integracao_processos p ON p.id = ps.processo_id
+           WHERE ps.status = 'pendente' AND ps.responsavel_user_id = ? AND p.status != 'concluido'`;
+    const params = isAdmin ? [] : [userId];
+    db.get(sql, params, (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ count: (row && row.cnt) || 0 });
+    });
+});
+
+// ── API: Marcar processo como iniciado ────────────────────────────────────────
+app.put('/api/integracao/processos/:id/iniciar', authenticateToken, (req, res) => {
+    db.run(`UPDATE integracao_processos SET status='em_andamento', iniciado_em=datetime('now','localtime') WHERE id=? AND status='pendente'`,
+        [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        });
+});
+
+
+// ── TEMPLATES POR DEPARTAMENTO ──────────────────────────────────────────────
+
+// GET /api/integracao/templates
+app.get('/api/integracao/templates', authenticateToken, (req, res) => {
+    db.all(`SELECT t.*, d.nome as departamento_nome
+            FROM integracao_templates t
+            LEFT JOIN departamentos d ON d.id = t.departamento_id
+            WHERE t.ativo = 1
+            ORDER BY COALESCE(d.nome,'zzz'), t.nome`, [], async (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!rows || rows.length === 0) return res.json([]);
+        try {
+            for (const row of rows) {
+                row.grupos = await new Promise((resolve, reject) =>
+                    db.all(`SELECT grupo FROM integracao_template_grupos WHERE template_id=?`, [row.id],
+                        (e, g) => e ? reject(e) : resolve((g || []).map(x => x.grupo))));
+                row.acoes_count = await new Promise((resolve, reject) =>
+                    db.get(`SELECT COUNT(*) as cnt FROM integracao_template_acoes_custom WHERE template_id=? AND ativo=1`, [row.id],
+                        (e, c) => e ? reject(e) : resolve(c ? c.cnt : 0)));
+            }
+            res.json(rows);
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+});
+
+// GET /api/integracao/templates/:id
+app.get('/api/integracao/templates/:id', authenticateToken, (req, res) => {
+    db.get(`SELECT t.*, d.nome as departamento_nome
+            FROM integracao_templates t
+            LEFT JOIN departamentos d ON d.id = t.departamento_id
+            WHERE t.id = ? AND t.ativo = 1`, [req.params.id], async (err, template) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+        try {
+            template.grupos = await new Promise((resolve, reject) =>
+                db.all(`SELECT grupo FROM integracao_template_grupos WHERE template_id=?`, [template.id],
+                    (e, g) => e ? reject(e) : resolve((g || []).map(x => x.grupo))));
+            template.acoes_custom = await new Promise((resolve, reject) =>
+                db.all(`SELECT a.*, u.nome as responsavel_nome
+                        FROM integracao_template_acoes_custom a
+                        LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+                        WHERE a.template_id = ? AND a.ativo = 1
+                        ORDER BY a.ordem`, [template.id],
+                    (e, a) => e ? reject(e) : resolve(a || [])));
+            res.json(template);
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+});
+
+// POST /api/integracao/templates (criar ou atualizar)
+app.post('/api/integracao/templates', authenticateToken, async (req, res) => {
+    const { id, nome, departamento_id, descricao, grupos, acoes_custom } = req.body;
+    if (!nome) return res.status(400).json({ error: 'nome é obrigatório' });
+    try {
+        let templateId = id ? parseInt(id) : null;
+        if (templateId) {
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE integracao_templates SET nome=?, departamento_id=?, descricao=? WHERE id=?`,
+                    [nome, departamento_id || null, descricao || null, templateId],
+                    err => err ? reject(err) : resolve()));
+            await new Promise((resolve, reject) =>
+                db.run(`DELETE FROM integracao_template_grupos WHERE template_id=?`, [templateId],
+                    err => err ? reject(err) : resolve()));
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE integracao_template_acoes_custom SET ativo=0 WHERE template_id=?`, [templateId],
+                    err => err ? reject(err) : resolve()));
+        } else {
+            templateId = await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_templates (nome, departamento_id, descricao) VALUES (?,?,?)`,
+                    [nome, departamento_id || null, descricao || null],
+                    function (err) { err ? reject(err) : resolve(this.lastID); }));
+        }
+        for (const grupo of (grupos || [])) {
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_template_grupos (template_id, grupo) VALUES (?,?)`,
+                    [templateId, grupo], err => err ? reject(err) : resolve()));
+        }
+        let ordem = 1;
+        for (const acao of (acoes_custom || [])) {
+            if (!acao.titulo) continue;
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integracao_template_acoes_custom (template_id, titulo, descricao, responsavel_user_id, condicao, ordem, tipo) VALUES (?,?,?,?,?,?,?)`,
+                    [templateId, acao.titulo, acao.descricao || null, acao.responsavel_user_id || null, acao.condicao || null, acao.ordem || ordem, 'checkbox'],
+                    err => err ? reject(err) : resolve()));
+            ordem++;
+        }
+        res.json({ ok: true, id: templateId });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/integracao/templates/:id
+app.delete('/api/integracao/templates/:id', authenticateToken, (req, res) => {
+    db.run(`UPDATE integracao_templates SET ativo=0 WHERE id=?`, [req.params.id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[INTEGRAÇÃO] Templates por Departamento carregado.');
+
+console.log('[INTEGRAÇÃO] Módulo de Integração de Colaboradores carregado.');
+
+
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO: TEMPLATES DE INTEGRAÇÃO (por tipo de colaborador)
+// ══════════════════════════════════════════════════════════════════════════════
+
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS integ_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        tipo_key TEXT NOT NULL DEFAULT 'todos',
+        descricao TEXT,
+        ativo INTEGER NOT NULL DEFAULT 1,
+        criado_em TEXT DEFAULT (datetime('now','localtime'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integ_template_acoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        titulo TEXT NOT NULL,
+        descricao TEXT,
+        responsavel_user_id INTEGER,
+        departamentos TEXT DEFAULT 'todos',
+        condicao TEXT,
+        ordem INTEGER DEFAULT 0,
+        ativo INTEGER NOT NULL DEFAULT 1
+    )`);
+
+// PATCH: Add 'grupo' column to integ_template_acoes
+db.serialize(() => {
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo TEXT", [], err => {
+        if (err && !err.message.includes("duplicate column name")) {
+            console.error("[DB] Erro ao adicionar coluna grupo:", err.message);
+        } else if (!err) {
+            console.log("[DB] Coluna 'grupo' adicionada em integ_template_acoes");
+        }
+    });
+    
+    // PATCH: Add 'grupo_responsavel_user_id'
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo_responsavel_user_id INTEGER", [], err => {
+        if (err && !err.message.includes("duplicate column name")) {
+            console.error("[DB] Erro ao adicionar coluna grupo_responsavel_user_id:", err.message);
+        } else if (!err) {
+            console.log("[DB] Coluna 'grupo_responsavel_user_id' adicionada em integ_template_acoes");
+        }
+    });
+    
+    // PATCH: Responsável por Departamento
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN responsavel_depto_id INTEGER", [], err => {});
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN grupo_responsavel_depto_id INTEGER", [], err => {});
+db.run("ALTER TABLE integ_template_acoes ADD COLUMN treinamento_id INTEGER", [], err => {});
+
+// Migration: Add Treinamentos group to Operacional template if missing
+db.get(`SELECT id FROM integ_templates WHERE tipo_key = 'operacional'`, [], (err, row) => {
+    if (!err && row) {
+        db.get(`SELECT id FROM integ_template_acoes WHERE template_id = ? AND (grupo LIKE '%Treinamentos%' OR grupo LIKE '%treinamentos%')`, [row.id], (err2, row2) => {
+            if (!err2 && !row2) {
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, ordem, grupo, ativo) VALUES (?, 'Ação de Treinamento Padrão (Exemplo)', 'Ação criada automaticamente para manter o grupo.', 99, '4 Treinamentos', 1)`, [row.id], err3 => {
+                    if(!err3) console.log("[MIGRATION] Grupo '4 Treinamentos' adicionado ao template Operacional");
+                });
+            }
+        });
+    }
+});// PATCH: Treinamentos na Integração
+    db.run("ALTER TABLE treinamentos ADD COLUMN is_integracao INTEGER DEFAULT 0", [], err => {});
+    db.run("ALTER TABLE integ_template_acoes ADD COLUMN treinamento_id INTEGER", [], err => {});
+    db.run("ALTER TABLE integracao_passos_status ADD COLUMN treinamento_id INTEGER", [], err => {});
+});
+
+
+    // Seed: 2 templates padrão
+    db.get('SELECT COUNT(*) as cnt FROM integ_templates', [], (err, row) => {
+        if (err || (row && row.cnt > 0)) return;
+
+        const seedData = {
+            administrativo: [
+                { titulo: 'Cartão de Vale Transporte', descricao: 'Providenciar e entregar cartão VT ao colaborador', condicao: 'vt', ordem: 1 },
+                { titulo: 'Cartão de VR (Vale Refeição)', descricao: 'Providenciar e entregar cartão de Vale Refeição', condicao: null, ordem: 2 },
+                { titulo: 'Cartão VC (Vale Combustível)', descricao: 'Providenciar e entregar cartão de Vale Combustível', condicao: 'vc', ordem: 3 },
+                { titulo: 'Montagem de kit de boas-vindas', descricao: 'Preparar e entregar kit de boas-vindas ao colaborador', condicao: null, ordem: 4 },
+                { titulo: 'Configurar ponto eletrônico', descricao: 'Cadastrar colaborador no sistema de ponto eletrônico', condicao: null, ordem: 5 },
+                { titulo: 'Acesso aos sistemas (TI)', descricao: 'Configurar e-mail, acessos e sistemas necessários ao cargo', condicao: null, ordem: 6 },
+                { titulo: 'Apresentação da empresa', descricao: 'Apresentar história, valores e cultura da América Rental', condicao: null, ordem: 7 },
+                { titulo: 'Apresentação do time', descricao: 'Apresentar o colaborador à equipe e ao gestor direto', condicao: null, ordem: 8 },
+                { titulo: 'Treinamentos específicos do cargo', descricao: 'Realizar treinamentos obrigatórios e específicos da função', condicao: null, ordem: 9 },
+                { titulo: 'Entrega de crachá', descricao: 'Providenciar e entregar crachá de identificação', condicao: null, ordem: 10 },
+                { titulo: 'Assinatura de documentos admissionais', descricao: 'Garantir assinatura de todos os documentos necessários', condicao: null, ordem: 11 },
+                { titulo: 'Acompanhamento 30 dias', descricao: 'Realizar check-in após 30 dias de trabalho', condicao: null, ordem: 12 },
+            ],
+            operacional: [
+                { titulo: 'Cartão de Vale Transporte', descricao: 'Providenciar e entregar cartão VT ao colaborador', condicao: 'vt', ordem: 1 },
+                { titulo: 'Cartão de VR (Vale Refeição)', descricao: 'Providenciar e entregar cartão de Vale Refeição', condicao: null, ordem: 2 },
+                { titulo: 'Montagem de kit de boas-vindas', descricao: 'Preparar e entregar kit de boas-vindas ao colaborador', condicao: null, ordem: 3 },
+                { titulo: 'Configurar ponto eletrônico', descricao: 'Cadastrar colaborador no sistema de ponto eletrônico', condicao: null, ordem: 4 },
+                { titulo: 'Entrega de EPIs', descricao: 'Entregar equipamentos de proteção individual obrigatórios', condicao: null, ordem: 5 },
+                { titulo: 'Treinamentos de NR', descricao: 'Realizar treinamentos obrigatórios (NR10, NR35, etc.)', condicao: null, ordem: 6 },
+                { titulo: 'Apresentação da empresa', descricao: 'Apresentar história, valores e cultura da América Rental', condicao: null, ordem: 7 },
+                { titulo: 'Apresentação do time', descricao: 'Apresentar o colaborador à equipe e ao gestor direto', condicao: null, ordem: 8 },
+                { titulo: 'Entrega de crachá', descricao: 'Providenciar e entregar crachá de identificação', condicao: null, ordem: 9 },
+                { titulo: 'Assinatura de documentos admissionais', descricao: 'Garantir assinatura de todos os documentos necessários', condicao: null, ordem: 10 },
+                { titulo: 'Acompanhamento 30 dias', descricao: 'Realizar check-in após 30 dias de trabalho', condicao: null, ordem: 11 },
+            ],
+        };
+
+        const templateNames = {
+            administrativo: 'Integração Administrativo',
+            operacional:    'Integração Operacional',
+        };
+
+        Object.entries(seedData).forEach(([tipo, acoes]) => {
+            db.run(`INSERT INTO integ_templates (nome, tipo_key) VALUES (?, ?)`,
+                [templateNames[tipo], tipo],
+                function(err) {
+                    if (err) { console.error('[INTEG] Seed error:', err.message); return; }
+                    const tid = this.lastID;
+                    acoes.forEach(a => {
+                        db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, condicao, ordem) VALUES (?, ?, ?, ?, ?)`,
+                            [tid, a.titulo, a.descricao, a.condicao, a.ordem]);
+                    });
+                    console.log(`[INTEG] Seed: template "${templateNames[tipo]}" criado (id ${tid})`);
+                });
+        });
+    });
+});
+
+
+
+// ── GET /api/integ/templates ──────────────────────────────────────────────────
+app.get('/api/integ/templates', authenticateToken, (req, res) => {
+    db.all(`SELECT t.*,
+            (SELECT COUNT(*) FROM integ_template_acoes a WHERE a.template_id=t.id AND a.ativo=1) as total_acoes,
+            (SELECT json_group_array(json_object('titulo', titulo, 'grupo', grupo, 'grupo_responsavel_user_id', grupo_responsavel_user_id, 'responsavel_depto_id', responsavel_depto_id, 'grupo_responsavel_depto_id', grupo_responsavel_depto_id, 'treinamento_id', treinamento_id)) FROM (SELECT titulo, grupo, grupo_responsavel_user_id, responsavel_depto_id, grupo_responsavel_depto_id, treinamento_id FROM integ_template_acoes WHERE template_id=t.id AND ativo=1 ORDER BY ordem)) as acoes_json
+            FROM integ_templates t WHERE t.ativo=1 ORDER BY t.tipo_key, t.nome`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── GET /api/integ/templates/:id (com ações) ──────────────────────────────────
+app.get('/api/integ/templates/:id', authenticateToken, (req, res) => {
+    db.get(`SELECT t.* FROM integ_templates t WHERE t.id=? AND t.ativo=1`, [req.params.id], (err, template) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+        db.all(`SELECT a.*, u.nome as responsavel_nome
+                FROM integ_template_acoes a
+                LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+                WHERE a.template_id=? AND a.ativo=1 ORDER BY a.ordem`, [template.id], (e2, acoes) => {
+            if (e2) return res.status(500).json({ error: e2.message });
+            res.json({ ...template, acoes: acoes || [] });
+        });
+    });
+});
+
+// ── POST /api/integ/templates (criar ou atualizar com ações) ──────────────────
+app.post('/api/integ/templates', authenticateToken, async (req, res) => {
+    const { id, nome, tipo_key, descricao, acoes } = req.body;
+    if (!nome) return res.status(400).json({ error: 'nome é obrigatório' });
+    try {
+        let tid = id ? parseInt(id) : null;
+        if (tid) {
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE integ_templates SET nome=?, tipo_key=?, descricao=? WHERE id=?`,
+                    [nome, tipo_key || 'todos', descricao || null, tid],
+                    err => err ? reject(err) : resolve()));
+            await new Promise((resolve, reject) =>
+                db.run(`UPDATE integ_template_acoes SET ativo=0 WHERE template_id=?`, [tid],
+                    err => err ? reject(err) : resolve()));
+        } else {
+            tid = await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integ_templates (nome, tipo_key, descricao) VALUES (?, ?, ?)`,
+                    [nome, tipo_key || 'todos', descricao || null],
+                    function(err) { err ? reject(err) : resolve(this.lastID); }));
+        }
+        for (const a of (acoes || [])) {
+            if (!a.titulo) continue;
+            const deptJson = Array.isArray(a.departamentos)
+                ? (a.departamentos.includes('todos') ? 'todos' : JSON.stringify(a.departamentos))
+                : (a.departamentos || 'todos');
+            await new Promise((resolve, reject) =>
+                db.run(`INSERT INTO integ_template_acoes (template_id, titulo, descricao, responsavel_user_id, departamentos, condicao, ordem, grupo, grupo_responsavel_user_id, responsavel_depto_id, grupo_responsavel_depto_id, treinamento_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [tid, a.titulo, a.descricao || null, a.responsavel_user_id || null, deptJson, a.condicao || null, a.ordem || 0, a.grupo || null, a.grupo_responsavel_user_id || null, a.responsavel_depto_id || null, a.grupo_responsavel_depto_id || null, a.treinamento_id || null],
+                    err => err ? reject(err) : resolve()));
+        }
+        res.json({ ok: true, id: tid });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── DELETE /api/integ/templates/:id ──────────────────────────────────────────
+app.delete('/api/integ/templates/:id', authenticateToken, (req, res) => {
+    db.run(`UPDATE integ_templates SET ativo=0 WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[INTEG] Módulo Templates de Integração carregado.');
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO: CATEGORIAS E AÇÕES DE INTEGRAÇÃO (novo sistema)
+// ══════════════════════════════════════════════════════════════════════════════
+
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS integ_categorias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        cor TEXT NOT NULL DEFAULT '#0f4c81',
+        ordem INTEGER DEFAULT 0,
+        ativo INTEGER NOT NULL DEFAULT 1
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS integ_acoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        categoria_id INTEGER,
+        titulo TEXT NOT NULL,
+        descricao TEXT,
+        departamentos TEXT DEFAULT 'todos',
+        responsavel_user_id INTEGER,
+        condicao TEXT,
+        ordem INTEGER DEFAULT 0,
+        ativo INTEGER NOT NULL DEFAULT 1
+    )`);
+
+    // Seed automático: migra integracao_passos_config → novas tabelas (uma única vez)
+    db.get('SELECT COUNT(*) as cnt FROM integ_categorias', [], (err, row) => {
+        if (err || (row && row.cnt > 0)) return;
+
+        const grupos = [
+            { grupo: 'todos',         nome: 'Para Todos',     cor: '#0f4c81', ordem: 1 },
+            { grupo: 'administrativo',nome: 'Administrativo', cor: '#7c3aed', ordem: 2 },
+            { grupo: 'motorista',     nome: 'Motorista',      cor: '#d97706', ordem: 3 },
+            { grupo: 'operacional',   nome: 'Operacional',    cor: '#059669', ordem: 4 },
+            { grupo: 'acompanhamento',nome: 'Acompanhamento', cor: '#dc2626', ordem: 5 },
+        ];
+
+        const catMap = {};
+        let done = 0;
+
+        grupos.forEach(g => {
+            db.run(
+                `INSERT INTO integ_categorias (nome, cor, ordem) VALUES (?, ?, ?)`,
+                [g.nome, g.cor, g.ordem],
+                function(err) {
+                    if (!err) catMap[g.grupo] = this.lastID;
+                    done++;
+                    if (done === grupos.length) {
+                        // Migrar passos existentes
+                        db.all(`SELECT * FROM integracao_passos_config WHERE ativo=1 ORDER BY grupo, ordem`, [], (e, passos) => {
+                            if (e || !passos) return;
+                            passos.forEach((p, i) => {
+                                const catId = catMap[p.grupo] || catMap['todos'];
+                                db.run(
+                                    `INSERT INTO integ_acoes (categoria_id, titulo, descricao, departamentos, responsavel_user_id, condicao, ordem) VALUES (?,?,?,?,?,?,?)`,
+                                    [catId, p.titulo, p.descricao || null, 'todos', p.responsavel_user_id || null, p.condicao || null, p.ordem || i+1]
+                                );
+                            });
+                            console.log(`[INTEG] Seed: ${passos.length} passos migrados para integ_acoes`);
+                        });
+                    }
+                }
+            );
+        });
+    });
+});
+
+// ── GET /api/integ/categorias ─────────────────────────────────────────────────
+app.get('/api/integ/categorias', authenticateToken, (req, res) => {
+    db.all(`SELECT c.*, 
+            (SELECT COUNT(*) FROM integ_acoes a WHERE a.categoria_id=c.id AND a.ativo=1) as total_acoes
+            FROM integ_categorias c WHERE c.ativo=1 ORDER BY c.ordem, c.nome`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST /api/integ/categorias (criar ou atualizar) ───────────────────────────
+app.post('/api/integ/categorias', authenticateToken, (req, res) => {
+    const { id, nome, cor, ordem } = req.body;
+    if (!nome) return res.status(400).json({ error: 'nome é obrigatório' });
+    if (id) {
+        db.run(`UPDATE integ_categorias SET nome=?, cor=?, ordem=? WHERE id=?`,
+            [nome, cor || '#0f4c81', ordem || 0, id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id });
+            });
+    } else {
+        db.run(`INSERT INTO integ_categorias (nome, cor, ordem) VALUES (?,?,?)`,
+            [nome, cor || '#0f4c81', ordem || 0],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id: this.lastID });
+            });
+    }
+});
+
+// ── DELETE /api/integ/categorias/:id ─────────────────────────────────────────
+app.delete('/api/integ/categorias/:id', authenticateToken, (req, res) => {
+    db.run(`UPDATE integ_categorias SET ativo=0 WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// ── GET /api/integ/acoes ──────────────────────────────────────────────────────
+app.get('/api/integ/acoes', authenticateToken, (req, res) => {
+    const { categoria_id } = req.query;
+    let sql = `SELECT a.*, c.nome as categoria_nome, c.cor as categoria_cor,
+                      u.nome as responsavel_nome
+               FROM integ_acoes a
+               LEFT JOIN integ_categorias c ON c.id = a.categoria_id
+               LEFT JOIN usuarios u ON u.id = a.responsavel_user_id
+               WHERE a.ativo=1`;
+    const params = [];
+    if (categoria_id) { sql += ' AND a.categoria_id=?'; params.push(categoria_id); }
+    sql += ' ORDER BY c.ordem, c.nome, a.ordem, a.titulo';
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// ── POST /api/integ/acoes (criar ou atualizar) ────────────────────────────────
+app.post('/api/integ/acoes', authenticateToken, (req, res) => {
+    const { id, categoria_id, titulo, descricao, departamentos, responsavel_user_id, condicao, ordem } = req.body;
+    if (!titulo) return res.status(400).json({ error: 'titulo é obrigatório' });
+    const deptJson = Array.isArray(departamentos)
+        ? (departamentos.includes('todos') ? 'todos' : JSON.stringify(departamentos))
+        : (departamentos || 'todos');
+    if (id) {
+        db.run(`UPDATE integ_acoes SET categoria_id=?, titulo=?, descricao=?, departamentos=?, responsavel_user_id=?, condicao=?, ordem=? WHERE id=?`,
+            [categoria_id || null, titulo, descricao || null, deptJson, responsavel_user_id || null, condicao || null, ordem || 0, id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id });
+            });
+    } else {
+        db.run(`INSERT INTO integ_acoes (categoria_id, titulo, descricao, departamentos, responsavel_user_id, condicao, ordem) VALUES (?,?,?,?,?,?,?)`,
+            [categoria_id || null, titulo, descricao || null, deptJson, responsavel_user_id || null, condicao || null, ordem || 0],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ ok: true, id: this.lastID });
+            });
+    }
+});
+
+// ── DELETE /api/integ/acoes/:id ───────────────────────────────────────────────
+app.delete('/api/integ/acoes/:id', authenticateToken, (req, res) => {
+    db.run(`UPDATE integ_acoes SET ativo=0 WHERE id=?`, [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+console.log('[INTEG] Módulo Categorias/Ações carregado.');
+
+
+// ============================================================================
+// API PUBLICA - CNDs
+// ============================================================================
+app.get('/api/public/cnd/:token', (req, res) => {
+    const token = req.params.token;
+    db.get('SELECT * FROM cnd_upload_tokens WHERE token = ?', [token], (err, row) => {
+        if (err) return res.status(500).json({ error: 'Erro no servidor' });
+        if (!row) return res.status(404).json({ error: 'Link inválido, já utilizado ou expirado.' });
+
+        db.get('SELECT empresa, nome, validade FROM licencas WHERE nome = ?', [row.cnd_nome], (errLic, rowLic) => {
+            if (errLic) return res.status(500).json({ error: 'Erro interno.' });
+            res.json({
+                cnd_nome: row.cnd_nome,
+                empresa: rowLic ? rowLic.empresa : 'Não definida',
+                validade_atual: rowLic ? rowLic.validade : null
+            });
+        });
+    });
+});
+
+app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
+    const token = req.params.token;
+    const novaValidade = req.body.validade;
+    
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    if (!novaValidade) return res.status(400).json({ error: 'Data de validade não informada.' });
+
+    db.get('SELECT cnd_nome FROM cnd_upload_tokens WHERE token = ?', [token], async (err, row) => {
+        if (err) return res.status(500).json({ error: 'Erro no servidor' });
+        if (!row) return res.status(404).json({ error: 'Link inválido ou expirado.' });
+
+        try {
+            // Verifica se a licenca existe
+            db.get('SELECT id, empresa FROM licencas WHERE nome = ?', [row.cnd_nome], (errLic, licRow) => {
+                if (errLic) throw errLic;
+                
+                if (licRow) {
+                    const path = require('path');
+                    const fs = require('fs');
+                    const LICENCAS_UPLOAD_PATH = process.env.LICENCAS_UPLOAD_PATH || path.join(__dirname, '..', 'uploads', 'licencas');
+                    const empresaDir = path.join(LICENCAS_UPLOAD_PATH, (licRow.empresa || 'GERAL').toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                    if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
+                    
+                    const ext = path.extname(req.file.originalname) || '.pdf';
+                    const safeName = row.cnd_nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+                    const fileName = safeName + ext;
+                    const filePath = path.join(empresaDir, fileName);
+                    
+                    if (req.file.buffer) {
+                        fs.writeFileSync(filePath, req.file.buffer);
+                    } else if (req.file.path) {
+                        fs.copyFileSync(req.file.path, filePath);
+                        fs.unlinkSync(req.file.path);
+                    }
+
+                    const BASE_UPLOAD_PATH = process.env.BASE_UPLOAD_PATH || path.join(__dirname, '..', 'uploads');
+                    const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\\\/g, '/');
+
+                    const dataIso = novaValidade; // assumindo formato YYYY-MM-DD
+                    
+                    // Update
+                    const sql = "UPDATE licencas SET file_name = ?, file_path = ?, validade = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+                    db.run(sql, [fileName, relPath, dataIso, licRow.id], function(errUpd) {
+                        if (errUpd) return res.status(500).json({ error: errUpd.message });
+                        db.run('DELETE FROM cnd_upload_tokens WHERE token = ?', [token]); // apaga token
+                        res.json({ success: true, message: 'Documento atualizado com sucesso.' });
+                    });
+                } else {
+                    return res.status(400).json({ error: 'Licença base não encontrada no sistema para ser atualizada.' });
+                }
+            });
+        } catch (uploadErr) {
+            console.error('[Public CND] Erro:', uploadErr);
+            res.status(500).json({ error: 'Erro ao fazer upload do arquivo' });
+        }
+    });
+});
+
+
+// ============================================================================
+// API PUBLICA DE TESTE - CNDs (REMOVER DEPOIS)
+// ============================================================================
+app.get('/api/public/test-cnd-email', async (req, res) => {
+    try {
+        console.log('[TEST] Forçando envio de e-mails CND...');
+        const cndNomes = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista'];
+        const placeholders = cndNomes.map(()=>'?').join(',');
+        
+        // Pega as vencidas
+        db.all(`SELECT * FROM licencas WHERE nome IN (${placeholders}) AND validade <= date('now')`, cndNomes, async (errCnd, cndsVencidas) => {
+            if (errCnd) return res.status(500).json({ error: errCnd.message });
+            
+            if (cndsVencidas.length > 0) {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'atualizacao_cnds'", [], async (errN, rowsN) => {
+                    if (errN || !rowsN || rowsN.length === 0) return res.json({ msg: 'Ninguém configurado para receber' });
+                    
+                    const requireCrypto = require('crypto');
+                    const urlFrontend = process.env.URL_FRONTEND || 'https://sistema-america.onrender.com';
+
+                    for (const cnd of cndsVencidas) {
+                        const token = requireCrypto.randomBytes(24).toString('hex');
+                        
+                        await new Promise(r => db.run('DELETE FROM cnd_upload_tokens WHERE cnd_nome = ?', [cnd.nome], r));
+                        await new Promise(r => db.run('INSERT INTO cnd_upload_tokens (token, cnd_nome) VALUES (?, ?)', [token, cnd.nome], r));
+
+                        const link = `${urlFrontend}/renovar-cnd.html?token=${token}`;
+                        
+                        const htmlMail = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n                                <div style="background:#fff;padding:0;">\n                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;">\n                                </div>\n                                <div style="padding:1.5rem 2rem;">\n                                    <h2 style="color:#0e7490;margin-top:0;text-align:center;">Atualização de Documento</h2>\n                                    <p style="color: #d9480f; font-weight: bold;">[TESTE MANUAL]</p>\n                                    <p>A licença <strong>${cnd.nome}</strong> (${cnd.empresa}) encontra-se vencida (desde ${cnd.validade.split('-').reverse().join('/')}).</p>\n                                    <p>Por favor, faça a emissão do documento atualizado e anexe-o diretamente através do botão abaixo para regularizar a situação no sistema.</p>\n                                    <div style="text-align:center; margin: 30px 0;">\n                                        <a href="${link}" style="background-color: #d9480f; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Anexar ${cnd.nome}</a>\n                                    </div>\n                                    <p style="font-size:12px; color:#94a3b8; text-align:center;">*Este link expira assim que o envio for concluído com sucesso.</p>\n                                </div>\n                                <hr style="border:none;border-top:1px solid #eee;margin:0;">\n                                <div style="padding: 1rem 2rem; background: #f8fafc;">\n                                    <p style="color:#999;font-size:11px; text-align:center; margin:0;">Este é um e-mail automático, por favor não responda.</p>\n                                </div>\n                            </div>`;
+
+                        sendEmailParaNotificados('atualizacao_cnds', {
+                            subject: `[URGENTE] Renovação Necessária: ${cnd.nome}`,
+                            html: htmlMail
+                        });
+                    }
+                    res.json({ success: true, message: 'E-mails de teste enviados para as CNDs vencidas!' });
+                });
+            } else {
+                res.json({ success: false, message: 'Não há CNDs vencidas no sistema no momento. Altere a validade de alguma CND para hoje ou antes e tente novamente.' });
+            }
+        });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// ============================================================
+// ENDPOINT ÚNICO: Inativar cargos sem colaboradores (30/07/2026)
+// USAR UMA VEZ SOMENTE. Chave: america2026inativar
+// Com ?preview=1 apenas MOSTRA o que seria feito, sem alterar nada.
+// ============================================================
+app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
+  const CHAVE = 'america2026inativar';
+  if (req.headers['x-admin-key'] !== CHAVE) {
+    return res.status(403).json({ error: 'Acesso negado.' });
+  }
+
+  const modoPrevia = req.query.preview === '1';
+
+  // Cargos com colaboradores ATIVOS na planilha de 30/07/2026
+  const cargosAtivos = [
+    'Ajudante Geral','Ana. DP Pl.','Ana. RH Jr.','Ana. de CS',
+    'Ass. Administrativo 2','Ass. Financeiro 1','Ass. Financeiro 2',
+    'Ass. Logística 2','Ass. RH 1','Ass. de Manutenção 1',
+    'Assistente de Compras 2','Assistente de TI 2',
+    'Aux. Administrativo','Aux. Comercial','Aux. Financeiro',
+    'Aux. Logística','Aux. de Manutenção','Aux. de Processos',
+    'Auxiliar de Limpeza 2','Cor. de Processos','Ger. Logística',
+    'Instrutor de Treinamento','Lavador de Veículos','Líder Operacional',
+    'Motorista','Motorista Operador de Saneamento',
+    'Sup. Comercial','Sup. Financeiro','Sup. Logística','Sup. Pátio',
+    'Téc. de Manutenção 2'
+  ];
+
+  const paramsLower = cargosAtivos.map(c => c.toLowerCase().trim());
+  const phList = paramsLower.map(() => '?').join(', ');
+
+  // Busca cargos que NÃO estão na lista de ativos,
+  // e também verifica quantos colaboradores não-desligados cada um tem no BD
+  const sqlSelect = `
+    SELECT c.id, c.nome, IFNULL(c.status,'Ativo') AS status,
+           (SELECT COUNT(*) FROM colaboradores col
+            WHERE LOWER(TRIM(col.cargo)) = LOWER(TRIM(c.nome))
+            AND LOWER(TRIM(col.status)) != 'desligado') AS qtd_colab_ativos
+    FROM cargos c
+    WHERE LOWER(TRIM(c.nome)) NOT IN (${phList})
+    ORDER BY c.nome
+  `;
+
+  db.all(sqlSelect, paramsLower, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    // SEGURANÇA DUPLA: só inativa se (1) não está na lista da planilha E
+    //                              (2) não tem nenhum colaborador ativo no banco
+    const paraInativar = rows.filter(r =>
+      (r.status || 'Ativo') !== 'Inativo' &&
+      (r.qtd_colab_ativos || 0) === 0
+    );
+    const jaInativos  = rows.filter(r => (r.status || 'Ativo') === 'Inativo');
+    const protegidos  = rows.filter(r => (r.qtd_colab_ativos || 0) > 0);
+
+    // ── MODO PRÉVIA (preview=1): apenas mostra, não altera nada ──────────
+    if (modoPrevia) {
+      return res.json({
+        modo: '*** PRÉVIA — nenhuma alteração foi feita ***',
+        seriam_inativados: paraInativar.map(r => r.nome).sort(),
+        ja_estao_inativos: jaInativos.map(r => r.nome).sort(),
+        protegidos_tem_colaborador_no_bd: protegidos.map(r =>
+          `${r.nome} (${r.qtd_colab_ativos} colaborador(es) ativo(s))`
+        ).sort(),
+        cargos_mantidos_ativos_da_planilha: cargosAtivos.sort(),
+        total_seriam_inativados: paraInativar.length,
+        instrucao: 'Para executar de verdade, chame sem ?preview=1'
+      });
+    }
+
+    // ── MODO EXECUÇÃO ────────────────────────────────────────────────────
+    if (paraInativar.length === 0) {
+      return res.json({
+        ok: true,
+        mensagem: 'Nenhum cargo precisava ser inativado.',
+        ja_inativos: jaInativos.map(r => r.nome),
+        inativados_agora: []
+      });
+    }
+
+    const ids = paraInativar.map(r => r.id);
+    const idPh = ids.map(() => '?').join(', ');
+    db.run(`UPDATE cargos SET status = 'Inativo' WHERE id IN (${idPh})`, ids, function(errUpd) {
+      if (errUpd) return res.status(500).json({ error: errUpd.message });
+      console.log(`[ADMIN] Inativados ${this.changes} cargos: ${paraInativar.map(r=>r.nome).join(', ')}`);
+      res.json({
+        ok: true,
+        total_inativados: this.changes,
+        inativados_agora: paraInativar.map(r => r.nome).sort(),
+        ja_inativos_antes: jaInativos.map(r => r.nome).sort(),
+        protegidos_nao_alterados: protegidos.map(r => r.nome).sort(),
+        cargos_ativos_mantidos: cargosAtivos.sort()
+      });
+    });
+  });
+});
+// ============================================================
+
 app.listen(PORT, () => {
+
 
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 
-    // --- TEMPORÁRIO: Inserir KM fictícia para BXR no dia 2026-05-25 ---
+    // --- TEMPOR??RIO: Inserir KM fict??cia para BXR no dia 2026-05-25 ---
     db.get("SELECT id FROM frota_veiculos WHERE placa LIKE '%BXR4663%' LIMIT 1", [], (err, row) => {
         if (row && row.id) {
             db.get("SELECT id FROM frota_km_historico WHERE veiculo_id = ? AND data = '2026-05-25'", [row.id], (err2, hist) => {
                 if (!hist) {
                     db.run("INSERT INTO frota_km_historico (veiculo_id, km, data) VALUES (?, ?, ?)", [row.id, 500, '2026-05-25'], (err3) => {
-                        if (!err3) console.log("[TESTE] KM fictício (500) inserido para o veículo BXR4663 na data 2026-05-25.");
+                        if (!err3) console.log("[TESTE] KM fict??cio (500) inserido para o veículo BXR4663 na data 2026-05-25.");
                     });
                 }
             });
         }
     });
     // ------------------------------------------------------------------
-    // ── Migração automática: adicionar colunas novas a frota_manutencoes ──────
+    // ?????? Migração automática: adicionar colunas novas a frota_manutencoes ??????????????????
     const colsMigration = [
         { col: 'servico_catalogo_id', def: 'INTEGER' },
         { col: 'criticidade', def: 'TEXT' },
@@ -21897,31 +24354,31 @@ app.listen(PORT, () => {
         });
     });
 
-    // ── Seed automático: categorias e serviços de manutenção ──────────────────
-    // Se o banco não tiver nenhuma categoria, insere as categorias e serviços padrão.
-    // Isso garante que ambientes novos (homologação, staging) funcionem sem intervenção manual.
+    // ?????? Seed automático: categorias e servi??os de manutenção ??????????????????????????????????????????????????????
+    // Se o banco não tiver nenhuma categoria, insere as categorias e servi??os padrão.
+    // Isso garante que ambientes novos (homologação, staging) funcionem sem interven????o manual.
     db.get('SELECT COUNT(*) as c FROM frota_categorias_manutencao', [], (err, row) => {
         if (err || (row && row.c > 0)) return; // já tem dados, não precisa seed
         console.log('[SEED] Banco sem categorias de manutenção. Inserindo dados padrão...');
         const cats = [
             [1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],
             [4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],
-            [6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],
-            [8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],
-            [10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]
+            [6,'Sistema El??trico','lightning',6],[7,'Ar Condicionado','thermometer',7],
+            [8,'Hidr??ulica / Operacional','drop',8],[9,'Sistema de Suc????o','funnel',9],
+            [10,'Estrutura / Carroceria','truck',10],[11,'Seguran??a e Legalização','shield-check',11]
         ];
         const servicos = [
-            [1,'Troca de óleo do motor','KM/Tempo',10000,'km','Alta',1,1,1,0,1],
-            [1,'Troca do filtro de óleo','KM',10000,'km','Alta',0.5,1,1,0,1],
+            [1,'Troca de ??leo do motor','KM/Tempo',10000,'km','Alta',1,1,1,0,1],
+            [1,'Troca do filtro de ??leo','KM',10000,'km','Alta',0.5,1,1,0,1],
             [1,'Troca do filtro de ar','KM',20000,'km','Media',0.5,0,0,0,1],
-            [1,'Troca do filtro de combustível','KM',20000,'km','Media',0.5,0,0,0,1],
+            [1,'Troca do filtro de combust??vel','KM',20000,'km','Media',0.5,0,0,0,1],
             [1,'Troca do filtro cabine/ar-cond.','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1],
             [1,'Troca de correia dentada','KM/Tempo',60000,'km','Critica',3,1,1,1,1],
             [1,'Troca da correia auxiliar','KM',40000,'km','Alta',1,1,1,0,1],
             [1,'Verificação de vazamentos','Inspecao',5000,'km','Alta',0.5,0,0,0,1],
             [1,'Limpeza de bicos injetores','KM',40000,'km','Media',2,1,0,0,1],
-            [1,'Regulagem de válvulas','KM',40000,'km','Alta',3,1,1,0,1],
-            [1,'Troca do líquido de arrefecimento','Tempo',24,'meses','Alta',1,1,1,0,1],
+            [1,'Regulagem de v??lvulas','KM',40000,'km','Alta',3,1,1,0,1],
+            [1,'Troca do l??quido de arrefecimento','Tempo',24,'meses','Alta',1,1,1,0,1],
             [2,'Troca de pastilhas de freio','KM',20000,'km','Alta',1.5,1,1,1,1],
             [2,'Troca de lonas','KM',30000,'km','Alta',2,1,1,1,1],
             [2,'Troca de disco de freio','KM',40000,'km','Alta',2,1,1,1,1],
@@ -21935,51 +24392,51 @@ app.listen(PORT, () => {
             [3,'Calibragem','Inspecao',1000,'km','Baixa',0.25,0,0,0,1],
             [3,'Troca de pneus','KM',60000,'km','Alta',2,1,1,1,1],
             [4,'Troca de amortecedores','KM',80000,'km','Alta',3,1,1,0,1],
-            [4,'Troca de pivôs','KM',60000,'km','Alta',2,1,1,0,1],
+            [4,'Troca de pivàs','KM',60000,'km','Alta',2,1,1,0,1],
             [4,'Troca de buchas','KM',40000,'km','Media',2,1,0,0,1],
             [4,'Lubrificação de suspensão','Tempo',6,'meses','Baixa',0.5,0,0,0,1],
-            [5,'Troca de óleo do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1],
+            [5,'Troca de ??leo do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1],
             [5,'Troca de filtro do câmbio','KM',40000,'km','Alta',1.5,1,1,0,1],
             [5,'Troca de kit embreagem','KM',80000,'km','Alta',4,1,1,1,1],
-            [5,'Troca de óleo diferencial','KM',40000,'km','Alta',1.5,1,1,0,1],
+            [5,'Troca de ??leo diferencial','KM',40000,'km','Alta',1.5,1,1,0,1],
             [6,'Teste de bateria','Tempo',6,'meses','Media',0.5,0,0,0,1],
             [6,'Troca de bateria','Tempo',24,'meses','Alta',0.5,0,0,0,1],
-            [6,'Verificação elétrica geral','Inspecao',10000,'km','Media',1,0,0,0,1],
+            [6,'Verificação el??trica geral','Inspecao',10000,'km','Media',1,0,0,0,1],
             [7,'Higienização do ar-cond.','Tempo',6,'meses','Baixa',1,0,0,0,1],
-            [7,'Recarga de gás','Tempo',12,'meses','Media',1,0,0,0,1],
+            [7,'Recarga de gàs','Tempo',12,'meses','Media',1,0,0,0,1],
             [7,'Troca de filtro cabine','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1],
-            [8,'Troca de óleo hidráulico','Horimetro',250,'horas','Alta',2,1,1,1,1],
-            [8,'Troca de filtro hidráulico','Horimetro',250,'horas','Alta',1,1,1,0,1],
+            [8,'Troca de ??leo hidr??ulico','Horimetro',250,'horas','Alta',2,1,1,1,1],
+            [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,0,1],
             [8,'Lubrificação de bomba','Horimetro',100,'horas','Alta',0.5,0,0,0,1],
-            [8,'Revisão de bomba de sucção','Horimetro',500,'horas','Critica',4,1,1,1,1],
+            [8,'Revisão de bomba de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [8,'Verificação de mangotes','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
             [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,0,1],
-            [9,'Revisão do motor de sucção','Horimetro',500,'horas','Critica',4,1,1,1,1],
-            [9,'Troca de óleo do motor de sucção','Horimetro',250,'horas','Alta',1,1,1,0,1],
-            [9,'Troca de filtro do motor de sucção','Horimetro',100,'horas','Alta',0.5,1,1,0,1],
+            [9,'Revisão do motor de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
+            [9,'Troca de ??leo do motor de suc????o','Horimetro',250,'horas','Alta',1,1,1,0,1],
+            [9,'Troca de filtro do motor de suc????o','Horimetro',100,'horas','Alta',0.5,1,1,0,1],
             [9,'Revisão da bomba de vácuo','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,0,1],
-            [9,'Inspeção estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1],
-            [9,'Verificação de válvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
-            [9,'Verificação do sistema hidráulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1],
-            [10,'Inspeção estrutural','Tempo',6,'meses','Alta',2,0,0,0,1],
+            [9,'Inspe????o estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1],
+            [9,'Verificação de v??lvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
+            [9,'Verificação do sistema hidr??ulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1],
+            [10,'Inspe????o estrutural','Tempo',6,'meses','Alta',2,0,0,0,1],
             [10,'Pintura preventiva','Tempo',24,'meses','Baixa',8,0,0,0,1],
             [10,'Verificação de ferrugem','Inspecao',3,'meses','Media',0.5,0,0,0,1],
             [11,'Extintor','Validade',12,'meses','Critica',0.25,0,1,1,1],
             [11,'Tacógrafo','Tempo',12,'meses','Critica',1,0,1,0,1],
             [11,'Licenciamento','Anual',12,'meses','Critica',0.5,0,1,0,1],
-            [11,'Inspeção ambiental','Tempo',12,'meses','Alta',1,0,1,0,1]
+            [11,'Inspe????o ambiental','Tempo',12,'meses','Alta',1,0,1,0,1]
         ];
         db.serialize(() => {
             cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c));
             servicos.forEach(s => db.run(
                 'INSERT OR IGNORE INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao) VALUES(?,?,?,?,?,?,?,?,?,?,?)', s
             ));
-            console.log('[SEED] Categorias e serviços de manutenção inseridos com sucesso.');
+            console.log('[SEED] Categorias e servi??os de manutenção inseridos com sucesso.');
         });
     });
 
-    // ── Migração automática: marcar multas antigas existentes ──────────────────
+    // ?????? Migração automática: marcar multas antigas existentes ??????????????????????????????????????????????????????
     // Atualiza multas já cadastradas cujo AIT está na lista AITS_ANTIGAS e que
     // ainda não estejam com status 'Antiga'.
     const aitsArr = [...AITS_ANTIGAS];
@@ -22002,9 +24459,9 @@ app.listen(PORT, () => {
 });
 
 
-// ═══════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 //  ROTAS DE LICENCAS EMPRESARIAIS
-// ═══════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 const LICENCAS_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'LICENCAS');
 if (!fs.existsSync(LICENCAS_UPLOAD_PATH)) fs.mkdirSync(LICENCAS_UPLOAD_PATH, { recursive: true });
@@ -22019,9 +24476,9 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
 
         const docNome = req.body.nome ? req.body.nome.toUpperCase() : '';
 
-        // 0. Caso especial: CTF IBAMA — priorizar "CR válido até:" e pegar a data mais futura nessa seção
+        // 0. Caso especial: CTF IBAMA - priorizar "CR válido até:" e pegar a data mais futura nessa seção
         if (docNome.includes('CTF') || docNome.includes('IBAMA')) {
-            const crSection = text.match(/CR\s+v[aá]lido\s+at[eé][\s\S]{0,300}/i);
+            const crSection = text.match(/CR\s+v[a??]lido\s+at[e??][\s\S]{0,300}/i);
             if (crSection) {
                 const datesInSection = [...crSection[0].matchAll(/(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/g)];
                 let maxDateObj = null;
@@ -22043,7 +24500,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
             }
         }
 
-        // 0b. Caso especial: CLI / Alvará — priorizar "DATA DE VALIDADE" (ignora "DATA DA SOLICITAÇÃO")
+        // 0b. Caso especial: CLI / Alvará - priorizar "DATA DE VALIDADE" (ignora "DATA DA SOLICITAÇÃO")
         if (docNome.includes('CLI') || docNome.includes('ALVAR')) {
             const matchValidade = text.match(/DATA\s+DE\s+VALIDADE[\s\S]{0,50}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
             if (matchValidade && matchValidade[1]) {
@@ -22055,7 +24512,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
         }
 
         // 1. Tenta achar data próxima a palavras chaves (busca até 100 caracteres à frente suportando quebras de linha)
-        const matchKeyword = text.match(/(?:v[aá]lido\s+at[eé]|validade|vencimento|expira|vence|venc)[\s\S]{0,100}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
+        const matchKeyword = text.match(/(?:v[a??]lido\s+at[e??]|validade|vencimento|expira|vence|venc)[\s\S]{0,100}?(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/i);
         if (matchKeyword && matchKeyword[1]) {
             foundDate = matchKeyword[1];
         } else {
@@ -22351,7 +24808,7 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
     let colorTheme = '';
 
     if (diffDias < 0) {
-        statusText = 'VENCIDO HÁ ' + Math.abs(diffDias) + ' DIAS';
+        statusText = 'VENCIDO H?? ' + Math.abs(diffDias) + ' DIAS';
         colorTheme = '#c0392b';
     } else if (diffDias === 0) {
         statusText = 'VENCE HOJE';
@@ -22442,9 +24899,9 @@ setTimeout(() => {
 
 }, 3000);
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // MÔNACO WEBHOOK INTEGRATION
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // MIGRATION: Criar tabela multas_monaco
 db.run(`CREATE TABLE IF NOT EXISTS multas_monaco (
@@ -22501,11 +24958,11 @@ db.run(`CREATE TABLE IF NOT EXISTS multas_monaco (
 const MONACO_USERNAME = process.env.MONACO_USERNAME || 'america_rental';
 const MONACO_PASSWORD = process.env.MONACO_PASSWORD || 'Monaco@AmericaRental2025!';
 
-// ── POST /api/monaco/token ─────────────────────────────────────────────────
+// ?????? POST /api/monaco/token ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/token', (req, res) => {
     const { username, password } = req.body || {};
     if (username !== MONACO_USERNAME || password !== MONACO_PASSWORD) {
-        return res.status(401).json({ codError: 401, message: 'Credenciais inválidas' });
+        return res.status(401).json({ codError: 401, message: 'Credenciais inv??lidas' });
     }
     const token = jwt.sign({ source: 'monaco', username }, SECRET_KEY, { expiresIn: '30d' });
     res.json({ type: 'Bearer', access_token: token });
@@ -22525,7 +24982,7 @@ function monacoAuth(req, res, next) {
     }
 }
 
-// Sincroniza multa recebida da Mônaco para a tabela principal de logística
+// Sincroniza multa recebida da Mônaco para a tabela principal de logàstica
 function syncToLogistica(uuid, tipoEvento, payload) {
     db.get('SELECT id, documento_base64, documento_path FROM multas_logistica WHERE numero_ait = ? OR monaco_uuid = ?', [payload.numero_ait, uuid], (err, row) => {
         if (err) {
@@ -22538,7 +24995,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         let termoBase64 = null;
         let termoNome = null;
         
-        // Monaco envia o campo como 'Arquivos' (maiúsculo) — suportamos ambos
+        // Monaco envia o campo como 'Arquivos' (maiúsculo) - suportamos ambos
         const arquivosArr = payload.Arquivos || payload.arquivos || [];
         
         // 1. Tentar buscar no campo direto termo_desconto
@@ -22552,7 +25009,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                 const nomeArq = arq.Nome || arq.nome || '';
                 const nomeUpper = nomeArq.toUpperCase();
                 // 2. Tentar buscar no array de arquivos (caso enviem como um anexo normal)
-                if (nomeUpper.includes('DECLARAÇÃO') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO')) {
+                if (nomeUpper.includes('DECLARA????O') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO')) {
                     termoBase64 = arq.base64;
                     termoNome = nomeArq || 'termo_desconto.pdf';
                 } else if (!docBase64 && arq.base64) {
@@ -22566,7 +25023,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
         const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
-        // Busca exaustiva do link de indicação — a Mônaco pode enviar com nomes variados
+        // Busca exaustiva do link de indicação - a Mônaco pode enviar com nomes variados
         let linkFormulario =
             payload.link_indicacao ||
             payload.link_formulario ||
@@ -22684,7 +25141,7 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
 
             // Enviar e-mail com logo corporativo padrão
             sendEmailParaNotificados('nova_multa_monaco', {
-                subject: `🚨 Nova Multa Mônaco – AIT ${payload.numero_ait || 'N/A'} – Placa ${payload.placa || 'N/A'}`,
+                subject: `🚨 Nova Multa Mônaco - AIT ${payload.numero_ait || 'N/A'} - Placa ${payload.placa || 'N/A'}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
@@ -22713,7 +25170,7 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
 
 // Helper para salvar/atualizar um registro Monaco
 function upsertMonaco(uuid, tipoEvento, payload, res) {
-    // Serializar arquivos — Monaco envia como 'Arquivos' (maiúsculo)
+    // Serializar arquivos - Monaco envia como 'Arquivos' (maiúsculo)
     const arquivosArr = payload.Arquivos || payload.arquivos || [];
     const arquivosJson = JSON.stringify(arquivosArr);
 
@@ -22763,7 +25220,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
                     res.status(200).json({ mensagem: 'Registro atualizado com sucesso', uuid });
                 });
         } else {
-            // Inserir novo — sempre visualizada=0 (NOVA)
+            // Inserir novo ??? sempre visualizada=0 (NOVA)
             db.run(`INSERT INTO multas_monaco (
                 uuid, tipo_evento, placa, renavam, fleet_id, numero_frota,
                 gestor, condutor, enquadramento, descricao, numero_ait,
@@ -22802,7 +25259,7 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
     });
 }
 
-// ── POST /api/monaco/notificacao ──────────────────────────────────────────────
+// ?????? POST /api/monaco/notificacao ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/notificacao', monacoAuth, (req, res) => {
     const payload = req.body || {};
     const uuid = payload.uuid;
@@ -22810,7 +25267,7 @@ app.post('/api/monaco/notificacao', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'notificacao', payload, res);
 });
 
-// ── POST /api/monaco/multa ────────────────────────────────────────────────────
+// ?????? POST /api/monaco/multa ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/multa', monacoAuth, (req, res) => {
     const payload = req.body || {};
     const uuid = payload.uuid;
@@ -22818,7 +25275,7 @@ app.post('/api/monaco/multa', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'multa', payload, res);
 });
 
-// ── POST /api/monaco/remulta ──────────────────────────────────────────────────
+// ?????? POST /api/monaco/remulta ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/remulta', monacoAuth, (req, res) => {
     const payload = req.body || {};
     const uuid = payload.uuid;
@@ -22826,7 +25283,7 @@ app.post('/api/monaco/remulta', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'remulta', payload, res);
 });
 
-// ── POST /api/monaco/multa-paga ───────────────────────────────────────────────
+// ?????? POST /api/monaco/multa-paga ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/multa-paga', monacoAuth, (req, res) => {
     const payload = req.body || {};
     const uuid = payload.uuid;
@@ -22834,7 +25291,7 @@ app.post('/api/monaco/multa-paga', monacoAuth, (req, res) => {
     upsertMonaco(uuid, 'multa-paga', payload, res);
 });
 
-// ── POST /api/monaco/retornoCondutor ──────────────────────────────────────────
+// ?????? POST /api/monaco/retornoCondutor ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
     const payload = req.body || {};
     const uuid = payload.uuid;
@@ -22853,7 +25310,7 @@ app.post('/api/monaco/retornoCondutor', monacoAuth, (req, res) => {
 });
 
 
-// ── POST /api/monaco/linkIndicacao ───────────────────────────────────────────
+// ?????? POST /api/monaco/linkIndicacao ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Endpoint dedicado para receber o link de indicação do condutor via webhook separado
 app.post('/api/monaco/linkIndicacao', monacoAuth, (req, res) => {
     const payload = req.body || {};
@@ -22873,7 +25330,7 @@ app.post('/api/monaco/linkIndicacao', monacoAuth, (req, res) => {
         });
 });
 
-// ── PATCH /api/monaco/multas/:id/link ────────────────────────────────────────
+// ?????? PATCH /api/monaco/multas/:id/link ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Edição manual do link de indicação (correção de links errados pelo usuário interno)
 app.patch('/api/monaco/multas/:id/link', authenticateToken, (req, res) => {
     const { link_indicacao } = req.body || {};
@@ -22892,7 +25349,7 @@ app.patch('/api/monaco/multas/:id/link', authenticateToken, (req, res) => {
     });
 });
 
-// ── PATCH /api/monaco/multas/:id/visualizar ───────────────────────────────────
+// ?????? PATCH /api/monaco/multas/:id/visualizar ?????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => {
     db.run(`UPDATE multas_monaco SET visualizada = 1, status_visualizacao = 'vista', updated_at = datetime('now') WHERE id = ?`,
         [req.params.id], function (err) {
@@ -22901,7 +25358,7 @@ app.patch('/api/monaco/multas/:id/visualizar', authenticateToken, (req, res) => 
         });
 });
 
-// ── PATCH /api/monaco/multas/:id/observacao ───────────────────────────────────
+// ?????? PATCH /api/monaco/multas/:id/observacao ?????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.patch('/api/monaco/multas/:id/observacao', authenticateToken, (req, res) => {
     const { observacao_interna } = req.body || {};
     db.run(`UPDATE multas_monaco SET observacao_interna = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -22911,7 +25368,7 @@ app.patch('/api/monaco/multas/:id/observacao', authenticateToken, (req, res) => 
         });
 });
 
-// ── GET /api/monaco/multas ───────────────────────────────────────────────────
+// ?????? GET /api/monaco/multas ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Lista todas as multas recebidas via webhook Mônaco
 app.get('/api/monaco/multas', authenticateToken, (req, res) => {
     const { tipo, placa, visualizada, limit } = req.query;
@@ -22928,7 +25385,7 @@ app.get('/api/monaco/multas', authenticateToken, (req, res) => {
     });
 });
 
-// ── GET /api/monaco/multas/count/novas ───────────────────────────────────────
+// ?????? GET /api/monaco/multas/count/novas ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Retorna apenas o count de novas (para badge no menu)
 app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
     db.get('SELECT COUNT(*) as novas FROM multas_monaco WHERE visualizada = 0', [], (err, row) => {
@@ -22938,9 +25395,9 @@ app.get('/api/monaco/multas/count/novas', authenticateToken, (req, res) => {
 });
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── MÓDULO MTR SIGOR ─────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ?????? MÓDULO MTR SIGOR ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 // Configuracoes SIGOR - valores padrao (sobrescritos pelo banco ao iniciar)
 const SIGOR_HOM = {
@@ -22986,7 +25443,7 @@ function carregarCredenciaisSigorDoBanco() {
 }
 carregarCredenciaisSigorDoBanco();
 
-// ── GET /api/config/sigor - Retorna credenciais (senha mascarada) ──────────────
+// ?????? GET /api/config/sigor - Retorna credenciais (senha mascarada) ??????????????????????????????????????????
 app.get('/api/config/sigor', authenticateToken, (req, res) => {
   const role = (req.user?.role || '').toLowerCase();
   if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ erro: 'Sem permissao' });
@@ -22996,7 +25453,7 @@ app.get('/api/config/sigor', authenticateToken, (req, res) => {
   });
 });
 
-// ── PUT /api/config/sigor - Salva credenciais no banco ───────────────────────
+// ?????? PUT /api/config/sigor - Salva credenciais no banco ?????????????????????????????????????????????????????????????????????
 app.put('/api/config/sigor', authenticateToken, (req, res) => {
   const role = (req.user?.role || '').toLowerCase();
   if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ erro: 'Sem permissao' });
@@ -23023,7 +25480,7 @@ app.put('/api/config/sigor', authenticateToken, (req, res) => {
     .catch(e => res.status(500).json({ erro: e.message }));
 });
 
-// ── POST /api/config/sigor/testar - Testa autenticacao com os dados enviados ──
+// ?????? POST /api/config/sigor/testar - Testa autenticacao com os dados enviados ??????
 app.post('/api/config/sigor/testar', authenticateToken, async (req, res) => {
   const role = (req.user?.role || '').toLowerCase();
   if (!['admin', 'administrador', 'diretoria'].includes(role)) return res.status(403).json({ ok: false, mensagem: 'Sem permissão' });
@@ -23038,7 +25495,7 @@ app.post('/api/config/sigor/testar', authenticateToken, async (req, res) => {
     });
     const data = await resp.json();
     if (data.erro || !data.objetoResposta) {
-      return res.json({ ok: false, mensagem: data.mensagem || 'Credenciais inválidas' });
+      return res.json({ ok: false, mensagem: data.mensagem || 'Credenciais inv??lidas' });
     }
     // Invalida token em cache para usar as novas credenciais
     if (env === 'prod') { _sigorToken = null; _sigorTokenExp = 0; }
@@ -23146,7 +25603,7 @@ db.run(`CREATE TABLE IF NOT EXISTS mtr_local (
   created_at TEXT DEFAULT (datetime('now','-3 hours'))
 )`);
 
-// ── GET /api/mtr/lista ────────────────────────────────────────────────────────
+// ?????? GET /api/mtr/lista ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/mtr/lista', authenticateToken, (req, res) => {
   db.all('SELECT * FROM mtr_local ORDER BY created_at DESC', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -23155,7 +25612,7 @@ app.get('/api/mtr/lista', authenticateToken, (req, res) => {
 });
 
 
-// ── POST /api/mtr/sincronizar ────────────────────────────────────────────────
+// ?????? POST /api/mtr/sincronizar ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
   db.all('SELECT * FROM mtr_local WHERE numero_mtr IS NOT NULL AND numero_mtr != "null"', [], async (err, rows) => {
     if (err) return res.status(500).json({ mensagem: err.message });
@@ -23194,8 +25651,8 @@ app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
   });
 });
 
-// ── POST /api/mtr/importar ───────────────────────────────────────────────────
-// Importa uma MTR existente (gerada pelo cliente) sabendo o número
+// ?????? POST /api/mtr/importar ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// Importa uma MTR existente (gerada pelo cliente) sabendo o n??mero
 app.post('/api/mtr/importar', authenticateToken, async (req, res) => {
   const { numero_mtr } = req.body;
   if (!numero_mtr) return res.status(400).json({ mensagem: 'Número do MTR obrigatório' });
@@ -23214,7 +25671,7 @@ app.post('/api/mtr/importar', authenticateToken, async (req, res) => {
       if (err) return res.status(500).json({ mensagem: err.message });
       if (row) return res.status(400).json({ mensagem: 'MTR já está cadastrada no sistema.' });
 
-      // 3. Extrai dados básicos para o banco
+      // 3. Extrai dados bàsicos para o banco
       const status = obj.situacaoManifesto?.simDescricao || 'Ativo';
       const geradorNome = obj.parceiroGerador?.parDescricao || 'GERADOR EXTERNO';
       const geradorCnpj = obj.parceiroGerador?.parCnpj || '';
@@ -23244,7 +25701,7 @@ app.post('/api/mtr/importar', authenticateToken, async (req, res) => {
   }
 });
 
-// ── GET /api/mtr/tabelas ──────────────────────────────────────────────────────
+// ?????? GET /api/mtr/tabelas ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
   try {
     const [residuos, acondicionamentos, estadosFisicos, tratamentos, unidades] = await Promise.all([
@@ -23268,7 +25725,7 @@ app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
 });
 
 
-// ── DELETE /api/mtr/limpar-invalidos ────────────────────────────────────────
+// ?????? DELETE /api/mtr/limpar-invalidos ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.delete('/api/mtr/limpar-invalidos', authenticateToken, (req, res) => {
   db.run('DELETE FROM mtr_local WHERE numero_mtr IS NULL OR numero_mtr = "null"', function(err) {
     if (err) return res.status(500).json({ erro: err.message });
@@ -23276,7 +25733,7 @@ app.delete('/api/mtr/limpar-invalidos', authenticateToken, (req, res) => {
   });
 });
 
-// ── POST /api/mtr/gerar ───────────────────────────────────────────────────────
+// ?????? POST /api/mtr/gerar ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   const { geradorNome, geradorCnpj, residuoCodigo, quantidade, unidade,
           acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
@@ -23291,7 +25748,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     // Usar API de PRODUCAO agora que temos as credenciais corretas
     const endpoint = '/salvarManifestoLote';
     
-    // De/Para de unidades básicas
+    // De/Para de unidades bàsicas
     const mapaUnidade = { 'TON': 3, 'KG': 1, 'L': 21, 'M3': 2 };
     const uniCodigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
     
@@ -23308,7 +25765,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     const payload = [{
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
-      nomeMotorista: motorista || 'MÁRCIO JORGE VILAR DA SILVA',
+      nomeMotorista: motorista || 'M??RCIO JORGE VILAR DA SILVA',
       placaVeiculo: (placa || 'DPE5A75').replace(/[^a-zA-Z0-9]/g, ''),
       dataExpedicao: dtExpedicao,
       transportador: { cpfCnpj: transpCnpj, unidade: transpUnidade },
@@ -23353,7 +25810,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       ? errosDetalhados.join(' | ')
       : (data.mensagem || obj?.restResponseMensagem || 'Erro desconhecido da CETESB');
 
-    // A API CETESB retorna HTTP 200 mesmo em erro de negócio
+    // A API CETESB retorna HTTP 200 mesmo em erro de neg??cio
     const temErro = data.erro || data.erroNacional || !obj?.restResponseValido || !numeroMTR;
 
     if (temErro || !numeroMTR) {
@@ -23368,7 +25825,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [numeroMTR, 'Salvo', geradorNome, geradorCnpj, residuoCodigo,
        quantidade, unidade, acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
-       observacao, JSON.stringify({ ...data, _destinadorNome: req.body.destinadorNome || 'BRK AMBIENTAL - MAUÁ S.A.' }), complementarDeId || null],
+       observacao, JSON.stringify({ ...data, _destinadorNome: req.body.destinadorNome || 'BRK AMBIENTAL - MAU?? S.A.' }), complementarDeId || null],
       function (errIns) {
         if (errIns) console.error('[MTR] Erro insert:', errIns);
         res.json({ erro: false, mensagem: 'MTR gerada com sucesso', numeroMTR, id: this.lastID });
@@ -23380,7 +25837,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
   }
 });
 
-// ── POST /api/mtr/:id/receber ────────────────────────────────────────────────
+// ?????? POST /api/mtr/:id/receber ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/mtr/:id/receber', authenticateToken, async (req, res) => {
   const { pesoReal, dataRecebimento, observacao } = req.body;
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
@@ -23403,10 +25860,10 @@ app.post('/api/mtr/:id/receber', authenticateToken, async (req, res) => {
   });
 });
 
-// ── POST /api/mtr/:id/cancelar ──────────────────────────────────────────────────
+// ?????? POST /api/mtr/:id/cancelar ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
   const { justificativa } = req.body;
-  if (!justificativa) return res.status(400).json({ mensagem: 'Justificativa obrigatória' });
+  if (!justificativa) return res.status(400).json({ mensagem: 'Justificativa obrigatéria' });
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
     // Modo forçado local: cancela só no banco sem chamar SIGOR
@@ -23449,7 +25906,7 @@ app.post('/api/mtr/:id/cancelar', authenticateToken, async (req, res) => {
 
 
 
-// ── GET /api/mtr/:id/sigor-status ────────────────────────────────────────────
+// ?????? GET /api/mtr/:id/sigor-status ????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // Retorna o status completo do SIGOR para uma MTR específica (diagnóstico)
 app.get('/api/mtr/:id/sigor-status', authenticateToken, async (req, res) => {
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
@@ -23471,7 +25928,7 @@ app.get('/api/mtr/:id/sigor-status', authenticateToken, async (req, res) => {
   });
 });
 
-// ── GET /api/mtr/:id/pdf ──────────────────────────────────────────────────────
+// ?????? GET /api/mtr/:id/pdf ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.get('/api/mtr/:id/pdf', authenticateToken, async (req, res) => {
   db.get('SELECT * FROM mtr_local WHERE id = ?', [req.params.id], async (err, row) => {
     if (err || !row) return res.status(404).json({ mensagem: 'MTR não encontrada' });
@@ -23500,7 +25957,7 @@ console.log('[MTR SIGOR] Endpoints registrados: /lista /tabelas /gerar /:id/rece
 console.log('[MONACO] Endpoints webhook registrados: /token /notificacao /multa /remulta /multa-paga /retornoCondutor');
 
 
-// ── CRON JOB MTR (A CADA 1 HORA) ─────────────────────────────────────────────
+// ?????? CRON JOB MTR (A CADA 1 HORA) ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 setInterval(async () => {
     console.log('[CRON-MTR] Iniciando sincronização automática de MTRs...');
     db.all('SELECT * FROM mtr_local WHERE status NOT IN ("Cancelado", "Recebido")', [], async (err, rows) => {
@@ -23529,11 +25986,11 @@ setInterval(async () => {
     });
 }, 60 * 60 * 1000);
 
-app.get('/api/frota/force-seed', (req, res) => { const db = require('./database'); const cats = [[1,'Motor','engine',1],[2,'Freios','disc',2],[3,'Pneus e Rodagem','tire',3],[4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],[6,'Sistema Elétrico','lightning',6],[7,'Ar Condicionado','thermometer',7],[8,'Hidráulica / Operacional','drop',8],[9,'Sistema de Sucção','funnel',9],[10,'Estrutura / Carroceria','truck',10],[11,'Segurança e Legalização','shield-check',11]]; let errors = []; cats.forEach(c => db.run('INSERT OR IGNORE INTO frota_categorias_manutencao(id,nome,icone,ordem) VALUES(?,?,?,?)', c, (err) => { if(err) errors.push(err.message); })); setTimeout(() => res.json({ success: true, errors }), 1000); });
 
-// ══════════════════════════════════════════════════════════════════════
+
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // MÓDULO: PROPOSTAS COMERCIAIS
-// ══════════════════════════════════════════════════════════════════════
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 db.run(`CREATE TABLE IF NOT EXISTS propostas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23667,7 +26124,7 @@ app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
-console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
+console.log('[PROPOSTAS] M??dulo de propostas comerciais carregado.');
 
 
 
@@ -23677,7 +26134,7 @@ console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 // MÓDULO: CELULARES CORPORATIVOS
 // ============================================================
 
-// ── Colaboradores com celular_participa = Sim ──
+// ?????? Colaboradores com celular_participa = Sim ??????
 app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     db.all(
         `SELECT id, nome_completo, telefone, telefone_corporativo, foto_path, foto_base64, celular_participa, status, departamento, cargo
@@ -23691,7 +26148,7 @@ app.get('/api/celulares/colaboradores', authenticateToken, (req, res) => {
     );
 });
 
-// ── APARELHOS ──
+// ?????? APARELHOS ??????
 app.get('/api/celulares/aparelhos', authenticateToken, (req, res) => {
     db.all(`
         SELECT a.*,
@@ -23719,6 +26176,33 @@ db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN foto_path TEXT`, (err) => {
 });
 db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN ativo INTEGER DEFAULT 1`, (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.ativo:', err.message);
+});
+db.run(`ALTER TABLE celulares_aparelhos ADD COLUMN comentarios TEXT DEFAULT '[]'`, (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[Migration] celulares_aparelhos.comentarios:', err.message);
+});
+
+app.post('/api/celulares/aparelhos/:id/comentarios', authenticateToken, (req, res) => {
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || 'Usuário') : 'Usuário';
+    const { comentario } = req.body;
+    if (!comentario) return res.status(400).json({ error: 'Comentário vazio' });
+    
+    db.get(`SELECT comentarios FROM celulares_aparelhos WHERE id=?`, [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Aparelho não encontrado' });
+        
+        let arr = [];
+        try { arr = JSON.parse(row.comentarios || '[]'); } catch(e) {}
+        arr.push({
+            usuario_nome: usuarioNome,
+            texto: comentario,
+            criado_em: new Date().toISOString()
+        });
+        
+        db.run(`UPDATE celulares_aparelhos SET comentarios=? WHERE id=?`, [JSON.stringify(arr), req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ok: true, comentarios: arr });
+        });
+    });
 });
 
 app.post('/api/celulares/aparelhos', authenticateToken, (req, res) => {
@@ -23807,7 +26291,7 @@ app.delete('/api/celulares/aparelhos/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── CHIPS ──
+// ?????? CHIPS ??????
 app.get('/api/celulares/chips', authenticateToken, (req, res) => {
     // JOIN prioriza chip_id (slot 1). chip_id2 só aparece se o chip NÃO for chip_id em nenhuma atribuição ativa.
     db.all(`
@@ -23869,7 +26353,7 @@ app.delete('/api/celulares/chips/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── ATRIBUIÇÕES ──
+// ?????? ATRIBUI????ES ??????
 app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
     const { aparelho_id, chip_id, chip_id2, colaborador_id, responsavel_nome, data_inicio, observacao } = req.body;
 
@@ -23926,7 +26410,7 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newAtribId = this.lastID;
-                // Auto-preencher telefone_corporativo com o número do chip 1
+                // Auto-preencher telefone_corporativo com o n??mero do chip 1
                 if (colaborador_id && chip_id) {
                     db.get(`SELECT numero FROM celulares_chips WHERE id = ?`, [chip_id], (errCh, chipRow) => {
                         if (!errCh && chipRow && chipRow.numero) {
@@ -23937,7 +26421,7 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
                         }
                     });
                 }
-                // ── Gatilho de Webhook para Celulares Motoristas ──────────────────
+                // ?????? Gatilho de Webhook para Celulares Motoristas ??????????????????????????????????????????????????????
                 if (colaborador_id) {
                     db.get(
                         `SELECT c.nome_completo, c.departamento, ch.numero AS numero_chip, ch2.numero AS numero_chip2
@@ -23962,7 +26446,7 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
                         }
                     );
                 }
-                // ─────────────────────────────────────────────────────────────────
+                // ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
                 res.json({ id: newAtribId, ok: true });
             }
         );
@@ -24021,7 +26505,7 @@ app.put('/api/celulares/atribuicoes/:id/devolver', authenticateToken, (req, res)
     });
 });
 
-// ── HISTÓRICO de aparelho ou chip ──
+// ?????? HIST??RICO de aparelho ou chip ??????
 app.get('/api/celulares/historico/aparelho/:id', authenticateToken, (req, res) => {
     db.all(`
         SELECT at.*,
@@ -24056,15 +26540,15 @@ app.get('/api/celulares/historico/chip/:id', authenticateToken, (req, res) => {
     });
 });
 
-console.log('[CELULARES] Módulo de celulares corporativos carregado.');
+console.log('[CELULARES] M??dulo de celulares corporativos carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
 
-// ══════════════════════════════════════════════════════════════
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // MÓDULO COMPUTADORES CORPORATIVOS
-// ══════════════════════════════════════════════════════════════
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-// ── Criação da tabela ──
+// ?????? Criação da tabela ??????
 db.run(`CREATE TABLE IF NOT EXISTS computadores (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo                    TEXT NOT NULL DEFAULT 'Notebook',
@@ -24086,23 +26570,44 @@ db.run(`CREATE TABLE IF NOT EXISTS computadores (
     updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-// ─ MIGRAÇÃO PARA TABELA computadores: Adiciona campos novos se não existirem ─
+// - MIGRAÇÃO PARA TABELA computadores: Adiciona campos novos se não existirem ???
 db.all("PRAGMA table_info(computadores)", (err, rows) => {
     if (!err && rows && rows.length > 0) {
         const hasLivre = rows.some(r => r.name === 'colaborador_livre');
         if (!hasLivre) {
-            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN colaborador_livre TEXT", (err) => {});
         }
         const hasRam = rows.some(r => r.name === 'ram_1');
         if (!hasRam) {
-            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT");
-            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0");
+            db.run("ALTER TABLE computadores ADD COLUMN ram_1 TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN ram_2 TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN ssd TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN expansivel INTEGER DEFAULT 0", (err) => {});
         }
         const hasEmail = rows.some(r => r.name === 'email_vinculado');
         if (!hasEmail) {
-            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT");
+            db.run("ALTER TABLE computadores ADD COLUMN email_vinculado TEXT", (err) => {});
+        }
+        const hasProcessador = rows.some(r => r.name === 'processador');
+        if (!hasProcessador) {
+            db.run("ALTER TABLE computadores ADD COLUMN processador TEXT", (err) => {});
+        }
+        const hasCarregador = rows.some(r => r.name === 'carregador_patrimonio');
+        if (!hasCarregador) {
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_patrimonio TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_tensao TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_corrente TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_potencia TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_conector TEXT", (err) => {});
+        }
+        const hasComentarios = rows.some(r => r.name === 'comentarios');
+        if (!hasComentarios) {
+            db.run("ALTER TABLE computadores ADD COLUMN comentarios TEXT", (err) => {});
+        }
+        const hasFotoCarregador = rows.some(r => r.name === 'carregador_foto_url');
+        if (!hasFotoCarregador) {
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_foto_url TEXT", (err) => {});
+            db.run("ALTER TABLE computadores ADD COLUMN carregador_foto_r2_key TEXT", (err) => {});
         }
     }
 });
@@ -24135,7 +26640,7 @@ db.all(`SELECT id, colaborador_id, colaborador_livre, status, data_atribuicao, o
     }
 });
 
-// ── GET: Historico de Computador ──
+// ?????? GET: Historico de Computador ??????
 app.get('/api/computadores/historico/:id', authenticateToken, (req, res) => {
     db.all(`
         SELECT h.*,
@@ -24150,7 +26655,7 @@ app.get('/api/computadores/historico/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── GET: listar todos com JOIN de colaborador ──
+// ?????? GET: listar todos com JOIN de colaborador ??????
 app.get('/api/computadores', authenticateToken, (req, res) => {
     db.all(`
         SELECT cp.*,
@@ -24167,7 +26672,7 @@ app.get('/api/computadores', authenticateToken, (req, res) => {
     });
 });
 
-// ── GET: colaboradores para o select ──
+// ?????? GET: colaboradores para o select ??????
 app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
     db.all(`
         SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
@@ -24182,22 +26687,92 @@ app.get('/api/computadores/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
-// ── POST: criar computador ──
+// ♥♥♥♥♥ PATCH: adicionar comentário ao computador ♥♥♥♥♥
+app.patch('/api/computadores/:id/comentario', authenticateToken, (req, res) => {
+    const { texto } = req.body;
+    if (!texto || !String(texto).trim()) return res.status(400).json({ error: 'Texto do comentário obrigatório.' });
+    const nomeUsuario = req.user.nome || req.user.username || req.user.email || 'Usuário';
+    db.get(`SELECT comentarios FROM computadores WHERE id=?`, [req.params.id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Computador não encontrado.' });
+        let comentarios = [];
+        try { comentarios = JSON.parse(row.comentarios || '[]'); } catch(_) { comentarios = []; }
+        comentarios.push({
+            id: Date.now(),
+            texto: String(texto).trim(),
+            usuario_nome: nomeUsuario,
+            criado_em: new Date().toISOString()
+        });
+        db.run(`UPDATE computadores SET comentarios=? WHERE id=?`, [JSON.stringify(comentarios), req.params.id], (err2) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ok: true, comentarios });
+        });
+    });
+});
+
+// ♥♥♥♥♥ POST: upload foto do carregador para R2 ♥♥♥♥♥
+const multerCarregador = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/computadores/:id/foto-carregador', authenticateToken, multerCarregador.single('foto'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma foto enviada.' });
+    if (!r2) return res.status(500).json({ error: 'Armazenamento R2 não configurado.' });
+    const id = req.params.id;
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get(`SELECT carregador_foto_r2_key FROM computadores WHERE id=?`, [id], (e, rv) => e ? reject(e) : resolve(rv));
+        });
+        if (row && row.carregador_foto_r2_key) {
+            try { await r2.deleteFromR2(row.carregador_foto_r2_key); } catch(_) {}
+        }
+        const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+        const key = `computadores/carregadores/${id}_${Date.now()}.${ext}`;
+        const url = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
+        db.run(`UPDATE computadores SET carregador_foto_url=?, carregador_foto_r2_key=? WHERE id=?`, [url, key, id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, url });
+        });
+    } catch(e) {
+        console.error('[Carregador Foto]', e);
+        res.status(500).json({ error: 'Erro ao fazer upload: ' + e.message });
+    }
+});
+
+// DELETE: remover foto do carregador
+app.delete('/api/computadores/:id/foto-carregador', authenticateToken, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get(`SELECT carregador_foto_r2_key FROM computadores WHERE id=?`, [id], (e, rv) => e ? reject(e) : resolve(rv));
+        });
+        if (row && row.carregador_foto_r2_key && r2) {
+            try { await r2.deleteFromR2(row.carregador_foto_r2_key); } catch(_) {}
+        }
+        db.run(`UPDATE computadores SET carregador_foto_url=NULL, carregador_foto_r2_key=NULL WHERE id=?`, [id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        });
+    } catch(e) {
+        console.error('[Carregador Foto Delete]', e);
+        res.status(500).json({ error: 'Erro ao remover foto: ' + e.message });
+    }
+});
+
+// ♥♥♥♥♥ POST: criar computador ♥♥♥♥♥
 app.post('/api/computadores', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes,
+            processador, ram_1, ram_2, ssd, expansivel, email_vinculado,
+            carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector } = req.body;
     if (!tipo) return res.status(400).json({ error: 'Tipo é obrigatório.' });
     if (!modelo) return res.status(400).json({ error: 'Modelo é obrigatório.' });
 
     db.run(
-        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
-        [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null],
+        `INSERT INTO computadores (tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, email_vinculado, carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','-3 hours'))`,
+        [tipo, modelo, patrimonio||null, numero_serie||null, colaborador_id||null, colaborador_livre||null, status||'Reserva', data_atribuicao||null, senha_windows||null, observacoes||null, processador||null, ram_1||null, ram_2||null, ssd||null, expansivel?1:0, email_vinculado||null, carregador_patrimonio||null, carregador_tensao||null, carregador_corrente||null, carregador_potencia||null, carregador_conector||null],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             
             const lastId = this.lastID;
-            if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
-                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+            if (colaborador_id && email_vinculado && String(email_vinculado).trim().toLowerCase().endsWith('@americarental.com.br')) {
+                db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
                     if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
                 });
             }
@@ -24207,14 +26782,36 @@ app.post('/api/computadores', authenticateToken, (req, res) => {
     );
 });
 
-// ── PUT: atualizar computador ──
+// ?????? PUT: atualizar computador ??????
+// PATCH: Devolver computador (apenas limpa colaborador e marca como Devolvido)
+app.patch('/api/computadores/:id/devolver', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    db.get(`SELECT * FROM computadores WHERE id=?`, [id], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Computador não encontrado' });
+        db.run(
+            `UPDATE computadores SET status='Devolvido', colaborador_id=NULL, colaborador_livre=NULL, data_atribuicao=NULL, updated_at=datetime('now','-3 hours') WHERE id=?`,
+            [id],
+            function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Registra no histórico
+                const obsHist = 'Equipamento devolvido';
+                db.run(
+                    `INSERT INTO computadores_historico (computador_id, colaborador_id, responsavel_nome, acao, observacao) VALUES (?, ?, ?, ?, ?)`,
+                    [id, row.colaborador_id, row.colaborador_livre, 'Devolvido', obsHist]
+                );
+                res.json({ ok: true });
+            }
+        );
+    });
+});
+
 app.put('/api/computadores/:id', authenticateToken, (req, res) => {
-    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao } = req.body;
+    const { tipo, modelo, patrimonio, numero_serie, colaborador_id, colaborador_livre, status, data_atribuicao, senha_windows, observacoes, processador, ram_1, ram_2, ssd, expansivel, email_vinculado, historico_observacao, carregador_patrimonio, carregador_tensao, carregador_corrente, carregador_potencia, carregador_conector } = req.body;
     db.get(`SELECT colaborador_id, colaborador_livre, status FROM computadores WHERE id=?`, [req.params.id], (errOld, rowOld) => {
         db.run(
-            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, updated_at=datetime('now','-3 hours')
+            `UPDATE computadores SET tipo=?, modelo=?, patrimonio=?, numero_serie=?, colaborador_id=?, colaborador_livre=?, status=?, data_atribuicao=?, senha_windows=?, observacoes=?, processador=?, ram_1=?, ram_2=?, ssd=?, expansivel=?, email_vinculado=?, carregador_patrimonio=?, carregador_tensao=?, carregador_corrente=?, carregador_potencia=?, carregador_conector=?, updated_at=datetime('now','-3 hours')
              WHERE id=?`,
-            [tipo, modelo, patrimonio || null, numero_serie || null, colaborador_id || null, colaborador_livre || null, status || 'Reserva', data_atribuicao || null, senha_windows || null, observacoes || null, ram_1 || null, ram_2 || null, ssd || null, expansivel ? 1 : 0, email_vinculado || null, req.params.id],
+            [tipo, modelo, patrimonio||null, numero_serie||null, colaborador_id||null, colaborador_livre||null, status||'Reserva', data_atribuicao||null, senha_windows||null, observacoes||null, processador||null, ram_1||null, ram_2||null, ssd||null, expansivel?1:0, email_vinculado||null, carregador_patrimonio||null, carregador_tensao||null, carregador_corrente||null, carregador_potencia||null, carregador_conector||null, req.params.id],
             function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 
@@ -24229,7 +26826,7 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
                         if (status === 'Devolvido' || (!colaborador_id && !colaborador_livre && (rowOld.colaborador_id || rowOld.colaborador_livre))) {
                             acao = "Devolvido";
                         } else if (colaborador_id || colaborador_livre) {
-                            acao = "Atribuído";
+                            acao = "Atribu??do";
                         } else {
                             acao = "Atualizado";
                         }
@@ -24241,8 +26838,8 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
                     }
                 }
                 
-                if (colaborador_id && email_vinculado && String(email_vinculado).trim() !== '') {
-                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
+                if (colaborador_id && email_vinculado && String(email_vinculado).trim().toLowerCase().endsWith('@americarental.com.br')) {
+                    db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [email_vinculado.trim(), colaborador_id], function(updateErr) {
                         if(updateErr) console.error("Erro ao atualizar e-mail do colaborador: ", updateErr.message);
                     });
                 }
@@ -24253,7 +26850,7 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── DELETE: remover computador ──
+// ?????? DELETE: remover computador ??????
 app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
     db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -24261,7 +26858,7 @@ app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
     });
 });
 
-// ── TABELA: log de notificações enviadas (garante "apenas 1 vez por colaborador") ──
+// ?????? TABELA: log de notificações enviadas (garante "apenas 1 vez por colaborador") ??????
 db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_log (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id INTEGER NOT NULL UNIQUE,
@@ -24269,7 +26866,7 @@ db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_log (
     enviado_em     DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
-// ── TABELA: fila de popups pendentes de Computadores (para polling frontend) ──
+// ?????? TABELA: fila de popups pendentes de Computadores (para polling frontend) ??????
 db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_pendentes (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     tipo       TEXT DEFAULT 'novo_colaborador_admin',
@@ -24278,7 +26875,7 @@ db.run(`CREATE TABLE IF NOT EXISTS computadores_notif_pendentes (
     lido       INTEGER DEFAULT 0
 )`);
 
-// ── GET: popups pendentes (não lidos) ──
+// ?????? GET: popups pendentes (não lidos) ??????
 app.get('/api/computadores/notificacoes/pendentes', authenticateToken, (req, res) => {
     db.all(`SELECT * FROM notificacoes_usuarios
             WHERE tipo = 'computador_controle' AND lida = 0 AND usuario_id = ?
@@ -24291,7 +26888,7 @@ app.get('/api/computadores/notificacoes/pendentes', authenticateToken, (req, res
     );
 });
 
-// ── PUT: marcar notificação como lida ──
+// ?????? PUT: marcar notificação como lida ??????
 app.put('/api/computadores/notificacoes/:id/lida', authenticateToken, (req, res) => {
     db.run(`UPDATE notificacoes_usuarios SET lida = 1 WHERE id = ? AND usuario_id = ?`,
         [req.params.id, req.user.id || req.user.userId || 0],
@@ -24302,7 +26899,7 @@ app.put('/api/computadores/notificacoes/:id/lida', authenticateToken, (req, res)
     );
 });
 
-// ── GET: configuração de notificações de computadores (quem recebe) ──
+// ?????? GET: configuração de notificações de computadores (quem recebe) ??????
 app.get('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
     db.all(`
         SELECT u.id, u.nome, u.username,
@@ -24318,11 +26915,11 @@ app.get('/api/computadores/notificacoes/config', authenticateToken, (req, res) =
     });
 });
 
-// ── POST: salvar configuração de notificações de computadores ──
+// ?????? POST: salvar configuração de notificações de computadores ??????
 app.post('/api/computadores/notificacoes/config', authenticateToken, (req, res) => {
     const { usuario_ids, email_overrides } = req.body; // usuario_ids: number[], email_overrides: {[uid]: email}
     if (!Array.isArray(usuario_ids)) return res.status(400).json({ error: 'usuario_ids deve ser array' });
-    // Remover inscrições antigas para computador_controle
+    // Remover inscri????es antigas para computador_controle
     db.run(`DELETE FROM config_notificacoes WHERE tipo = 'computador_controle'`, [], (errD) => {
         if (errD) return res.status(500).json({ error: errD.message });
         if (usuario_ids.length === 0) return res.json({ ok: true });
@@ -24344,11 +26941,11 @@ app.post('/api/computadores/notificacoes/config', authenticateToken, (req, res) 
 
 console.log('[COMPUTADORES] Módulo de computadores corporativos carregado (com notificações).');
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 // MÓDULO E-MAILS CORPORATIVOS
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
-// ── Criptografia AES-256-CBC para senhas de e-mail ────────────────────────────
+// ?????? Criptografia AES-256-CBC para senhas de e-mail ????????????????????????????????????????????????????????????????????????????????????
 const EMAIL_SENHA_KEY = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'america_rental_secret').digest(); // 32 bytes
 
 function encryptEmailSenha(plaintext) {
@@ -24370,11 +26967,11 @@ function decryptEmailSenha(stored) {
         const decipher = crypto.createDecipheriv('aes-256-cbc', EMAIL_SENHA_KEY, iv);
         return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
     } catch(e) {
-        // valor antigo em plaintext — retorna como está
+        // valor antigo em plaintext ??? retorna como est??
         return stored;
     }
 }
-// ─────────────────────────────────────────────────────────────────────────────
+// ???????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 db.run(`CREATE TABLE IF NOT EXISTS emails_corporativos (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24430,6 +27027,37 @@ db.run(`CREATE TABLE IF NOT EXISTS emails_historico (
     FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
 )`);
 
+// ===== SISTEMA DE CHAMADOS =====
+db.run(`CREATE TABLE IF NOT EXISTS chamados (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    tipo TEXT NOT NULL DEFAULT 'melhoria',
+    status TEXT NOT NULL DEFAULT 'Novo',
+    usuario_nome TEXT NOT NULL,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours')),
+    atualizado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+db.run(`ALTER TABLE chamados ADD COLUMN atribuido_a TEXT`, (err) => {});
+
+db.run(`CREATE TABLE IF NOT EXISTS chamados_comentarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chamado_id INTEGER NOT NULL,
+    usuario_nome TEXT NOT NULL,
+    conteudo TEXT,
+    imagem_url TEXT,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS chamados_notificacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chamado_id INTEGER NOT NULL,
+    para_usuario TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    lido INTEGER DEFAULT 0,
+    criado_em DATETIME DEFAULT (datetime('now','-3 hours'))
+)`);
+
 // Migrar dados antigos se existirem em emails_corporativos
 db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails_corporativos WHERE colaborador_id IS NOT NULL OR responsavel_nome IS NOT NULL`, (err, rows) => {
     if (!err && rows && rows.length > 0) {
@@ -24443,7 +27071,7 @@ db.all(`SELECT id, colaborador_id, responsavel_nome, data_atribuicao FROM emails
     }
 });
 
-// ─── GET: Listar E-mails ───
+// ????????? GET: Listar E-mails ?????????
 app.get('/api/emails', authenticateToken, (req, res) => {
     db.all(`
         SELECT e.*
@@ -24485,7 +27113,7 @@ app.get('/api/emails', authenticateToken, (req, res) => {
     });
 });
 
-// ─── GET: Listar Colaboradores para E-mails (simplificado) ───
+// ????????? GET: Listar Colaboradores para E-mails (simplificado) ?????????
 app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
     db.all(`
         SELECT DISTINCT c.id, c.nome_completo, c.departamento, c.cargo, c.foto_path, c.foto_base64, c.status
@@ -24498,7 +27126,7 @@ app.get('/api/emails/colaboradores', authenticateToken, (req, res) => {
     });
 });
 
-// ─── POST: Novo E-mail ───
+// ????????? POST: Novo E-mail ?????????
 app.post('/api/emails', authenticateToken, (req, res) => {
     const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
@@ -24535,7 +27163,7 @@ app.post('/api/emails', authenticateToken, (req, res) => {
     );
 });
 
-// ─── PUT: Editar E-mail ───
+// ????????? PUT: Editar E-mail ?????????
 app.put('/api/emails/:id', authenticateToken, (req, res) => {
     const { endereco, senha, plataforma, status, observacao, caixa_compartilhada, recebe_copia, emails_compartilhados, emails_copia } = req.body;
     if (!endereco) return res.status(400).json({ error: 'Endereço é obrigatório.' });
@@ -24575,7 +27203,7 @@ app.put('/api/emails/:id', authenticateToken, (req, res) => {
     );
 });
 
-// ─── POST: Atribuir E-mail ───
+// ????????? POST: Atribuir E-mail ?????????
 app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
     const { colaborador_id, responsavel_nome, data_atribuicao, recebe_copia } = req.body;
     const isAvulso = !colaborador_id && responsavel_nome;
@@ -24597,8 +27225,8 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
             // Sincronizar com cadastro de colaboradores
             if (colaborador_id) {
                 db.get(`SELECT endereco FROM emails_corporativos WHERE id = ?`, [req.params.id], (errE, rowE) => {
-                    if (!errE && rowE) {
-                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ?`, [rowE.endereco, colaborador_id]);
+                    if (!errE && rowE && rowE.endereco && rowE.endereco.toLowerCase().endsWith('@americarental.com.br')) {
+                        db.run(`UPDATE colaboradores SET email_corporativo = ? WHERE id = ? AND (email_corporativo IS NULL OR email_corporativo = '' OR email_corporativo NOT LIKE '%@americarental.com.br')`, [rowE.endereco, colaborador_id]);
                     }
                 });
             }
@@ -24610,7 +27238,7 @@ app.post('/api/emails/:id/atribuir', authenticateToken, (req, res) => {
     );
 });
 
-// ─── POST: Devolver E-mail ───
+// ????????? POST: Devolver E-mail ?????????
 app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
     const { atribuicao_id, colaborador_id } = req.body || {};
     
@@ -24649,7 +27277,7 @@ app.post('/api/emails/:id/devolver', authenticateToken, (req, res) => {
     });
 });
 
-// ─── DELETE: Excluir E-mail ───
+// ????????? DELETE: Excluir E-mail ?????????
 app.get('/api/emails/:id/historico', authenticateToken, (req, res) => {
     db.all(`
         SELECT h.*, c.nome_completo as colab_nome
@@ -24670,9 +27298,521 @@ app.delete('/api/emails/:id', authenticateToken, (req, res) => {
     });
 });
 
-console.log('[EMAILS] Módulo de E-mails Corporativos carregado.');
+console.log('[EMAILS] M??dulo de E-mails Corporativos carregado.');
 
 
 
 
 
+
+// LIMPEZA TEMPORÁRIA DE ENCODING
+db.serialize(() => {
+    db.run("DELETE FROM departamentos WHERE nome LIKE '%?%'", [], err => {
+        if (!err) console.log('[DB] Limpeza de departamentos com caracteres especiais (?) concluída.');
+    });
+});
+// MIGRACAO DE CHAVES DA PESQUISA DE SATISFACAO
+db.serialize(() => {
+    db.all("SELECT id, respostas_json FROM avaliacoes WHERE tipo = 'satisfacao' AND respostas_json IS NOT NULL AND respostas_json != ''", [], (err, rows) => {
+        if (err) return;
+        let updatedCount = 0;
+        const keyMapping = {
+            'Rotina e Carga de Trabalho': 'Organiza��o e Rotina de Trabalho',
+            'Processos e Organiza��o': 'Processos e Fluxo de Trabalho',
+            'Treinamentos e Desenvolvimento': 'Crescimento e Desenvolvimento',
+            'Crescimento e Oportunidades': 'Crescimento e Desenvolvimento',
+            'Valoriza��o e Reconhecimento': 'Satisfa��o e Motiva��o',
+            'Lideran�a Supervisor P�tio (Joca)': 'Comunica��o e Lideran�a',
+            'Lideran�a Gerente (Jefferson)': 'Comunica��o e Lideran�a',
+            'Lideran�a Supervisor Escrit�rio (Edson)': 'Comunica��o e Lideran�a',
+            'Lideran�a Supervisora (Thais)': 'Comunica��o e Lideran�a',
+            'Comunica��o': 'Comunica��o e Lideran�a',
+            'Lideran�a': 'Comunica��o e Lideran�a'
+        };
+        const tx = db.prepare("UPDATE avaliacoes SET respostas_json = ? WHERE id = ?");
+        rows.forEach(row => {
+            try {
+                const respostas = JSON.parse(row.respostas_json);
+                let changed = false;
+                const targetObj = respostas.scores ? respostas.scores : respostas;
+                const newTargetObj = {};
+                Object.keys(targetObj).forEach(oldKey => {
+                    if (oldKey === '__obs__' || oldKey === '__status__' || oldKey === 'info_adicional' || oldKey === 'topicos') {
+                        newTargetObj[oldKey] = targetObj[oldKey]; return;
+                    }
+                    let mappedKey = keyMapping[oldKey] || oldKey;
+                    if (newTargetObj[mappedKey]) {
+                        if (Array.isArray(targetObj[oldKey]) && Array.isArray(newTargetObj[mappedKey])) {
+                            newTargetObj[mappedKey] = newTargetObj[mappedKey].concat(targetObj[oldKey]);
+                        } else if (typeof targetObj[oldKey] === 'object' && typeof newTargetObj[mappedKey] === 'object' && !Array.isArray(targetObj[oldKey])) {
+                             newTargetObj[mappedKey].pontos = (newTargetObj[mappedKey].pontos || 0) + (targetObj[oldKey].pontos || 0);
+                             newTargetObj[mappedKey].max = (newTargetObj[mappedKey].max || 0) + (targetObj[oldKey].max || 0);
+                        }
+                    } else {
+                        newTargetObj[mappedKey] = targetObj[oldKey];
+                    }
+                    if (mappedKey !== oldKey) changed = true;
+                });
+                if (changed) {
+                    if (respostas.scores) respostas.scores = newTargetObj;
+                    else {
+                        Object.keys(respostas).forEach(k => { if (k !== '__obs__' && k !== '__status__' && k !== 'info_adicional' && k !== 'topicos') delete respostas[k]; });
+                        Object.assign(respostas, newTargetObj);
+                    }
+                    tx.run(JSON.stringify(respostas), row.id);
+                    updatedCount++;
+                }
+            } catch (e) {}
+        });
+        tx.finalize(() => {
+            if (updatedCount > 0) console.log("[MIGRATION] Chaves de satisfacao migradas: " + updatedCount);
+        });
+    });
+});
+
+app.delete('/api/administrativo/protocolos/:id/anexos/:fileIndex', authenticateToken, (req, res) => {
+    const protocoloId = req.params.id;
+    const fileIndex = parseInt(req.params.fileIndex, 10);
+    
+    db.get("SELECT arquivos_json FROM administrativo_protocolos WHERE id = ?", [protocoloId], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Protocolo não encontrado' });
+        
+        let arquivos = [];
+        try { arquivos = JSON.parse(row.arquivos_json || '[]'); } catch(e) {}
+        
+        if (fileIndex >= 0 && fileIndex < arquivos.length) {
+            arquivos.splice(fileIndex, 1);
+            db.run(
+                "UPDATE administrativo_protocolos SET arquivos_json = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+                [JSON.stringify(arquivos), protocoloId],
+                (updateErr) => {
+                    if (updateErr) return res.status(500).json({ error: updateErr.message });
+                    res.json({ message: 'Arquivo excluído com sucesso', arquivos });
+                }
+            );
+        } else {
+            res.status(400).json({ error: 'Índice de arquivo inválido' });
+        }
+    });
+});
+
+app.post('/api/licencas/baixar-lote', authenticateToken, (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido' });
+    
+    const placeholders = ids.map(() => '?').join(',');
+    db.all(`SELECT * FROM licencas WHERE id IN (${placeholders})`, ids, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!rows || rows.length === 0) return res.status(404).json({ error: 'Nenhuma licença encontrada' });
+        
+        try {
+            const AdmZip = require('adm-zip');
+            const zip = new AdmZip();
+            let addedCount = 0;
+            
+            rows.forEach(row => {
+                let absPath = '';
+                if (row.file_path) {
+                    absPath = path.resolve(__dirname, '..', '..', row.file_path);
+                    if (!fs.existsSync(absPath) && typeof BASE_UPLOAD_PATH !== 'undefined') {
+                        absPath = path.join(BASE_UPLOAD_PATH, row.file_path);
+                    }
+                }
+                
+                if (!absPath || !fs.existsSync(absPath)) {
+                    if (typeof LICENCAS_UPLOAD_PATH !== 'undefined') {
+                        const empresaDir = path.join(LICENCAS_UPLOAD_PATH, (row.empresa || 'GERAL').toUpperCase().replace(/[^A-Z0-9]/g, '_'));
+                        const finalPath = path.join(empresaDir, row.file_name || '');
+                        if (fs.existsSync(finalPath)) absPath = finalPath;
+                    }
+                }
+                
+                if (absPath && fs.existsSync(absPath)) {
+                    let ext = path.extname(absPath);
+                    if (!ext && row.file_name) ext = path.extname(row.file_name);
+                    if (!ext) ext = '.pdf';
+                    
+                    const safeEmp = (row.empresa || 'GERAL').replace(/[^a-zA-Z0-9]/g, '_');
+                    const safeName = (row.nome || 'Licenca').replace(/[^a-zA-Z0-9]/g, '_');
+                    const zipName = `${safeEmp}-${safeName}${ext}`;
+                    zip.addLocalFile(absPath, "", zipName);
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount === 0) return res.status(404).json({ error: 'Nenhum arquivo físico encontrado para as licenças selecionadas' });
+            
+            const zipBuffer = zip.toBuffer();
+            res.set('Content-Type', 'application/zip');
+            res.set('Content-Disposition', 'attachment; filename="licencas_selecionadas.zip"');
+            res.send(zipBuffer);
+        } catch(e) {
+            console.error('Erro ao gerar ZIP:', e);
+            res.status(500).json({ error: 'Erro ao gerar ZIP' });
+        }
+    });
+});
+
+app.delete('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Credenciamento não encontrado' });
+        res.json({ message: 'Credenciamento excluído com sucesso' });
+    });
+});
+
+// ============================================================
+// ===== SISTEMA DE CHAMADOS ==================================
+// ============================================================
+
+const CHAMADOS_ADMIN = 'Thais.Ricci';
+
+// GET /api/chamados - listar chamados
+app.get('/api/chamados', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const sql = isAdmin
+        ? `SELECT * FROM chamados ORDER BY id DESC`
+        : `SELECT * FROM chamados WHERE usuario_nome = ? OR atribuido_a = ? ORDER BY id DESC`;
+    const params = isAdmin ? [] : [usuario, usuario];
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/chamados - criar novo chamado
+app.post('/api/chamados', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    const { titulo, descricao, tipo, atribuido_a } = req.body;
+    if (!titulo) return res.status(400).json({ error: 'Título obrigatório' });
+    
+    const assignedUser = (isStrictAdmin && atribuido_a) ? atribuido_a : null;
+    
+    db.run(
+        `INSERT INTO chamados (titulo, descricao, tipo, status, usuario_nome, atribuido_a) VALUES (?, ?, ?, 'Novo', ?, ?)`,
+        [titulo, descricao || '', tipo || 'melhoria', usuario, assignedUser],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const chamadoId = this.lastID;
+            
+            if (usuario !== CHAMADOS_ADMIN) {
+                db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado')`,
+                    [chamadoId, CHAMADOS_ADMIN]);
+            }
+            
+            if (assignedUser && assignedUser !== usuario) {
+                db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado_atribuido')`,
+                    [chamadoId, assignedUser]);
+            }
+            
+            res.json({ id: chamadoId, success: true });
+        }
+    );
+});
+
+// GET /api/chamados/:id - detalhes do chamado + comentários
+app.get('/api/chamados/:id', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+        db.all(`SELECT * FROM chamados_comentarios WHERE chamado_id = ? ORDER BY criado_em ASC`, [req.params.id], (err2, comentarios) => {
+            if (err2) return res.status(500).json({ error: err2.message });
+            res.json({ ...chamado, comentarios: comentarios || [] });
+        });
+    });
+});
+
+// PUT /api/chamados/:id/status - atualizar status
+app.put('/api/chamados/:id/status', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    const { status } = req.body;
+    const statusValidos = ['Novo', 'Aguardando Informações', 'Respondido', 'Finalizado'];
+    if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas administradores do chamado podem alterar o status.' });
+        db.run(
+            `UPDATE chamados SET status = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
+            [status, req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Notificações
+                if (chamado.usuario_nome !== CHAMADOS_ADMIN) {
+                    // Notificar o dono do chamado sobre mudança de status
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, chamado.usuario_nome]);
+                }
+                if (status === 'Respondido') {
+                    // Notificar admin que foi respondido
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
+                }
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// PUT /api/chamados/:id/atribuir - atribuir a um usuário
+app.put('/api/chamados/:id/atribuir', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas o administrador de chamados pode atribuir.' });
+    
+    const { atribuido_a } = req.body;
+    
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        
+        db.run(
+            `UPDATE chamados SET atribuido_a = ?, atualizado_em = datetime('now','-3 hours') WHERE id = ?`,
+            [atribuido_a, req.params.id],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                // Notificar o usuário que recebeu o chamado
+                if (atribuido_a && atribuido_a !== chamado.usuario_nome) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'novo_chamado_atribuido')`,
+                        [req.params.id, atribuido_a]);
+                }
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// DELETE /api/chamados/:id - excluir chamado
+app.delete('/api/chamados/:id', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isStrictAdmin = usuario === CHAMADOS_ADMIN;
+    if (!isStrictAdmin) return res.status(403).json({ error: 'Acesso negado. Apenas o administrador pode excluir chamados.' });
+
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+
+        // Excluir notificações e comentários primeiro
+        db.run(`DELETE FROM chamados_notificacoes WHERE chamado_id = ?`, [req.params.id], (err2) => {
+            db.run(`DELETE FROM chamados_comentarios WHERE chamado_id = ?`, [req.params.id], (err3) => {
+                db.run(`DELETE FROM chamados WHERE id = ?`, [req.params.id], (err4) => {
+                    if (err4) return res.status(500).json({ error: err4.message });
+                    res.json({ success: true });
+                });
+            });
+        });
+    });
+});
+
+// POST /api/chamados/:id/comentarios - adicionar comentário
+app.post('/api/chamados/:id/comentarios', authenticateToken, async (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    const isAdmin = usuario === CHAMADOS_ADMIN || (req.user && req.user.role === 'Diretoria');
+    const { conteudo, imagem_base64 } = req.body;
+    if (!conteudo && !imagem_base64) return res.status(400).json({ error: 'Comentário vazio' });
+    
+    db.get(`SELECT * FROM chamados WHERE id = ?`, [req.params.id], async (err, chamado) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!chamado) return res.status(404).json({ error: 'Chamado não encontrado' });
+        if (!isAdmin && chamado.usuario_nome !== usuario && chamado.atribuido_a !== usuario) return res.status(403).json({ error: 'Acesso negado' });
+
+        // Upload imagem ao R2
+        let imagem_url = null;
+        if (imagem_base64 && imagem_base64.startsWith('data:')) {
+            try {
+                const mimeMatch = imagem_base64.match(/^data:([^;]+);base64,/);
+                const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+                const ext = extMap[mime] || 'png';
+                const buffer = Buffer.from(imagem_base64.split(',')[1], 'base64');
+                if (r2 && r2.isReady()) {
+                    const r2Key = `chamados/comentarios/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                    imagem_url = await r2.uploadToR2(r2Key, buffer, mime);
+                } else {
+                    imagem_url = imagem_base64; // fallback: salva base64
+                }
+            } catch(e) {
+                console.error('[CHAMADOS] Erro ao fazer upload da imagem:', e.message);
+            }
+        }
+
+        db.run(
+            `INSERT INTO chamados_comentarios (chamado_id, usuario_nome, conteudo, imagem_url) VALUES (?, ?, ?, ?)`,
+            [req.params.id, usuario, conteudo || '', imagem_url],
+            function(err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+
+                // Auto-mudar status: se usuário comum comentar, sempre vai para 'Respondido'
+                if (!isAdmin && chamado.status !== 'Respondido') {
+                    db.run(`UPDATE chamados SET status = 'Respondido', atualizado_em = datetime('now','-3 hours') WHERE id = ?`, [req.params.id]);
+                    // Notificar admin sobre resposta
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'status_mudou')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
+                }
+
+                // Notificar o dono do chamado se não foi ele quem comentou
+                if (chamado.usuario_nome !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, chamado.usuario_nome]);
+                }
+                // Notificar o atribuído se não foi ele quem comentou
+                if (chamado.atribuido_a && chamado.atribuido_a !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, chamado.atribuido_a]);
+                }
+                // Notificar o admin se não foi ele quem comentou
+                if (CHAMADOS_ADMIN !== usuario) {
+                    db.run(`INSERT INTO chamados_notificacoes (chamado_id, para_usuario, tipo) VALUES (?, ?, 'comentario')`,
+                        [req.params.id, CHAMADOS_ADMIN]);
+                }
+
+                res.json({ id: this.lastID, success: true });
+            }
+        );
+    });
+});
+
+// GET /api/chamados/notificacoes/count - contar não-lidas
+app.get('/api/chamados/notificacoes/count', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.get(`SELECT COUNT(*) as total FROM chamados_notificacoes WHERE para_usuario = ? AND lido = 0`,
+        [usuario], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ count: row ? row.total : 0 });
+        });
+});
+
+// GET /api/chamados/notificacoes/por-chamado - contar não-lidas agrupadas por chamado
+app.get('/api/chamados/notificacoes/por-chamado', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.all(`SELECT chamado_id, COUNT(*) as qtd FROM chamados_notificacoes WHERE para_usuario = ? AND lido = 0 GROUP BY chamado_id`,
+        [usuario], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const result = {};
+            if (rows) {
+                rows.forEach(r => { result[r.chamado_id] = r.qtd; });
+            }
+            res.json(result);
+        });
+});
+
+// POST /api/chamados/notificacoes/marcar-lido - marcar todas como lidas
+app.post('/api/chamados/notificacoes/marcar-lido', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.run(`UPDATE chamados_notificacoes SET lido = 1 WHERE para_usuario = ? AND lido = 0`, [usuario], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// POST /api/chamados/:id/marcar-lido - marcar lido para um chamado especifico
+app.post('/api/chamados/:id/marcar-lido', authenticateToken, (req, res) => {
+    const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
+    db.run(`UPDATE chamados_notificacoes SET lido = 1 WHERE chamado_id = ? AND para_usuario = ? AND lido = 0`, [req.params.id, usuario], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// ==========================================
+// MÓDULO SAC (SERVIÇO DE ATENDIMENTO)
+// ==========================================
+
+const sacUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+
+app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 10), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        const urls = [];
+        for (const file of req.files) {
+            const ext = require('path').extname(file.originalname);
+            const r2Key = `sac/anexos/${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+            const publicUrl = await r2.uploadToR2(r2Key, file.buffer, file.mimetype);
+            urls.push({ originalName: file.originalname, r2Key, url: publicUrl });
+        }
+        res.json({ urls });
+    } catch (err) {
+        console.error('[SAC] Erro no upload de anexos:', err);
+        res.status(500).json({ error: 'Erro ao fazer upload dos anexos' });
+    }
+});
+
+app.get('/api/sac/tickets', authenticateToken, (req, res) => {
+    db.all("SELECT * FROM sac_tickets ORDER BY created_at DESC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const parsed = rows.map(r => ({
+            ...r,
+            osNumber: r.os_number, clientName: r.client_name, cnpjCpf: r.cnpj_cpf, contactName: r.contact_name,
+            contactPhone: r.contact_phone, contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps,
+            costCenters: r.cost_centers ? JSON.parse(r.cost_centers) : [],
+            logisticsTask: r.logistics_task ? JSON.parse(r.logistics_task) : null,
+            commercialTask: r.commercial_task ? JSON.parse(r.commercial_task) : null,
+            financialTask: r.financial_task ? JSON.parse(r.financial_task) : null,
+            occurrences: r.occurrences ? JSON.parse(r.occurrences) : [],
+            timeline: r.timeline ? JSON.parse(r.timeline) : [],
+            attachments: r.attachments ? JSON.parse(r.attachments) : [],
+            checklist: r.checklist ? JSON.parse(r.checklist) : []
+        }));
+        res.json(parsed);
+    });
+});
+
+app.post('/api/sac/tickets', authenticateToken, (req, res) => {
+    const t = req.body;
+    db.run(`INSERT INTO sac_tickets (
+        id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
+        contact_name, contact_phone, contact_email, channel, type_key, occurrences,
+        description, stage, next_steps, timeline, cost_centers, attachments, checklist,
+        logistics_task, commercial_task, financial_task
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+        t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
+        t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, JSON.stringify(t.occurrences||[]),
+        t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
+        JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null)
+    ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: t.id });
+    });
+});
+
+app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
+    const t = req.body;
+    db.run(`UPDATE sac_tickets SET
+        stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
+        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+    [
+        t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
+        JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), req.params.id
+    ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// Run one-time formatting on startup
+setTimeout(() => {
+    try {
+        db.all("SELECT id, nome FROM estoque", [], (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(row => {
+                if (row.nome) {
+                    const novoNome = row.nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
+                    if (novoNome !== row.nome) {
+                        db.run("UPDATE estoque SET nome = ? WHERE id = ?", [novoNome, row.id]);
+                    }
+                }
+            });
+            console.log("[ESTOQUE] Formatacao de nomes concluida.");
+        });
+    } catch(e) {}
+}, 5000);

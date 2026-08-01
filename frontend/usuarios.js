@@ -5,14 +5,17 @@
 const TELAS_SISTEMA = [
     // Módulo RH (Ordem exata do menu lateral)
     { modulo: 'RH', pagina_id: 'dashboard',             pagina_nome: 'Dashboard', icone: 'ph-squares-four' },
-    { modulo: 'RH', pagina_id: 'colaboradores',          pagina_nome: 'Colaboradores', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'colaboradores-total',     pagina_nome: 'Colaboradores (Total — Editar/Criar)', icone: 'ph-address-book' },
+    { modulo: 'RH', pagina_id: 'colaboradores-parcial',    pagina_nome: 'Colaboradores (Parcial — Só Prontuário)', icone: 'ph-folder-open' },
+    { modulo: 'RH', pagina_id: 'satisfacao-rh',          pagina_nome: 'Satisfação', icone: 'ph-smiley' },
+    { modulo: 'RH', pagina_id: 'desempenho-rh',          pagina_nome: 'Desempenho', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'assinaturas-digitais',   pagina_nome: 'Assinaturas Digitais', icone: 'ph-signature' },
     { modulo: 'RH', pagina_id: 'ferias',                 pagina_nome: 'Férias', icone: 'ph-airplane-tilt' },
     { modulo: 'RH', pagina_id: 'experiencia',            pagina_nome: 'Experiência do Colaborador', icone: 'ph-user-check' },
     { modulo: 'RH', pagina_id: 'admissao',               pagina_nome: 'Admissão', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'integracao',             pagina_nome: 'Integração', icone: 'ph-users-three' },
     { modulo: 'RH', pagina_id: 'faculdade',              pagina_nome: 'Faculdade', icone: 'ph-graduation-cap' },
-    { modulo: 'DIRETORIA', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
+    { modulo: 'Diretoria', pagina_id: 'dissidio',               pagina_nome: 'Dissídio', icone: 'ph-trend-up' },
     { modulo: 'RH', pagina_id: 'rh-agenda',              pagina_nome: 'Agenda RH', icone: 'ph-calendar-check' },
     { modulo: 'RH', pagina_id: 'recibos',                pagina_nome: 'Recibos', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
@@ -33,6 +36,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'prontuario-dependentes', pagina_nome: 'Dependentes', icone: 'ph-users' },
     { modulo: 'RH', pagina_id: 'prontuario-multas', pagina_nome: 'Multas', icone: 'ph-receipt' },
     { modulo: 'RH', pagina_id: 'prontuario-sinistros', pagina_nome: 'Sinistros', icone: 'ph-warning' },
+    { modulo: 'RH', pagina_id: 'prontuario-rescisao', pagina_nome: 'Rescisão', icone: 'ph-file-x' },
     // Módulo Logística
     { modulo: 'Logística', pagina_id: 'logistica-dashboard',    pagina_nome: 'Dashboard Logística', icone: 'ph-chart-bar' },
     { modulo: 'Logística', pagina_id: 'logistica-pipeline',     pagina_nome: 'Pipeline OS',   icone: 'ph-kanban' },
@@ -61,10 +65,13 @@ const TELAS_SISTEMA = [
     { modulo: 'Administrativo', pagina_id: 'assinaturas-adm', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
     { modulo: 'Administrativo', pagina_id: 'administrativo-protocolos', pagina_nome: 'Protocolos', icone: 'ph-file-text' },
     // Módulo Treinamentos
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais', icone: 'ph-books' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presenças', icone: 'ph-check-square' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Conteúdos (Terapia)', icone: 'ph-books' },
-    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Listas (Terapia)', icone: 'ph-list-numbers' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais', pagina_nome: 'Materiais Trein.', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca', pagina_nome: 'Presença Trein.', icone: 'ph-check-square' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-materiais-terapia', pagina_nome: 'Materiais Pales.', icone: 'ph-books' },
+    { modulo: 'Treinamentos', pagina_id: 'treinamento-presenca-terapia', pagina_nome: 'Presença Pales.', icone: 'ph-list-numbers' },
+    // Módulo Processos
+    { modulo: 'Processos', pagina_id: 'sac', pagina_nome: 'SAC (Ver Todos)', icone: 'ph-headset' },
+    { modulo: 'Processos', pagina_id: 'sac-atribuidos', pagina_nome: 'SAC (Atribuídos)', icone: 'ph-user-focus' },
     // Módulo Diretoria / Sistema
     { modulo: 'Diretoria', pagina_id: 'usuarios-permissoes',   pagina_nome: 'Usuários e Permissões', icone: 'ph-users-three' },
     { modulo: 'Diretoria', pagina_id: 'cargos',                pagina_nome: 'Cargos', icone: 'ph-briefcase' },
@@ -567,9 +574,15 @@ const MENU_HIERARQUIA = [
             {
                 titulo: 'Telas',
                 telas: [
-                    'dashboard', 'colaboradores', 'assinaturas-digitais', 'ferias', 'experiencia',
-                    'admissao', 'integracao', 'faculdade', 'dissidio', 'rh-agenda', 'recibos', 'pagamentos-massa',
+                    'dashboard', 'colaboradores-total', 'colaboradores-parcial', 'assinaturas-digitais', 'ferias', 'experiencia',
+                    'admissao', 'integracao', 'faculdade', 'rh-agenda', 'recibos', 'pagamentos-massa',
                     'rh-logistica-sinistros', 'rh-logistica-multas'
+                ]
+            },
+            {
+                titulo: 'Avaliações',
+                telas: [
+                    'satisfacao-rh', 'desempenho-rh'
                 ]
             },
             {
@@ -579,7 +592,7 @@ const MENU_HIERARQUIA = [
                     'prontuario-checklist', 'prontuario-ficha', 'prontuario-pagamentos', 'prontuario-aso',
                     'prontuario-epi', 'prontuario-atestados', 'prontuario-contratos', 'prontuario-avaliacao',
                     'prontuario-ocorrencias', 'prontuario-faculdade', 'prontuario-certificados', 'prontuario-dependentes',
-                    'prontuario-multas', 'prontuario-sinistros'
+                    'prontuario-multas', 'prontuario-sinistros', 'prontuario-rescisao'
                 ]
             }
         ]
@@ -605,13 +618,17 @@ const MENU_HIERARQUIA = [
         grupos: [{ titulo: 'Telas', telas: ['treinamento-materiais', 'treinamento-presenca', 'treinamento-materiais-terapia', 'treinamento-presenca-terapia'] }]
     },
     {
+        modulo: 'Processos', icone: 'ph-headset', cor: '#ef4444',
+        grupos: [{ titulo: 'Telas', telas: ['sac'] }]
+    },
+    {
         modulo: 'Diretoria', icone: 'ph-crown', cor: '#c92a2a',
         grupos: [
             {
                 titulo: 'Telas',
                 telas: [
                     'usuarios-permissoes', 'cargos', 'chaves', 'certificado-digital',
-                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes'
+                    'homologacao', 'departamentos', 'geradores', 'ficha-epi', 'gerenciar-avaliacoes', 'dissidio'
                 ]
             }
         ]

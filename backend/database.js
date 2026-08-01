@@ -49,6 +49,20 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.log(`Caminho Real: ${dbPath}`);
         console.log('--------------------------------------------------');
         
+        // ─── OTIMIZAÇÕES DE PERFORMANCE SQLite ─────────────────────────────
+        // WAL mode: permite leituras simultâneas sem bloquear escritas (melhora drasticamente a velocidade)
+        db.run('PRAGMA journal_mode = WAL;');
+        // Cache de 32MB em memória para reduzir leituras de disco
+        db.run('PRAGMA cache_size = -32000;');
+        // Sincronização normal (mais rápido que FULL, ainda seguro)
+        db.run('PRAGMA synchronous = NORMAL;');
+        // Armazena tabelas temporárias em memória
+        db.run('PRAGMA temp_store = MEMORY;');
+        // Mmap de 256MB para acesso mais rápido ao banco
+        db.run('PRAGMA mmap_size = 268435456;');
+        console.log('[DB] PRAGMAs de performance aplicados (WAL + cache).');
+        // ────────────────────────────────────────────────────────────────────
+        
         db.serialize(() => {
             // [MIGRAÇÃO] Excluir departamento 1378 (Recursos Humanos) permanentemente a pedido do usuário
             db.run(`DELETE FROM departamentos WHERE id = 1378`);
@@ -71,10 +85,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE usuarios ADD COLUMN page_bookmarks TEXT DEFAULT '[]'`, (err) => {
                 // Erro esperado se a coluna já existir
             });
-            // RESET TEMPORÁRIO DE SENHA - diretoria.1 (remover após primeiro login)
-            db.run(`UPDATE usuarios SET password_hash = '$2b$10$uD554g2Wy1ix50pkDV4ry.DQZ4Gx9WbbLn3NB3fMmcQZqOt3dyPA2' WHERE username = 'diretoria.1'`, (err) => {
-                if (!err) console.log('[DB] Senha de diretoria.1 resetada com sucesso.');
-            });
+            // (reset de senha temporário removido por segurança)
+
 
             // Tabela de Configurações (Cargos)
             db.run(`
@@ -578,6 +590,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     FOREIGN KEY(usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 )
             `);
+            // Tabela de Tokens para Upload Externo de CND
+            db.run(`
+                CREATE TABLE IF NOT EXISTS cnd_upload_tokens (
+                    token TEXT PRIMARY KEY,
+                    cnd_nome TEXT NOT NULL,
+                    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
 
             // Tabelas de Notificações de Diretoria e Logística
             db.run(`
@@ -648,43 +668,49 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 db.all("PRAGMA table_info(colaborador_chaves)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('data_entrega')) db.run("ALTER TABLE colaborador_chaves ADD COLUMN data_entrega TEXT");
+                    if (!cols.includes('data_entrega')) db.run("ALTER TABLE colaborador_chaves ADD COLUMN data_entrega TEXT", (err) => {});
                 });
 
                 // Colaboradores
                 db.all("PRAGMA table_info(colaboradores)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('rg_tipo')) db.run("ALTER TABLE colaboradores ADD COLUMN rg_tipo TEXT DEFAULT 'RG'");
-                    if (!cols.includes('aso_email_enviado')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_email_enviado TEXT");
-                    if (!cols.includes('aso_exame_data')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exame_data TEXT");
-                    if (!cols.includes('aso_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_assinafy_link TEXT");
-                    if (!cols.includes('aso_exames_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exames_assinafy_link TEXT");
-                    if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT");
-                    if (!cols.includes('admissao_contabil_enviada_em')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_enviada_em DATETIME");
-                    if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT");
-                    if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'");
-                    if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT");
-                    if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT");
-                    if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT"); // Data de referência para ciclo Domingo de Lei
-                    if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0"); // Supervisão que faz apontamento de ponto
-                    if (!cols.includes('destaque_equipe')) db.run("ALTER TABLE colaboradores ADD COLUMN destaque_equipe INTEGER DEFAULT 0");
+                    db.serialize(() => {
+                        if (!cols.includes('rg_tipo')) db.run("ALTER TABLE colaboradores ADD COLUMN rg_tipo TEXT DEFAULT 'RG'", (err) => {});
+                        if (!cols.includes('aso_email_enviado')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_email_enviado TEXT", (err) => {});
+                        if (!cols.includes('aso_exame_data')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exame_data TEXT", (err) => {});
+                        if (!cols.includes('aso_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_assinafy_link TEXT", (err) => {});
+                        if (!cols.includes('aso_exames_assinafy_link')) db.run("ALTER TABLE colaboradores ADD COLUMN aso_exames_assinafy_link TEXT", (err) => {});
+                        if (!cols.includes('foto_base64')) db.run("ALTER TABLE colaboradores ADD COLUMN foto_base64 TEXT", (err) => {});
+                        if (!cols.includes('admissao_contabil_enviada_em')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_enviada_em DATETIME", (err) => {});
+                        if (!cols.includes('admissao_contabil_anexos')) db.run("ALTER TABLE colaboradores ADD COLUMN admissao_contabil_anexos TEXT", (err) => {});
+                        if (!cols.includes('brigadista_participa')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_participa TEXT DEFAULT 'Não'", (err) => {});
+                        if (!cols.includes('brigadista_validade')) db.run("ALTER TABLE colaboradores ADD COLUMN brigadista_validade TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_b')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_b_data')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_b_data TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_d')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d TEXT", (err) => {});
+                        if (!cols.includes('habilitacao_d_data')) db.run("ALTER TABLE colaboradores ADD COLUMN habilitacao_d_data TEXT", (err) => {});
+                        if (!cols.includes('email_corporativo')) db.run("ALTER TABLE colaboradores ADD COLUMN email_corporativo TEXT", (err) => {});
+                        if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT", (err) => {}); // Data de referência para ciclo Domingo de Lei
+                        if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0", (err) => {}); // Supervisão que faz apontamento de ponto
+                        if (!cols.includes('destaque_equipe')) db.run("ALTER TABLE colaboradores ADD COLUMN destaque_equipe INTEGER DEFAULT 0", (err) => {});
+                    });
                 });
 
                 // Multas Logística
                 db.all("PRAGMA table_info(multas_logistica)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('parcelas')) db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1");
-                    if (!cols.includes('placa')) db.run("ALTER TABLE multas_logistica ADD COLUMN placa TEXT");
-                    if (!cols.includes('local_infracao')) db.run("ALTER TABLE multas_logistica ADD COLUMN local_infracao TEXT");
-                    if (!cols.includes('created_by_id')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_id INTEGER");
-                    if (!cols.includes('created_by_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_nome TEXT");
-                    if (!cols.includes('monaco_uuid')) db.run("ALTER TABLE multas_logistica ADD COLUMN monaco_uuid TEXT");
-                    if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT");
-                    if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT");
-                    if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT");
-                    if (!cols.includes('status_rh')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_rh TEXT DEFAULT NULL");
+                    if (!cols.includes('parcelas')) db.run("ALTER TABLE multas_logistica ADD COLUMN parcelas INTEGER DEFAULT 1", (err) => {});
+                    if (!cols.includes('placa')) db.run("ALTER TABLE multas_logistica ADD COLUMN placa TEXT", (err) => {});
+                    if (!cols.includes('local_infracao')) db.run("ALTER TABLE multas_logistica ADD COLUMN local_infracao TEXT", (err) => {});
+                    if (!cols.includes('created_by_id')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_id INTEGER", (err) => {});
+                    if (!cols.includes('created_by_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN created_by_nome TEXT", (err) => {});
+                    if (!cols.includes('monaco_uuid')) db.run("ALTER TABLE multas_logistica ADD COLUMN monaco_uuid TEXT", (err) => {});
+                    if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT", (err) => {});
+                    if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT", (err) => {});
+                    if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT", (err) => {});
+                    if (!cols.includes('status_rh')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_rh TEXT DEFAULT NULL", (err) => {});
                 });
 
                 // Recibos Histórico (Garante a criação da coluna de forma síncrona na fila do serialize)
@@ -708,8 +734,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
                                     UNIQUE(colaborador_id, ano, trimestre, tipo),
                                     FOREIGN KEY (colaborador_id) REFERENCES colaboradores (id) ON DELETE CASCADE
                                 )
-                            `);
+                            `, () => {
+                                db.run("ALTER TABLE avaliacoes ADD COLUMN situacao TEXT DEFAULT 'finalizado'", () => {});
+                                db.run("ALTER TABLE avaliacoes ADD COLUMN responsavel_nome TEXT", () => {});
+                            });
                         });
+                    } else {
+                        // Table already exists, just try to alter
+                        db.run("ALTER TABLE avaliacoes ADD COLUMN situacao TEXT DEFAULT 'finalizado'", () => {});
+                        db.run("ALTER TABLE avaliacoes ADD COLUMN responsavel_nome TEXT", () => {});
                     }
                 });
 
@@ -729,36 +762,36 @@ const db = new sqlite3.Database(dbPath, (err) => {
                 db.all("PRAGMA table_info(documentos)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('assinafy_id')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_id TEXT");
-                    if (!cols.includes('assinafy_status')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_status TEXT DEFAULT 'Nenhum'");
-                    if (!cols.includes('assinafy_url')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_url TEXT");
-                    if (!cols.includes('assinafy_sent_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME");
-                    if (!cols.includes('signed_file_path')) db.run("ALTER TABLE documentos ADD COLUMN signed_file_path TEXT");
-                    if (!cols.includes('assinafy_signed_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_signed_at DATETIME");
+                    if (!cols.includes('assinafy_id')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_id TEXT", (err) => {});
+                    if (!cols.includes('assinafy_status')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_status TEXT DEFAULT 'Nenhum'", (err) => {});
+                    if (!cols.includes('assinafy_url')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_url TEXT", (err) => {});
+                    if (!cols.includes('assinafy_sent_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME", (err) => {});
+                    if (!cols.includes('signed_file_path')) db.run("ALTER TABLE documentos ADD COLUMN signed_file_path TEXT", (err) => {});
+                    if (!cols.includes('assinafy_signed_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_signed_at DATETIME", (err) => {});
                     // Campos de período do atestado
-                    if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT");  // 'dias' | 'horas'
-                    if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT"); // data ISO ou HH:MM
-                    if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT");   // data ISO ou HH:MM
+                    if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT", (err) => {});  // 'dias' | 'horas'
+                    if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT", (err) => {}); // data ISO ou HH:MM
+                    if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT", (err) => {});   // data ISO ou HH:MM
                     // Indicadores se holerite adiantamento/pagamento foram anexados
-                    if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0");
-                    if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0");
+                    if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
                 });
                 
                 // Geradores
                 db.all("PRAGMA table_info(geradores)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('tipo')) db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'");
-                    if (!cols.includes('is_sinistro_only')) db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0");
-                    if (!cols.includes('visibilidade_regra')) db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT");
+                    if (!cols.includes('tipo')) db.run("ALTER TABLE geradores ADD COLUMN tipo TEXT DEFAULT 'html'", (err) => {});
+                    if (!cols.includes('is_sinistro_only')) db.run("ALTER TABLE geradores ADD COLUMN is_sinistro_only INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('visibilidade_regra')) db.run("ALTER TABLE geradores ADD COLUMN visibilidade_regra TEXT", (err) => {});
                 });
                 
                 // Frota Manutencoes
                 db.all("PRAGMA table_info(frota_manutencoes)", (err, rows) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
-                    if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'");
-                    if (!cols.includes('data_inicio')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN data_inicio TEXT");
+                    if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'", (err) => {});
+                    if (!cols.includes('data_inicio')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN data_inicio TEXT", (err) => {});
                 });
             });
 
@@ -858,11 +891,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     { grupo: 'Limpeza', categoria: 'Operacional', departamentos_json: JSON.stringify(['Limpeza']), epis_json: EPI_A4, termo_texto: TERMO_PADRAO, rodape_texto: RODAPE_PADRAO }
                 ];
                 
-                // Migration para aplicar os departamentos corretos aos grupos existentes
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Administrativo","Comercial","Financeiro","Logística","RH","Supervisão"]' WHERE grupo = 'Escritório'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Manutenção"]' WHERE grupo = 'Manutenção'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Limpeza"]' WHERE grupo = 'Limpeza'`);
-                db.run(`UPDATE epi_templates SET departamentos_json = '["Ajudante Geral","Ajudante Pátio","Motorista","Liderança"]' WHERE grupo IN ('Ajudante, Liderança e Motorista', 'Ajudante Geral e Liderança', 'Ajudante Pátio e Liderança')`);
                 // Cria tabela de templates excluídos para não recriar templates que foram apagados
                 db.run('CREATE TABLE IF NOT EXISTS epi_templates_excluidos (grupo TEXT PRIMARY KEY)', () => {
                     // INSERT OR IGNORE: só insere templates que não existem ainda (nunca destrói existentes e ignora excluídos)
@@ -946,12 +974,12 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.all("PRAGMA table_info(usuarios)", (err, rows) => {
                 if (err || !rows) return;
                 const cols = rows.map(r => r.name);
-                if (!cols.includes('nome'))               db.run("ALTER TABLE usuarios ADD COLUMN nome TEXT");
-                if (!cols.includes('email'))              db.run("ALTER TABLE usuarios ADD COLUMN email TEXT");
-                if (!cols.includes('departamento'))       db.run("ALTER TABLE usuarios ADD COLUMN departamento TEXT DEFAULT 'RH'");
-                if (!cols.includes('grupo_permissao_id')) db.run("ALTER TABLE usuarios ADD COLUMN grupo_permissao_id INTEGER");
-                if (!cols.includes('ativo'))              db.run("ALTER TABLE usuarios ADD COLUMN ativo INTEGER DEFAULT 1");
-                if (!cols.includes('estoque_enderecos_permitidos')) db.run("ALTER TABLE usuarios ADD COLUMN estoque_enderecos_permitidos TEXT");
+                if (!cols.includes('nome'))               db.run("ALTER TABLE usuarios ADD COLUMN nome TEXT", (err) => {});
+                if (!cols.includes('email'))              db.run("ALTER TABLE usuarios ADD COLUMN email TEXT", (err) => {});
+                if (!cols.includes('departamento'))       db.run("ALTER TABLE usuarios ADD COLUMN departamento TEXT DEFAULT 'RH'", (err) => {});
+                if (!cols.includes('grupo_permissao_id')) db.run("ALTER TABLE usuarios ADD COLUMN grupo_permissao_id INTEGER", (err) => {});
+                if (!cols.includes('ativo'))              db.run("ALTER TABLE usuarios ADD COLUMN ativo INTEGER DEFAULT 1", (err) => {});
+                if (!cols.includes('estoque_enderecos_permitidos')) db.run("ALTER TABLE usuarios ADD COLUMN estoque_enderecos_permitidos TEXT", (err) => {});
             });
 
             // Tabela de Grupos de Permissão
@@ -1052,23 +1080,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
             // Remover grupo Administrador legados
             db.run("DELETE FROM grupos_permissao WHERE nome='Administrador'", (err) => {});
 
-            // ── MIGRAÇÃO: Garantir usuário diretoria.1 com senha 123 se tabela estiver vazia ──
-            const bcryptjs = require('bcryptjs');
-            db.get("SELECT COUNT(*) as count FROM usuarios", [], (err, row) => {
-                if (err) return;
-                if (row && row.count === 0) {
-                    bcryptjs.hash('123', 10, (hashErr, hash) => {
-                        if (hashErr) return console.error('[MIGRAÇÃO] Erro ao gerar hash:', hashErr);
-                        db.run(
-                            "INSERT INTO usuarios (username, password_hash, role) VALUES ('diretoria.1', ?, 'Diretoria')",
-                            [hash],
-                            (insErr) => {
-                                if (!insErr) console.log('[MIGRAÇÃO] Usuário diretoria.1 criado automaticamente (senha: 123)');
-                            }
-                        );
-                    });
-                }
-            });
+            // Migração: criação de usuário padrão removida por segurança.
+            // Crie usuários manualmente via painel de administração.
+
 
             // ── MIGRAÇÃO: Garantir acesso total ao usuário teste.2 ───────
             setTimeout(() => {
@@ -1192,15 +1206,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.all("PRAGMA table_info(credenciamentos)", (err, rows) => {
                 if (err || !rows) return;
                 const cols = rows.map(r => r.name);
-                if (!cols.includes('licencas_ids')) db.run("ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT");
-                if (!cols.includes('cliente_whatsapp')) db.run("ALTER TABLE credenciamentos ADD COLUMN cliente_whatsapp TEXT");
-                if (!cols.includes('apenas_dados')) db.run("ALTER TABLE credenciamentos ADD COLUMN apenas_dados INTEGER DEFAULT 0");
-                if (!cols.includes('tipo_envio')) db.run("ALTER TABLE credenciamentos ADD COLUMN tipo_envio TEXT DEFAULT 'email'");
-                if (!cols.includes('acessado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT");
-                if (!cols.includes('endereco_instalacao')) db.run("ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT");
-                if (!cols.includes('solicitado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN solicitado_por_id INTEGER");
-                if (!cols.includes('enviado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_por_id INTEGER");
-                if (!cols.includes('enviado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME");
+                if (!cols.includes('licencas_ids')) db.run("ALTER TABLE credenciamentos ADD COLUMN licencas_ids TEXT", (err) => {});
+                if (!cols.includes('cliente_whatsapp')) db.run("ALTER TABLE credenciamentos ADD COLUMN cliente_whatsapp TEXT", (err) => {});
+                if (!cols.includes('apenas_dados')) db.run("ALTER TABLE credenciamentos ADD COLUMN apenas_dados INTEGER DEFAULT 0", (err) => {});
+                if (!cols.includes('tipo_envio')) db.run("ALTER TABLE credenciamentos ADD COLUMN tipo_envio TEXT DEFAULT 'email'", (err) => {});
+                if (!cols.includes('acessado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN acessado_em TEXT", (err) => {});
+                if (!cols.includes('endereco_instalacao')) db.run("ALTER TABLE credenciamentos ADD COLUMN endereco_instalacao TEXT", (err) => {});
+                if (!cols.includes('solicitado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN solicitado_por_id INTEGER", (err) => {});
+                if (!cols.includes('enviado_por_id')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_por_id INTEGER", (err) => {});
+                if (!cols.includes('enviado_em')) db.run("ALTER TABLE credenciamentos ADD COLUMN enviado_em DATETIME", (err) => {});
             });
 
 
@@ -1456,8 +1470,8 @@ db.run("PRAGMA foreign_keys = ON;");
             db.all("PRAGMA table_info(frota_veiculos)", (err, rows) => {
                 if (err || !rows) return;
                 const cols = rows.map(r => r.name);
-                if (!cols.includes('km_atual')) db.run("ALTER TABLE frota_veiculos ADD COLUMN km_atual INTEGER DEFAULT 0");
-                if (!cols.includes('em_manutencao')) db.run("ALTER TABLE frota_veiculos ADD COLUMN em_manutencao INTEGER DEFAULT 0");
+                if (!cols.includes('km_atual')) db.run("ALTER TABLE frota_veiculos ADD COLUMN km_atual INTEGER DEFAULT 0", (err) => {});
+                if (!cols.includes('em_manutencao')) db.run("ALTER TABLE frota_veiculos ADD COLUMN em_manutencao INTEGER DEFAULT 0", (err) => {});
             });
 
             // Tabela de histórico diário de KM por veículo
@@ -1474,6 +1488,80 @@ db.run("PRAGMA foreign_keys = ON;");
                     console.log('[FROTA] Tabela frota_km_historico OK.');
                     // Criar índice único separado para compatibilidade máxima
                     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_km_hist_veiculo_data ON frota_km_historico(veiculo_id, data)', () => {});
+                }
+            });
+
+            // Tabela de SAC Tickets
+            db.run(`
+                CREATE TABLE IF NOT EXISTS sac_tickets (
+                    id TEXT PRIMARY KEY,
+                    protocol TEXT NOT NULL,
+                    os_number TEXT,
+                    client_name TEXT NOT NULL,
+                    cnpj_cpf TEXT,
+                    equipment TEXT NOT NULL,
+                    address TEXT,
+                    contact_name TEXT,
+                    contact_phone TEXT,
+                    contact_email TEXT,
+                    channel TEXT,
+                    type_key TEXT,
+                    occurrences TEXT,
+                    description TEXT,
+                    stage TEXT,
+                    next_steps TEXT,
+                    timeline TEXT,
+                    cost_centers TEXT,
+                    attachments TEXT,
+                    checklist TEXT,
+                    logistics_task TEXT,
+                    commercial_task TEXT,
+                    financial_task TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => {
+                if (!err) console.log('[SAC] Tabela sac_tickets OK.');
+            });
+
+            // ── Auto-fix: corrigir cargos com nomes corrompidos (encoding Latin1→UTF8) ──────────────────────────────
+            // Cargos criados via import com encoding errado ficam com "????" no lugar de caracteres especiais.
+            // Esta rotina detecta e remove cargos duplicados corrompidos, mantendo apenas os corretos.
+            const correcoesNomesCargos = [
+                { corrompido: /Manuten..o/,   correto: 'Manutenção' },
+                { corrompido: /Manuten....o/,  correto: 'Manutenção' },
+                { corrompido: /Manuten.....o/, correto: 'Manutenção' },
+            ];
+
+            // Busca cargos cujo nome contém caracteres de substituição (? ou caracteres não-ASCII inválidos)
+            db.all("SELECT id, nome, departamento FROM cargos", [], (errCargos, todosCargos) => {
+                if (errCargos || !todosCargos) return;
+
+                const cargosParaExcluir = [];
+                todosCargos.forEach(c => {
+                    // Detecta nomes corrompidos: contêm sequências de ? ou bytes não-UTF8 visíveis como ?
+                    const temCorrupcao = /\?\?+|[\uFFFD]/.test(c.nome) || /\?{2,}/.test(c.nome);
+                    if (temCorrupcao) {
+                        // Verifica se existe um cargo equivalente correto (mesmo departamento, nome similar sem corrupção)
+                        const nomeBase = c.nome.replace(/\?+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        const temEquivalente = todosCargos.some(outro =>
+                            outro.id !== c.id &&
+                            outro.departamento === c.departamento &&
+                            !/\?\?+/.test(outro.nome) &&
+                            outro.nome.toLowerCase().replace(/\s+/g, ' ').trim().length > 3
+                        );
+                        if (temEquivalente) {
+                            cargosParaExcluir.push(c.id);
+                        }
+                    }
+                });
+
+                if (cargosParaExcluir.length > 0) {
+                    const placeholders = cargosParaExcluir.map(() => '?').join(',');
+                    db.run(`DELETE FROM cargos WHERE id IN (${placeholders})`, cargosParaExcluir, (errDel) => {
+                        if (!errDel) console.log(`[AUTO-FIX] Removidos ${cargosParaExcluir.length} cargos com nomes corrompidos:`, cargosParaExcluir);
+                        else console.error('[AUTO-FIX] Erro ao remover cargos corrompidos:', errDel.message);
+                    });
                 }
             });
 

@@ -19,7 +19,7 @@ window._historicoComCredDados = [];
 window._historicoComCredSort = { col: 'data', dir: 'asc' };
 
 // Empresas fixas sempre exibidas como abas
-const EMPRESAS_LICENCAS = ['América Rental', 'Attend Ambiental', 'BRK'];
+const EMPRESAS_LICENCAS = ['América Rental', 'BRK', 'Attend Ambiental'];
 
 // Alterna aba ativa no painel de licenças (apenas show/hide — checkboxes ficam no DOM)
 
@@ -141,10 +141,14 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
         window.mudarTipoEnvioComercial();
         const chkDados = document.getElementById('solic-apenas-dados');
         if (chkDados) chkDados.checked = false;
-        document.getElementById('solic-endereco-instalacao').value = '';
-        document.getElementById('solic-qtd-colabs').value = 0;
-        document.getElementById('solic-qtd-veiculos').value = 0;
-        document.getElementById('solic-data-limite').value = '';
+        const endInstEl = document.getElementById('solic-endereco-instalacao');
+        if (endInstEl) endInstEl.value = '';
+        const qtdColabsEl = document.getElementById('solic-qtd-colabs');
+        if (qtdColabsEl) qtdColabsEl.value = 0;
+        const qtdVeicsEl = document.getElementById('solic-qtd-veiculos');
+        if (qtdVeicsEl) qtdVeicsEl.value = 0;
+        const dataLimiteEl = document.getElementById('solic-data-limite');
+        if (dataLimiteEl) dataLimiteEl.value = '';
         const obs = document.getElementById('solic-observacoes'); if (obs) obs.value = '';
         document.querySelectorAll('#solic-docs-exigidos input[type="checkbox"]').forEach(c => c.checked = false);
         await _carregarLicencasAgrupadas([]);
@@ -185,15 +189,16 @@ window.fecharModalSolicitarCredenciamento = function() {
 }
 
 window.mudarTipoEnvioComercial = function() {
-    const tipo = document.getElementById('solic-tipo-envio').value;
+    const tipoEnvioElem = document.getElementById('solic-tipo-envio');
+    const tipo = tipoEnvioElem ? tipoEnvioElem.value : 'email';
     const gEmail = document.getElementById('grupo-solic-email');
     const gWhats = document.getElementById('grupo-solic-whatsapp');
     if (tipo === 'email') {
-        gEmail.style.display = 'block';
-        gWhats.style.display = 'none';
+        if (gEmail) gEmail.style.display = 'block';
+        if (gWhats) gWhats.style.display = 'none';
     } else {
-        gEmail.style.display = 'none';
-        gWhats.style.display = 'block';
+        if (gEmail) gEmail.style.display = 'none';
+        if (gWhats) gWhats.style.display = 'block';
     }
 }
 
@@ -448,7 +453,8 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         
         let acoes = '';
         if (cred.status === 'solicitado') {
-            acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>`;
+            acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>
+                     <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px; color:#ef4444; border-color:#fca5a5;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'" onclick="window.excluirSolicitacaoCredenciamento('${cred.id}')" title="Excluir Solicitação"><i class="ph ph-trash"></i></button>`;
         } else if (cred.tipo_envio === 'whatsapp') {
             acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosComercial('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i></button>`;
         } else if (cred.token) {
@@ -642,5 +648,177 @@ window.copiarDadosComercial = function(id) {
     } else {
         navigator.clipboard.writeText(texto_copia);
         alert('Dados do credenciamento copiados para a área de transferência!');
+    }
+};
+
+// --- Lógica das Abas (Credenciamento / Licenças) ---
+window.switchComercialCredTab = function(tab) {
+    // Buttons
+    const btnDocs = document.getElementById('tab-btn-cred-docs');
+    const btnLics = document.getElementById('tab-btn-cred-licencas');
+    
+    if (btnDocs) btnDocs.classList.toggle('active', tab === 'docs');
+    if (btnLics) btnLics.classList.toggle('active', tab === 'licencas');
+    
+    if (tab === 'docs') {
+        if (btnDocs) {
+            btnDocs.style.fontWeight = 'bold';
+            btnDocs.style.color = '#7048e8';
+            btnDocs.style.borderBottom = '2px solid #7048e8';
+        }
+        if (btnLics) {
+            btnLics.style.fontWeight = 'bold';
+            btnLics.style.color = '#64748b';
+            btnLics.style.borderBottom = '2px solid transparent';
+        }
+        
+        document.getElementById('comercial-cred-tab-docs').style.display = 'block';
+        document.getElementById('comercial-cred-tab-licencas').style.display = 'none';
+    } else {
+        if (btnLics) {
+            btnLics.style.fontWeight = 'bold';
+            btnLics.style.color = '#7048e8';
+            btnLics.style.borderBottom = '2px solid #7048e8';
+        }
+        if (btnDocs) {
+            btnDocs.style.fontWeight = 'bold';
+            btnDocs.style.color = '#64748b';
+            btnDocs.style.borderBottom = '2px solid transparent';
+        }
+        
+        document.getElementById('comercial-cred-tab-docs').style.display = 'none';
+        document.getElementById('comercial-cred-tab-licencas').style.display = 'block';
+        
+        window.carregarLicencasCred();
+    }
+};
+
+window.carregarLicencasCred = async function() {
+    const container = document.getElementById('licencas-cred-list');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>';
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas', { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const todas = Array.isArray(data) ? data : [];
+
+        // Agrupar por empresa
+        const grupos = {};
+        todas.forEach(l => {
+            let emp = (l.empresa || 'Outras').trim();
+            if (!grupos[emp]) grupos[emp] = [];
+            grupos[emp].push(l);
+        });
+
+        if (todas.length === 0) {
+            container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Nenhuma licença encontrada.</p>';
+            return;
+        }
+
+        let html = '';
+        for (const [emp, lics] of Object.entries(grupos)) {
+            html += `<div style="margin-bottom: 10px;">
+                        <h4 style="margin-bottom: 5px; color: #334155;">${emp}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px;">`;
+            lics.forEach(l => {
+                html += `
+                    <label style="display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; background:#f8fafc;">
+                        <input type="checkbox" class="chk-licenca-cred" value="${l.id}">
+                        <span style="font-size:13px; font-weight:500;">${l.nome}</span>
+                        ${l.validade ? `<span style="font-size:11px; color:#64748b; margin-left:auto;">Val: ${l.validade.split('-').reverse().join('/')}</span>` : ''}
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<p style="color:#dc2626; font-size:13px;">Erro ao carregar licenças.</p>';
+    }
+};
+
+window.baixarLicencasSelecionadasCred = async function() {
+    const selecionados = Array.from(document.querySelectorAll('.chk-licenca-cred:checked')).map(cb => cb.value);
+    if (selecionados.length === 0) {
+        alert('Selecione pelo menos uma licença para baixar.');
+        return;
+    }
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/baixar-lote', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selecionados })
+        });
+        
+        if (!res.ok) throw new Error('Erro ao baixar lote');
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'licencas_selecionadas.zip';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao baixar licenças.');
+    }
+};
+
+window.enviarEmailLicencasSelecionadasCred = async function() {
+    const selecionados = Array.from(document.querySelectorAll('.chk-licenca-cred:checked')).map(cb => cb.value);
+    if (selecionados.length === 0) {
+        alert('Selecione pelo menos uma licença para enviar.');
+        return;
+    }
+    
+    const email = prompt('Digite o e-mail de destino:');
+    if (!email) return;
+    
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/licencas/enviar-email-lote', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: selecionados, email: email })
+        });
+        
+        if (!res.ok) throw new Error('Erro ao enviar e-mail');
+        
+        alert('E-mail enviado com sucesso!');
+        document.querySelectorAll('.chk-licenca-cred:checked').forEach(cb => cb.checked = false);
+    } catch (e) {
+        console.error(e);
+        alert('Erro ao enviar e-mail.');
+    }
+};
+
+
+window.excluirSolicitacaoCredenciamento = async function(id) {
+    if (!confirm('Tem certeza que deseja excluir esta solicitação de credenciamento? Esta ação não pode ser desfeita.')) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/comercial/credenciamento/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir solicitação');
+        
+        window.carregarHistoricoComCred();
+    } catch (e) {
+        alert(e.message);
     }
 };

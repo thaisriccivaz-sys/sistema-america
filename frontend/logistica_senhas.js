@@ -207,8 +207,12 @@ function renderSenhasTable(senhas) {
         
         const nomeExibicao = s.nome ? (s.nome.length > 15 ? s.nome.substring(0, 15) + '…' : s.nome) : '';
         const nomeHtml = nomeExibicao ? `<span title="${s.nome.replace(/"/g, '&quot;')}">${nomeExibicao}</span>` : '<span style="color:#94a3b8;">-</span>';
-        const usuarioExibicao = s.usuario ? (s.usuario.length > 20 ? s.usuario.substring(0, 20) + '…' : s.usuario) : '-';
-        const usuarioHtml = s.usuario && s.usuario.length > 20 ? `<span title="${s.usuario.replace(/"/g, '&quot;')}">${usuarioExibicao}</span>` : usuarioExibicao;
+        const escUser = (s.usuario || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const copyBtn = s.usuario ? `<button type="button" onclick="navigator.clipboard.writeText('${escUser}'); mostrarToastSucesso('Usuário copiado!'); event.stopPropagation();" style="background:none; border:none; cursor:pointer; color:#64748b; padding:0; display:flex; align-items:center;" title="Copiar Usuário"><i class="ph ph-copy"></i></button>` : '';
+        const usuarioHtml = `<div style="display:flex; align-items:center; gap:6px; justify-content:space-between;">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escUser}">${s.usuario || '-'}</span>
+            ${copyBtn}
+        </div>`;
 
         tr.innerHTML = `
             <td><span style="${statusClass} padding:4px 8px; border-radius:12px; font-size:0.8rem; font-weight:600; white-space:nowrap;">${statusIcon}</span></td>

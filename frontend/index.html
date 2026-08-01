@@ -3,6 +3,7 @@
 <html lang="pt-BR">
 
 <head>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -26,10 +27,14 @@
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20260716v5" defer></script>
-    <script src="estoque.js?v=202606272305" defer></script>
+    <script src="estoque.js?v=20260731v3" defer></script>
+    <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
-    <script src="recibos.js?v=1780956700456" defer></script>
-    <style>.swal2-container { z-index: 99999 !important; }</style>
+    <script src="recibos.js?v=20260730v1" defer></script>
+    <style>
+.bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
+.fav-btn, .btn-favorite { display: none !important; }
+.swal2-container { z-index: 99999 !important; }</style>
 </head>
 
 <body>
@@ -77,6 +82,8 @@
                             Lembrar usuário e senha
                         </label>
                     </div>
+                    <!-- Turnstile Widget -->
+                    <div class="cf-turnstile" data-sitekey="0x4AAAAAAD8V4JgN7CQl0_n6" style="margin-bottom: 1rem; display: flex; justify-content: center;"></div>
                     <button type="submit" class="btn btn-primary btn-block">Entrar</button>
                     <div id="login-error" class="error-msg"></div>
                 </form>
@@ -115,8 +122,7 @@
                         Experi&ecirc;ncia</a>
                     <a href="#" class="nav-item" data-target="admissao"><i class="ph ph-list-checks"></i>
                         Admiss&atilde;o</a>
-                    <a href="#" class="nav-item" data-target="integracao"><i class="ph ph-users-three"></i>
-                        Integra&ccedil;&atilde;o</a>
+                    
                     <a href="#" class="nav-item" data-target="faculdade"><i class="ph ph-graduation-cap"></i>
                         Faculdade</a>
                     <!-- ▸ Grupo: Avaliações (acordeão) -->
@@ -132,14 +138,8 @@
                         <div class="nav-group-items" id="nav-group-items-avaliacoes-rh">
                             <a href="#" class="nav-item nav-item-sub" data-target="satisfacao-rh"
                                onclick="navigateTo('satisfacao-rh'); return false;"><i class="ph ph-smiley"></i> Satisfação</a>
-                            <a href="#" class="nav-item nav-item-sub" data-target="experiencia-rh"
-                               onclick="navigateTo('experiencia-rh'); return false;"><i class="ph ph-user-check"></i> Experiência</a>
                             <a href="#" class="nav-item nav-item-sub" data-target="desempenho-rh"
                                onclick="navigateTo('desempenho-rh'); return false;"><i class="ph ph-trend-up"></i> Desempenho</a>
-                            <a href="#" class="nav-item nav-item-sub" data-target="terapias-rh"
-                               onclick="navigateTo('terapias-rh'); return false;"><i class="ph ph-heart"></i> Terapias</a>
-                            <a href="#" class="nav-item nav-item-sub" data-target="palestras-rh"
-                               onclick="navigateTo('palestras-rh'); return false;"><i class="ph ph-microphone-stage"></i> Palestras</a>
                         </div>
                     </div>
                     <!-- ▸ Grupo: Pagamentos (acordeão) -->
@@ -182,7 +182,22 @@
                 </div>
             </div>
 
-            <!-- Log&iacute;stica - Verde -->
+            
+            <!-- Integração - Dinâmico (cinza/vermelho) -->
+            <div class="dept-item" id="dept-item-integracao" style="--dept-color:#6b7280; --dept-bg:#f3f4f6;">
+                <button class="dept-btn" title="Integração" id="dept-btn-integracao">
+                    <i class="ph ph-handshake"></i>
+                    <span>Integra&ccedil;&atilde;o</span>
+                </button>
+                <div class="dept-submenu" id="sub-integracao">
+                    <div class="dept-submenu-header" style="color:#6b7280;" id="dept-integ-header"><i class="ph ph-handshake"></i> Integração</div>
+                    <a href="#" class="nav-item" data-target="integracao" id="nav-integracao-item"
+                       onclick="navigateTo('integracao'); return false;"><i class="ph ph-list-checks"></i>
+                        Processo de Integração <span id="integracao-badge" style="display:none;background:#ef4444;color:#fff;border-radius:50%;font-size:0.65rem;font-weight:700;padding:1px 5px;margin-left:4px;min-width:16px;text-align:center;line-height:16px;">0</span></a>
+                </div>
+            </div>
+
+<!-- Log&iacute;stica - Verde -->
             <div class="dept-item" style="--dept-color:#2d9e5f; --dept-bg:#d6f5e5;">
                 <button class="dept-btn" title="Log&iacute;stica">
                     <i class="ph ph-truck"></i>
@@ -315,46 +330,47 @@
                 </div>
             </div>
 
-            <!-- Treinamento - Azul Turquesa -->
-            <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
-                <button class="dept-btn" title="Treinamento">
-                    <i class="ph ph-graduation-cap"></i>
-                    <span>Treiname.</span>
-                </button>
-                <div class="dept-submenu">
-                    <div class="dept-submenu-header" style="color:#0e7490;"><i class="ph ph-graduation-cap"></i> Treinamento
-                    </div>
-                    <a href="#" class="nav-item" data-target="treinamento-materiais"
-                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-materiais'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
-                        Materiais</a>
-                    <a href="#" class="nav-item" data-target="treinamento-presenca"
-                        onclick="window._currentTreinamentoTipo='treinamento'; navigateTo('treinamento-presenca'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-check-square"></i>
-                        Presenças</a>
-
-                    <div class="nav-group" id="nav-group-terapia">
-                        <button class="nav-group-label nav-group-toggle"
-                                onclick="toggleNavGroup('nav-group-terapia')">
-                            <span style="display:flex;align-items:center;gap:0.55rem;">
-                                <i class="ph ph-heartbeat"></i>
-                                Terapia
-                            </span>
-                            <i class="ph ph-caret-right nav-group-chevron"></i>
-                        </button>
-                        <div class="nav-group-items" id="nav-group-items-terapia">
-                            <a href="#" class="nav-item nav-item-sub" data-target="treinamento-materiais-terapia"
-                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-materiais-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); }, 10); return false;"><i class="ph ph-books"></i>
-                                Palestras</a>
-                            <a href="#" class="nav-item nav-item-sub" data-target="treinamento-presenca-terapia"
-                                onclick="window._currentTreinamentoTipo='terapia'; navigateTo('treinamento-presenca-terapia'); setTimeout(() => { document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); this.classList.add('active'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); }, 10); return false;"><i class="ph ph-list-numbers"></i>
-                                Listas</a>
-                        </div>
+            <!-- Processos -->
+                <div class="dept-item" style="--dept-color:#ef4444; --dept-bg:#fee2e2;">
+                    <button class="dept-btn" title="Processos">
+                        <i class="ph ph-headset"></i>
+                        <span>Proces.</span>
+                    </button>
+                    <div class="dept-submenu">
+                        <div class="dept-submenu-header" style="color:#ef4444;"><i class="ph ph-headset"></i> Processos</div>
+                        <a href="#" class="nav-item" data-target="sac"
+                            onclick="navigateTo('sac'); return false;"><i class="ph ph-kanban"></i> SAC</a>
                     </div>
                 </div>
-            </div>
 
-            <!-- Diretoria - Laranja -->
-            <div class="dept-item" style="--dept-color:#c92a2a; --dept-bg:#fff5f5;">
-                <button class="dept-btn" title="Diretoria">
+            <!-- Treinamentos -->
+                <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
+                    <button class="dept-btn" title="Treinamentos">
+                        <i class="ph ph-graduation-cap"></i>
+                        <span>TREINAME.</span>
+                    </button>
+                    <div class="dept-submenu" style="padding-top:8px;">
+                        <div style="font-size:0.75rem; font-weight:800; color:#0e7490; margin:10px 0 4px 12px; text-transform:uppercase;">Treinamentos</div>
+                        <a href="#treinamento-materiais" class="nav-item" data-target="treinamento-materiais" onclick="navigateTo(\'treinamento-materiais\'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); return false;">
+                            <i class="ph ph-books"></i>
+                            Materiais Trein.</a>
+                        <a href="#treinamento-presenca" class="nav-item" data-target="treinamento-presenca" onclick="navigateTo(\'treinamento-presenca\'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); return false;">
+                            <i class="ph ph-check-square"></i>
+                            Presença Trein.</a>
+                            
+                        <div style="font-size:0.75rem; font-weight:800; color:#0e7490; margin:14px 0 4px 12px; text-transform:uppercase;">Palestras</div>
+                        <a href="#treinamento-materiais-terapia" class="nav-item" data-target="treinamento-materiais-terapia" onclick="navigateTo(\'treinamento-materiais-terapia\'); if(window.renderTreinamentosTable) window.renderTreinamentosTable(); return false;">
+                            <i class="ph ph-books"></i>
+                            Materiais Pales.</a>
+                        <a href="#treinamento-presenca-terapia" class="nav-item" data-target="treinamento-presenca-terapia" onclick="navigateTo(\'treinamento-presenca-terapia\'); if(window.initPresencaTreinamento) window.initPresencaTreinamento(); return false;">
+                            <i class="ph ph-list-numbers"></i>
+                            Presença Pales.</a>
+                    </div>
+                </div>
+
+                <!-- Diretoria -->
+                <div class="dept-item" style="--dept-color:#d9480f; --dept-bg:#ffedd5;">
+                    <button class="dept-btn" title="Diretoria">
                     <i class="ph ph-crown"></i>
                     <span>Diretoria</span>
                 </button>
@@ -379,6 +395,7 @@
                     <a href="#" class="nav-item" data-target="geradores"><i class="ph ph-file-text"></i> Geradores</a>
                     <a href="#" class="nav-item" data-target="ficha-epi"><i class="ph ph-shield-check"></i> Ficha EPI</a>
 
+                    <a href="#" class="nav-item" data-target="conf-integracao" onclick="navigateTo('conf-integracao'); return false;"><i class="ph ph-sliders-horizontal"></i> Conf. Integra.</a>
                     <!-- ── Desenvolvedor (submenu aninhado) ────────────────── -->
                     <div class="nav-group" id="nav-group-dev">
                         <button class="nav-group-label nav-group-toggle"
@@ -428,10 +445,7 @@
                             title="Histórico de Alterações">
                             <i class="ph ph-clock-counter-clockwise"></i>
                         </button>
-                        <button id="btn-star-page" onclick="toggleBookmarkCurrentPage()"
-                            style="background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#0e7490; font-size:1.5rem; transition: transform 0.2s;">
-                            <i class="ph ph-star"></i>
-                        </button>
+                        
                         <div id="bookmarks-list" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                         </div>
                     </div>
@@ -439,6 +453,15 @@
                 <div class="topbar-user">
                     <div class="user-info">
                         <span id="logged-user-name">Usuário</span>
+                    </div>
+                    <!-- 🔴 Botão de Chamados -->
+                    <div style="position:relative;display:flex;align-items:center;margin:0 6px;">
+                        <button id="btn-abrir-chamados" onclick="window.open('?abrir_chamados=1', '_blank')" title="Chamados do Sistema"
+                            style="background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;border-radius:8px;transition:background 0.15s;"
+                            onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'">
+                            <i class="ph ph-gear-six" style="font-size:1.5rem;color:#dc2626;"></i>
+                        </button>
+                        <span id="chamados-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:#dc2626;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:0.65rem;font-weight:800;justify-content:center;align-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(220,38,38,0.5);">0</span>
                     </div>
                     <div class="user-avatar" id="user-avatar-container" title="Foto do colaborador">
                         <img id="user-avatar-img" src="" alt=""
@@ -463,6 +486,8 @@
                 style="display:none; gap:2px; background:#f1f5f9; padding:6px 12px 0 12px; border-bottom:2px solid #cbd5e1; overflow-x:auto; flex-wrap:nowrap; align-items:flex-end; min-height:38px; scrollbar-width: none; -ms-overflow-style: none; overflow-y: hidden;">
                 <!-- Tabs geradas pelo app.js -->
             </div>
+            <!-- Chamados Screen (overlay fixo) -->
+            <div id="content-chamados" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:#f8fafc;overflow-y:auto;"></div>
 
             <!-- Content Area -->
             <main class="content-area" style="padding-bottom: 38px;">
@@ -894,15 +919,13 @@
                     <div class="dashboard-charts-row"
                         style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
                         <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência: Faltas e
-                                Atestados (�altimos 6 Meses)</h3>
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Frequência Geral (Últimos 6 Meses)</h3>
                             <div style="position: relative; height: 250px; width: 100%;">
                                 <canvas id="chart-atestados"></canvas>
                             </div>
                         </div>
                         <div class="card p-4">
-                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas (Sem e
-                                Com Atestado)</h3>
+                            <h3 style="font-size: 1.1rem; color: #475569; margin-bottom: 1rem;">Ranking de Faltas Colaboradores (Últimos 6 Meses)</h3>
                             <div style="position: relative; height: 250px; width: 100%;">
                                 <canvas id="chart-faltas"></canvas>
                             </div>
@@ -987,13 +1010,23 @@
                                     <i class="ph ph-plus-circle"></i> Novo Cargo
                                 </button>
                             </div>
-                            <div class="mb-3" style="position:relative;">
-                                <i class="ph ph-magnifying-glass"
-                                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                                <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
-                                    oninput="filtrarListaCargos(this.value)"
-                                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                            <div class="mb-3" style="display:flex; gap:10px; align-items:center;">
+                                <div style="flex:1; position:relative;">
+                                    <i class="ph ph-magnifying-glass"
+                                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                                    <input type="text" id="search-cargos" placeholder="Pesquisar cargo por nome..."
+                                        oninput="filtrarListaCargos()"
+                                        style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
+                                </div>
+                                <div style="min-width: 150px;">
+                                    <select id="filtro-status-cargos" class="form-control" onchange="filtrarListaCargos()">
+                                        <option value="Todos">Todos os Status</option>
+                                        <option value="Ativo" selected>Ativos</option>
+                                        <option value="Inativo">Inativos</option>
+                                    </select>
+                                </div>
                             </div>
+
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -1001,7 +1034,9 @@
                                             <th>ID</th>
                                             <th>Nome do Cargo</th>
                                             <th>Departamento</th>
+                                            <th>Status</th>
                                             <th>Responsável</th>
+                                            <th style="text-align: center;">Anexos</th>
                                             <th style="text-align: right;">Ações</th>
                                         </tr>
                                     </thead>
@@ -1016,7 +1051,7 @@
                         <div id="cargo-form-container" style="display:none;">
                             <form id="form-manage-cargo">
                                 <input type="hidden" id="manage-cargo-id">
-                                <div class="form-grid mb-4" style="grid-template-columns: 1fr 1fr; max-width: 600px;">
+                                <div class="form-grid mb-4" style="grid-template-columns: 1fr 1fr 1fr; max-width: 900px;">
                                     <div class="input-group">
                                         <label id="cargo-form-label">Nome do Cargo</label>
                                         <input type="text" id="cargo-input-name" class="form-control"
@@ -1027,6 +1062,41 @@
                                         <select id="cargo-input-departamento" class="form-control" required>
                                             <option value="" selected disabled>Selecionar</option>
                                         </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Status do Cargo</label>
+                                        <select id="cargo-input-status" class="form-control" required>
+                                            <option value="Ativo" selected>Ativo</option>
+                                            <option value="Inativo">Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="cargo-anexos-section" style="margin-top: 1.5rem; display: none;">
+                                    <h4 style="font-size: 1rem; color: #475569; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                                        <i class="ph ph-file-word"></i> Anexos Word do Cargo
+                                    </h4>
+                                    
+                                    <div class="mb-3" style="display: flex; gap: 1rem; align-items: flex-end; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Título do Documento</label>
+                                            <input type="text" id="cargo-anexo-titulo" class="form-control" placeholder="Ex: Contrato de Trabalho">
+                                        </div>
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Observações</label>
+                                            <input type="text" id="cargo-anexo-observacoes" class="form-control" placeholder="Opcional">
+                                        </div>
+                                        <div class="input-group" style="flex-grow: 1; margin: 0;">
+                                            <label>Arquivo Word (.doc, .docx)</label>
+                                            <input type="file" id="cargo-anexo-arquivo" class="form-control" accept=".doc,.docx" style="padding: 0.4rem;">
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="btn-upload-anexo-cargo" onclick="window.uploadAnexoCargo(event)" style="height: 42px; white-space: nowrap;">
+                                            <i class="ph ph-upload-simple"></i> Enviar Anexo
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="cargo-anexos-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <!-- Preenchido via JS -->
                                     </div>
                                 </div>
 
@@ -1174,15 +1244,15 @@
                     </div>
                     <div class="card mb-4 p-4">
                         <form id="form-departamento"
-                            style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
-                            <div style="flex:2;min-width:180px;">
+                            style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;align-items:flex-end;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Nome
                                     do Departamento</label>
                                 <input type="text" id="novo-departamento-nome" placeholder="Ex: Logística"
                                     style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;">
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:2/3;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Tipo</label>
                                 <select id="novo-departamento-tipo"
@@ -1191,7 +1261,7 @@
                                     <option value="Administrativo">Administrativo</option>
                                 </select>
                             </div>
-                            <div style="flex:1;min-width:160px;">
+                            <div style="grid-column:1/2;">
                                 <label
                                     style="font-size:0.8rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Responsável</label>
                                 <select id="novo-departamento-responsavel"
@@ -1199,8 +1269,17 @@
                                     <option value="">Nenhum</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
-                                    class="ph ph-plus"></i> Adicionar Depto</button>
+                            <div style="grid-column:2/3;">
+                                <label
+                                    style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                                <input type="text" id="novo-departamento-aso" placeholder="Ex: Setor de Logistica"
+                                    title="Nome específico do departamento usado no e-mail de solicitação de ASO para a IACI"
+                                    style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#eff6ff;">
+                            </div>
+                            <div style="grid-column:1/-1;display:flex;justify-content:flex-end;">
+                                <button type="submit" class="btn btn-primary" style="height:40px;white-space:nowrap;"><i
+                                        class="ph ph-plus"></i> Adicionar Depto</button>
+                            </div>
                         </form>
                     </div>
                     <div class="card">
@@ -1264,89 +1343,78 @@
                     </div>
                 </section>
 
-                <!-- VIEW: INTEGRA�!�O -->
+                <!-- VIEW: INTEGRAÇÃO -->
                 <section id="view-integracao" class="content-view">
-                    <div class="page-header flex-between"
-                        style="position: sticky; top: 60px; z-index: 20; background: var(--bg-main); padding: 1.25rem 0; margin-top: -1.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color);">
-                        <div style="display: flex; align-items: center; gap: 1.5rem;">
-                            <div
-                                style="width: 80px; height: 80px; border-radius: 50%; border: 2px dashed #059669; display: flex; align-items: center; justify-content: center; background: #ecfdf5; color: #059669; font-size: 2rem;">
-                                <i class="ph ph-users-three"></i>
+                    <div class="page-header flex-between" style="position:sticky;top:60px;z-index:20;background:var(--bg-main);padding:1.25rem 0;margin-top:-1.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);">
+                        <div style="display:flex;align-items:center;gap:1.2rem;">
+                            <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#059669,#0f4c81);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.6rem;">
+                                <i class="ph ph-handshake"></i>
                             </div>
                             <div>
-                                <h1 style="margin: 0; font-size: 1.85rem; font-weight: 700; color: #334155;">Processo de
-                                    Integração</h1>
-                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.9rem;">Siga o passo a passo para
-                                    integração dos colaboradores recém-admitidos.</p>
+                                <h1 style="margin:0;font-size:1.5rem;font-weight:700;color:#0f172a;">Processo de Integração</h1>
+                                <p style="margin:2px 0 0;color:#64748b;font-size:0.88rem;">Acompanhe e confirme as atividades de integração dos colaboradores.</p>
                             </div>
                         </div>
+                        <button onclick="window.loadIntegracaoProcessos()" class="btn btn-secondary" style="display:flex;align-items:center;gap:6px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
                     </div>
-                    <div class="card mb-4 p-4">
-                        <h3 class="section-title"><i class="ph ph-user-plus"></i> 1. Selecionar Colaborador</h3>
-                        <p class="text-muted mb-3">Selecione o colaborador para iniciar a integração.</p>
-                        <div style="max-width: 600px;">
-                            <div class="input-group" style="margin-bottom:0.5rem;">
-                                <label>Colaborador</label>
-                                <select
-                                    style="padding:0.75rem; border:1px solid var(--border-color); border-radius:6px; background:#fff; outline:none; font-size:0.95rem; width:100%;"
-                                    id="select-integracao-colab" id="select-integracao-colab"
-                                    onchange="window.startIntegracao(this.value)">
-                                    <option value="">Selecione um colaborador...</option>
 
-                                </select>
-                            </div>
+                    <!-- Filtro de status -->
+                    <div style="display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap;">
+                        <button id="btn-filter-integ-todos" onclick="window.filterIntegracaoStatus('todos')"
+                            class="btn btn-secondary" style="font-size:0.82rem;padding:6px 14px;border-radius:20px;background:#0f4c81;color:#fff;border:none;">
+                            Todos
+                        </button>
+                        <button id="btn-filter-integ-pendente" onclick="window.filterIntegracaoStatus('pendente')"
+                            class="btn btn-secondary" style="font-size:0.82rem;padding:6px 14px;border-radius:20px;">
+                            <i class="ph ph-clock"></i> Pendente
+                        </button>
+                        <button id="btn-filter-integ-andamento" onclick="window.filterIntegracaoStatus('em_andamento')"
+                            class="btn btn-secondary" style="font-size:0.82rem;padding:6px 14px;border-radius:20px;">
+                            <i class="ph ph-spinner-gap"></i> Em Andamento
+                        </button>
+                    </div>
+
+                    <div id="integracao-processos-lista" style="display:flex;flex-direction:column;gap:1rem;">
+                        <div style="text-align:center;padding:3rem;color:#94a3b8;">
+                            <i class="ph ph-spinner-gap" style="font-size:2rem;"></i>
+                            <p style="margin-top:0.5rem;">Carregando...</p>
                         </div>
                     </div>
-                    <div id="integracao-workflow" style="display:none;">
-                        <div class="admissao-stepper">
-                            <div class="step-item active" id="int-step-1" onclick="window.nextIntegracaoStep(1)">
-                                <div class="step-icon"><span class="num">1</span></div><span class="step-label">Teste
-                                    1</span>
+
+                    <!-- Modal de passos do processo -->
+                    <div id="modal-integracao-processo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;padding:2rem 1rem;">
+                        <div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.2);">
+                            <div style="background:linear-gradient(135deg,#0f4c81,#059669);padding:1.5rem 1.5rem 1rem;color:#fff;">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                    <div>
+                                        <h2 style="margin:0;font-size:1.25rem;font-weight:700;" id="modal-integ-nome"></h2>
+                                        <p style="margin:4px 0 0;opacity:0.85;font-size:0.88rem;" id="modal-integ-cargo"></p>
+                                    </div>
+                                    <button onclick="document.getElementById('modal-integracao-processo').style.display='none'"
+                                        style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">
+                                        <i class="ph ph-x"></i>
+                                    </button>
+                                </div>
+                                <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;" id="modal-integ-badges"></div>
+<div id="modal-integ-pct" style="margin-top:1rem;font-size:1rem;font-weight:700;"></div>
                             </div>
-                            <div class="step-item" id="int-step-2" onclick="window.nextIntegracaoStep(2)">
-                                <div class="step-icon"><span class="num">2</span></div><span class="step-label">Teste
-                                    2</span>
+                            <div style="padding:1.5rem;" id="modal-integ-passos-container">
+                                <!-- Passos renderizados via JS -->
                             </div>
-                            <div class="step-item" id="int-step-3" onclick="window.nextIntegracaoStep(3)">
-                                <div class="step-icon"><span class="num">3</span></div><span class="step-label">Teste
-                                    3</span>
-                            </div>
-                            <div class="step-item" id="int-step-4" onclick="window.nextIntegracaoStep(4)">
-                                <div class="step-icon"><span class="num">4</span></div><span class="step-label">Teste
-                                    4</span>
-                            </div>
-                            <div class="step-item" id="int-step-5" onclick="window.nextIntegracaoStep(5)">
-                                <div class="step-icon"><span class="num">5</span></div><span class="step-label">Teste
-                                    5</span>
-                            </div>
-                            <div class="step-item" id="int-step-6" onclick="window.nextIntegracaoStep(6)">
-                                <div class="step-icon"><span class="num">6</span></div><span class="step-label">Teste
-                                    6</span>
-                            </div>
-                        </div>
-                        <div class="integracao-panel active card p-4" id="int-panel-step-1">
-                            <h3 class="section-title"><i class="ph ph-number-square-one"></i> Conteúdo Teste 1</h3>
-                        </div>
-                        <div class="integracao-panel card p-4" id="int-panel-step-2" style="display:none;">
-                            <h3 class="section-title"><i class="ph ph-number-square-two"></i> Conteúdo Teste 2</h3>
-                        </div>
-                        <div class="integracao-panel card p-4" id="int-panel-step-3" style="display:none;">
-                            <h3 class="section-title"><i class="ph ph-number-square-three"></i> Conteúdo Teste 3</h3>
-                        </div>
-                        <div class="integracao-panel card p-4" id="int-panel-step-4" style="display:none;">
-                            <h3 class="section-title"><i class="ph ph-number-square-four"></i> Conteúdo Teste 4</h3>
-                        </div>
-                        <div class="integracao-panel card p-4" id="int-panel-step-5" style="display:none;">
-                            <h3 class="section-title"><i class="ph ph-number-square-five"></i> Conteúdo Teste 5</h3>
-                        </div>
-                        <div class="integracao-panel card p-4" id="int-panel-step-6" style="display:none;">
-                            <h3 class="section-title"><i class="ph ph-number-square-six"></i> Conteúdo Teste 6</h3>
                         </div>
                     </div>
                 </section>
 
+<!-- VIEW: CONF. INTEGRAÇÃO -->
+                <section id="view-conf-integracao" class="content-view">
+                    <div id="conf-integ-container">
+                        <!-- Renderizado dinamicamente pelo integracao.js -->
+                    </div>
+                </section>
 
-                <!-- VIEW: FACULDADE -->
+<!-- VIEW: FACULDADE -->
                 <section id="view-faculdade" class="content-view">
                     <div class="page-header flex-between">
                         <h2>Gestão de Cursos de Faculdade</h2>
@@ -2398,6 +2466,49 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        <!-- 5.7 Habilitação Categoria B -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-car"></i> Habilitação Categoria B</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Inscrever no programa Habilitação B</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="habilitacao_b"
+                                                                value="Não" checked onchange="toggleHabilitacaoB(this.value)"> Não</label>
+                                                        <label><input type="radio" name="habilitacao_b"
+                                                                value="Sim" onchange="toggleHabilitacaoB(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="opcional-content" id="content-habilitacao-b" style="display: none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início da Habilitação B</label>
+                                                    <input type="date" id="colab-habilitacao-b-data">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 5.8 Habilitação Categoria D -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-truck"></i> Habilitação Categoria D</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Inscrever no programa Habilitação D</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="habilitacao_d"
+                                                                value="Não" checked onchange="toggleHabilitacaoD(this.value)"> Não</label>
+                                                        <label><input type="radio" name="habilitacao_d"
+                                                                value="Sim" onchange="toggleHabilitacaoD(this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="opcional-content" id="content-habilitacao-d" style="display: none;">
+                                                <div class="input-group">
+                                                    <label>Data de Início da Habilitação D</label>
+                                                    <input type="date" id="colab-habilitacao-d-data">
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div><!-- End module-opcionais card -->
 
@@ -2527,7 +2638,7 @@
 
                         <!-- Back Button -->
                         <button class="btn btn-secondary" onclick="navigateTo('colaboradores')"
-                            style="font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            style="font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); background-color: #6b7280; color: #fff; border-color: #4b5563;">
                             <i class="ph ph-arrow-left"></i> Voltar
                         </button>
                     </div>
@@ -2560,7 +2671,7 @@
                                 <li data-tab="Advert&ecirc;ncias">Ocorr&ecirc;ncias</li>
                                 <li data-tab="Faculdade">Faculdade</li>
                                 <!-- Aba Boletim de ocorrencia removida - usar aba Sinistros -->
-                                <li data-tab="Certificados">Certificados</li>
+                                <li data-tab="Certificados" style="display:none !important;">Certificados</li>
                                 <li id="tab-conjuge" data-tab="Conjuge" style="display:none !important;">Conjuge</li>
                                 <li data-tab="Dependentes">Dependentes</li>
                                 <li data-tab="Fotos" style="display:none !important;">Fotos</li>
@@ -2569,6 +2680,7 @@
                                 <li data-tab="NRs" style="display:none !important;">NRs</li>
                                 <li data-tab="Terapia" style="display:none !important;">Terapia</li>
                                 <li data-tab="Treinamento" style="display:none !important;">Treinamento</li>
+                                <li id="tab-rescisao" data-tab="Rescis&atilde;o" style="display:none !important; background:#fef2f2; color:#b91c1c; font-weight:700;"><i class="ph ph-file-x"></i> Rescis&atilde;o</li>
                             </ul>
                         </div>
 
@@ -3077,77 +3189,102 @@
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top: 2rem;">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-                            <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
-                                <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
-                                <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                                    <div style="position:relative;">
-                                        <i class="ph ph-hash"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-os-com-cred" class="form-control"
-                                            placeholder="OS" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 80px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-user"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-cliente-com-cred" class="form-control"
-                                            placeholder="Cliente" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-map-pin"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-endereco-com-cred" class="form-control"
-                                            placeholder="Endereço" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <i class="ph ph-envelope-simple"
-                                            style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
-                                        <input type="text" id="filtro-pesquisa-email-com-cred" class="form-control"
-                                            placeholder="E-mail" oninput="window.filtrarHistoricoComCred()"
-                                            style="width: 150px; padding: 6px 12px 6px 30px;">
+                    <!-- Tabs Credenciamento -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                        <button id="tab-btn-cred-docs" class="tab-btn active" onclick="switchComercialCredTab('docs')" style="padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-weight: bold; color: #7048e8; border-bottom: 2px solid #7048e8;"><i class="ph ph-folder" style="margin-right:4px;"></i> Documentos Colaboradores</button>
+                        <button id="tab-btn-cred-licencas" class="tab-btn" onclick="switchComercialCredTab('licencas')" style="padding: 8px 16px; border: none; background: transparent; cursor: pointer; font-weight: bold; color: #64748b; border-bottom: 2px solid transparent;"><i class="ph ph-seal-check" style="margin-right:4px;"></i> Licenças</button>
+                    </div>
+
+                    <!-- TAB: Documentos Colaboradores -->
+                    <div id="comercial-cred-tab-docs" style="display:block;">
+                        <div class="card" style="margin-top: 1rem;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                <div style="display:flex; align-items:center; gap: 15px; flex-wrap: wrap;">
+                                    <h3><i class="ph ph-list-dashes"></i> Minhas Solicitações</h3>
+                                    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                                        <div style="position:relative;">
+                                            <i class="ph ph-hash"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-os-com-cred" class="form-control"
+                                                placeholder="OS" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 80px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-user"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-cliente-com-cred" class="form-control"
+                                                placeholder="Cliente" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-map-pin"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-endereco-com-cred" class="form-control"
+                                                placeholder="Endereço" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
+                                        <div style="position:relative;">
+                                            <i class="ph ph-envelope-simple"
+                                                style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                                            <input type="text" id="filtro-pesquisa-email-com-cred" class="form-control"
+                                                placeholder="E-mail" oninput="window.filtrarHistoricoComCred()"
+                                                style="width: 150px; padding: 6px 12px 6px 30px;">
+                                        </div>
                                     </div>
                                 </div>
+                                <button class="btn btn-danger"
+                                    style="display: none; padding: 4px 12px; font-size: 12px; margin-right: 8px;"
+                                    onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar
+                                    Lista</button>
+                                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;"
+                                    onclick="window.carregarHistoricoComCred()">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
                             </div>
-                            <button class="btn btn-danger"
-                                style="display: none; padding: 4px 12px; font-size: 12px; margin-right: 8px;"
-                                onclick="window.limparListaCredenciamentos()"><i class="ph ph-trash"></i> Limpar
-                                Lista</button>
-                            <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; display: none;"
-                                onclick="window.carregarHistoricoComCred()">
-                                <i class="ph ph-arrows-clockwise"></i> Atualizar
-                            </button>
+                            <div class="table-responsive"
+                                style="max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                                <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
+                                    <thead
+                                        style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <tr>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('os')">OS <i
+                                                    class="ph ph-arrows-down-up"></i></th>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('cliente')">
+                                                Cliente / Obra <i class="ph ph-arrows-down-up"></i></th>
+                                            <th>Colaboradores (Qtd Max)</th>
+                                            <th>Veículos (Qtd Max)</th>
+                                            <th>Licenças</th>
+                                            <th>Data Limite</th>
+                                            <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('data')">
+                                                Status <i class="ph ph-arrows-down-up"></i></th>
+                                            <th style="text-align:right;">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-comercial-cred">
+                                        <tr>
+                                            <td colspan="6" style="text-align:center; color:#94a3b8; padding:2rem;">
+                                                Carregando histórico...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="table-responsive"
-                            style="max-height: calc(100vh - 280px); overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
-                            <table class="table" style="font-size:0.85rem; margin:0; width:100%;">
-                                <thead
-                                    style="position: sticky; top: 0; background: #f8fafc; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                    <tr>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('os')">OS <i
-                                                class="ph ph-arrows-down-up"></i></th>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('cliente')">
-                                            Cliente / Obra <i class="ph ph-arrows-down-up"></i></th>
-                                        <th>Colaboradores (Qtd Max)</th>
-                                        <th>Veículos (Qtd Max)</th>
-                                        <th>Licenças</th>
-                                        <th>Data Limite</th>
-                                        <th style="cursor:pointer;" onclick="window.ordenarHistoricoComCred('data')">
-                                            Status <i class="ph ph-arrows-down-up"></i></th>
-                                        <th style="text-align:right;">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-comercial-cred">
-                                    <tr>
-                                        <td colspan="6" style="text-align:center; color:#94a3b8; padding:2rem;">
-                                            Carregando histórico...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    </div>
+
+                    <!-- TAB: Licenças -->
+                    <div id="comercial-cred-tab-licencas" style="display:none;">
+                        <div class="card" style="margin-top: 1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                                <h3><i class="ph ph-seal-check"></i> Nossas Licenças e Destinadores</h3>
+                                <div style="display:flex; gap: 10px;">
+                                    <button class="btn btn-outline" onclick="window.baixarLicencasSelecionadasCred()"><i class="ph ph-download-simple"></i> Baixar Selecionadas</button>
+                                    <button class="btn btn-primary" style="background-color: #7048e8; border-color: #7048e8;" onclick="window.enviarEmailLicencasSelecionadasCred()"><i class="ph ph-envelope-simple"></i> Enviar por E-mail</button>
+                                </div>
+                            </div>
+                            <div id="licencas-cred-list" style="display:flex; flex-direction:column; gap:10px;">
+                                <p style="color:#94a3b8; font-size:13px;">Carregando licenças...</p>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -3174,41 +3311,19 @@
                                         <input type="text" id="solic-cliente-nome" placeholder="Ex: Construtora XPTO"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
-                                    <div class="form-group">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">Tipo de Envio</label>
-                                        <select id="solic-tipo-envio" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;" onchange="window.mudarTipoEnvioComercial()">
-                                            <option value="email">E-mail</option>
-                                            <option value="whatsapp">WhatsApp</option>
-                                        </select>
-                                    </div>
+
                                     <div class="form-group" id="grupo-solic-email">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail do
-                                            Cliente</label>
-                                        <input type="email" id="solic-cliente-email"
-                                            placeholder="Ex: contato@xpto.com.br"
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail ou WhatsApp do cliente
+                                            <span class="required">*</span></label>
+                                        <input type="text" id="solic-cliente-email"
+                                            placeholder="Ex: contato@xpto.com.br ou (11) 99999-9999"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                                     </div>
-                                    <div class="form-group" id="grupo-solic-whatsapp" style="display:none;">
-                                        <label style="display:block; margin-bottom:4px; font-weight:600;">WhatsApp do
-                                            Cliente</label>
-                                        <input type="text" id="solic-cliente-whatsapp"
-                                            placeholder="Ex: (11) 99999-9999" oninput="maskPhone(this)"
+
+                                    <div class="form-group">
+                                        <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                                        <input type="text" id="solic-os" placeholder="Ex: OS-12345"
                                             style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                    </div>
-                                    <div class="form-group"
-                                        style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 3fr; gap: 1rem;">
-                                        <div>
-                                            <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
-                                            <input type="text" id="solic-os" placeholder="Ex: OS-12345"
-                                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                        </div>
-                                        <div>
-                                            <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço
-                                                de Instalação</label>
-                                            <input type="text" id="solic-endereco-instalacao"
-                                                placeholder="Ex: Rua das Flores, 123 - Centro"
-                                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3422,12 +3537,11 @@
                                 <thead>
                                     <tr style="font-size:0.78rem;">
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Catg. <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
-                                        <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Placas <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Qt. Atual <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th onclick="window.sortTable(this)" style="cursor:pointer;white-space:nowrap;" title="Ordenar">Min/Máx <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
                                         <th style="white-space:nowrap;"><i class="ph ph-map-pin" style="color:#1d4ed8;"></i> Endereços <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;margin-left:2px;"></i></th>
+                                        <th style="white-space:nowrap;">Tipo</th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
@@ -3865,11 +3979,7 @@
 
                 <!-- VIEW: DESEMPENHO RH -->
                 <section id="view-desempenho-rh" class="content-view">
-                    <div style="padding:3rem;text-align:center;color:#94a3b8;">
-                        <i class="ph ph-trend-up" style="font-size:3.5rem;margin-bottom:1rem;display:block;color:#cbd5e1;"></i>
-                        <h2 style="color:#334155;margin:0 0 0.5rem;">Desempenho</h2>
-                        <p style="margin:0;">Esta tela está em desenvolvimento. Em breve disponível.</p>
-                    </div>
+                    <div id="desempenho-rh-container"></div>
                 </section>
 
                 <!-- VIEW: TERAPIAS RH -->
@@ -4218,6 +4328,11 @@
                     <div id="pipeline-container"></div>
                 </section>
 
+                <!-- VIEW: SAC — PORTAL DE OCORRÊNCIAS -->
+                <section id="view-sac" class="content-view" style="padding:0;">
+                    <div id="sac-root"></div>
+                </section>
+
                 <!-- VIEW: RESUMO DE ROTA -->
                 <section id="view-logistica-resumo-rota" class="content-view" style="padding:0;">
                     <div id="resumo-rota-container"></div>
@@ -4315,7 +4430,7 @@
                                         <th>Data Limite</th>
                                         <th style="cursor:pointer; white-space:nowrap;"
                                             onclick="window.ordenarHistoricoCred('data')" title="Ordenar Antigo/Novo">
-                                            Status do Link <i class="ph ph-arrows-down-up"
+                                            Status <i class="ph ph-arrows-down-up"
                                                 style="color:#94a3b8; font-size:12px;"></i></th>
                                         <th style="text-align:right;">Ações</th>
                                     </tr>
@@ -5166,7 +5281,27 @@
                     <option value="">Todos os tipos</option>
                     <option value="Administrativo">Administrativo</option>
                     <option value="Operacional">Operacional</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Status Funcional</label>
+                <select id="pres-filtro-status" class="form-control" style="width:100%;" onchange="window.filtrarPresencaStatus(this.value)">
+                    <option value="Ativos">Ativos</option>
                     <option value="Desligados">Desligados</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:180px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Treinamento/Palestra</label>
+                <select id="pres-filtro-treinamento" class="form-control" style="width:100%;" onchange="window.filtrarPresencaTreinamento(this.value)">
+                    <option value="">Todos os treinamentos</option>
+                </select>
+            </div>
+            <div style="flex:1;min-width:150px;">
+                <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Conclusão</label>
+                <select id="pres-filtro-conclusao" class="form-control" style="width:100%;" onchange="window.filtrarPresencaConclusao(this.value)">
+                    <option value="">Todos</option>
+                    <option value="Concluido">Concluído</option>
+                    <option value="Pendente">Pendente</option>
                 </select>
             </div>
             <div style="flex:2;min-width:200px;">
@@ -5221,39 +5356,21 @@
                     <h3><i class="ph ph-user"></i> Dados do Cliente</h3>
                     <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                         <div class="form-group">
-                            <label>Nome do Cliente / Obra <span class="required">*</span></label>
-                            <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO">
-                        </div>
-                        <div class="form-group">
-                            <label style="display:block; margin-bottom:4px; font-weight:600;">Tipo de Envio</label>
-                            <select id="cred-tipo-envio" style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;" onchange="window.mudarTipoEnvioLogistica()">
-                                <option value="email">E-mail</option>
-                                <option value="whatsapp">WhatsApp</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="grupo-cred-email">
-                            <label>E-mail do Cliente <span class="required">*</span></label>
-                            <input type="email" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br">
-                        </div>
-                        <div class="form-group" id="grupo-cred-whatsapp" style="display:none;">
-                            <label>WhatsApp do Cliente</label>
-                            <input type="text" id="cred-cliente-whatsapp" placeholder="Ex: (11) 99999-9999" oninput="maskPhone(this)"
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">Nome do Cliente / Obra <span class="required">*</span></label>
+                            <input type="text" id="cred-cliente-nome" placeholder="Ex: Construtora XPTO"
                                 style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                         </div>
-                        <div class="form-group"
-                            style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 3fr; gap: 1rem;">
-                            <div>
-                                <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
-                                <input type="text" id="cred-os" placeholder="Ex: OS-12345"
-                                    style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                            </div>
-                            <div>
-                                <label style="display:block; margin-bottom:4px; font-weight:600;">Endereço de
-                                    Instalação</label>
-                                <input type="text" id="cred-endereco-instalacao"
-                                    placeholder="Ex: Rua das Flores, 123 - Centro"
-                                    style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
-                            </div>
+
+                        <div class="form-group" id="grupo-cred-email">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">E-mail ou WhatsApp do cliente <span class="required">*</span></label>
+                            <input type="text" id="cred-cliente-email" placeholder="Ex: contato@xpto.com.br ou (11) 99999-9999"
+                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">OS</label>
+                            <input type="text" id="cred-os" placeholder="Ex: OS-12345"
+                                style="width:100%; padding:0.6rem; border:1px solid #e2e8f0; border-radius:6px; box-sizing:border-box;">
                         </div>
                     </div>
                 </div>
@@ -5628,7 +5745,7 @@
     <div id="modal-editar-departamento" class="modal"
         style="display:none; align-items:center; justify-content:center; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.5);">
         <div class="modal-content"
-            style="max-width: 450px; background:#fff; border-radius:12px; overflow:hidden; width: 100%;">
+            style="max-width: 480px; background:#fff; border-radius:12px; overflow:visible; width: 100%; max-height:92vh; display:flex; flex-direction:column;">
             <div class="modal-header"
                 style="background:#f8fafc; padding:1.25rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:1.2rem; color:#1e293b;">Editar Departamento</h3>
@@ -5636,7 +5753,7 @@
                     onclick="document.getElementById('modal-editar-departamento').style.display='none'"
                     style="cursor:pointer; font-size:1.5rem; color:#94a3b8;">&times;</span>
             </div>
-            <div class="modal-body" style="padding:1.25rem;">
+            <div class="modal-body" style="padding:1.25rem; overflow-y:auto; flex:1;">
                 <form id="form-editar-departamento">
                     <input type="hidden" id="edit-departamento-id">
                     <div class="input-group mb-3">
@@ -5662,6 +5779,15 @@
                             style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;background:#fff;outline:none;">
                             <option value="">Nenhum</option>
                         </select>
+                    </div>
+                    <div class="input-group mb-4">
+                        <label
+                            style="font-size:0.8rem;font-weight:600;color:#0f4c81;display:block;margin-bottom:4px;"><i class="ph ph-first-aid"></i> Nome para ASO (IACI)</label>
+                        <input type="text" id="edit-departamento-aso"
+                            placeholder="Nome específico para o e-mail de ASO"
+                            title="Será usado no campo Departamento do e-mail de solicitação de exame enviado para a IACI"
+                            style="width:100%;padding:0.6rem 0.75rem;border:1px solid #bfdbfe;border-radius:8px;font-size:0.9rem;outline:none;background:#eff6ff;">
+                        <small style="color:#64748b;font-size:0.75rem;margin-top:4px;display:block;">Se preenchido, este nome aparecerá no campo Departamento do e-mail enviado para a IACI.</small>
                     </div>
                     <div style="display:flex; gap:1rem; justify-content:flex-end;">
                         <button type="button" class="btn btn-secondary"
@@ -5916,11 +6042,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Gerador PDF client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="avaliacoes_perguntas.js?v=20260728v2"></script>
     <script src="avaliacoes.js?v=1778869020176"></script>
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1778869020176"></script>
-    <script src="usuarios.js?v=20260716v4"></script>
+    <script src="usuarios.js?v=20260801v2"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -5931,8 +6058,8 @@
     <script src="multas_monaco.js?v=1778869020176"></script>
     <script src="equipes.js?v=1778869020176"></script>
     <script src="frota.js?v=20260702v6"></script>
-    <script src="logistica_senhas.js?v=20260718v1"></script>
-    <script src="administrativo_senhas.js?v=1"></script>
+    <script src="logistica_senhas.js?v=20260801v1"></script>
+    <script src="administrativo_senhas.js?v=20260731v10"></script>
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js"></script>
     <script src="comercial_credenciamento.js"></script>
@@ -5948,7 +6075,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1782835731066"></script>
-    <script src="app.js?v=20260718v3"></script>
+    <script src="app.js?v=20260801v2"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
@@ -6048,6 +6175,9 @@
         </div>
     </div>
     <style>
+.bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
+.fav-btn, .btn-favorite { display: none !important; }
+
         @keyframes spin {
             from {
                 transform: rotate(0deg);
@@ -6078,27 +6208,71 @@
                 <form id="form-editar-treinamento" onsubmit="window.salvarEdicaoTreinamento(event)">
                     <div id="aba-detalhes-content">
                     <input type="hidden" id="editar-treinamento-id">
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
-                        <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
-                            style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
-                    </div>
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
-                        <div id="editar-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
-                            <!-- Checkboxes injetados pelo JS -->
+
+                    <!-- Linha 1: Nome (2/3) + Data (1/3) -->
+                    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;" class="mb-3">
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Nome do Treinamento *</label>
+                            <input type="text" id="editar-treinamento-nome" class="form-control" placeholder="Ex: NR-35 Trabalho em Altura" required
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data da Palestra <span style="font-weight:400;color:#94a3b8;font-size:0.83rem;">(Opcional)</span></label>
+                            <input type="date" id="editar-treinamento-data" class="form-control"
+                                style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 12px;border:1.5px solid #cbd5e1;">
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
-                        <textarea id="editar-treinamento-desc" class="form-control" rows="5" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo do treinamento..."
-                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:120px;"></textarea>
+
+                    <!-- Linha 2: Integração — card destacado com espaçamento do título -->
+                    <div style="margin-top:20px;" class="mb-3">
+                        <label for="editar-treinamento-is-integracao" style="display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:10px;padding:12px 16px;transition:border-color .2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#93c5fd'">
+                            <input type="checkbox" id="editar-treinamento-is-integracao" value="1" style="width:18px;height:18px;accent-color:#1d4ed8;cursor:pointer;flex-shrink:0;">
+                            <div>
+                                <span style="font-weight:600;font-size:0.95rem;color:#1d4ed8;">Pertence à Integração do colaborador?</span>
+                                <p style="margin:2px 0 0;font-size:0.78rem;color:#3b82f6;">Se marcado, este item será obrigatório no checklist de integração de novos colaboradores.</p>
+                            </div>
+                        </label>
                     </div>
+
+                    <!-- Linha 3: Descrição abaixo da integração -->
+                    <div style="margin-top:20px;" class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Descrição</label>
+                        <textarea id="editar-treinamento-desc" class="form-control" rows="4" placeholder="Descreva brevemente o conteúdo, objetivos e público-alvo da palestra..."
+                            style="width:100%;box-sizing:border-box;border-radius:8px;resize:vertical;font-size:0.93rem;padding:10px 14px;border:1.5px solid #cbd5e1;min-height:90px;"></textarea>
+                    </div>
+
+                    <!-- Destinatários -->
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Destinatários</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <!-- Painel Esquerdo: Departamentos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-buildings" style="color:#0e7490;"></i> Departamentos
+                                </div>
+                                <div id="editar-treinamento-departamento" style="max-height:160px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                            <!-- Painel Direito: Colaboradores Avulsos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-user-plus" style="color:#1d4ed8;"></i> Colaboradores Avulsos
+                                </div>
+                                <input type="text" id="editar-trein-colab-busca" placeholder="Buscar colaborador..." oninput="window._filtrarColabsTrein('editar')" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.88rem;padding:7px 10px;border:1.5px solid #cbd5e1;margin-bottom:6px;outline:none;">
+                                <div id="editar-treinamento-colaboradores" style="max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Imagem de Capa -->
                     <div class="mb-3">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="editar-capa-preview-wrap" style="display:none;margin-bottom:8px;">
                             <div style="position:relative;display:inline-block;width:100%;">
-                                <img id="editar-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <img id="editar-capa-preview" src="" alt="Capa" style="max-width:200px;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
                                 <button type="button" onclick="window._editarCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
                             </div>
                         </div>
@@ -6109,7 +6283,9 @@
                         <input type="file" id="editar-treinamento-capa" accept="image/*" style="display:none;" onchange="window._editarCapaPreview(this)">
                         <input type="hidden" id="editar-treinamento-capa-url">
                     </div>
-                    <div class="mb-3">
+
+                    <!-- Validade (oculto para palestra via JS) -->
+                    <div class="mb-3" id="editar-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:8px;">
@@ -6168,7 +6344,9 @@
     <script src="treinamento.js?v=20260702v7"></script>
     <script src="treinamento_presenca.js?v=20260702v4"></script>
     <script src="assinaturas.js?v=1"></script>
-    <script src="satisfacao_rh.js?v=1"></script>
+    <script src="satisfacao_rh.js?v=20260720v1"></script>
+    <script src="desempenho_rh.js?v=20260720v1"></script>
+    <script src="sac.js?v=20260801v1"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
@@ -6220,12 +6398,42 @@
                             style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
                     </div>
                     <div class="mb-3">
-                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Departamentos</label>
-                        <div id="novo-treinamento-departamento" style="width:100%;max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.95rem;padding:10px 14px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:8px;">
-                            <!-- Checkboxes injetados pelo JS -->
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:0.95rem;color:#374151;">
+                            <input type="checkbox" id="novo-treinamento-is-integracao" value="1"> Pertence à Integração do colaborador?
+                        </label>
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 24px;">Se marcado, este treinamento poderá ser vinculado nas ações de integração para auto-conclusão.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Data do Treinamento / Palestra (Opcional)</label>
+                        <input type="date" id="novo-treinamento-data" class="form-control" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:1rem;padding:10px 14px;border:1.5px solid #cbd5e1;">
+                        <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0 0;">Se preenchido (ex: palestra), só será obrigatório para colaboradores admitidos antes ou no dia desta data.</p>
+                    </div>
+<div class="mb-3">
+                        <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Destinatários</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                            <!-- Painel Esquerdo: Departamentos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-buildings" style="color:#0e7490;"></i> Departamentos
+                                </div>
+                                <div id="novo-treinamento-departamento" style="max-height:160px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
+                            <!-- Painel Direito: Colaboradores Avulsos -->
+                            <div>
+                                <div style="font-size:0.8rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">
+                                    <i class="ph ph-user-plus" style="color:#1d4ed8;"></i> Colaboradores Avulsos
+                                </div>
+                                <input type="text" id="novo-trein-colab-busca" placeholder="Buscar colaborador..." oninput="window._filtrarColabsTrein('novo')" style="width:100%;box-sizing:border-box;border-radius:8px;font-size:0.88rem;padding:7px 10px;border:1.5px solid #cbd5e1;margin-bottom:6px;outline:none;">
+                                <div id="novo-treinamento-colaboradores" style="max-height:130px;overflow-y:auto;box-sizing:border-box;border-radius:8px;font-size:0.9rem;padding:10px 12px;border:1.5px solid #cbd5e1;background:#fff;display:flex;flex-direction:column;gap:7px;">
+                                    <!-- Checkboxes injetados pelo JS -->
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" id="novo-validade-wrap">
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:4px;">Validade do Treinamento</label>
                         <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 8px;">Número de meses válido após a conclusão. 0 = sem validade.</p>
                         <div style="display:flex;align-items:center;gap:10px;">
@@ -6242,7 +6450,7 @@
                         <label style="font-weight:600;font-size:0.95rem;color:#374151;display:block;margin-bottom:8px;">Imagem de Capa</label>
                         <div id="novo-capa-preview-wrap" style="display:none;margin-bottom:8px;">
                             <div style="position:relative;display:inline-block;">
-                                <img id="novo-capa-preview" src="" alt="Capa" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
+                                <img id="novo-capa-preview" src="" alt="Capa" style="max-width:200px;max-height:160px;object-fit:contain;border-radius:10px;border:1.5px solid #cbd5e1;display:block;">
                                 <button type="button" onclick="window._novoCapaRemover()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);border:none;color:#fff;border-radius:50%;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.85rem;" title="Remover capa">&times;</button>
                             </div>
                         </div>
