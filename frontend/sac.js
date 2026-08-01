@@ -18,23 +18,25 @@
   ];
 
   const TICKET_TYPES = {
-    manutencao:        { name: 'MANUTENÇÃO',          sla: 36, icon: '🔧' },
-    avaria_funcional:  { name: 'AVARIA FUNCIONAL',    sla: 48, icon: '⚡' },
-    avaria_estetica:   { name: 'AVARIA ESTÉTICA',     sla: 36, icon: '🎨' },
-    entrega:           { name: 'ENTREGA',              sla: 48, icon: '🚚' },
-    retirada:          { name: 'RETIRADA',             sla: 48, icon: '📦' },
-    contrato:          { name: 'CONTRATO',             sla: 48, icon: '📋' },
-    furto:             { name: 'FURTO / EXTRAVIO',     sla: 24, icon: '🔴' }
+    manutencao:          { name: 'MANUTENÇÃO',            sla: 36, icon: '🪣' },
+    avaria_funcional:    { name: 'AVARIA FUNCIONAL',      sla: 48, icon: '⚠️' },
+    avaria_nao_funcional:{ name: 'AVARIA NÃO FUNCIONAL',  sla: 36, icon: '⚙️' },
+    entrega:             { name: 'ENTREGA',                sla: 48, icon: '🚚' },
+    retirada:            { name: 'RETIRADA',               sla: 48, icon: '📦' },
+    contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
+    furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
+    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 24, icon: '🔧' }
   };
 
   const OCCURRENCES_BY_TYPE = {
-    manutencao:        ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
-    avaria_funcional:  ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
-    avaria_estetica:   ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
-    entrega:           ['Endereço incorreto', 'Equipe não localizou o ponto', 'Cliente ausente', 'Produto entregue errado', 'Atraso na entrega'],
-    retirada:          ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
-    contrato:          ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
-    furto:             ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda']
+    manutencao:          ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
+    avaria_funcional:    ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
+    avaria_nao_funcional:['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+    entrega:             ['Endereço incorreto', 'Equipe não localizou o ponto', 'Cliente ausente', 'Produto entregue errado', 'Atraso na entrega'],
+    retirada:            ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
+    contrato:            ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
+    furto:               ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
+    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato']
   };
 
   const CHECKLISTS_BY_TYPE = {
@@ -54,7 +56,7 @@
       'Foi feita inspeção para garantir que não há outras avarias ocultas?',
       'A OS de Avaria foi emitida, preenchida e anexada ao sistema?'
     ],
-    avaria_estetica: [
+    avaria_nao_funcional: [
       'Foi validado visualmente que o reparo estético foi realizado?',
       'A OS de Avaria correspondente foi devidamente emitida e registrada?'
     ],
@@ -75,6 +77,11 @@
       'A OS de Avaria por Furto foi formalmente emitida?',
       'A reposição de um novo equipamento para o cliente foi registrada?',
       'O setor responsável foi notificado para dar baixa no patrimônio furtado?'
+    ],
+    visita_tecnica: [
+      'O relatório de visita técnica foi preenchido e assinado pelo cliente?',
+      'Foram registradas fotos de todas as não conformidades encontradas?',
+      'O cliente foi orientado sobre os próximos passos / prazo de retorno?'
     ]
   };
 
@@ -579,8 +586,92 @@
 
   // ── WIZARD ABERTURA ───────────────────────────────────────────
   function openWizard() {
-    _wiz = { step:1, protocol: nextProtocol(), clientName:'', cnpjCpf:'', equipment:'', address:'', contactName:'', contactPhone:'', contactEmail:'', channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'' };
+    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contactName:'', contactPhone:'', contactEmail:'', channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'' };
     renderWizard();
+  }
+
+  window.createSACTicketFromOS = function(osData) {
+    openWizard();
+    _wiz.protocol = nextProtocol();
+    _wiz.osNumber = String(osData.number || '');
+    _wiz.clientName = osData.client || '';
+    _wiz.equipment = osData.equipment || '';
+    _wiz.address = osData.address || '';
+    _wiz.typeKey = 'visita_tecnica';
+    _wiz._protocolLocked = true;
+    _wiz._osLinked = true;
+    renderWizard();
+    const ov = document.getElementById('sac-wizard-overlay');
+    if (ov) ov.style.display = 'flex';
+    if (typeof navigateTo === 'function') navigateTo('sac');
+  };
+
+  // OS lookup: quando o usuario digita o numero da OS no wizard, busca dados na logistica
+  const _TIPOS_EXCLUIR_LOOKUP = ['retirada total','retirada parcial','manutencao avulsa','manutencao','reparo equipamento','visita tecnica'];
+  function _sacIsOSTipoExcluido(tipoServico) {
+    if (!tipoServico) return false;
+    const ts = tipoServico.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return _TIPOS_EXCLUIR_LOOKUP.some(ex => ts.includes(ex.replace(/ /g,'')) || ts.replace(/ /g,'').includes(ex.replace(/ /g,'')));
+  }
+
+  window._sacBuscarOSLogistica = async function(osNum) {
+    _sacWiz('osNumber', osNum);
+    const num = (osNum || '').trim();
+    if (!num) { _wiz._protocolLocked = false; _wiz._osLinked = false; renderWizard(); return; }
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+      const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(num)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!resp.ok) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+      const lista = await resp.json();
+      const osList = Array.isArray(lista) ? lista : (lista.data || []);
+      // Filtra os tipos excluidos
+      const validas = osList.filter(o => !_sacIsOSTipoExcluido(o.tipo_servico));
+      if (!validas.length) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+      // Coleta os produtos unicos para equipamento
+      const os = validas[0];
+      // produtos vem como JSON string do banco SQLite — fazer parse
+      const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
+      const todosProds = validas.flatMap(o => _parseProds(o).map(p => [p.qtd, p.desc].filter(Boolean).join('x ')));
+      const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
+      const equipFinal = prodsUnicos.length > 1
+        ? await _sacEscolherEquipamento(prodsUnicos)
+        : (prodsUnicos[0] || _parseProds(os)[0]?.desc || '');
+      if (equipFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+      // Limpa emojis e prefixos de ícones do nome do cliente
+      const _clienteLimpo = (os.cliente || '').replace(/^[\s\S]*?([A-Z\u00C0-\u024F])/u, '$1').trim();
+      _wiz.clientName = _clienteLimpo || os.cliente || '';
+      _wiz.equipment  = equipFinal;
+      _wiz.address    = [os.endereco, os.complemento].filter(Boolean).join(', ');
+      _wiz.protocol   = nextProtocol();
+      _wiz._protocolLocked = true;
+      _wiz._osLinked  = true;
+      renderWizard();
+    } catch(e) {
+      console.warn('[SAC] Erro ao buscar OS logistica:', e);
+      _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard();
+    }
+  };
+
+  async function _sacEscolherEquipamento(prods) {
+    return new Promise(resolve => {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+      div.innerHTML = `<div style="background:white;border-radius:12px;padding:24px;min-width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+        <h3 style="margin:0 0 12px;font-size:1rem;color:#1e293b;">Mais de um equipamento encontrado</h3>
+        <p style="margin:0 0 14px;font-size:0.85rem;color:#475569;">Qual equipamento deseja incluir na ocorrência?</p>
+        <div id="_sac-equip-opts" style="display:flex;flex-direction:column;gap:8px;">
+          ${prods.map((p,i)=>`<button data-idx="${i}" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;color:#1e293b;transition:all 0.15s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#f8fafc'">${p}</button>`).join('')}
+        </div>
+        <button id="_sac-equip-cancel" style="margin-top:14px;background:#f1f5f9;border:none;border-radius:6px;padding:7px 18px;font-size:0.8rem;cursor:pointer;color:#64748b;">Cancelar</button>
+      </div>`;
+      document.body.appendChild(div);
+      div.querySelectorAll('[data-idx]').forEach(btn => {
+        btn.addEventListener('click', () => { div.remove(); resolve(prods[+btn.dataset.idx]); });
+      });
+      div.querySelector('#_sac-equip-cancel').addEventListener('click', () => { div.remove(); resolve(null); });
+    });
   }
 
   function renderWizard() {
@@ -610,11 +701,12 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="sac-field">
           <label>Protocolo / Nº Chamado</label>
-          <input type="text" value="${_wiz.protocol}" id="wiz-protocol" oninput="_sacWiz('protocol',this.value)">
+          <input type="text" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
         </div>
         <div class="sac-field">
           <label>Nº OS (Logística/Comercial)</label>
-          <input type="text" value="${_wiz.osNumber||''}" placeholder="Opcional" oninput="_sacWiz('osNumber',this.value)">
+          <input type="text" value="${_wiz.osNumber||\'\'}" placeholder="Opcional" id="wiz-osNumber" oninput="_sacBuscarOSLogistica(this.value)">
+          ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
         </div>
       </div>
       <div class="sac-field">

@@ -1,4 +1,4 @@
-/* ════════════════════════════════════════════════════════════════════════════
+﻿/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -2962,6 +2962,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     exibirModalSucessoOS(firstId, payloadsParaEnviar[0]);
                     // Atualiza histórico automaticamente
                     if (typeof window._rrRecarregarHistorico === 'function') window._rrRecarregarHistorico();
+
+                    // ── Disparo automático de chamado SAC para Visita Técnica ────
+                    const _ts = (payloadsParaEnviar[0].tipo_servico || '').toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    if (_ts.includes('visita')) {
+                        const _p0 = payloadsParaEnviar[0];
+                        const _prods = Array.isArray(_p0.produtos) ? _p0.produtos.map(p => [p.qtd, p.desc].filter(Boolean).join('x ')) : [];
+                        const _osData = {
+                            number: _p0.numero_os || String(firstId || ''),
+                            client: _p0.cliente || '',
+                            equipment: _prods.join(', '),
+                            address: [_p0.endereco, _p0.complemento].filter(Boolean).join(', ')
+                        };
+                        if (typeof window.createSACTicketFromOS === 'function') {
+                            setTimeout(() => {
+                                if (confirm('🔧 OS de Visita Técnica salva!\n\nDeseja abrir automaticamente um chamado no SAC para esta visita?')) {
+                                    window.createSACTicketFromOS(_osData);
+                                }
+                            }, 800);
+                        }
+                    }
+                    // ─────────────────────────────────────────────────────────────
                 } else if (salvosComSucesso > 0) {
                     mostrarToastAviso(`Atenção: Salvo parcialmente. Falhas: ${errorMsgs.join(', ')}`);
                 } else {
