@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════════
    MÓDULO: ROTA REDONDA (ORDENS DE SERVIÇO)
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -1239,7 +1239,18 @@ async function carregarOsPorNumero(numOs) {
               }
             throw new Error(`HTTP ${resp.status}`);
         }
-        const registros = await resp.json(); // array de OS com esse número
+        let registros = await resp.json(); // array de OS com esse número
+        const fixStr = (str) => {
+            if (!str || typeof str !== 'string') return str;
+            try { if (/[\\xC2\\xC3][\\x80-\\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+            return str;
+        };
+        if (Array.isArray(registros)) {
+            registros.forEach(r => {
+                if (r.endereco) r.endereco = fixStr(r.endereco);
+                if (r.cliente) r.cliente = fixStr(r.cliente);
+            });
+        }
         if (!registros || registros.length === 0) {
             btn.style.background = '';
             if (numOs) mostrarToastAviso(`OS "${numOs}" não encontrada. Preencha os campos para criar uma nova.`);
@@ -1739,6 +1750,11 @@ if (!document.getElementById('rr-keyframes')) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function parseOsText(texto) {
+    try {
+        if (/[\xC2\xC3][\x80-\xBF]/.test(texto)) {
+            texto = decodeURIComponent(escape(texto));
+        }
+    } catch(e) {}
     texto = texto.replace(/\t/g, '\n');
     const lines = texto.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l);
     const resultado = {
@@ -4402,7 +4418,19 @@ function _rrMontarDrawerHistorico() {
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const res = await fetch('/api/logistica/os/buscar', { headers: { Authorization: `Bearer ${token}` } });
-            _dados = await res.json();
+            const rawData = await res.json();
+            const fixStr = (str) => {
+                if (!str || typeof str !== 'string') return str;
+                try { if (/[\\xC2\\xC3][\\x80-\\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+                return str;
+            };
+            if (Array.isArray(rawData)) {
+                rawData.forEach(r => {
+                    if (r.endereco) r.endereco = fixStr(r.endereco);
+                    if (r.cliente) r.cliente = fixStr(r.cliente);
+                });
+            }
+            _dados = rawData;
             if (!Array.isArray(_dados)) _dados = [];
             const count = document.getElementById('rr-hist-count');
             if (count) count.textContent = _dados.length;

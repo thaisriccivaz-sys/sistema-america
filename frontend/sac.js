@@ -624,7 +624,19 @@
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resp.ok) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
-      const lista = await resp.json();
+      const rawLista = await resp.json();
+      const fixStr = (str) => {
+          if (!str || typeof str !== 'string') return str;
+          try { if (/[\\xC2\\xC3][\\x80-\\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+          return str;
+      };
+      if (Array.isArray(rawLista)) {
+          rawLista.forEach(r => {
+              if (r.endereco) r.endereco = fixStr(r.endereco);
+              if (r.cliente) r.cliente = fixStr(r.cliente);
+          });
+      }
+      const lista = rawLista;
       const osList = Array.isArray(lista) ? lista : (lista.data || []);
       // Filtra os tipos excluidos
       const validas = osList.filter(o => !_sacIsOSTipoExcluido(o.tipo_servico));
