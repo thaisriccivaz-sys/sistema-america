@@ -279,15 +279,16 @@
   }
 
   // ── INICIALIZAÇÃO ────────────────────────────────────────────
-  window.initSAC = function () {
-    loadTickets();
+  window.initSAC = async function () {
     const c = document.getElementById('view-sac');
     if (!c) return;
     c.innerHTML = buildSACShell();
     _view = 'pipeline';
+    bindGlobalEvents();
+    // Carrega os dados da API antes de renderizar
+    await loadTickets();
     _wiz.protocol = nextProtocol();
     renderAll();
-    bindGlobalEvents();
   };
 
   // ── SHELL PRINCIPAL ──────────────────────────────────────────
@@ -806,9 +807,13 @@
             </div>
             <div class="sac-field">
               <label>Nº OS (Logística/Comercial)</label>
-              <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="Digite e aperte Enter" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); _sacBuscarOSLogistica(this.value);}">
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="Nº da OS" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarOSLogistica(this.value);}" style="flex:1;">
+                <button onclick="_sacBuscarOSLogistica(document.getElementById('wiz-osNumber').value)" title="Buscar OS" style="background:#1e293b;color:#fff;border:none;border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+              </div>
               ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
             </div>
+
           </div>
           <div class="sac-field">
             <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
