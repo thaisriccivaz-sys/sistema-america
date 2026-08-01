@@ -665,6 +665,8 @@ const BREADCRUMB_MAP = {
     'computadores-corporativos': { path: 'Computadores Corporativos', code: 'ADM004' },
     'administrativo-senhas': { path: 'Cofre de Senhas', code: 'ADM005' },
     'administrativo-protocolos': { path: 'Protocolos', code: 'ADM006' },
+    // Processos
+    'sac': { path: 'SAC — Portal de Ocorrências', code: 'SAC001' },
 };
 
 /* ── PERMISSÕES DO PRONTUÁRIO DIGITAL ──────────────────────────────────── */
@@ -887,7 +889,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -988,7 +990,9 @@ const TAB_META = {
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
     'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
-    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' }
+    'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' },
+    // Processos - Violeta
+    'sac': { color: '#7c3aed', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
 };
 
 
@@ -1297,6 +1301,8 @@ function navigateTo(target) {
         if (typeof window.initPresencaTreinamento === 'function') setTimeout(() => window.initPresencaTreinamento(), 80);
     } else if (target === 'dir-webhooks') {
         if (typeof window.whkCarregarTodos === 'function') setTimeout(() => window.whkCarregarTodos(), 80);
+    } else if (target === 'sac') {
+        if (typeof window.initSAC === 'function') setTimeout(() => window.initSAC(), 80);
     }
 }
 

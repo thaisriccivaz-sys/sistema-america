@@ -330,6 +330,19 @@
                 </div>
             </div>
 
+            <!-- Processos -->
+                <div class="dept-item" style="--dept-color:#7c3aed; --dept-bg:#ede9fe;">
+                    <button class="dept-btn" title="Processos">
+                        <i class="ph ph-headset"></i>
+                        <span>Proces.</span>
+                    </button>
+                    <div class="dept-submenu">
+                        <div class="dept-submenu-header" style="color:#7c3aed;"><i class="ph ph-headset"></i> Processos</div>
+                        <a href="#" class="nav-item" data-target="sac"
+                            onclick="navigateTo('sac'); return false;"><i class="ph ph-kanban"></i> SAC</a>
+                    </div>
+                </div>
+
             <!-- Treinamentos -->
                 <div class="dept-item" style="--dept-color:#0e7490; --dept-bg:#cffafe;">
                     <button class="dept-btn" title="Treinamentos">
@@ -4315,6 +4328,11 @@
                     <div id="pipeline-container"></div>
                 </section>
 
+                <!-- VIEW: SAC — PORTAL DE OCORRÊNCIAS -->
+                <section id="view-sac" class="content-view" style="padding:0;">
+                    <div id="sac-root"></div>
+                </section>
+
                 <!-- VIEW: RESUMO DE ROTA -->
                 <section id="view-logistica-resumo-rota" class="content-view" style="padding:0;">
                     <div id="resumo-rota-container"></div>
@@ -6328,6 +6346,7 @@
     <script src="assinaturas.js?v=1"></script>
     <script src="satisfacao_rh.js?v=20260720v1"></script>
     <script src="desempenho_rh.js?v=20260720v1"></script>
+    <script src="sac.js?v=20260801v1"></script>
 
     
     <!-- MODAL: ASSINATURA DE TREINAMENTO -->
