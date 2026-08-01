@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // MÓDULO: SAC — Portal de Ocorrências (Kanban de Chamados)
 // Adaptado de: kanban-flow prototype (React → Vanilla JS)
 // ============================================================
@@ -296,10 +296,10 @@
     <div id="sac-root" style="display:flex;flex-direction:column;height:100%;font-family:'Inter',system-ui,sans-serif;background:#f8fafc;">
 
       <!-- TOPBAR -->
-      <div id="sac-topbar" style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:0 20px;display:flex;align-items:center;gap:16px;min-height:56px;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,0.18);">
+      <div id="sac-topbar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:16px;min-height:56px;flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:10px;">
           <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
-          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;">SAC <span style="font-weight:400;font-size:0.8rem;color:#94a3b8;margin-left:4px;">Portal de Ocorrências</span></span>
+          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;color:#1e293b;">SAC <span style="font-weight:400;font-size:0.8rem;color:#64748b;margin-left:4px;">Portal de Ocorrências</span></span>
         </div>
         <div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:center;">
           <button class="sac-nav-btn" data-view="pipeline" onclick="SAC.setView('pipeline')"><i class="ph ph-kanban"></i> Pipeline</button>
@@ -339,8 +339,8 @@
 
     </div>
     <style>
-      .sac-nav-btn { background:transparent;color:#cbd5e1;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.83rem;font-weight:600;display:flex;align-items:center;gap:5px;transition:all 0.15s; }
-      .sac-nav-btn:hover, .sac-nav-btn.active { background:rgba(255,255,255,0.12);color:#fff; }
+      .sac-nav-btn { background:transparent;color:#64748b;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.83rem;font-weight:600;display:flex;align-items:center;gap:5px;transition:all 0.15s; }
+      .sac-nav-btn:hover, .sac-nav-btn.active { background:#f1f5f9;color:#1e293b; }
       .sac-col-header { position:sticky;top:0;z-index:2;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid rgba(0,0,0,0.06); }
       .sac-card { background:#fff;border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid #e2e8f0;cursor:grab;transition:box-shadow 0.2s,transform 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.06); }
       .sac-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12);transform:translateY(-1px); }
@@ -781,12 +781,12 @@
 
     ov.innerHTML = `
     <div class="sac-modal sac-animated" style="width:100%;min-height:100vh;overflow-y:auto;padding:0;position:relative;border-radius:0;box-shadow:none;background:#f8fafc;" onclick="event.stopPropagation()">
-      <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:0 24px;display:flex;align-items:center;justify-content:space-between;min-height:56px;flex-shrink:0;box-shadow:0 2px 12px rgba(0,0,0,0.18);position:sticky;top:0;z-index:10;">
+      <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;min-height:56px;flex-shrink:0;position:sticky;top:0;z-index:10;">
         <div style="display:flex;align-items:center;gap:10px;">
           <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
-          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;">SAC <span style="font-weight:400;font-size:0.8rem;color:#94a3b8;margin-left:4px;">Novo Chamado</span></span>
+          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;color:#1e293b;">SAC <span style="font-weight:400;font-size:0.8rem;color:#64748b;margin-left:4px;">Novo Chamado</span></span>
         </div>
-        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;transition:color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">✕</button>
+        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;transition:color 0.2s;" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">✕</button>
       </div>
 
       <div style="max-width:1000px;margin:28px auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
@@ -1248,19 +1248,19 @@
         '<button onclick="SAC.cancelTransition()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;">&times;</button>' +
       '</div>' +
       (isAguard ?
-        '<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>' +
-        '<select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logistica">Logistica</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>' +
-        '<div class="sac-field"><label>Usuario Atribuido <span style="color:#dc2626">*</span></label>' +
-        '<div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById(\'trans-assigned-photo\').src=this.options[this.selectedIndex].dataset.photo||'''';document.getElementById(\'trans-assigned-photo\').style.display=this.options[this.selectedIndex].dataset.photo?\'block\':\'none\';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuario...</option></select>' +
-        '<img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display=\'none\'"></div></div>' : '') +
+        `<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>
+        <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logistica">Logistica</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>
+        <div class="sac-field"><label>Usuario Atribuido <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuario...</option></select>
+        <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'"></div></div>` : '') +
       (isClosing ?
-        '<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluido</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>' +
-        '<div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' +
-        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist nao foram concluidos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' : '') :
-        '<div class="sac-field"><label>Proximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que sera feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>' +
-        '<div class="sac-field"><label>Observacao (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informacao adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>') +
-      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transicao</button></div>' +
-      '</div>';
+        `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluido</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
+        <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
+        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist nao foram concluidos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
+        `<div class="sac-field"><label>Proximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que sera feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
+        <div class="sac-field"><label>Observacao (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informacao adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`) +
+      `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transicao</button></div>
+      </div>`;
     if (isAguard) setTimeout(() => SAC.filterTransUsers('Logistica'), 0);
   }
 
