@@ -691,18 +691,18 @@
         const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
         const aguardTotal = 5 * 60 * 1000;
         const aguardElapsed = aguardTotal - Math.max(0, aguardMs);
-        const aguardPct = Math.min(100, Math.round(aguardElapsed / aguardTotal * 100));
         const isOverAguard = aguardMs <= 0;
         const absMs = Math.abs(aguardMs);
         const hh = Math.floor(absMs/3600000).toString().padStart(2,'0');
         const mm = Math.floor((absMs%3600000)/60000).toString().padStart(2,'0');
         const ss = Math.floor((absMs%60000)/1000).toString().padStart(2,'0');
-        const countLabel = isOverAguard ? `Vencido há ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round(aguardElapsed / aguardTotal * 100));
+        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
         return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
         <div style="font-size:0.63rem;color:${barColor};font-weight:700;margin-top:1px;display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:#854d0e;">${pendSector ? '⏳ Aguard. ' + pendSector : ''}</span>
+          <span style="color:${isOverAguard ? '#dc2626' : '#854d0e'};">${pendSector ? (isOverAguard ? '🔴 Aguard. ' : '⏳ Aguard. ') + pendSector : ''}</span>
           <span>${countLabel}</span>
         </div>`;
       })()}
@@ -1242,9 +1242,11 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType ? 'background:#dc2626;color:#fff;' : ''}">
-        ${pendingPopupType 
-            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>` 
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType === 'sla' ? 'background:#dc2626;color:#fff;' : pendingPopupType === 'aguard' ? 'background:#d97706;color:#fff;' : pendingPopupType === 'followup' ? 'background:#d97706;color:#fff;' : ''}">
+        ${pendingPopupType === 'sla'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>`
+            : pendingPopupType === 'aguard' || pendingPopupType === 'followup'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta excedido. Justificativa obrigatória.</div>`
             : ''}
         ${(!pendingPopupType || POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase())) 
             ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
@@ -1424,12 +1426,15 @@
                             if (item.type === 'comment') {
                                 const isJust = item.text && item.text.startsWith('📝 Justificativa');
                                 const isSlaJust = isJust && item.text.includes('(SLA');
-                                // Justificativas de acompanhamento/aguard são embutidas no bloco de triagem, SLA fica separado
-                                if (isJust && !isSlaJust) return '';
+                                const isAguardJust = isJust && item.text.includes('(prazo de aguardo');
+                                // followup-justificativas são embutidas no bloco de triagem, SLA e aguard ficam separados
+                                if (isJust && !isSlaJust && !isAguardJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
-                                return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+                                // Para justificativas (SLA/aguard), não mostra o nome do usuário
+                                const showCommentUser = !isJust;
+                                return `<div style="background:${isJust ? '#fffbeb' : '#fff'};border:1px solid ${isJust ? '#fde68a' : '#e2e8f0'};border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                                    <strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>
+                                    ${showCommentUser ? `<strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>` : '<span></span>'}
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
                                 <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${formattedText}</div>
@@ -1458,10 +1463,10 @@
                     })()}
                 </div>
                 <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;flex-direction:column;">
-                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:#dc2626;font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
+                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:${pendingPopupType === 'sla' ? '#dc2626' : '#d97706'};font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
                     <div style="display:flex;gap:6px;">
-                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType?'#fca5a5':'#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
-                        <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType?'background:#dc2626':''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+                        <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType === 'sla' ? 'background:#dc2626' : pendingPopupType ? 'background:#d97706' : ''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -2113,14 +2118,8 @@
               t.followUpPendingJustification = false;
               t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
           } else if (pendingTipo === 'aguard') {
-              t.stage = 'triagem';
-              t.aguardDeadline = null;
-              t.aguardNotified = false;
+              // Não muda de coluna — apenas zera o pendingJustification
               t.aguardPendingJustification = false;
-              t.logisticsTask = null;
-              t.commercialTask = null;
-              t.financialTask = null;
-              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de aguardo de setor vencido. Justificativa registrada.', user: null });
           } else {
               t.slaOverduePendingJustification = false;
           }
