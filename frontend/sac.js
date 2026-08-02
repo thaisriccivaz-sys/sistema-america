@@ -537,9 +537,10 @@
     const slaConsumedPct = sla.consumedPct !== undefined ? sla.consumedPct : Math.min(100, Math.max(0, 100 - sla.pct));
     const slaBarColor = sla.barColor || slaColor;
 
-    const clientShort = ticket.clientName.length > 15
-      ? ticket.clientName.substring(0, 15) + '…'
-      : ticket.clientName;
+    const cleanClientName = (ticket.clientName || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
+    const clientShort = cleanClientName.length > 25
+      ? cleanClientName.substring(0, 25) + '…'
+      : cleanClientName;
 
     const cl = getChecklist(ticket);
     const clChecked = cl.filter(i => i.checked).length;
@@ -580,10 +581,10 @@
       ${coverHtml}
       <div style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}${ticket.osNumber ? ' · OS ' + ticket.osNumber : ''}</span>
           ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.65rem;font-weight:700;"><i class="ph ph-warning-circle"></i> URGENTE</span>' : ''}
         </div>
-        <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.clientName}">${clientShort}</div>
+        <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
         <i class="ph ph-package" style="margin-right:3px;"></i>${ticket.equipment}
@@ -1143,7 +1144,7 @@
         <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>
       </div>
 
-      <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 400px;gap:40px;" id="sac-modal-body">
+      <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 500px;gap:40px;" id="sac-modal-body">
         
         <!-- COLUNA ESQUERDA -->
         <div style="display:flex;flex-direction:column;">
@@ -1159,7 +1160,7 @@
             
             <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${t.clientName}</h2>
             <div style="font-size:0.85rem;color:#64748b;margin-top:4px;">
-                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>\n                ${t.address ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;"><i class="ph ph-map-pin" style="color:#3b82f6;"></i> ${t.address}</div>` : ''}
+                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>\n                ${t.address ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;" title="${t.address}"><i class="ph ph-map-pin" style="color:#3b82f6;flex-shrink:0;"></i> ${t.address.length > 60 ? t.address.substring(0, 60) + '...' : t.address}</div>` : ''}
             </div>
 
             
@@ -1274,7 +1275,7 @@
 
             <!-- COMENTÁRIOS / HISTÓRICO -->
             <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Comentários</div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:300px;margin-bottom:24px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;height:400px;margin-bottom:24px;">
                 <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;" id="sac-comments-list">
                     ${(() => {
                         const stageColors = {};
