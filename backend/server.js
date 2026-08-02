@@ -27897,6 +27897,67 @@ function fixSacEncoding() {
 // Roda automaticamente no startup
 setTimeout(fixSacEncoding, 3000);
 
+// ── Correção automática de assignedTo nos dados SAC ───────────────────────────
+// Quando o assignedTo está errado (ex: "Thais.Ricci" em vez de "ana.vitoria"),
+// tenta resolver o usuário correto a partir do assignedToName usando a tabela usuarios.
+function fixSacAssignedTo() {
+    const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+    db.all("SELECT id, username, nome FROM usuarios", [], (errU, usuarios) => {
+        if (errU) { console.error('[SAC fix-assigned] Erro buscando usuarios:', errU.message); return; }
+        db.all("SELECT id, logistics_task, commercial_task, financial_task FROM sac_tickets", [], (err, rows) => {
+            if (err) { console.error('[SAC fix-assigned] Erro buscando tickets:', err.message); return; }
+            let fixed = 0;
+            const resolveUsername = (assignedToName) => {
+                if (!assignedToName) return null;
+                const nameNorm = normStr(assignedToName);
+                // Tenta match por nome completo
+                const u = (usuarios || []).find(u => {
+                    if (!u.username) return false;
+                    // Match nome exato
+                    if (u.nome && normStr(u.nome) === nameNorm) return true;
+                    // Match nome parcial
+                    if (u.nome && (normStr(u.nome).includes(nameNorm) || nameNorm.includes(normStr(u.nome)))) return true;
+                    // Match username dentro do nome normalizado (ex: "ana.vitoria" está em "ana vitoria gomes dos santos")
+                    const usernormParts = u.username.toLowerCase().split('.');
+                    return usernormParts.length >= 2 && usernormParts.every(part => nameNorm.replace(/\s+/g,'.').includes(part));
+                });
+                return u ? u.username : null;
+            };
+
+            rows.forEach(r => {
+                const tryFix = (taskJson) => {
+                    if (!taskJson || taskJson === 'null') return { json: taskJson, changed: false };
+                    try {
+                        const t = JSON.parse(taskJson);
+                        if (!t || !t.assignedToName) return { json: taskJson, changed: false };
+                        const correctUsername = resolveUsername(t.assignedToName);
+                        if (correctUsername && t.assignedTo !== correctUsername) {
+                            t.assignedTo = correctUsername;
+                            return { json: JSON.stringify(t), changed: true };
+                        }
+                    } catch(e) {}
+                    return { json: taskJson, changed: false };
+                };
+
+                const log = tryFix(r.logistics_task);
+                const com = tryFix(r.commercial_task);
+                const fin = tryFix(r.financial_task);
+
+                if (log.changed || com.changed || fin.changed) {
+                    fixed++;
+                    db.run("UPDATE sac_tickets SET logistics_task=?, commercial_task=?, financial_task=? WHERE id=?",
+                        [log.json, com.json, fin.json, r.id],
+                        (e) => { if(e) console.error('[SAC fix-assigned] Erro atualizando ticket', r.id, e.message); }
+                    );
+                }
+            });
+            if (fixed > 0) console.log(`[SAC fix-assigned] Corrigidos ${fixed} ticket(s) com assignedTo incorreto.`);
+        });
+    });
+}
+// Roda 5 segundos após o startup (depois do fixSacEncoding)
+setTimeout(fixSacAssignedTo, 5000);
+
 // ── POST /api/sac/notificar-atribuicao ────────────────────────────────────────
 // Notifica por e-mail + popup interno o colaborador atribuído a um chamado de SAC
 app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) => {
@@ -28096,21 +28157,54 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                 if (errU) return res.status(500).json({ error: errU.message });
 
                 const normNome = n => norm(n);
+                // Normaliza nome para username: "Ana Vitória Gomes" -> "ana.vitoria.gomes"
+                const nomeToUsername = n => (n||'').toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                    .trim().replace(/\s+/g,'.');
 
                 // Mapeia colaboradores filtrados com username quando disponível
                 const result = filtered.map(c => {
+                    // 1. username já resolvido pelo JOIN SQL (mais confiável)
+                    if (c.username) {
+                        return {
+                            id: c.id,
+                            nome: c.nome_completo,
+                            cargo: c.cargo,
+                            departamento: c.dept_efetivo || c.departamento,
+                            status: c.status,
+                            username: c.username,
+                            foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
+                        };
+                    }
+                    // 2. Tenta casar pelo nome normalizado
                     const uByNome = (usuarios || []).find(u =>
-                        normNome(u.nome) === normNome(c.nome_completo) ||
-                        normNome(c.nome_completo).includes(normNome(u.nome)) ||
-                        normNome(u.nome).includes(normNome(c.nome_completo))
+                        u.nome && (
+                            normNome(u.nome) === normNome(c.nome_completo) ||
+                            normNome(c.nome_completo).includes(normNome(u.nome)) ||
+                            normNome(u.nome).includes(normNome(c.nome_completo))
+                        )
                     );
+                    // 3. Tenta casar pelo email
+                    const uByEmail = !uByNome && c.email_corporativo
+                        ? (usuarios || []).find(u => u.email && u.email.toLowerCase() === c.email_corporativo.toLowerCase())
+                        : null;
+                    // 4. Tenta casar o username com nome normalizado (ex: "ana.vitoria" dentro de "ana.vitoria.gomes.dos.santos")
+                    const colNormFull = nomeToUsername(c.nome_completo);
+                    const uByUsernameMatch = !uByNome && !uByEmail
+                        ? (usuarios || []).find(u => u.username && (
+                            colNormFull.startsWith(u.username.toLowerCase()) ||
+                            u.username.toLowerCase().split('.').every(part => colNormFull.includes(part))
+                          ))
+                        : null;
+
+                    const resolvedUser = uByNome || uByEmail || uByUsernameMatch;
                     return {
                         id: c.id,
                         nome: c.nome_completo,
                         cargo: c.cargo,
                         departamento: c.dept_efetivo || c.departamento,
                         status: c.status,
-                        username: uByNome ? uByNome.username : null,
+                        username: resolvedUser ? resolvedUser.username : null,
                         foto_colaborador: c.foto_base64 || (c.foto_path ? '/api/colaboradores/foto/' + c.id : null)
                     };
                 });
