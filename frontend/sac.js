@@ -820,7 +820,8 @@
           return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
       }));
       const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
-      const equipFinal = prodsUnicos.length > 1
+      const precisaModal = prodsUnicos.length > 1 || (prodsUnicos.length === 1 && (() => { const m = prodsUnicos[0].match(/(\d+)x /); return m && parseInt(m[1]) > 1; })());
+      const equipFinal = precisaModal
         ? await _sacEscolherEquipamento(prodsUnicos, _clienteLimpo || os.cliente || '', enderecoFinal)
         : (prodsUnicos[0] || _parseProds(os)[0]?.desc || '');
       if (equipFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
@@ -877,13 +878,36 @@
         </div>
         <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual equipamento deseja incluir na ocorrência?</p>
         <div id="_sac-equip-opts" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;">
-          ${prods.map((p,i)=>`<button data-idx="${i}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;color:#1e293b;transition:all 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">${p}</button>`).join('')}
+          ${prods.map((p,i)=>{
+              const m = p.match(/^.*?(\\d+)x/);
+              const max = m ? parseInt(m[1]) : 1;
+              if (max > 1) {
+                  return `<div style="display:flex;gap:8px;align-items:center;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+                      <div style="flex:1;font-size:0.85rem;font-weight:600;color:#1e293b;">${p.replace(/(\\d+)x\\s*/, '')}</div>
+                      <input type="number" id="_sac-equip-qtd-${i}" min="1" max="${max}" value="${max}" style="width:60px;padding:4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;">
+                      <button data-idx="${i}" data-max="${max}" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:0.75rem;">Adicionar</button>
+                  </div>`;
+              } else {
+                  return `<button data-idx="${i}" data-max="1" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;color:#1e293b;transition:all 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">${p}</button>`;
+              }
+          }).join('')}
         </div>
         <button id="_sac-equip-cancel" style="margin-top:14px;background:#e2e8f0;border:none;border-radius:6px;padding:8px 18px;font-size:0.8rem;cursor:pointer;color:#475569;width:100%;font-weight:600;">Cancelar</button>
       </div>`;
       document.body.appendChild(div);
       div.querySelectorAll('[data-idx]').forEach(btn => {
-        btn.addEventListener('click', () => { div.remove(); resolve(prods[+btn.dataset.idx]); });
+        btn.addEventListener('click', () => { 
+            const idx = +btn.dataset.idx;
+            const max = +btn.dataset.max;
+            let prodStr = prods[idx];
+            if (max > 1) {
+                const input = document.getElementById(`_sac-equip-qtd-${idx}`);
+                let val = parseInt(input.value);
+                if (isNaN(val) || val < 1 || val > max) { alert('Quantidade inválida!'); return; }
+                prodStr = prodStr.replace(/(\d+)x\s*/, `${val}x `);
+            }
+            div.remove(); resolve(prodStr); 
+        });
       });
       div.querySelector('#_sac-equip-cancel').addEventListener('click', () => { div.remove(); resolve(null); });
     });
@@ -992,7 +1016,7 @@
             <textarea rows="3" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
           </div>
 
-          <div style="margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
+          <div style="display:none;margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
             <div class="sac-field" style="margin-bottom:8px;">
               <label>Especificar Ocorrência (Opcional)</label>
               <select id="wiz-occ-select" onchange="_sacWiz('currentOcc',this.value)">${occOptions}</select>
@@ -1110,8 +1134,8 @@
             </div>
             
             <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${t.clientName}</h2>
-            <div style="font-size:0.85rem;color:#64748b;margin-top:4px;display:flex;align-items:center;gap:6px;">
-                <i class="ph ph-map-pin" style="color:#3b82f6;"></i> ${t.equipment} ${t.address?'· '+t.address:''}
+            <div style="font-size:0.85rem;color:#64748b;margin-top:4px;">
+                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>\n                ${t.address ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;"><i class="ph ph-map-pin" style="color:#3b82f6;"></i> ${t.address}</div>` : ''}
             </div>
 
             <div style="display:flex;align-items:center;gap:8px;margin-top:20px;">
@@ -1158,7 +1182,7 @@
                 }).join('')}
             </div>` : ''}
 
-            <div style="margin-top:24px;">
+            <div style="display:none;margin-top:24px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Ocorrências (${t.occurrences.length})</div>
                 ${t.occurrences.map((o,i)=>`
                 <div style="background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
