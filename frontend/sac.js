@@ -1242,7 +1242,7 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center; ${pendingPopupType ? 'background:#dc2626;color:#fff;' : ''}">
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType ? 'background:#dc2626;color:#fff;' : ''}">
         ${pendingPopupType 
             ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>` 
             : ''}
@@ -1980,6 +1980,13 @@
           if (!canClose) {
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
+          } else {
+            // Dismiss permanently for this ticket
+            _selectedTicket.slaOverduePendingJustification = false;
+            if (pendingTipo === 'aguard') _selectedTicket.aguardPendingJustification = false;
+            if (pendingTipo === 'followup') _selectedTicket.followUpPendingJustification = false;
+            updateTicket(_selectedTicket);
+            localStorage.removeItem('sac_pending_popup_' + _selectedTicket.id);
           }
         }
       }
@@ -2096,7 +2103,7 @@
           isHandled = true;
           const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
           const justTimestamp = new Date().toISOString();
-          t.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): "' + text + '"', time: justTimestamp });
+          t.comments.push({ user: 'Sistema', text: '📝 Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
 
           if (pendingTipo === 'followup') {
               t.stage = 'triagem';

@@ -27768,6 +27768,8 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             aguardDeadline: r.aguard_deadline,
             aguardNotified: r.aguard_notified === 1,
             aguardPendingJustification: r.aguard_pending_justification === 1,
+            slaOverdueNotified: r.sla_overdue_notified === 1,
+            slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
             closeDate: r.close_date
         }));
         res.json(parsed);
@@ -27787,6 +27789,8 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN aguard_deadline TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN aguard_notified INTEGER DEFAULT 0`,
   `ALTER TABLE sac_tickets ADD COLUMN aguard_pending_justification INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_notified INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_pending_justification INTEGER DEFAULT 0`,
 ];
 sacMigrations.forEach(sql => {
   db.run(sql, err => {
@@ -27805,8 +27809,9 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
         logistics_task, commercial_task, financial_task, comments,
         sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date,
-        aguard_deadline, aguard_notified, aguard_pending_justification
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        aguard_deadline, aguard_notified, aguard_pending_justification,
+        sla_overdue_notified, sla_overdue_pending_justification
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
@@ -27814,7 +27819,8 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[]),
         t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null,
-        t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0
+        t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0,
+        t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: t.id });
@@ -27829,6 +27835,7 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, 
         sla_frozen_at = ?, sla_elapsed_ms = ?, follow_up_deadline = ?, follow_up_notified = ?, follow_up_pending_justification = ?, close_date = ?,
         aguard_deadline = ?, aguard_notified = ?, aguard_pending_justification = ?,
+        sla_overdue_notified = ?, sla_overdue_pending_justification = ?,
         updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
@@ -27837,6 +27844,7 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, 
         t.slaFrozenAt || null, t.slaElapsedMs || null, t.followUpDeadline || null, t.followUpNotified ? 1 : 0, t.followUpPendingJustification ? 1 : 0, t.closeDate || null,
         t.aguardDeadline || null, t.aguardNotified ? 1 : 0, t.aguardPendingJustification ? 1 : 0,
+        t.slaOverdueNotified ? 1 : 0, t.slaOverduePendingJustification ? 1 : 0,
         req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
