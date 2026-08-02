@@ -1164,12 +1164,12 @@
     ].filter(Boolean);
 
     mc.innerHTML = `
-    <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:1100px;margin:20px auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);height:calc(100vh - 40px);max-height:900px;overflow:hidden;" onclick="event.stopPropagation()">
+    <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
       <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
         <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>
       </div>
 
-      <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 500px;gap:40px;" id="sac-modal-body">
+      <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 2fr;gap:40px;" id="sac-modal-body">
         
         <!-- COLUNA ESQUERDA -->
         <div style="display:flex;flex-direction:column;">
@@ -1213,7 +1213,7 @@
                 </div>`;
             })()}
 
-            <div style="margin-top:24px;">
+            <div style="display:none;margin-top:24px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Próximos Passos</div>
                 <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${t.nextSteps||'Nenhum próximo passo registrado.'}</div>
             </div>
@@ -1278,10 +1278,10 @@
                 <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
                 </div>`:''}
             </div>
-        </div>
-
-        <!-- COLUNA DIREITA -->
-        <div style="display:flex;flex-direction:column;">
+        
+            <!-- DADOS DA OS (MOVIDO) -->
+            <div style="margin-top: 32px; border-top: 1px dashed #cbd5e1; padding-top: 24px;">
+                >
             
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Dados da OS</div>
@@ -1306,10 +1306,14 @@
                 <div><strong>Contato de Instalação:</strong> ${t.contactName||'—'} ${t.contactPhone?'· '+t.contactPhone:''}</div>
                 ${t.contactEmail?`<div><strong>E-mail:</strong> ${t.contactEmail}</div>`:''}
             </div>
+            </div>
+    </div>
 
+        <!-- COLUNA DIREITA -->
+        <div style="display:flex;flex-direction:column;height:100%;">
             <!-- COMENTÁRIOS / HISTÓRICO -->
             <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Comentários</div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;height:400px;margin-bottom:24px;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:500px;margin-bottom:24px;">
                 <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;" id="sac-comments-list">
                     ${(() => {
                         const stageColors = {};
@@ -2283,7 +2287,34 @@
       updateTicket(ticket);
       showToast('Justificativa registrada com sucesso.', 'success');
     },
-        exportCSV() {
+        saveDescription(ticketId) {
+        const t = _tickets.find(x => x.id === ticketId);
+        if (!t) return;
+        const txt = document.getElementById('modal-desc-edit-' + ticketId);
+        if (!txt) return;
+        const newDesc = txt.value.trim();
+        const oldDesc = t.description || '';
+        
+        if (newDesc === oldDesc.trim()) {
+            showToast('Nenhuma alteração na descrição.', 'info');
+            return;
+        }
+
+        const user = currentUsername();
+        if (!t.comments) t.comments = [];
+        
+        // Log the old text and who changed it
+        t.comments.push({ 
+            user: 'Sistema', 
+            text: '📝 Descrição editada por ' + user + '. Texto anterior:\n"' + (oldDesc || '(vazio)') + '"', 
+            time: new Date().toISOString() 
+        });
+
+        t.description = newDesc;
+        updateTicket(t);
+        showToast('Descrição salva com sucesso!', 'success');
+    },
+    exportCSV() {
       const all = getFilteredTickets();
       const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorrências'];
       const rows = all.map(t => {
