@@ -340,6 +340,20 @@
     await loadTickets();
     _wiz.protocol = nextProtocol();
     renderAll();
+    
+    // Auto-refresh a cada 5 minutos
+    if (!window._sacAutoRefresh) {
+      window._sacAutoRefresh = setInterval(async () => {
+        const root = document.getElementById('view-sac');
+        if (root && root.style.display !== 'none' && document.body.contains(root)) {
+            // Apenas atualiza se nenhum modal estiver aberto para nao interromper o usuario
+            if (!document.querySelector('.sac-modal-overlay')) {
+                await loadTickets();
+                renderAll();
+            }
+        }
+      }, 5 * 60 * 1000);
+    }
   };
 
   // ── SHELL PRINCIPAL ──────────────────────────────────────────
@@ -1013,7 +1027,7 @@
     const cl     = getChecklist(t);
     const clChecked = cl.filter(i=>i.checked).length;
 
-    const stageOpts = PIPELINE_STAGES.map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
+    const stageOpts = PIPELINE_STAGES.filter(s => s.id !== 'respondido' || s.id === t.stage).map(s=>`<option value="${s.id}" ${s.id===t.stage?'selected':''}>${s.name}</option>`).join('');
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" style="width:100vw;max-width:100vw;height:100vh;max-height:100vh;border-radius:0;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
@@ -1180,15 +1194,39 @@
         <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Comentários</div>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;height:300px;">
           <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;">
-            ${!(t.comments && t.comments.length) ? '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum comentário.</div>' : 
-              (t.comments||[]).map(c => `
-              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                  <strong style="font-size:0.75rem;color:#1e293b;">${c.user}</strong>
-                  <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(c.time)}</span>
-                </div>
-                <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${c.text}</div>
-              </div>`).join('')}
+            ${(() => {
+              const stageColors = {};
+              if (typeof PIPELINE_STAGES !== 'undefined') PIPELINE_STAGES.forEach(s => stageColors[s.id] = s.color);
+              const unified = [
+                ...(t.comments || []).map(c => ({ type: 'comment', time: c.time, user: c.user, text: c.text })),
+                ...(t.timeline || []).map(l => ({ type: 'timeline', time: l.time, user: l.user, stage: l.stage, notes: l.notes }))
+              ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+              if (!unified.length) return '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum registro.</div>';
+              return unified.map(item => {
+                if (item.type === 'comment') {
+                  return `
+                  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                      <strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>
+                      <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
+                    </div>
+                    <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${item.text}</div>
+                  </div>`;
+                } else {
+                  const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
+                  const sColor = stageColors[item.stage] || '#475569';
+                  return `
+                  <div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <strong style="font-size:0.7rem;color:${sColor};text-transform:uppercase;">${stageName}</strong>
+                      <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
+                    </div>
+                    ${item.notes ? `<div style="font-size:0.75rem;color:#475569;margin-top:2px;">${item.notes}</div>` : ''}
+                    ${item.user ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
+                  </div>`;
+                }
+              }).join('');
+            })()}
           </div>
           <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;">
             <textarea id="new-comment-text" rows="1" placeholder="Escreva um recado..." style="flex:1;padding:6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
@@ -1561,6 +1599,12 @@
     const ticket = _tickets.find(t => t.id === _draggedId);
     if (!ticket || ticket.stage === colId) { _draggedId = null; return; }
 
+    if (colId === 'respondido') {
+        alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        _draggedId = null;
+        return;
+    }
+
     // Gate: check pending tasks
     const gate = checkGate(ticket, colId);
     if (gate) {
@@ -1713,6 +1757,11 @@
     changeStageFromModal(targetId) {
       const t = _selectedTicket;
       if (!t || t.stage === targetId) return;
+      if (targetId === 'respondido') {
+          alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+          renderDetailModal();
+          return;
+      }
       const gate = checkGate(t, targetId);
       if (gate) { alert(`Bloqueio: Pendência ${gate.sector} não concluída.\n${gate.task}`); renderDetailModal(); return; }
       openTransitionModal(t.id, targetId);

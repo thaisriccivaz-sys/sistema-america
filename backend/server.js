@@ -27758,7 +27758,8 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             occurrences: r.occurrences ? JSON.parse(r.occurrences) : [],
             timeline: r.timeline ? JSON.parse(r.timeline) : [],
             attachments: r.attachments ? JSON.parse(r.attachments) : [],
-            checklist: r.checklist ? JSON.parse(r.checklist) : []
+            checklist: r.checklist ? JSON.parse(r.checklist) : [],
+            comments: r.comments ? JSON.parse(r.comments) : []
         }));
         res.json(parsed);
     });
@@ -27770,14 +27771,14 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
-        logistics_task, commercial_task, financial_task
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        logistics_task, commercial_task, financial_task, comments
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
-        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null)
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[])
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: t.id });
@@ -27788,12 +27789,12 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
     db.run(`UPDATE sac_tickets SET
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
-        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, is_urgent = ?, updated_at = CURRENT_TIMESTAMP
+        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
         t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
-        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), t.isUrgent ? 1 : 0, req.params.id
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
