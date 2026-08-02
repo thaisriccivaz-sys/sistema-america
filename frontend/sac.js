@@ -1213,7 +1213,9 @@
             
             <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${t.clientName}</h2>
             <div style="font-size:0.85rem;color:#64748b;margin-top:4px;">
-                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>\n                ${t.address ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;" title="${t.address}"><i class="ph ph-map-pin" style="color:#3b82f6;flex-shrink:0;"></i> ${t.address.length > 60 ? t.address.substring(0, 60) + '...' : t.address}</div>` : ''}
+                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>
+                ${t.address ? `<div style="display:flex;align-items:flex-start;gap:6px;margin-top:4px;font-size:0.72rem;color:#64748b;word-break:break-word;line-height:1.4;" title="${t.address}"><i class="ph ph-map-pin" style="color:#3b82f6;flex-shrink:0;margin-top:2px;"></i><span>${t.address}</span></div>` : ''}
+                ${t.followUpDeadline && t.stage === 'execucao' ? `<div style="display:flex;align-items:center;gap:5px;margin-top:6px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 8px;font-size:0.75rem;color:#c2410c;font-weight:700;"><i class="ph ph-calendar-check"></i> Acomp. até: <strong>${formatDateShort(t.followUpDeadline)}</strong></div>` : ''}
             </div>
 
             
@@ -1251,7 +1253,7 @@
             <div style="margin-top:24px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Descrição</div>
-                    <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;background:#e2e8f0;border:none;cursor:pointer;font-weight:600;color:#475569;" onclick="SAC.saveDescription('${t.id}')">Salvar Edição</button>
+                    <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;background:#fee2e2;border:1px solid #fecaca;cursor:pointer;font-weight:600;color:#dc2626;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
                 </div>
                 <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" oninput="this.style.borderColor='#3b82f6'">${t.description||''}</textarea>
             </div>
@@ -2618,7 +2620,7 @@
       }
 
       // Popup obrigatório 1h após prazo
-      if (prazo + 3600000 < now && ticket.followUpPendingJustification !== false) {
+      if (prazo + 3600000 < now && ticket.followUpPendingJustification === true) {
         showMandatoryJustificationPopup(ticket, 'followup');
       }
     });
@@ -2646,6 +2648,7 @@
       // Notificar configurados (uma vez)
       if (!ticket.slaOverdueNotified) {
         ticket.slaOverdueNotified = true;
+        ticket.slaOverduePendingJustification = true;
         if (!ticket.comments) ticket.comments = [];
         ticket.comments.push({ user:'Sistema', text:'🔴 SLA estourado. Notificação enviada aos responsáveis.', time: new Date().toISOString() });
         changed = true;
@@ -2658,7 +2661,7 @@
       }
 
       // Popup obrigatório SLA estourado
-      if (ticket.slaOverduePendingJustification !== false) {
+      if (ticket.slaOverduePendingJustification === true) {
         showMandatoryJustificationPopup(ticket, 'sla');
       }
 
