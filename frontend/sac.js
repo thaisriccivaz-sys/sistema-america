@@ -2186,7 +2186,7 @@
              const respNome = (d.responsavel_nome || '').toLowerCase();
              const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
              return (cUserIdNow && respId && respId === cUserIdNow) ||
-                    (user && respLogin && respLogin === user.toLowerCase()) ||
+                    (usernameActual && respLogin && respLogin === usernameActual) ||
                     (effectiveNome && respNome && respNome === effectiveNome) ||
                     (effectiveNome && respNome && respNome.includes(effectiveNome) && effectiveNome.length > 5);
          }).map(d => (d.nome || '').trim());
@@ -2224,7 +2224,14 @@
              return taskKey && t[taskKey] && !t[taskKey].isCompleted;
          });
 
-         if (isAssigned || isGestorByTicket || isGestorOfTicket) {
+         // Gestor via permissão SAC restrita (mesma lógica do popup) — funciona mesmo quando
+         // _globalDepartamentos tem dados nulos no banco (caso do Comercial da Beatriz)
+         const permsForComment = window.activeUserPerms || {};
+         const isTopAdminForComment = window.isTopAdmin || false;
+         const canSeeAllForComment = isTopAdminForComment || (permsForComment['sac'] === true && permsForComment['sac-atribuidos'] !== true);
+         const isGestorBySacPerm = (permsForComment['sac'] === true || permsForComment['sac-atribuidos'] === true) && !canSeeAllForComment;
+
+         if (isAssigned || isGestorByTicket || isGestorOfTicket || isGestorBySacPerm) {
              isHandled = true;
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
