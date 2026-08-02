@@ -2160,36 +2160,48 @@
       }
 
       if (!isHandled && t.stage === 'aguardando_setores') {
+         // Recalcular myManagedDepts com a mesma l\u00f3gica de visibilidade (garantia de consist\u00eancia)
          let cUserIdNow = null;
          let currNomeNow = '';
          try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserIdNow = String(u.id); currNomeNow = (u.nome||'').toLowerCase(); } catch(e){}
+         const cu2 = window.currentUser;
+         const currNomeWindow = (cu2 ? (cu2.nome || '') : '').toLowerCase();
+         const effectiveNome = currNomeNow || currNomeWindow;
 
-         const isAssignedOrGestor = ['logisticsTask','commercialTask','financialTask'].some(k => {
+         const myDeptsNow = _globalDepartamentos.filter(d => {
+             const respId   = (d.responsavel_id || '').toString().trim();
+             const respNome = (d.responsavel_nome || '').toLowerCase();
+             const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+             return (cUserIdNow && respId && respId === cUserIdNow) ||
+                    (user && respLogin && respLogin === user.toLowerCase()) ||
+                    (effectiveNome && respNome && respNome === effectiveNome) ||
+                    (effectiveNome && respNome && respNome.includes(effectiveNome) && effectiveNome.length > 5);
+         }).map(d => (d.nome || '').trim());
+
+         const deptMapLocal = { 'Log\u00edstica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+
+         // Usu\u00e1rio \u00e9 o atribu\u00eddo diretamente?
+         const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
-             if (!task) return false;
-             // Verificar atribuido diretamente por username
-             if (task.assignedTo && task.assignedTo.toLowerCase() === user.toLowerCase()) return true;
-             // Verificar gestor do departamento por ID ou nome completo
-             const sectorName = k === 'logisticsTask' ? 'Log\u00edstica' : k === 'commercialTask' ? 'Comercial' : 'Financeiro';
-             const deptNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-             const deptObj = _globalDepartamentos.find(d => {
-                 const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-                 return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
-             });
-             if (deptObj) {
-                 const gestorId = (deptObj.responsavel_id || '').toString().trim();
-                 const gestorNome = (deptObj.responsavel_nome || '').toLowerCase();
-                 const gestorLogin = (deptObj.responsavel_login || deptObj.responsavel_username || '').toLowerCase();
-                 
-                 if (cUserIdNow && gestorId && gestorId === cUserIdNow) return true;
-                 if (user && gestorLogin && gestorLogin === user.toLowerCase()) return true;
-                 if (currNomeNow && gestorNome && gestorNome === currNomeNow) return true;
-                 if (currNomeNow && gestorNome && gestorNome.includes(currNomeNow) && currNomeNow.length > 5) return true;
-             }
-             return false;
+             return task && task.assignedTo && task.assignedTo.toLowerCase() === user.toLowerCase();
          });
 
-         if (isAssignedOrGestor) {
+         // Usu\u00e1rio \u00e9 o gestor gravado no ticket quando foi atribu\u00eddo?
+         const gs = t.gestorSetor;
+         const isGestorByTicket = gs && (
+             (cUserIdNow && gs.id && gs.id === cUserIdNow) ||
+             (user && gs.login && gs.login === user.toLowerCase()) ||
+             (effectiveNome && gs.nome && gs.nome === effectiveNome) ||
+             (effectiveNome && gs.nome && gs.nome.includes(effectiveNome) && effectiveNome.length > 5)
+         );
+
+         // Usu\u00e1rio \u00e9 gestor do departamento do chamado via _globalDepartamentos?
+         const isGestorOfTicket = myDeptsNow.length > 0 && myDeptsNow.some(deptName => {
+             const taskKey = deptMapLocal[deptName];
+             return taskKey && t[taskKey] && !t[taskKey].isCompleted;
+         });
+
+         if (isAssigned || isGestorByTicket || isGestorOfTicket) {
              isHandled = true;
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
@@ -2751,27 +2763,49 @@
                        : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
                        : null;
       if (sectorName) {
-        const deptNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-        const deptObj = _globalDepartamentos.find(d => {
-          const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-          return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
+        // Verificar se o usuário atual é o gestor do setor
+        // Método 1: gestor gravado no ticket ao atribuir
+        const gs = ticket.gestorSetor;
+        let cUserId = null;
+        let currNomeCompleto = '';
+        try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
+
+        const isGestorByTicket = gs && (
+          (cUserId && gs.id && gs.id === cUserId) ||
+          (currentUser && gs.login && gs.login === currentUser.toLowerCase()) ||
+          (currNomeCompleto && gs.nome && gs.nome === currNomeCompleto) ||
+          (currNomeCompleto && gs.nome && gs.nome.includes(currNomeCompleto) && currNomeCompleto.length > 5)
+        );
+
+        // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
+        const myDeptsPopup = _globalDepartamentos.filter(d => {
+          const respId   = (d.responsavel_id || '').toString().trim();
+          const respNome = (d.responsavel_nome || '').toLowerCase();
+          const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+          return (cUserId && respId && respId === cUserId) ||
+                 (currentUser && respLogin && respLogin === currentUser.toLowerCase()) ||
+                 (currNomeCompleto && respNome && respNome === currNomeCompleto) ||
+                 (currNomeCompleto && respNome && respNome.includes(currNomeCompleto) && currNomeCompleto.length > 5);
+        }).map(d => (d.nome || '').trim());
+
+        const sectorNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+        const isGestorByDept = myDeptsPopup.some(n => {
+          const nn = n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+          return nn.includes(sectorNorm) || sectorNorm.includes(nn);
         });
-        if (deptObj) {
-          let cUserId = null;
-          try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
-          const gestorId    = (deptObj.responsavel_id || '').toString().trim();
-          const gestorNome  = (deptObj.responsavel_nome  || '').toLowerCase();
-          const gestorLogin = (deptObj.responsavel_login || deptObj.responsavel_username || '').toLowerCase();
-          let currNomeCompleto = '';
-          try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
-          const isGestor =
-            (gestorId && cUserId && gestorId === cUserId) ||
-            (gestorLogin && currentUser && gestorLogin === currentUser.toLowerCase()) ||
-            (gestorNome && currNomeCompleto && gestorNome === currNomeCompleto) ||
-            (gestorNome && currNomeCompleto && gestorNome.includes(currNomeCompleto) && currNomeCompleto.length > 5) ||
-            POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
-          if (!isGestor) return; // Não é o gestor — não exibir o popup
-        }
+
+        // Método 3: POPUP_CLOSERS (admins)
+        const isPopupCloser = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
+
+        // Método 4: usuário tem permissão SAC e pode ver o ticket (gestor de setor via grupo de permissão)
+        const permsNow = window.activeUserPerms || {};
+        const isTopAdminNow = window.isTopAdmin || false;
+        const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
+        const hasSacPerm = canSeeAllNow || permsNow['sac'] === true || permsNow['sac-atribuidos'] === true;
+        // Se tem permissão SAC e o setor do ticket bate com o dep atribuído (qualquer método)
+        const isGestorBySacPerm = hasSacPerm && !canSeeAllNow; // restrito ao setor, não admin global
+
+        if (!isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm) return; // não é o gestor
       }
     } else {
       let cUserId = null;
