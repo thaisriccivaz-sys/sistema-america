@@ -28275,3 +28275,98 @@ setTimeout(() => {
         });
     } catch(e) {}
 }, 5000);
+
+// ── POST /api/sac/notificar-acompanhamento ────────────────────────────────────
+// Notifica envolvidos quando o prazo de acompanhamento de um chamado venceu
+app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res) => {
+    const { ticketId, protocol, clientName, followUpDeadline, notifyUsernames } = req.body;
+    if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
+
+    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    const systemUrl = 'https://sistema-america.onrender.com/';
+    const prazoFmt = followUpDeadline ? new Date(followUpDeadline).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+    const subject = `⚠️ SAC — Prazo de Acompanhamento Vencido: Nº ${protocol}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
+        <div style="padding:24px;">
+            <div style="background:#f97316;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">⚠️ Prazo de Acompanhamento Vencido</span></div>
+            <p style="font-size:1rem;color:#1e293b;">O prazo de acompanhamento de um chamado SAC <strong>venceu sem conclusão</strong>.</p>
+            <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f97316;">
+                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                <p style="margin:4px 0;"><strong>Prazo Programado:</strong> ${prazoFmt}</p>
+            </div>
+            <p>O sistema aguarda o preenchimento do motivo e devolução do chamado para a Triagem.</p>
+            <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#f97316;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
+            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+        </div>
+    </div>`;
+
+    // Notificar usuários configurados para sac_sla_vencido via e-mail
+    sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
+
+    // Também notificar cada username específico do chamado (popup interno)
+    const usernames = Array.isArray(notifyUsernames) ? notifyUsernames : [];
+    if (usernames.length > 0) {
+        const placeholders = usernames.map(() => '?').join(',');
+        db.all(`SELECT u.id, u.username FROM usuarios u WHERE LOWER(TRIM(u.username)) IN (${placeholders}) AND u.ativo = 1`,
+            usernames.map(u => (u||'').toLowerCase().trim()),
+            (err, users) => {
+                if (err || !users) return;
+                const msg = `⚠️ Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> — ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
+                users.forEach(u => {
+                    db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                        [u.id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+                });
+            }
+        );
+    }
+
+    res.json({ success: true });
+});
+
+// ── POST /api/sac/notificar-sla-vencido ───────────────────────────────────────
+// Notifica usuários configurados quando o SLA de um chamado estourar
+app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) => {
+    const { ticketId, protocol, clientName, openDate, typeKey } = req.body;
+    if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
+
+    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    const systemUrl = 'https://sistema-america.onrender.com/';
+    const abertoFmt = openDate ? new Date(openDate).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+    const subject = `🔴 SAC — SLA Estourado: Chamado Nº ${protocol}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
+        <div style="padding:24px;">
+            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">🔴 SLA Estourado</span></div>
+            <p style="font-size:1rem;color:#1e293b;">Um chamado SAC <strong>ultrapassou o prazo de SLA</strong> e não foi concluído a tempo.</p>
+            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
+                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                <p style="margin:4px 0;"><strong>Aberto em:</strong> ${abertoFmt}</p>
+            </div>
+            <p>O chamado foi marcado como <strong>URGENTE</strong> automaticamente. Acesse o sistema para verificar e justificar o atraso.</p>
+            <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
+            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+        </div>
+    </div>`;
+
+    // Enviar e-mail para configurados em sac_sla_vencido
+    sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
+
+    // Popup interno para configurados
+    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const msg = `🔴 SLA estourado no chamado <strong>Nº ${protocol}</strong> — ${clientName}. Marcado como urgente. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+        rows.forEach(r => {
+            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                [r.usuario_id, 'sac_sla_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+        });
+    });
+
+    res.json({ success: true });
+});
+
+

@@ -1,7 +1,7 @@
 const fs = require('fs');
-const lines = fs.readFileSync('frontend/sac.js', 'utf8').split('\n');
+const lines = fs.readFileSync('backend/server.js', 'utf8').split('\n');
 lines.forEach((l, i) => {
-  if (l.includes('DESCRIÇÃO') || l.includes('Descrição') || l.includes('NOME DO CONTATO')) {
+  if (l.includes('sendEmailParaNotificados') && l.includes('nova_ocorrencia')) {
     console.log(i + 1, l.trim());
   }
 });
