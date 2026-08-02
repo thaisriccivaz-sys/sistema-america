@@ -1479,7 +1479,7 @@
             </div>
 
             <!-- ANEXOS -->
-            <div>
+            <div style="display:${pendingPopupType ? 'none' : 'block'}">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Anexos</div>
                     <label style="cursor:pointer;font-size:0.75rem;color:#3b82f6;font-weight:600;display:none;">
