@@ -25,7 +25,8 @@
     retirada:            { name: 'RETIRADA',               sla: 48, icon: '📦' },
     contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
     furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
-    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' }
+    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' },
+    tipo_teste:          { name: 'TIPO TESTE',             sla: (10/60), icon: '🧪' }
   };
 
   const OCCURRENCES_BY_TYPE = {
@@ -36,7 +37,8 @@
     retirada:            ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
     contrato:            ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
     furto:               ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
-    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato']
+    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato'],
+    tipo_teste:          ['Teste 1', 'Teste 2']
   };
 
   const CHECKLISTS_BY_TYPE = {
