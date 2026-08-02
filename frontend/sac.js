@@ -29,6 +29,9 @@
     tipo_teste:          { name: 'TIPO TESTE',             sla: (10/60), icon: '🧪' }
   };
 
+  const POPUP_CLOSERS = ['Thais.Ricci', 'renata.comercial'];
+  let _sacSlaNotificadosIds = [];
+
   const OCCURRENCES_BY_TYPE = {
     manutencao:          ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
     avaria_funcional:    ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
@@ -369,6 +372,18 @@
     bindGlobalEvents();
     // Carrega os dados da API antes de renderizar
     await loadTickets();
+
+    const tk = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (tk) {
+      try {
+        const resConf = await fetch('/api/config-notificacoes', { headers: { 'Authorization': 'Bearer ' + tk } });
+        if (resConf.ok) {
+          const configRows = await resConf.json();
+          _sacSlaNotificadosIds = configRows.filter(r => r.tipo === 'sac_sla_vencido').map(r => String(r.usuario_id));
+        }
+      } catch(e) {}
+    }
+
     _wiz.protocol = nextProtocol();
     renderAll();
     
@@ -1227,10 +1242,13 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center;">
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center; ${pendingPopupType ? 'background:#dc2626;color:#fff;' : ''}">
         ${pendingPopupType 
-            ? `<div style="flex:1;color:#dc2626;font-weight:700;">⚠️ SLA Estourado - Justificativa Obrigatória</div>` 
-            : `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>`}
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>` 
+            : ''}
+        ${(!pendingPopupType || POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase())) 
+            ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
+            : ''}
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 2fr;gap:40px;" id="sac-modal-body">
@@ -2664,8 +2682,7 @@
   // ══════════════════════════════════════════════════════
   // POPUP OBRIGATÓRIO — não pode ser fechado
   // ══════════════════════════════════════════════════════
-  // Usuários que podem fechar o popup sem preencher (gestores/admins)
-  const POPUP_CLOSERS = ['Thais.Ricci', 'Renata', 'Miki', 'Yoda'];
+  // Usuários que podem fechar o popup sem preencher (gestores/admins) já definidos no topo
 
   function showMandatoryJustificationPopup(ticket, tipo) {
     const existingId = 'sac-mandatory-popup-' + ticket.id;
@@ -2696,6 +2713,11 @@
           if (!isGestor) return; // Não é o gestor — não exibir o popup
         }
       }
+    } else {
+      let cUserId = null;
+      try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
+      const isNotified = _sacSlaNotificadosIds.includes(cUserId) || POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
+      if (!isNotified) return;
     }
 
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
@@ -2779,7 +2801,6 @@
         ticket.slaOverdueNotified = true;
         ticket.slaOverduePendingJustification = true;
         if (!ticket.comments) ticket.comments = [];
-        ticket.comments.push({ user:'Sistema', text:'🔴 SLA estourado. Notificação enviada aos responsáveis.', time: new Date().toISOString() });
         changed = true;
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
         fetch('/api/sac/notificar-sla-vencido', {
