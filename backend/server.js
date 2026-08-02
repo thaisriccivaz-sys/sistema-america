@@ -27823,7 +27823,8 @@ function fixSacEncoding() {
         [/Log├¡stica/g, 'Logística'], [/Log\?stica/g, 'Logística'],
         [/Pend├¬ncia/g, 'Pendência'], [/Pend\?ncia/g, 'Pendência'],
         [/├│/g, 'ó'], [/ÔÇ£/g, '"'], [/ÔÇ¥/g, '"'],
-        [/└é/g, '→'], [/ÔÇÿ/g, "'"]
+        [/└é/g, '→'], [/ÔÇÿ/g, "'"], [/ÔÇö/g, '—'],
+        [/AtribuÃ­do/g, 'Atribuído'], [/Atribudo/g, 'Atribuído']
     ];
     function applyFix(str) {
         if (!str || typeof str !== 'string') return str;

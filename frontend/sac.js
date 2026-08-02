@@ -1431,13 +1431,14 @@
 
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
-        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currUsername) ||
-                           (t.commercialTask && t.commercialTask.assignedTo === currUsername) ||
-                           (t.financialTask && t.financialTask.assignedTo === currUsername);
-        const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user === currUsername;
-        const wasEverAssigned = (t.logisticsTask && t.logisticsTask.assignedTo === currUsername) ||
-                                (t.commercialTask && t.commercialTask.assignedTo === currUsername) ||
-                                (t.financialTask && t.financialTask.assignedTo === currUsername);
+        const cuLower = (currUsername || '').toLowerCase();
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === cuLower) ||
+                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === cuLower) ||
+                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === cuLower);
+        const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
+        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
+                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
+                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower));
         const isManagerOfTicket = myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];

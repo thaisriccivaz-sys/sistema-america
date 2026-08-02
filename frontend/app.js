@@ -14885,7 +14885,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
-                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if(typeof window.initSAC === 'function'){ navigateTo('sac'); } else { navigateTo('sac'); }`;
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
                 }
 
                 popup.innerHTML = `
@@ -14910,12 +14910,15 @@ async function checkUserNotificacoes() {
                 `;
                 // Popup SAC: fundo vermelho
                 if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
-                    popup.style.cssText += ';background:#dc2626;border:2px solid #b91c1c;';
+                    popup.style.background = '#dc2626';
+                    popup.style.border = '2px solid #b91c1c';
                     popup.querySelectorAll && setTimeout(() => {
-                        const allText = popup.querySelectorAll('div[style*="color:#0f172a"], div[style*="color:#64748b"], div[style*="color:#475569"]');
-                        allText.forEach(el => el.style.color = '#fecaca');
-                        const titleEl = popup.querySelector('div[style*="color:#dc2626"]');
-                        if (titleEl) titleEl.style.color = '#fff';
+                        const allDivs = popup.querySelectorAll('div');
+                        allDivs.forEach(el => {
+                            if(el.style.color) el.style.color = '#ffffff';
+                        });
+                        const icons = popup.querySelectorAll('i');
+                        icons.forEach(el => el.style.color = '#ffffff');
                     }, 0);
                 }
                 popup.setAttribute('data-notif-id', notif.id);
@@ -20141,6 +20144,28 @@ window.imprimirFichaSantander = function () {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
     }
+};
+
+window.forceOpenSAC = function() {
+    const target = 'sac';
+    const meta = getTabMeta(target);
+    const existingTab = appOpenTabs.find(t => t.tabId === target);
+    if (!existingTab) {
+        appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true });
+    }
+    appOpenTabs.forEach(t => t.active = (t.tabId === target));
+    renderAppTabs();
+    
+    document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    
+    const targetNav = document.querySelector(`.nav-item[data-target="${target}"]`);
+    if (targetNav) targetNav.classList.add('active');
+    
+    const view = document.getElementById('view-' + target);
+    if (view) view.classList.add('active');
+    
+    if (typeof window.initSAC === 'function') window.initSAC();
 };
 
 window.verProntuarioColaborador = async function (id, tabName) {
