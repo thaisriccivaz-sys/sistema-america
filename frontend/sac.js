@@ -1211,11 +1211,10 @@
                 <div class="sac-sla-bar" style="height: 6px;"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
             </div>
             
-            <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${t.clientName}</h2>
+            <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${(t.clientName || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '').trim()}</h2>
             <div style="font-size:0.85rem;color:#64748b;margin-top:4px;">
                 <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>
                 ${t.address ? `<div style="display:flex;align-items:flex-start;gap:6px;margin-top:4px;font-size:0.72rem;color:#64748b;word-break:break-word;line-height:1.4;" title="${t.address}"><i class="ph ph-map-pin" style="color:#3b82f6;flex-shrink:0;margin-top:2px;"></i><span>${t.address}</span></div>` : ''}
-                ${t.followUpDeadline && t.stage === 'execucao' ? `<div style="display:flex;align-items:center;gap:5px;margin-top:6px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:5px 8px;font-size:0.75rem;color:#c2410c;font-weight:700;"><i class="ph ph-calendar-check"></i> Acomp. até: <strong>${formatDateShort(t.followUpDeadline)}</strong></div>` : ''}
             </div>
 
             
@@ -1607,7 +1606,7 @@
         (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
         `<div class="sac-field"><label>Próximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
         ${pt.targetStageId === 'execucao' ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#c2410c;font-weight:700;display:block;margin-bottom:6px;"><i class=\'ph ph-calendar-check\'></i> Data/Hora Limite do Acompanhamento <span style=\'color:#dc2626\'>*</span></label><input type="datetime-local" id="trans-followup-deadline" style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.9rem;box-sizing:border-box;" min="' + new Date().toISOString().slice(0,16) + '"></div>' : ''}
-        <div class="sac-field"><label>Observação (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informação adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`) +
+        <textarea id="trans-obs" style="display:none;"></textarea>`) +
       `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
       </div>`;
     if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
