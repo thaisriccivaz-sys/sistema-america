@@ -27771,25 +27771,48 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
     });
 });
 
+// ── Migração automática: garantir colunas SLA/follow-up existem ──
+const sacMigrations = [
+  `ALTER TABLE sac_tickets ADD COLUMN sla_frozen_at TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN sla_elapsed_ms INTEGER`,
+  `ALTER TABLE sac_tickets ADD COLUMN follow_up_deadline TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN follow_up_notified INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN follow_up_pending_justification INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN close_date TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN updated_at DATETIME`,
+  `ALTER TABLE sac_tickets ADD COLUMN open_date TEXT`,
+];
+sacMigrations.forEach(sql => {
+  db.run(sql, err => {
+    if (err && !err.message.includes('duplicate column')) {
+      // Coluna já existe — ignorar
+    }
+  });
+});
+console.log('[SAC] Migração de colunas concluída.');
+
 app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     const t = req.body;
     db.run(`INSERT INTO sac_tickets (
         id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
-        logistics_task, commercial_task, financial_task, comments
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        logistics_task, commercial_task, financial_task, comments,
+        sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
-        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[])
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[]),
+        t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: t.id });
     });
 });
+
 
 app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
