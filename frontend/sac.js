@@ -2152,7 +2152,7 @@
               isHandled = true;
               t.stage = 'respondido';
               t.aguardPendingJustification = false;
-              t.timeline.push({ stage: 'respondido', time: justTimestamp, notes: 'Respondido via justificativa de prazo: "' + text + '"', user });
+              t.timeline.push({ stage: 'respondido', time: justTimestamp, notes: '', user });
               ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                   if (t[k] && !t[k].isCompleted) {
                       t[k].isCompleted = true;
