@@ -2181,6 +2181,16 @@
          const currNomeWindow = (cu2 ? (cu2.nome || '') : '').toLowerCase();
          const effectiveNome = currNomeNow || currNomeWindow;
 
+         // Extrair o username real do usuário logado (ANTES do filtro de departamentos)
+         // currentUsername() retorna u.nome||u.username — pode ser o nome de exibição.
+         // O assignedTo guarda o login real (ex: beatriz.batista). Usar erp_user.username.
+         let usernameActual = (user || '').toLowerCase().trim();
+         try {
+             const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
+             const realLogin = (uu.username || uu.login || '').toLowerCase().trim();
+             if (realLogin) usernameActual = realLogin;
+         } catch(e){}
+
          const myDeptsNow = _globalDepartamentos.filter(d => {
              const respId   = (d.responsavel_id || '').toString().trim();
              const respNome = (d.responsavel_nome || '').toLowerCase();
@@ -2191,17 +2201,9 @@
                     (effectiveNome && respNome && respNome.includes(effectiveNome) && effectiveNome.length > 5);
          }).map(d => (d.nome || '').trim());
 
-         const deptMapLocal = { 'Log\u00edstica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+         const deptMapLocal = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
 
          // Usuário é o atribuído diretamente?
-         // IMPORTANTE: currentUsername() retorna u.nome||u.username, que pode ser o nome de exibição.
-         // O assignedTo guarda o username real (login). Usar erp_user.username como fonte de verdade.
-         let usernameActual = (user || '').toLowerCase().trim();
-         try {
-             const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
-             const realLogin = (uu.username || uu.login || '').toLowerCase().trim();
-             if (realLogin) usernameActual = realLogin;
-         } catch(e){}
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
              if (!task || !task.assignedTo) return false;
