@@ -1213,15 +1213,17 @@
                     const cName = u ? (u.nome || u.name || creatorUserStr) : creatorUserStr;
                     const cPhoto = u ? (u.foto_colaborador || '') : '';
                     const cNameTrunc = cName.length > 15 ? cName.substring(0, 15) + '...' : cName;
-                    creatorInfo = `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;background:#f8fafc;padding:4px 12px;border-radius:20px;border:1px solid #e2e8f0;" title="${cName}">
-                        <span style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;">Aberto por</span>
-                        ${cPhoto ? `<img src="${cPhoto}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;">` : `<div style="width:22px;height:22px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:bold;color:#475569;">${cName.charAt(0).toUpperCase()}</div>`}
-                        <span style="font-size:0.8rem;font-weight:600;color:#1e293b;">${cNameTrunc}</span>
+                    creatorInfo = `<div style="display:flex;align-items:center;gap:6px;background:#f8fafc;padding:3px 10px;border-radius:20px;border:1px solid #e2e8f0;" title="${cName}">
+                        <span style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;">Aberto por</span>
+                        ${cPhoto ? `<img src="${cPhoto}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;">` : `<div style="width:18px;height:18px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-weight:bold;color:#475569;">${cName.charAt(0).toUpperCase()}</div>`}
+                        <span style="font-size:0.75rem;font-weight:600;color:#1e293b;">${cNameTrunc}</span>
                     </div>`;
                 }
-                return `<div style="display:flex;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;width:100%;">
-                    <span style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">MOVER PARA:</span>
-                    <select style="padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;outline:none;cursor:pointer;background:#fff;" onchange="SAC.changeStageFromModal(this.value)" ${!canMoveTicket(t) ? 'disabled title="Você só pode mover chamados abertos por você."' : ''}>${stageOpts}</select>
+                return `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:nowrap;width:100%;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">MOVER PARA:</span>
+                        <select style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:pointer;background:#fff;" onchange="SAC.changeStageFromModal(this.value)" ${!canMoveTicket(t) ? 'disabled title="Você só pode mover chamados abertos por você."' : ''}>${stageOpts}</select>
+                    </div>
                     ${creatorInfo}
                 </div>`;
             })()}
@@ -1232,8 +1234,11 @@
             </div>
 
             <div style="margin-top:24px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Descrição</div>
-                <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${t.description||'Nenhuma descrição informada.'}</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Descrição</div>
+                    <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;background:#e2e8f0;border:none;cursor:pointer;font-weight:600;color:#475569;" onclick="SAC.saveDescription('${t.id}')">Salvar Edição</button>
+                </div>
+                <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" oninput="this.style.borderColor='#3b82f6'">${t.description||''}</textarea>
             </div>
 
             ${allTasks.length ? `
@@ -1294,7 +1299,6 @@
         
             <!-- DADOS DA OS (MOVIDO) -->
             <div style="margin-top: 32px; border-top: 1px dashed #cbd5e1; padding-top: 24px;">
-                >
             
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Dados da OS</div>
@@ -1303,10 +1307,6 @@
                         <button class="sac-btn" style="background:#fee2e2;color:#dc2626;padding:4px 10px;font-size:0.75rem;border:1px solid #fecaca;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
                         <button class="sac-btn" style="background:#c4b5fd;color:#5b21b6;padding:4px 10px;font-size:0.75rem;border:1px solid #a78bfa;" onclick="SAC.openCustosModal()"><i class="ph ph-currency-dollar"></i> Custos</button>
                     </div>
-                    <label style="cursor:pointer;font-size:0.75rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:4px;">
-                        <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;">
-                        Chamado Urgente
-                    </label>
                 </div>
             </div>
             
@@ -1324,8 +1324,14 @@
 
         <!-- COLUNA DIREITA -->
         <div style="display:flex;flex-direction:column;height:100%;">
-            <!-- COMENTÁRIOS / HISTÓRICO -->
-            <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Comentários</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <!-- COMENTÁRIOS / HISTÓRICO -->
+                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
+                <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
+                    <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
+                    Chamado Urgente
+                </label>
+            </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:500px;margin-bottom:24px;">
                 <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;" id="sac-comments-list">
                     ${(() => {
