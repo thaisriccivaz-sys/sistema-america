@@ -662,6 +662,10 @@
         <div class="sac-sla-bar" style="flex:1;"><div class="sac-sla-fill" style="width:${cl.length?Math.round(clChecked/cl.length*100):0}%;background:${clChecked===cl.length?'#15803d':'#f97316'};"></div></div>
       </div>` : ''}
       <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
+      <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
+        <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
+        <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
+      </div>
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
         const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
@@ -676,16 +680,12 @@
         const countLabel = isOverAguard ? `Vencido há ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
-        return `<div class="sac-sla-bar" style="margin-top:3px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
+        return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
         <div style="font-size:0.63rem;color:${barColor};font-weight:700;margin-top:1px;display:flex;justify-content:space-between;align-items:center;">
           <span style="color:#854d0e;">${pendSector ? '⏳ Aguard. ' + pendSector : ''}</span>
           <span>${countLabel}</span>
         </div>`;
       })()}
-      <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
-        <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
-        <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
-      </div>
     </div>`;
   }
 
