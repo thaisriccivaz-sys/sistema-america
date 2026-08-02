@@ -488,7 +488,7 @@
 
         <div style="position:relative;display:flex;align-items:center;">
           <i class="ph ph-user-circle" style="position:absolute;left:8px;color:#64748b;font-size:0.9rem;pointer-events:none;"></i>
-          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuíção..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
+          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuição..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
           <button id="sac-filter-assigned-clear" onclick="document.getElementById('sac-filter-assigned').value='';SAC.onFilterAssigned('')" style="position:absolute;right:4px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;display:none;" title="Limpar">&#x2715;</button>
         </div>
         
