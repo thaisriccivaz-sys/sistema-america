@@ -26,7 +26,7 @@
     contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
     furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
     visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' },
-    tipo_teste:          { name: 'TIPO TESTE',             sla: (10/60), icon: '🧪' }
+    tipo_teste:          { name: 'TIPO TESTE',             sla: (2/60), icon: '🧪' }
   };
 
   const POPUP_CLOSERS = ['Thais.Ricci', 'renata.comercial'];
@@ -689,7 +689,7 @@
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
         const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
-        const aguardTotal = 2 * 60 * 60 * 1000;
+        const aguardTotal = 5 * 60 * 1000;
         const aguardElapsed = aguardTotal - Math.max(0, aguardMs);
         const aguardPct = Math.min(100, Math.round(aguardElapsed / aguardTotal * 100));
         const isOverAguard = aguardMs <= 0;
@@ -2430,7 +2430,7 @@
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         // Prazo de 2h para aguardando_setores
-        ticket.aguardDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        ticket.aguardDeadline = new Date(Date.now() + 5 * 60 * 1000).toISOString();
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
       }
