@@ -631,13 +631,13 @@
 
     let assignedUser = null;
     let assignedUserPhoto = null;
-    if (hasPendingLog && ticket.logisticsTask.assignedTo) {
+    if (ticket.logisticsTask && ticket.logisticsTask.assignedTo && (!ticket.logisticsTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.logisticsTask.assignedToName;
         assignedUserPhoto = ticket.logisticsTask.assignedToPhoto;
-    } else if (hasPendingCom && ticket.commercialTask.assignedTo) {
+    } else if (ticket.commercialTask && ticket.commercialTask.assignedTo && (!ticket.commercialTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.commercialTask.assignedToName;
         assignedUserPhoto = ticket.commercialTask.assignedToPhoto;
-    } else if (hasPendingFin && ticket.financialTask.assignedTo) {
+    } else if (ticket.financialTask && ticket.financialTask.assignedTo && (!ticket.financialTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.financialTask.assignedToName;
         assignedUserPhoto = ticket.financialTask.assignedToPhoto;
     }
@@ -1423,8 +1423,9 @@
                         return unified.map(item => {
                             if (item.type === 'comment') {
                                 const isJust = item.text && item.text.startsWith('📝 Justificativa');
-                                // Justificativas são embutidas no bloco de triagem, não como comment separado
-                                if (isJust) return '';
+                                const isSlaJust = isJust && item.text.includes('(SLA');
+                                // Justificativas de acompanhamento/aguard são embutidas no bloco de triagem, SLA fica separado
+                                if (isJust && !isSlaJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
                                 return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -2125,8 +2126,8 @@
           }
           localStorage.removeItem('sac_pending_popup_' + t.id);
           showToast('Justificativa registrada com sucesso.', 'success');
-          // Atualiza a tela de detalhes para voltar ao normal (remover banner obrigatorio)
-          setTimeout(() => { if (_selectedTicket && _selectedTicket.id === t.id) renderDetailModal(); }, 100);
+          // Fecha o modal inteiramente após a justificativa
+          setTimeout(() => { SAC.closeModal(); }, 100);
       }
 
       if (!isHandled && t.stage === 'aguardando_setores') {
