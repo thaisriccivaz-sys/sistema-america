@@ -879,11 +879,11 @@
         <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual equipamento deseja incluir na ocorrência?</p>
         <div id="_sac-equip-opts" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;">
           ${prods.map((p,i)=>{
-              const m = p.match(/^.*?(\\d+)x/);
+              const m = p.match(/^.*?(\d+)x/);
               const max = m ? parseInt(m[1]) : 1;
               if (max > 1) {
                   return `<div style="display:flex;gap:8px;align-items:center;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
-                      <div style="flex:1;font-size:0.85rem;font-weight:600;color:#1e293b;">${p.replace(/(\\d+)x\\s*/, '')}</div>
+                      <div style="flex:1;font-size:0.85rem;font-weight:600;color:#1e293b;">${p.replace(/(\d+)x\s*/, '')}</div>
                       <input type="number" id="_sac-equip-qtd-${i}" min="1" max="${max}" value="${max}" style="width:60px;padding:4px;border:1px solid #cbd5e1;border-radius:4px;text-align:center;">
                       <button data-idx="${i}" data-max="${max}" style="background:#3b82f6;color:white;border:none;border-radius:4px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:0.75rem;">Adicionar</button>
                   </div>`;
