@@ -1434,8 +1434,8 @@
                                 const isJust = item.text && item.text.startsWith('📝 Justificativa');
                                 const isSlaJust = isJust && item.text.includes('(SLA');
                                 const isAguardJust = isJust && item.text.includes('(prazo de aguardo');
-                                // followup-justificativas são embutidas no bloco de triagem, SLA e aguard ficam separados
-                                if (isJust && !isSlaJust && !isAguardJust) return '';
+                                // followup e aguard justificativas são embutidas ou renderizadas na timeline, SLA fica separado
+                                if (isJust && !isSlaJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
                                 // Para justificativas (SLA/aguard), não mostra o nome do usuário
                                 const showCommentUser = !isJust;
@@ -2135,7 +2135,10 @@
       if (pendingTipo) {
           const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
           const justTimestamp = new Date().toISOString();
-          t.comments.push({ user: 'Sistema', text: '\u{1F4DD} Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
+          
+          if (pendingTipo !== 'aguard') {
+              t.comments.push({ user: 'Sistema', text: '\u{1F4DD} Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
+          }
 
           if (pendingTipo === 'followup') {
               isHandled = true;
@@ -2148,22 +2151,15 @@
               showToast('Justificativa registrada com sucesso.', 'success');
               setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
-              // O popup SÓ aparece para quem é autorizado (gestor/assignedTo/admin).
-              // Quem submete a justificativa JÁ está autorizado — transicionar direto para Respondido.
+              // Apenas registra a justificativa na timeline e mantém o chamado em 'aguardando_setores'.
+              // O gestor precisará enviar um novo comentário manualmente para transicionar para Respondido.
               isHandled = true;
-              t.stage = 'respondido';
               t.aguardPendingJustification = false;
-              t.timeline.push({ stage: 'respondido', time: justTimestamp, notes: '', user });
-              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
-                  if (t[k] && !t[k].isCompleted) {
-                      t[k].isCompleted = true;
-                      t[k].feedback = text;
-                      t[k].history = [...(t[k].history||[]), { type:'resolution', time: justTimestamp, feedback: text, user }];
-                  }
-              });
+              t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
               localStorage.removeItem('sac_pending_popup_' + t.id);
-              showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
-              setTimeout(() => { SAC.closeModal(); }, 150);
+              showToast('Justificativa registrada.', 'success');
+              // Ao invés de fechar o modal, reabrimos para permitir que o usuário adicione o comentário real de resposta
+              setTimeout(() => { SAC.openDetail(t.id); }, 150);
           } else {
               isHandled = true;
               t.slaOverduePendingJustification = false;
