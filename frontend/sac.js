@@ -295,7 +295,7 @@
     // Label: positive hours remaining or negative hours overdue
     let label;
     if (isFrozen) {
-      label = `🔒 Congelado · ${fmtHM(elapsedMs)} consumidas`;
+      label = `🔒 ${fmtHM(elapsedMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
@@ -1251,11 +1251,11 @@
             </div>
 
             <div style="margin-top:24px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Descrição</div>
-                    <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.75rem;border-radius:6px;background:#fee2e2;border:1px solid #fecaca;cursor:pointer;font-weight:600;color:#dc2626;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
-                </div>
+                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Descrição</div>
                 <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" oninput="this.style.borderColor='#3b82f6'">${t.description||''}</textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <button class="sac-btn sac-btn-secondary" style="padding:6px 12px;font-size:0.8rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;cursor:pointer;font-weight:700;color:#2563eb;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
+                </div>
             </div>
 
             ${allTasks.length ? `
