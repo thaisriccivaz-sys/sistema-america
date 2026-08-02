@@ -1255,9 +1255,16 @@
             : pendingPopupType === 'aguard' || pendingPopupType === 'followup'
             ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta excedido. Justificativa obrigatória.</div>`
             : ''}
-        ${(!pendingPopupType || POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase())) 
-            ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
-            : ''}
+        ${(() => {
+            const permsNowX = window.activeUserPerms || {};
+            const isTopAdminX = window.isTopAdmin || false;
+            const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
+            const isPopupCloser = POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase());
+            const canClose = !pendingPopupType || canSeeAllNowX || isPopupCloser;
+            return canClose 
+                ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
+                : '';
+        })()}
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 2fr;gap:40px;" id="sac-modal-body">
@@ -2849,7 +2856,7 @@
         const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
         const isGestorBySacPerm = (permsNow['sac'] === true || permsNow['sac-atribuidos'] === true) && !canSeeAllNow;
 
-        if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm) return;
+        if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm && !canSeeAllNow) return;
       }
     } else {
       let cUserId = null;
