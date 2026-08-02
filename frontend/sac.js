@@ -227,7 +227,17 @@
     if (isNaN(opened)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
 
     let endCalc = Date.now();
-    const isFrozen = !!ticket.slaFrozenAt;
+    let isFrozen = !!ticket.slaFrozenAt;
+    let fallbackElapsed = null;
+
+    // Fallback para chamados que já estão em Acompanhamento mas não salvaram slaFrozenAt
+    if (!isFrozen && ticket.stage === 'execucao' && ticket.timeline) {
+        const log = [...ticket.timeline].reverse().find(l => l.stage === 'execucao');
+        if (log) {
+            isFrozen = true;
+            fallbackElapsed = new Date(_normDate(log.time)).getTime() - opened;
+        }
+    }
 
     if (isClosed) {
       const log = ticket.timeline && ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado');
@@ -238,7 +248,12 @@
     }
 
     // SLA congelado no Acompanhamento
-    const elapsedMs = (isFrozen && ticket.slaElapsedMs) ? ticket.slaElapsedMs : (endCalc - opened);
+    let elapsedMs = endCalc - opened;
+    if (isFrozen) {
+        if (ticket.slaElapsedMs) elapsedMs = ticket.slaElapsedMs;
+        else if (fallbackElapsed) elapsedMs = fallbackElapsed;
+    }
+    
     const remainMs = limitMs - elapsedMs;
 
     const fmtHM = (ms) => {
@@ -1303,10 +1318,7 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Dados da OS</div>
                 <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
-                    <div style="display:flex;gap:6px;">
-                        <button class="sac-btn" style="background:#fee2e2;color:#dc2626;padding:4px 10px;font-size:0.75rem;border:1px solid #fecaca;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
-                        <button class="sac-btn" style="background:#c4b5fd;color:#5b21b6;padding:4px 10px;font-size:0.75rem;border:1px solid #a78bfa;" onclick="SAC.openCustosModal()"><i class="ph ph-currency-dollar"></i> Custos</button>
-                    </div>
+                    <!-- Botões ocultos conforme solicitado -->
                 </div>
             </div>
             

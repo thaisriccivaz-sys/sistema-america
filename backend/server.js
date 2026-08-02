@@ -27759,7 +27759,13 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             timeline: r.timeline ? JSON.parse(r.timeline) : [],
             attachments: r.attachments ? JSON.parse(r.attachments) : [],
             checklist: r.checklist ? JSON.parse(r.checklist) : [],
-            comments: r.comments ? JSON.parse(r.comments) : []
+            comments: r.comments ? JSON.parse(r.comments) : [],
+            slaFrozenAt: r.sla_frozen_at,
+            slaElapsedMs: r.sla_elapsed_ms,
+            followUpDeadline: r.follow_up_deadline,
+            followUpNotified: r.follow_up_notified === 1,
+            followUpPendingJustification: r.follow_up_pending_justification === 1,
+            closeDate: r.close_date
         }));
         res.json(parsed);
     });
@@ -27789,12 +27795,16 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
     db.run(`UPDATE sac_tickets SET
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
-        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, updated_at = CURRENT_TIMESTAMP
+        checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, 
+        sla_frozen_at = ?, sla_elapsed_ms = ?, follow_up_deadline = ?, follow_up_notified = ?, follow_up_pending_justification = ?, close_date = ?,
+        updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
         t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
-        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, req.params.id
+        JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, 
+        t.slaFrozenAt || null, t.slaElapsedMs || null, t.followUpDeadline || null, t.followUpNotified ? 1 : 0, t.followUpPendingJustification ? 1 : 0, t.closeDate || null,
+        req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
