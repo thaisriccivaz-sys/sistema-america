@@ -14908,19 +14908,7 @@ async function checkUserNotificacoes() {
                         </div>
                     </div>
                 `;
-                // Popup SAC: fundo vermelho
-                if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
-                    popup.style.background = '#dc2626';
-                    popup.style.border = '2px solid #b91c1c';
-                    popup.querySelectorAll && setTimeout(() => {
-                        const allDivs = popup.querySelectorAll('div');
-                        allDivs.forEach(el => {
-                            if(el.style.color) el.style.color = '#ffffff';
-                        });
-                        const icons = popup.querySelectorAll('i');
-                        icons.forEach(el => el.style.color = '#ffffff');
-                    }, 0);
-                }
+
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia') {

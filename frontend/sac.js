@@ -174,7 +174,11 @@
   // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
     if (!str) return str;
-    if (typeof str === 'string') return str.replace(' ', 'T');
+    if (typeof str === 'string') {
+      let s = str.replace(' ', 'T');
+      if (s.length === 19 && !s.endsWith('Z')) s += 'Z';
+      return s;
+    }
     return str;
   }
 
