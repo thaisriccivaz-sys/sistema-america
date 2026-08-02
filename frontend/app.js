@@ -14719,6 +14719,10 @@ async function checkUserNotificacoes() {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-device-mobile'; titulo = 'Celular Corporativo'; navTarget = 'celulares-corporativos';
                 } else if (notif.tipo === 'computador_controle') {
                     bg = '#fff3e6'; color = '#e67700'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
+                } else if (notif.tipo === 'sac_atribuicao') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
+                } else if (notif.tipo === 'sac_novo_chamado') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -14880,6 +14884,8 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
+                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if(typeof window.initSAC === 'function'){ navigateTo('sac'); } else { navigateTo('sac'); }`;
                 }
 
                 popup.innerHTML = `
@@ -14902,6 +14908,16 @@ async function checkUserNotificacoes() {
                         </div>
                     </div>
                 `;
+                // Popup SAC: fundo vermelho
+                if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
+                    popup.style.cssText += ';background:#dc2626;border:2px solid #b91c1c;';
+                    popup.querySelectorAll && setTimeout(() => {
+                        const allText = popup.querySelectorAll('div[style*="color:#0f172a"], div[style*="color:#64748b"], div[style*="color:#475569"]');
+                        allText.forEach(el => el.style.color = '#fecaca');
+                        const titleEl = popup.querySelector('div[style*="color:#dc2626"]');
+                        if (titleEl) titleEl.style.color = '#fff';
+                    }, 0);
+                }
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia') {

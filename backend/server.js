@@ -27808,6 +27808,73 @@ app.delete('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     });
 });
 
+// ── Correção automática de encoding nos dados SAC ─────────────────────────────
+// Repara textos gravados com mojibake (UTF-8 interpretado como Windows-1252)
+function fixSacEncoding() {
+    const replacements = [
+        [/ÔÇö/g, '—'], [/ÔåÆ/g, '→'], [/├│/g, 'ó'], [/├¡/g, 'í'],
+        [/├¬/g, 'ê'], [/├©/g, 'é'], [/├ú/g, 'ã'], [/├úo/g, 'ão'],
+        [/├â/g, 'â'], [/├│/g, 'ó'], [/├¡/g, 'í'], [/├╗/g, 'û'],
+        [/├║/g, 'ú'], [/├º/g, 'ç'], [/Ôûé/g, '✓'], [/├Â/g, 'Â'],
+        [/Ã¡/g, 'á'], [/Ã©/g, 'é'], [/Ã­/g, 'í'], [/Ã³/g, 'ó'],
+        [/Ãº/g, 'ú'], [/Ã£/g, 'ã'], [/Ãµ/g, 'õ'], [/Ã§/g, 'ç'],
+        [/Ã‰/g, 'É'], [/Ã"/g, 'Ó'], [/Ã"/g, 'Ú'], [/Ã€/g, 'À'],
+        [/Pr├│ximos/g, 'Próximos'], [/Pr├?ximos/g, 'Próximos'],
+        [/Log├¡stica/g, 'Logística'], [/Log\?stica/g, 'Logística'],
+        [/Pend├¬ncia/g, 'Pendência'], [/Pend\?ncia/g, 'Pendência'],
+        [/├│/g, 'ó'], [/ÔÇ£/g, '"'], [/ÔÇ¥/g, '"'],
+        [/└é/g, '→'], [/ÔÇÿ/g, "'"]
+    ];
+    function applyFix(str) {
+        if (!str || typeof str !== 'string') return str;
+        let s = str;
+        for (const [from, to] of replacements) s = s.replace(from, to);
+        return s;
+    }
+    db.all("SELECT id, timeline, logistics_task, commercial_task, financial_task FROM sac_tickets", [], (err, rows) => {
+        if (err) return console.error('[SAC enc-fix] Erro ao buscar tickets:', err.message);
+        let fixed = 0;
+        rows.forEach(r => {
+            let changed = false;
+            let newTimeline = r.timeline, newLog = r.logistics_task, newCom = r.commercial_task, newFin = r.financial_task;
+            try {
+                if (r.timeline) {
+                    const tl = JSON.parse(r.timeline);
+                    const tl2 = tl.map(e => ({ ...e, notes: applyFix(e.notes) }));
+                    const s2 = JSON.stringify(tl2);
+                    if (s2 !== r.timeline) { newTimeline = s2; changed = true; }
+                }
+                if (r.logistics_task) {
+                    const t = JSON.parse(r.logistics_task);
+                    const t2 = { ...t, name: applyFix(t.name) };
+                    const s2 = JSON.stringify(t2);
+                    if (s2 !== r.logistics_task) { newLog = s2; changed = true; }
+                }
+                if (r.commercial_task) {
+                    const t = JSON.parse(r.commercial_task);
+                    const t2 = { ...t, name: applyFix(t.name) };
+                    const s2 = JSON.stringify(t2);
+                    if (s2 !== r.commercial_task) { newCom = s2; changed = true; }
+                }
+                if (r.financial_task) {
+                    const t = JSON.parse(r.financial_task);
+                    const t2 = { ...t, name: applyFix(t.name) };
+                    const s2 = JSON.stringify(t2);
+                    if (s2 !== r.financial_task) { newFin = s2; changed = true; }
+                }
+            } catch(e) { /* skip parse errors */ }
+            if (changed) {
+                fixed++;
+                db.run("UPDATE sac_tickets SET timeline=?, logistics_task=?, commercial_task=?, financial_task=? WHERE id=?",
+                    [newTimeline, newLog, newCom, newFin, r.id]);
+            }
+        });
+        console.log(`[SAC enc-fix] Corrigidos ${fixed} ticket(s) com encoding quebrado.`);
+    });
+}
+// Roda automaticamente no startup
+setTimeout(fixSacEncoding, 3000);
+
 // ── POST /api/sac/notificar-atribuicao ────────────────────────────────────────
 // Notifica por e-mail + popup interno o colaborador atribuído a um chamado de SAC
 app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) => {

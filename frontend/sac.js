@@ -1375,8 +1375,12 @@
   function getFilteredTickets() {
     const s = _searchTerm.toLowerCase();
     const cu = window.currentUser;
-    const canSeeAll = window.hasPermission ? window.hasPermission('sac', 'visualizar') : true;
-    const canSeeAssigned = window.hasPermission ? window.hasPermission('sac-atribuidos', 'visualizar') : false;
+    const perms = window.activeUserPerms || {};
+    const isTopAdmin = window.isTopAdmin || false;
+    // canSeeAll: apenas Diretoria/Admin OU quem tem permissão plena 'sac' SEM restrição de 'sac-atribuidos'
+    // Se tem 'sac-atribuidos', vê apenas os chamados relacionados a ele mesmo
+    const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
+    const canSeeAssigned = !canSeeAll && (perms['sac-atribuidos'] === true || perms['sac'] === true);
 
     // Identifica quais departamentos o usuário atual gerencia (via tela Gestão de Departamentos)
     const currUsername = currentUsername();
