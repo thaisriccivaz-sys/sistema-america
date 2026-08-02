@@ -2171,10 +2171,14 @@
                  return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
              });
              if (deptObj) {
-                 const gestorId = deptObj.responsavel_id ? String(deptObj.responsavel_id) : null;
+                 const gestorId = (deptObj.responsavel_id || '').toString().trim();
                  const gestorNome = (deptObj.responsavel_nome || '').toLowerCase();
-                 if (cUserIdNow && gestorId && cUserIdNow === gestorId) return true;
-                 if (currNomeNow && gestorNome && currNomeNow === gestorNome) return true;
+                 const gestorLogin = (deptObj.responsavel_login || deptObj.responsavel_username || '').toLowerCase();
+                 
+                 if (cUserIdNow && gestorId && gestorId === cUserIdNow) return true;
+                 if (user && gestorLogin && gestorLogin === user.toLowerCase()) return true;
+                 if (currNomeNow && gestorNome && gestorNome === currNomeNow) return true;
+                 if (currNomeNow && gestorNome && gestorNome.includes(currNomeNow) && currNomeNow.length > 5) return true;
              }
              return false;
          });
