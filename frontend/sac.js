@@ -101,6 +101,7 @@
   let _filterDateStart = '';
   let _filterDateEnd = '';
   let _filterUrgent = false;
+  let _filterAssigned = '';
   let _selectedTicket = null;
   let _modalTab = 'geral'; // 'geral' | 'historico' | 'custo' | 'anexos' | 'checklist'
   let _pendingTransition = null;
@@ -484,6 +485,12 @@
           <input type="checkbox" id="sac-filter-urgent" onchange="SAC.onFilterUrgent(this.checked)" style="accent-color:#dc2626;width:16px;height:16px;cursor:pointer;">
           <i class="ph ph-warning-circle" style="color:#dc2626;"></i> Urgentes
         </label>
+
+        <div style="position:relative;display:flex;align-items:center;">
+          <i class="ph ph-user-circle" style="position:absolute;left:8px;color:#64748b;font-size:0.9rem;pointer-events:none;"></i>
+          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuíção..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
+          <button id="sac-filter-assigned-clear" onclick="document.getElementById('sac-filter-assigned').value='';SAC.onFilterAssigned('')" style="position:absolute;right:4px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;display:none;" title="Limpar">&#x2715;</button>
+        </div>
         
         <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;margin-left:auto;"></span>
       </div>
@@ -1742,6 +1749,17 @@
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
       const matchUrgent = !_filterUrgent || t.isUrgent;
 
+      // Filtro de atribuição
+      const fa = _filterAssigned.toLowerCase().trim();
+      const matchAssigned = !fa || [
+        t.logisticsTask?.assignedToName,
+        t.logisticsTask?.assignedTo,
+        t.commercialTask?.assignedToName,
+        t.commercialTask?.assignedTo,
+        t.financialTask?.assignedToName,
+        t.financialTask?.assignedTo,
+      ].some(v => v && v.toLowerCase().includes(fa));
+
       let matchDate = true;
       if (_filterDateStart || _filterDateEnd) {
         let compareMs = 0;
@@ -1765,6 +1783,8 @@
         }
       }
 
+      // Permissões de visibilidade
+      // Gestor do departamento sempre vê seus chamados, independente de ter sac-atribuidos
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
         const cuLower = (currUsername || '').toLowerCase();
@@ -1784,14 +1804,15 @@
         const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
-        const isManagerOfTicket = myManagedDepts.some(dept => {
+        // Gestor do departamento vê todos os chamados atribuídos ao seu setor
+        const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
         });
-        matchPermission = isAssigned || wasEverAssigned || isCreator || (canSeeAssigned && isManagerOfTicket);
+        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket || (canSeeAssigned && t.stage !== undefined);
       }
 
-      return matchSearch && matchType && matchUrgent && matchDate && matchPermission;
+      return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchPermission;
     });
   }
 
@@ -1882,6 +1903,12 @@
     onFilterDateType(v){ _filterDateType = v; renderAll(); },
     onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
     onFilterUrgent(checked){ _filterUrgent = checked; renderAll(); },
+    onFilterAssigned(v) {
+      _filterAssigned = v;
+      const clearBtn = document.getElementById('sac-filter-assigned-clear');
+      if (clearBtn) clearBtn.style.display = v ? 'block' : 'none';
+      renderAll();
+    },
     sortTable(k)  { if (_sortKey===k) { _sortDir=_sortDir==='asc'?'desc':'asc'; } else { _sortKey=k; _sortDir='asc'; } _tablePage=1; renderAll(); },
     setPage(p)    { _tablePage=p; renderAll(); },
     setTableDate(pos,v){ if(pos==='start') _tableStartDate=v; else _tableEndDate=v; renderAll(); },
