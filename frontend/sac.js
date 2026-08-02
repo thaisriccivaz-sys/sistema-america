@@ -1358,22 +1358,24 @@
                         if (!unified.length) return '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum registro.</div>';
                         return unified.map(item => {
                             if (item.type === 'comment') {
+                                const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
                                 return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
                                     <strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
-                                <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${item.text}</div>
+                                <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${formattedText}</div>
                                 </div>`;
                             } else {
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
+                                const formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
                                 return `<div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <strong style="font-size:0.7rem;color:${sColor};text-transform:uppercase;">${stageName}</strong>
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
-                                ${item.notes ? `<div style="font-size:0.75rem;color:#475569;margin-top:2px;">${item.notes}</div>` : ''}
+                                ${formattedNotes ? `<div style="font-size:0.75rem;color:#475569;margin-top:2px;">${formattedNotes}</div>` : ''}
                                 ${item.user ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
                                 </div>`;
                             }
