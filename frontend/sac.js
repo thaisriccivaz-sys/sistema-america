@@ -1856,8 +1856,14 @@
     const ticket = _tickets.find(t => t.id === _draggedId);
     if (!ticket || ticket.stage === colId) { _draggedId = null; return; }
 
+    if (ticket.stage === 'aguardando_setores') {
+        alert('Um chamado em "Aguardando Setores" n\u00e3o pode ser arrastado manualmente. Ele ser\u00e1 movido para "Respondido" automaticamente quando o respons\u00e1vel responder no card.');
+        _draggedId = null;
+        return;
+    }
+
     if (colId === 'respondido') {
-        alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        alert('A coluna "Respondido" s\u00f3 \u00e9 atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
         _draggedId = null;
         return;
     }
