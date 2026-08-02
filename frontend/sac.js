@@ -1150,11 +1150,17 @@
         <!-- COLUNA DIREITA -->
         <div style="display:flex;flex-direction:column;">
             
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Dados da OS</div>
-                <div style="display:flex;gap:6px;">
-                    <button class="sac-btn" style="background:#fee2e2;color:#dc2626;padding:4px 10px;font-size:0.75rem;border:1px solid #fecaca;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
-                    <button class="sac-btn" style="background:#c4b5fd;color:#5b21b6;padding:4px 10px;font-size:0.75rem;border:1px solid #a78bfa;" onclick="SAC.openCustosModal()"><i class="ph ph-currency-dollar"></i> Custos</button>
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+                    <div style="display:flex;gap:6px;">
+                        <button class="sac-btn" style="background:#fee2e2;color:#dc2626;padding:4px 10px;font-size:0.75rem;border:1px solid #fecaca;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
+                        <button class="sac-btn" style="background:#c4b5fd;color:#5b21b6;padding:4px 10px;font-size:0.75rem;border:1px solid #a78bfa;" onclick="SAC.openCustosModal()"><i class="ph ph-currency-dollar"></i> Custos</button>
+                    </div>
+                    <label style="cursor:pointer;font-size:0.75rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:4px;">
+                        <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;">
+                        Chamado Urgente
+                    </label>
                 </div>
             </div>
             
@@ -1783,6 +1789,15 @@
           showToast('OS excluída (modo local).','warning');
           renderAll();
         });
+    },
+    toggleUrgent(id, isUrgent) {
+      const t = _tickets.find(x => x.id === id);
+      if (!t) return;
+      t.isUrgent = isUrgent;
+      updateTicket(t);
+      if (isUrgent) {
+         showToast('Marcado como urgente!', 'warning');
+      }
     },
     removeOccurrence(idx) {
       const t = _selectedTicket;
