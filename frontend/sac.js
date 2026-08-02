@@ -652,7 +652,6 @@
         ${occText}
       </div>
       ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
-      ${anyPending ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#854d0e;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendência ${hasPendingLog?'Logística':hasPendingCom?'Comercial':'Financeiro'}</div>` : ''}
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
         <span style="font-size:0.7rem;color:#475569;font-weight:600;">${assignedUser}</span>
@@ -663,6 +662,26 @@
         <div class="sac-sla-bar" style="flex:1;"><div class="sac-sla-fill" style="width:${cl.length?Math.round(clChecked/cl.length*100):0}%;background:${clChecked===cl.length?'#15803d':'#f97316'};"></div></div>
       </div>` : ''}
       <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
+      ${(() => {
+        if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
+        const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
+        const aguardTotal = 2 * 60 * 60 * 1000;
+        const aguardElapsed = aguardTotal - Math.max(0, aguardMs);
+        const aguardPct = Math.min(100, Math.round(aguardElapsed / aguardTotal * 100));
+        const isOverAguard = aguardMs <= 0;
+        const absMs = Math.abs(aguardMs);
+        const hh = Math.floor(absMs/3600000).toString().padStart(2,'0');
+        const mm = Math.floor((absMs%3600000)/60000).toString().padStart(2,'0');
+        const ss = Math.floor((absMs%60000)/1000).toString().padStart(2,'0');
+        const countLabel = isOverAguard ? `Vencido há ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
+        const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
+        return `<div class="sac-sla-bar" style="margin-top:3px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
+        <div style="font-size:0.63rem;color:${barColor};font-weight:700;margin-top:1px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#854d0e;">${pendSector ? '⏳ Aguard. ' + pendSector : ''}</span>
+          <span>${countLabel}</span>
+        </div>`;
+      })()}
       <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
         <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
         <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
@@ -1363,13 +1382,23 @@
                     ${(() => {
                         const stageColors = {};
                         if (typeof PIPELINE_STAGES !== 'undefined') PIPELINE_STAGES.forEach(s => stageColors[s.id] = s.color);
+                        // Filtrar comentários redundantes do sistema de retorno automático
+                        const systemRedundant = new Set();
+                        (t.timeline || []).forEach(l => { if (l.notes && l.notes.startsWith('Retorno automático:')) systemRedundant.add(l.time); });
+                        const filteredComments = (t.comments || []).filter(c => {
+                            if (c.text && c.text.startsWith('↩ Chamado devolvido para Triagem')) return false;
+                            return true;
+                        });
                         const unified = [
-                            ...(t.comments || []).map(c => ({ type: 'comment', time: c.time, user: c.user, text: c.text })),
+                            ...filteredComments.map(c => ({ type: 'comment', time: c.time, user: c.user, text: c.text })),
                             ...(t.timeline || []).map(l => ({ type: 'timeline', time: l.time, user: l.user, stage: l.stage, notes: l.notes }))
                         ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                         if (!unified.length) return '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum registro.</div>';
                         return unified.map(item => {
                             if (item.type === 'comment') {
+                                const isJust = item.text && item.text.startsWith('📝 Justificativa');
+                                // Justificativas são embutidas no bloco de triagem, não como comment separado
+                                if (isJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
                                 return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -1379,16 +1408,23 @@
                                 <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${formattedText}</div>
                                 </div>`;
                             } else {
+                                const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
                                 const formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                // Buscar justificativa associada (comentário 📝 com timestamp próximo)
+                                const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
+                                const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"') : null;
+                                // Mostrar usuário apenas se não for retorno automático do sistema
+                                const showUser = item.user && !isAutoReturn;
                                 return `<div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <strong style="font-size:0.7rem;color:${sColor};text-transform:uppercase;">${stageName}</strong>
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
                                 ${formattedNotes ? `<div style="font-size:0.75rem;color:#475569;margin-top:2px;">${formattedNotes}</div>` : ''}
-                                ${item.user ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
+                                ${justFormatted ? `<div style="font-size:0.75rem;color:#475569;margin-top:3px;">${justFormatted}</div>` : ''}
+                                ${showUser ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
                                 </div>`;
                             }
                         }).join('');
@@ -1404,7 +1440,7 @@
             <div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Anexos</div>
-                    <label style="cursor:pointer;font-size:0.75rem;color:#3b82f6;font-weight:600;">
+                    <label style="cursor:pointer;font-size:0.75rem;color:#3b82f6;font-weight:600;display:none;">
                         <input type="file" multiple onchange="SAC.handleFileUpload(this.files)" style="display:none;">
                         <i class="ph ph-upload-simple"></i> Enviar
                     </label>
@@ -1996,7 +2032,7 @@
       if (!text) return;
       const user = currentUsername();
       if (!t.comments) t.comments = [];
-      t.comments.push({ user, text, time: new Date().toISOString() });
+      let isHandled = false;
 
       if (t.stage === 'aguardando_setores') {
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
@@ -2021,6 +2057,7 @@
          });
          
          if (isAssigned) {
+             isHandled = true;
              t.stage = 'respondido';
              t.timeline.push({ stage: 'respondido', time: new Date().toISOString(), notes: `Respondido via comentário: "${text}"`, user });
              
@@ -2033,6 +2070,10 @@
              });
              showToast(`OS ${t.protocol} respondida!`, 'success');
          }
+      }
+
+      if (!isHandled) {
+          t.comments.push({ user, text, time: new Date().toISOString() });
       }
 
       updateTicket(t);
@@ -2291,11 +2332,15 @@
         const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
         const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
         
-        if (!assignedUsername) { showToast('Selecione o usu├írio atribu├¡do.', 'warning'); return; }
+        if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
         ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        // Prazo de 2h para aguardando_setores
+        ticket.aguardDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        ticket.aguardNotified = false;
+        ticket.aguardPendingJustification = true;
       }
 
       updateTicket(ticket);
@@ -2316,15 +2361,25 @@
       if (!ticket) return;
       const user = currentUsername();
       if (!ticket.comments) ticket.comments = [];
-      const typeLabel = tipo === 'followup' ? 'prazo de acompanhamento' : 'SLA';
-      ticket.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): ' + justText, time: new Date().toISOString() });
+      const typeLabel = tipo === 'followup' ? 'prazo de acompanhamento' : tipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
+      const justTimestamp = new Date().toISOString();
+      ticket.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): "' + justText + '"', time: justTimestamp });
       if (tipo === 'followup') {
         ticket.stage = 'triagem';
         ticket.slaFrozenAt = null;
         ticket.followUpDeadline = null;
         ticket.followUpPendingJustification = false;
-        ticket.comments.push({ user: 'Sistema', text: '↩ Chamado devolvido para Triagem após justificativa de prazo de acompanhamento vencido. Por: ' + user, time: new Date().toISOString() });
-        ticket.timeline.push({ stage: 'triagem', time: new Date().toISOString(), notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user });
+        // Não adicionar comentário separado de retorno — justificativa já aparece embutida no timeline
+        ticket.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+      } else if (tipo === 'aguard') {
+        ticket.stage = 'triagem';
+        ticket.aguardDeadline = null;
+        ticket.aguardNotified = false;
+        ticket.aguardPendingJustification = false;
+        ticket.logisticsTask = null;
+        ticket.commercialTask = null;
+        ticket.financialTask = null;
+        ticket.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de aguardo de setor vencido. Justificativa registrada.', user: null });
       } else {
         ticket.slaOverduePendingJustification = false;
       }
@@ -2582,21 +2637,65 @@
   // ══════════════════════════════════════════════════════
   // POPUP OBRIGATÓRIO — não pode ser fechado
   // ══════════════════════════════════════════════════════
+  // Usuários que podem fechar o popup sem preencher (gestores/admins)
+  const POPUP_CLOSERS = ['Thais.Ricci', 'Renata', 'Miki', 'Yoda'];
+
   function showMandatoryJustificationPopup(ticket, tipo) {
     const existingId = 'sac-mandatory-popup-' + ticket.id;
     if (document.getElementById(existingId)) return; // já aberto
 
+    // Para aguard: popup aparece apenas para o gestor do departamento atribuído
+    const currentUser = currentUsername();
+    if (tipo === 'aguard') {
+      // Descobrir o setor atribuído
+      const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
+                       : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
+                       : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
+                       : null;
+      if (sectorName) {
+        const deptNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+        const deptObj = _globalDepartamentos.find(d => {
+          const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+          return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
+        });
+        if (deptObj) {
+          let cUserId = null;
+          try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
+          const gestorId   = deptObj.responsavel_id   ? String(deptObj.responsavel_id)   : null;
+          const gestorNome = deptObj.responsavel_nome  ? String(deptObj.responsavel_nome)  : null;
+          const isGestor = (gestorId && (gestorId === cUserId)) ||
+                           (gestorNome && gestorNome.toLowerCase() === currentUser.toLowerCase()) ||
+                           POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
+          if (!isGestor) return; // Não é o gestor — não exibir o popup
+        }
+      }
+    }
+
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
 
     const isFollowup = tipo === 'followup';
-    const title = isFollowup ? '⚠️ Prazo de Acompanhamento Vencido' : '🔴 SLA Estourado';
-    const subtitle = isFollowup
-      ? 'O prazo de acompanhamento deste chamado já passou há mais de 1 hora sem conclusão.'
+    const isAguard   = tipo === 'aguard';
+    const isTimedOut = isFollowup || isAguard;
+    const title = isTimedOut ? '⚠️ Prazo de Acompanhamento Vencido' : '🔴 SLA Estourado';
+
+    // Para aguard: mostrar nome do departamento e do gestor no subtitulo
+    let subtitle = isTimedOut
+      ? 'O prazo de acompanhamento deste chamado já passou.'
       : 'O SLA deste chamado está estourado e não foi concluído no prazo.';
-    const btnLabel = isFollowup ? 'Confirmar e Mover para Triagem' : 'Confirmar Justificativa';
-    const bgColor = isFollowup ? '#fff7ed' : '#fef2f2';
-    const borderColor = isFollowup ? '#fed7aa' : '#fecaca';
-    const headerBg = isFollowup ? '#f97316' : '#dc2626';
+    if (isAguard) {
+      const sectorNameA = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
+                        : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
+                        : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
+                        : '';
+      subtitle = `O prazo de 2h para resposta do setor <strong>${sectorNameA}</strong> foi excedido sem retorno.`;
+    }
+
+    const btnLabel = isTimedOut ? 'Confirmar e Mover para Triagem' : 'Confirmar Justificativa';
+    const bgColor = isTimedOut ? '#fff7ed' : '#fef2f2';
+    const borderColor = isTimedOut ? '#fed7aa' : '#fecaca';
+    const headerBg = isTimedOut ? '#f97316' : '#dc2626';
+
+    const canClose = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
 
     const overlay = document.createElement('div');
     overlay.id = existingId;
@@ -2604,27 +2703,29 @@
 
     overlay.innerHTML = `
       <div style="background:#fff;border-radius:14px;width:520px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">
-        <div style="background:${headerBg};padding:20px 24px;display:flex;align-items:center;gap:12px;">
-          <i class="ph ph-${isFollowup ? 'calendar-x' : 'warning-circle'}" style="font-size:1.8rem;color:#fff;"></i>
-          <div>
+        <div style="background:${headerBg};padding:20px 24px;display:flex;align-items:center;gap:12px;position:relative;">
+          <i class="ph ph-${isTimedOut ? 'calendar-x' : 'warning-circle'}" style="font-size:1.8rem;color:#fff;"></i>
+          <div style="flex:1;">
             <div style="color:#fff;font-weight:800;font-size:1.1rem;">${title}</div>
             <div style="color:rgba(255,255,255,0.85);font-size:0.82rem;margin-top:2px;">Chamado Nº ${ticket.protocol} — ${ticket.clientName}</div>
           </div>
+          ${canClose ? `<button onclick="document.getElementById('${existingId}').remove();localStorage.removeItem('sac_pending_popup_${ticket.id}');" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:1.2rem;cursor:pointer;border-radius:6px;padding:2px 8px;" title="Fechar">✕</button>` : ''}
         </div>
         <div style="padding:24px;">
           <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.85rem;color:#374151;">${subtitle}</div>
           <label style="font-size:0.85rem;font-weight:700;color:#1e293b;display:block;margin-bottom:6px;">Por que este chamado não foi concluído conforme programado? <span style="color:#dc2626">*</span></label>
+          <label style="font-size:0.82rem;color:#64748b;display:block;margin-bottom:8px;">Informe o motivo do chamado não ter sido concluído conforme programado? <span style="color:#dc2626">*</span></label>
           <textarea id="mandatory-justification-${ticket.id}" rows="4" placeholder="Descreva o motivo detalhadamente..." style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit;"></textarea>
           <div id="mandatory-error-${ticket.id}" style="color:#dc2626;font-size:0.78rem;margin-top:4px;display:none;">Por favor, preencha o motivo antes de continuar.</div>
           <button onclick="SAC.confirmMandatoryJustification('${ticket.id}','${tipo}')" style="margin-top:16px;width:100%;padding:12px;background:${headerBg};color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
             <i class="ph ph-check-circle"></i> ${btnLabel}
           </button>
-          <div style="text-align:center;margin-top:10px;font-size:0.75rem;color:#94a3b8;">Este popup não pode ser fechado. Preencha o motivo para continuar.</div>
+          ${!canClose ? `<div style="text-align:center;margin-top:10px;font-size:0.75rem;color:#94a3b8;">Este popup não pode ser fechado. Preencha o motivo para continuar.</div>` : ''}
         </div>
       </div>`;
 
-    // Bloquear ESC e clique fora
-    overlay.addEventListener('click', (e) => e.stopPropagation());
+    // Bloquear ESC e clique fora apenas para não-admins
+    if (!canClose) overlay.addEventListener('click', (e) => e.stopPropagation());
     document.body.appendChild(overlay);
   }
 
@@ -2634,29 +2735,49 @@
   function checkFollowUpAlerts() {
     const now = Date.now();
     _tickets.forEach(ticket => {
-      if (ticket.stage !== 'execucao' || !ticket.followUpDeadline) return;
-      const prazo = new Date(ticket.followUpDeadline).getTime();
-      if (isNaN(prazo)) return;
-
-      // Notificar ao vencer
-      if (prazo < now && !ticket.followUpNotified) {
-        ticket.followUpNotified = true;
-        if (!ticket.comments) ticket.comments = [];
-        ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-        updateTicket(ticket);
-        // Notificar via API
-        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-        const involved = [...new Set((ticket.timeline||[]).map(l => l.user).filter(Boolean))];
-        fetch('/api/sac/notificar-acompanhamento', {
-          method:'POST',
-          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-          body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline, notifyUsernames:involved })
-        }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
+      // ── Acompanhamento (execucao) ──────────────────────────
+      if (ticket.stage === 'execucao' && ticket.followUpDeadline) {
+        const prazo = new Date(ticket.followUpDeadline).getTime();
+        if (!isNaN(prazo)) {
+          if (prazo < now && !ticket.followUpNotified) {
+            ticket.followUpNotified = true;
+            if (!ticket.comments) ticket.comments = [];
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
+            updateTicket(ticket);
+            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+            // Notificar apenas usuários configurados em sac_sla_vencido (via API — sem enviar lista de envolvidos)
+            fetch('/api/sac/notificar-acompanhamento', {
+              method:'POST',
+              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
+            }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
+          }
+          if (prazo < now && ticket.followUpPendingJustification === true) {
+            showMandatoryJustificationPopup(ticket, 'followup');
+          }
+        }
       }
 
-      // Popup obrigatório: assim que o prazo vencer
-      if (prazo < now && ticket.followUpPendingJustification === true) {
-        showMandatoryJustificationPopup(ticket, 'followup');
+      // ── Aguardando Setores (2h) ────────────────────────────
+      if (ticket.stage === 'aguardando_setores' && ticket.aguardDeadline) {
+        const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
+        if (!isNaN(aguardPrazo)) {
+          if (aguardPrazo < now && !ticket.aguardNotified) {
+            ticket.aguardNotified = true;
+            if (!ticket.comments) ticket.comments = [];
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
+            updateTicket(ticket);
+            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+            fetch('/api/sac/notificar-acompanhamento', {
+              method:'POST',
+              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
+            }).catch(e => console.error('[SAC] notificar-aguard:', e));
+          }
+          if (aguardPrazo < now && ticket.aguardPendingJustification === true) {
+            showMandatoryJustificationPopup(ticket, 'aguard');
+          }
+        }
       }
     });
   }

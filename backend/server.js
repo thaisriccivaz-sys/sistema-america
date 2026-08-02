@@ -27781,6 +27781,9 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN close_date TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN updated_at DATETIME`,
   `ALTER TABLE sac_tickets ADD COLUMN open_date TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_deadline TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_notified INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_pending_justification INTEGER DEFAULT 0`,
 ];
 sacMigrations.forEach(sql => {
   db.run(sql, err => {
@@ -27798,15 +27801,17 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
         logistics_task, commercial_task, financial_task, comments,
-        sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date,
+        aguard_deadline, aguard_notified, aguard_pending_justification
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[]),
-        t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null
+        t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null,
+        t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: t.id });
@@ -27820,6 +27825,7 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
         checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, 
         sla_frozen_at = ?, sla_elapsed_ms = ?, follow_up_deadline = ?, follow_up_notified = ?, follow_up_pending_justification = ?, close_date = ?,
+        aguard_deadline = ?, aguard_notified = ?, aguard_pending_justification = ?,
         updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
@@ -28310,9 +28316,9 @@ setTimeout(() => {
 }, 5000);
 
 // ── POST /api/sac/notificar-acompanhamento ────────────────────────────────────
-// Notifica envolvidos quando o prazo de acompanhamento de um chamado venceu
+// Notifica APENAS usuários configurados em sac_sla_vencido quando o prazo vencer
 app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res) => {
-    const { ticketId, protocol, clientName, followUpDeadline, notifyUsernames } = req.body;
+    const { ticketId, protocol, clientName, followUpDeadline } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -28336,25 +28342,18 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
         </div>
     </div>`;
 
-    // Notificar usuários configurados para sac_sla_vencido via e-mail
+    // Notificar APENAS usuários configurados para sac_sla_vencido (não todos os envolvidos)
     sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
 
-    // Também notificar cada username específico do chamado (popup interno)
-    const usernames = Array.isArray(notifyUsernames) ? notifyUsernames : [];
-    if (usernames.length > 0) {
-        const placeholders = usernames.map(() => '?').join(',');
-        db.all(`SELECT u.id, u.username FROM usuarios u WHERE LOWER(TRIM(u.username)) IN (${placeholders}) AND u.ativo = 1`,
-            usernames.map(u => (u||'').toLowerCase().trim()),
-            (err, users) => {
-                if (err || !users) return;
-                const msg = `⚠️ Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> — ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
-                users.forEach(u => {
-                    db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                        [u.id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
-                });
-            }
-        );
-    }
+    // Popup interno para configurados em sac_sla_vencido
+    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const msg = `⚠️ Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> — ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
+        rows.forEach(r => {
+            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                [r.usuario_id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+        });
+    });
 
     res.json({ success: true });
 });
