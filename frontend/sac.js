@@ -434,6 +434,9 @@
           <button class="sac-nav-btn" data-view="tabela"   onclick="SAC.setView('tabela')"><i class="ph ph-table"></i> Relatório</button>
           <button class="sac-nav-btn" data-view="config"   onclick="SAC.setView('config')"><i class="ph ph-sliders-horizontal"></i> Parametrizar</button>
         </div>
+        <button onclick="SAC.refreshData()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;margin-right:8px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Atualizar chamados">
+          <i class="ph ph-arrows-clockwise"></i>
+        </button>
         <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
           <i class="ph ph-plus-circle"></i> Abrir Chamado
         </button>
@@ -1735,13 +1738,19 @@
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
         const cuLower = (currUsername || '').toLowerCase();
-        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === cuLower) ||
-                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === cuLower) ||
-                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === cuLower);
+        let actualUsernameLower = cuLower;
+        try {
+            const u = JSON.parse(localStorage.getItem('erp_user'));
+            if (u && (u.username || u.email)) actualUsernameLower = (u.username || u.email).toLowerCase();
+        } catch(e) {}
+
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower) ||
+                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === actualUsernameLower) ||
+                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === actualUsernameLower);
         const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
-        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
-                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
-                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower));
+        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
+                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
+                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
         const isManagerOfTicket = myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
@@ -1826,6 +1835,14 @@
 
   // ── AÇÕES PÚBLICO ─────────────────────────────────────────────
   const SAC = window.SAC = {
+    async refreshData() {
+      const btn = document.querySelector('button[onclick="SAC.refreshData()"]');
+      if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+      await loadTickets();
+      renderAll();
+      showToast('Dados atualizados', 'success');
+      if (btn) btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i>';
+    },
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
     onFilterType(v){ _filterType = v; renderAll(); },
