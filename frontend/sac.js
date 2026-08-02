@@ -1002,6 +1002,10 @@
     const stage  = PIPELINE_STAGES.find(s=>s.id===t.stage)||{name:t.stage,color:'#64748b'};
     const type   = TICKET_TYPES[t.typeKey]||{name:t.typeKey,icon:'❓',sla:48};
     const sla    = getSLADetails(t);
+    const slaColor = sla.labelColor || (sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d');
+    const slaConsumedPct = sla.consumedPct !== undefined ? sla.consumedPct : Math.min(100, Math.max(0, 100 - sla.pct));
+    const slaBarColor = sla.barColor || slaColor;
+
     const cl     = getChecklist(t);
     const clChecked = cl.filter(i=>i.checked).length;
 
@@ -1012,14 +1016,17 @@
       <!-- MODAL HEADER -->
       <div style="padding:20px 24px 0;border-bottom:1px solid #f1f5f9;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
-          <div>
+          <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">Nº ${t.protocol}</span>
               <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
               <span class="sac-tag" style="background:#fff7ed;color:#c2410c;">${type.icon} ${type.name}</span>
               <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};">${sla.label}</span>
             </div>
-            <h2 style="margin:4px 0 0;font-size:1.1rem;color:#1e293b;">${t.clientName}</h2>
+            <div style="margin-top: 8px; max-width: 320px;">
+              <div class="sac-sla-bar" style="height: 6px;"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
+            </div>
+            <h2 style="margin:8px 0 0;font-size:1.1rem;color:#1e293b;">${t.clientName}</h2>
             <div style="font-size:0.82rem;color:#64748b;margin-top:2px;">${t.equipment} ${t.address?'· '+t.address:''}</div>
           </div>
           <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;flex-shrink:0;">✕</button>
