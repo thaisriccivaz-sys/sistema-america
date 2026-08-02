@@ -2180,10 +2180,19 @@
 
          const deptMapLocal = { 'Log\u00edstica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
 
-         // Usu\u00e1rio \u00e9 o atribu\u00eddo diretamente?
+         // Usuário é o atribuído diretamente? (verificação mais simples e confiável)
+         const userNorm = (user || '').toLowerCase().trim();
+         let usernameFallback = userNorm;
+         try {
+             const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
+             const fb = (uu.username || uu.login || '').toLowerCase().trim();
+             if (fb) usernameFallback = fb;
+         } catch(e){}
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
-             return task && task.assignedTo && task.assignedTo.toLowerCase() === user.toLowerCase();
+             if (!task || !task.assignedTo) return false;
+             const a = task.assignedTo.toLowerCase().trim();
+             return a === userNorm || a === usernameFallback;
          });
 
          // Usu\u00e1rio \u00e9 o gestor gravado no ticket quando foi atribu\u00eddo?
@@ -2794,18 +2803,30 @@
           return nn.includes(sectorNorm) || sectorNorm.includes(nn);
         });
 
+        // Método 0 (mais direto): usuário é o assignedTo do ticket
+        let usernameFallbackPopup = currentUser.toLowerCase().trim();
+        try {
+          const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
+          const fb = (uu.username || uu.login || '').toLowerCase().trim();
+          if (fb) usernameFallbackPopup = fb;
+        } catch(e){}
+        const isAssignedPopup = ['logisticsTask','commercialTask','financialTask'].some(k => {
+          const task = ticket[k];
+          if (!task || !task.assignedTo) return false;
+          const a = task.assignedTo.toLowerCase().trim();
+          return a === currentUser.toLowerCase().trim() || a === usernameFallbackPopup;
+        });
+
         // Método 3: POPUP_CLOSERS (admins)
         const isPopupCloser = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
 
-        // Método 4: usuário tem permissão SAC e pode ver o ticket (gestor de setor via grupo de permissão)
+        // Método 4: usuário tem permissão SAC restrita (gestor de setor via grupo de permissão)
         const permsNow = window.activeUserPerms || {};
         const isTopAdminNow = window.isTopAdmin || false;
         const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
-        const hasSacPerm = canSeeAllNow || permsNow['sac'] === true || permsNow['sac-atribuidos'] === true;
-        // Se tem permissão SAC e o setor do ticket bate com o dep atribuído (qualquer método)
-        const isGestorBySacPerm = hasSacPerm && !canSeeAllNow; // restrito ao setor, não admin global
+        const isGestorBySacPerm = (permsNow['sac'] === true || permsNow['sac-atribuidos'] === true) && !canSeeAllNow;
 
-        if (!isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm) return; // não é o gestor
+        if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm) return;
       }
     } else {
       let cUserId = null;
