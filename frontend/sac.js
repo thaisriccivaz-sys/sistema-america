@@ -1339,7 +1339,10 @@
         <div style="display:flex;flex-direction:column;height:100%;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <!-- COMENTÁRIOS / HISTÓRICO -->
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
+                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta ação não pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
+                </div>
                 <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
                     <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
                     Chamado Urgente
@@ -2620,8 +2623,8 @@
         }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
       }
 
-      // Popup obrigatório 1h após prazo
-      if (prazo + 3600000 < now && ticket.followUpPendingJustification === true) {
+      // Popup obrigatório: assim que o prazo vencer
+      if (prazo < now && ticket.followUpPendingJustification === true) {
         showMandatoryJustificationPopup(ticket, 'followup');
       }
     });
