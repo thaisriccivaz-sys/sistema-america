@@ -25,7 +25,7 @@
     retirada:            { name: 'RETIRADA',               sla: 48, icon: '📦' },
     contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
     furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
-    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 24, icon: '🔧' }
+    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' }
   };
 
   const OCCURRENCES_BY_TYPE = {
@@ -295,7 +295,7 @@
     // Label: positive hours remaining or negative hours overdue
     let label;
     if (isFrozen) {
-      label = `🔒 ${fmtHM(elapsedMs)}`;
+      label = `🔒 ${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
@@ -2252,7 +2252,7 @@
       ticket.nextSteps = isClosing ? `Encerrado: ${closeReason}` : nextSteps;
       if (isClosing) { ticket.closeDate = new Date().toISOString(); ticket.checklistJustification = clJust||null; }
       if (isExecucao) {
-        const openedMs = new Date(ticket.openDate).getTime();
+        const openedMs = new Date(_normDate(ticket.openDate)).getTime();
         ticket.slaFrozenAt = new Date().toISOString();
         ticket.slaElapsedMs = Date.now() - openedMs;
         ticket.followUpDeadline = new Date(followUpDeadlineVal).toISOString();
