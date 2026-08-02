@@ -1720,21 +1720,23 @@
     const cu = window.currentUser;
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
-    // canSeeAll: apenas Diretoria/Admin OU quem tem permissão plena 'sac' SEM restrição de 'sac-atribuidos'
-    // Se tem 'sac-atribuidos', vê apenas os chamados relacionados a ele mesmo
     const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
     const canSeeAssigned = !canSeeAll && (perms['sac-atribuidos'] === true || perms['sac'] === true);
 
-    // Identifica quais departamentos o usuário atual gerencia (via tela Gestão de Departamentos)
     const currUsername = currentUsername();
     const currNome = (cu ? (cu.nome || '') : '').toLowerCase();
+    let currUserId = null;
+    try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currUserId = String(u.id); } catch(e){}
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
-        const respId = (d.responsavel_id || '').toString().toLowerCase();
+        const respId = (d.responsavel_id || '').toString().trim();
         const respNome = (d.responsavel_nome || '').toLowerCase();
-        return respId === currUsername.toLowerCase() ||
-               (currNome && respNome && respNome.includes(currNome));
+        const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+        return (currUserId && respId === currUserId) ||
+               (currUsername && respLogin && respLogin === currUsername.toLowerCase()) ||
+               (currNome && respNome && respNome === currNome) ||
+               (currNome && respNome && respNome.includes(currNome) && currNome.length > 5);
       })
       .map(d => (d.nome || '').trim());
 
@@ -1749,7 +1751,6 @@
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
       const matchUrgent = !_filterUrgent || t.isUrgent;
 
-      // Filtro de atribuição
       const fa = _filterAssigned.toLowerCase().trim();
       const matchAssigned = !fa || [
         t.logisticsTask?.assignedToName,
@@ -1783,8 +1784,6 @@
         }
       }
 
-      // Permissões de visibilidade
-      // Gestor do departamento sempre vê seus chamados, independente de ter sac-atribuidos
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
         const cuLower = (currUsername || '').toLowerCase();
@@ -1804,7 +1803,6 @@
         const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
-        // Gestor do departamento vê todos os chamados atribuídos ao seu setor
         const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
@@ -1864,7 +1862,6 @@
         return;
     }
 
-    // Gate: check pending tasks
     const gate = checkGate(ticket, colId);
     if (gate) {
       alert(`Bloqueio de Conformidade:\n\nEste chamado possui uma TAREFA DE ${gate.sector.toUpperCase()} pendente.\n"${gate.task}"\n\nConclua essa pendência antes de avançar.`);
@@ -1986,7 +1983,6 @@
         });
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
-        // Notificar Rafaela sobre novo chamado
         fetch('/api/sac/notificar-rafaela', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
@@ -2009,12 +2005,11 @@
         const pendingTipo = localStorage.getItem('sac_pending_popup_' + _selectedTicket.id);
         if (pendingTipo) {
           const u = currentUsername().toLowerCase();
-          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u);
+          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
           if (!canClose) {
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
           } else {
-            // Dismiss permanently for this ticket
             _selectedTicket.slaOverduePendingJustification = false;
             if (pendingTipo === 'aguard') _selectedTicket.aguardPendingJustification = false;
             if (pendingTipo === 'followup') _selectedTicket.followUpPendingJustification = false;
@@ -2048,7 +2043,7 @@
       const t = _selectedTicket;
       if (!t || !t[key]) return;
       const usersList = window._sacUsersList || [];
-      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, '.');
+      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\u036f]/g, '').replace(/\\s+/g, '.');
       const user = usersList.find(u => (u.username||u.login||u.email||normalizeId(u.nome)) === newUsername);
       const previousAssignee = t[key].assignedTo;
       t[key] = {
@@ -2059,7 +2054,6 @@
       };
       updateTicket(t);
       showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
-      // Notifica o usuário atribuído por e-mail + popup se houve mudança de atribuicão
       if (newUsername && newUsername !== previousAssignee) {
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
         fetch('/api/sac/notificar-atribuicao', {
@@ -2088,7 +2082,6 @@
           renderAll();
         })
         .catch(() => {
-          // Fallback: remove local mesmo que API falhe
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
           showToast('OS excluída (modo local).','warning');
@@ -2133,64 +2126,74 @@
       const pendingTipo = localStorage.getItem('sac_pending_popup_' + t.id);
 
       if (pendingTipo) {
-          isHandled = true;
           const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
           const justTimestamp = new Date().toISOString();
-          t.comments.push({ user: 'Sistema', text: '📝 Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
+          t.comments.push({ user: 'Sistema', text: '\u{1F4DD} Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
 
           if (pendingTipo === 'followup') {
+              isHandled = true;
               t.stage = 'triagem';
               t.slaFrozenAt = null;
               t.followUpDeadline = null;
               t.followUpPendingJustification = false;
-              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno autom\u00e1tico: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+              localStorage.removeItem('sac_pending_popup_' + t.id);
+              showToast('Justificativa registrada com sucesso.', 'success');
+              setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
-              // Não muda de coluna — apenas zera o pendingJustification
+              // N\u00e3o marca isHandled: deixa o bloco aguardando_setores abaixo rodar e mover para Respondido
               t.aguardPendingJustification = false;
+              localStorage.removeItem('sac_pending_popup_' + t.id);
           } else {
+              isHandled = true;
               t.slaOverduePendingJustification = false;
+              localStorage.removeItem('sac_pending_popup_' + t.id);
+              showToast('Justificativa registrada com sucesso.', 'success');
+              setTimeout(() => { SAC.closeModal(); }, 100);
           }
-          localStorage.removeItem('sac_pending_popup_' + t.id);
-          showToast('Justificativa registrada com sucesso.', 'success');
-          // Fecha o modal inteiramente após a justificativa
-          setTimeout(() => { SAC.closeModal(); }, 100);
       }
 
       if (!isHandled && t.stage === 'aguardando_setores') {
-         const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
+         let cUserIdNow = null;
+         let currNomeNow = '';
+         try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserIdNow = String(u.id); currNomeNow = (u.nome||'').toLowerCase(); } catch(e){}
+
+         const isAssignedOrGestor = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
              if (!task) return false;
-             if (task.assignedTo === user || task.assignedToName === user) return true;
-             
-             const sectorName = k === 'logisticsTask' ? 'Logística' : k === 'commercialTask' ? 'Comercial' : 'Financeiro';
+             // Verificar atribuido diretamente por username
+             if (task.assignedTo && task.assignedTo.toLowerCase() === user.toLowerCase()) return true;
+             // Verificar gestor do departamento por ID ou nome completo
+             const sectorName = k === 'logisticsTask' ? 'Log\u00edstica' : k === 'commercialTask' ? 'Comercial' : 'Financeiro';
              const deptNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
              const deptObj = _globalDepartamentos.find(d => {
                  const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
                  return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
              });
              if (deptObj) {
-                 let cUserId = null;
-                 try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
                  const gestorId = deptObj.responsavel_id ? String(deptObj.responsavel_id) : null;
-                 const gestorNome = deptObj.responsavel_nome ? String(deptObj.responsavel_nome) : null;
-                 if ((gestorId && (gestorId === cUserId || gestorId === user)) || (gestorNome && gestorNome === user)) return true;
+                 const gestorNome = (deptObj.responsavel_nome || '').toLowerCase();
+                 if (cUserIdNow && gestorId && cUserIdNow === gestorId) return true;
+                 if (currNomeNow && gestorNome && currNomeNow === gestorNome) return true;
              }
              return false;
          });
-         
-         if (isAssigned) {
+
+         if (isAssignedOrGestor) {
              isHandled = true;
+             const nowTs = new Date().toISOString();
              t.stage = 'respondido';
-             t.timeline.push({ stage: 'respondido', time: new Date().toISOString(), notes: `Respondido via comentário: "${text}"`, user });
-             
+             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via coment\u00e1rio: "' + text + '"', user });
+             t.comments.push({ user, text, time: nowTs });
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                  if (t[k] && !t[k].isCompleted) {
                      t[k].isCompleted = true;
                      t[k].feedback = text;
-                     t[k].history = [...(t[k].history||[]), { type:'resolution', time:new Date().toISOString(), feedback:text, user }];
+                     t[k].history = [...(t[k].history||[]), { type:'resolution', time: nowTs, feedback: text, user }];
                  }
              });
-             showToast(`OS ${t.protocol} respondida!`, 'success');
+             showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
+             setTimeout(() => { SAC.closeModal(); }, 150);
          }
       }
 
@@ -2741,8 +2744,11 @@
           try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
           const gestorId   = deptObj.responsavel_id   ? String(deptObj.responsavel_id)   : null;
           const gestorNome = deptObj.responsavel_nome  ? String(deptObj.responsavel_nome)  : null;
-          const isGestor = (gestorId && (gestorId === cUserId)) ||
-                           (gestorNome && gestorNome.toLowerCase() === currentUser.toLowerCase()) ||
+          // Compara por ID numérico OU por nome completo do gestor vs nome completo do usuário logado
+          let currNomeCompleto = '';
+          try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
+          const isGestor = (gestorId && cUserId && gestorId === cUserId) ||
+                           (gestorNome && currNomeCompleto && gestorNome.toLowerCase() === currNomeCompleto) ||
                            POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
           if (!isGestor) return; // Não é o gestor — não exibir o popup
         }
