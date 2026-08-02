@@ -819,6 +819,7 @@
       if (equipFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
       
       _wiz.clientName = _clienteLimpo || os.cliente || '';
+      _wiz.cnpjCpf    = os.contrato || os.numero_contrato || '';
       _wiz.equipment  = equipFinal;
       _wiz.address    = enderCalc;
       _wiz.contactName = os.responsavel || '';
@@ -913,7 +914,7 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
-              <label>CNPJ / CPF</label>
+              <label>Nº Contrato</label>
               <input type="text" autocomplete="off" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
             </div>
             <div class="sac-field">
