@@ -27845,21 +27845,28 @@ function fixSacEncoding() {
                     const s2 = JSON.stringify(tl2);
                     if (s2 !== r.timeline) { newTimeline = s2; changed = true; }
                 }
+                const fixAssignee = t => {
+                    if (!t) return t;
+                    if (t.assignedTo === 'ana.vitoria.gomes.dos.santos') t.assignedTo = 'ana.vitoria';
+                    if (t.assignedTo === 'rafaela.natalia.de.jesus.barbosa') t.assignedTo = 'rafaela.natalia';
+                    return t;
+                };
+
                 if (r.logistics_task) {
                     const t = JSON.parse(r.logistics_task);
-                    const t2 = { ...t, name: applyFix(t.name) };
+                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
                     const s2 = JSON.stringify(t2);
                     if (s2 !== r.logistics_task) { newLog = s2; changed = true; }
                 }
                 if (r.commercial_task) {
                     const t = JSON.parse(r.commercial_task);
-                    const t2 = { ...t, name: applyFix(t.name) };
+                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
                     const s2 = JSON.stringify(t2);
                     if (s2 !== r.commercial_task) { newCom = s2; changed = true; }
                 }
                 if (r.financial_task) {
                     const t = JSON.parse(r.financial_task);
-                    const t2 = { ...t, name: applyFix(t.name) };
+                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
                     const s2 = JSON.stringify(t2);
                     if (s2 !== r.financial_task) { newFin = s2; changed = true; }
                 }
@@ -28037,9 +28044,11 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     // ──────────────────────────────────────────────────────────────────────────
     const query = `
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.status, c.foto_base64, c.foto_path,
-               COALESCE(ca.departamento, c.departamento) AS dept_efetivo
+               COALESCE(ca.departamento, c.departamento) AS dept_efetivo,
+               u.username
         FROM colaboradores c
         LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))
+        LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(c.nome_completo))
         WHERE LOWER(c.status) NOT LIKE '%desligado%'
         ORDER BY c.nome_completo ASC
     `;

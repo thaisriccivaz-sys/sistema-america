@@ -1071,7 +1071,7 @@
         const u = JSON.parse(localStorage.getItem('erp_user'));
         if (u) {
           cUserId = String(u.id);
-          isAdmin = (u.perfil === 'Admin' || u.perfil === 'Administrador' || String(u.grupo_permissao_id) === '1');
+          isAdmin = (u.perfil === 'Admin' || u.perfil === 'Administrador' || String(u.grupo_permissao_id) === '1' || u.departamento === 'Processos');
         }
       } catch(e) {}
       if (isAdmin) return true;
@@ -1923,9 +1923,9 @@
         
         if (!assignedUsername) { showToast('Selecione o usu├írio atribu├¡do.', 'warning'); return; }
 
-        ticket.logisticsTask  = sector==='Log├¡stica'  ? { name:`Pendente: Log├¡stica ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro ÔÇö aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
       }
 
       updateTicket(ticket);
