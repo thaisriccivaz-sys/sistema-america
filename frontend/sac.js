@@ -2085,7 +2085,11 @@
       }
     },
     deleteTicket(id) {
-      if (!confirm('Excluir esta OS permanentemente?')) return;
+      const pwd = prompt('Digite a senha para excluir permanentemente esta OS:');
+      if (pwd !== 'abc') {
+          if (pwd !== null) showToast('Senha incorreta.', 'error');
+          return;
+      }
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       fetch(`/api/sac/tickets/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} })
         .then(r => r.ok ? r.json() : Promise.reject(r))
