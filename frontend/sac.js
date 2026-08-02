@@ -2391,10 +2391,6 @@
       }
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
       if (!ticket.comments) ticket.comments = [];
-      if (isExecucao) {
-        const dlFmt2 = new Date(followUpDeadlineVal).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-        ticket.comments.push({ user:'Sistema', text:'⏸ SLA congelado. Acompanhamento programado até ' + dlFmt2 + '. Movido por: ' + user, time: new Date().toISOString() });
-      }
 
       if (isAguard) {
         const userSelect = document.getElementById('trans-assigned-user');
