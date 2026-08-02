@@ -28104,11 +28104,7 @@ app.post('/api/sac/notificar-rafaela', authenticateToken, async (req, res) => {
 // Retorna colaboradores do departamento informado (tabela colaboradores) + gestor
 // do departamento (tabela departamentos), enriquecidos com username do usuario
 // correspondente, se existir. Inclui todos os status exceto Desligado/Iniciado.
-app.get('/api/sac/debug-tickets', (req, res) => {
-    db.all("SELECT id, timeline, logistics_task, commercial_task, financial_task FROM sac_tickets", [], (err, rows) => {
-        res.json(rows);
-    });
-});
+
 
 app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     const setor = (req.query.setor || '').trim();

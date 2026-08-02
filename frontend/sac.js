@@ -1034,7 +1034,7 @@
         <!-- TROCA DE ETAPA -->
         <div style="display:flex;align-items:center;gap:8px;padding:8px 0 0;flex-wrap:wrap;">
           <span style="font-size:0.75rem;font-weight:700;color:#64748b;">MOVER PARA:</span>
-          <select style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.82rem;outline:none;cursor:pointer;" onchange="SAC.changeStageFromModal(this.value)">${stageOpts}</select>
+          <select style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.82rem;outline:none;cursor:pointer;" onchange="SAC.changeStageFromModal(this.value)" ${!canMoveTicket(t) ? 'disabled title="Você só pode mover chamados abertos por você."' : ''}>${stageOpts}</select>
           <button class="sac-btn sac-btn-danger" style="padding:5px 12px;font-size:0.78rem;margin-left:auto;" onclick="SAC.deleteTicket('${t.id}')"><i class="ph ph-trash"></i> Excluir OS</button>
         </div>
         <!-- TABS -->
@@ -1149,24 +1149,49 @@
       </div>`}).join('')}
     </div>`:''}
 
-    <!-- OCORRÊNCIAS -->
-    <div>
-      <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Ocorrências (${t.occurrences.length})</div>
-      ${t.occurrences.map((o,i)=>`
-      <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:0.85rem;color:#1e293b;">${o.name}</div>
-          ${o.note?`<div style="font-size:0.78rem;color:#64748b;margin-top:2px;">${o.note}</div>`:''}
+    <!-- OCORRÊNCIAS E COMENTÁRIOS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <!-- OCORRÊNCIAS -->
+      <div>
+        <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Ocorrências (${t.occurrences.length})</div>
+        ${t.occurrences.map((o,i)=>`
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:0.85rem;color:#1e293b;">${o.name}</div>
+            ${o.note?`<div style="font-size:0.78rem;color:#64748b;margin-top:2px;">${o.note}</div>`:''}
+          </div>
+          ${t.occurrences.length>1?`<button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeOccurrence(${i})"><i class="ph ph-trash"></i></button>`:''}
+        </div>`).join('')}
+        ${!['concluido','encerrado'].includes(t.stage)?`
+        <div style="background:#fff;border:1.5px dashed #e2e8f0;border-radius:8px;padding:12px;margin-top:8px;">
+          <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px;">Adicionar Ocorrência</div>
+          <select id="modal-occ-select" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;margin-bottom:6px;">${occOpts}</select>
+          <textarea id="modal-occ-note" rows="2" placeholder="Observação sobre a ocorrência..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
+          <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
+        </div>`:''}
+      </div>
+
+      <!-- COMENTÁRIOS -->
+      <div>
+        <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Comentários</div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;height:300px;">
+          <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;">
+            ${!(t.comments && t.comments.length) ? '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum comentário.</div>' : 
+              (t.comments||[]).map(c => `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <strong style="font-size:0.75rem;color:#1e293b;">${c.user}</strong>
+                  <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(c.time)}</span>
+                </div>
+                <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${c.text}</div>
+              </div>`).join('')}
+          </div>
+          <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;">
+            <textarea id="new-comment-text" rows="1" placeholder="Escreva um recado..." style="flex:1;padding:6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+            <button class="sac-btn sac-btn-primary" style="padding:0 10px;" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+          </div>
         </div>
-        ${t.occurrences.length>1?`<button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeOccurrence(${i})"><i class="ph ph-trash"></i></button>`:''}
-      </div>`).join('')}
-      ${!['concluido','encerrado'].includes(t.stage)?`
-      <div style="background:#fff;border:1.5px dashed #e2e8f0;border-radius:8px;padding:12px;margin-top:8px;">
-        <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px;">Adicionar Ocorrência</div>
-        <select id="modal-occ-select" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;margin-bottom:6px;">${occOpts}</select>
-        <textarea id="modal-occ-note" rows="2" placeholder="Observação sobre a ocorrência..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
-        <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
-      </div>`:''}
+      </div>
     </div>
 
     <!-- ANEXOS (na aba Geral) -->
@@ -1333,15 +1358,33 @@
     const src = PIPELINE_STAGES.find(s => s.id === ticket.stage);
     const tgt = PIPELINE_STAGES.find(s => s.id === targetStageId);
     let usersList = window._sacUsersList || [];
+    let lastSector = 'Logística';
+    let lastUser = '';
+    
     if (targetStageId === 'aguardando_setores') {
       try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const res = await fetch('/api/usuarios', { headers: { 'Authorization': Bearer  } });
+        const res = await fetch('/api/usuarios', { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) usersList = await res.json();
       } catch (e) { console.error('Erro ao buscar usuarios:', e); }
+
+      let latestTime = 0;
+      const checkTask = (task, sectorName) => {
+          if (task && task.isCompleted && task.history) {
+              const lastRes = task.history.findLast(h => h.type === 'resolution');
+              if (lastRes) {
+                  const tTime = new Date(lastRes.time).getTime();
+                  if (tTime > latestTime) { latestTime = tTime; lastSector = sectorName; lastUser = task.assignedTo; }
+              }
+          }
+      };
+      checkTask(ticket.logisticsTask, 'Logística');
+      checkTask(ticket.commercialTask, 'Comercial');
+      checkTask(ticket.financialTask, 'Financeiro');
     }
+    
     _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId, usersList };
-    _transForm = { nextSteps:'', obs:'', sector:'Logística', closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
+    _transForm = { nextSteps:'', obs:'', sector: lastSector, assignedUser: lastUser, closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
     renderTransModal();
   }
 
@@ -1363,7 +1406,11 @@
       '</div>' +
       (isAguard ?
         `<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>
-        <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option value="Logística">Logística</option><option value="Comercial">Comercial</option><option value="Financeiro">Financeiro</option></select></div>
+        <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
+          <option value="Logística" ${_transForm.sector==='Logística'?'selected':''}>Logística</option>
+          <option value="Comercial" ${_transForm.sector==='Comercial'?'selected':''}>Comercial</option>
+          <option value="Financeiro" ${_transForm.sector==='Financeiro'?'selected':''}>Financeiro</option>
+        </select></div>
         <div class="sac-field"><label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
         <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuário...</option></select>
         <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'"></div></div>` : '') +
@@ -1375,7 +1422,18 @@
         <div class="sac-field"><label>Observação (opcional)</label><textarea id="trans-obs" rows="2" placeholder="Informação adicional..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`) +
       `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
       </div>`;
-    if (isAguard) setTimeout(() => SAC.filterTransUsers('Logística'), 0);
+    if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
+  }
+
+  // ── PERMISSIONS ───────────────────────────────────────────────
+  function canMoveTicket(t) {
+    const perms = window.activeUserPerms || {};
+    const isTopAdmin = window.isTopAdmin || false;
+    const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
+    if (canSeeAll) return true;
+    const cuLower = (currentUsername() || '').toLowerCase();
+    const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
+    return isCreator;
   }
 
   // ── FILTRAGEM ─────────────────────────────────────────────────
@@ -1459,6 +1517,12 @@
 
   // ── DRAG & DROP ────────────────────────────────────────────────
   function onDragStart(e, id) {
+    const t = _tickets.find(x => x.id === id);
+    if (t && !canMoveTicket(t)) {
+        e.preventDefault();
+        showToast('Você só pode mover chamados abertos por você.', 'warning');
+        return;
+    }
     _draggedId = id;
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(() => {
@@ -1716,6 +1780,18 @@
       if (note) note.value='';
       updateTicket(t);
     },
+    addComment(ticketId) {
+      const t = _tickets.find(x => x.id === ticketId);
+      if (!t) return;
+      const textInput = document.getElementById('new-comment-text');
+      const text = textInput ? textInput.value.trim() : '';
+      if (!text) return;
+      const user = currentUsername();
+      if (!t.comments) t.comments = [];
+      t.comments.push({ user, text, time: new Date().toISOString() });
+      updateTicket(t);
+      if (textInput) textInput.value = '';
+    },
     completeTask(key) {
       const t = _selectedTicket;
       if (!t) return;
@@ -1725,8 +1801,9 @@
       const isRedirect = t.stage === 'aguardando_setores';
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
-      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida. OS movida para Respondido.`, user }); }
-      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} resolvida: "${feedback}"`, user }); }
+      const taskName = key === 'logisticsTask' ? 'Logística' : key === 'commercialTask' ? 'Comercial' : 'Financeiro';
+      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user }); }
+      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
       if (isRedirect) { showToast(`OS ${t.protocol} respondida! Movida para Respondido.`,'warning'); }
       else { showToast('Pendência marcada como resolvida!','success'); }
@@ -1808,7 +1885,7 @@
 
     // ── filterTransUsers: busca colaboradores por departamento na tabela colaboradores (HR)
     // Inclui gestora, afastados e outros sem conta de sistema via endpoint dedicado.
-    filterTransUsers(sector) {
+    filterTransUsers(sector, preselectedUser = null) {
       const pt = _pendingTransition;
       if (!pt) return;
       const sel = document.getElementById('trans-assigned-user');
@@ -1832,9 +1909,15 @@
             const val = u.username || normalizeId(u.nome);
             const badge = u.status && u.status.toLowerCase().includes('afastado') ? ' (Afastado)' :
                           u.status && u.status.toLowerCase().includes('ferias') ? ' (Férias)' : '';
-            return `<option value="${val}" data-photo="${u.foto_colaborador||''}" data-id="${u.id || ''}">${u.nome}${badge}</option>`;
+            return `<option value="${val}" data-photo="${u.foto_colaborador||''}" data-id="${u.id || ''}" ${preselectedUser === val ? 'selected' : ''}>${u.nome}${badge}</option>`;
           }).join('');
-        if (photo) { photo.src = ''; photo.style.display = 'none'; }
+        
+        if (sel.selectedIndex > 0 && photo) {
+            photo.src = sel.options[sel.selectedIndex].dataset.photo || '';
+            photo.style.display = photo.src ? 'block' : 'none';
+        } else if (photo) {
+            photo.src = ''; photo.style.display = 'none'; 
+        }
       })
       .catch(err => {
         // Fallback local: usa lista de usuários carregada na inicialização, filtragem bidirecional
@@ -1851,11 +1934,18 @@
         if (filtered.length === 0) {
           // Não retornar todos os usuários — exibir aviso em vez disso
           sel.innerHTML = `<option value="">Nenhum colaborador encontrado para "${sector}"</option>`;
+          if (photo) { photo.src = ''; photo.style.display = 'none'; }
         } else {
           sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
-            filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}">${u.nome}</option>`).join('');
+            filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}" ${preselectedUser === u.username ? 'selected' : ''}>${u.nome}</option>`).join('');
+            
+          if (sel.selectedIndex > 0 && photo) {
+              photo.src = sel.options[sel.selectedIndex].dataset.photo || '';
+              photo.style.display = photo.src ? 'block' : 'none';
+          } else if (photo) {
+              photo.src = ''; photo.style.display = 'none'; 
+          }
         }
-        if (photo) { photo.src = ''; photo.style.display = 'none'; }
       });
     },
     openAttachmentViewer(idx) {
