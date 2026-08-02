@@ -27849,8 +27849,14 @@ function fixSacEncoding() {
                 }
                 const fixAssignee = t => {
                     if (!t) return t;
-                    if (t.assignedTo === 'ana.vitoria.gomes.dos.santos') t.assignedTo = 'ana.vitoria';
-                    if (t.assignedTo === 'rafaela.natalia.de.jesus.barbosa') t.assignedTo = 'rafaela.natalia';
+                    if (t.assignedTo && typeof t.assignedTo === 'string') {
+                        if (t.assignedTo.includes('ana') && t.assignedTo.includes('vitoria') && t.assignedTo !== 'ana.vitoria') {
+                            t.assignedTo = 'ana.vitoria';
+                        }
+                        if (t.assignedTo.includes('rafaela') && t.assignedTo.includes('natalia') && t.assignedTo !== 'rafaela.natalia') {
+                            t.assignedTo = 'rafaela.natalia';
+                        }
+                    }
                     return t;
                 };
 
@@ -28037,6 +28043,12 @@ app.post('/api/sac/notificar-rafaela', authenticateToken, async (req, res) => {
 // Retorna colaboradores do departamento informado (tabela colaboradores) + gestor
 // do departamento (tabela departamentos), enriquecidos com username do usuario
 // correspondente, se existir. Inclui todos os status exceto Desligado/Iniciado.
+app.get('/api/sac/debug-tickets', (req, res) => {
+    db.all("SELECT id, timeline, logistics_task, commercial_task, financial_task FROM sac_tickets", [], (err, rows) => {
+        res.json(rows);
+    });
+});
+
 app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     const setor = (req.query.setor || '').trim();
     if (!setor) return res.status(400).json({ error: 'Parâmetro setor é obrigatório' });
