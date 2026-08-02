@@ -370,11 +370,19 @@
     _wiz.protocol = nextProtocol();
     renderAll();
     
-    // Auto-refresh a cada 5 minutos
+    // Auto-refresh a cada 5 minutos — protegido contra sobrescrever saves recentes
+    let _lastSaveTime = 0;
+    window._sacLastSaveTime = () => _lastSaveTime;
+    const _origUpdate = updateTicket;
+    // Decorar updateTicket para registrar timestamp do último save
+    // (já feito inline abaixo via _lastSaveTime)
     if (!window._sacAutoRefresh) {
       window._sacAutoRefresh = setInterval(async () => {
         const root = document.getElementById('view-sac');
         if (root && root.style.display !== 'none' && document.body.contains(root)) {
+            // Não recarregar se houve um save nos últimos 30 segundos (anti race-condition)
+            const secsSinceLastSave = (Date.now() - (window._sacLastSaveMs || 0)) / 1000;
+            if (secsSinceLastSave < 30) return;
             if (!document.querySelector('.sac-modal-overlay')) {
                 await loadTickets();
                 renderAll();
@@ -410,6 +418,8 @@
   function buildSACShell() {
     return `
     <div id="sac-root" style="display:flex;flex-direction:column;height:100%;font-family:'Inter',system-ui,sans-serif;background:#f8fafc;">
+      <!-- ERRO DE SALVAMENTO -->
+      <div id="sac-save-error-toast" style="display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:999999;background:#dc2626;color:#fff;font-weight:700;font-size:0.9rem;padding:14px 24px;border-radius:10px;box-shadow:0 8px 32px rgba(220,38,38,0.45);max-width:90vw;text-align:center;"></div>
 
       <!-- TOPBAR -->
       <div id="sac-topbar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:16px;min-height:56px;flex-shrink:0;">
@@ -2523,17 +2533,38 @@
     onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop
   };
 
-  function updateTicket(t) {
+  async function updateTicket(t, _retries = 0) {
     _tickets = _tickets.map(x => x.id===t.id ? t : x);
-    fetch('/api/sac/tickets/'+t.id, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(t)
-    }).catch(e=>console.error('[SAC] Erro salvando OS', e));
-
+    const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/sac/tickets/'+t.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(t)
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(()=>'');
+        console.error(`[SAC] Erro HTTP ${res.status} ao salvar OS ${t.protocol}:`, errText);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      // Registrar timestamp do último save com sucesso (anti race-condition no auto-refresh)
+      window._sacLastSaveMs = Date.now();
+    } catch(e) {
+      if (_retries < 3) {
+        const delay = 1500 * Math.pow(2, _retries); // 1.5s, 3s, 6s
+        console.warn(`[SAC] Falha ao salvar OS ${t.protocol}, tentativa ${_retries+1}/3 em ${delay}ms`, e.message);
+        setTimeout(() => updateTicket(t, _retries + 1), delay);
+      } else {
+        console.error(`[SAC] FALHA PERMANENTE ao salvar OS ${t.protocol}`, e);
+        // Mostrar erro visível — dados NÃO foram salvos no servidor
+        const errEl = document.getElementById('sac-save-error-toast');
+        if (errEl) {
+          errEl.textContent = `⚠️ ERRO: OS ${t.protocol} NÃO foi salva no servidor! Verifique a conexão e tente novamente sem recarregar a página.`;
+          errEl.style.display = 'flex';
+          setTimeout(() => { errEl.style.display = 'none'; }, 15000);
+        }
+      }
+    }
     if (_selectedTicket && _selectedTicket.id===t.id) {
       _selectedTicket = t;
       renderDetailModal();
