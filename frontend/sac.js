@@ -2180,26 +2180,27 @@
 
          const deptMapLocal = { 'Log\u00edstica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
 
-         // Usuário é o atribuído diretamente? (verificação mais simples e confiável)
-         const userNorm = (user || '').toLowerCase().trim();
-         let usernameFallback = userNorm;
+         // Usuário é o atribuído diretamente?
+         // IMPORTANTE: currentUsername() retorna u.nome||u.username, que pode ser o nome de exibição.
+         // O assignedTo guarda o username real (login). Usar erp_user.username como fonte de verdade.
+         let usernameActual = (user || '').toLowerCase().trim();
          try {
              const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
-             const fb = (uu.username || uu.login || '').toLowerCase().trim();
-             if (fb) usernameFallback = fb;
+             const realLogin = (uu.username || uu.login || '').toLowerCase().trim();
+             if (realLogin) usernameActual = realLogin;
          } catch(e){}
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
              if (!task || !task.assignedTo) return false;
              const a = task.assignedTo.toLowerCase().trim();
-             return a === userNorm || a === usernameFallback;
+             return a === usernameActual;
          });
 
-         // Usu\u00e1rio \u00e9 o gestor gravado no ticket quando foi atribu\u00eddo?
+         // Usuário é o gestor gravado no ticket quando foi atribuído?
          const gs = t.gestorSetor;
          const isGestorByTicket = gs && (
              (cUserIdNow && gs.id && gs.id === cUserIdNow) ||
-             (user && gs.login && gs.login === user.toLowerCase()) ||
+             (usernameActual && gs.login && gs.login === usernameActual) ||
              (effectiveNome && gs.nome && gs.nome === effectiveNome) ||
              (effectiveNome && gs.nome && gs.nome.includes(effectiveNome) && effectiveNome.length > 5)
          );
@@ -2214,8 +2215,11 @@
              isHandled = true;
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
-             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via coment\u00e1rio: "' + text + '"', user });
-             t.comments.push({ user, text, time: nowTs });
+             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
+             // Só adicionar comment de texto se não havia popup pendente (popup ja criou o comment de justificativa)
+             if (!pendingTipo) {
+                 t.comments.push({ user, text, time: nowTs });
+             }
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                  if (t[k] && !t[k].isCompleted) {
                      t[k].isCompleted = true;
