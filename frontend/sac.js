@@ -227,6 +227,8 @@
     if (isNaN(opened)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
 
     let endCalc = Date.now();
+    const isFrozen = !!ticket.slaFrozenAt;
+
     if (isClosed) {
       const log = ticket.timeline && ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado');
       if (log) {
@@ -234,8 +236,18 @@
         if (!isNaN(t)) endCalc = t;
       }
     }
-    const elapsedMs = endCalc - opened;
+
+    // SLA congelado no Acompanhamento
+    const elapsedMs = (isFrozen && ticket.slaElapsedMs) ? ticket.slaElapsedMs : (endCalc - opened);
     const remainMs = limitMs - elapsedMs;
+
+    const fmtHM = (ms) => {
+        const totalMin = Math.floor(Math.abs(ms) / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return `${h}h${m.toString().padStart(2, '0')}m`;
+    };
+
     const remainH = Math.round((remainMs / 3600000) * 10) / 10;
     // pct = % remaining (100 = fresh, 0 = just expired)
     let pct = Math.round((remainMs / limitMs) * 100);
@@ -246,13 +258,12 @@
 
     // — Para chamados CONCLUÍDOS: exibe tempo total desde abertura —
     if (isConcluido) {
-      const totalH = Math.round((elapsedMs / 3600000) * 10) / 10;
       const withinSLA = elapsedMs <= limitMs;
-      const concludedLabel = `✓ ${totalH}h (${withinSLA ? 'no prazo' : 'em atraso'})`;
+      const concludedLabel = `✓ ${fmtHM(elapsedMs)} (${withinSLA ? 'no prazo' : 'em atraso'})`;
       const concludedColor = withinSLA ? '#15803d' : '#dc2626';
       const concludedBarPct = Math.min(100, Math.round((elapsedMs / limitMs) * 100));
       return {
-        remaining: totalH,
+        remaining: remainH,
         pct: withinSLA ? (100 - concludedBarPct) : 0,
         consumedPct: concludedBarPct,
         isOverdue: !withinSLA,
@@ -268,11 +279,12 @@
 
     // Label: positive hours remaining or negative hours overdue
     let label;
-    if (isOverdue) {
-      const overdueH = Math.abs(Math.round((remainMs / 3600000) * 10) / 10);
-      label = `-${overdueH}h`;
+    if (isFrozen) {
+      label = `🔒 Congelado · ${fmtHM(elapsedMs)} consumidas`;
+    } else if (isOverdue) {
+      label = `-${fmtHM(remainMs)}`;
     } else {
-      label = `${remainH}h restantes`;
+      label = `${fmtHM(remainMs)} restantes`;
     }
     // Color based on consumed %: 0-40%=green, 40-70%=blue, 70-100%=yellow, overdue=red
     let barColor;
@@ -565,7 +577,7 @@
 
     const cl = getChecklist(ticket);
     const clChecked = cl.filter(i => i.checked).length;
-    const showCL = showChecklistInStage(ticket.stage);
+    const showCL = showChecklistInStage(ticket.stage) && ticket.stage !== 'execucao';
 
     const hasPendingLog = ticket.logisticsTask && !ticket.logisticsTask.isCompleted;
     const hasPendingCom = ticket.commercialTask && !ticket.commercialTask.isCompleted;
@@ -1178,6 +1190,7 @@
                 <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
                 <span class="sac-tag" style="background:#e0e7ff;color:#4338ca;"><i class="ph ${type.icon}"></i> ${type.name}</span>
                 <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"><i class="ph ph-clock"></i> ${sla.label}</span>
+                ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(t.followUpDeadline)}</span>` : ''}
             </div>
             <div style="margin-top: 8px; width: 100%; max-width:320px;">
                 <div class="sac-sla-bar" style="height: 6px;"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
