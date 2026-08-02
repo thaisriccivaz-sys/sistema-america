@@ -27833,6 +27833,7 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, 
         t.slaFrozenAt || null, t.slaElapsedMs || null, t.followUpDeadline || null, t.followUpNotified ? 1 : 0, t.followUpPendingJustification ? 1 : 0, t.closeDate || null,
+        t.aguardDeadline || null, t.aguardNotified ? 1 : 0, t.aguardPendingJustification ? 1 : 0,
         req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
