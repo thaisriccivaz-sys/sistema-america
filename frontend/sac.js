@@ -783,11 +783,18 @@
       // Filtra os tipos excluidos
       const validas = osList.filter(o => !_sacIsOSTipoExcluido(o.tipo_servico));
       if (!validas.length) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
-      // Coleta os produtos unicos para equipamento
-      const os = validas[0];
-      // Limpa emojis e prefixos de ícones do nome do cliente
-      const _clienteLimpo = (os.cliente || '').replace(/^[\s\S]*?([A-Z\u00C0-\u024F])/u, '$1').trim();
-      const enderCalc = [os.endereco, os.complemento].filter(Boolean).join(', ');
+      
+      const clienteNome = validas[0].cliente || '';
+      const _clienteLimpo = clienteNome.replace(/^[\\s\\S]*?([A-Z\u00C0-\u024F])/u, '$1').trim();
+      
+      const todosEnderecos = validas.map(o => [o.endereco, o.complemento].filter(Boolean).join(', ')).filter(Boolean);
+      const enderecosUnicos = [...new Set(todosEnderecos)];
+      const enderecoFinal = enderecosUnicos.length > 1
+        ? await _sacEscolherEndereco(enderecosUnicos, _clienteLimpo || clienteNome)
+        : (enderecosUnicos[0] || '');
+      if (enderecosUnicos.length > 1 && enderecoFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+
+      const os = validas.find(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal) || validas[0];
 
       // produtos vem como JSON string do banco SQLite — fazer parse
       const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
@@ -814,7 +821,7 @@
       }));
       const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
       const equipFinal = prodsUnicos.length > 1
-        ? await _sacEscolherEquipamento(prodsUnicos, _clienteLimpo || os.cliente || '', enderCalc)
+        ? await _sacEscolherEquipamento(prodsUnicos, _clienteLimpo || os.cliente || '', enderecoFinal)
         : (prodsUnicos[0] || _parseProds(os)[0]?.desc || '');
       if (equipFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
       
@@ -834,6 +841,29 @@
       _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard();
     }
   };
+
+  async function _sacEscolherEndereco(enderecos, cliente) {
+    return new Promise(resolve => {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
+      div.innerHTML = `<div style="background:white;border-radius:12px;padding:24px;min-width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+        <h3 style="margin:0 0 12px;font-size:1rem;color:#1e293b;">Mais de um endereço encontrado</h3>
+        <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:0.85rem;color:#1e293b;margin-bottom:4px;font-weight:600;">${cliente}</div>
+        </div>
+        <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual endereço deseja utilizar na ocorrência?</p>
+        <div id="_sac-ender-opts" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;">
+          ${enderecos.map((e,i)=>`<button data-idx="${i}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;color:#1e293b;transition:all 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">📍 ${e}</button>`).join('')}
+        </div>
+        <button id="_sac-ender-cancel" style="margin-top:14px;background:#e2e8f0;border:none;border-radius:6px;padding:8px 18px;font-size:0.8rem;cursor:pointer;color:#475569;width:100%;font-weight:600;">Cancelar</button>
+      </div>`;
+      document.body.appendChild(div);
+      div.querySelectorAll('[data-idx]').forEach(btn => {
+        btn.addEventListener('click', () => { div.remove(); resolve(enderecos[+btn.dataset.idx]); });
+      });
+      div.querySelector('#_sac-ender-cancel').addEventListener('click', () => { div.remove(); resolve(null); });
+    });
+  }
 
   async function _sacEscolherEquipamento(prods, cliente, endereco) {
     return new Promise(resolve => {
