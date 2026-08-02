@@ -650,7 +650,7 @@
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
-        <i class="ph ph-package" style="margin-right:3px;"></i>${ticket.equipment}
+        ${ticket.equipment}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
@@ -1741,7 +1741,10 @@
         let actualUsernameLower = cuLower;
         try {
             const u = JSON.parse(localStorage.getItem('erp_user'));
-            if (u && (u.username || u.email)) actualUsernameLower = (u.username || u.email).toLowerCase();
+            if (u) {
+                const possibleId = u.username || u.login || u.email || (u.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                if (possibleId) actualUsernameLower = possibleId.toLowerCase();
+            }
         } catch(e) {}
 
         const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower) ||
