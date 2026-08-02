@@ -1115,7 +1115,12 @@
                             <span style="font-size:0.75rem;color:#64748b;">Responsável:</span>
                             <select style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;background:#fff;" onchange="SAC.changeTaskAssignment('${key}', this.value)" ${disabledAttr}>
                                 <option value="">Sem atribuição</option>
-                                ${(window._sacUsersList||[]).map(u=>`<option value="${u}" ${u===task.assignedTo?'selected':''}>${u}</option>`).join('')}
+                                ${(window._sacUsersList||[]).map(u => {
+                                    const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, '.');
+                                    const val = u.username || u.login || u.email || normalizeId(u.nome);
+                                    const name = u.nome || u.name || val;
+                                    return `<option value="${val}" ${val === task.assignedTo ? 'selected' : ''}>${name}</option>`;
+                                }).join('')}
                             </select>
                         </div>
                     </div>`;
@@ -1732,7 +1737,8 @@
       const t = _selectedTicket;
       if (!t || !t[key]) return;
       const usersList = window._sacUsersList || [];
-      const user = usersList.find(u => (u.username||u.login||u.email) === newUsername);
+      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, '.');
+      const user = usersList.find(u => (u.username||u.login||u.email||normalizeId(u.nome)) === newUsername);
       const previousAssignee = t[key].assignedTo;
       t[key] = {
         ...t[key],
