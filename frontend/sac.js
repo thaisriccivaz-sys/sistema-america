@@ -1450,7 +1450,8 @@
                                 const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
-                                const formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                if (formattedNotes.startsWith('Respondido via justificativa')) formattedNotes = '';
                                 // Buscar justificativa associada (comentário 📝 com timestamp próximo)
                                 const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
                                 const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"') : null;
