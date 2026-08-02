@@ -1178,6 +1178,7 @@
   function renderDetailModal() {
     const t = _selectedTicket;
     if (!t) return;
+    const pendingPopupType = localStorage.getItem('sac_pending_popup_' + t.id);
     const ov = document.getElementById('sac-modal-overlay');
     const mc = document.getElementById('sac-modal-container');
     ov.style.display = 'block';
@@ -1226,8 +1227,10 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
-        <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center;">
+        ${pendingPopupType 
+            ? `<div style="flex:1;color:#dc2626;font-weight:700;">⚠️ SLA Estourado - Justificativa Obrigatória</div>` 
+            : `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>`}
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 2fr;gap:40px;" id="sac-modal-body">
@@ -1435,9 +1438,12 @@
                         }).join('');
                     })()}
                 </div>
-                <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;">
-                    <textarea id="new-comment-text" rows="1" placeholder="Escreva um recado..." style="flex:1;padding:6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
-                    <button class="sac-btn sac-btn-primary" style="padding:0 10px;" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+                <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;flex-direction:column;">
+                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:#dc2626;font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
+                    <div style="display:flex;gap:6px;">
+                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType?'#fca5a5':'#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+                        <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType?'background:#dc2626':''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+                    </div>
                 </div>
             </div>
 
@@ -1948,6 +1954,17 @@
     },
     openDetail(id) { openDetail(id); },
     closeModal(e) {
+      if (_selectedTicket) {
+        const pendingTipo = localStorage.getItem('sac_pending_popup_' + _selectedTicket.id);
+        if (pendingTipo) {
+          const u = currentUsername().toLowerCase();
+          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u);
+          if (!canClose) {
+            showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
+            return;
+          }
+        }
+      }
       if (e && e.target !== document.getElementById('sac-modal-overlay') && e.target !== document.getElementById('sac-modal-container')) return;
       document.getElementById('sac-modal-overlay').style.display='none';
       document.getElementById('sac-modal-container').style.display='none';
@@ -2055,8 +2072,39 @@
       const user = currentUsername();
       if (!t.comments) t.comments = [];
       let isHandled = false;
+      const pendingTipo = localStorage.getItem('sac_pending_popup_' + t.id);
 
-      if (t.stage === 'aguardando_setores') {
+      if (pendingTipo) {
+          isHandled = true;
+          const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
+          const justTimestamp = new Date().toISOString();
+          t.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): "' + text + '"', time: justTimestamp });
+
+          if (pendingTipo === 'followup') {
+              t.stage = 'triagem';
+              t.slaFrozenAt = null;
+              t.followUpDeadline = null;
+              t.followUpPendingJustification = false;
+              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+          } else if (pendingTipo === 'aguard') {
+              t.stage = 'triagem';
+              t.aguardDeadline = null;
+              t.aguardNotified = false;
+              t.aguardPendingJustification = false;
+              t.logisticsTask = null;
+              t.commercialTask = null;
+              t.financialTask = null;
+              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de aguardo de setor vencido. Justificativa registrada.', user: null });
+          } else {
+              t.slaOverduePendingJustification = false;
+          }
+          localStorage.removeItem('sac_pending_popup_' + t.id);
+          showToast('Justificativa registrada com sucesso.', 'success');
+          // Atualiza a tela de detalhes para voltar ao normal (remover banner obrigatorio)
+          setTimeout(() => { if (_selectedTicket && _selectedTicket.id === t.id) renderDetailModal(); }, 100);
+      }
+
+      if (!isHandled && t.stage === 'aguardando_setores') {
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
              if (!task) return false;
@@ -2371,46 +2419,7 @@
       showToast(`OS ${ticket.protocol} movida para "${pt.tgtName}"!`,'success');
       renderAll();
     },
-    confirmMandatoryJustification(ticketId, tipo) {
-      const textarea = document.getElementById('mandatory-justification-' + ticketId);
-      const errorDiv = document.getElementById('mandatory-error-' + ticketId);
-      if (!textarea || !textarea.value.trim()) {
-        if (errorDiv) errorDiv.style.display = 'block';
-        return;
-      }
-      const justText = textarea.value.trim();
-      const ticket = _tickets.find(t => t.id === ticketId);
-      if (!ticket) return;
-      const user = currentUsername();
-      if (!ticket.comments) ticket.comments = [];
-      const typeLabel = tipo === 'followup' ? 'prazo de acompanhamento' : tipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
-      const justTimestamp = new Date().toISOString();
-      ticket.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): "' + justText + '"', time: justTimestamp });
-      if (tipo === 'followup') {
-        ticket.stage = 'triagem';
-        ticket.slaFrozenAt = null;
-        ticket.followUpDeadline = null;
-        ticket.followUpPendingJustification = false;
-        // Não adicionar comentário separado de retorno — justificativa já aparece embutida no timeline
-        ticket.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
-      } else if (tipo === 'aguard') {
-        ticket.stage = 'triagem';
-        ticket.aguardDeadline = null;
-        ticket.aguardNotified = false;
-        ticket.aguardPendingJustification = false;
-        ticket.logisticsTask = null;
-        ticket.commercialTask = null;
-        ticket.financialTask = null;
-        ticket.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de aguardo de setor vencido. Justificativa registrada.', user: null });
-      } else {
-        ticket.slaOverduePendingJustification = false;
-      }
-      localStorage.removeItem('sac_pending_popup_' + ticketId);
-      const popup = document.getElementById('sac-mandatory-popup-' + ticketId);
-      if (popup) popup.remove();
-      updateTicket(ticket);
-      showToast('Justificativa registrada com sucesso.', 'success');
-    },
+    // confirmMandatoryJustification removed
         saveDescription(ticketId) {
         const t = _tickets.find(x => x.id === ticketId);
         if (!t) return;
@@ -2694,61 +2703,7 @@
     }
 
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
-
-    const isFollowup = tipo === 'followup';
-    const isAguard   = tipo === 'aguard';
-    const isTimedOut = isFollowup || isAguard;
-    const title = isTimedOut ? '⚠️ Prazo de Acompanhamento Vencido' : '🔴 SLA Estourado';
-
-    // Para aguard: mostrar nome do departamento e do gestor no subtitulo
-    let subtitle = isTimedOut
-      ? 'O prazo de acompanhamento deste chamado já passou.'
-      : 'O SLA deste chamado está estourado e não foi concluído no prazo.';
-    if (isAguard) {
-      const sectorNameA = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
-                        : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
-                        : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
-                        : '';
-      subtitle = `O prazo de 2h para resposta do setor <strong>${sectorNameA}</strong> foi excedido sem retorno.`;
-    }
-
-    const btnLabel = isTimedOut ? 'Confirmar e Mover para Triagem' : 'Confirmar Justificativa';
-    const bgColor = isTimedOut ? '#fff7ed' : '#fef2f2';
-    const borderColor = isTimedOut ? '#fed7aa' : '#fecaca';
-    const headerBg = isTimedOut ? '#f97316' : '#dc2626';
-
-    const canClose = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
-
-    const overlay = document.createElement('div');
-    overlay.id = existingId;
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;';
-
-    overlay.innerHTML = `
-      <div style="background:#fff;border-radius:14px;width:520px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">
-        <div style="background:${headerBg};padding:20px 24px;display:flex;align-items:center;gap:12px;position:relative;">
-          <i class="ph ph-${isTimedOut ? 'calendar-x' : 'warning-circle'}" style="font-size:1.8rem;color:#fff;"></i>
-          <div style="flex:1;">
-            <div style="color:#fff;font-weight:800;font-size:1.1rem;">${title}</div>
-            <div style="color:rgba(255,255,255,0.85);font-size:0.82rem;margin-top:2px;">Chamado Nº ${ticket.protocol} — ${ticket.clientName}</div>
-          </div>
-          ${canClose ? `<button onclick="document.getElementById('${existingId}').remove();localStorage.removeItem('sac_pending_popup_${ticket.id}');" style="position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:1.2rem;cursor:pointer;border-radius:6px;padding:2px 8px;" title="Fechar">✕</button>` : ''}
-        </div>
-        <div style="padding:24px;">
-          <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.85rem;color:#374151;">${subtitle}</div>
-          <label style="font-size:0.85rem;font-weight:700;color:#1e293b;display:block;margin-bottom:6px;">Por que este chamado não foi concluído conforme programado? <span style="color:#dc2626">*</span></label>
-          <label style="font-size:0.82rem;color:#64748b;display:block;margin-bottom:8px;">Informe o motivo do chamado não ter sido concluído conforme programado? <span style="color:#dc2626">*</span></label>
-          <textarea id="mandatory-justification-${ticket.id}" rows="4" placeholder="Descreva o motivo detalhadamente..." style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit;"></textarea>
-          <div id="mandatory-error-${ticket.id}" style="color:#dc2626;font-size:0.78rem;margin-top:4px;display:none;">Por favor, preencha o motivo antes de continuar.</div>
-          <button onclick="SAC.confirmMandatoryJustification('${ticket.id}','${tipo}')" style="margin-top:16px;width:100%;padding:12px;background:${headerBg};color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
-            <i class="ph ph-check-circle"></i> ${btnLabel}
-          </button>
-          ${!canClose ? `<div style="text-align:center;margin-top:10px;font-size:0.75rem;color:#94a3b8;">Este popup não pode ser fechado. Preencha o motivo para continuar.</div>` : ''}
-        </div>
-      </div>`;
-
-    // Bloquear ESC e clique fora apenas para não-admins
-    if (!canClose) overlay.addEventListener('click', (e) => e.stopPropagation());
-    document.body.appendChild(overlay);
+    SAC.openDetail(ticket.id);
   }
 
   // ══════════════════════════════════════════════════════
