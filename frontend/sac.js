@@ -1809,7 +1809,7 @@
       if (!sel) return;
       sel.innerHTML = '<option value="">Buscando colaboradores...</option>';
       const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-      fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(sector)}`, {
+      fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(sector)}&_t=${Date.now()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
