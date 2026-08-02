@@ -27765,6 +27765,9 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             followUpDeadline: r.follow_up_deadline,
             followUpNotified: r.follow_up_notified === 1,
             followUpPendingJustification: r.follow_up_pending_justification === 1,
+            aguardDeadline: r.aguard_deadline,
+            aguardNotified: r.aguard_notified === 1,
+            aguardPendingJustification: r.aguard_pending_justification === 1,
             closeDate: r.close_date
         }));
         res.json(parsed);
