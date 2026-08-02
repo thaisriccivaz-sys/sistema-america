@@ -2147,9 +2147,22 @@
               showToast('Justificativa registrada com sucesso.', 'success');
               setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
-              // N\u00e3o marca isHandled: deixa o bloco aguardando_setores abaixo rodar e mover para Respondido
+              // O popup SÓ aparece para quem é autorizado (gestor/assignedTo/admin).
+              // Quem submete a justificativa JÁ está autorizado — transicionar direto para Respondido.
+              isHandled = true;
+              t.stage = 'respondido';
               t.aguardPendingJustification = false;
+              t.timeline.push({ stage: 'respondido', time: justTimestamp, notes: 'Respondido via justificativa de prazo: "' + text + '"', user });
+              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
+                  if (t[k] && !t[k].isCompleted) {
+                      t[k].isCompleted = true;
+                      t[k].feedback = text;
+                      t[k].history = [...(t[k].history||[]), { type:'resolution', time: justTimestamp, feedback: text, user }];
+                  }
+              });
               localStorage.removeItem('sac_pending_popup_' + t.id);
+              showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
+              setTimeout(() => { SAC.closeModal(); }, 150);
           } else {
               isHandled = true;
               t.slaOverduePendingJustification = false;
