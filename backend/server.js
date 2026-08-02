@@ -27841,9 +27841,11 @@ function fixSacEncoding() {
             try {
                 if (r.timeline) {
                     const tl = JSON.parse(r.timeline);
-                    const tl2 = tl.map(e => ({ ...e, notes: applyFix(e.notes) }));
-                    const s2 = JSON.stringify(tl2);
-                    if (s2 !== r.timeline) { newTimeline = s2; changed = true; }
+                    if (tl && Array.isArray(tl)) {
+                        const tl2 = tl.map(e => ({ ...e, notes: applyFix(e.notes) }));
+                        const s2 = JSON.stringify(tl2);
+                        if (s2 !== r.timeline) { newTimeline = s2; changed = true; }
+                    }
                 }
                 const fixAssignee = t => {
                     if (!t) return t;
@@ -27852,23 +27854,29 @@ function fixSacEncoding() {
                     return t;
                 };
 
-                if (r.logistics_task) {
+                if (r.logistics_task && r.logistics_task !== 'null') {
                     const t = JSON.parse(r.logistics_task);
-                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
-                    const s2 = JSON.stringify(t2);
-                    if (s2 !== r.logistics_task) { newLog = s2; changed = true; }
+                    if (t) {
+                        const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
+                        const s2 = JSON.stringify(t2);
+                        if (s2 !== r.logistics_task) { newLog = s2; changed = true; }
+                    }
                 }
-                if (r.commercial_task) {
+                if (r.commercial_task && r.commercial_task !== 'null') {
                     const t = JSON.parse(r.commercial_task);
-                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
-                    const s2 = JSON.stringify(t2);
-                    if (s2 !== r.commercial_task) { newCom = s2; changed = true; }
+                    if (t) {
+                        const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
+                        const s2 = JSON.stringify(t2);
+                        if (s2 !== r.commercial_task) { newCom = s2; changed = true; }
+                    }
                 }
-                if (r.financial_task) {
+                if (r.financial_task && r.financial_task !== 'null') {
                     const t = JSON.parse(r.financial_task);
-                    const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
-                    const s2 = JSON.stringify(t2);
-                    if (s2 !== r.financial_task) { newFin = s2; changed = true; }
+                    if (t) {
+                        const t2 = fixAssignee({ ...t, name: applyFix(t.name) });
+                        const s2 = JSON.stringify(t2);
+                        if (s2 !== r.financial_task) { newFin = s2; changed = true; }
+                    }
                 }
             } catch(e) { /* skip parse errors */ }
             if (changed) {

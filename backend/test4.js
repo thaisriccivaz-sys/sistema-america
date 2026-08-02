@@ -1,12 +1,11 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('database.sqlite');
-db.all("SELECT nome, conteudo FROM geradores WHERE nome LIKE '%Sinistro%'", (err, rows) => {
-    if (err) return console.error(err);
-    rows.forEach(r => {
-        console.log('Nome:', r.nome);
-        console.log('Conteudo snippet:', r.conteudo.substring(0, 500));
-        if (r.conteudo.includes('desconto') || r.conteudo.includes('DESCONTO')) {
-            console.log('Contem desconto:', true);
-        }
+db.get("SELECT * FROM usuarios WHERE username = 'ana.vitoria'", (err, user) => {
+  if (user) {
+    db.all("SELECT * FROM grupos_permissao_paginas WHERE grupo_permissao_id = ?", [user.grupo_permissao_id], (err, perms) => {
+      console.log('Group ID:', user.grupo_permissao_id, 'Perms:', perms.filter(p => p.pagina_id.includes('sac')));
     });
+  } else {
+    console.log('User not found');
+  }
 });
