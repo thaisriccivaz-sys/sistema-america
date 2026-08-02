@@ -2425,20 +2425,27 @@
         if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
 
-      let logNotes = isClosing
-        ? `Encerramento: ${closeReason}. Resumo: "${obs}"` + (hasUnchecked?` | Justificativa checklist: "${clJust}"`:'' )
-        : `${pt.srcName} → ${pt.tgtName}. Próximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
+      // Build logNotes — for execucao (Acompanhamento), put SLA info before Próximos passos
+      const isExecucao = pt.targetStageId === 'execucao';
+      let logNotes;
+      if (isClosing) {
+        logNotes = 'Encerramento: ' + closeReason + '. Resumo: "' + obs + '"' + (hasUnchecked ? ' | Justificativa checklist: "' + clJust + '"' : '');
+      } else if (isExecucao) {
+        // Will be completed after deadline is set below
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName;
+      } else {
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Pr\u00f3ximos passos: "' + nextSteps + '"' + (obs ? ' | Obs: "' + obs + '"' : '');
+      }
 
       // ── execucao: capturar data limite e congelar SLA ──
-      const isExecucao = pt.targetStageId === 'execucao';
       let followUpDeadlineVal = null;
       if (isExecucao) {
         followUpDeadlineVal = (document.getElementById('trans-followup-deadline')?.value || '').trim();
-        if (!followUpDeadlineVal) { showToast('A data/hora limite do acompanhamento é obrigatória.','warning'); return; }
+        if (!followUpDeadlineVal) { showToast('A data/hora limite do acompanhamento \u00e9 obrigat\u00f3ria.','warning'); return; }
         if (new Date(followUpDeadlineVal).getTime() <= Date.now()) { showToast('A data/hora limite deve ser no futuro.','warning'); return; }
       }
       ticket.stage = pt.targetStageId;
-      ticket.nextSteps = isClosing ? `Encerrado: ${closeReason}` : nextSteps;
+      ticket.nextSteps = isClosing ? 'Encerrado: ' + closeReason : nextSteps;
       if (isClosing) { ticket.closeDate = new Date().toISOString(); ticket.checklistJustification = clJust||null; }
       if (isExecucao) {
         const openedMs = new Date(_normDate(ticket.openDate)).getTime();
@@ -2448,7 +2455,7 @@
         ticket.followUpNotified = false;
         ticket.followUpPendingJustification = true;
         const dlFmt = new Date(followUpDeadlineVal).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        logNotes += ' | SLA congelado. Acompanhamento até ' + dlFmt + '.';
+        logNotes += ' | SLA congelado. Acompanhamento at\u00e9 ' + dlFmt + '. Pr\u00f3ximos passos: "' + nextSteps + '"';
       } else if (ticket.slaFrozenAt && pt.targetStageId !== 'execucao') {
         ticket.slaFrozenAt = null;
         ticket.followUpDeadline = null;
@@ -2752,14 +2759,17 @@
         if (deptObj) {
           let cUserId = null;
           try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
-          const gestorId   = deptObj.responsavel_id   ? String(deptObj.responsavel_id)   : null;
-          const gestorNome = deptObj.responsavel_nome  ? String(deptObj.responsavel_nome)  : null;
-          // Compara por ID numérico OU por nome completo do gestor vs nome completo do usuário logado
+          const gestorId    = (deptObj.responsavel_id || '').toString().trim();
+          const gestorNome  = (deptObj.responsavel_nome  || '').toLowerCase();
+          const gestorLogin = (deptObj.responsavel_login || deptObj.responsavel_username || '').toLowerCase();
           let currNomeCompleto = '';
           try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
-          const isGestor = (gestorId && cUserId && gestorId === cUserId) ||
-                           (gestorNome && currNomeCompleto && gestorNome.toLowerCase() === currNomeCompleto) ||
-                           POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
+          const isGestor =
+            (gestorId && cUserId && gestorId === cUserId) ||
+            (gestorLogin && currentUser && gestorLogin === currentUser.toLowerCase()) ||
+            (gestorNome && currNomeCompleto && gestorNome === currNomeCompleto) ||
+            (gestorNome && currNomeCompleto && gestorNome.includes(currNomeCompleto) && currNomeCompleto.length > 5) ||
+            POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
           if (!isGestor) return; // Não é o gestor — não exibir o popup
         }
       }
