@@ -992,7 +992,7 @@
           <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;">Informações de Contato</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
-              <label>Nome do Contato <span style="color:#dc2626">*</span></label>
+              <label>CONTATO DE INSTALAÇÃO <span style="color:#dc2626">*</span></label>
               <input type="text" autocomplete="off" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
             </div>
             <div class="sac-field">
@@ -1016,7 +1016,7 @@
           </div>
           <div class="sac-field">
             <label>Descrição / Detalhamento <span style="color:#dc2626">*</span></label>
-            <textarea rows="3" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
+            <textarea rows="6" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
           </div>
 
           <div style="display:none;margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
@@ -1177,10 +1177,11 @@
                     });
                     const cName = u ? (u.nome || u.name || creatorUserStr) : creatorUserStr;
                     const cPhoto = u ? (u.foto_colaborador || '') : '';
-                    creatorInfo = `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;background:#f8fafc;padding:4px 12px;border-radius:20px;border:1px solid #e2e8f0;">
+                    const cNameTrunc = cName.length > 15 ? cName.substring(0, 15) + '...' : cName;
+                    creatorInfo = `<div style="display:flex;align-items:center;gap:8px;margin-left:auto;background:#f8fafc;padding:4px 12px;border-radius:20px;border:1px solid #e2e8f0;" title="${cName}">
                         <span style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;">Aberto por</span>
                         ${cPhoto ? `<img src="${cPhoto}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;">` : `<div style="width:22px;height:22px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:bold;color:#475569;">${cName.charAt(0).toUpperCase()}</div>`}
-                        <span style="font-size:0.8rem;font-weight:600;color:#1e293b;">${cName}</span>
+                        <span style="font-size:0.8rem;font-weight:600;color:#1e293b;">${cNameTrunc}</span>
                     </div>`;
                 }
                 return `<div style="display:flex;align-items:center;gap:8px;margin-top:20px;flex-wrap:wrap;width:100%;">
@@ -1215,6 +1216,14 @@
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;">
                             <span style="font-size:0.75rem;color:#64748b;">Responsável:</span>
+                            ${(() => {
+                                const assignedUser = (window._sacUsersList||[]).find(u => {
+                                    const val = u.username || u.login || u.email || (u.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                                    return val === task.assignedTo;
+                                });
+                                const photoUrl = task.assignedToPhoto || (assignedUser ? (assignedUser.foto_colaborador || '') : '');
+                                return photoUrl ? `<img src="${photoUrl}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid #cbd5e1;flex-shrink:0;">` : '';
+                            })()}
                             <select style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;background:#fff;" onchange="SAC.changeTaskAssignment('${key}', this.value)" ${disabledAttr}>
                                 <option value="">Sem atribuição</option>
                                 ${(window._sacUsersList||[]).map(u => {
@@ -1272,7 +1281,7 @@
                 <div><strong>Nº OS Relacionada:</strong> ${t.osNumber||'—'}</div>
                 <div><strong>Canal:</strong> ${t.channel||'—'}</div>
                 <div><strong>Nº Contrato:</strong> ${t.cnpjCpf||'—'}</div>
-                <div><strong>Contato:</strong> ${t.contactName||'—'} ${t.contactPhone?'· '+t.contactPhone:''}</div>
+                <div><strong>Contato de Instalação:</strong> ${t.contactName||'—'} ${t.contactPhone?'· '+t.contactPhone:''}</div>
                 ${t.contactEmail?`<div><strong>E-mail:</strong> ${t.contactEmail}</div>`:''}
             </div>
 
