@@ -781,20 +781,20 @@
       const lista = rawLista;
       const osList = Array.isArray(lista) ? lista : (lista.data || []);
       // Filtra os tipos excluidos
-      const validas = osList.filter(o => !_sacIsOSTipoExcluido(o.tipo_servico));
-      if (!validas.length) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+      if (!osList.length) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
       
-      const clienteNome = validas[0].cliente || '';
+      const clienteNome = osList[0].cliente || '';
       const _clienteLimpo = clienteNome.replace(/^[\\s\\S]*?([A-Z\u00C0-\u024F])/u, '$1').trim();
       
-      const todosEnderecos = validas.map(o => [o.endereco, o.complemento].filter(Boolean).join(', ')).filter(Boolean);
+      const todosEnderecos = osList.map(o => [o.endereco, o.complemento].filter(Boolean).join(', ')).filter(Boolean);
       const enderecosUnicos = [...new Set(todosEnderecos)];
       const enderecoFinal = enderecosUnicos.length > 1
         ? await _sacEscolherEndereco(enderecosUnicos, _clienteLimpo || clienteNome)
         : (enderecosUnicos[0] || '');
       if (enderecosUnicos.length > 1 && enderecoFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
 
-      const os = validas.find(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal) || validas[0];
+      const osDoEndereco = osList.filter(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal);
+      const os = osDoEndereco[0] || osList[0];
 
       // produtos vem como JSON string do banco SQLite — fazer parse
       const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
@@ -815,7 +815,7 @@
           'CARRINHO': '🛤', 'CAIXA DAGUA': '🧊'
       };
 
-      const todosProds = validas.flatMap(o => _parseProds(o).map(p => {
+      const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
           const icone = SAC_EQUIP_ICONS[p.desc] || '';
           return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
       }));
@@ -828,7 +828,7 @@
       _wiz.clientName = _clienteLimpo || os.cliente || '';
       _wiz.cnpjCpf    = os.contrato || os.numero_contrato || '';
       _wiz.equipment  = equipFinal;
-      _wiz.address    = enderCalc;
+      _wiz.address    = enderecoFinal;
       _wiz.contactName = os.responsavel || '';
       _wiz.contactPhone = os.telefone || '';
       _wiz.contactEmail = os.email || '';
