@@ -3053,6 +3053,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
         const mapMeses = {};
         for (let i = 0; i < 6; i++) {
             const d = new Date();
+            d.setDate(1); // avoid 31st overflow
             d.setMonth(d.getMonth() - i);
             const m = d.toISOString().split('T')[0].substring(0, 7);
             mapMeses[m] = { mes: m, faltas: 0, atestados: 0 };
@@ -22177,7 +22178,9 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req
         if (presenca && dataConclusao && t.validade_dias > 0) {
           const dtConclusao = new Date(dataConclusao);
           const dtVencimento = new Date(dtConclusao);
-          dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+          const targetM = dtVencimento.getMonth() + t.validade_dias;
+          dtVencimento.setMonth(targetM);
+          if (dtVencimento.getMonth() !== targetM % 12) dtVencimento.setDate(0);
           if (agora > dtVencimento) vencido = true;
         }
 
@@ -22246,7 +22249,9 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
         if (dataConclusao && r.validade_dias > 0) {
           const dtConclusao = new Date(dataConclusao);
           const dtVencimento = new Date(dtConclusao);
-          dtVencimento.setMonth(dtVencimento.getMonth() + r.validade_dias);
+          const targetM = dtVencimento.getMonth() + r.validade_dias;
+          dtVencimento.setMonth(targetM);
+          if (dtVencimento.getMonth() !== targetM % 12) dtVencimento.setDate(0);
           if (agora > dtVencimento) vencido = true;
         }
         return { ...r, data_conclusao: dataConclusao, vencido };
@@ -24406,16 +24411,16 @@ app.listen(PORT, () => {
             [7,'Recarga de gàs','Tempo',12,'meses','Media',1,0,0,0,1],
             [7,'Troca de filtro cabine','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1],
             [8,'Troca de ??leo hidr??ulico','Horimetro',250,'horas','Alta',2,1,1,1,1],
-            [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,0,1],
+            [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,1,1],
             [8,'Lubrificação de bomba','Horimetro',100,'horas','Alta',0.5,0,0,0,1],
             [8,'Revisão de bomba de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [8,'Verificação de mangotes','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
-            [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,0,1],
+            [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,1,1],
             [9,'Revisão do motor de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [9,'Troca de ??leo do motor de suc????o','Horimetro',250,'horas','Alta',1,1,1,0,1],
             [9,'Troca de filtro do motor de suc????o','Horimetro',100,'horas','Alta',0.5,1,1,0,1],
             [9,'Revisão da bomba de vácuo','Horimetro',500,'horas','Critica',4,1,1,1,1],
-            [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,0,1],
+            [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,1,1],
             [9,'Inspe????o estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1],
             [9,'Verificação de v??lvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
             [9,'Verificação do sistema hidr??ulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1],
@@ -24532,7 +24537,11 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                             let dFinal = new Date(dObj);
                             if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                             if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                            if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
+                            if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
+                                const targetM = dFinal.getMonth() + 6;
+                                dFinal.setMonth(targetM);
+                                if (dFinal.getMonth() !== targetM % 12) dFinal.setDate(0);
+                            }
                             maxDateStr = `${dFinal.getFullYear()}-${String(dFinal.getMonth() + 1).padStart(2, '0')}-${String(dFinal.getDate()).padStart(2, '0')}`;
                         }
                     }
@@ -24549,7 +24558,11 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                 const dFinal = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
                 if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                 if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
+                if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
+                    const targetM = dFinal.getMonth() + 6;
+                    dFinal.setMonth(targetM);
+                    if (dFinal.getMonth() !== targetM % 12) dFinal.setDate(0);
+                }
                 const Y = dFinal.getFullYear(), M = String(dFinal.getMonth() + 1).padStart(2, '0'), D = String(dFinal.getDate()).padStart(2, '0');
                 return res.json({ validade: `${Y}-${M}-${D}` });
             }
@@ -26852,9 +26865,12 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
 
 // ?????? DELETE: remover computador ??????
 app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
-    db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true });
+    db.run(`DELETE FROM computadores_historico WHERE computador_id=?`, [req.params.id], function (errHist) {
+        if (errHist) return res.status(500).json({ error: errHist.message });
+        db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        });
     });
 });
 
