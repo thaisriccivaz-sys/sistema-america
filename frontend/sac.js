@@ -2307,6 +2307,11 @@
               t.slaFrozenAt = null;
               t.followUpDeadline = null;
               t.followUpPendingJustification = false;
+              
+              t.isUrgent = true;
+              if (!t.tags) t.tags = [];
+              if (!t.tags.includes('Reagendamento')) t.tags.push('Reagendamento');
+
               t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno autom\u00e1tico: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
               localStorage.removeItem('sac_pending_popup_' + t.id);
               showToast('Justificativa registrada com sucesso.', 'success');
