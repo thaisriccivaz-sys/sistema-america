@@ -924,7 +924,7 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.folgasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.folgasVT||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.folgasVT) ? '#dc2626' : ((s.folgasVT||0)>0?'#0891b2':'#94a3b8')};"
               placeholder="0"
               title="Folgas VT"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : ''}
@@ -932,7 +932,7 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.faltasVT||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVT) ? '#dc2626' : ((s.faltasVT||0)>0?'#1e3a5f':'#94a3b8')};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : ''}
           </td>
@@ -944,20 +944,20 @@ function _renderTabela() {
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.diasExtra||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${s.diasExtra>0?'#8b5cf6':'#94a3b8'};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.diasExtra) ? '#dc2626' : (s.diasExtra>0?'#8b5cf6':'#94a3b8')};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasExtra',this.value)">
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.folgasVR||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.folgasVR||0)>0?'#0891b2':'#94a3b8'};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.folgasVR) ? '#dc2626' : ((s.folgasVR||0)>0?'#0891b2':'#94a3b8')};"
               placeholder="0"
               title="Folgas VR"
               onchange="window.atualizarDadosReciboColab(${c.id},'folgasVR',this.value)">
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" min="0" max="35" value="${s.faltasVR||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.faltasVR||0)>0?'#ef4444':'#94a3b8'};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVR) ? '#dc2626' : ((s.faltasVR||0)>0?'#064e3b':'#94a3b8')};"
               placeholder="0"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVR',this.value)">
           </td>
@@ -1252,6 +1252,8 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
     if (!_recibosSelecoes[id]) return;
     _recibosSelecoes[id][campo] = Math.max(0, parseInt(valor) || 0);
     _recibosSelecoes[id].is_editado = true;
+    _recibosSelecoes[id].edited_fields = _recibosSelecoes[id].edited_fields || {};
+    _recibosSelecoes[id].edited_fields[campo] = true;
 
     if (campo.includes('folgas') || campo.includes('faltas') || campo === 'diasExtra') {
         const c = _recibosAllColabs.find(x => x.id === id);
@@ -1316,6 +1318,8 @@ window.atualizarValorEditado = function(id, campo, valor) {
     if (!isNaN(v) && valor.trim() !== '') {
         _recibosSelecoes[id][campo] = v;
         _recibosSelecoes[id].is_editado = true;
+        _recibosSelecoes[id].edited_fields = _recibosSelecoes[id].edited_fields || {};
+        _recibosSelecoes[id].edited_fields[campo] = true;
     } else {
         _recibosSelecoes[id][campo] = null;
         // Recalcular para mostrar o valor padrão se o usuário apagar o campo
