@@ -1993,6 +1993,16 @@ async function pollAdmissaoAssinaturas() {
         );
 
         const rawPendentes = [...(pendentesAdmissao || []), ...(pendentesDocs || [])];
+        const initialOccurrences = {
+                    'manutencao': ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
+                    'avaria_funcional': ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
+                    'avaria_nao_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+                    'entrega': ['Endereço incorreto', 'Equipe não localizou o ponto exato', 'Cliente ausente ou local fechado', 'Produto entregue errado', 'Atraso na entrega', 'Faltou Observação da localização exata'],
+                    'retirada': ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
+                    'contrato': ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
+                    'furto': ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
+                    'visita_tecnica': ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato']
+                };
         if (!rawPendentes || rawPendentes.length === 0) return;
 
         // Deduplicar pendentes por assinafy_id para não sobrecarregar API e evitar duplo insert/update
@@ -27818,6 +27828,77 @@ sacMigrations.forEach(sql => {
   });
 });
 console.log('[SAC] Migração de colunas concluída.');
+
+db.run(`
+    CREATE TABLE IF NOT EXISTS sac_ocorrencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type_key TEXT NOT NULL,
+        description TEXT NOT NULL,
+        UNIQUE(type_key, description)
+    )
+`, (err) => {
+    if (err) {
+        console.error('[SAC] Erro ao criar tabela sac_ocorrencias:', err);
+    } else {
+        db.get("SELECT COUNT(*) as count FROM sac_ocorrencias", (err, row) => {
+            if (row && row.count === 0) {
+                const initialOccurrences = {
+                    'manutencao': ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
+                    'avaria_funcional': ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
+                    'avaria_nao_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+                    'entrega': ['Endereço incorreto', 'Equipe não localizou o ponto exato', 'Cliente ausente ou local fechado', 'Produto entregue errado', 'Atraso na entrega', 'Faltou Observação da localização exata'],
+                    'retirada': ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
+                    'contrato': ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
+                    'furto': ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
+                    'visita_tecnica': ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato']
+                };
+                let stmt = db.prepare("INSERT OR IGNORE INTO sac_ocorrencias (type_key, description) VALUES (?, ?)");
+                for (let type_key in initialOccurrences) {
+                    initialOccurrences[type_key].forEach(desc => {
+                        stmt.run(type_key, desc);
+                    });
+                }
+                stmt.finalize();
+                console.log('[SAC] Tabela sac_ocorrencias populada com dados iniciais.');
+            }
+        });
+    }
+});
+
+// --- API DE OCORRÊNCIAS (CRUD) ---
+app.get('/api/sac/ocorrencias', authenticateToken, (req, res) => {
+    db.all("SELECT id, type_key, description FROM sac_ocorrencias ORDER BY type_key, description ASC", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/sac/ocorrencias', authenticateToken, (req, res) => {
+    const { type_key, description } = req.body;
+    if (!type_key || !description) return res.status(400).json({ error: 'Missing type_key or description' });
+    db.run("INSERT INTO sac_ocorrencias (type_key, description) VALUES (?, ?)", [type_key, description], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id: this.lastID, type_key, description });
+    });
+});
+
+app.put('/api/sac/ocorrencias/:id', authenticateToken, (req, res) => {
+    const { type_key, description } = req.body;
+    if (!type_key || !description) return res.status(400).json({ error: 'Missing type_key or description' });
+    db.run("UPDATE sac_ocorrencias SET type_key = ?, description = ? WHERE id = ?", [type_key, description, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Ocorrencia not found' });
+        res.json({ success: true });
+    });
+});
+
+app.delete('/api/sac/ocorrencias/:id', authenticateToken, (req, res) => {
+    db.run("DELETE FROM sac_ocorrencias WHERE id = ?", [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Ocorrencia not found' });
+        res.json({ success: true });
+    });
+});
 
 app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     const t = req.body;

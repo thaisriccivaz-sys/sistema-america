@@ -32,7 +32,7 @@
   const POPUP_CLOSERS = ['Thais.Ricci', 'renata.comercial'];
   let _sacSlaNotificadosIds = [];
 
-  const OCCURRENCES_BY_TYPE = {
+  let OCCURRENCES_BY_TYPE = {
     manutencao:          ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
     avaria_funcional:    ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
     avaria_nao_funcional:['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
@@ -165,15 +165,28 @@
     try {
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
-      const [ticketsRes, deptsRes, usersRes] = await Promise.all([
+      const [ticketsRes, deptsRes, usersRes, occsRes] = await Promise.all([
         fetch('/api/sac/tickets', { headers }),
         fetch('/api/departamentos', { headers }).catch(() => null),
-        fetch('/api/usuarios', { headers }).catch(() => null)
+        fetch('/api/usuarios', { headers }).catch(() => null),
+        fetch('/api/sac/ocorrencias', { headers }).catch(() => null)
       ]);
       if (ticketsRes.ok) _tickets = await ticketsRes.json();
       if (deptsRes && deptsRes.ok) _globalDepartamentos = await deptsRes.json();
       if (usersRes && usersRes.ok) window._sacUsersList = await usersRes.json();
-    } catch(e) { console.error('[SAC] Erro ao carregar chamados', e); }
+      if (occsRes && occsRes.ok) {
+        const occs = await occsRes.json();
+        window._sacOccurrencesRaw = occs;
+        const updatedOccurrences = {};
+        occs.forEach(o => {
+            if (!updatedOccurrences[o.type_key]) updatedOccurrences[o.type_key] = [];
+            updatedOccurrences[o.type_key].push(o.description);
+        });
+        if (Object.keys(updatedOccurrences).length > 0) {
+            OCCURRENCES_BY_TYPE = { ...OCCURRENCES_BY_TYPE, ...updatedOccurrences };
+        }
+      }
+    } catch(e) { console.error('[SAC] Erro ao carregar chamados/ocorrencias', e); }
     if (!_tickets) _tickets = [];
   }
 
@@ -893,36 +906,175 @@
   // ── CONFIG ───────────────────────────────────────────────────
   function renderConfig(container) {
     const typesList = Object.entries(TICKET_TYPES);
-    container.innerHTML = `
+    const rawOccs = window._sacOccurrencesRaw || [];
+    
+    let html = `
     <div style="padding:20px;overflow-y:auto;height:100%;box-sizing:border-box;">
-      <h3 style="margin:0 0 16px 0;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;"><i class="ph ph-sliders-horizontal" style="color:#f97316;"></i> Parametrização do SAC</h3>
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;margin-bottom:16px;">
-        <h4 style="margin:0 0 12px 0;font-size:0.88rem;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Tipos de Chamado e SLA</h4>
-        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
-          <thead><tr style="border-bottom:1px solid #e2e8f0;">
-            <th style="text-align:left;padding:6px 8px;color:#64748b;">Ícone</th>
-            <th style="text-align:left;padding:6px 8px;color:#64748b;">Tipo</th>
-            <th style="text-align:left;padding:6px 8px;color:#64748b;">SLA (horas)</th>
-            <th style="text-align:left;padding:6px 8px;color:#64748b;">Ocorrências Cadastradas</th>
-          </tr></thead>
-          <tbody>
-          ${typesList.map(([k,v]) => `
-            <tr style="border-bottom:1px solid #f8fafc;">
-              <td style="padding:8px;">${v.icon}</td>
-              <td style="padding:8px;font-weight:700;color:#1e293b;">${v.name}</td>
-              <td style="padding:8px;color:#f97316;font-weight:700;">${v.sla}h</td>
-              <td style="padding:8px;color:#64748b;font-size:0.78rem;">${(OCCURRENCES_BY_TYPE[k]||[]).join(', ') || '—'}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
+          <i class="ph ph-sliders-horizontal" style="color:#f97316;"></i> Tipos de Ocorrência por Chamado
+        </h3>
+        <button onclick="window._sacOpenNewOccModal()" style="background:#ef4444;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;font-size:0.85rem;">
+          <i class="ph ph-plus"></i> Nova Ocorrência
+        </button>
       </div>
-      <div style="background:#fff0f0;border:1.5px solid #fca5a5;border-radius:12px;padding:16px;">
-        <p style="margin:0;font-size:0.85rem;color:#7f1d1d;"><i class="ph ph-info" style="margin-right:5px;"></i> <strong>Nota:</strong> A parametrização avançada de tipos, ocorrências e checklists está disponível — contate o administrador do sistema para inclusões e alterações.</p>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+    `;
+
+    typesList.forEach(([typeKey, typeDef]) => {
+      const occsForType = rawOccs.filter(o => o.type_key === typeKey);
+      
+      html += `
+        <div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;overflow:hidden;">
+          <div style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;font-weight:600;color:#334155;">
+            ${typeDef.icon} ${typeDef.name}
+          </div>
+          <div style="padding:12px 16px;">
+            ${occsForType.length === 0 ? '<p style="margin:0;color:#94a3b8;font-size:0.85rem;">Nenhuma ocorrência cadastrada.</p>' : `
+              <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                <tbody>
+                  ${occsForType.map(o => `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                      <td style="padding:8px;color:#475569;">${o.description}</td>
+                      <td style="padding:8px;text-align:right;width:80px;">
+                        <button onclick="window._sacEditOcc(${o.id})" style="background:transparent;border:none;color:#3b82f6;cursor:pointer;padding:4px;" title="Editar"><i class="ph ph-pencil-simple"></i></button>
+                        <button onclick="window._sacDeleteOcc(${o.id})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;padding:4px;" title="Excluir"><i class="ph ph-trash"></i></button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `}
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
       </div>
     </div>`;
+    
+    container.innerHTML = html;
   }
 
-  // ── WIZARD ABERTURA ───────────────────────────────────────────
+
+  // ── OCCURRENCES CRUD ───────────────────────────────────────────────────
+  window._sacOpenNewOccModal = function() {
+    window._sacCurrentEditOccId = null;
+    document.getElementById('sac-occ-modal-title').innerText = 'Nova Ocorrência';
+    document.getElementById('sac-occ-type').value = 'manutencao';
+    document.getElementById('sac-occ-desc').value = '';
+    document.getElementById('sac-occ-modal').style.display = 'flex';
+  };
+
+  window._sacEditOcc = function(id) {
+    const rawOccs = window._sacOccurrencesRaw || [];
+    const occ = rawOccs.find(o => o.id === id);
+    if (!occ) return;
+    window._sacCurrentEditOccId = id;
+    document.getElementById('sac-occ-modal-title').innerText = 'Editar Ocorrência';
+    document.getElementById('sac-occ-type').value = occ.type_key;
+    document.getElementById('sac-occ-desc').value = occ.description;
+    document.getElementById('sac-occ-modal').style.display = 'flex';
+  };
+
+  window._sacCloseOccModal = function() {
+    document.getElementById('sac-occ-modal').style.display = 'none';
+  };
+
+  window._sacSaveOcc = async function() {
+    const type_key = document.getElementById('sac-occ-type').value;
+    const description = document.getElementById('sac-occ-desc').value.trim();
+    if (!description) { showToast('Descrição é obrigatória', 'error'); return; }
+
+    const id = window._sacCurrentEditOccId;
+    const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+    
+    try {
+      let res;
+      if (id) {
+        res = await fetch(`/api/sac/ocorrencias/${id}`, {
+          method: 'PUT',
+          headers: {'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+          body: JSON.stringify({ type_key, description })
+        });
+      } else {
+        res = await fetch('/api/sac/ocorrencias', {
+          method: 'POST',
+          headers: {'Authorization':'Bearer '+token, 'Content-Type':'application/json'},
+          body: JSON.stringify({ type_key, description })
+        });
+      }
+      
+      if (res.ok) {
+        showToast('Ocorrência salva!', 'success');
+        _sacCloseOccModal();
+        await loadTickets(); // Reloads occurrences globally
+        renderAll(); // Re-render current view (Config)
+      } else {
+        showToast('Erro ao salvar', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Erro de conexão', 'error');
+    }
+  };
+
+  window._sacDeleteOcc = async function(id) {
+    if (!confirm('Deseja realmente excluir esta ocorrência?')) return;
+    const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/sac/ocorrencias/${id}`, {
+        method: 'DELETE',
+        headers: {'Authorization':'Bearer '+token}
+      });
+      if (res.ok) {
+        showToast('Ocorrência excluída!', 'success');
+        await loadTickets();
+        renderAll();
+      } else {
+        showToast('Erro ao excluir', 'error');
+      }
+    } catch(e) {
+      console.error(e);
+      showToast('Erro de conexão', 'error');
+    }
+  };
+
+  // Add the modal HTML to body if not exists
+  if (!document.getElementById('sac-occ-modal')) {
+    const modalHtml = `
+      <div id="sac-occ-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
+        <div style="background:#fff;width:100%;max-width:400px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.1);overflow:hidden;">
+          <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+            <h3 id="sac-occ-modal-title" style="margin:0;font-size:1.05rem;color:#1e293b;font-weight:700;">Nova Ocorrência</h3>
+            <button onclick="window._sacCloseOccModal()" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:#64748b;"><i class="ph ph-x"></i></button>
+          </div>
+          <div style="padding:20px;">
+            <div style="margin-bottom:12px;">
+              <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:6px;">Tipo de Chamado</label>
+              <select id="sac-occ-type" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;outline:none;">
+                ${Object.entries(TICKET_TYPES).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('')}
+              </select>
+            </div>
+            <div style="margin-bottom:20px;">
+              <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:6px;">Descrição</label>
+              <input type="text" id="sac-occ-desc" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Ex: Produto entregue errado..." />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button onclick="window._sacCloseOccModal()" style="padding:8px 16px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
+              <button onclick="window._sacSaveOcc()" style="padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Salvar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  // ── WIZARD
+ ABERTURA ───────────────────────────────────────────
   function openWizard() {
     _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contactName:'', contactPhone:'', contactEmail:'', channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
     renderWizard();
