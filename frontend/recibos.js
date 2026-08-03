@@ -939,7 +939,7 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${(window._isVT(m) || window._isVC(m)) ? `
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvt-${c.id}" value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
-              style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:#1e3a5f;"
+              style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#1e3a5f'};"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : ''}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
@@ -963,7 +963,7 @@ function _renderTabela() {
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
-              style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:#064e3b;"
+              style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVREdit != null) ? '#dc2626' : '#064e3b'};"
               onchange="window.atualizarValorEditado(${c.id},'valVREdit',this.value)">
           </td>
         </tr>`;
@@ -1364,7 +1364,35 @@ window._recBuscarPontoSelecionados = async function () {
         return sel && (sel.pontoStatus === 'ok' || sel.pontoStatus === 'erro' || sel.is_editado);
     });
 
-    if (comPontoJaPreenchido.length > 0) {
+    const comPontoEditado = sels.filter(c => {
+        const sel = _recibosSelecoes[c.id];
+        return sel && sel.is_editado;
+    });
+
+    let manterEditados = false;
+
+    if (comPontoEditado.length > 0) {
+        const swalRes = await Swal.fire({
+            icon: 'warning',
+            title: 'Substituir dados editados?',
+            html: `<p style="margin:0 0 0.5rem;color:#374151;">
+                       Existem <strong>${comPontoEditado.length}</strong> colaborador(es) com valores de VT/VR alterados manualmente.
+                   </p>
+                   <p style="margin:0;color:#6b7280;font-size:0.9rem;">
+                       Deseja manter essas edições ou apagar e substituir tudo pelo RHID?
+                   </p>`,
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: '<i class="ph ph-arrow-clockwise"></i> Substituir TODOS',
+            denyButtonText: 'Manter editados',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#d97706',
+            denyButtonColor: '#059669',
+            cancelButtonColor: '#64748b',
+        });
+        if (swalRes.isDismissed) return;
+        if (swalRes.isDenied) manterEditados = true;
+    } else if (comPontoJaPreenchido.length > 0) {
         const { isConfirmed } = await Swal.fire({
             icon: 'warning',
             title: 'Dados anteriores serão apagados',
@@ -1383,6 +1411,7 @@ window._recBuscarPontoSelecionados = async function () {
         if (!isConfirmed) return;
     }
 
+    window._recManterEditados = manterEditados;
 
     const mes   = parseInt(document.getElementById('rec-mes')?.value);
     const ano   = parseInt(document.getElementById('rec-ano')?.value);
@@ -1420,6 +1449,10 @@ window._recBuscarPontoSelecionados = async function () {
     const worker = async () => {
         while (i < sels.length) {
             const c = sels[i++];
+            if (window._recManterEditados && _recibosSelecoes[c.id] && _recibosSelecoes[c.id].is_editado) {
+                ok++; // Conta como sucesso
+                continue;
+            }
             const cpf = (c.cpf || '').replace(/\D/g, '');
             if (!cpf || cpf.length < 8) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
@@ -1598,7 +1631,7 @@ window._recBuscarPontoSelecionados = async function () {
                         const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
                         const dParsed2 = new Date(dStr2 + 'T12:00:00');
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
-                        const vrLimite2 = isSat2 ? 360 : 120;
+                        const vrLimite2 = 120;
                         if (hT2 < vrLimite2) tipo2 = 'folga'; // trabalho insuficiente → folga
                         // else tipo2 = '' (trabalhou o suficiente → conta como VR)
                     } else if (semHor2 && !trb2) {
@@ -2691,7 +2724,7 @@ window.baixarConferenciaPonto = async function () {
 
                 if (elegivel_jantar) {
                     bg = '#e9d5ff'; // Roxo: Jantar
-                } else if ((semHor || isHolidayDay) && hTrab >= (semHor && isSat && !isHolidayDay ? 360 : 120)) {
+                } else if ((semHor || isHolidayDay) && hTrab >= 120) {
                     // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo:
                     // SAB de descanso: precisa 6h (360min) | DOM/Feriado/outros: 2h (120min)
                     bg = '#fef08a';
