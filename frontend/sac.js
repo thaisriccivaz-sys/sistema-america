@@ -539,7 +539,7 @@
         <button onclick="SAC.refreshData()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;margin-right:8px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Atualizar chamados">
           <i class="ph ph-arrows-clockwise"></i>
         </button>
-        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#991b1b;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#7f1d1d'" onmouseout="this.style.background='#991b1b'">
           <i class="ph ph-plus-circle"></i> Abrir Chamado
         </button>
       </div>
