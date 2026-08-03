@@ -377,10 +377,17 @@
       };
     }
 
+        const nowD = new Date();
+    const dow = nowD.getDay();
+    const nowH = nowD.getHours();
+    const isWeekendPause = (dow === 5 && nowH >= 17) || dow === 6 || dow === 0 || (dow === 1 && nowH < 8);
+
     // Label: positive hours remaining or negative hours overdue
     let label;
     if (isFrozen) {
       label = `🔒 ${fmtHM(remainMs)}`;
+    } else if (isWeekendPause && !isOverdue) {
+      label = `❄️ ${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
