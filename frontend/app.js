@@ -6458,7 +6458,12 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 const corText = isAtivo ? '#d9480f' : '#868e96';
                 atestadoInfoHtml = ` <span style="color:${corText}; font-weight:600;"><i class="ph ph-warning" style="font-size:0.9em; color:${corText}; margin-right:2px;"></i> ${ini} até ${fim}</span> `;
             } else {
-                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
+                let dataStr = '';
+                if (existingDoc.vencimento) {
+                    const vObj = new Date(existingDoc.vencimento + 'T12:00:00');
+                    dataStr = vObj.toLocaleDateString('pt-BR') + ' - ';
+                }
+                atestadoInfoHtml = ` <span style="color:#1098ad; font-weight:600;"><i class="ph ph-clock"></i> ${dataStr}${existingDoc.atestado_inicio} às ${existingDoc.atestado_fim}</span> `;
             }
         }
     }
@@ -6478,7 +6483,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     // Para a aba ASO, o vencimento já é exibido no campo de input à direita do card
     // — não duplicar como texto abaixo do nome do arquivo
-    const vencInfoHtmlLine = (tabId === 'ASO') ? '' : vencInfoHtml;
+    // Para Atestados, removemos o Venc.:
+    const vencInfoHtmlLine = (tabId === 'ASO' || tabId === 'Atestados') ? '' : vencInfoHtml;
     const subInfoLine = (vencInfoHtmlLine || enviadoHtml || atestadoInfoHtml || atestadoContabHtml)
         ? `<p style="margin:2px 0 0; font-size:0.78rem;">${atestadoInfoHtml}${atestadoContabHtml}${vencInfoHtmlLine}${enviadoHtml}</p>${linkAssinaturaHtml}`
         : '';
@@ -6487,6 +6493,13 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     let docLabel = docType;
     let docBadge = '';
     let tipoAdvSimples = '';
+    if (tabId === 'Atestados' && isSaved && existingDoc.atestado_tipo) {
+        if (existingDoc.atestado_tipo === 'dias') {
+            docBadge = `<span style="display:inline-block; margin-top:3px; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:600; border:1px solid #bae6fd;">Atestado de Dias</span>`;
+        } else {
+            docBadge = `<span style="display:inline-block; margin-top:3px; background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:4px; font-size:0.7rem; font-weight:600; border:1px solid #fde68a;">Atestado de Horas</span>`;
+        }
+    }
     if (docType && docType.includes('###')) {
         const parts = docType.split('###');
         docLabel = parts[0] || docType;
