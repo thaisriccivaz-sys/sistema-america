@@ -2167,13 +2167,18 @@
               setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
               // Apenas registra a justificativa na timeline e mantém o chamado em 'aguardando_setores'.
-              // O gestor precisará enviar um novo comentário manualmente para transicionar para Respondido.
               isHandled = true;
               t.aguardPendingJustification = false;
+              // CRÍTICO: remover localStorage ANTES de qualquer re-render para evitar loop infinito
+              localStorage.removeItem('sac_pending_popup_' + t.id);
               t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
+              // Fechar popup obrigatório se ainda estiver na tela
+              const popupEl = document.getElementById('sac-mandatory-popup-' + t.id);
+              if (popupEl) popupEl.remove();
               // Salva ANTES de reabrir o modal para garantir persistência
               await updateTicket(t);
               if (textInput) textInput.value = '';
+              showToast('Justificativa registrada com sucesso.', 'success');
               SAC.openDetail(t.id);
               return;
           } else {
