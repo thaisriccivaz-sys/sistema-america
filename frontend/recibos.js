@@ -1589,7 +1589,7 @@ window._recBuscarPontoSelecionados = async function () {
                         const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
                         const dParsed2 = new Date(dStr2 + 'T12:00:00');
                         const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
-                        const limiteDsr = isDom2 ? 120 : MIN_VR;
+                        const limiteDsr = 120; // isDom2 ? 120 : MIN_VR;
                         tipo2 = hT2 >= limiteDsr ? '' : 'folga';
                     } else if (semHor2 && trb2) {
                         // Dia de descanso (sem horário) mas trabalhou:
@@ -2537,7 +2537,7 @@ window.baixarConferenciaPonto = async function () {
                         }
                     }
                 } else if (isFolgaSt || d.folga===true || isDSRMin) {
-                    tipo = hTrab >= 360 ? '' : 'folga';
+                    tipo = hTrab >= 120 ? '' : 'folga';
                 } else if (semHor && !trab) { tipo = 'folga'; }
                 else if (d.faltaDiaInteiro || (!trab && !semHor && !d.idJustification)) { tipo = 'falta'; }
 
@@ -2902,7 +2902,7 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
                 status = 'Justificado';
             }
         } else if (isFolgaSt3 || isFolgaFlag3 || isDSRMin3) {
-            if (horasTrab3 >= 360) status = ''; // trabalhado
+            if (horasTrab3 >= 120) status = ''; // trabalhado
             else status = 'Folga';
         } else if (semHorario3 && !trabalhou3) {
             status = 'Folga';
