@@ -177,6 +177,45 @@
     if (!_tickets) _tickets = [];
   }
 
+  // ── BUSINESS HOURS HELPERS (Seg-Sex 08:00-17:00) ─────────────
+  // addBusinessHours: avança N ms de horas úteis a partir de start
+  function addBusinessHours(start, hoursMs) {
+    const WS = 8, WE = 17;
+    let cur = new Date(start), rem = hoursMs, g = 0;
+    while (rem > 0 && ++g < 500) {
+      const dow = cur.getDay(), h = cur.getHours();
+      if (dow === 0 || dow === 6) {
+        const n = new Date(cur); n.setDate(n.getDate() + (dow===6?2:1)); n.setHours(WS,0,0,0); cur=n; continue;
+      }
+      if (h < WS) { cur = new Date(cur); cur.setHours(WS,0,0,0); continue; }
+      if (h >= WE) { const n = new Date(cur); n.setDate(n.getDate()+1); n.setHours(WS,0,0,0); cur=n; continue; }
+      const eod = new Date(cur); eod.setHours(WE,0,0,0);
+      const toEnd = eod.getTime() - cur.getTime();
+      if (rem <= toEnd) { cur = new Date(cur.getTime()+rem); rem=0; }
+      else { rem-=toEnd; const n=new Date(cur); n.setDate(n.getDate()+1); n.setHours(WS,0,0,0); cur=n; }
+    }
+    return cur;
+  }
+  function businessMsBetween(from, to) {
+    const WS=8, WE=17;
+    if (from>=to) return 0;
+    let total=0, cur=new Date(from), g=0;
+    while (cur<to && ++g<2000) {
+      const dow=cur.getDay(), h=cur.getHours();
+      if (dow===0||dow===6){const n=new Date(cur);n.setDate(n.getDate()+(dow===6?2:1));n.setHours(WS,0,0,0);cur=n;continue;}
+      if (h<WS){cur=new Date(cur);cur.setHours(WS,0,0,0);continue;}
+      if (h>=WE){const n=new Date(cur);n.setDate(n.getDate()+1);n.setHours(WS,0,0,0);cur=n;continue;}
+      const eod=new Date(cur);eod.setHours(WE,0,0,0);
+      const pe=new Date(Math.min(eod.getTime(),to.getTime()));
+      total+=pe.getTime()-cur.getTime();cur=eod;
+    }
+    return total;
+  }
+  function businessMsUntilDeadline(deadlineIso) {
+    const dl=new Date(deadlineIso), now=new Date();
+    if (now>=dl) return -businessMsBetween(dl,now);
+    return businessMsBetween(now,dl);
+  }
   // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
     if (!str) return str;
@@ -695,16 +734,17 @@
       </div>
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
-        const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
-        const aguardTotal = 2 * 60 * 60 * 1000;
-        const aguardElapsed = aguardTotal - Math.max(0, aguardMs);
-        const isOverAguard = aguardMs <= 0;
-        const absMs = Math.abs(aguardMs);
+        const AGUARD_TOTAL_MS = 2 * 60 * 60 * 1000;
+        const bizMs = businessMsUntilDeadline(ticket.aguardDeadline);
+        const isOverAguard = bizMs <= 0;
+        const absMs = Math.abs(bizMs);
         const hh = Math.floor(absMs/3600000).toString().padStart(2,'0');
         const mm = Math.floor((absMs%3600000)/60000).toString().padStart(2,'0');
         const ss = Math.floor((absMs%60000)/1000).toString().padStart(2,'0');
-        const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round(aguardElapsed / aguardTotal * 100));
-        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
+        const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
+        const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
+        const countLabel = isOverAguard ? `🔴 -${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
         return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
@@ -2543,18 +2583,8 @@
         ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        // Prazo de 2h para aguardando_setores, com congelamento em horário fora do expediente (após 17h, retoma às 8h)
-        const now2h = new Date();
-        const hour2h = now2h.getHours();
-        let aguardStart = now2h;
-        // Se for após as 17h ou antes das 8h, congelar até as 8h do próximo dia útil
-        if (hour2h >= 17 || hour2h < 8) {
-          const next8h = new Date(now2h);
-          if (hour2h >= 17) next8h.setDate(next8h.getDate() + 1);
-          next8h.setHours(8, 0, 0, 0);
-          aguardStart = next8h;
-        }
-        ticket.aguardDeadline = new Date(aguardStart.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
+        ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString();
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
       }
