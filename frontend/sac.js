@@ -1865,10 +1865,7 @@
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
     const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
-    if (canSeeAll) return true;
-    const cuLower = (currentUsername() || '').toLowerCase();
-    const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
-    return isCreator;
+    return canSeeAll;
   }
 
   // ── FILTRAGEM ─────────────────────────────────────────────────
@@ -1964,7 +1961,7 @@
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
         });
-        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket || (canSeeAssigned && t.stage !== undefined);
+        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket;
       }
 
       return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchPermission;
