@@ -1403,7 +1403,7 @@
             const isTopAdminX = window.isTopAdmin || false;
             const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
             const isPopupCloser = POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase());
-            const canClose = !pendingPopupType || canSeeAllNowX || isPopupCloser;
+            const canClose = !pendingPopupType || isPopupCloser;
             return canClose 
                 ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
                 : '';
@@ -2166,7 +2166,7 @@
           const isTopAdminX = window.isTopAdmin || false;
           const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
           
-          const canClose = canSeeAllNowX || POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
+          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
           if (!canClose) {
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
