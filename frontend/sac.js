@@ -929,7 +929,34 @@
 
   window.createSACTicketFromOS = function(osData) {
     openWizard();
-    _wiz.protocol = nextProtoco    // Verifica se ja existe chamados em aberto para esta OS
+    _wiz.protocol = nextProtocol();
+    _wiz.osNumber = String(osData.number || '');
+    _wiz.clientName = osData.client || '';
+    _wiz.equipment = osData.equipment || '';
+    _wiz.address = osData.address || '';
+    _wiz.typeKey = 'visita_tecnica';
+    _wiz._protocolLocked = true;
+    _wiz._osLinked = true;
+    renderWizard();
+    const ov = document.getElementById('sac-wizard-overlay');
+    if (ov) ov.style.display = 'flex';
+    if (typeof navigateTo === 'function') navigateTo('sac');
+  };
+
+  // OS lookup: quando o usuario digita o numero da OS no wizard, busca dados na logistica
+  const _TIPOS_EXCLUIR_LOOKUP = ['retirada total','retirada parcial','manutencao avulsa','manutencao','reparo equipamento','visita tecnica'];
+  function _sacIsOSTipoExcluido(tipoServico) {
+    if (!tipoServico) return false;
+    const ts = tipoServico.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return _TIPOS_EXCLUIR_LOOKUP.some(ex => ts.includes(ex.replace(/ /g,'')) || ts.replace(/ /g,'').includes(ex.replace(/ /g,'')));
+  }
+
+  window._sacBuscarOSLogistica = async function(osNum) {
+    _sacWiz('osNumber', osNum);
+    const num = (osNum || '').trim();
+    if (!num) { _wiz._protocolLocked = false; _wiz._osLinked = false; renderWizard(); return; }
+    
+    // Verifica se ja existe chamados em aberto para esta OS
     const existingTickets = _tickets.filter(t => String(t.osNumber) === String(num) && !['concluido','encerrado'].includes(t.stage));
     if (existingTickets.length > 0) {
         let listHtml = existingTickets.map(t => {
