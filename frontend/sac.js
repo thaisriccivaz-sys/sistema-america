@@ -216,6 +216,46 @@
     if (now>=dl) return -businessMsBetween(dl,now);
     return businessMsBetween(now,dl);
   }
+
+  // Retorna tempo percorrido ignorando apenas os fins de semana (Sexta 17h ate Seg 08h)
+  function getSlaElapsedMs(startMs, endMs) {
+    if (startMs >= endMs) return 0;
+    const from = new Date(startMs);
+    const to = new Date(endMs);
+    let elapsed = 0;
+    let cur = new Date(from);
+    let guard = 0;
+    while (cur < to && ++guard < 5000) {
+      const dow = cur.getDay();
+      const h = cur.getHours();
+      const isWeekendPause = (dow === 5 && h >= 17) || dow === 6 || dow === 0 || (dow === 1 && h < 8);
+      
+      if (isWeekendPause) {
+        const next = new Date(cur);
+        if (dow === 5) next.setDate(next.getDate() + 3);
+        else if (dow === 6) next.setDate(next.getDate() + 2);
+        else if (dow === 0) next.setDate(next.getDate() + 1);
+        next.setHours(8, 0, 0, 0);
+        
+        if (to < next) cur = to;
+        else cur = next;
+      } else {
+        const next = new Date(cur);
+        const daysToFriday = 5 - dow;
+        next.setDate(next.getDate() + daysToFriday);
+        next.setHours(17, 0, 0, 0);
+        
+        if (to < next) {
+          elapsed += (to.getTime() - cur.getTime());
+          cur = to;
+        } else {
+          elapsed += (next.getTime() - cur.getTime());
+          cur = next;
+        }
+      }
+    }
+    return Math.round(elapsed);
+  }
   // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
     if (!str) return str;
@@ -292,11 +332,11 @@
       }
     }
 
-    // SLA congelado no Acompanhamento
-    let elapsedMs = endCalc - opened;
+    // SLA congelado no Acompanhamento (pausa no fds)
+    let elapsedMs = getSlaElapsedMs(opened, endCalc);
     if (isFrozen) {
         if (ticket.slaElapsedMs) elapsedMs = ticket.slaElapsedMs;
-        else if (fallbackElapsed) elapsedMs = fallbackElapsed;
+        else if (fallbackElapsed) elapsedMs = getSlaElapsedMs(opened, opened + fallbackElapsed);
     }
     
     const remainMs = limitMs - elapsedMs;
@@ -2558,7 +2598,7 @@
       if (isExecucao) {
         const openedMs = new Date(_normDate(ticket.openDate)).getTime();
         ticket.slaFrozenAt = new Date().toISOString();
-        ticket.slaElapsedMs = Date.now() - openedMs;
+        ticket.slaElapsedMs = getSlaElapsedMs(openedMs, Date.now());
         ticket.followUpDeadline = new Date(followUpDeadlineVal).toISOString();
         ticket.followUpNotified = false;
         ticket.followUpPendingJustification = true;
