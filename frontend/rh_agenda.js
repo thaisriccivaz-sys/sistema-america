@@ -721,7 +721,7 @@
 
     window.rhAgendaAddChip = function(tipo, id) {
         if (!id) return;
-        const listId = tipo === 'resp' ? 'ag-resp-list' : 'ag-ref-list';
+        const listId = tipo === 'resp' ? 'rh-ag-resp-list' : 'rh-ag-ref-list';
         const list = document.getElementById(listId);
         if (!list || list.querySelector(`[data-id="${id}"]`)) return;
         const c = agendaColabs.find(x => x.id == id);

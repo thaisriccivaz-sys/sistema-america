@@ -3053,6 +3053,7 @@ app.get('/api/dashboard/charts', authenticateToken, async (req, res) => {
         const mapMeses = {};
         for (let i = 0; i < 6; i++) {
             const d = new Date();
+            d.setDate(1); // avoid 31st overflow
             d.setMonth(d.getMonth() - i);
             const m = d.toISOString().split('T')[0].substring(0, 7);
             mapMeses[m] = { mes: m, faltas: 0, atestados: 0 };
@@ -22177,7 +22178,9 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req
         if (presenca && dataConclusao && t.validade_dias > 0) {
           const dtConclusao = new Date(dataConclusao);
           const dtVencimento = new Date(dtConclusao);
-          dtVencimento.setMonth(dtVencimento.getMonth() + t.validade_dias);
+          const targetM = dtVencimento.getMonth() + t.validade_dias;
+          dtVencimento.setMonth(targetM);
+          if (dtVencimento.getMonth() !== targetM % 12) dtVencimento.setDate(0);
           if (agora > dtVencimento) vencido = true;
         }
 
@@ -22246,7 +22249,9 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
         if (dataConclusao && r.validade_dias > 0) {
           const dtConclusao = new Date(dataConclusao);
           const dtVencimento = new Date(dtConclusao);
-          dtVencimento.setMonth(dtVencimento.getMonth() + r.validade_dias);
+          const targetM = dtVencimento.getMonth() + r.validade_dias;
+          dtVencimento.setMonth(targetM);
+          if (dtVencimento.getMonth() !== targetM % 12) dtVencimento.setDate(0);
           if (agora > dtVencimento) vencido = true;
         }
         return { ...r, data_conclusao: dataConclusao, vencido };
@@ -24406,16 +24411,16 @@ app.listen(PORT, () => {
             [7,'Recarga de gàs','Tempo',12,'meses','Media',1,0,0,0,1],
             [7,'Troca de filtro cabine','KM/Tempo',15000,'km','Baixa',0.5,0,0,0,1],
             [8,'Troca de ??leo hidr??ulico','Horimetro',250,'horas','Alta',2,1,1,1,1],
-            [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,0,1],
+            [8,'Troca de filtro hidr??ulico','Horimetro',250,'horas','Alta',1,1,1,1,1],
             [8,'Lubrificação de bomba','Horimetro',100,'horas','Alta',0.5,0,0,0,1],
             [8,'Revisão de bomba de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [8,'Verificação de mangotes','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
-            [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,0,1],
+            [8,'Limpeza de tanque','Tempo',3,'meses','Alta',3,1,1,1,1],
             [9,'Revisão do motor de suc????o','Horimetro',500,'horas','Critica',4,1,1,1,1],
             [9,'Troca de ??leo do motor de suc????o','Horimetro',250,'horas','Alta',1,1,1,0,1],
             [9,'Troca de filtro do motor de suc????o','Horimetro',100,'horas','Alta',0.5,1,1,0,1],
             [9,'Revisão da bomba de vácuo','Horimetro',500,'horas','Critica',4,1,1,1,1],
-            [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,0,1],
+            [9,'Higienização do tanque','Tempo',1,'meses','Alta',3,1,1,1,1],
             [9,'Inspe????o estrutural do tanque','Tempo',3,'meses','Alta',1,0,0,0,1],
             [9,'Verificação de v??lvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
             [9,'Verificação do sistema hidr??ulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1],
@@ -24532,7 +24537,11 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                             let dFinal = new Date(dObj);
                             if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                             if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                            if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
+                            if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
+                                const targetM = dFinal.getMonth() + 6;
+                                dFinal.setMonth(targetM);
+                                if (dFinal.getMonth() !== targetM % 12) dFinal.setDate(0);
+                            }
                             maxDateStr = `${dFinal.getFullYear()}-${String(dFinal.getMonth() + 1).padStart(2, '0')}-${String(dFinal.getDate()).padStart(2, '0')}`;
                         }
                     }
@@ -24549,7 +24558,11 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                 const dFinal = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
                 if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                 if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
-                if (docNome.includes('CND') && docNome.includes('ESTADUAL')) dFinal.setMonth(dFinal.getMonth() + 6);
+                if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
+                    const targetM = dFinal.getMonth() + 6;
+                    dFinal.setMonth(targetM);
+                    if (dFinal.getMonth() !== targetM % 12) dFinal.setDate(0);
+                }
                 const Y = dFinal.getFullYear(), M = String(dFinal.getMonth() + 1).padStart(2, '0'), D = String(dFinal.getDate()).padStart(2, '0');
                 return res.json({ validade: `${Y}-${M}-${D}` });
             }
@@ -26852,9 +26865,12 @@ app.put('/api/computadores/:id', authenticateToken, (req, res) => {
 
 // ?????? DELETE: remover computador ??????
 app.delete('/api/computadores/:id', authenticateToken, (req, res) => {
-    db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true });
+    db.run(`DELETE FROM computadores_historico WHERE computador_id=?`, [req.params.id], function (errHist) {
+        if (errHist) return res.status(500).json({ error: errHist.message });
+        db.run(`DELETE FROM computadores WHERE id=?`, [req.params.id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        });
     });
 });
 
@@ -27765,6 +27781,11 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             followUpDeadline: r.follow_up_deadline,
             followUpNotified: r.follow_up_notified === 1,
             followUpPendingJustification: r.follow_up_pending_justification === 1,
+            aguardDeadline: r.aguard_deadline,
+            aguardNotified: r.aguard_notified === 1,
+            aguardPendingJustification: r.aguard_pending_justification === 1,
+            slaOverdueNotified: r.sla_overdue_notified === 1,
+            slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
             closeDate: r.close_date
         }));
         res.json(parsed);
@@ -27781,6 +27802,11 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN close_date TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN updated_at DATETIME`,
   `ALTER TABLE sac_tickets ADD COLUMN open_date TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_deadline TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_notified INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN aguard_pending_justification INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_notified INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_pending_justification INTEGER DEFAULT 0`,
 ];
 sacMigrations.forEach(sql => {
   db.run(sql, err => {
@@ -27798,15 +27824,19 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
         logistics_task, commercial_task, financial_task, comments,
-        sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date,
+        aguard_deadline, aguard_notified, aguard_pending_justification,
+        sla_overdue_notified, sla_overdue_pending_justification
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[]),
-        t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null
+        t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null,
+        t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0,
+        t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, id: t.id });
@@ -27820,6 +27850,8 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         stage = ?, next_steps = ?, timeline = ?, cost_centers = ?, attachments = ?,
         checklist = ?, logistics_task = ?, commercial_task = ?, financial_task = ?, occurrences = ?, comments = ?, is_urgent = ?, 
         sla_frozen_at = ?, sla_elapsed_ms = ?, follow_up_deadline = ?, follow_up_notified = ?, follow_up_pending_justification = ?, close_date = ?,
+        aguard_deadline = ?, aguard_notified = ?, aguard_pending_justification = ?,
+        sla_overdue_notified = ?, sla_overdue_pending_justification = ?,
         updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`,
     [
@@ -27827,6 +27859,8 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.occurrences||[]), JSON.stringify(t.comments||[]), t.isUrgent ? 1 : 0, 
         t.slaFrozenAt || null, t.slaElapsedMs || null, t.followUpDeadline || null, t.followUpNotified ? 1 : 0, t.followUpPendingJustification ? 1 : 0, t.closeDate || null,
+        t.aguardDeadline || null, t.aguardNotified ? 1 : 0, t.aguardPendingJustification ? 1 : 0,
+        t.slaOverdueNotified ? 1 : 0, t.slaOverduePendingJustification ? 1 : 0,
         req.params.id
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -28310,9 +28344,9 @@ setTimeout(() => {
 }, 5000);
 
 // ── POST /api/sac/notificar-acompanhamento ────────────────────────────────────
-// Notifica envolvidos quando o prazo de acompanhamento de um chamado venceu
+// Notifica APENAS usuários configurados em sac_sla_vencido quando o prazo vencer
 app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res) => {
-    const { ticketId, protocol, clientName, followUpDeadline, notifyUsernames } = req.body;
+    const { ticketId, protocol, clientName, followUpDeadline } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -28336,25 +28370,18 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
         </div>
     </div>`;
 
-    // Notificar usuários configurados para sac_sla_vencido via e-mail
+    // Notificar APENAS usuários configurados para sac_sla_vencido (não todos os envolvidos)
     sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
 
-    // Também notificar cada username específico do chamado (popup interno)
-    const usernames = Array.isArray(notifyUsernames) ? notifyUsernames : [];
-    if (usernames.length > 0) {
-        const placeholders = usernames.map(() => '?').join(',');
-        db.all(`SELECT u.id, u.username FROM usuarios u WHERE LOWER(TRIM(u.username)) IN (${placeholders}) AND u.ativo = 1`,
-            usernames.map(u => (u||'').toLowerCase().trim()),
-            (err, users) => {
-                if (err || !users) return;
-                const msg = `⚠️ Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> — ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
-                users.forEach(u => {
-                    db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                        [u.id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
-                });
-            }
-        );
-    }
+    // Popup interno para configurados em sac_sla_vencido
+    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        const msg = `⚠️ Prazo de acompanhamento do chamado <strong>Nº ${protocol}</strong> — ${clientName} venceu. <a href="${systemUrl}" style="color:#f97316;font-weight:700;">Acessar SAC</a>`;
+        rows.forEach(r => {
+            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                [r.usuario_id, 'sac_acompanhamento_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+        });
+    });
 
     res.json({ success: true });
 });

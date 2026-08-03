@@ -7739,7 +7739,7 @@ window.uploadAtestadoWithCID = async function (inputEl) {
     } else {
         // Horas: data do atestado + horários
         const dataHora = document.getElementById('atestado_data_hora')?.value || today.toISOString().split('T')[0];
-        formData.append('atestado_data', dataHora);
+        formData.append('vencimento', dataHora);
         formData.append('atestado_inicio', document.getElementById('atestado_inicio_hora').value);
         formData.append('atestado_fim', document.getElementById('atestado_fim_hora').value);
     }

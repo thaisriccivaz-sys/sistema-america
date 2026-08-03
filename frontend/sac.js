@@ -25,8 +25,12 @@
     retirada:            { name: 'RETIRADA',               sla: 48, icon: '📦' },
     contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
     furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
-    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' }
+    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' },
+    tipo_teste:          { name: 'TIPO TESTE',             sla: (2/60), icon: '🧪' }
   };
+
+  const POPUP_CLOSERS = ['Thais.Ricci', 'renata.comercial'];
+  let _sacSlaNotificadosIds = [];
 
   const OCCURRENCES_BY_TYPE = {
     manutencao:          ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
@@ -36,7 +40,8 @@
     retirada:            ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
     contrato:            ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
     furto:               ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
-    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato']
+    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato'],
+    tipo_teste:          ['Teste 1', 'Teste 2']
   };
 
   const CHECKLISTS_BY_TYPE = {
@@ -96,6 +101,7 @@
   let _filterDateStart = '';
   let _filterDateEnd = '';
   let _filterUrgent = false;
+  let _filterAssigned = '';
   let _selectedTicket = null;
   let _modalTab = 'geral'; // 'geral' | 'historico' | 'custo' | 'anexos' | 'checklist'
   let _pendingTransition = null;
@@ -171,6 +177,85 @@
     if (!_tickets) _tickets = [];
   }
 
+  // ── BUSINESS HOURS HELPERS (Seg-Sex 08:00-17:00) ─────────────
+  // addBusinessHours: avança N ms de horas úteis a partir de start
+  function addBusinessHours(start, hoursMs) {
+    const WS = 8, WE = 17;
+    let cur = new Date(start), rem = hoursMs, g = 0;
+    while (rem > 0 && ++g < 500) {
+      const dow = cur.getDay(), h = cur.getHours();
+      if (dow === 0 || dow === 6) {
+        const n = new Date(cur); n.setDate(n.getDate() + (dow===6?2:1)); n.setHours(WS,0,0,0); cur=n; continue;
+      }
+      if (h < WS) { cur = new Date(cur); cur.setHours(WS,0,0,0); continue; }
+      if (h >= WE) { const n = new Date(cur); n.setDate(n.getDate()+1); n.setHours(WS,0,0,0); cur=n; continue; }
+      const eod = new Date(cur); eod.setHours(WE,0,0,0);
+      const toEnd = eod.getTime() - cur.getTime();
+      if (rem <= toEnd) { cur = new Date(cur.getTime()+rem); rem=0; }
+      else { rem-=toEnd; const n=new Date(cur); n.setDate(n.getDate()+1); n.setHours(WS,0,0,0); cur=n; }
+    }
+    return cur;
+  }
+  function businessMsBetween(from, to) {
+    const WS=8, WE=17;
+    if (from>=to) return 0;
+    let total=0, cur=new Date(from), g=0;
+    while (cur<to && ++g<2000) {
+      const dow=cur.getDay(), h=cur.getHours();
+      if (dow===0||dow===6){const n=new Date(cur);n.setDate(n.getDate()+(dow===6?2:1));n.setHours(WS,0,0,0);cur=n;continue;}
+      if (h<WS){cur=new Date(cur);cur.setHours(WS,0,0,0);continue;}
+      if (h>=WE){const n=new Date(cur);n.setDate(n.getDate()+1);n.setHours(WS,0,0,0);cur=n;continue;}
+      const eod=new Date(cur);eod.setHours(WE,0,0,0);
+      const pe=new Date(Math.min(eod.getTime(),to.getTime()));
+      total+=pe.getTime()-cur.getTime();cur=eod;
+    }
+    return total;
+  }
+  function businessMsUntilDeadline(deadlineIso) {
+    const dl=new Date(deadlineIso), now=new Date();
+    if (now>=dl) return -businessMsBetween(dl,now);
+    return businessMsBetween(now,dl);
+  }
+
+  // Retorna tempo percorrido ignorando apenas os fins de semana (Sexta 17h ate Seg 08h)
+  function getSlaElapsedMs(startMs, endMs) {
+    if (startMs >= endMs) return 0;
+    const from = new Date(startMs);
+    const to = new Date(endMs);
+    let elapsed = 0;
+    let cur = new Date(from);
+    let guard = 0;
+    while (cur < to && ++guard < 5000) {
+      const dow = cur.getDay();
+      const h = cur.getHours();
+      const isWeekendPause = (dow === 5 && h >= 17) || dow === 6 || dow === 0 || (dow === 1 && h < 8);
+      
+      if (isWeekendPause) {
+        const next = new Date(cur);
+        if (dow === 5) next.setDate(next.getDate() + 3);
+        else if (dow === 6) next.setDate(next.getDate() + 2);
+        else if (dow === 0) next.setDate(next.getDate() + 1);
+        next.setHours(8, 0, 0, 0);
+        
+        if (to < next) cur = to;
+        else cur = next;
+      } else {
+        const next = new Date(cur);
+        const daysToFriday = 5 - dow;
+        next.setDate(next.getDate() + daysToFriday);
+        next.setHours(17, 0, 0, 0);
+        
+        if (to < next) {
+          elapsed += (to.getTime() - cur.getTime());
+          cur = to;
+        } else {
+          elapsed += (next.getTime() - cur.getTime());
+          cur = next;
+        }
+      }
+    }
+    return Math.round(elapsed);
+  }
   // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
     if (!str) return str;
@@ -247,11 +332,11 @@
       }
     }
 
-    // SLA congelado no Acompanhamento
-    let elapsedMs = endCalc - opened;
+    // SLA congelado no Acompanhamento (pausa no fds)
+    let elapsedMs = getSlaElapsedMs(opened, endCalc);
     if (isFrozen) {
         if (ticket.slaElapsedMs) elapsedMs = ticket.slaElapsedMs;
-        else if (fallbackElapsed) elapsedMs = fallbackElapsed;
+        else if (fallbackElapsed) elapsedMs = getSlaElapsedMs(opened, opened + fallbackElapsed);
     }
     
     const remainMs = limitMs - elapsedMs;
@@ -292,10 +377,17 @@
       };
     }
 
+        const nowD = new Date();
+    const dow = nowD.getDay();
+    const nowH = nowD.getHours();
+    const isWeekendPause = (dow === 5 && nowH >= 17) || dow === 6 || dow === 0 || (dow === 1 && nowH < 8);
+
     // Label: positive hours remaining or negative hours overdue
     let label;
     if (isFrozen) {
       label = `🔒 ${fmtHM(remainMs)}`;
+    } else if (isWeekendPause && !isOverdue) {
+      label = `❄️ ${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
@@ -367,6 +459,18 @@
     bindGlobalEvents();
     // Carrega os dados da API antes de renderizar
     await loadTickets();
+
+    const tk = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    if (tk) {
+      try {
+        const resConf = await fetch('/api/config-notificacoes', { headers: { 'Authorization': 'Bearer ' + tk } });
+        if (resConf.ok) {
+          const configRows = await resConf.json();
+          _sacSlaNotificadosIds = configRows.filter(r => r.tipo === 'sac_sla_vencido').map(r => String(r.usuario_id));
+        }
+      } catch(e) {}
+    }
+
     _wiz.protocol = nextProtocol();
     renderAll();
     
@@ -432,7 +536,10 @@
           <button class="sac-nav-btn" data-view="tabela"   onclick="SAC.setView('tabela')"><i class="ph ph-table"></i> Relatório</button>
           <button class="sac-nav-btn" data-view="config"   onclick="SAC.setView('config')"><i class="ph ph-sliders-horizontal"></i> Parametrizar</button>
         </div>
-        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'">
+        <button onclick="SAC.refreshData()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;margin-right:8px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Atualizar chamados">
+          <i class="ph ph-arrows-clockwise"></i>
+        </button>
+        <button id="sac-btn-novo-chamado" onclick="SAC.openWizard()" style="background:#991b1b;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.2s;" onmouseover="this.style.background='#7f1d1d'" onmouseout="this.style.background='#991b1b'">
           <i class="ph ph-plus-circle"></i> Abrir Chamado
         </button>
       </div>
@@ -464,6 +571,12 @@
           <input type="checkbox" id="sac-filter-urgent" onchange="SAC.onFilterUrgent(this.checked)" style="accent-color:#dc2626;width:16px;height:16px;cursor:pointer;">
           <i class="ph ph-warning-circle" style="color:#dc2626;"></i> Urgentes
         </label>
+
+        <div style="position:relative;display:flex;align-items:center;">
+          <i class="ph ph-user-circle" style="position:absolute;left:8px;color:#64748b;font-size:0.9rem;pointer-events:none;"></i>
+          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuição..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
+          <button id="sac-filter-assigned-clear" onclick="document.getElementById('sac-filter-assigned').value='';SAC.onFilterAssigned('')" style="position:absolute;right:4px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;display:none;" title="Limpar">&#x2715;</button>
+        </div>
         
         <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;margin-left:auto;"></span>
       </div>
@@ -611,13 +724,13 @@
 
     let assignedUser = null;
     let assignedUserPhoto = null;
-    if (hasPendingLog && ticket.logisticsTask.assignedTo) {
+    if (ticket.logisticsTask && ticket.logisticsTask.assignedTo && (!ticket.logisticsTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.logisticsTask.assignedToName;
         assignedUserPhoto = ticket.logisticsTask.assignedToPhoto;
-    } else if (hasPendingCom && ticket.commercialTask.assignedTo) {
+    } else if (ticket.commercialTask && ticket.commercialTask.assignedTo && (!ticket.commercialTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.commercialTask.assignedToName;
         assignedUserPhoto = ticket.commercialTask.assignedToPhoto;
-    } else if (hasPendingFin && ticket.financialTask.assignedTo) {
+    } else if (ticket.financialTask && ticket.financialTask.assignedTo && (!ticket.financialTask.isCompleted || ticket.stage === 'respondido')) {
         assignedUser = ticket.financialTask.assignedToName;
         assignedUserPhoto = ticket.financialTask.assignedToPhoto;
     }
@@ -645,14 +758,13 @@
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
-        <i class="ph ph-package" style="margin-right:3px;"></i>${ticket.equipment}
+        ${ticket.equipment}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
         ${occText}
       </div>
       ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
-      ${anyPending ? `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#854d0e;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:4px;"><i class="ph ph-clock"></i> Pendência ${hasPendingLog?'Logística':hasPendingCom?'Comercial':'Financeiro'}</div>` : ''}
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
         <span style="font-size:0.7rem;color:#475569;font-weight:600;">${assignedUser}</span>
@@ -667,6 +779,27 @@
         <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
         <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
       </div>
+      ${(() => {
+        if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
+        const AGUARD_TOTAL_MS = 2 * 60 * 60 * 1000;
+        const bizMs = businessMsUntilDeadline(ticket.aguardDeadline);
+        const isOverAguard = bizMs <= 0;
+        const absMs = Math.abs(bizMs);
+        const hh = Math.floor(absMs/3600000).toString().padStart(2,'0');
+        const mm = Math.floor((absMs%3600000)/60000).toString().padStart(2,'0');
+        const ss = Math.floor((absMs%60000)/1000).toString().padStart(2,'0');
+        const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
+        const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
+        const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
+        const countLabel = isOverAguard ? `🔴 -${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
+        const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
+        return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
+        <div style="font-size:0.63rem;color:${barColor};font-weight:700;margin-top:1px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:${isOverAguard ? '#dc2626' : '#854d0e'};">${pendSector ? (isOverAguard ? '🔴 Aguard. ' : '⏳ Aguard. ') + pendSector : ''}</span>
+          <span>${countLabel}</span>
+        </div>`;
+      })()}
     </div>`;
   }
 
@@ -1154,6 +1287,7 @@
   function renderDetailModal() {
     const t = _selectedTicket;
     if (!t) return;
+    const pendingPopupType = localStorage.getItem('sac_pending_popup_' + t.id);
     const ov = document.getElementById('sac-modal-overlay');
     const mc = document.getElementById('sac-modal-container');
     ov.style.display = 'block';
@@ -1202,8 +1336,24 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
-        <button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1;">✕</button>
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType === 'sla' ? 'background:#dc2626;color:#fff;' : pendingPopupType === 'aguard' ? 'background:#d97706;color:#fff;' : pendingPopupType === 'followup' ? 'background:#2563eb;color:#fff;' : ''}">
+        ${pendingPopupType === 'sla'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>`
+            : pendingPopupType === 'aguard'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta de chamado excedido. Justificativa obrigatória.</div>`
+            : pendingPopupType === 'followup'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de acompanhamento de chamado excedido. Justificativa obrigatória.</div>`
+            : ''}
+        ${(() => {
+            const permsNowX = window.activeUserPerms || {};
+            const isTopAdminX = window.isTopAdmin || false;
+            const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
+            const isPopupCloser = POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase());
+            const canClose = !pendingPopupType || canSeeAllNowX || isPopupCloser;
+            return canClose 
+                ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
+                : '';
+        })()}
       </div>
 
       <div style="flex:1;overflow-y:auto;padding:24px;display:grid;grid-template-columns:1fr 2fr;gap:40px;" id="sac-modal-body">
@@ -1363,48 +1513,73 @@
                     ${(() => {
                         const stageColors = {};
                         if (typeof PIPELINE_STAGES !== 'undefined') PIPELINE_STAGES.forEach(s => stageColors[s.id] = s.color);
+                        // Filtrar comentários redundantes do sistema de retorno automático
+                        const systemRedundant = new Set();
+                        (t.timeline || []).forEach(l => { if (l.notes && l.notes.startsWith('Retorno automático:')) systemRedundant.add(l.time); });
+                        const filteredComments = (t.comments || []).filter(c => {
+                            if (c.text && c.text.startsWith('↩ Chamado devolvido para Triagem')) return false;
+                            return true;
+                        });
                         const unified = [
-                            ...(t.comments || []).map(c => ({ type: 'comment', time: c.time, user: c.user, text: c.text })),
+                            ...filteredComments.map(c => ({ type: 'comment', time: c.time, user: c.user, text: c.text })),
                             ...(t.timeline || []).map(l => ({ type: 'timeline', time: l.time, user: l.user, stage: l.stage, notes: l.notes }))
                         ].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
                         if (!unified.length) return '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum registro.</div>';
                         return unified.map(item => {
                             if (item.type === 'comment') {
+                                const isJust = item.text && item.text.startsWith('📝 Justificativa');
+                                const isSlaJust = isJust && item.text.includes('(SLA');
+                                const isAguardJust = isJust && item.text.includes('(prazo de aguardo');
+                                // followup e aguard justificativas são embutidas ou renderizadas na timeline, SLA fica separado
+                                if (isJust && !isSlaJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
-                                return `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+                                // Para justificativas (SLA/aguard), não mostra o nome do usuário
+                                const showCommentUser = !isJust;
+                                return `<div style="background:${isJust ? '#fffbeb' : '#fff'};border:1px solid ${isJust ? '#fde68a' : '#e2e8f0'};border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                                    <strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>
+                                    ${showCommentUser ? `<strong style="font-size:0.75rem;color:#1e293b;">${item.user || 'Desconhecido'}</strong>` : '<span></span>'}
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
                                 <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${formattedText}</div>
                                 </div>`;
                             } else {
+                                const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
-                                const formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                if (formattedNotes.startsWith('Respondido via justificativa')) formattedNotes = '';
+                                // Buscar justificativa associada (comentário 📝 com timestamp próximo)
+                                const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
+                                const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"') : null;
+                                // Mostrar usuário apenas se não for retorno automático do sistema
+                                const showUser = item.user && !isAutoReturn;
                                 return `<div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
                                     <strong style="font-size:0.7rem;color:${sColor};text-transform:uppercase;">${stageName}</strong>
                                     <span style="font-size:0.65rem;color:#94a3b8;">${formatDate(item.time)}</span>
                                 </div>
                                 ${formattedNotes ? `<div style="font-size:0.75rem;color:#475569;margin-top:2px;">${formattedNotes}</div>` : ''}
-                                ${item.user ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
+                                ${justFormatted ? `<div style="font-size:0.75rem;color:#475569;margin-top:3px;">${justFormatted}</div>` : ''}
+                                ${showUser ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:2px;">Por: ${item.user}</div>` : ''}
                                 </div>`;
                             }
                         }).join('');
                     })()}
                 </div>
-                <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;">
-                    <textarea id="new-comment-text" rows="1" placeholder="Escreva um recado..." style="flex:1;padding:6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
-                    <button class="sac-btn sac-btn-primary" style="padding:0 10px;" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+                <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;flex-direction:column;">
+                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:${pendingPopupType === 'sla' ? '#dc2626' : '#d97706'};font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
+                    <div style="display:flex;gap:6px;">
+                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+                        <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType === 'sla' ? 'background:#dc2626' : pendingPopupType ? 'background:#d97706' : ''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
+                    </div>
                 </div>
             </div>
 
             <!-- ANEXOS -->
-            <div>
+            <div style="display:${pendingPopupType ? 'none' : 'block'}">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Anexos</div>
-                    <label style="cursor:pointer;font-size:0.75rem;color:#3b82f6;font-weight:600;">
+                    <label style="cursor:pointer;font-size:0.75rem;color:#3b82f6;font-weight:600;display:none;">
                         <input type="file" multiple onchange="SAC.handleFileUpload(this.files)" style="display:none;">
                         <i class="ph ph-upload-simple"></i> Enviar
                     </label>
@@ -1642,21 +1817,23 @@
     const cu = window.currentUser;
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
-    // canSeeAll: apenas Diretoria/Admin OU quem tem permissão plena 'sac' SEM restrição de 'sac-atribuidos'
-    // Se tem 'sac-atribuidos', vê apenas os chamados relacionados a ele mesmo
     const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
     const canSeeAssigned = !canSeeAll && (perms['sac-atribuidos'] === true || perms['sac'] === true);
 
-    // Identifica quais departamentos o usuário atual gerencia (via tela Gestão de Departamentos)
     const currUsername = currentUsername();
     const currNome = (cu ? (cu.nome || '') : '').toLowerCase();
+    let currUserId = null;
+    try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currUserId = String(u.id); } catch(e){}
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
-        const respId = (d.responsavel_id || '').toString().toLowerCase();
+        const respId = (d.responsavel_id || '').toString().trim();
         const respNome = (d.responsavel_nome || '').toLowerCase();
-        return respId === currUsername.toLowerCase() ||
-               (currNome && respNome && respNome.includes(currNome));
+        const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+        return (currUserId && respId === currUserId) ||
+               (currUsername && respLogin && respLogin === currUsername.toLowerCase()) ||
+               (currNome && respNome && respNome === currNome) ||
+               (currNome && respNome && respNome.includes(currNome) && currNome.length > 5);
       })
       .map(d => (d.nome || '').trim());
 
@@ -1670,6 +1847,16 @@
         (t.occurrences||[]).some(o => o.name.toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
       const matchUrgent = !_filterUrgent || t.isUrgent;
+
+      const fa = _filterAssigned.toLowerCase().trim();
+      const matchAssigned = !fa || [
+        t.logisticsTask?.assignedToName,
+        t.logisticsTask?.assignedTo,
+        t.commercialTask?.assignedToName,
+        t.commercialTask?.assignedTo,
+        t.financialTask?.assignedToName,
+        t.financialTask?.assignedTo,
+      ].some(v => v && v.toLowerCase().includes(fa));
 
       let matchDate = true;
       if (_filterDateStart || _filterDateEnd) {
@@ -1697,21 +1884,30 @@
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
         const cuLower = (currUsername || '').toLowerCase();
-        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === cuLower) ||
-                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === cuLower) ||
-                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === cuLower);
+        let actualUsernameLower = cuLower;
+        try {
+            const u = JSON.parse(localStorage.getItem('erp_user'));
+            if (u) {
+                const possibleId = u.username || u.login || u.email || (u.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                if (possibleId) actualUsernameLower = possibleId.toLowerCase();
+            }
+        } catch(e) {}
+
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower) ||
+                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === actualUsernameLower) ||
+                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === actualUsernameLower);
         const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
-        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
-                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower)) ||
-                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === cuLower));
-        const isManagerOfTicket = myManagedDepts.some(dept => {
+        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
+                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
+                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
+        const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(dept => {
           const taskKey = deptMap[dept];
           return taskKey && t[taskKey];
         });
-        matchPermission = isAssigned || wasEverAssigned || isCreator || (canSeeAssigned && isManagerOfTicket);
+        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket || (canSeeAssigned && t.stage !== undefined);
       }
 
-      return matchSearch && matchType && matchUrgent && matchDate && matchPermission;
+      return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchPermission;
     });
   }
 
@@ -1757,13 +1953,18 @@
     const ticket = _tickets.find(t => t.id === _draggedId);
     if (!ticket || ticket.stage === colId) { _draggedId = null; return; }
 
-    if (colId === 'respondido') {
-        alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+    if (ticket.stage === 'aguardando_setores') {
+        alert('Um chamado em "Aguardando Setores" n\u00e3o pode ser arrastado manualmente. Ele ser\u00e1 movido para "Respondido" automaticamente quando o respons\u00e1vel responder no card.');
         _draggedId = null;
         return;
     }
 
-    // Gate: check pending tasks
+    if (colId === 'respondido') {
+        alert('A coluna "Respondido" s\u00f3 \u00e9 atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        _draggedId = null;
+        return;
+    }
+
     const gate = checkGate(ticket, colId);
     if (gate) {
       alert(`Bloqueio de Conformidade:\n\nEste chamado possui uma TAREFA DE ${gate.sector.toUpperCase()} pendente.\n"${gate.task}"\n\nConclua essa pendência antes de avançar.`);
@@ -1788,12 +1989,26 @@
 
   // ── AÇÕES PÚBLICO ─────────────────────────────────────────────
   const SAC = window.SAC = {
+    async refreshData() {
+      const btn = document.querySelector('button[onclick="SAC.refreshData()"]');
+      if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+      await loadTickets();
+      renderAll();
+      showToast('Dados atualizados', 'success');
+      if (btn) btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i>';
+    },
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
     onFilterType(v){ _filterType = v; renderAll(); },
     onFilterDateType(v){ _filterDateType = v; renderAll(); },
     onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
     onFilterUrgent(checked){ _filterUrgent = checked; renderAll(); },
+    onFilterAssigned(v) {
+      _filterAssigned = v;
+      const clearBtn = document.getElementById('sac-filter-assigned-clear');
+      if (clearBtn) clearBtn.style.display = v ? 'block' : 'none';
+      renderAll();
+    },
     sortTable(k)  { if (_sortKey===k) { _sortDir=_sortDir==='asc'?'desc':'asc'; } else { _sortKey=k; _sortDir='asc'; } _tablePage=1; renderAll(); },
     setPage(p)    { _tablePage=p; renderAll(); },
     setTableDate(pos,v){ if(pos==='start') _tableStartDate=v; else _tableEndDate=v; renderAll(); },
@@ -1871,7 +2086,6 @@
         });
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
-        // Notificar Rafaela sobre novo chamado
         fetch('/api/sac/notificar-rafaela', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
@@ -1890,6 +2104,27 @@
     },
     openDetail(id) { openDetail(id); },
     closeModal(e) {
+      if (_selectedTicket) {
+        const pendingTipo = localStorage.getItem('sac_pending_popup_' + _selectedTicket.id);
+        if (pendingTipo) {
+          const u = currentUsername().toLowerCase();
+          const permsNowX = window.activeUserPerms || {};
+          const isTopAdminX = window.isTopAdmin || false;
+          const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
+          
+          const canClose = canSeeAllNowX || POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
+          if (!canClose) {
+            showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
+            return;
+          } else {
+            _selectedTicket.slaOverduePendingJustification = false;
+            if (pendingTipo === 'aguard') _selectedTicket.aguardPendingJustification = false;
+            if (pendingTipo === 'followup') _selectedTicket.followUpPendingJustification = false;
+            updateTicket(_selectedTicket);
+            localStorage.removeItem('sac_pending_popup_' + _selectedTicket.id);
+          }
+        }
+      }
       if (e && e.target !== document.getElementById('sac-modal-overlay') && e.target !== document.getElementById('sac-modal-container')) return;
       document.getElementById('sac-modal-overlay').style.display='none';
       document.getElementById('sac-modal-container').style.display='none';
@@ -1915,7 +2150,7 @@
       const t = _selectedTicket;
       if (!t || !t[key]) return;
       const usersList = window._sacUsersList || [];
-      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, '.');
+      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\u036f]/g, '').replace(/\\s+/g, '.');
       const user = usersList.find(u => (u.username||u.login||u.email||normalizeId(u.nome)) === newUsername);
       const previousAssignee = t[key].assignedTo;
       t[key] = {
@@ -1926,7 +2161,6 @@
       };
       updateTicket(t);
       showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
-      // Notifica o usuário atribuído por e-mail + popup se houve mudança de atribuicão
       if (newUsername && newUsername !== previousAssignee) {
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
         fetch('/api/sac/notificar-atribuicao', {
@@ -1944,7 +2178,11 @@
       }
     },
     deleteTicket(id) {
-      if (!confirm('Excluir esta OS permanentemente?')) return;
+      const pwd = prompt('Digite a senha para excluir permanentemente esta OS:');
+      if (pwd !== 'abc') {
+          if (pwd !== null) showToast('Senha incorreta.', 'error');
+          return;
+      }
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       fetch(`/api/sac/tickets/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} })
         .then(r => r.ok ? r.json() : Promise.reject(r))
@@ -1955,7 +2193,6 @@
           renderAll();
         })
         .catch(() => {
-          // Fallback: remove local mesmo que API falhe
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
           showToast('OS excluída (modo local).','warning');
@@ -1988,7 +2225,7 @@
       if (note) note.value='';
       updateTicket(t);
     },
-    addComment(ticketId) {
+    async addComment(ticketId) {
       const t = _tickets.find(x => x.id === ticketId);
       if (!t) return;
       const textInput = document.getElementById('new-comment-text');
@@ -1996,43 +2233,137 @@
       if (!text) return;
       const user = currentUsername();
       if (!t.comments) t.comments = [];
-      t.comments.push({ user, text, time: new Date().toISOString() });
+      let isHandled = false;
+      const pendingTipo = localStorage.getItem('sac_pending_popup_' + t.id);
 
-      if (t.stage === 'aguardando_setores') {
+      if (pendingTipo) {
+          const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
+          const justTimestamp = new Date().toISOString();
+          
+          if (pendingTipo !== 'aguard') {
+              t.comments.push({ user: 'Sistema', text: '\u{1F4DD} Justificativa (' + typeLabel + ' vencido): <b>"' + text + '"</b>', time: justTimestamp });
+          }
+
+          if (pendingTipo === 'followup') {
+              isHandled = true;
+              t.stage = 'triagem';
+              t.slaFrozenAt = null;
+              t.followUpDeadline = null;
+              t.followUpPendingJustification = false;
+              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno autom\u00e1tico: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+              localStorage.removeItem('sac_pending_popup_' + t.id);
+              showToast('Justificativa registrada com sucesso.', 'success');
+              setTimeout(() => { SAC.closeModal(); }, 100);
+          } else if (pendingTipo === 'aguard') {
+              // Apenas registra a justificativa na timeline e mantém o chamado em 'aguardando_setores'.
+              isHandled = true;
+              t.aguardPendingJustification = false;
+              // CRÍTICO: remover localStorage ANTES de qualquer re-render para evitar loop infinito
+              localStorage.removeItem('sac_pending_popup_' + t.id);
+              t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
+              // Fechar popup obrigatório se ainda estiver na tela
+              const popupEl = document.getElementById('sac-mandatory-popup-' + t.id);
+              if (popupEl) popupEl.remove();
+              // Salva ANTES de reabrir o modal para garantir persistência
+              await updateTicket(t);
+              if (textInput) textInput.value = '';
+              showToast('Justificativa registrada com sucesso.', 'success');
+              SAC.openDetail(t.id);
+              return;
+          } else {
+              isHandled = true;
+              t.slaOverduePendingJustification = false;
+              localStorage.removeItem('sac_pending_popup_' + t.id);
+              showToast('Justificativa registrada com sucesso.', 'success');
+              setTimeout(() => { SAC.closeModal(); }, 100);
+          }
+      }
+
+      if (!isHandled && t.stage === 'aguardando_setores') {
+         // Recalcular myManagedDepts com a mesma l\u00f3gica de visibilidade (garantia de consist\u00eancia)
+         let cUserIdNow = null;
+         let currNomeNow = '';
+         try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserIdNow = String(u.id); currNomeNow = (u.nome||'').toLowerCase(); } catch(e){}
+         const cu2 = window.currentUser;
+         const currNomeWindow = (cu2 ? (cu2.nome || '') : '').toLowerCase();
+         const effectiveNome = currNomeNow || currNomeWindow;
+
+         // Extrair o username real do usuário logado (ANTES do filtro de departamentos)
+         // currentUsername() retorna u.nome||u.username — pode ser o nome de exibição.
+         // O assignedTo guarda o login real (ex: beatriz.batista). Usar erp_user.username.
+         let usernameActual = (user || '').toLowerCase().trim();
+         try {
+             const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
+             const realLogin = (uu.username || uu.login || '').toLowerCase().trim();
+             if (realLogin) usernameActual = realLogin;
+         } catch(e){}
+
+         const myDeptsNow = _globalDepartamentos.filter(d => {
+             const respId   = (d.responsavel_id || '').toString().trim();
+             const respNome = (d.responsavel_nome || '').toLowerCase();
+             const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+             return (cUserIdNow && respId && respId === cUserIdNow) ||
+                    (usernameActual && respLogin && respLogin === usernameActual) ||
+                    (effectiveNome && respNome && respNome === effectiveNome) ||
+                    (effectiveNome && respNome && respNome.includes(effectiveNome) && effectiveNome.length > 5);
+         }).map(d => (d.nome || '').trim());
+
+         const deptMapLocal = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+
+         // Usuário é o atribuído diretamente?
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
-             if (!task) return false;
-             if (task.assignedTo === user || task.assignedToName === user) return true;
-             
-             const sectorName = k === 'logisticsTask' ? 'Logística' : k === 'commercialTask' ? 'Comercial' : 'Financeiro';
-             const deptNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-             const deptObj = _globalDepartamentos.find(d => {
-                 const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-                 return dNorm.includes(deptNorm) || deptNorm.includes(dNorm);
-             });
-             if (deptObj) {
-                 let cUserId = null;
-                 try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
-                 const gestorId = deptObj.responsavel_id ? String(deptObj.responsavel_id) : null;
-                 const gestorNome = deptObj.responsavel_nome ? String(deptObj.responsavel_nome) : null;
-                 if ((gestorId && (gestorId === cUserId || gestorId === user)) || (gestorNome && gestorNome === user)) return true;
-             }
-             return false;
+             if (!task || !task.assignedTo) return false;
+             const a = task.assignedTo.toLowerCase().trim();
+             return a === usernameActual;
          });
-         
-         if (isAssigned) {
+
+         // Usuário é o gestor gravado no ticket quando foi atribuído?
+         const gs = t.gestorSetor;
+         const isGestorByTicket = gs && (
+             (cUserIdNow && gs.id && gs.id === cUserIdNow) ||
+             (usernameActual && gs.login && gs.login === usernameActual) ||
+             (effectiveNome && gs.nome && gs.nome === effectiveNome) ||
+             (effectiveNome && gs.nome && gs.nome.includes(effectiveNome) && effectiveNome.length > 5)
+         );
+
+         // Usu\u00e1rio \u00e9 gestor do departamento do chamado via _globalDepartamentos?
+         const isGestorOfTicket = myDeptsNow.length > 0 && myDeptsNow.some(deptName => {
+             const taskKey = deptMapLocal[deptName];
+             return taskKey && t[taskKey] && !t[taskKey].isCompleted;
+         });
+
+         // Gestor via permissão SAC restrita (mesma lógica do popup) — funciona mesmo quando
+         // _globalDepartamentos tem dados nulos no banco (caso do Comercial da Beatriz)
+         const permsForComment = window.activeUserPerms || {};
+         const isTopAdminForComment = window.isTopAdmin || false;
+         const canSeeAllForComment = isTopAdminForComment || (permsForComment['sac'] === true && permsForComment['sac-atribuidos'] !== true);
+         const isGestorBySacPerm = (permsForComment['sac'] === true || permsForComment['sac-atribuidos'] === true) && !canSeeAllForComment;
+
+         if (isAssigned || isGestorByTicket || isGestorOfTicket || isGestorBySacPerm) {
+             isHandled = true;
+             const nowTs = new Date().toISOString();
              t.stage = 'respondido';
-             t.timeline.push({ stage: 'respondido', time: new Date().toISOString(), notes: `Respondido via comentário: "${text}"`, user });
-             
+             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
+             // Comentário inserido no bloco roxo, removemos a duplicação no quadro branco
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                  if (t[k] && !t[k].isCompleted) {
                      t[k].isCompleted = true;
                      t[k].feedback = text;
-                     t[k].history = [...(t[k].history||[]), { type:'resolution', time:new Date().toISOString(), feedback:text, user }];
+                     t[k].history = [...(t[k].history||[]), { type:'resolution', time: nowTs, feedback: text, user }];
                  }
              });
-             showToast(`OS ${t.protocol} respondida!`, 'success');
+             // Salva ANTES de fechar o modal para garantir persistência
+             await updateTicket(t);
+             if (textInput) textInput.value = '';
+             showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
+             SAC.closeModal();
+             return;
          }
+      }
+
+      if (!isHandled) {
+          t.comments.push({ user, text, time: new Date().toISOString() });
       }
 
       updateTicket(t);
@@ -2249,30 +2580,37 @@
         if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
 
-      let logNotes = isClosing
-        ? `Encerramento: ${closeReason}. Resumo: "${obs}"` + (hasUnchecked?` | Justificativa checklist: "${clJust}"`:'' )
-        : `${pt.srcName} → ${pt.tgtName}. Próximos passos: "${nextSteps}"` + (obs?` | Obs: "${obs}"`:' ');
+      // Build logNotes — for execucao (Acompanhamento), put SLA info before Próximos passos
+      const isExecucao = pt.targetStageId === 'execucao';
+      let logNotes;
+      if (isClosing) {
+        logNotes = 'Encerramento: ' + closeReason + '. Resumo: "' + obs + '"' + (hasUnchecked ? ' | Justificativa checklist: "' + clJust + '"' : '');
+      } else if (isExecucao) {
+        // Will be completed after deadline is set below
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName;
+      } else {
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Pr\u00f3ximos passos: "' + nextSteps + '"' + (obs ? ' | Obs: "' + obs + '"' : '');
+      }
 
       // ── execucao: capturar data limite e congelar SLA ──
-      const isExecucao = pt.targetStageId === 'execucao';
       let followUpDeadlineVal = null;
       if (isExecucao) {
         followUpDeadlineVal = (document.getElementById('trans-followup-deadline')?.value || '').trim();
-        if (!followUpDeadlineVal) { showToast('A data/hora limite do acompanhamento é obrigatória.','warning'); return; }
+        if (!followUpDeadlineVal) { showToast('A data/hora limite do acompanhamento \u00e9 obrigat\u00f3ria.','warning'); return; }
         if (new Date(followUpDeadlineVal).getTime() <= Date.now()) { showToast('A data/hora limite deve ser no futuro.','warning'); return; }
       }
       ticket.stage = pt.targetStageId;
-      ticket.nextSteps = isClosing ? `Encerrado: ${closeReason}` : nextSteps;
+      ticket.nextSteps = isClosing ? 'Encerrado: ' + closeReason : nextSteps;
       if (isClosing) { ticket.closeDate = new Date().toISOString(); ticket.checklistJustification = clJust||null; }
       if (isExecucao) {
         const openedMs = new Date(_normDate(ticket.openDate)).getTime();
         ticket.slaFrozenAt = new Date().toISOString();
-        ticket.slaElapsedMs = Date.now() - openedMs;
+        ticket.slaElapsedMs = getSlaElapsedMs(openedMs, Date.now());
         ticket.followUpDeadline = new Date(followUpDeadlineVal).toISOString();
         ticket.followUpNotified = false;
         ticket.followUpPendingJustification = true;
         const dlFmt = new Date(followUpDeadlineVal).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        logNotes += ' | SLA congelado. Acompanhamento até ' + dlFmt + '.';
+        logNotes += ' | SLA congelado. Acompanhamento at\u00e9 ' + dlFmt + '. Pr\u00f3ximos passos: "' + nextSteps + '"';
       } else if (ticket.slaFrozenAt && pt.targetStageId !== 'execucao') {
         ticket.slaFrozenAt = null;
         ticket.followUpDeadline = null;
@@ -2280,10 +2618,6 @@
       }
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
       if (!ticket.comments) ticket.comments = [];
-      if (isExecucao) {
-        const dlFmt2 = new Date(followUpDeadlineVal).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-        ticket.comments.push({ user:'Sistema', text:'⏸ SLA congelado. Acompanhamento programado até ' + dlFmt2 + '. Movido por: ' + user, time: new Date().toISOString() });
-      }
 
       if (isAguard) {
         const userSelect = document.getElementById('trans-assigned-user');
@@ -2291,11 +2625,15 @@
         const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
         const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
         
-        if (!assignedUsername) { showToast('Selecione o usu├írio atribu├¡do.', 'warning'); return; }
+        if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
         ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
+        ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString();
+        ticket.aguardNotified = false;
+        ticket.aguardPendingJustification = true;
       }
 
       updateTicket(ticket);
@@ -2304,36 +2642,7 @@
       showToast(`OS ${ticket.protocol} movida para "${pt.tgtName}"!`,'success');
       renderAll();
     },
-    confirmMandatoryJustification(ticketId, tipo) {
-      const textarea = document.getElementById('mandatory-justification-' + ticketId);
-      const errorDiv = document.getElementById('mandatory-error-' + ticketId);
-      if (!textarea || !textarea.value.trim()) {
-        if (errorDiv) errorDiv.style.display = 'block';
-        return;
-      }
-      const justText = textarea.value.trim();
-      const ticket = _tickets.find(t => t.id === ticketId);
-      if (!ticket) return;
-      const user = currentUsername();
-      if (!ticket.comments) ticket.comments = [];
-      const typeLabel = tipo === 'followup' ? 'prazo de acompanhamento' : 'SLA';
-      ticket.comments.push({ user: user, text: '📝 Justificativa (' + typeLabel + ' vencido): ' + justText, time: new Date().toISOString() });
-      if (tipo === 'followup') {
-        ticket.stage = 'triagem';
-        ticket.slaFrozenAt = null;
-        ticket.followUpDeadline = null;
-        ticket.followUpPendingJustification = false;
-        ticket.comments.push({ user: 'Sistema', text: '↩ Chamado devolvido para Triagem após justificativa de prazo de acompanhamento vencido. Por: ' + user, time: new Date().toISOString() });
-        ticket.timeline.push({ stage: 'triagem', time: new Date().toISOString(), notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user });
-      } else {
-        ticket.slaOverduePendingJustification = false;
-      }
-      localStorage.removeItem('sac_pending_popup_' + ticketId);
-      const popup = document.getElementById('sac-mandatory-popup-' + ticketId);
-      if (popup) popup.remove();
-      updateTicket(ticket);
-      showToast('Justificativa registrada com sucesso.', 'success');
-    },
+    // confirmMandatoryJustification removed
         saveDescription(ticketId) {
         const t = _tickets.find(x => x.id === ticketId);
         if (!t) return;
@@ -2582,50 +2891,87 @@
   // ══════════════════════════════════════════════════════
   // POPUP OBRIGATÓRIO — não pode ser fechado
   // ══════════════════════════════════════════════════════
+  // Usuários que podem fechar o popup sem preencher (gestores/admins) já definidos no topo
+
   function showMandatoryJustificationPopup(ticket, tipo) {
     const existingId = 'sac-mandatory-popup-' + ticket.id;
     if (document.getElementById(existingId)) return; // já aberto
 
+    // Para aguard: popup aparece apenas para o gestor do departamento atribuído
+    const currentUser = currentUsername();
+    if (tipo === 'aguard') {
+      // Descobrir o setor atribuído
+      const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
+                       : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
+                       : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
+                       : null;
+      if (sectorName) {
+        // Verificar se o usuário atual é o gestor do setor
+        // Método 1: gestor gravado no ticket ao atribuir
+        const gs = ticket.gestorSetor;
+        let cUserId = null;
+        let currNomeCompleto = '';
+        try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
+
+        const isGestorByTicket = gs && (
+          (cUserId && gs.id && gs.id === cUserId) ||
+          (currentUser && gs.login && gs.login === currentUser.toLowerCase()) ||
+          (currNomeCompleto && gs.nome && gs.nome === currNomeCompleto) ||
+          (currNomeCompleto && gs.nome && gs.nome.includes(currNomeCompleto) && currNomeCompleto.length > 5)
+        );
+
+        // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
+        const myDeptsPopup = _globalDepartamentos.filter(d => {
+          const respId   = (d.responsavel_id || '').toString().trim();
+          const respNome = (d.responsavel_nome || '').toLowerCase();
+          const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+          return (cUserId && respId && respId === cUserId) ||
+                 (currentUser && respLogin && respLogin === currentUser.toLowerCase()) ||
+                 (currNomeCompleto && respNome && respNome === currNomeCompleto) ||
+                 (currNomeCompleto && respNome && respNome.includes(currNomeCompleto) && currNomeCompleto.length > 5);
+        }).map(d => (d.nome || '').trim());
+
+        const sectorNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+        const isGestorByDept = myDeptsPopup.some(n => {
+          const nn = n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+          return nn.includes(sectorNorm) || sectorNorm.includes(nn);
+        });
+
+        // Método 0 (mais direto): usuário é o assignedTo do ticket
+        let usernameFallbackPopup = currentUser.toLowerCase().trim();
+        try {
+          const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
+          const fb = (uu.username || uu.login || '').toLowerCase().trim();
+          if (fb) usernameFallbackPopup = fb;
+        } catch(e){}
+        const isAssignedPopup = ['logisticsTask','commercialTask','financialTask'].some(k => {
+          const task = ticket[k];
+          if (!task || !task.assignedTo) return false;
+          const a = task.assignedTo.toLowerCase().trim();
+          return a === currentUser.toLowerCase().trim() || a === usernameFallbackPopup;
+        });
+
+        // Método 3: POPUP_CLOSERS (admins)
+        const isPopupCloser = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
+
+        // Método 4: usuário tem permissão SAC restrita (gestor de setor via grupo de permissão)
+        const permsNow = window.activeUserPerms || {};
+        const isTopAdminNow = window.isTopAdmin || false;
+        const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
+        const isGestorBySacPerm = (permsNow['sac'] === true || permsNow['sac-atribuidos'] === true) && !canSeeAllNow;
+
+        if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm && !canSeeAllNow) return;
+        // Para SAC Ver todos (canSeeAllNow): mostrar popup mas apenas com opção de fechar (X), sem obrigatoriedade
+      }
+    } else {
+      let cUserId = null;
+      try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
+      const isNotified = _sacSlaNotificadosIds.includes(cUserId) || POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
+      if (!isNotified) return;
+    }
+
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
-
-    const isFollowup = tipo === 'followup';
-    const title = isFollowup ? '⚠️ Prazo de Acompanhamento Vencido' : '🔴 SLA Estourado';
-    const subtitle = isFollowup
-      ? 'O prazo de acompanhamento deste chamado já passou há mais de 1 hora sem conclusão.'
-      : 'O SLA deste chamado está estourado e não foi concluído no prazo.';
-    const btnLabel = isFollowup ? 'Confirmar e Mover para Triagem' : 'Confirmar Justificativa';
-    const bgColor = isFollowup ? '#fff7ed' : '#fef2f2';
-    const borderColor = isFollowup ? '#fed7aa' : '#fecaca';
-    const headerBg = isFollowup ? '#f97316' : '#dc2626';
-
-    const overlay = document.createElement('div');
-    overlay.id = existingId;
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;';
-
-    overlay.innerHTML = `
-      <div style="background:#fff;border-radius:14px;width:520px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">
-        <div style="background:${headerBg};padding:20px 24px;display:flex;align-items:center;gap:12px;">
-          <i class="ph ph-${isFollowup ? 'calendar-x' : 'warning-circle'}" style="font-size:1.8rem;color:#fff;"></i>
-          <div>
-            <div style="color:#fff;font-weight:800;font-size:1.1rem;">${title}</div>
-            <div style="color:rgba(255,255,255,0.85);font-size:0.82rem;margin-top:2px;">Chamado Nº ${ticket.protocol} — ${ticket.clientName}</div>
-          </div>
-        </div>
-        <div style="padding:24px;">
-          <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.85rem;color:#374151;">${subtitle}</div>
-          <label style="font-size:0.85rem;font-weight:700;color:#1e293b;display:block;margin-bottom:6px;">Por que este chamado não foi concluído conforme programado? <span style="color:#dc2626">*</span></label>
-          <textarea id="mandatory-justification-${ticket.id}" rows="4" placeholder="Descreva o motivo detalhadamente..." style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit;"></textarea>
-          <div id="mandatory-error-${ticket.id}" style="color:#dc2626;font-size:0.78rem;margin-top:4px;display:none;">Por favor, preencha o motivo antes de continuar.</div>
-          <button onclick="SAC.confirmMandatoryJustification('${ticket.id}','${tipo}')" style="margin-top:16px;width:100%;padding:12px;background:${headerBg};color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
-            <i class="ph ph-check-circle"></i> ${btnLabel}
-          </button>
-          <div style="text-align:center;margin-top:10px;font-size:0.75rem;color:#94a3b8;">Este popup não pode ser fechado. Preencha o motivo para continuar.</div>
-        </div>
-      </div>`;
-
-    // Bloquear ESC e clique fora
-    overlay.addEventListener('click', (e) => e.stopPropagation());
-    document.body.appendChild(overlay);
+    SAC.openDetail(ticket.id);
   }
 
   // ══════════════════════════════════════════════════════
@@ -2634,29 +2980,50 @@
   function checkFollowUpAlerts() {
     const now = Date.now();
     _tickets.forEach(ticket => {
-      if (ticket.stage !== 'execucao' || !ticket.followUpDeadline) return;
-      const prazo = new Date(ticket.followUpDeadline).getTime();
-      if (isNaN(prazo)) return;
-
-      // Notificar ao vencer
-      if (prazo < now && !ticket.followUpNotified) {
-        ticket.followUpNotified = true;
-        if (!ticket.comments) ticket.comments = [];
-        ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-        updateTicket(ticket);
-        // Notificar via API
-        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-        const involved = [...new Set((ticket.timeline||[]).map(l => l.user).filter(Boolean))];
-        fetch('/api/sac/notificar-acompanhamento', {
-          method:'POST',
-          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-          body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline, notifyUsernames:involved })
-        }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
+      // Não processar tickets já respondidos ou encerrados
+      if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) return;
+      if (ticket.stage === 'execucao' && ticket.followUpDeadline) {
+        const prazo = new Date(ticket.followUpDeadline).getTime();
+        if (!isNaN(prazo)) {
+          if (prazo < now && !ticket.followUpNotified) {
+            ticket.followUpNotified = true;
+            if (!ticket.comments) ticket.comments = [];
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
+            updateTicket(ticket);
+            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+            // Notificar apenas usuários configurados em sac_sla_vencido (via API — sem enviar lista de envolvidos)
+            fetch('/api/sac/notificar-acompanhamento', {
+              method:'POST',
+              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
+            }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
+          }
+          if (prazo < now && ticket.followUpPendingJustification === true) {
+            showMandatoryJustificationPopup(ticket, 'followup');
+          }
+        }
       }
 
-      // Popup obrigatório: assim que o prazo vencer
-      if (prazo < now && ticket.followUpPendingJustification === true) {
-        showMandatoryJustificationPopup(ticket, 'followup');
+      // ── Aguardando Setores (2h) ────────────────────────────
+      if (ticket.stage === 'aguardando_setores' && ticket.aguardDeadline) {
+        const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
+        if (!isNaN(aguardPrazo)) {
+          if (aguardPrazo < now && !ticket.aguardNotified) {
+            ticket.aguardNotified = true;
+            if (!ticket.comments) ticket.comments = [];
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
+            updateTicket(ticket);
+            const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+            fetch('/api/sac/notificar-acompanhamento', {
+              method:'POST',
+              headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+              body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
+            }).catch(e => console.error('[SAC] notificar-aguard:', e));
+          }
+          if (aguardPrazo < now && ticket.aguardPendingJustification === true) {
+            showMandatoryJustificationPopup(ticket, 'aguard');
+          }
+        }
       }
     });
   }
@@ -2666,7 +3033,7 @@
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
-      if (['concluido','encerrado','execucao'].includes(ticket.stage)) return;
+      if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) return;
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
 
@@ -2685,7 +3052,6 @@
         ticket.slaOverdueNotified = true;
         ticket.slaOverduePendingJustification = true;
         if (!ticket.comments) ticket.comments = [];
-        ticket.comments.push({ user:'Sistema', text:'🔴 SLA estourado. Notificação enviada aos responsáveis.', time: new Date().toISOString() });
         changed = true;
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
         fetch('/api/sac/notificar-sla-vencido', {
