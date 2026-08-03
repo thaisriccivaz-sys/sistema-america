@@ -965,6 +965,9 @@
             const coverImg = (t.attachments && t.attachments.length > 0) ? t.attachments[0].url : null;
             const imgHtml = coverImg ? `<div style="height:120px;border-radius:8px;overflow:hidden;margin-bottom:12px;background:#e2e8f0;"><img src="${coverImg}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
             const desc = t.description ? (t.description.length > 80 ? t.description.substring(0,80)+'...' : t.description) : 'Sem descrição';
+            const clientInfo = t.clientName ? `<div style="font-size:0.8rem;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-user" style="margin-top:2px;color:#94a3b8;"></i><span style="font-weight:600;flex:1;line-height:1.3;">${t.clientName}</span></div>` : '';
+            const addressInfo = t.address ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-map-pin" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.address}</span></div>` : '';
+            const equipmentInfo = t.equipment ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:10px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-package" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.equipment}</span></div>` : '';
             
             return `
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:left;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);display:flex;flex-direction:column;">
@@ -973,7 +976,10 @@
                     <span style="font-size:0.7rem;background:#e0f2fe;color:#0369a1;padding:4px 8px;border-radius:12px;font-weight:700;">${typeDef.name}</span>
                 </div>
                 ${imgHtml}
-                <div style="font-size:0.85rem;color:#475569;margin-bottom:16px;line-height:1.5;flex:1;overflow:hidden;text-overflow:ellipsis;">${desc}</div>
+                ${clientInfo}
+                ${addressInfo}
+                ${equipmentInfo}
+                <div style="font-size:0.85rem;color:#475569;margin-bottom:16px;line-height:1.5;flex:1;overflow:hidden;text-overflow:ellipsis;padding-top:6px;border-top:1px solid #e2e8f0;">${desc}</div>
                 <button onclick="window._sacWizardChoice='open'; Swal.close(); document.getElementById('sac-wizard-overlay').style.display='none'; setTimeout(() => { SAC.openDetail('${t.id}'); }, 300);" style="width:100%;padding:10px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer;font-weight:600;transition:all 0.2s;margin-top:auto;" onmouseover="this.style.background='#1e40af';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#1d4ed8';this.style.transform='none';">Abrir chamado</button>
             </div>
             `;
