@@ -2019,7 +2019,11 @@
         const pendingTipo = localStorage.getItem('sac_pending_popup_' + _selectedTicket.id);
         if (pendingTipo) {
           const u = currentUsername().toLowerCase();
-          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
+          const permsNowX = window.activeUserPerms || {};
+          const isTopAdminX = window.isTopAdmin || false;
+          const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
+          
+          const canClose = canSeeAllNowX || POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
           if (!canClose) {
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
@@ -2246,10 +2250,7 @@
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
              t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
-             // Só adicionar comment de texto se não havia popup pendente (popup ja criou o comment de justificativa)
-             if (!pendingTipo) {
-                 t.comments.push({ user, text, time: nowTs });
-             }
+             // Comentário inserido no bloco roxo, removemos a duplicação no quadro branco
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                  if (t[k] && !t[k].isCompleted) {
                      t[k].isCompleted = true;
