@@ -1073,8 +1073,7 @@
     document.body.insertAdjacentHTML('beforeend', modalHtml);
   }
 
-  // ── WIZARD
- ABERTURA ───────────────────────────────────────────
+  // ── WIZARD ABERTURA ───────────────────────────────────────────
   function openWizard() {
     _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contactName:'', contactPhone:'', contactEmail:'', channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
     renderWizard();
