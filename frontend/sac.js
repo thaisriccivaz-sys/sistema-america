@@ -2136,7 +2136,7 @@
       if (note) note.value='';
       updateTicket(t);
     },
-    addComment(ticketId) {
+    async addComment(ticketId) {
       const t = _tickets.find(x => x.id === ticketId);
       if (!t) return;
       const textInput = document.getElementById('new-comment-text');
@@ -2171,10 +2171,11 @@
               isHandled = true;
               t.aguardPendingJustification = false;
               t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
-              localStorage.removeItem('sac_pending_popup_' + t.id);
-              showToast('Justificativa registrada.', 'success');
-              // Ao invés de fechar o modal, reabrimos para permitir que o usuário adicione o comentário real de resposta
-              setTimeout(() => { SAC.openDetail(t.id); }, 150);
+              // Salva ANTES de reabrir o modal para garantir persistência
+              await updateTicket(t);
+              if (textInput) textInput.value = '';
+              SAC.openDetail(t.id);
+              return;
           } else {
               isHandled = true;
               t.slaOverduePendingJustification = false;
@@ -2258,8 +2259,12 @@
                      t[k].history = [...(t[k].history||[]), { type:'resolution', time: nowTs, feedback: text, user }];
                  }
              });
+             // Salva ANTES de fechar o modal para garantir persistência
+             await updateTicket(t);
+             if (textInput) textInput.value = '';
              showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
-             setTimeout(() => { SAC.closeModal(); }, 150);
+             SAC.closeModal();
+             return;
          }
       }
 
