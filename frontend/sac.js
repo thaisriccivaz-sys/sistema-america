@@ -753,7 +753,8 @@
       <div style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}${ticket.osNumber ? ' · OS ' + ticket.osNumber : ''}</span>
-          ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.65rem;font-weight:700;"><i class="ph ph-warning-circle"></i> URGENTE</span>' : ''}
+          ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Urgente"><i class="ph-fill ph-warning-circle"></i></span>' : ''}
+          ${(ticket.tags || []).includes('Reagendamento') ? `<span style="background:#ffedd5;color:#ea580c;border-radius:4px;padding:2px 6px;font-size:0.65rem;font-weight:700;">Reagendamento</span>` : ''}
         </div>
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
       </div>
@@ -2618,6 +2619,7 @@
       const cl = getChecklist(ticket);
       const hasUnchecked = cl.some(i=>!i.checked);
       const user = currentUsername();
+      const oldStageId = ticket.stage;
 
       let nextSteps  = (document.getElementById('trans-next')?.value||'').trim();
       let obs        = (document.getElementById('trans-obs')?.value||'').trim();
@@ -2665,6 +2667,13 @@
         const dlFmt = new Date(followUpDeadlineVal).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         logNotes += ' | SLA congelado. Acompanhamento at\u00e9 ' + dlFmt + '. Pr\u00f3ximos passos: "' + nextSteps + '"';
       } else if (ticket.slaFrozenAt && pt.targetStageId !== 'execucao') {
+        if (oldStageId === 'execucao' && pt.targetStageId === 'triagem' && ticket.followUpDeadline) {
+          if (new Date(ticket.followUpDeadline).getTime() < Date.now()) {
+            ticket.isUrgent = true;
+            if (!ticket.tags) ticket.tags = [];
+            if (!ticket.tags.includes('Reagendamento')) ticket.tags.push('Reagendamento');
+          }
+        }
         ticket.slaFrozenAt = null;
         ticket.followUpDeadline = null;
         ticket.followUpPendingJustification = false;
