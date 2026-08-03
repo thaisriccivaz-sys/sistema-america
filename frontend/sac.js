@@ -696,7 +696,7 @@
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
         const aguardMs = new Date(ticket.aguardDeadline).getTime() - Date.now();
-        const aguardTotal = 5 * 60 * 1000;
+        const aguardTotal = 2 * 60 * 60 * 1000;
         const aguardElapsed = aguardTotal - Math.max(0, aguardMs);
         const isOverAguard = aguardMs <= 0;
         const absMs = Math.abs(aguardMs);
@@ -1249,11 +1249,13 @@
 
     mc.innerHTML = `
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
-      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType === 'sla' ? 'background:#dc2626;color:#fff;' : pendingPopupType === 'aguard' ? 'background:#d97706;color:#fff;' : pendingPopupType === 'followup' ? 'background:#d97706;color:#fff;' : ''}">
+      <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType === 'sla' ? 'background:#dc2626;color:#fff;' : pendingPopupType === 'aguard' ? 'background:#d97706;color:#fff;' : pendingPopupType === 'followup' ? 'background:#2563eb;color:#fff;' : ''}">
         ${pendingPopupType === 'sla'
             ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>`
-            : pendingPopupType === 'aguard' || pendingPopupType === 'followup'
-            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta excedido. Justificativa obrigatória.</div>`
+            : pendingPopupType === 'aguard'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta de chamado excedido. Justificativa obrigatória.</div>`
+            : pendingPopupType === 'followup'
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de acompanhamento de chamado excedido. Justificativa obrigatória.</div>`
             : ''}
         ${(() => {
             const permsNowX = window.activeUserPerms || {};
@@ -2541,8 +2543,18 @@
         ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        // Prazo de 2h para aguardando_setores
-        ticket.aguardDeadline = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        // Prazo de 2h para aguardando_setores, com congelamento em horário fora do expediente (após 17h, retoma às 8h)
+        const now2h = new Date();
+        const hour2h = now2h.getHours();
+        let aguardStart = now2h;
+        // Se for após as 17h ou antes das 8h, congelar até as 8h do próximo dia útil
+        if (hour2h >= 17 || hour2h < 8) {
+          const next8h = new Date(now2h);
+          if (hour2h >= 17) next8h.setDate(next8h.getDate() + 1);
+          next8h.setHours(8, 0, 0, 0);
+          aguardStart = next8h;
+        }
+        ticket.aguardDeadline = new Date(aguardStart.getTime() + 2 * 60 * 60 * 1000).toISOString();
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
       }
@@ -2872,6 +2884,7 @@
         const isGestorBySacPerm = (permsNow['sac'] === true || permsNow['sac-atribuidos'] === true) && !canSeeAllNow;
 
         if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm && !canSeeAllNow) return;
+        // Para SAC Ver todos (canSeeAllNow): mostrar popup mas apenas com opção de fechar (X), sem obrigatoriedade
       }
     } else {
       let cUserId = null;
