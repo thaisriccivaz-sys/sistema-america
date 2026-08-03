@@ -2890,7 +2890,8 @@
   function checkFollowUpAlerts() {
     const now = Date.now();
     _tickets.forEach(ticket => {
-      // ── Acompanhamento (execucao) ──────────────────────────
+      // Não processar tickets já respondidos ou encerrados
+      if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) return;
       if (ticket.stage === 'execucao' && ticket.followUpDeadline) {
         const prazo = new Date(ticket.followUpDeadline).getTime();
         if (!isNaN(prazo)) {
@@ -2942,7 +2943,7 @@
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
-      if (['concluido','encerrado','execucao'].includes(ticket.stage)) return;
+      if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) return;
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
 
