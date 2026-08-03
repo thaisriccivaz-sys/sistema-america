@@ -956,36 +956,54 @@
     const num = (osNum || '').trim();
     if (!num) { _wiz._protocolLocked = false; _wiz._osLinked = false; renderWizard(); return; }
     
-    // Verifica se ja existe um chamado em aberto para esta OS
-    const existing = _tickets.find(t => String(t.osNumber) === String(num) && !['concluido','encerrado'].includes(t.stage));
-    if (existing) {
-        const typeDef = TICKET_TYPES[existing.typeKey] || TICKET_TYPES.manutencao;
-        const coverImg = (existing.attachments && existing.attachments.length > 0) ? existing.attachments[0].url : null;
-        const imgHtml = coverImg ? `<img src="${coverImg}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:10px;">` : '';
-        const desc = existing.description ? (existing.description.length > 150 ? existing.description.substring(0,150)+'...' : existing.description) : 'Sem descrição';
-        
-        const result = await Swal.fire({
-          title: 'Chamado em Aberto!',
-          html: `
-            <p style="font-size:0.9rem;color:#475569;margin-bottom:15px;">Foi localizado um chamado em andamento para esta OS (Protocolo <strong>${existing.protocol}</strong>).</p>
-            ${imgHtml}
-            <div style="background:#f1f5f9;padding:10px;border-radius:8px;text-align:left;font-size:0.85rem;color:#333;">
-              <strong style="color:#0ea5e9;">${typeDef.name}</strong><br>
-              ${desc}
+    // Verifica se ja existe chamados em aberto para esta OS
+    const existingTickets = _tickets.filter(t => String(t.osNumber) === String(num) && !['concluido','encerrado'].includes(t.stage));
+    if (existingTickets.length > 0) {
+        let listHtml = existingTickets.map(t => {
+            const typeDef = TICKET_TYPES[t.typeKey] || TICKET_TYPES.manutencao;
+            const coverImg = (t.attachments && t.attachments.length > 0) ? t.attachments[0].url : null;
+            const imgHtml = coverImg ? `<img src="${coverImg}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : '';
+            const desc = t.description ? (t.description.length > 120 ? t.description.substring(0,120)+'...' : t.description) : 'Sem descrição';
+            
+            return `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <strong style="color:#0ea5e9;font-size:0.95rem;">Protocolo ${t.protocol}</strong>
+                    <span style="font-size:0.75rem;background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:12px;font-weight:600;">${typeDef.name}</span>
+                </div>
+                ${imgHtml}
+                <div style="font-size:0.85rem;color:#475569;margin-bottom:12px;line-height:1.4;">${desc}</div>
+                <button onclick="window._sacWizardChoice='open'; Swal.close(); document.getElementById('sac-wizard-overlay').style.display='none'; setTimeout(() => { SAC.openDetail('${t.id}'); }, 300);" style="width:100%;padding:8px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;font-size:0.85rem;cursor:pointer;font-weight:600;transition:background 0.2s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Abrir este chamado</button>
             </div>
-            <p style="margin-top:15px;font-size:0.9rem;font-weight:600;">Deseja abrir este chamado em vez de criar um novo?</p>
+            `;
+        }).join('');
+
+        window._sacWizardChoice = null;
+        const result = await Swal.fire({
+          title: existingTickets.length === 1 ? 'Chamado em Aberto!' : 'Chamados em Aberto!',
+          html: `
+            <p style="font-size:0.95rem;color:#475569;margin-bottom:15px;font-weight:500;">
+              ${existingTickets.length === 1 ? 'Foi localizado 1 chamado em andamento para esta OS:' : `Foram localizados ${existingTickets.length} chamados em andamento para esta OS:`}
+            </p>
+            <div style="max-height:380px;overflow-y:auto;padding-right:5px;overflow-x:hidden;">
+              ${listHtml}
+            </div>
+            <p style="margin-top:15px;font-size:0.9rem;font-weight:600;color:#334155;">Deseja continuar criando um novo chamado?</p>
           `,
           showCancelButton: true,
-          confirmButtonText: 'Sim, abrir este chamado',
-          cancelButtonText: 'Não, continuar criando',
-          confirmButtonColor: '#1d4ed8',
-          cancelButtonColor: '#64748b'
+          showConfirmButton: true,
+          confirmButtonText: 'Sim, criar novo chamado',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#10b981',
+          cancelButtonColor: '#94a3b8',
+          width: '500px'
         });
         
-        if (result.isConfirmed) {
-            document.getElementById('sac-wizard-overlay').style.display='none';
-            setTimeout(() => { openDetail(existing.id); }, 300);
+        if (window._sacWizardChoice === 'open') {
             return;
+        }
+        if (!result.isConfirmed) {
+            return; // Usuário clicou em Cancelar ou clicou fora, aborta a busca e criação
         }
     }
 
