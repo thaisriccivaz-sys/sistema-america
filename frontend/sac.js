@@ -929,51 +929,24 @@
 
   window.createSACTicketFromOS = function(osData) {
     openWizard();
-    _wiz.protocol = nextProtocol();
-    _wiz.osNumber = String(osData.number || '');
-    _wiz.clientName = osData.client || '';
-    _wiz.equipment = osData.equipment || '';
-    _wiz.address = osData.address || '';
-    _wiz.typeKey = 'visita_tecnica';
-    _wiz._protocolLocked = true;
-    _wiz._osLinked = true;
-    renderWizard();
-    const ov = document.getElementById('sac-wizard-overlay');
-    if (ov) ov.style.display = 'flex';
-    if (typeof navigateTo === 'function') navigateTo('sac');
-  };
-
-  // OS lookup: quando o usuario digita o numero da OS no wizard, busca dados na logistica
-  const _TIPOS_EXCLUIR_LOOKUP = ['retirada total','retirada parcial','manutencao avulsa','manutencao','reparo equipamento','visita tecnica'];
-  function _sacIsOSTipoExcluido(tipoServico) {
-    if (!tipoServico) return false;
-    const ts = tipoServico.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    return _TIPOS_EXCLUIR_LOOKUP.some(ex => ts.includes(ex.replace(/ /g,'')) || ts.replace(/ /g,'').includes(ex.replace(/ /g,'')));
-  }
-
-  window._sacBuscarOSLogistica = async function(osNum) {
-    _sacWiz('osNumber', osNum);
-    const num = (osNum || '').trim();
-    if (!num) { _wiz._protocolLocked = false; _wiz._osLinked = false; renderWizard(); return; }
-    
-    // Verifica se ja existe chamados em aberto para esta OS
+    _wiz.protocol = nextProtoco    // Verifica se ja existe chamados em aberto para esta OS
     const existingTickets = _tickets.filter(t => String(t.osNumber) === String(num) && !['concluido','encerrado'].includes(t.stage));
     if (existingTickets.length > 0) {
         let listHtml = existingTickets.map(t => {
             const typeDef = TICKET_TYPES[t.typeKey] || TICKET_TYPES.manutencao;
             const coverImg = (t.attachments && t.attachments.length > 0) ? t.attachments[0].url : null;
-            const imgHtml = coverImg ? `<img src="${coverImg}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;">` : '';
-            const desc = t.description ? (t.description.length > 120 ? t.description.substring(0,120)+'...' : t.description) : 'Sem descrição';
+            const imgHtml = coverImg ? `<div style="height:120px;border-radius:8px;overflow:hidden;margin-bottom:12px;background:#e2e8f0;"><img src="${coverImg}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
+            const desc = t.description ? (t.description.length > 80 ? t.description.substring(0,80)+'...' : t.description) : 'Sem descrição';
             
             return `
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <strong style="color:#0ea5e9;font-size:0.95rem;">Protocolo ${t.protocol}</strong>
-                    <span style="font-size:0.75rem;background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:12px;font-weight:600;">${typeDef.name}</span>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:left;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:6px;">
+                    <strong style="color:#0ea5e9;font-size:1rem;">Prot. ${t.protocol}</strong>
+                    <span style="font-size:0.7rem;background:#e0f2fe;color:#0369a1;padding:4px 8px;border-radius:12px;font-weight:700;">${typeDef.name}</span>
                 </div>
                 ${imgHtml}
-                <div style="font-size:0.85rem;color:#475569;margin-bottom:12px;line-height:1.4;">${desc}</div>
-                <button onclick="window._sacWizardChoice='open'; Swal.close(); document.getElementById('sac-wizard-overlay').style.display='none'; setTimeout(() => { SAC.openDetail('${t.id}'); }, 300);" style="width:100%;padding:8px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;font-size:0.85rem;cursor:pointer;font-weight:600;transition:background 0.2s;" onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#1d4ed8'">Abrir este chamado</button>
+                <div style="font-size:0.85rem;color:#475569;margin-bottom:16px;line-height:1.5;flex:1;overflow:hidden;text-overflow:ellipsis;">${desc}</div>
+                <button onclick="window._sacWizardChoice='open'; Swal.close(); document.getElementById('sac-wizard-overlay').style.display='none'; setTimeout(() => { SAC.openDetail('${t.id}'); }, 300);" style="width:100%;padding:10px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer;font-weight:600;transition:all 0.2s;margin-top:auto;" onmouseover="this.style.background='#1e40af';this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#1d4ed8';this.style.transform='none';">Abrir chamado</button>
             </div>
             `;
         }).join('');
@@ -982,13 +955,13 @@
         const result = await Swal.fire({
           title: existingTickets.length === 1 ? 'Chamado em Aberto!' : 'Chamados em Aberto!',
           html: `
-            <p style="font-size:0.95rem;color:#475569;margin-bottom:15px;font-weight:500;">
+            <p style="font-size:1rem;color:#475569;margin-bottom:20px;font-weight:500;">
               ${existingTickets.length === 1 ? 'Foi localizado 1 chamado em andamento para esta OS:' : `Foram localizados ${existingTickets.length} chamados em andamento para esta OS:`}
             </p>
-            <div style="max-height:380px;overflow-y:auto;padding-right:5px;overflow-x:hidden;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:20px;max-height:65vh;overflow-y:auto;padding:10px;">
               ${listHtml}
             </div>
-            <p style="margin-top:15px;font-size:0.9rem;font-weight:600;color:#334155;">Deseja continuar criando um novo chamado?</p>
+            <p style="margin-top:25px;font-size:0.95rem;font-weight:600;color:#334155;">Deseja continuar criando um novo chamado?</p>
           `,
           showCancelButton: true,
           showConfirmButton: true,
@@ -996,7 +969,8 @@
           cancelButtonText: 'Cancelar',
           confirmButtonColor: '#10b981',
           cancelButtonColor: '#94a3b8',
-          width: '500px'
+          width: '95vw',
+          padding: '2em'
         });
         
         if (window._sacWizardChoice === 'open') {
