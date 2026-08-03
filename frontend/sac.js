@@ -955,6 +955,40 @@
     _sacWiz('osNumber', osNum);
     const num = (osNum || '').trim();
     if (!num) { _wiz._protocolLocked = false; _wiz._osLinked = false; renderWizard(); return; }
+    
+    // Verifica se ja existe um chamado em aberto para esta OS
+    const existing = _tickets.find(t => String(t.osNumber) === String(num) && !['concluido','encerrado'].includes(t.stage));
+    if (existing) {
+        const typeDef = TICKET_TYPES[existing.typeKey] || TICKET_TYPES.manutencao;
+        const coverImg = (existing.attachments && existing.attachments.length > 0) ? existing.attachments[0].url : null;
+        const imgHtml = coverImg ? `<img src="${coverImg}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:10px;">` : '';
+        const desc = existing.description ? (existing.description.length > 150 ? existing.description.substring(0,150)+'...' : existing.description) : 'Sem descrição';
+        
+        const result = await Swal.fire({
+          title: 'Chamado em Aberto!',
+          html: `
+            <p style="font-size:0.9rem;color:#475569;margin-bottom:15px;">Foi localizado um chamado em andamento para esta OS (Protocolo <strong>${existing.protocol}</strong>).</p>
+            ${imgHtml}
+            <div style="background:#f1f5f9;padding:10px;border-radius:8px;text-align:left;font-size:0.85rem;color:#333;">
+              <strong style="color:#0ea5e9;">${typeDef.name}</strong><br>
+              ${desc}
+            </div>
+            <p style="margin-top:15px;font-size:0.9rem;font-weight:600;">Deseja abrir este chamado em vez de criar um novo?</p>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'Sim, abrir este chamado',
+          cancelButtonText: 'Não, continuar criando',
+          confirmButtonColor: '#1d4ed8',
+          cancelButtonColor: '#64748b'
+        });
+        
+        if (result.isConfirmed) {
+            document.getElementById('sac-wizard-overlay').style.display='none';
+            setTimeout(() => { openDetail(existing.id); }, 300);
+            return;
+        }
+    }
+
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     try {
       const resp = await fetch(`/api/logistica/os/buscar?numero_os=${encodeURIComponent(num)}`, {
