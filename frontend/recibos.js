@@ -1663,7 +1663,7 @@ window._recBuscarPontoSelecionados = async function () {
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
                         
                         const nomeEscala = (c.escala || c.horario || '').toLowerCase();
-                        const isEscalaExcecao = /s[aáàã]bados?\s+(4h|alternados?)/i.test(nomeEscala);
+                        const isEscalaExcecao = /s.bados?\s+(4h|alternados?)/i.test(nomeEscala);
                                                 
                         const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
                         
@@ -2770,7 +2770,7 @@ window.baixarConferenciaPonto = async function () {
                 
                 // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
                 const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase();
-                const isEscalaExcecaoUI = /s[aáàã]bados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
+                const isEscalaExcecaoUI = /s.bados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
                 const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
                 
                 const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
