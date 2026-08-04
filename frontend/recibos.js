@@ -1370,7 +1370,7 @@ window.atualizarValorEditado = function(id, campo, valor) {
 
 // ─── Contador de selecionados ─────────────────────────────────────────────────
 function _atualizarContador() {
-    const n  = Object.values(_recibosSelecoes).filter(s => s.selecionado).length;
+    const n  = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado).length;
     const el = document.getElementById('rec-contador');
     if (!el) return;
     el.textContent = n === 0 ? '0 selecionados' : `${n} colaborador${n>1?'es':''} selecionado${n>1?'s':''}`;
@@ -1386,7 +1386,7 @@ function _atualizarContador() {
 //     Ex: selecionando Maio → desconta faltas de 28/04 a 28/05
 //   • CARTÃO DE PONTO = mesmo período do desconto (28/M-1 a 28/M)
 window._recBuscarPontoSelecionados = async function () {
-    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    const sels = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador antes de buscar o ponto.', 'warning');
         return;
@@ -2089,7 +2089,7 @@ window._recBuscarPontoSelecionados = async function () {
 
 // ─── Geração em massa ─────────────────────────────────────────────────────────
 window.gerarRecibosEmMassa = async function () {
-    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    const sels = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador para gerar os recibos.', 'warning');
         return;
@@ -2309,7 +2309,7 @@ window.carregarHistoricoRecibos = async function () {
 };
 
 window.anexarRecibosDocsMassa = async function () {
-    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    const sels = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador para anexar os recibos.', 'warning');
         return;
@@ -2498,14 +2498,14 @@ window.anexarRecibosDocsMassa = async function () {
     // ── Registrar log de anexo em docs em massa ───────────────────────────
     const _mesAnexo = parseInt(document.getElementById('rec-mes')?.value || new Date().getMonth()+1);
     const _anoAnexo = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
-    const _selsFinal = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    const _selsFinal = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado);
     _recLog_registrar('anexo', _mesAnexo, _anoAnexo, _selsFinal.map(c => _recNome(c)));
     _recLog_renderizarPainel();
 };
 
 // ─── Relatório de Conferência ─────────────────────────────────────────────────
 window.baixarConferenciaPonto = async function () {
-    const sels = _recibosAllColabs.filter(c => _recibosSelecoes[c.id]?.selecionado);
+    const sels = _recibosFiltrados.filter(c => _recibosSelecoes[c.id]?.selecionado);
     if (!sels.length) {
         if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Selecione ao menos um colaborador.', 'warning');
         return;
