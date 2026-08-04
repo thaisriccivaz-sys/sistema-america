@@ -1662,8 +1662,8 @@ window._recBuscarPontoSelecionados = async function () {
                         const dParsed2 = new Date(dStr2 + 'T12:00:00');
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
                         
-                        const nomeEscala = (c.escala || c.horario || '').toLowerCase();
-                        const isEscalaExcecao = /s.bados?\s+(4h|alternados?)/i.test(nomeEscala);
+                        const nomeEscala = (c.escala || c.horario || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const isEscalaExcecao = /sabados?\s+(4h|alternados?)/i.test(nomeEscala);
                                                 
                         const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
                         
@@ -2196,11 +2196,17 @@ window.carregarHistoricoRecibos = async function () {
                     if (h.edited_fields) {
                         try {
                             _recibosSelecoes[h.colaborador_id].edited_fields = JSON.parse(h.edited_fields);
+                            if (Object.keys(_recibosSelecoes[h.colaborador_id].edited_fields).length > 0) {
+                                _recibosSelecoes[h.colaborador_id].is_editado = true;
+                            }
                         } catch(e) {
                             _recibosSelecoes[h.colaborador_id].edited_fields = {};
                         }
                     } else {
                         _recibosSelecoes[h.colaborador_id].edited_fields = {};
+                    }
+                    if (_recibosSelecoes[h.colaborador_id].valVTEdit != null || _recibosSelecoes[h.colaborador_id].valVREdit != null) {
+                        _recibosSelecoes[h.colaborador_id].is_editado = true;
                     }
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
@@ -2769,8 +2775,8 @@ window.baixarConferenciaPonto = async function () {
                 // ── Coloração ────────────────────────────────────────────────────────
                 
                 // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
-                const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase();
-                const isEscalaExcecaoUI = /s.bados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
+                const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const isEscalaExcecaoUI = /sabados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
                 const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
                 
                 const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
