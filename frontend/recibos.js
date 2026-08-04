@@ -1663,6 +1663,7 @@ window._recBuscarPontoSelecionados = async function () {
                             perdeVRPorHoras = true;
                         }
                     }
+                    d.perdeVRPorHoras = perdeVRPorHoras; // Salva para exibir na conferência de ponto
 
                     const mTr = (c.meio_transporte || '').toLowerCase();
                     const isVC = typeof _isVC === 'function' ? _isVC(mTr) : false;
@@ -3080,8 +3081,9 @@ function _buildCartaoPontoBlock(c, apuracaoDiaria, mes, ano, mesNome, logoB64) {
             ent1_td = e1; sai1_td = s1; ent2_td = e2; sai2_td = s2;
         }
 
+        const bgRow = d.perdeVRPorHoras ? 'background-color:#fde047;' : '';
         rowsHtml += `
-        <tr>
+        <tr style="${bgRow}">
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${diaNum} - ${diaSemanaStr}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;word-break:break-all;">${previsto}</td>
             <td style="padding:3px 1px;border-bottom:1px solid #f1f5f9;overflow:hidden;">${ent1_td}</td>
