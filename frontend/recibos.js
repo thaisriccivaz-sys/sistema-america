@@ -1697,7 +1697,12 @@ window._recBuscarPontoSelecionados = async function () {
 
                     // Se trabalhou menos que o mínimo (nova regra) e não é atestado/falta normal, perde SÓ o VR
                     if (perdeVRPorHoras) {
-                        faltasVR++;
+                        const isInt = (c.tipo_contrato || '').toLowerCase().includes('intermitente');
+                        if (isInt) {
+                            folgasVR++;
+                        } else {
+                            faltasVR++;
+                        }
                     }
                 });
 
