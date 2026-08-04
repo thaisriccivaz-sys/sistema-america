@@ -1644,6 +1644,26 @@ window._recBuscarPontoSelecionados = async function () {
                         tipo2 = 'falta';
                     }
 
+                    // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR ---
+                    let perdeVRPorHoras = false;
+                    if (tipo2 === '' && trb2) {
+                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
+                        const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
+                        
+                        const nomeEscala = (c.escala || c.horario || '').toLowerCase();
+                        const isEscalaExcecao = nomeEscala.includes('sábado 4h') || 
+                                                nomeEscala.includes('sabado 4h') ||
+                                                nomeEscala.includes('sábados alternados') ||
+                                                nomeEscala.includes('sabados alternados');
+                                                
+                        const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
+                        
+                        if (hT2 < limiteMinutos) {
+                            perdeVRPorHoras = true;
+                        }
+                    }
+
                     const mTr = (c.meio_transporte || '').toLowerCase();
                     const isVC = typeof _isVC === 'function' ? _isVC(mTr) : false;
 
@@ -1664,6 +1684,11 @@ window._recBuscarPontoSelecionados = async function () {
                         } else {
                             folgasVT++; // Para Vale Transporte, Férias NÃO desconta (Folga)
                         }
+                    }
+
+                    // Se trabalhou menos que o mínimo (nova regra) e não é atestado/falta normal, perde SÓ o VR
+                    if (perdeVRPorHoras) {
+                        faltasVR++;
                     }
                 });
 
