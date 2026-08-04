@@ -1981,6 +1981,9 @@ window._recBuscarPontoSelecionados = async function () {
             if (s.folgasVR === undefined) s.folgasVR = s.folgas;
             if (s.faltasVR === undefined) s.faltasVR = s.faltas;
             s.is_editado = false;
+            s.edited_fields = {};
+            s.valVTEdit = null;
+            s.valVREdit = null;
         }
     }
 
