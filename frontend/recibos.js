@@ -1664,11 +1664,18 @@ window._recBuscarPontoSelecionados = async function () {
                         
                         const escTipo = (c.escala_tipo || '').toLowerCase();
                         const isEscalaExcecao = escTipo === 'padrao_sab_4h' || escTipo === 'padrao_sab_alternado';
+                        const isEscalaExcluidaDom = escTipo.includes('uma_folga') || escTipo.includes('duas_folgas') || escTipo.includes('12x36');
                                                 
                         const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
                         
                         if (hT2 < limiteMinutos) {
                             perdeVRPorHoras = true;
+                        }
+                        
+                        // -- NOVA REGRA DOMINGO: Não perde VR se trabalhar qualquer hora no Domingo (min 2h já bateu tipo2='') --
+                        const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
+                        if (isDom2 && !isEscalaExcluidaDom) {
+                            perdeVRPorHoras = false;
                         }
                     }
                     d.perdeVRPorHoras = perdeVRPorHoras; // Salva para exibir na conferência de ponto
@@ -1761,6 +1768,20 @@ window._recBuscarPontoSelecionados = async function () {
 
                         // FALLBACK: trabalhou >= 6h sem horário cadastrado
                         const minTrabFallback = d.totalHorasTrabalhadas || 0;
+                        
+                        // -- NOVA REGRA DOMINGO --
+                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
+                        const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
+
+                        if (isDom2 && minTrabFallback >= 120) {
+                            const escTipo = (c.escala_tipo || '').toLowerCase();
+                            const isEscalaExcluidaDom = escTipo.includes('uma_folga') || escTipo.includes('duas_folgas') || escTipo.includes('12x36');
+                            if (!isEscalaExcluidaDom) {
+                                return true; // Domingo vale VR se trabalhou o mínimo e não é de escala excluída
+                            }
+                        }
+                        
                         return minTrabFallback >= MIN_VR;
                     }).length;
                 } else {
@@ -2782,10 +2803,15 @@ window.baixarConferenciaPonto = async function () {
                 // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
                 const escTipoUI = (c.escala_tipo || '').toLowerCase();
                 const isEscalaExcecaoUI = escTipoUI === 'padrao_sab_4h' || escTipoUI === 'padrao_sab_alternado';
+                const isEscalaExcluidaDomUI = escTipoUI.includes('uma_folga') || escTipoUI.includes('duas_folgas') || escTipoUI.includes('12x36');
                 const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
                 
                 const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
-                const perdeVRPorHorasUI = !isAusenciaRegra && hTrab > 0 && hTrab < limiteMinutosUI;
+                let perdeVRPorHorasUI = !isAusenciaRegra && hTrab > 0 && hTrab < limiteMinutosUI;
+                
+                if (isSunday && !isEscalaExcluidaDomUI) {
+                    perdeVRPorHorasUI = false;
+                }
 
                 let bg = '#fff';
 
