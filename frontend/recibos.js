@@ -1662,8 +1662,8 @@ window._recBuscarPontoSelecionados = async function () {
                         const dParsed2 = new Date(dStr2 + 'T12:00:00');
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
                         
-                        const nomeEscala = (c.escala || c.horario || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        const isEscalaExcecao = /sabados?\s+(4h|alternados?)/i.test(nomeEscala);
+                        const escTipo = (c.escala_tipo || '').toLowerCase();
+                        const isEscalaExcecao = escTipo === 'padrao_sab_4h' || escTipo === 'padrao_sab_alternado';
                                                 
                         const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
                         
@@ -2775,8 +2775,8 @@ window.baixarConferenciaPonto = async function () {
                 // ── Coloração ────────────────────────────────────────────────────────
                 
                 // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
-                const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                const isEscalaExcecaoUI = /sabados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
+                const escTipoUI = (c.escala_tipo || '').toLowerCase();
+                const isEscalaExcecaoUI = escTipoUI === 'padrao_sab_4h' || escTipoUI === 'padrao_sab_alternado';
                 const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
                 
                 const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
