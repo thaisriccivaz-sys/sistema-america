@@ -1254,6 +1254,10 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
     _recibosSelecoes[id].is_editado = true;
     _recibosSelecoes[id].edited_fields = _recibosSelecoes[id].edited_fields || {};
     _recibosSelecoes[id].edited_fields[campo] = true;
+    
+    if (window.event && window.event.target) {
+        window.event.target.style.color = '#dc2626';
+    }
 
     if (campo.includes('folgas') || campo.includes('faltas') || campo === 'diasExtra') {
         const c = _recibosAllColabs.find(x => x.id === id);
@@ -1300,6 +1304,7 @@ window._autoSalvarRecibo = function(id) {
             valor_vr: valorVR,
             valor_vt_editado: s.valVTEdit !== undefined ? s.valVTEdit : null,
             valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
+            edited_fields: s.edited_fields ? JSON.stringify(s.edited_fields) : null,
             apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
         }];
         
@@ -1322,6 +1327,12 @@ window.atualizarValorEditado = function(id, campo, valor) {
         _recibosSelecoes[id].edited_fields[campo] = true;
     } else {
         _recibosSelecoes[id][campo] = null;
+        if (_recibosSelecoes[id].edited_fields) {
+            delete _recibosSelecoes[id].edited_fields[campo];
+        }
+        if (window.event && window.event.target) {
+            window.event.target.style.color = (campo === 'valVTEdit') ? '#1e3a5f' : '#064e3b';
+        }
         // Recalcular para mostrar o valor padrão se o usuário apagar o campo
         const c = _recibosAllColabs.find(x => x.id === id);
         if (c) {
@@ -2185,6 +2196,15 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].faltasVR = h.faltas_vr != null ? h.faltas_vr : h.faltas;
                     _recibosSelecoes[h.colaborador_id].valVTEdit = h.valor_vt_editado != null ? h.valor_vt_editado : null;
                     _recibosSelecoes[h.colaborador_id].valVREdit = h.valor_vr_editado != null ? h.valor_vr_editado : null;
+                    if (h.edited_fields) {
+                        try {
+                            _recibosSelecoes[h.colaborador_id].edited_fields = JSON.parse(h.edited_fields);
+                        } catch(e) {
+                            _recibosSelecoes[h.colaborador_id].edited_fields = {};
+                        }
+                    } else {
+                        _recibosSelecoes[h.colaborador_id].edited_fields = {};
+                    }
                     _recibosSelecoes[h.colaborador_id].diasExtra = h.dias_extra;
                     _recibosSelecoes[h.colaborador_id].historicoEncontrado = true;
                     _recibosSelecoes[h.colaborador_id].selecionado = true; // Auto-seleciona os que já estavam salvos
