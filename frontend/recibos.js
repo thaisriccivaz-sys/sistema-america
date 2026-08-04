@@ -2750,9 +2750,23 @@ window.baixarConferenciaPonto = async function () {
                 }
 
                 // ── Coloração ────────────────────────────────────────────────────────
+                
+                // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
+                const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase();
+                const isEscalaExcecaoUI = nomeEscalaUI.includes('sábado 4h') || 
+                                          nomeEscalaUI.includes('sabado 4h') ||
+                                          nomeEscalaUI.includes('sábados alternados') ||
+                                          nomeEscalaUI.includes('sabados alternados');
+                const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
+                
+                const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
+                const perdeVRPorHorasUI = !isAusenciaRegra && hTrab > 0 && hTrab < limiteMinutosUI;
+
                 let bg = '#fff';
 
-                if (elegivel_jantar) {
+                if (perdeVRPorHorasUI) {
+                    bg = '#fde047'; // Amarelo mais escuro para destacar perda de VR
+                } else if (elegivel_jantar) {
                     bg = '#e9d5ff'; // Roxo: Jantar
                 } else if ((semHor || isHolidayDay) && hTrab >= 120) {
                     // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo:
