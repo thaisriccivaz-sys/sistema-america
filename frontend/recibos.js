@@ -1663,10 +1663,7 @@ window._recBuscarPontoSelecionados = async function () {
                         const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
                         
                         const nomeEscala = (c.escala || c.horario || '').toLowerCase();
-                        const isEscalaExcecao = nomeEscala.includes('sábado 4h') || 
-                                                nomeEscala.includes('sabado 4h') ||
-                                                nomeEscala.includes('sábados alternados') ||
-                                                nomeEscala.includes('sabados alternados');
+                        const isEscalaExcecao = /s[aáàã]bados?\s+(4h|alternados?)/i.test(nomeEscala);
                                                 
                         const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
                         
@@ -2773,10 +2770,7 @@ window.baixarConferenciaPonto = async function () {
                 
                 // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
                 const nomeEscalaUI = (c.escala || c.horario || '').toLowerCase();
-                const isEscalaExcecaoUI = nomeEscalaUI.includes('sábado 4h') || 
-                                          nomeEscalaUI.includes('sabado 4h') ||
-                                          nomeEscalaUI.includes('sábados alternados') ||
-                                          nomeEscalaUI.includes('sabados alternados');
+                const isEscalaExcecaoUI = /s[aáàã]bados?\s+(4h|alternados?)/i.test(nomeEscalaUI);
                 const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
                 
                 const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
@@ -2789,20 +2783,19 @@ window.baixarConferenciaPonto = async function () {
                 } else if (elegivel_jantar) {
                     bg = '#e9d5ff'; // Roxo: Jantar
                 } else if ((semHor || isHolidayDay) && hTrab >= 120) {
-                    // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo:
-                    // SAB de descanso: precisa 6h (360min) | DOM/Feriado/outros: 2h (120min)
-                    bg = '#fef08a';
+                    // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo
+                    bg = '#dcfce7'; // Verde claro para destacar horas extras
                 } else if (!semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
-                    // Dia COM escala prevista e trabalhou normalmente → Amarelo claro
-                    bg = '#fffde7';
+                    // Dia COM escala prevista e trabalhou normalmente
+                    bg = '#fff'; // Branco normal para dia trabalhado (removido amarelo claro para evitar confusão)
                 } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
                     bg = '#fee2e2'; // Falta / Justificado / Atestado
                 } else if (tipo === 'ferias') {
                     bg = '#e9d5ff'; // Férias (roxo)
                 } else if (tipo === 'trab_externo') {
-                    bg = '#fffde7'; // Trabalho Externo: amarelo claro (igual ao dia normal trabalhado)
+                    bg = '#e0f2fe'; // Trabalho Externo: azul claro
                 } else if (tipo === 'folga' || tipo === 'feriado') {
-                    bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul claro
+                    bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul bem claro
                 }
 
                 // Cor da fonte: vermelho para faltas/justificados/atestados; escuro para trab. externo e dias normais
