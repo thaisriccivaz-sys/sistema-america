@@ -436,6 +436,20 @@ window._recLogHideTip = function() {
     if (tt) tt.style.opacity = '0';
 };
 
+window.mostrarRegrasRecibos = function() {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Regras de Benefícios',
+            html: `<div style="text-align:left; font-size: 0.9rem; line-height: 1.5; color: #334155;">
+                <p><strong>Cálculo do VR:</strong> Baseado nos dias do mês seguinte, descontando feriados e faltas cadastradas.</p>
+                <p><strong>Cálculo do VT:</strong> Dias trabalhados reais do período selecionado, excluindo folgas fixas e feriados.</p>
+                <p><strong>Jantar:</strong> Considera dias com mais de 3 horas extras registradas.</p>
+            </div>`,
+            icon: 'info',
+            confirmButtonText: 'Entendido'
+        });
+    }
+};
 
 function _buildRecibosLayout(mesAt, anoAt) {
     const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -3621,4 +3635,85 @@ window.salvarObservacao = async function(colabId, mes, ano) {
     } catch(e) {
         alert('Erro de conexão: ' + e.message);
     }
+};
+
+window.mostrarRegrasRecibos = function() {
+    let modal = document.getElementById('modal-regras-recibo');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-regras-recibo';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        document.body.appendChild(modal);
+        
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:12px;width:750px;max-width:95%;height:85vh;box-shadow:0 10px 25px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;text-align:left;">
+                <div style="padding:15px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
+                    <h3 style="margin:0;font-size:1.1rem;color:#0f172a;font-weight:700;"><i class="ph ph-lightbulb" style="color:#eab308;margin-right:8px;"></i> Regras de Benefícios</h3>
+                    <button onclick="document.getElementById('modal-regras-recibo').style.display='none'" style="background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;padding:0;">&times;</button>
+                </div>
+                <div style="padding:20px;overflow-y:auto;flex:1;font-size:0.9rem;color:#334155;line-height:1.6;">
+                    <h4 style="color:#0f172a;margin-top:0;">🍔 1. Vale Refeição (VR)</h4>
+                    <p><strong>Regra de Carga Horária Mínima (Meio Período):</strong><br>
+                    Nem sempre "ir trabalhar" garante o VR. Se o colaborador não atingir a carga mínima exigida no dia, ele <strong>perde o VR</strong> (a linha no sistema fica <span style="background:#fde047;padding:2px 4px;border-radius:4px;font-weight:bold;color:#854d0e;">AMARELA</span>).<br>
+                    * <strong>Regra Padrão:</strong> Mínimo de <strong>6 horas (360 minutos)</strong> trabalhadas.<br>
+                    * <strong>Aos Sábados:</strong> Para colaboradores nas escalas <code>Padrão Sábado 4h</code> ou <code>Padrão Sábado Alternado</code>, a exigência cai para <strong>3 horas (180 minutos)</strong> trabalhadas.</p>
+                    
+                    <p><strong>Regra de Domingos ("Colher de Chá"):</strong><br>
+                    Como incentivo ao trabalho de domingo, a regra da Carga Horária Mínima é <strong>desativada</strong>.<br>
+                    * Trabalhou no domingo? <strong>Ganha o VR independente do tempo que ficou lá</strong>.<br>
+                    * <strong>Atenção (Exceções):</strong> Essa colher de chá NÃO vale para colaboradores que possuem o domingo como dia de escala normal (<code>1 folga / 6x1</code>, <code>2 folgas rodízio</code> e <code>12x36</code>). Para essas escalas, o domingo cobra as 6 horas mínimas normais.</p>
+
+                    <p><strong>Faltas, Atestados e Justificativas no VR:</strong><br>
+                    * <strong>Faltas (injustificadas) e Atestados:</strong> Descontam o VR.<br>
+                    * <strong>Trabalho Externo e Erro no Ponto:</strong> NÃO descontam o VR.<br>
+                    * <strong>Férias:</strong> Descontam os dias a receber do próximo mês.</p>
+
+                    <p><strong>Situações Especiais do VR:</strong><br>
+                    * <strong>Contratos Intermitentes:</strong> Ganham o VR exato pela quantidade de dias em que efetivamente trabalharam e bateram a carga horária mínima. Nunca levam desconto de "falta".</p>
+
+                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+
+                    <h4 style="color:#0f172a;">🚌 2. Vale Transporte (VT) e Vale Combustível (VC)</h4>
+                    <p><strong>Sem Regra de Carga Horária Mínima:</strong><br>
+                    Diferente do VR, <strong>não existe exigência de horas</strong> para o Transporte. Se o colaborador foi até a empresa, mesmo que por 1 hora e depois foi embora, o sistema <strong>NÃO desconta</strong> o VT/VC.</p>
+                    
+                    <p><strong>Faltas, Atestados e Justificativas no Transporte:</strong><br>
+                    * <strong>Faltas (injustificadas) e Atestados:</strong> Descontam o transporte.<br>
+                    * <strong>Trabalho Externo:</strong> Não desconta o transporte.</p>
+
+                    <p><strong>Diferença Crucial no tratamento de Férias (VT x VC):</strong><br>
+                    * Para Vale Transporte (VT): Férias entra no cálculo final como <strong>Folga</strong>.<br>
+                    * Para Vale Combustível (VC): Férias entra no cálculo final como <strong>Falta</strong>.</p>
+
+                    <p><strong>Situações Especiais do Transporte:</strong><br>
+                    * <strong>Liderança (Supervisão/Encarregados):</strong> O espelho de ponto é ignorado para o desconto de VT. O sistema assume um valor fixo em que o supervisor trabalhou todos os <strong>Dias Úteis do Mês (Segunda a Sexta)</strong>. Suas folgas de VT são unicamente os sábados, domingos e feriados no dia de semana.</p>
+
+                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+
+                    <h4 style="color:#0f172a;">🍽️ 3. Benefício de Jantar</h4>
+                    <p>O Jantar é uma bonificação restrita a fortes extensões de jornada (quando atinge, a linha fica <span style="background:#e9d5ff;padding:2px 4px;border-radius:4px;font-weight:bold;color:#6b21a8;">ROXA</span>).</p>
+                    <p><strong>Regras para Liberação do Jantar:</strong><br>
+                    1. <strong>Dias Normais (Seg a Sex):</strong> Precisa fazer jornada normal completa <strong>+ 3 horas extras</strong> E totalizar, no mínimo, <strong>9 horas totais</strong> de trabalho bruto.<br>
+                    2. <strong>Sábados (Jornadas Curtas &le; 5h):</strong> Só ganha jantar quem atingir <strong>11 horas e 1 minuto</strong> de trabalho (661 minutos).<br>
+                    3. <strong>Domingos, Folgas e Feriados:</strong> Se for trabalhar na folga, o Jantar só é liberado se trabalhar <strong>12 horas totais</strong> completas.</p>
+                    
+                    <p><strong>Departamento Administrativo:</strong> <strong>NUNCA recebem jantar</strong>, independentemente de quantas horas extras realizem.</p>
+                    
+                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+
+                    <h4 style="color:#0f172a;">🎨 Guia Visual: Cores da Tela de Conferência</h4>
+                    <ul style="padding-left:20px;margin-bottom:0;">
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Branco:</strong> Dia trabalhado (Tudo Certo).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Claro:</strong> Folga, DSR ou Feriado de descanso.</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong style="color:#b91c1c;">Vermelho:</strong> Faltas e Atestados (Desconto ativado).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#fde047;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Amarelo Ouro:</strong> Perdeu VR (Não bateu a carga horária mínima).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#e9d5ff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Roxo:</strong> Férias OU Bateu meta de Jantar.</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#dcfce7;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Verde Claro:</strong> Folga Trabalhada (Foi trabalhar no descanso).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#e0f2fe;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Médio:</strong> Trabalho Externo / Serviço em Campo.</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+    modal.style.display = 'flex';
 };
