@@ -687,8 +687,8 @@ function _filtrarERendar() {
     const anoAt = parseInt(document.getElementById('rec-ano')?.value || new Date().getFullYear());
 
     _recibosFiltrados = _recibosAllColabs.filter(c => {
-        // Ocultar colaboradores Intermitentes da listagem de recibos
-        if ((c.tipo_contrato || '').toLowerCase().indexOf('intermitente') !== -1) return false;
+        // Ocultar colaboradores Intermitentes cujo cálculo de recibo seja zerado
+        if (_isIntermitenteZerado(c, _recibosSelecoes[c.id])) return false;
         const nomeC = _recNome(c).toLowerCase();
         if (nome   && !nomeC.includes(nome))               return false;
         if (dept   && c.departamento !== dept)             return false;
