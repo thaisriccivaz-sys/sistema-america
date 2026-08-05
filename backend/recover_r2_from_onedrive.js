@@ -112,8 +112,12 @@ async function runRecovery() {
 
         // Baixa o arquivo original do OneDrive
         try {
-            const fileBuffer = await onedrive.downloadFromOneDrive(keys.odPath);
-            if (fileBuffer) {
+            const downloadUrl = await onedrive.getDownloadUrl(keys.odPath);
+            if (downloadUrl) {
+                const res = await fetch(downloadUrl);
+                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                const fileBuffer = Buffer.from(await res.arrayBuffer());
+                
                 const mimeType = (doc.file_name || '').toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream';
                 await r2.uploadToR2(keys.r2Key, fileBuffer, mimeType);
                 console.log(`       ✅ Recuperado: ${keys.r2Key}`);
