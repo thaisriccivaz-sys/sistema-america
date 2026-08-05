@@ -11041,13 +11041,35 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
 
         // Arquivo em anexo
         const attachments = [];
-        const activeFilePath = path.resolve(doc.file_path);
-        if (fs.existsSync(activeFilePath)) {
-            const nomeNorm = (colab.nome_completo || 'Colaborador')
-                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-            attachments.push({ filename: `Boleto_Faculdade_${md}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
-        } else {
-            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF do boleto não encontrado no servidor.' });
+        const r2Utils = require('./utils/r2');
+        let arquivoAnexado = false;
+        const nomeNorm = (colab.nome_completo || 'Colaborador')
+            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+        const filenameEmail = `Boleto_Faculdade_${md}-${yyyy}_${nomeNorm}.pdf`;
+
+        if (doc.r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(doc.r2_key);
+                if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    attachments.push({ filename: filenameEmail, content: Buffer.from(bytes), contentType: 'application/pdf' });
+                    arquivoAnexado = true;
+                }
+            } catch (e) {
+                console.warn('[BOLETO] Falha ao baixar do R2:', e.message);
+            }
+        }
+
+        if (!arquivoAnexado && doc.file_path && typeof doc.file_path === 'string' && doc.file_path.trim() !== '') {
+            const activeFilePath = path.resolve(doc.file_path);
+            if (fs.existsSync(activeFilePath) && fs.statSync(activeFilePath).isFile()) {
+                attachments.push({ filename: filenameEmail, path: activeFilePath, contentType: 'application/pdf' });
+                arquivoAnexado = true;
+            }
+        }
+
+        if (!arquivoAnexado) {
+            return res.status(404).json({ sucesso: false, error: 'Arquivo PDF do boleto não encontrado no servidor ou R2.' });
         }
 
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
