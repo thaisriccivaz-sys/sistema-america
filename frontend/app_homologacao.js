@@ -7138,7 +7138,7 @@ window.renderPagamentosCompetencia = function () {
     // ÔöÇÔöÇ Slots mensais ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
     // doc tipo Pagamentos (holerite salvo via Docs. em Massa) ÔÇö fica em primeiro, roxo
-    const docPagamentos = docs.find(x => x.document_type === 'Pagamentos');
+    const docPagamentos = [...docs].sort((a, b) => b.id - a.id).find(x => x.document_type === 'Pagamentos');
     const slotPag = createDocSlot('Pagamentos', 'Pagamentos', docPagamentos, `'${y}'`, `'${m}'`);
     // Estilo roxo para o cart+úo Pagamentos
     slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
@@ -16468,7 +16468,7 @@ window.loadAssinaturasDigitais = async function () {
                     <input type="text" id="ass-search" placeholder="Buscar documento..." oninput="window.filtrarAssinaturas()" autocomplete="off"
                         style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
                 </div>
-                <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
+                <select id="digitais-filter-status" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os status</option>
                     <option value="Assinado">Ô£à Assinado</option>
@@ -16532,7 +16532,7 @@ window.filtrarAssinaturas = function () {
     const dados = window._assinaturasData || [];
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
-    const filterStatus = document.getElementById('ass-filter-status')?.value || '';
+    const filterStatus = document.getElementById('digitais-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
