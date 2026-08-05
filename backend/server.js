@@ -7709,6 +7709,12 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
         let safeTab = formatarPasta(document_type || 'Contrato');
         let safeColab = formatarNome(req.body.colaborador_nome || 'Colaborador');
         file_name = `${safeTab}_${safeColab}_${uniqueCode}.pdf`;
+    } else if (tab_name === '01_FICHA_CADASTRAL') {
+        let safeTipo = (document_type || tab_name).replace(/\s+/g, '_');
+        let safeColab = formatarNome(req.body.colaborador_nome || 'Colaborador');
+        let originalExt = require('path').extname(req.file.originalname) || '.pdf';
+        if (!['.pdf', '.jpg', '.jpeg', '.png', '.webp'].includes(originalExt.toLowerCase())) originalExt = '.pdf';
+        file_name = `${safeTipo}_${safeColab}${originalExt}`;
     }
 
 
