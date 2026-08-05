@@ -10719,7 +10719,14 @@ window.uploadContratoExternoComTipo = async function (input, docType, tabName) {
 
 window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    if (!token) { alert('Sess+úo expirada. Fa+ºa login novamente.'); return; }
+    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    
+    if (nomeDoc && (!nomeDoc.toLowerCase().endsWith('.pdf'))) {
+        var dlUrl = API_URL + '/documentos/download/' + docId + '?token=' + encodeURIComponent(token);
+        window.open(dlUrl, '_blank');
+        return;
+    }
+
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
@@ -10903,7 +10910,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             `;
         }
 
-        const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+        const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id}, '${(doc.file_name || '').replace(/'/g, "\\'")}')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
         const delBtn = `<button onclick="window.excluirContratoComSenha(${doc.id}, 'documento')" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Contrato"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>`;
 
         html += `
