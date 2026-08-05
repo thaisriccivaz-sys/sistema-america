@@ -2277,19 +2277,19 @@ app.delete('/api/assinaturas/:id', authenticateToken, async (req, res) => {
 
     try {
         if (source === 'admissao') {
-            await pool.query(
+            await new Promise((resolve, reject) => db.run(
                 `UPDATE admissao_assinaturas 
                  SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
                  WHERE id = ?`,
-                [id]
-            );
+                [id], (err) => err ? reject(err) : resolve()
+            ));
         } else {
-            await pool.query(
+            await new Promise((resolve, reject) => db.run(
                 `UPDATE documentos 
                  SET assinafy_id = NULL, assinafy_status = 'PENDENTE', assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
                  WHERE id = ?`,
-                [id]
-            );
+                [id], (err) => err ? reject(err) : resolve()
+            ));
         }
         res.json({ sucesso: true, message: 'Pedido de assinatura excluído permanentemente.' });
     } catch (err) {
