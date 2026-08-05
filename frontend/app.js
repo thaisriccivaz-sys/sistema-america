@@ -311,7 +311,7 @@ if (btnLogout) {
     });
 }
 
-// ── Sess�o automática: logout após 5 horas ─────────────────────────────
+// ── Sess�o automática: logout após 5 horas ─────────────────────────────
 (function () {
     const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
     const AVISO_MS = 60 * 1000; // Avisar 60 segundos antes
@@ -363,7 +363,7 @@ if (btnLogout) {
             <div style="background:#fff;border-radius:16px;width:92vw;max-width:400px;box-shadow:0 25px 60px rgba(0,0,0,0.4);overflow:hidden;text-align:center;">
                 <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:2rem 1.5rem;">
                     <i class="ph ph-lock" style="font-size:2.8rem;color:#f59e0b;display:block;margin-bottom:0.5rem;"></i>
-                    <h3 style="margin:0;color:#fff;font-size:1.15rem;font-weight:700;">Sess�o Expirada</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.15rem;font-weight:700;">Sess�o Expirada</h3>
                 </div>
                 <div style="padding:1.75rem 1.5rem;">
                     <p style="color:#475569;margin:0 0 1.5rem;font-size:0.93rem;line-height:1.6;">
@@ -6982,7 +6982,7 @@ window.renderTerapiaCompetencia = function () {
     });
 
     subContainer.appendChild(document.createElement('hr'));
-    const form = createDynamicUploadForm('Terapia', 'Adicionar Sess�o/Relatório', '');
+    const form = createDynamicUploadForm('Terapia', 'Adicionar Sess�o/Relatório', '');
     subContainer.appendChild(form);
 }
 
@@ -12051,7 +12051,7 @@ window.abrirModalSelecaoAnexoCargo = async function () {
 
 window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    if (!token) { alert('Sess�o expirada. Fa�a login novamente.'); return; }
+    if (!token) { alert('Sess�o expirada. Fa�a login novamente.'); return; }
     
     var viewUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     var dlUrl = API_URL + '/documentos/download/' + docId + '?token=' + encodeURIComponent(token);
@@ -18004,7 +18004,7 @@ window.syncAssinatura = async function (id, source, btn) {
 
 
 window.excluirAssinatura = async function (id, source, btn) {
-    if (!confirm('Tem certeza que deseja excluir de forma permanente este pedido de assinatura? Isso retornar� o documento ao status pendente no prontu�rio e o remover� desta tela.')) return;
+    if (!confirm('Tem certeza que deseja excluir de forma permanente este pedido de assinatura? Isso retornar� o documento ao status pendente no prontu�rio e o remover� desta tela.')) return;
     
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const oldHtml = btn.innerHTML;
@@ -18020,8 +18020,8 @@ window.excluirAssinatura = async function (id, source, btn) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao excluir assinatura');
         
-        if (typeof showToast !== 'undefined') showToast('Assinatura exclu�da com sucesso', 'success');
-        else alert('Assinatura exclu�da com sucesso');
+        if (typeof showToast !== 'undefined') showToast('Assinatura exclu�da com sucesso', 'success');
+        else alert('Assinatura exclu�da com sucesso');
         
         if (window.loadAssinaturasDigitais) await window.loadAssinaturasDigitais();
     } catch (err) {

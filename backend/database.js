@@ -775,6 +775,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     // Indicadores se holerite adiantamento/pagamento foram anexados
                     if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('boleto_financeiro_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN boleto_financeiro_enviado_em TEXT", (err) => {});
                 });
                 
                 // Geradores
