@@ -153,21 +153,15 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 0: email_override direto na config (mais confi??vel)
+                // Estratégia 0: email_override direto na config (mais confiável)
                 if (r.email_override && r.email_override.includes('@')) { emails.add(r.email_override.trim()); return; }
                 // Estratégia 1: email_corporativo via JOIN por nome completo
                 if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
-                // Estratégia 2: email do colaborador via JOIN por nome
-                else if (r.ce_by_nome && r.ce_by_nome.includes('@')) emails.add(r.ce_by_nome.trim());
                 // Estratégia 3: email_corporativo via JOIN por username
                 else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
-                // Estratégia 4: email do colaborador via JOIN por username
-                else if (r.ce_by_uname && r.ce_by_uname.includes('@')) emails.add(r.ce_by_uname.trim());
                 // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci - Thais Ricci)
                 else if (r.ec_by_upart && r.ec_by_upart.includes('@')) emails.add(r.ec_by_upart.trim());
-                // Estratégia 6: email do colaborador via JOIN por partes do username
-                else if (r.ce_by_upart && r.ce_by_upart.includes('@')) emails.add(r.ce_by_upart.trim());
-                // Estratégia 7: email direto na tabela usuarios
+                // Estratégia 7: email direto na tabela usuarios (normalmente o corporativo)
                 else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
                 // Estratégia 8: username parece um e-mail
                 else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
@@ -880,8 +874,10 @@ db.run(`CREATE TABLE IF NOT EXISTS epi_selfies (
     selfie_base64 TEXT NOT NULL,
     registrado_por TEXT,
     timestamp TEXT,
-    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    selfie_url TEXT
 )`);
+db.run(`ALTER TABLE epi_selfies ADD COLUMN selfie_url TEXT`, (err) => {});
 
 // Tabela de anexos de ocorrências (documentos do prontuário - aba Advertências)
 db.run(`CREATE TABLE IF NOT EXISTS ocorrencias_anexos (
@@ -4813,12 +4809,24 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         fs.writeFileSync(fichaFilepath, processedBuffer);
         console.log("Foto principal salva/substitu??da:", fichaFilepath);
 
-        // 3. Salva base64 e caminho no banco de dados (base64 persiste entre deploys)
-        const base64Data = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
-        db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [caminhoRelativo, base64Data, id]);
+        // 3. Upload para o Cloudflare R2 ou salvar base64 localmente se não configurado
+        const r2 = require('./utils/r2');
+        let finalPath = caminhoRelativo;
+        let finalBase64 = `data:image/jpeg;base64,${processedBuffer.toString('base64')}`;
+
+        if (r2.isReady()) {
+            const r2Key = `Colaboradores/${safeNome}/FOTOS/${filename}`;
+            finalPath = await r2.uploadToR2(r2Key, processedBuffer, 'image/jpeg');
+            // Como estamos salvando no R2, não salvamos o base64 pesado no banco para poupar espaço.
+            // Mas de acordo com o pedido para não quebrar testes, não vamos apagar os antigos ainda, 
+            // e os novos ficarão com foto_base64 = null (o GET usará o foto_path).
+            finalBase64 = null; 
+        }
+
+        db.run("UPDATE colaboradores SET foto_path = ?, foto_base64 = ? WHERE id = ?", [finalPath, finalBase64, id]);
 
         // Também registrar na aba "Fotos" do Prontuário Digital
-        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?)`, [id, filename, caminhoRelativo]);
+        db.run(`INSERT INTO documentos (colaborador_id, tab_name, document_type, file_name, file_path) VALUES (?, 'Fotos', 'Foto de Perfil', ?, ?)`, [id, filename, finalPath]);
 
         // 4. Upload ass??ncrono para OneDrive
         if (process.env.ONEDRIVE_CLIENT_ID) {
@@ -4862,9 +4870,13 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             }
         }
 
-        // Prioridade 2: arquivo fàsico via foto_path
+        // Prioridade 2: arquivo físico via foto_path ou Cloudflare R2 URL
         if (!row.foto_path) {
             return res.status(404).json({ error: 'Foto não encontrada' });
+        }
+
+        if (row.foto_path.startsWith('http://') || row.foto_path.startsWith('https://')) {
+            return res.redirect(row.foto_path);
         }
 
         let file_path = row.foto_path;
@@ -6800,11 +6812,12 @@ db.run("ALTER TABLE frota_veiculos ADD COLUMN foto_base64 TEXT", (err) => {
 
 // POST /api/logistica/multas ??? cria nova multa
 const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
-app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), (req, res) => {
+app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), async (req, res) => {
     const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, motorista_id, motorista_nome, status, parcelas } = req.body;
 
     let documento_base64 = null;
     let documento_nome = null;
+    let documento_url = null;
 
     if (req.file) {
         try {
@@ -6815,6 +6828,17 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
                 documento_nome = Buffer.from(nomeBruto, 'latin1').toString('utf8');
             } catch (_) {
                 documento_nome = req.file.originalname;
+            }
+            
+            const r2 = require('./utils/r2');
+            if (r2.isReady()) {
+                try {
+                    const ext = req.file.originalname.split('.').pop() || 'pdf';
+                    const r2Key = `Multas/AIT_${numero_ait || Date.now()}_${Date.now()}.${ext}`;
+                    documento_url = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+                } catch (r2Err) {
+                    console.error('[MULTA-UPLOAD] R2 Error:', r2Err.message);
+                }
             }
         } catch (fileErr) {
             console.error('[MULTA-UPLOAD] Erro ao converter PDF:', fileErr.message);
@@ -6829,9 +6853,9 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
     const createdByNome = req.user ? (req.user.nome || req.user.username || null) : null;
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, status_updated_at, documento_nome, documento_base64, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, statusUpdatedAt, documento_nome, documento_base64, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
+        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, status_updated_at, documento_nome, documento_base64, documento_url, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, statusUpdatedAt, documento_nome, documento_base64, documento_url, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -7272,6 +7296,17 @@ p{line-height:1.5;margin:5px 0}
 </body></html>`;
 
         const termoBase64 = Buffer.from(termoHTML).toString('base64');
+        let termoR2Url = null;
+        
+        const r2 = require('./utils/r2');
+        if (r2.isReady()) {
+            try {
+                const r2Key = `Multas/Declaracoes/Declaracao_${m.numero_ait || multaId}_${Date.now()}.html`;
+                termoR2Url = await r2.uploadToR2(r2Key, Buffer.from(termoHTML), 'text/html');
+            } catch (errR2) {
+                console.error('[MULTAS] Erro upload declaracao R2:', errR2.message);
+            }
+        }
 
         db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [multaId], (errDoc, rowDoc) => {
             if (errDoc || !rowDoc) return res.status(500).json({ error: 'Erro ao buscar documentos.' });
@@ -7284,7 +7319,8 @@ p{line-height:1.5;margin:5px 0}
             extras[1] = {
                 nome: `Declaracao_Responsabilidade_${m.numero_ait || multaId}.html`,
                 tipo: 'text/html',
-                base64: termoBase64,
+                base64: termoBase64, // Mantido para testes
+                url: termoR2Url,
                 adicionado_em: new Date().toISOString(),
                 opcao
             };
@@ -7416,8 +7452,12 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
         return res.status(401).json({ error: 'Token inválido' });
     }
 
-    db.get('SELECT documento_base64, documento_nome, documento_path FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT documento_base64, documento_nome, documento_url, documento_path FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+
+        if (row.documento_url) {
+            return res.redirect(row.documento_url);
+        }
 
         const nome = row.documento_nome || 'documento_multa.pdf';
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
@@ -7449,8 +7489,12 @@ app.get('/api/logistica/multas/:id/termo-desconto', (req, res) => {
         return res.status(401).json({ error: 'Token inválido' });
     }
 
-    db.get('SELECT termo_desconto_base64, termo_desconto_nome FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT termo_desconto_base64, termo_desconto_nome, termo_desconto_url FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
+
+        if (row.termo_desconto_url) {
+            return res.redirect(row.termo_desconto_url);
+        }
 
         if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não dispon??vel.' });
 
@@ -7484,7 +7528,7 @@ const multaExtraUpload = require('multer')({ storage: require('multer').memorySt
 app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaExtraUpload.single('documento'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
-    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT documentos_extras FROM multas_logistica WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Multa não encontrada' });
 
         let extras = [];
@@ -7494,10 +7538,23 @@ app.post('/api/logistica/multas/:id/documento-extra', authenticateToken, multaEx
         let nomeArquivo = req.body.nome || req.file.originalname || '';
         try { if (!req.body.nome) nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch(_) {}
 
+        let urlR2 = null;
+        let base64Data = req.file.buffer.toString('base64');
+        const r2 = require('./utils/r2');
+        if (r2.isReady()) {
+            try {
+                const r2Key = `Multas/Extras/Multa_${req.params.id}_${Date.now()}_${nomeArquivo.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                urlR2 = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
+            } catch (errR2) {
+                console.error('[MULTAS] Erro upload doc extra R2:', errR2.message);
+            }
+        }
+
         const novoDoc = {
             nome: nomeArquivo,
             tipo: req.file.mimetype,
-            base64: req.file.buffer.toString('base64'),
+            base64: base64Data, // Mantido para testes
+            url: urlR2,
             adicionado_em: new Date().toISOString()
         };
 
@@ -7574,7 +7631,13 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
         try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
         const idx = parseInt(req.params.idx);
         const doc = extras[idx];
-        if (!doc || !doc.base64) return res.status(404).json({ error: 'Documento não encontrado' });
+        if (!doc) return res.status(404).json({ error: 'Documento não encontrado' });
+
+        if (doc.url) {
+            return res.redirect(doc.url);
+        }
+
+        if (!doc.base64) return res.status(404).json({ error: 'Conteúdo do documento não encontrado' });
 
         const tipoMime = doc.tipo || 'application/octet-stream';
         res.setHeader('Content-Type', tipoMime);
@@ -12094,7 +12157,7 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
         [req.params.id],
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(rows.map(r => ({ ...r, epis_entregues: JSON.parse(r.epis_entregues || '[]') })));
+            res.json(rows.map(r => ({ ...r, assinatura_base64: r.assinatura_url || r.assinatura_base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') })));
         }
     );
 });
@@ -12135,7 +12198,7 @@ app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
 app.get('/api/epi-entregas/:id', authenticateToken, (req, res) => {
     db.get(
         `SELECT ee.id, ee.ficha_id, ee.colaborador_id, ee.data_entrega,
-                ee.epis_entregues, ee.assinatura_base64, ee.registrado_por,
+                ee.epis_entregues, COALESCE(ee.assinatura_url, ee.assinatura_base64) AS assinatura_base64, ee.registrado_por,
                 ef.grupo,
                 c.nome_completo AS colaborador_nome
          FROM epi_entregas ee
@@ -12169,15 +12232,31 @@ app.get('/api/epi-entregas/:id', authenticateToken, (req, res) => {
 });
 
 // POST: registrar entrega assinada de EPIs
-app.post('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
+app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => {
     const fichaId = req.params.id;
     const { colaborador_id, epis_entregues, assinatura_base64, data_entrega, epis_para_devolver, endereco_por_epi } = req.body;
     if (!epis_entregues || !assinatura_base64) return res.status(400).json({ error: 'Dados incompletos.' });
     const registrado_por = req.user ? (req.user.nome || req.user.username || '') : '';
 
+    let assinaturaUrl = null;
+    let b64Salvar = assinatura_base64;
+    const r2 = require('./utils/r2');
+    if (r2.isReady() && assinatura_base64) {
+        try {
+            let b64Data = assinatura_base64;
+            if (b64Data.startsWith('data:')) b64Data = b64Data.split(',')[1];
+            const buffer = Buffer.from(b64Data, 'base64');
+            const r2Key = `EPI/Assinaturas/Ficha_${fichaId}_Colab_${colaborador_id}_${Date.now()}.png`;
+            assinaturaUrl = await r2.uploadToR2(r2Key, buffer, 'image/png');
+            // b64Salvar = null; // Mantido para testes
+        } catch (e) {
+            console.error('[EPI] Erro upload R2:', e.message);
+        }
+    }
+
     db.run(
-        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega, registrado_por) VALUES (?,?,?,?,?,?)`,
-        [fichaId, colaborador_id, JSON.stringify(epis_entregues), assinatura_base64, data_entrega || new Date().toLocaleDateString('pt-BR'), registrado_por],
+        `INSERT INTO epi_entregas (ficha_id, colaborador_id, epis_entregues, assinatura_base64, data_entrega, registrado_por, assinatura_url) VALUES (?,?,?,?,?,?,?)`,
+        [fichaId, colaborador_id, JSON.stringify(epis_entregues), b64Salvar, data_entrega || new Date().toLocaleDateString('pt-BR'), registrado_por, assinaturaUrl],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             const entregaId = this.lastID;
@@ -17040,7 +17119,7 @@ app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
         SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.cor_predominante, fv.ano_fabricacao, fv.ano_modelo,
                fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
-               fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64,
+               fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
                fv.created_at, fv.updated_at, fv.km_atual, fv.em_manutencao,
                (
                    SELECT fm.status FROM frota_manutencoes fm
@@ -17068,21 +17147,53 @@ app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
 
 // GET - visualizar CRLV (PDF em base64)
 app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
-    db.get('SELECT crlv_base64, crlv_filename FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT crlv_base64, crlv_filename, crlv_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!row || !row.crlv_base64) return res.status(404).json({ error: 'CRLV não encontrado' });
-        res.json({ crlv_base64: row.crlv_base64, crlv_filename: row.crlv_filename });
+        if (!row || (!row.crlv_base64 && !row.crlv_url)) return res.status(404).json({ error: 'CRLV não encontrado' });
+        res.json({ crlv_base64: row.crlv_base64, crlv_filename: row.crlv_filename, crlv_url: row.crlv_url });
     });
 });
 
 // POST - cadastrar novo veículo
-app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
+app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
     const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
     if (!placa) return res.status(400).json({ error: 'Placa à obrigatéria' });
+
+    let crlv_url = null;
+    let foto_url = null;
+    let crlv_salvar = crlv_base64;
+    let foto_salvar = foto_base64;
+    
+    const r2 = require('./utils/r2');
+    if (r2.isReady()) {
+        try {
+            if (crlv_base64 && crlv_base64.startsWith('data:')) {
+                const bData = crlv_base64.split(',')[1];
+                const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
+                const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+                crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(bData, 'base64'), mime);
+            } else if (crlv_base64) {
+                crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+            }
+
+            if (foto_base64 && foto_base64.startsWith('data:')) {
+                const bData = foto_base64.split(',')[1];
+                const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
+                const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                const ext = mime === 'image/png' ? 'png' : 'jpg';
+                foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.${ext}`, Buffer.from(bData, 'base64'), mime);
+            } else if (foto_base64) {
+                foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
+            }
+        } catch(e) {
+            console.error('[FROTA] Erro upload R2:', e.message);
+        }
+    }
+
     db.run(
-        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64, updated_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64 || null, crlv_filename || null, foto_base64 || null],
+        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -17091,7 +17202,7 @@ app.post('/api/frota/veiculos', authenticateToken, (req, res) => {
 });
 
 // PUT - atualizar veículo (incluindo novo CRLV)
-app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
+app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
     const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
 
     let fields = [
@@ -17103,15 +17214,53 @@ app.put('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
 
     let query = `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?`;
 
+    const oldRow = await new Promise((resolve) => {
+        db.get('SELECT crlv_url, foto_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => resolve(row));
+    });
+
+    const r2 = require('./utils/r2');
+    let crlv_url = oldRow ? oldRow.crlv_url : null;
+    let foto_url = oldRow ? oldRow.foto_url : null;
+    
+    if (r2.isReady()) {
+        try {
+            if (crlv_base64 && !crlv_base64.startsWith('http')) {
+                if (crlv_base64.startsWith('data:')) {
+                    const bData = crlv_base64.split(',')[1];
+                    const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+                    crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(bData, 'base64'), mime);
+                } else {
+                    crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+                }
+            }
+
+            if (foto_base64 && !foto_base64.startsWith('http')) {
+                if (foto_base64.startsWith('data:')) {
+                    const bData = foto_base64.split(',')[1];
+                    const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                    const ext = mime === 'image/png' ? 'png' : 'jpg';
+                    foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.${ext}`, Buffer.from(bData, 'base64'), mime);
+                } else {
+                    foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
+                }
+            }
+        } catch(e) {
+            console.error('[FROTA] Erro upload R2 no PUT:', e.message);
+        }
+    }
+
     if (crlv_base64) {
-        query += `, crlv_base64=?, crlv_filename=?, crlv_alerta_enviado=0`;
-        fields.push(crlv_base64, crlv_filename || null);
+        query += `, crlv_base64=?, crlv_filename=?, crlv_url=?, crlv_alerta_enviado=0`;
+        // if crlv_base64 is a url, we might want to store null in base64, but for backward compat we can store the url or the old base64. 
+        // to avoid storing huge http urls in base64, we store the url.
+        fields.push(crlv_base64.startsWith('http') ? crlv_base64 : crlv_base64, crlv_filename || null, crlv_url);
     }
     
-    // Check if foto_base64 was sent (either a string or explicit null means they want to update it)
     if (foto_base64 !== undefined) {
-        query += `, foto_base64=?`;
-        fields.push(foto_base64);
+        query += `, foto_base64=?, foto_url=?`;
+        fields.push(foto_base64 && foto_base64.startsWith('http') ? foto_base64 : foto_base64, foto_url);
     }
 
     query += `, updated_at=CURRENT_TIMESTAMP WHERE id=?`;
@@ -19460,7 +19609,7 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                             entregas: (entregas || []).map(e => ({
                                 data: e.data_entrega,
                                 descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
-                                assinatura_base64: e.assinatura_base64
+                                assinatura_base64: e.assinatura_url || e.assinatura_base64
                             }))
                         });
                     });
@@ -22560,7 +22709,8 @@ app.get('/api/treinamento-presenca/historico/:colaboradorId', authenticateToken,
   const { colaboradorId } = req.params;
   db.all(
     `SELECT tp.id, tp.treinamento_id, tp.data_conclusao, tp.data_presenca,
-            tp.assinatura_base64, tp.selfie_base64, tp.instrutor_nome,
+            COALESCE(tp.assinatura_url, tp.assinatura_base64) AS assinatura_base64,
+            COALESCE(tp.selfie_url, tp.selfie_base64) AS selfie_base64, tp.instrutor_nome,
             t.nome AS treinamento_nome, t.capa_url, t.validade_dias,
             (SELECT respondido_em FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as respondido_em,
             (SELECT token FROM treinamento_pesquisa_respostas pr WHERE pr.treinamento_id = tp.treinamento_id AND pr.colaborador_id = tp.colaborador_id ORDER BY pr.id DESC LIMIT 1) as pesquisa_token
@@ -22860,23 +23010,45 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 
   // Verificar se já existe registro para esse par (colaborador + treinamento)
   // A tabela tem UNIQUE(treinamento_id, usuario_id) ??? usamos isso para o UPSERT
-  db.get(
+    db.get(
     `SELECT id FROM treinamento_presenca
      WHERE treinamento_id = ?
        AND (colaborador_id = ? OR (usuario_id = ? AND colaborador_id IS NULL))
      LIMIT 1`,
     [treinamento_id, colaborador_id, usuarioId],
-    (err, existing) => {
+    async (err, existing) => {
       if (err) return res.status(500).json({ error: err.message });
 
+      let assUrl = null;
+      let selfieUrl = null;
+      let b64Ass = assinatura_base64 || '';
+      let b64Selfie = selfie_base64 || '';
+      const r2 = require('./utils/r2');
+      if (r2 && r2.isReady()) {
+          try {
+              if (b64Ass && b64Ass.startsWith('data:')) {
+                  const bData = b64Ass.split(',')[1];
+                  assUrl = await r2.uploadToR2(`Treinamentos/Assinaturas/${treinamento_id}_Colab_${colaborador_id}_${Date.now()}.png`, Buffer.from(bData, 'base64'), 'image/png');
+                  // b64Ass = ''; // Mantido para testes
+              }
+              if (b64Selfie && b64Selfie.startsWith('data:')) {
+                  const bData = b64Selfie.split(',')[1];
+                  selfieUrl = await r2.uploadToR2(`Treinamentos/Selfies/${treinamento_id}_Colab_${colaborador_id}_${Date.now()}.png`, Buffer.from(bData, 'base64'), 'image/png');
+                  // b64Selfie = ''; // Mantido para testes
+              }
+          } catch(e) {
+              console.error('[TREINAMENTO] Erro upload R2:', e.message);
+          }
+      }
+
       if (existing) {
-        // Atualiza registro existente ??? garante que colaborador_id está preenchido
+        // Atualiza registro existente — garante que colaborador_id está preenchido
         db.run(
           `UPDATE treinamento_presenca
            SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
-               data_conclusao = ?, instrutor_nome = ?
+               data_conclusao = ?, instrutor_nome = ?, assinatura_url = COALESCE(?, assinatura_url), selfie_url = COALESCE(?, selfie_url)
            WHERE id = ?`,
-          [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, existing.id],
+          [colaborador_id, b64Ass, b64Selfie, now, instrutorNome, assUrl, selfieUrl, existing.id],
           function(err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             registrarAuditoria(existing.id);
@@ -22887,18 +23059,18 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
         db.run(
           `INSERT INTO treinamento_presenca
-             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_nao_participar)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [treinamento_id, colaborador_id, usuarioId, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0],
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_nao_participar, assinatura_url, selfie_url)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [treinamento_id, colaborador_id, usuarioId, b64Ass, b64Selfie, now, instrutorNome, optou_nao_participar ? 1 : 0, assUrl, selfieUrl],
           function(err2) {
             if (err2) {
               // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
               db.run(
                 `UPDATE treinamento_presenca
                  SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
-                     data_conclusao = ?, instrutor_nome = ?, optou_nao_participar = ?
+                     data_conclusao = ?, instrutor_nome = ?, optou_nao_participar = ?, assinatura_url = COALESCE(?, assinatura_url), selfie_url = COALESCE(?, selfie_url)
                  WHERE treinamento_id = ? AND usuario_id = ?`,
-                [colaborador_id, assinatura_base64 || '', selfie_base64 || '', now, instrutorNome, optou_nao_participar ? 1 : 0, treinamento_id, usuarioId],
+                [colaborador_id, b64Ass, b64Selfie, now, instrutorNome, optou_nao_participar ? 1 : 0, assUrl, selfieUrl, treinamento_id, usuarioId],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
                   db.get(
@@ -22926,7 +23098,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 // Busca registro completo (assinatura + selfie) para exibi????o pàs-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, instrutor_nome, optou_nao_participar
+    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, instrutor_nome, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -22941,7 +23113,7 @@ app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', auth
 // Verifica se um colaborador já concluiu um treinamento específico
 app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, assinatura_base64, selfie_base64, optou_nao_participar
+    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -22965,45 +23137,52 @@ async function syncBase64ToR2() {
     
     // 1. Treinamentos (Selfie e Assinatura)
     // LIMIT 5 por ciclo para não sobrecarregar a memória do Render (era 15)
-    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca_v2 WHERE (selfie_base64 LIKE 'data:image/%' OR assinatura_base64 LIKE 'data:image/%') LIMIT 5`, async (err, rows) => {
+    db.all(`SELECT id, selfie_base64, assinatura_base64 FROM treinamento_presenca WHERE ((selfie_base64 LIKE 'data:image/%' AND selfie_url IS NULL) OR (assinatura_base64 LIKE 'data:image/%' AND assinatura_url IS NULL)) LIMIT 5`, async (err, rows) => {
         if (err || !rows) return;
         for (const row of rows) {
             let updated = false;
-            let newSelfie = row.selfie_base64;
-            let newAssin = row.assinatura_base64;
+            let newSelfieUrl = null;
+            let newAssinUrl = null;
             
             try {
-                if (newSelfie && newSelfie.startsWith('data:image/')) {
-                    const match = newSelfie.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (row.selfie_base64 && row.selfie_base64.startsWith('data:image/')) {
+                    const match = row.selfie_base64.match(/^data:(image\/\w+);base64,(.+)$/);
                     if (match) {
                         const mime = match[1];
                         const buffer = Buffer.from(match[2], 'base64');
                         const ext = mime.split('/')[1] || 'png';
-                        const key = `treinamentos/${row.id}/selfie_${Date.now()}.${ext}`;
-                        newSelfie = await r2.uploadToR2(key, buffer, mime);
+                        const key = `Treinamentos/Selfies/mig_${row.id}_${Date.now()}.${ext}`;
+                        newSelfieUrl = await r2.uploadToR2(key, buffer, mime);
                         updated = true;
                     }
                 }
                 
-                if (newAssin && newAssin.startsWith('data:image/')) {
-                    const match = newAssin.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (row.assinatura_base64 && row.assinatura_base64.startsWith('data:image/')) {
+                    const match = row.assinatura_base64.match(/^data:(image\/\w+);base64,(.+)$/);
                     if (match) {
                         const mime = match[1];
                         const buffer = Buffer.from(match[2], 'base64');
                         const ext = mime.split('/')[1] || 'png';
-                        const key = `treinamentos/${row.id}/assinatura_${Date.now()}.${ext}`;
-                        newAssin = await r2.uploadToR2(key, buffer, mime);
+                        const key = `Treinamentos/Assinaturas/mig_${row.id}_${Date.now()}.${ext}`;
+                        newAssinUrl = await r2.uploadToR2(key, buffer, mime);
                         updated = true;
                     }
                 }
                 
                 if (updated) {
-                    db.run(`UPDATE treinamento_presenca_v2 SET selfie_base64 = ?, assinatura_base64 = ? WHERE id = ?`, [newSelfie, newAssin, row.id], (uErr) => {
-                        if (!uErr) console.log(`[R2 Sync] Treinamento_presenca_v2 ID ${row.id} migrado para R2.`);
+                    let updateQuery = `UPDATE treinamento_presenca SET `;
+                    let params = [];
+                    if (newSelfieUrl) { updateQuery += `selfie_url = ?, `; params.push(newSelfieUrl); }
+                    if (newAssinUrl) { updateQuery += `assinatura_url = ?, `; params.push(newAssinUrl); }
+                    updateQuery = updateQuery.slice(0, -2) + ` WHERE id = ?`;
+                    params.push(row.id);
+                    
+                    db.run(updateQuery, params, (uErr) => {
+                        if (!uErr) console.log(`[R2 Sync] Treinamento_presenca ID ${row.id} migrado para R2.`);
                     });
                 }
             } catch (e) {
-                console.error(`[R2 Sync] Erro ao migrar treinamento ID ${row.id}:`, e.message);
+                console.error(`[R2 Sync Error] Falha ao migrar treinamento_presenca ID ${row.id}:`, e.message);
             }
         }
     });
@@ -25326,7 +25505,7 @@ function monacoAuth(req, res, next) {
 
 // Sincroniza multa recebida da Mônaco para a tabela principal de logàstica
 function syncToLogistica(uuid, tipoEvento, payload) {
-    db.get('SELECT id, documento_base64, documento_path FROM multas_logistica WHERE numero_ait = ? OR monaco_uuid = ?', [payload.numero_ait, uuid], (err, row) => {
+    db.get('SELECT id, documento_base64, documento_path FROM multas_logistica WHERE numero_ait = ? OR monaco_uuid = ?', [payload.numero_ait, uuid], async (err, row) => {
         if (err) {
             console.error('[MONACO SYNC] Erro ao buscar logistica:', err);
             return;
@@ -25413,6 +25592,19 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             console.log('[MONACO SYNC] Campos do payload:', Object.keys(payload).join(', '));
         }
 
+        let termoUrl = null;
+        if (termoBase64 && r2 && r2.isReady()) {
+            try {
+                let b64Data = termoBase64;
+                if (b64Data.startsWith('data:')) b64Data = b64Data.split(',')[1];
+                const buffer = Buffer.from(b64Data, 'base64');
+                const r2Key = `Multas/${uuid || Date.now()}_termo.pdf`;
+                termoUrl = await r2.uploadToR2(r2Key, buffer, 'application/pdf');
+                termoBase64 = null; // Evitar salvar no banco se foi pro R2
+            } catch (e) {
+                console.error('[MONACO SYNC] Erro upload R2 termo:', e.message);
+            }
+        }
 
         if (row) {
             // Atualizar multa existente
@@ -25432,9 +25624,9 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                 params.push(docBase64, docNome);
             }
             
-            if (termoBase64) {
-                updateSql += `, termo_desconto_base64 = ?, termo_desconto_nome = ?`;
-                params.push(termoBase64, termoNome);
+            if (termoBase64 || termoUrl) {
+                updateSql += `, termo_desconto_base64 = ?, termo_desconto_nome = ?, termo_desconto_url = ?`;
+                params.push(termoBase64, termoNome, termoUrl);
             }
 
             updateSql += ` WHERE id = ?`;
@@ -25449,12 +25641,12 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             db.run(`INSERT INTO multas_logistica (
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
                 motivo, valor_multa, pontuacao, local_infracao, data_limite,
-                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario, termo_desconto_base64, termo_desconto_nome
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', NULL, ?, ?, ?, ?, ?, ?)`, [
+                status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario, termo_desconto_base64, termo_desconto_nome, termo_desconto_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', NULL, ?, ?, ?, ?, ?, ?, ?)`, [
                 uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
                 payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
                 isAitAntiga(payload.numero_ait) ? 'Antiga' : 'Conferência',
-                docBase64, docNome, statusMonaco, linkFormulario, termoBase64, termoNome
+                docBase64, docNome, statusMonaco, linkFormulario, termoBase64, termoNome, termoUrl
             ], function (errInsert) {
                 if (errInsert) console.error('[MONACO SYNC] Erro insert:', errInsert);
                 else {

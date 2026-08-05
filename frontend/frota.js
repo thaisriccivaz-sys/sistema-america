@@ -246,7 +246,7 @@ function renderCardsFrota() {
 
 
     const placeholder = 'https://via.placeholder.com/400x250/e2e8f0/94a3b8?text=Sem+Foto';
-    const foto = v.foto_base64 || placeholder;
+    const foto = v.foto_url || v.foto_base64 || placeholder;
     const marcaCompleta = v.marca_modelo_versao || 'N/D';
     const rodizio = getRodizio(v.placa);
 
@@ -665,7 +665,12 @@ window.visualizarCRLV = async function(id) {
     const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao baixar CRLV');
-    if (!data.crlv_base64) throw new Error('Documento não encontrado.');
+    if (!data.crlv_base64 && !data.crlv_url) throw new Error('Documento não encontrado.');
+
+    if (data.crlv_url) {
+      window.open(data.crlv_url, '_blank');
+      return;
+    }
 
     let base64Data = data.crlv_base64;
     if (base64Data.includes(',')) base64Data = base64Data.split(',')[1];
@@ -939,7 +944,7 @@ window.abrirModalFrota=async function(id){
   
   window._frotaB64=null;
   window._frotaFN=null;
-  window._frotaImgB64=v.foto_base64||null;
+  window._frotaImgB64=v.foto_url||v.foto_base64||null;
   
   let ov=document.getElementById('modal-frota-ov');if(ov)ov.remove();
   ov=document.createElement('div');ov.id='modal-frota-ov';

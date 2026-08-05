@@ -710,6 +710,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('status_monaco')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_monaco TEXT", (err) => {});
                     if (!cols.includes('termo_desconto_base64')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_base64 TEXT", (err) => {});
                     if (!cols.includes('termo_desconto_nome')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_nome TEXT", (err) => {});
+                    if (!cols.includes('termo_desconto_url')) db.run("ALTER TABLE multas_logistica ADD COLUMN termo_desconto_url TEXT", (err) => {});
                     if (!cols.includes('status_rh')) db.run("ALTER TABLE multas_logistica ADD COLUMN status_rh TEXT DEFAULT NULL", (err) => {});
                 });
 
@@ -793,6 +794,24 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     const cols = rows.map(r => r.name);
                     if (!cols.includes('tipo_conclusao')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN tipo_conclusao TEXT DEFAULT 'realizada'", (err) => {});
                     if (!cols.includes('data_inicio')) db.run("ALTER TABLE frota_manutencoes ADD COLUMN data_inicio TEXT", (err) => {});
+                });
+
+                // Base64 to R2 URL Migration Columns
+                db.all("PRAGMA table_info(treinamento_presenca)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('assinatura_url')) db.run("ALTER TABLE treinamento_presenca ADD COLUMN assinatura_url TEXT", (err) => {});
+                    if (!cols.includes('selfie_url')) db.run("ALTER TABLE treinamento_presenca ADD COLUMN selfie_url TEXT", (err) => {});
+                });
+                db.all("PRAGMA table_info(epi_entregas)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('assinatura_url')) db.run("ALTER TABLE epi_entregas ADD COLUMN assinatura_url TEXT", (err) => {});
+                });
+                db.all("PRAGMA table_info(frota_veiculos)", (err, rows) => {
+                    if (err || !rows) return;
+                    const cols = rows.map(r => r.name);
+                    if (!cols.includes('crlv_url')) db.run("ALTER TABLE frota_veiculos ADD COLUMN crlv_url TEXT", (err) => {});
                 });
             });
 
