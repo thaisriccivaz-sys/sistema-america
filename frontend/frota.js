@@ -928,7 +928,12 @@ window.initFrotaVeiculos = async function() {
     // Enrich vehicles with maintenance status
     window._frotaStatusManut = {};
     (statusManut || []).forEach(s => { window._frotaStatusManut[s.id] = s; });
-    window._frotaDados = rows || [];
+    if (!Array.isArray(rows)) {
+      console.error('[FROTA] API retornou dado inesperado:', rows);
+      throw new Error(rows?.error || 'Resposta inválida do servidor');
+    }
+    window._frotaDados = rows;
+
     popularFiltros();
     renderCardsFrota();
   } catch (e) {

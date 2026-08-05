@@ -812,6 +812,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (err || !rows) return;
                     const cols = rows.map(r => r.name);
                     if (!cols.includes('crlv_url')) db.run("ALTER TABLE frota_veiculos ADD COLUMN crlv_url TEXT", (err) => {});
+                    if (!cols.includes('foto_url')) db.run("ALTER TABLE frota_veiculos ADD COLUMN foto_url TEXT", (err) => {});
                 });
             });
 
