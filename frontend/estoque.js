@@ -172,7 +172,11 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
                 '<button class="btn btn-sm" onclick="window.excluirEstoque(' + item.id + ')" style="background:#fee2e2;color:#ef4444;border:none;margin-left:4px;"><i class="ph ph-trash"></i></button>';
 
             // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
-            const linhasEndereco = saldos.length > 0 ? saldos : [null];
+            let linhasEndereco = saldos.length > 0 ? saldos : [null];
+
+            if (enderecoFiltro) {
+                linhasEndereco = linhasEndereco.filter(s => s && String(s.endereco_id) === String(enderecoFiltro));
+            }
 
             // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
             let linhasParaRenderizar = linhasEndereco;
