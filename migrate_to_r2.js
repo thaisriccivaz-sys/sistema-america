@@ -21,7 +21,7 @@ const sqlite3 = require('sqlite3').verbose();
 const r2 = require('./backend/utils/r2');
 
 // ─── Configuração ───────────────────────────────────────────────────────────
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'backend', 'data', 'hr_system_v2.sqlite');
+const DB_PATH = process.env.DATABASE_PATH || process.env.DB_PATH || path.join(__dirname, 'backend', 'data', 'hr_system_v2.sqlite');
 const ONEDRIVE_BASE_PATH = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
 
 let onedrive = null;
