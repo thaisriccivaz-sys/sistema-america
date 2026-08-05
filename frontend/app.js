@@ -17923,9 +17923,9 @@ window.filtrarAssinaturas = function () {
         if (isSigned) {
             const nomeEsc = (d.nome_documento || '').replace(/'/g, "\\'");
             if (d.source === 'documento') {
-                viewBtn = `<button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Excluir Pedido"><i class="ph ph-trash"></i></button></div>`;
             } else {
-                viewBtn = `<button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Excluir Pedido"><i class="ph ph-trash"></i></button></div>`;
             }
         } else if (d.assinafy_id) {
             // Qualquer status nÃ£o-assinado com assinafy_id â†’ pode reenviar e sincronizar
@@ -17933,6 +17933,7 @@ window.filtrarAssinaturas = function () {
                 <!-- BotÃ£o azul de sync ocultado conforme solicitaÃ§Ã£o, agora usa-se o rosa no topo -->
                 <button onclick="window.syncAssinatura(${d.id}, '${d.source}', this)" style="display:none; background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;" title="Sincronizar com Assinafy"><i class="ph ph-arrows-clockwise"></i></button>
                 <button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Reenviar"><i class="ph ph-paper-plane-right"></i></button>
+                <button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Excluir Pedido"><i class="ph ph-trash"></i></button>
             </div>`;
         }
 
@@ -17985,6 +17986,36 @@ window.syncAssinatura = async function (id, source, btn) {
     } catch (e) {
         alert('Erro: ' + e.message);
         btn.innerHTML = oldHtml; 
+        btn.disabled = false;
+    }
+};
+
+
+window.excluirAssinatura = async function (id, source, btn) {
+    if (!confirm('Tem certeza que deseja excluir de forma permanente este pedido de assinatura? Isso retornará o documento ao status pendente no prontuário e o removerá desta tela.')) return;
+    
+    const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_URL}/assinaturas/${id}?source=${source}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao excluir assinatura');
+        
+        if (typeof showToast !== 'undefined') showToast('Assinatura excluída com sucesso', 'success');
+        else alert('Assinatura excluída com sucesso');
+        
+        if (window.loadAssinaturasDigitais) await window.loadAssinaturasDigitais();
+    } catch (err) {
+        if (typeof showToast !== 'undefined') showToast(err.message, 'error');
+        else alert(err.message);
+        btn.innerHTML = oldHtml;
         btn.disabled = false;
     }
 };
