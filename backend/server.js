@@ -1059,6 +1059,14 @@ db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration assinafy_sent_at:', err.message);
 });
 
+// MIGRATION: Cloudflare R2 keys for colaborador documents
+db.run("ALTER TABLE documentos ADD COLUMN r2_key TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration r2_key:', err.message);
+});
+db.run("ALTER TABLE documentos ADD COLUMN signed_r2_key TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration signed_r2_key:', err.message);
+});
+
 db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_camiseta TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
 });
@@ -1594,6 +1602,135 @@ async function uploadDocToOneDrive(docId) {
     }
 }
 
+
+/**
+ * Faz upload de documento de colaborador para Cloudflare R2.
+ * Estrutura: Colaboradores/{Nome}/{Tab}/{Ano?}/{Mes?}/{arquivo}
+ */
+async function uploadDocToR2(docId, bufferOverride) {
+    const r2 = require('./utils/r2');
+    if (!r2.isReady()) return null;
+    try {
+        const doc = await new Promise((resolve, reject) => {
+            db.get(`SELECT d.*, c.nome_completo FROM documentos d
+                    JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.id = ?`, [docId], (err, row) => { if (err) reject(err); else resolve(row); });
+        });
+        if (!doc) { console.error(`[R2-AUTO] Doc ${docId} nao encontrado`); return null; }
+
+        let fileBuffer = bufferOverride || null;
+        if (!fileBuffer) {
+            const localPath = (doc.signed_file_path && require('fs').existsSync(doc.signed_file_path))
+                ? doc.signed_file_path
+                : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
+            if (!localPath) { console.warn(`[R2-AUTO] Arquivo nao encontrado no disco para doc ${docId}`); return null; }
+            fileBuffer = require('fs').readFileSync(localPath);
+        }
+
+        const safeColab = (doc.nome_completo || 'DESCONHECIDO')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9 ]/g, '').trim()
+            .replace(/\s+/g, '_').toUpperCase();
+
+        const tabToR2Folder = (tab) => {
+            const map = {
+                'CONTRATOS': 'Contratos', 'CONTRATOS_AVULSOS': 'Contratos',
+                'Atestados': 'Atestados', 'ASO': 'ASO', 'PAGAMENTOS': 'Pagamentos',
+                'Advertências': 'Advertencias', 'EPI': 'EPI', 'Fotos': 'Fotos',
+                'AVALIACAO': 'Avaliacao', 'FACULDADE': 'Faculdade',
+                '01_FICHA_CADASTRAL': 'Ficha_Cadastral', 'Terapia': 'Terapia',
+                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas',
+            };
+            return map[tab] || (tab || 'Outros').replace(/[^a-zA-Z0-9_]/g, '_');
+        };
+
+        const tabFolder = tabToR2Folder(doc.tab_name);
+        const isContrato = doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS';
+        const isFicha = doc.tab_name === '01_FICHA_CADASTRAL';
+        const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+
+        let r2Dir = `Colaboradores/${safeColab}/${tabFolder}`;
+        if (!isContrato && !isFicha) {
+            r2Dir += `/${docYear}`;
+            if (doc.tab_name === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                r2Dir += `/${getMesNome(doc.month)}`;
+            }
+        }
+
+        const fileName = doc.file_name || `documento_${docId}.pdf`;
+        const r2Key = `${r2Dir}/${fileName}`;
+        const mimeType = fileName.toLowerCase().endsWith('.docx')
+            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : (fileName.toLowerCase().endsWith('.doc') ? 'application/msword' : 'application/pdf');
+
+        await r2.uploadToR2(r2Key, fileBuffer, mimeType);
+        console.log(`[R2-AUTO] OK: ${r2Key}`);
+        await new Promise((resolve) => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [r2Key, docId], resolve));
+        return r2Key;
+    } catch (e) {
+        console.error(`[R2-AUTO ERROR] doc=${docId}:`, e.message);
+        return null;
+    }
+}
+
+/**
+ * Faz upload do documento ASSINADO para R2 em subpasta Assinados.
+ */
+async function uploadSignedDocToR2(docId, signedBuffer) {
+    const r2 = require('./utils/r2');
+    if (!r2.isReady() || !signedBuffer) return null;
+    try {
+        const doc = await new Promise((resolve, reject) => {
+            db.get(`SELECT d.*, c.nome_completo FROM documentos d
+                    JOIN colaboradores c ON c.id = d.colaborador_id
+                    WHERE d.id = ?`, [docId], (err, row) => { if (err) reject(err); else resolve(row); });
+        });
+        if (!doc) return null;
+
+        const safeColab = (doc.nome_completo || 'DESCONHECIDO')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9 ]/g, '').trim()
+            .replace(/\s+/g, '_').toUpperCase();
+
+        const tabToR2Folder = (tab) => {
+            const map = {
+                'CONTRATOS': 'Contratos', 'CONTRATOS_AVULSOS': 'Contratos',
+                'Atestados': 'Atestados', 'ASO': 'ASO', 'PAGAMENTOS': 'Pagamentos',
+                'Advertências': 'Advertencias', 'EPI': 'EPI', 'Fotos': 'Fotos',
+                'AVALIACAO': 'Avaliacao', 'FACULDADE': 'Faculdade',
+                '01_FICHA_CADASTRAL': 'Ficha_Cadastral', 'Terapia': 'Terapia',
+                'Treinamentos': 'Treinamentos', 'Boletim de ocorrência': 'Ocorrencias', 'Multas': 'Multas',
+            };
+            return map[tab] || (tab || 'Outros').replace(/[^a-zA-Z0-9_]/g, '_');
+        };
+
+        const tabFolder = tabToR2Folder(doc.tab_name);
+        const isContrato = doc.tab_name === 'CONTRATOS' || doc.tab_name === 'CONTRATOS_AVULSOS';
+        const isFicha = doc.tab_name === '01_FICHA_CADASTRAL';
+        const docYear = doc.year && doc.year !== 'null' && doc.year !== '' ? String(doc.year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
+
+        let r2Dir = `Colaboradores/${safeColab}/${tabFolder}`;
+        if (!isContrato && !isFicha) {
+            r2Dir += `/${docYear}`;
+            if (doc.tab_name === 'PAGAMENTOS' && doc.month && doc.month !== 'null' && doc.month !== '') {
+                r2Dir += `/${getMesNome(doc.month)}`;
+            }
+        }
+        r2Dir += '/Assinados';
+
+        const baseName = (doc.file_name || `documento_${docId}.pdf`).replace(/\.pdf$/i, '');
+        const signedKey = `${r2Dir}/ASSINADO_${baseName}.pdf`;
+
+        await r2.uploadToR2(signedKey, signedBuffer, 'application/pdf');
+        console.log(`[R2-SIGNED] OK: ${signedKey}`);
+        await new Promise((resolve) => db.run('UPDATE documentos SET signed_r2_key = ? WHERE id = ?', [signedKey, docId], resolve));
+        return signedKey;
+    } catch (e) {
+        console.error(`[R2-SIGNED ERROR] doc=${docId}:`, e.message);
+        return null;
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 if (!process.env.SECRET_KEY) {
@@ -1783,6 +1920,8 @@ const uploadFileFilter = (req, file, cb) => {
 };
 
 const upload = multer({ storage: storage, fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } }); // Limite de 30MB por arquivo
+// Upload em memoria para documentos do prontuario (envia direto para R2)
+const uploadMemoriaDoc = multer({ storage: multer.memoryStorage(), fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } });
 
 const storageFoto = multer.memoryStorage();
 const uploadFoto = multer({ storage: storageFoto });
@@ -2184,6 +2323,20 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
+                // Upload do assinado para R2 (duplo backup com OneDrive)
+                let signedR2Key = null;
+                if (finalBuffer && doc.source === 'documento') {
+                    try {
+                        // Buscar o docId pelo assinafy_id
+                        const docRow = await new Promise((res2, rej2) =>
+                            db.get('SELECT id FROM documentos WHERE assinafy_id = ?', [doc.assinafy_id], (e, r) => e ? rej2(e) : res2(r))
+                        );
+                        if (docRow) signedR2Key = await uploadSignedDocToR2(docRow.id, finalBuffer);
+                    } catch (r2Err) {
+                        console.warn(`[POLL-ADMISSAO] R2 signed upload falhou: ${r2Err.message}`);
+                    }
+                }
+
                 // PROTEÇÃO: só marca 'Assinado' se o PDF assinado foi efetivamente baixado.
                 // Sem PDF, significa que o Assinafy ainda não gerou o certificado (falso positivo).
                 if (!finalBuffer) {
@@ -2195,10 +2348,10 @@ async function pollAdmissaoAssinaturas() {
                         [signedPath, doc.assinafy_id]
                     );
                     db.run(
-                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
-                        [signedPath, doc.assinafy_id]
+                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, signed_r2_key = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
+                        [signedPath, signedR2Key, doc.assinafy_id]
                     );
-                    console.log(`[POLL-ADMISSAO] ??? Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id}`);
+                    console.log(`[POLL-ADMISSAO] Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || 'N/A'}`);
                 }
             } catch (e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
@@ -7507,7 +7660,7 @@ app.put('/api/multas/:id', authenticateToken, (req, res) => {
 });
 // -----------------------------------------------------------------------------
 
-app.post('/api/documentos', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
     const { document_id, colaborador_id, tab_name, document_type, year, month, vencimento, atestado_tipo, atestado_inicio, atestado_fim, assinafy_status } = req.body;
@@ -7518,23 +7671,30 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             const crypto = require('crypto');
             try {
-                const fileBuffer = require('fs').readFileSync(req.file.path);
+                const fileBuffer = req.file.buffer || (req.file.path ? require('fs').readFileSync(req.file.path) : Buffer.alloc(0));
                 const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
                 db.run(`INSERT INTO assinaturas_auditoria (documento_id, document_type, colaborador_id, colaborador_nome, gps_lat, gps_lon, dispositivo, ip_address, hash_assinatura) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [docId, document_type || tab_name, colaborador_id, req.body.colaborador_nome || 'DESCONHECIDO', gps_lat, gps_lon, dispositivo, ip, hash]);
             } catch (err) { console.error('[AUDIT] Erro ao salvar auditoria:', err.message); }
         }
     };
-    const file_path = req.file.path;
+    // Arquivo recebido em memoria (buffer) — enviado para R2 e OneDrive sem tocar o disco
+    let processedBuffer = req.file.buffer;
+    const file_path = req.file.path || '';
     let file_name = req.file.originalname;
     try { file_name = Buffer.from(file_name, 'latin1').toString('utf8'); } catch (e) { }
 
     const isBO = ((document_type || '').toUpperCase().includes('BO_') && (tab_name || '').toUpperCase().includes('SINISTRO')) ||
                  ((tab_name || '').toUpperCase().includes('BOLETIM'));
-    if (isBO && file_path.toLowerCase().endsWith('.pdf')) {
+    if (isBO && (file_name || '').toLowerCase().endsWith('.pdf')) {
         try {
             const { censorBOPdf } = require('./censorPDF.js');
-            await censorBOPdf(file_path, file_path);
+            const os = require('os');
+            const tmpPath = require('path').join(os.tmpdir(), `bo_censor_${Date.now()}.pdf`);
+            require('fs').writeFileSync(tmpPath, processedBuffer);
+            await censorBOPdf(tmpPath, tmpPath);
+            processedBuffer = require('fs').readFileSync(tmpPath);
+            try { require('fs').unlinkSync(tmpPath); } catch(e2) {}
         } catch (e) {
             console.error('[CENSOR] Falha ao tentar censurar BO:', e.message);
         }
@@ -7595,7 +7755,7 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                 try { fs.unlinkSync(row.file_path); } catch (e) { }
             }
 
-            let setClause = 'file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ?';
+            let setClause = 'file_name = ?, file_path = ?, upload_date = CURRENT_TIMESTAMP, vencimento = ?, atestado_tipo = ?, atestado_inicio = ?, atestado_fim = ?, r2_key = NULL, signed_r2_key = NULL';
             const baseParams = [file_name, file_path, vencimento || null, atestado_tipo || null, atestado_inicio || null, atestado_fim || null];
 
             if (assinafy_status) {
@@ -7665,6 +7825,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         })();
                     }
 
+                    // Upload para R2 (duplo backup com OneDrive)
+                    setImmediate(() => uploadDocToR2(row.id, processedBuffer || req.file.buffer).catch(e => console.warn('[R2-UPDATE] Erro:', e.message)));
                     saveAuditLocal(row.id);
                     res.json({ message: 'Documento atualizado', id: row.id, file_path });
                 });
@@ -7767,6 +7929,8 @@ app.post('/api/documentos', authenticateToken, upload.single('file'), async (req
                         }
                     }
 
+                    // Upload para R2 (duplo backup com OneDrive)
+                    setImmediate(() => uploadDocToR2(newDocId, processedBuffer || req.file.buffer).catch(e => console.warn('[R2-INSERT] Erro:', e.message)));
                     saveAuditLocal(newDocId);
                     res.status(201).json({ message: 'Documento salvo', id: newDocId, file_path });
                 });
@@ -7807,7 +7971,26 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
 
-        let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
+        // PRIORIDADE 1: PDF assinado no R2
+        const r2Utils = require('./utils/r2');
+        if (row.signed_r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(row.signed_r2_key);
+                let safeFileName = row.file_name || 'documento_assinado.pdf';
+                if (!safeFileName.toLowerCase().endsWith('.pdf')) safeFileName = safeFileName.replace(/\.[^.]+$/, '') + '.pdf';
+                res.setHeader('Content-Type', fileData.contentType || 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent('ASSINADO_' + safeFileName)}"`);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    return fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    return res.send(Buffer.from(bytes));
+                }
+            } catch (r2Err) { console.warn('[DOWNLOAD] signed_r2_key falhou, tentando fallback:', r2Err.message); }
+        }
+
+        let pathLocal = row.signed_file_path; // Tentar assinado local (fallback para docs antigos)
 
         // Se existe fisicamente (.pfx concluído)
         if (pathLocal && fs.existsSync(pathLocal)) {
@@ -7844,7 +8027,25 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // Fallback final: Devolve o arquivo original NÃO ASSINADO
+        // PRIORIDADE 4: Arquivo original no R2
+        if (row.r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
+                const r2FileName = row.file_name || 'documento.pdf';
+                const r2Mime = fileData.contentType || 'application/pdf';
+                res.setHeader('Content-Type', r2Mime);
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(r2FileName)}"`);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    return fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    return res.send(Buffer.from(bytes));
+                }
+            } catch (r2Err) { console.warn('[DOWNLOAD] r2_key falhou, tentando disco local:', r2Err.message); }
+        }
+
+        // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
             let isDocx = false;
@@ -7889,7 +8090,26 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM documentos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento não encontrado' });
 
-        let pathLocal = row.signed_file_path; // Tentar assinado local primeiro
+        // PRIORIDADE 1: PDF assinado no R2
+        const r2Utils = require('./utils/r2');
+        if (row.signed_r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(row.signed_r2_key);
+                let safeFileName = row.file_name || 'documento_assinado.pdf';
+                if (!safeFileName.toLowerCase().endsWith('.pdf')) safeFileName = safeFileName.replace(/\.[^.]+$/, '') + '.pdf';
+                res.setHeader('Content-Type', fileData.contentType || 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent('ASSINADO_' + safeFileName)}"`);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    return fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    return res.send(Buffer.from(bytes));
+                }
+            } catch (r2Err) { console.warn('[VIEW] signed_r2_key falhou, tentando fallback:', r2Err.message); }
+        }
+
+        let pathLocal = row.signed_file_path; // Tentar assinado local (fallback para docs antigos)
 
         // Se existe fisicamente (.pfx concluído)
         if (pathLocal && fs.existsSync(pathLocal)) {
@@ -7947,7 +8167,30 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // Fallback final: Devolve o arquivo original NÃO ASSINADO
+        // PRIORIDADE 4: Arquivo original no R2 (para /view)
+        if (row.r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
+                const r2FileName = row.file_name || 'documento.pdf';
+                const r2Mime = fileData.contentType || 'application/pdf';
+                // Verificar se é docx para forçar download
+                if (r2Mime.includes('word') || r2Mime.includes('officedocument')) {
+                    const dlUrl = req.originalUrl.replace('/view/', '/download/');
+                    return res.redirect(dlUrl);
+                }
+                res.setHeader('Content-Type', r2Mime);
+                res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(r2FileName)}"`);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') {
+                    return fileData.stream.pipe(res);
+                } else if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    return res.send(Buffer.from(bytes));
+                }
+            } catch (r2Err) { console.warn('[VIEW] r2_key falhou, tentando disco local:', r2Err.message); }
+        }
+
+        // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
             let isDocx = false;
