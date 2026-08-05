@@ -12178,9 +12178,27 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     db.all(
         `SELECT * FROM epi_entregas WHERE ficha_id=? ORDER BY data_entrega ASC`,
         [req.params.id],
-        (err, rows) => {
+        async (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(rows.map(r => ({ ...r, assinatura_base64: r.assinatura_url || r.assinatura_base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') })));
+            
+            const processRow = async (r) => {
+                let base64 = r.assinatura_base64;
+                if (r.assinatura_url && (!base64 || base64 === '')) {
+                     try {
+                          const response = await fetch(r.assinatura_url);
+                          const arrayBuffer = await response.arrayBuffer();
+                          const buffer = Buffer.from(arrayBuffer);
+                          base64 = 'data:image/png;base64,' + buffer.toString('base64');
+                     } catch(e) {
+                          console.error("[EPI GET] Erro fetch image from R2:", e.message);
+                          base64 = r.assinatura_url; // fallback, mas pode quebrar pdf
+                     }
+                }
+                return { ...r, assinatura_base64: base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') };
+            };
+            
+            const processedRows = await Promise.all(rows.map(processRow));
+            res.json(processedRows);
         }
     );
 });
@@ -19656,9 +19674,29 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                 // Buscar template de EPI
                 db.get('SELECT * FROM epi_templates WHERE id = ?', [ficha.template_id], (err4, template) => {
                     // Buscar entregas assinadas
-                    db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], (err5, entregas) => {
+                    db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], async (err5, entregas) => {
                         const epis = (() => { try { return JSON.parse(ficha.snapshot_epis || '[]'); } catch (e) { return []; } })();
                         const templateEpis = template ? (() => { try { return JSON.parse(template.epis_json || '[]'); } catch (e) { return []; } })() : epis;
+
+                        const processedEntregas = await Promise.all((entregas || []).map(async (e) => {
+                            let base64 = e.assinatura_base64;
+                            if (e.assinatura_url && (!base64 || base64 === '')) {
+                                try {
+                                    const response = await fetch(e.assinatura_url);
+                                    const arrayBuffer = await response.arrayBuffer();
+                                    const buffer = Buffer.from(arrayBuffer);
+                                    base64 = 'data:image/png;base64,' + buffer.toString('base64');
+                                } catch(errFetch) {
+                                    console.error("[EPI PUBLIC GET] Erro fetch image from R2:", errFetch.message);
+                                    base64 = e.assinatura_url;
+                                }
+                            }
+                            return {
+                                data: e.data_entrega,
+                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
+                                assinatura_base64: base64
+                            };
+                        }));
 
                         res.json({
                             ficha: {
@@ -19676,11 +19714,7 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                                 dept: colabRow.departamento,
                                 admissao: colabRow.data_admissao
                             } : { nome: colabInfo.nome || 'Colaborador' },
-                            entregas: (entregas || []).map(e => ({
-                                data: e.data_entrega,
-                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
-                                assinatura_base64: e.assinatura_url || e.assinatura_base64
-                            }))
+                            entregas: processedEntregas
                         });
                     });
                 });
@@ -23174,16 +23208,29 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 
 
 // ?????? GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ?????????????????????
-// Busca registro completo (assinatura + selfie) para exibi????o pàs-assinatura
+// Busca registro completo (assinatura + selfie) para exibição pós-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
     `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, instrutor_nome, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
-    (err, row) => {
+    async (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(row || null);
+      if (!row) return res.json(null);
+      
+      try {
+          if (row.assinatura_base64 && row.assinatura_base64.startsWith('http')) {
+              const rA = await fetch(row.assinatura_base64);
+              row.assinatura_base64 = 'data:image/png;base64,' + Buffer.from(await rA.arrayBuffer()).toString('base64');
+          }
+          if (row.selfie_base64 && row.selfie_base64.startsWith('http')) {
+              const rS = await fetch(row.selfie_base64);
+              row.selfie_base64 = 'data:image/png;base64,' + Buffer.from(await rS.arrayBuffer()).toString('base64');
+          }
+      } catch (e) { console.error("Erro fetch imagem treinamento:", e.message); }
+      
+      res.json(row);
     }
   );
 });
@@ -23196,9 +23243,22 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
-    (err, row) => {
+    async (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(row || null);
+      if (!row) return res.json(null);
+      
+      try {
+          if (row.assinatura_base64 && row.assinatura_base64.startsWith('http')) {
+              const rA = await fetch(row.assinatura_base64);
+              row.assinatura_base64 = 'data:image/png;base64,' + Buffer.from(await rA.arrayBuffer()).toString('base64');
+          }
+          if (row.selfie_base64 && row.selfie_base64.startsWith('http')) {
+              const rS = await fetch(row.selfie_base64);
+              row.selfie_base64 = 'data:image/png;base64,' + Buffer.from(await rS.arrayBuffer()).toString('base64');
+          }
+      } catch (e) { console.error("Erro fetch imagem treinamento:", e.message); }
+      
+      res.json(row);
     }
   );
 });
