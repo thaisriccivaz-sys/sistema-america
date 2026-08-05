@@ -2263,6 +2263,41 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
 
 
 // Endpoint: Reenviar/Recuperar Link de Assinatura
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------
+// Rota Auxiliar (Assinaturas Digitais) - EXCLUIR Assinatura do Assinafy
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------
+app.delete('/api/assinaturas/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { source } = req.query; // 'admissao' ou 'documento'
+    
+    if (!id || !source) {
+        return res.status(400).json({ error: 'Parâmetros incompletos.' });
+    }
+
+    try {
+        if (source === 'admissao') {
+            await pool.query(
+                `UPDATE admissao_assinaturas 
+                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
+                 WHERE id = ?`,
+                [id]
+            );
+        } else {
+            await pool.query(
+                `UPDATE documentos 
+                 SET assinafy_id = NULL, assinafy_status = 'PENDENTE', assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
+                 WHERE id = ?`,
+                [id]
+            );
+        }
+        res.json({ sucesso: true, message: 'Pedido de assinatura excluído permanentemente.' });
+    } catch (err) {
+        console.error('Erro ao excluir assinatura:', err);
+        res.status(500).json({ error: 'Falha interna ao excluir pedido de assinatura.' });
+    }
+});
+
 app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
     const { id, source } = req.body;
     try {
