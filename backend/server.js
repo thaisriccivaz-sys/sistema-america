@@ -190,6 +190,25 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
 }
 
 /**
+ * Utilitário GLOBAL: Gera chave R2 padronizada com nome legível.
+ * Formato: Colaboradores/NOME/TIPO/Subtipo/YYYY/MM/DD_NOME_DOCUMENTO_hash.ext
+ */
+function buildR2Key(tipo, subtipo, nomeColab, nomeDocumento, ext) {
+    const safe = s => (s || 'desconhecido')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_\-]/g, '_')
+        .replace(/_+/g, '_').slice(0, 60);
+    const now = new Date();
+    const ano  = now.getFullYear();
+    const mes  = String(now.getMonth() + 1).padStart(2, '0');
+    const dia  = String(now.getDate()).padStart(2, '0');
+    const hash = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    const safeColab = safe(nomeColab);
+    const safeDoc   = safe(nomeDocumento);
+    return `Colaboradores/${safeColab}/${tipo}/${subtipo}/${ano}/${mes}/${dia}_${safeColab}_${safeDoc}_${hash}.${ext}`;
+}
+
+/**
  * Utilitário GLOBAL: Verifica e notifica estoque mínimo por endereço.
  * Dispara notificação de tela e e-mail sempre que qtdAtual <= minEnd.
  * @param {object} db - instância do banco de dados
@@ -12164,17 +12183,36 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
 
 
 // POST: salvar selfie da entrega de EPI
-app.post('/api/epi-selfie', authenticateToken, (req, res) => {
+app.post('/api/epi-selfie', authenticateToken, async (req, res) => {
     const { colaborador_id, selfie_base64, registrado_por, timestamp } = req.body;
     if (!colaborador_id || !selfie_base64) return res.status(400).json({ error: 'Dados incompletos.' });
     const registradoPor = registrado_por || (req.user ? (req.user.nome || req.user.username || '') : '');
     const ts = timestamp || new Date().toISOString();
+
+    // Buscar nome do colaborador para nomear o arquivo no R2
+    const colabRow = await new Promise(resolve => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => resolve(r)));
+    const nomeColab = colabRow ? colabRow.nome_completo : `ID_${colaborador_id}`;
+
+    let selfieUrl = null;
+    let b64Salvar = selfie_base64;
+    const r2 = require('./utils/r2');
+    if (r2.isReady() && selfie_base64 && selfie_base64.startsWith('data:')) {
+        try {
+            const bData = selfie_base64.split(',')[1];
+            const r2Key = buildR2Key('EPI', 'Selfies', nomeColab, 'Selfie_EPI', 'jpg');
+            selfieUrl = await r2.uploadToR2(r2Key, Buffer.from(bData, 'base64'), 'image/jpeg');
+            b64Salvar = null; // arquivo no R2, não precisa guardar base64
+        } catch (e) {
+            console.error('[EPI Selfie] Erro upload R2:', e.message);
+        }
+    }
+
     db.run(
         `INSERT INTO epi_selfies (colaborador_id, selfie_base64, registrado_por, timestamp) VALUES (?,?,?,?)`,
-        [colaborador_id, selfie_base64, registradoPor, ts],
+        [colaborador_id, selfieUrl || b64Salvar, registradoPor, ts],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, id: this.lastID });
+            res.json({ success: true, id: this.lastID, selfie_url: selfieUrl });
         }
     );
 });
@@ -12183,7 +12221,7 @@ app.post('/api/epi-selfie', authenticateToken, (req, res) => {
 app.get('/api/epi-selfie/:colaborador_id', authenticateToken, (req, res) => {
     const { colaborador_id } = req.params;
     db.all(
-        `SELECT id, colaborador_id, selfie_base64, registrado_por, timestamp, criado_em
+        `SELECT id, colaborador_id, COALESCE(selfie_base64, '') AS selfie_base64, registrado_por, timestamp, criado_em
          FROM epi_selfies WHERE colaborador_id = ?
          ORDER BY criado_em DESC`,
         [colaborador_id],
@@ -12241,14 +12279,23 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
     let assinaturaUrl = null;
     let b64Salvar = assinatura_base64;
     const r2 = require('./utils/r2');
+
+    // Buscar nome do colaborador e grupo da ficha para nomear o arquivo
+    const [colabEpiRow, fichaRow] = await Promise.all([
+        new Promise(resolve => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => resolve(r))),
+        new Promise(resolve => db.get('SELECT grupo FROM colaborador_epi_fichas WHERE id = ?', [fichaId], (e, r) => resolve(r)))
+    ]);
+    const nomeColabEpi = colabEpiRow ? colabEpiRow.nome_completo : `ID_${colaborador_id}`;
+    const nomeGrupo = fichaRow ? fichaRow.grupo : 'EPI';
+
     if (r2.isReady() && assinatura_base64) {
         try {
             let b64Data = assinatura_base64;
             if (b64Data.startsWith('data:')) b64Data = b64Data.split(',')[1];
             const buffer = Buffer.from(b64Data, 'base64');
-            const r2Key = `EPI/Assinaturas/Ficha_${fichaId}_Colab_${colaborador_id}_${Date.now()}.png`;
+            const r2Key = buildR2Key('EPI', 'Assinaturas', nomeColabEpi, nomeGrupo, 'png');
             assinaturaUrl = await r2.uploadToR2(r2Key, buffer, 'image/png');
-            // b64Salvar = null; // Mantido para testes
+            b64Salvar = null;
         } catch (e) {
             console.error('[EPI] Erro upload R2:', e.message);
         }
@@ -13023,9 +13070,18 @@ app.post('/api/ocorrencias/:id/anexos', authenticateToken, multerOcorrAnexo.sing
 
     try {
         const ocorrenciaId = req.params.id;
-        const ext = require('path').extname(req.file.originalname);
-        const ts = Date.now();
-        const r2Key = `ocorrencias/${ocorrenciaId}/${ts}${ext}`;
+        const ext = require('path').extname(req.file.originalname).replace('.', '') || 'bin';
+
+        // Buscar dados da ocorrência (colaborador + título) para gerar key legível
+        const ocorrRow = await new Promise(resolve =>
+            db.get(`SELECT o.titulo, c.nome_completo
+                    FROM ocorrencias o LEFT JOIN colaboradores c ON c.id = o.colaborador_id
+                    WHERE o.id = ?`, [ocorrenciaId], (e, r) => resolve(r))
+        );
+        const nomeColabOcorr = ocorrRow ? ocorrRow.nome_completo : `ID_${ocorrenciaId}`;
+        const tituloOcorr   = ocorrRow ? ocorrRow.titulo : 'Ocorrencia';
+        const r2Key = buildR2Key('Ocorrencias', '', nomeColabOcorr, tituloOcorr, ext)
+            .replace('//', '/'); // remove barra dupla se subtipo vazio
 
         const publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, req.file.mimetype);
 
@@ -17165,15 +17221,20 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
     let foto_salvar = foto_base64;
     
     const r2 = require('./utils/r2');
+    // Gera prefixo de pasta: Frota/PLACA_MARCAMODELO/
+    const safe = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').slice(0, 40);
+    const frotaPasta = `Frota/${safe(placa)}_${safe(marca_modelo_versao)}`;
+    const frotaHash = Date.now().toString(36);
+
     if (r2.isReady()) {
         try {
             if (crlv_base64 && crlv_base64.startsWith('data:')) {
                 const bData = crlv_base64.split(',')[1];
                 const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
                 const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-                crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(bData, 'base64'), mime);
+                crlv_url = await r2.uploadToR2(`${frotaPasta}/CRLV/${safe(placa)}_CRLV_${frotaHash}.pdf`, Buffer.from(bData, 'base64'), mime);
             } else if (crlv_base64) {
-                crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+                crlv_url = await r2.uploadToR2(`${frotaPasta}/CRLV/${safe(placa)}_CRLV_${frotaHash}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
             }
 
             if (foto_base64 && foto_base64.startsWith('data:')) {
@@ -17181,9 +17242,9 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
                 const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
                 const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                 const ext = mime === 'image/png' ? 'png' : 'jpg';
-                foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.${ext}`, Buffer.from(bData, 'base64'), mime);
+                foto_url = await r2.uploadToR2(`${frotaPasta}/Fotos/${safe(placa)}_Foto_${frotaHash}.${ext}`, Buffer.from(bData, 'base64'), mime);
             } else if (foto_base64) {
-                foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
+                foto_url = await r2.uploadToR2(`${frotaPasta}/Fotos/${safe(placa)}_Foto_${frotaHash}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
             }
         } catch(e) {
             console.error('[FROTA] Erro upload R2:', e.message);
@@ -17222,6 +17283,11 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
     let crlv_url = oldRow ? oldRow.crlv_url : null;
     let foto_url = oldRow ? oldRow.foto_url : null;
     
+    // Gera prefixo de pasta para o PUT também
+    const safePut = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').slice(0, 40);
+    const frotaPastaPut = `Frota/${safePut(placa)}_${safePut(marca_modelo_versao)}`;
+    const frotaHashPut = Date.now().toString(36);
+
     if (r2.isReady()) {
         try {
             if (crlv_base64 && !crlv_base64.startsWith('http')) {
@@ -17229,9 +17295,9 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
                     const bData = crlv_base64.split(',')[1];
                     const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
                     const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-                    crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(bData, 'base64'), mime);
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(bData, 'base64'), mime);
                 } else {
-                    crlv_url = await r2.uploadToR2(`Frota/CRLV_${placa}_${Date.now()}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
                 }
             }
 
@@ -17241,9 +17307,9 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
                     const mimeMatch = foto_base64.match(/^data:([^;]+);base64,/);
                     const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
                     const ext = mime === 'image/png' ? 'png' : 'jpg';
-                    foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.${ext}`, Buffer.from(bData, 'base64'), mime);
+                    foto_url = await r2.uploadToR2(`${frotaPastaPut}/Fotos/${safePut(placa)}_Foto_${frotaHashPut}.${ext}`, Buffer.from(bData, 'base64'), mime);
                 } else {
-                    foto_url = await r2.uploadToR2(`Frota/Foto_${placa}_${Date.now()}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
+                    foto_url = await r2.uploadToR2(`${frotaPastaPut}/Fotos/${safePut(placa)}_Foto_${frotaHashPut}.jpg`, Buffer.from(foto_base64, 'base64'), 'image/jpeg');
                 }
             }
         } catch(e) {
@@ -23024,17 +23090,26 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
       let b64Ass = assinatura_base64 || '';
       let b64Selfie = selfie_base64 || '';
       const r2 = require('./utils/r2');
+
+      // Buscar nome do colaborador e nome do treinamento para nomear os arquivos no R2
+      const [colabTreinRow, treinRow] = await Promise.all([
+          new Promise(resolve => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => resolve(r))),
+          new Promise(resolve => db.get('SELECT nome FROM treinamentos WHERE id = ?', [treinamento_id], (e, r) => resolve(r)))
+      ]);
+      const nomeColabTrein = colabTreinRow ? colabTreinRow.nome_completo : `ID_${colaborador_id}`;
+      const nomeTrein = treinRow ? treinRow.nome : `Treinamento_${treinamento_id}`;
+
       if (r2 && r2.isReady()) {
           try {
               if (b64Ass && b64Ass.startsWith('data:')) {
                   const bData = b64Ass.split(',')[1];
-                  assUrl = await r2.uploadToR2(`Treinamentos/Assinaturas/${treinamento_id}_Colab_${colaborador_id}_${Date.now()}.png`, Buffer.from(bData, 'base64'), 'image/png');
-                  // b64Ass = ''; // Mantido para testes
+                  assUrl = await r2.uploadToR2(buildR2Key('Treinamentos', 'Assinaturas', nomeColabTrein, nomeTrein, 'png'), Buffer.from(bData, 'base64'), 'image/png');
+                  b64Ass = '';
               }
               if (b64Selfie && b64Selfie.startsWith('data:')) {
                   const bData = b64Selfie.split(',')[1];
-                  selfieUrl = await r2.uploadToR2(`Treinamentos/Selfies/${treinamento_id}_Colab_${colaborador_id}_${Date.now()}.png`, Buffer.from(bData, 'base64'), 'image/png');
-                  // b64Selfie = ''; // Mantido para testes
+                  selfieUrl = await r2.uploadToR2(buildR2Key('Treinamentos', 'Selfies', nomeColabTrein, nomeTrein, 'png'), Buffer.from(bData, 'base64'), 'image/png');
+                  b64Selfie = '';
               }
           } catch(e) {
               console.error('[TREINAMENTO] Erro upload R2:', e.message);
