@@ -2279,7 +2279,7 @@ app.delete('/api/assinaturas/:id', authenticateToken, async (req, res) => {
         if (source === 'admissao') {
             await new Promise((resolve, reject) => db.run(
                 `UPDATE admissao_assinaturas 
-                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
+                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, enviado_em = NULL, assinado_em = NULL 
                  WHERE id = ?`,
                 [id], (err) => err ? reject(err) : resolve()
             ));
