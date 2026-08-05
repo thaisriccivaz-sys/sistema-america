@@ -29158,3 +29158,32 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
 });
 
 
+// --- Rota temporária para ver os arquivos perdidos ---
+app.get('/api/arquivos-perdidos', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const txtPath = path.resolve(__dirname, 'arquivos_perdidos.txt');
+    if (fs.existsSync(txtPath)) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.sendFile(txtPath);
+    } else {
+        res.status(404).send('Arquivo não encontrado. Rode o script list_missing_files.js primeiro.');
+    }
+});
+// ----------------------------------------------------
+
+// --- Configuração de Backup Automático ---
+const runBackup = require('./backup_db');
+let lastBackupDate = null;
+setInterval(() => {
+    const now = new Date();
+    if (now.getHours() === 6) { // 6 UTC = 3 AM Brasilia
+        const dateStr = now.toISOString().split('T')[0];
+        if (lastBackupDate !== dateStr) {
+            console.log('[CRON] Iniciando backup diário programado (03:00 BRT)...');
+            runBackup().catch(e => console.error('[CRON] Erro no backup:', e));
+            lastBackupDate = dateStr;
+        }
+    }
+}, 1000 * 60 * 60); // 1 hora
+// ----------------------------------------
