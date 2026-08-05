@@ -193,25 +193,38 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     if (!cpf)   throw new Error('CPF do colaborador é obrigatório.');
 
     // 2. Upload do arquivo
-    const filePath = path.resolve(doc.file_path);
     let fileBuffer = null;
-    let fileName = doc.file_name || path.basename(filePath);
+    let fileName = doc.file_name || 'documento.pdf';
+    let filePath = doc.file_path ? path.resolve(doc.file_path) : '';
 
-    if (fs.existsSync(filePath)) {
-        fileBuffer = fs.readFileSync(filePath);
-    } else {
-        // Arquivo local não existe (Render efêmero) — tentar baixar do Assinafy se já tiver sido enviado antes
-        // ou informar erro claro
-        console.warn(`[ASSINAFY] Arquivo não encontrado localmente: ${filePath}`);
-        // Não podemos usar assinafy_url para baixar porque ela é uma página HTML de assinatura,
-        // gerando erro "Unsupported file content: text/html" na re-submissão.
-        // E assinafy_signed_url também pode requerer autenticação. 
+    const r2Utils = require('./utils/r2');
+    if (doc.r2_key && r2Utils.isReady()) {
+        try {
+            console.log(`[ASSINAFY] Baixando do R2: ${doc.r2_key}`);
+            const fileData = await r2Utils.downloadStreamFromR2(doc.r2_key);
+            if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                const bytes = await fileData.stream.transformToByteArray();
+                fileBuffer = Buffer.from(bytes);
+            }
+        } catch (e) {
+            console.warn(`[ASSINAFY] Falha ao baixar do R2: ${e.message}`);
+        }
+    }
+
+    if (!fileBuffer && filePath && filePath.trim() !== '') {
+        if (fs.existsSync(filePath) && fs.lstatSync(filePath).isFile()) {
+            fileBuffer = fs.readFileSync(filePath);
+            if (!doc.file_name) fileName = path.basename(filePath);
+        } else {
+            console.warn(`[ASSINAFY] Arquivo não encontrado localmente: ${filePath}`);
+        }
+    }
+
+    if (!fileBuffer) {
         if (doc.assinafy_signed_url) {
             console.log(`[ASSINAFY] CUIDADO: O arquivo não está localmente, mas tem URL assinada.`);
         }
-        if (!fileBuffer) {
-            throw new Error(`Arquivo não encontrado: ${filePath}. O arquivo pode ter sido removido do servidor. Faça o upload novamente.`);
-        }
+        throw new Error(`Arquivo não encontrado para assinatura. O arquivo pode ter sido removido do servidor ou ainda não foi sincronizado no R2. Faça o upload novamente.`);
     }
 
     const form = new FormData();
