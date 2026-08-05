@@ -18,7 +18,7 @@ const ONEDRIVE_BASE_PATH = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores
 
 if (process.env.ONEDRIVE_CLIENT_ID) {
     try {
-        onedrive = require('./onedrive');
+        onedrive = require('./utils/onedrive');
         console.log('✅ OneDrive configurado');
     } catch (e) {
         console.warn('⚠️ OneDrive não disponível:', e.message);
