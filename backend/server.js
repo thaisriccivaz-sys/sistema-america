@@ -18736,7 +18736,8 @@ const _handleDownloadZip = async (req, res) => {
                 const docs = await new Promise(resolve => db.all(`SELECT * FROM documentos WHERE colaborador_id = ?`, [colab.id], (err, rows) => resolve(rows || [])));
                 
                 const addedFilePaths = new Set(); // Evita duplicatas no zip
-                docs.forEach(doc => {
+                const r2Utils = require('./utils/r2');
+                for (const doc of docs) {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
                     const tabName = doc.tab_name || '';
                     let matchedCategory = null;
@@ -18751,19 +18752,40 @@ const _handleDownloadZip = async (req, res) => {
                     else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
                     
                     if (matchedCategory) {
+                        const r2Key = doc.signed_r2_key || doc.r2_key;
                         const filePath = doc.signed_file_path || doc.file_path;
-                        if (filePath) {
-                            const normalizedPath = filePath.replace(/\\/g, '/');
-                            if (!addedFilePaths.has(normalizedPath)) {
-                                addedFilePaths.add(normalizedPath);
-                                const ext = path.extname(doc.file_name || '.pdf') || '.pdf';
-                                const label = docCategoryLabel[matchedCategory] || matchedCategory.toUpperCase();
-                                const nomeArquivo = `${nomeColabSafe}_${label}${ext}`;
-                                addLocalFileIfExists(filePath, `${folderName}/${nomeArquivo}`);
+                        const dedupeKey = r2Key || (filePath ? filePath.replace(/\\/g, '/') : null);
+                        
+                        if (dedupeKey && !addedFilePaths.has(dedupeKey)) {
+                            addedFilePaths.add(dedupeKey);
+                            const ext = path.extname(doc.file_name || '.pdf') || '.pdf';
+                            const label = docCategoryLabel[matchedCategory] || matchedCategory.toUpperCase();
+                            const nomeArquivo = `${nomeColabSafe}_${label}${ext}`;
+                            const nameInZip = `${folderName}/${nomeArquivo}`;
+                            
+                            let fetched = false;
+                            // Prioridade 1: Tentar baixar do R2
+                            if (r2Key && r2Utils.isReady()) {
+                                try {
+                                    const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                                    if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                                        const bytes = await fileData.stream.transformToByteArray();
+                                        zip.addFile(nameInZip, Buffer.from(bytes));
+                                        hasFiles = true;
+                                        fetched = true;
+                                        console.log(`[ZIP] Arquivo adicionado do R2: ${r2Key} -> ${nameInZip}`);
+                                    }
+                                } catch(e) {
+                                    console.warn(`[ZIP] Falha ao baixar doc do R2 (${r2Key}):`, e.message);
+                                }
+                            }
+                            // Fallback: Tentar disco local (documentos antigos)
+                            if (!fetched && filePath) {
+                                addLocalFileIfExists(filePath, nameInZip);
                             }
                         }
                     }
-                });
+                }
 
                 // Buscar Ficha EPI ativa se EPI exigido
                 if (docsExigidos.includes('epi')) {
