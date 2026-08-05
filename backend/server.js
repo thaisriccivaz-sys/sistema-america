@@ -11080,13 +11080,13 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">???? Boleto Faculdade</h2>
+                <h2 style="color: #16a34a; border-bottom: 2px solid #16a34a; padding-bottom: 10px;">&#128196; Boleto Faculdade</h2>
                 <p>Informamos que o colaborador anexou o boleto da <strong>Faculdade</strong> referente à competência ${md}/${yyyy}.</p>
 
                 <div style="background:#f0fdf4; padding:15px; border-radius:8px; margin:20px 0; border: 1px solid #bbf7d0;">
                     <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                     <p style="margin:4px 0;"><strong>CPF:</strong> ${colab.cpf || '-'}</p>
-                    <p style="margin:4px 0;"><strong>Compet??ncia:</strong> ${md}/${yyyy}</p>
+                    <p style="margin:4px 0;"><strong>Competência:</strong> ${md}/${yyyy}</p>
                     <p style="margin:4px 0;"><strong>Data do upload:</strong> ${dataDoc}</p>
                 </div>
 
@@ -11111,7 +11111,12 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
             attachments: attachments
         });
 
-        res.json({ sucesso: true, message: 'Boleto enviado ao financeiro com sucesso.' });
+        const agora = new Date().toISOString();
+        await new Promise((resolve, reject) =>
+            db.run('UPDATE documentos SET boleto_financeiro_enviado_em = ? WHERE id = ?',
+                [agora, document_id], (err) => err ? reject(err) : resolve()));
+
+        res.json({ sucesso: true, message: 'Boleto enviado ao financeiro com sucesso.', enviado_em: agora });
     } catch (err) {
         console.error('[ERRO BOLETO FINANCEIRO]', err);
         res.status(500).json({ sucesso: false, error: 'Erro ao enviar boleto: ' + err.message });
