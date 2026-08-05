@@ -12176,7 +12176,7 @@ app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
 // GET: listar entregas de uma ficha de EPI
 app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     db.all(
-        `SELECT * FROM epi_entregas WHERE ficha_id=? ORDER BY data_entrega ASC`,
+        `SELECT * FROM epi_entregas WHERE ficha_id=?`,
         [req.params.id],
         async (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -12197,7 +12197,21 @@ app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
                 return { ...r, assinatura_base64: base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') };
             };
             
-            const processedRows = await Promise.all(rows.map(processRow));
+            let processedRows = await Promise.all(rows.map(processRow));
+            
+            // Ordenar corretamente datas DD/MM/YYYY
+            processedRows.sort((a, b) => {
+                const parseDate = (d) => {
+                    if (!d) return 0;
+                    if (d.includes('/')) {
+                        const [day, month, year] = d.split('/');
+                        return new Date(`${year}-${month}-${day}T00:00:00`).getTime();
+                    }
+                    return new Date(d).getTime();
+                };
+                return parseDate(a.data_entrega) - parseDate(b.data_entrega);
+            });
+            
             res.json(processedRows);
         }
     );
