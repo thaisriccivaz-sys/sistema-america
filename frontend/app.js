@@ -6638,7 +6638,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                     ` : ''}
 
                     ${(isSaved && stMain !== 'NAO_EXIGE') ? `
-                        <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem; white-space:nowrap;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                        <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem; white-space:nowrap;" onclick="window.iniciarAssinafy(${existingDoc.id}, this)" ${isAssinado ? 'disabled' : ''}>
                             <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                         </button>
                         ${assStatusIcon}
@@ -6764,7 +6764,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                                 ${tabId === 'ASO' ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                             ` : ''}
-                            <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy('${docType}', '${tabId}', this)" ${isAssinado ? 'disabled' : ''}>
+                            <button class="btn btn-assinafy" style="height: 42px; display:flex; align-items:center; padding:0 0.85rem;" onclick="window.iniciarAssinafy(${existingDoc.id}, this)" ${isAssinado ? 'disabled' : ''}>
                                 <i class="ph ph-pen-nib"></i> Solicitar Assinatura
                             </button>
                             ${assStatusIcon}
@@ -7993,7 +7993,7 @@ window.renderPagamentosCompetencia = function () {
     // ── Slots mensais ──────────────────────────────────────────────────────────
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
     // doc tipo Pagamentos (holerite salvo via Docs. em Massa) — fica em primeiro, roxo
-    const docPagamentos = docs.find(x => x.document_type === 'Pagamentos');
+    const docPagamentos = [...docs].sort((a, b) => b.id - a.id).find(x => x.document_type === 'Pagamentos');
     const slotPag = createDocSlot('Pagamentos', 'Pagamentos', docPagamentos, `'${y}'`, `'${m}'`);
     // Estilo roxo para o cartão Pagamentos
     slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
@@ -14026,7 +14026,7 @@ function copiarLinkAssinafy(el) {
 /**
  * Inicia o processo de assinatura eletronica via Assinafy
  */
-window.iniciarAssinafy = async function (docType, tabName, btn) {
+window.iniciarAssinafy = async function (docId, btn) {
     if (!viewedColaborador) return;
 
     const colabId = viewedColaborador.id;
@@ -14036,16 +14036,9 @@ window.iniciarAssinafy = async function (docType, tabName, btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
 
-        // 1. Buscar documento no banco
-        const docs = await apiGet(`/colaboradores/${colabId}/documentos`);
-        if (!docs) throw new Error('Falha ao carregar documentos.');
-
-        const docRecord = docs.find(d => d.tab_name === tabName && d.document_type === docType);
-        if (!docRecord) throw new Error('Documento nao encontrado. Faca o upload primeiro.');
-
         // 2. Chamar backend (retorna imediatamente, processa em background)
         const res = await apiPost('/assinafy/upload', {
-            document_id: docRecord.id,
+            document_id: docId,
             colaborador_id: colabId
         });
 
@@ -17811,7 +17804,7 @@ window.loadAssinaturasDigitais = async function () {
                     <input type="text" id="ass-search" placeholder="Buscar documento..." oninput="window.filtrarAssinaturas()" autocomplete="off"
                         style="border:none;outline:none;font-size:0.85rem;width:100%;background:transparent;color:#334155;">
                 </div>
-                <select id="ass-filter-status" onchange="window.filtrarAssinaturas()"
+                <select id="digitais-filter-status" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
                     <option value="">Todos os status</option>
                     <option value="Assinado">✅ Assinado</option>
@@ -17881,7 +17874,7 @@ window.filtrarAssinaturas = function () {
     const dados = window._assinaturasData || [];
     const search = (document.getElementById('ass-search')?.value || '').toLowerCase();
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
-    const filterStatus = document.getElementById('ass-filter-status')?.value || '';
+    const filterStatus = document.getElementById('digitais-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
     const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Ativos';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
