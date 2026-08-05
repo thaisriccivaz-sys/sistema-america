@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -24804,7 +24804,7 @@ app.post('/api/public/cnd/:token', upload.single('file'), (req, res) => {
                     if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
                     
                     const ext = path.extname(req.file.originalname) || '.pdf';
-                    const safeName = row.cnd_nome.normalize('NFD').replace(/[Ì€-Í¯]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+                    const safeName = row.cnd_nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
                     const fileName = safeName + ext;
                     const filePath = path.join(empresaDir, fileName);
                     
@@ -29152,6 +29152,9 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
             db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
                 [r.usuario_id, 'sac_sla_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
         });
+    });
+    res.json({ success: true });
+});
 
 // --- Configuração de Backup Automático ---
 const runBackup = require('./backup_db');
