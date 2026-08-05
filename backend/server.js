@@ -7847,7 +7847,18 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
         // Fallback final: Devolve o arquivo original NÃO ASSINADO
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
-            const ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            let isDocx = false;
+            try {
+                const fd = fs.openSync(pathLocal, 'r');
+                const buffer = Buffer.alloc(4);
+                fs.readSync(fd, buffer, 0, 4, 0);
+                fs.closeSync(fd);
+                if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) isDocx = true;
+            } catch(e) {}
+            
+            let ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            if (isDocx) ext = '.docx';
+
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
@@ -7878,7 +7889,18 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
         // Se existe fisicamente (.pfx concluído)
         if (pathLocal && fs.existsSync(pathLocal)) {
-            const ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            let isDocx = false;
+            try {
+                const fd = fs.openSync(pathLocal, 'r');
+                const buffer = Buffer.alloc(4);
+                fs.readSync(fd, buffer, 0, 4, 0);
+                fs.closeSync(fd);
+                if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) isDocx = true;
+            } catch(e) {}
+            
+            let ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            if (isDocx) ext = '.docx';
+
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
@@ -7920,7 +7942,18 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         // Fallback final: Devolve o arquivo original NÃO ASSINADO
         pathLocal = row.file_path;
         if (pathLocal && fs.existsSync(pathLocal)) {
-            const ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            let isDocx = false;
+            try {
+                const fd = fs.openSync(pathLocal, 'r');
+                const buffer = Buffer.alloc(4);
+                fs.readSync(fd, buffer, 0, 4, 0);
+                fs.closeSync(fd);
+                if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) isDocx = true;
+            } catch(e) {}
+            
+            let ext = row.file_name ? require('path').extname(row.file_name).toLowerCase() : '.pdf';
+            if (isDocx) ext = '.docx';
+
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);

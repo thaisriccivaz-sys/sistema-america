@@ -10721,14 +10721,19 @@ window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
     
-    if (nomeDoc && (!nomeDoc.toLowerCase().endsWith('.pdf'))) {
-        var dlUrl = API_URL + '/documentos/download/' + docId + '?token=' + encodeURIComponent(token);
-        window.open(dlUrl, '_blank');
-        return;
-    }
-
-    var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
-    window.openContratoViewerPopup(pdfUrl, nomeDoc);
+    var viewUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
+    var dlUrl = API_URL + '/documentos/download/' + docId + '?token=' + encodeURIComponent(token);
+    
+    fetch(viewUrl, { method: 'HEAD' }).then(res => {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('pdf')) {
+            window.openContratoViewerPopup(viewUrl, nomeDoc);
+        } else {
+            window.open(dlUrl, '_blank');
+        }
+    }).catch(err => {
+        window.openContratoViewerPopup(viewUrl, nomeDoc);
+    });
 };
 
 window.openContratoViewerPopup = function (pdfUrl, nomeDoc) {
@@ -16581,9 +16586,9 @@ window.filtrarAssinaturas = function () {
         if (isSigned) {
             const nomeEsc = (d.nome_documento || '').replace(/'/g, "\\'");
             if (d.source === 'documento') {
-                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="display:none; background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Excluir Pedido"><i class="ph ph-trash"></i></button></div>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><!-- Trash button hidden --></div>`;
             } else {
-                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="display:none; background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Excluir Pedido"><i class="ph ph-trash"></i></button></div>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><!-- Trash button hidden --></div>`;
             }
         } else if (d.assinafy_id) {
             // Qualquer status n+úo-assinado com assinafy_id ÔåÆ pode reenviar
