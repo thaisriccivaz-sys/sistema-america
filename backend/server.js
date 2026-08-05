@@ -153,19 +153,23 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             }
             const emails = new Set();
             rows.forEach(r => {
-                // Estratégia 0: email_override direto na config (mais confiável)
-                if (r.email_override && r.email_override.includes('@')) { emails.add(r.email_override.trim()); return; }
-                // Estratégia 1: email_corporativo via JOIN por nome completo
-                if (r.ec_by_nome && r.ec_by_nome.includes('@')) emails.add(r.ec_by_nome.trim());
-                // Estratégia 3: email_corporativo via JOIN por username
-                else if (r.ec_by_uname && r.ec_by_uname.includes('@')) emails.add(r.ec_by_uname.trim());
-                // Estratégia 5: email_corporativo via JOIN por partes do username (ex: Thais.Ricci - Thais Ricci)
-                else if (r.ec_by_upart && r.ec_by_upart.includes('@')) emails.add(r.ec_by_upart.trim());
-                // Estratégia 7: email direto na tabela usuarios (normalmente o corporativo)
-                else if (r.uemail && r.uemail.includes('@')) emails.add(r.uemail.trim());
-                // Estratégia 8: username parece um e-mail
-                else if (r.username && r.username.includes('@')) emails.add(r.username.trim());
-                else console.warn(`[Notif Email] Nenhum e-mail encontrado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}") - configure email_override na tela de Notificações`);
+                // Helper to add if valid
+                const tryAdd = (em) => {
+                    if (em && em.includes('@')) {
+                        emails.add(em.trim());
+                        return true;
+                    }
+                    return false;
+                };
+
+                // Estratégia 0: email_override
+                if (tryAdd(r.email_override)) return;
+                // Estratégia 1: email corporativo do colaborador
+                if (tryAdd(r.ec_by_nome)) return;
+                if (tryAdd(r.ec_by_uname)) return;
+                if (tryAdd(r.ec_by_upart)) return;
+                
+                console.warn(`[Notif Email] Nenhum e-mail corporativo configurado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}").`);
             });
             if (emails.size === 0) {
                 console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores t??m email_corporativo cadastrado.`);
@@ -12295,7 +12299,7 @@ app.post('/api/epi-fichas/:id/entregas', authenticateToken, async (req, res) => 
             const buffer = Buffer.from(b64Data, 'base64');
             const r2Key = buildR2Key('EPI', 'Assinaturas', nomeColabEpi, nomeGrupo, 'png');
             assinaturaUrl = await r2.uploadToR2(r2Key, buffer, 'image/png');
-            b64Salvar = null;
+            b64Salvar = '';
         } catch (e) {
             console.error('[EPI] Erro upload R2:', e.message);
         }
@@ -23035,7 +23039,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
                   (errP, existing) => {
                     const finalToken = existing ? existing.token : surveyToken;
 
-                    const sendSurveyEmail = () => {
+                      const sendSurveyEmail = () => {
                       if (!colab || !colab.email || !colab.email.includes('@')) return;
                       const baseUrl = process.env.BASE_URL || 'https://sistema-america.onrender.com';
                       const link = `${baseUrl}/pesquisa-treinamento.html?token=${finalToken}`;
@@ -23044,7 +23048,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
                       sendMailHelper({
                         to: colab.email.trim(),
                         subject: `Pesquisa de Satisfação - ${treinNome}`,
-                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação - sua opinião à muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div>`,
+                        html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;"><div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;"><div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div><div style="padding:1.5rem 2rem;"><h2 style="color:#0e7490;margin-top:0;">Pesquisa de Satisfação</h2><p>Olá <strong>${nomeFirst}</strong>,</p><p>Agradecemos sua participação em <strong>${treinNome}</strong>!</p><p>Reserve 1 minuto para responder nossa pesquisa de satisfação - sua opinião é muito importante para nós!</p><div style="text-align:center;margin:30px 0;"><a href="${link}" style="background-color:#0e7490;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:16px;">Responder Pesquisa</a></div><p style="color:#666;font-size:12px;">Se o botão não funcionar, cole este link:<br><a href="${link}" style="color:#0e7490;">${link}</a></p><hr style="border:none;border-top:1px solid #eee;margin:25px 0;"><p style="color:#999;font-size:11px;">Este é um e-mail automático, por favor não responda.</p></div></div></body></html>`,
                         attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                       }).then(() => console.log(`[PRESENÇA-EMAIL] Pesquisa enviada para ${colab.email}`))
                         .catch(e => console.error(`[PRESENÇA-EMAIL] Erro ao enviar:`, e.message));

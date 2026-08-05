@@ -2294,7 +2294,7 @@
         });
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
-        fetch('/api/sac/notificar-rafaela', {
+        fetch('/api/sac/notificar-novo-chamado', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ protocol: proto, client: newTicket.clientName })
