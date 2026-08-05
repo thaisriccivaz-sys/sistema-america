@@ -110,28 +110,49 @@ async function runRecovery() {
         const keys = buildKeys(doc);
         console.log(`[${doc.id}] ${doc.nome_completo} | ${doc.file_name}`);
 
-        // Baixa o arquivo original do OneDrive
-        try {
-            const downloadUrl = await onedrive.getDownloadUrl(keys.odPath);
-            if (downloadUrl) {
-                const res = await fetch(downloadUrl);
-                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-                const fileBuffer = Buffer.from(await res.arrayBuffer());
-                
+        let fileBuffer = null;
+        const fs = require('fs');
+
+        // 1. Tentar ler do disco local do Render primeiro
+        if (doc.file_path && fs.existsSync(doc.file_path)) {
+            try {
+                fileBuffer = fs.readFileSync(doc.file_path);
+                console.log(`       ← Achou no disco local do Render!`);
+            } catch (e) {
+                console.warn(`       ⚠️  Erro ao ler disco local: ${e.message}`);
+            }
+        }
+
+        // 2. Tentar baixar do OneDrive se não achou no disco
+        if (!fileBuffer) {
+            try {
+                const downloadUrl = await onedrive.getDownloadUrl(keys.odPath);
+                if (downloadUrl) {
+                    const res = await fetch(downloadUrl);
+                    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                    fileBuffer = Buffer.from(await res.arrayBuffer());
+                    console.log(`       ← Baixou do OneDrive`);
+                }
+            } catch(e) {
+                // ignora erro silenciosamente para não poluir
+            }
+        }
+
+        if (fileBuffer) {
+            try {
                 const mimeType = (doc.file_name || '').toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream';
                 await r2.uploadToR2(keys.r2Key, fileBuffer, mimeType);
-                console.log(`       ✅ Recuperado: ${keys.r2Key}`);
+                console.log(`       ✅ Recuperado e salvo no R2: ${keys.r2Key}`);
                 
-                // Atualiza o banco garantindo que a r2_key está correta
                 await new Promise(r => db.run('UPDATE documentos SET r2_key = ? WHERE id = ?', [keys.r2Key, doc.id], r));
                 success++;
-            } else {
-                console.warn(`       ⚠️ Não encontrado no OneDrive: ${keys.odPath}`);
-                skipped++;
+            } catch (e) {
+                console.error(`       ❌ Erro ao enviar pro R2: ${e.message}`);
+                failed++;
             }
-        } catch (e) {
-            console.error(`       ❌ Erro OneDrive/R2: ${e.message}`);
-            failed++;
+        } else {
+            console.warn(`       ⚠️ Não encontrado nem no Disco nem no OneDrive: ${doc.file_name}`);
+            skipped++;
         }
         
         // Se tinha versão assinada, tenta baixar do OneDrive (geralmente ficava na pasta ou localmente)
