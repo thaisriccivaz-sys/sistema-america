@@ -1,6 +1,6 @@
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const r2 = require('./utils/r2'); // Supondo que você tem o helper r2.js
 
 const DATA_DIR = path.join(__dirname, 'data');
