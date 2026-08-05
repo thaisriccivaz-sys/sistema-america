@@ -7861,7 +7861,11 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
 
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
+            let safeFilename = row.file_name || ('documento' + ext);
+            if (isDocx && safeFilename.toLowerCase().endsWith('.pdf')) {
+                safeFilename = safeFilename.substring(0, safeFilename.length - 4) + '.docx';
+            }
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(safeFilename)}"`);
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
@@ -7903,7 +7907,11 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
+            let safeFilename = row.file_name || ('documento' + ext);
+            if (isDocx && safeFilename.toLowerCase().endsWith('.pdf')) {
+                safeFilename = safeFilename.substring(0, safeFilename.length - 4) + '.docx';
+            }
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(safeFilename)}"`);
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
@@ -7956,7 +7964,11 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
             const contentType = ext === '.docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : ext === '.doc' ? 'application/msword' : 'application/pdf';
             res.setHeader('Content-Type', contentType);
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'documento.pdf')}"`);
+            let safeFilename = row.file_name || ('documento' + ext);
+            if (isDocx && safeFilename.toLowerCase().endsWith('.pdf')) {
+                safeFilename = safeFilename.substring(0, safeFilename.length - 4) + '.docx';
+            }
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(safeFilename)}"`);
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
