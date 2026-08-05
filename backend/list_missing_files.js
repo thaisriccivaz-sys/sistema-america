@@ -74,10 +74,11 @@ async function listMissing() {
     }
 
     if (missingFiles.length > 0) {
-        fs.writeFileSync('arquivos_perdidos.txt', missingFiles.join('\n'), 'utf8');
+        const filePath = path.join(__dirname, 'arquivos_perdidos.txt');
+        fs.writeFileSync(filePath, missingFiles.join('\n'), 'utf8');
         console.log(`\n❌ Encontrados ${missingFiles.length} arquivos perdidos!`);
         console.log(`A lista completa foi salva no arquivo 'arquivos_perdidos.txt'.`);
-        console.log(`\nPara ver a lista agora, digite: cat arquivos_perdidos.txt\n`);
+        console.log(`\nPara ver a lista agora, digite: cat backend/arquivos_perdidos.txt\n`);
     } else {
         console.log(`\n✅ NENHUM ARQUIVO PERDIDO! Todos estão no disco ou OneDrive.`);
     }
