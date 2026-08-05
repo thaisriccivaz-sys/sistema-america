@@ -311,7 +311,7 @@ if (btnLogout) {
     });
 }
 
-// ── Sessão automática: logout após 5 horas ─────────────────────────────
+// ── Sess�o automática: logout após 5 horas ─────────────────────────────
 (function () {
     const SESSION_MS = 5 * 60 * 60 * 1000; // 5 horas em ms
     const AVISO_MS = 60 * 1000; // Avisar 60 segundos antes
@@ -363,7 +363,7 @@ if (btnLogout) {
             <div style="background:#fff;border-radius:16px;width:92vw;max-width:400px;box-shadow:0 25px 60px rgba(0,0,0,0.4);overflow:hidden;text-align:center;">
                 <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:2rem 1.5rem;">
                     <i class="ph ph-lock" style="font-size:2.8rem;color:#f59e0b;display:block;margin-bottom:0.5rem;"></i>
-                    <h3 style="margin:0;color:#fff;font-size:1.15rem;font-weight:700;">Sessão Expirada</h3>
+                    <h3 style="margin:0;color:#fff;font-size:1.15rem;font-weight:700;">Sess�o Expirada</h3>
                 </div>
                 <div style="padding:1.75rem 1.5rem;">
                     <p style="color:#475569;margin:0 0 1.5rem;font-size:0.93rem;line-height:1.6;">
@@ -6982,7 +6982,7 @@ window.renderTerapiaCompetencia = function () {
     });
 
     subContainer.appendChild(document.createElement('hr'));
-    const form = createDynamicUploadForm('Terapia', 'Adicionar Sessão/Relatório', '');
+    const form = createDynamicUploadForm('Terapia', 'Adicionar Sess�o/Relatório', '');
     subContainer.appendChild(form);
 }
 
@@ -12051,7 +12051,14 @@ window.abrirModalSelecaoAnexoCargo = async function () {
 
 window.openContratoViewerById = function (docId, nomeDoc) {
     var token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    if (!token) { alert('Sessão expirada. Faça login novamente.'); return; }
+    if (!token) { alert('Sess�o expirada. Fa�a login novamente.'); return; }
+    
+    if (nomeDoc && (!nomeDoc.toLowerCase().endsWith('.pdf'))) {
+        var dlUrl = API_URL + '/documentos/download/' + docId + '?token=' + encodeURIComponent(token);
+        window.open(dlUrl, '_blank');
+        return;
+    }
+
     var pdfUrl = API_URL + '/documentos/view/' + docId + '?token=' + encodeURIComponent(token);
     window.openContratoViewerPopup(pdfUrl, nomeDoc);
 };
@@ -12293,7 +12300,7 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
             `;
         }
 
-        const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id})" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
+        const eyeBtn = `<button onclick="window.openContratoViewerById(${doc.id}, '${(doc.file_name || '').replace(/'/g, "\\'")}')" style="border:none;background:none;cursor:pointer;color:#64748b;" title="Visualizar Documento"><i class="ph ph-eye" style="font-size:1.4rem;"></i></button>`;
         const delBtn = `<button onclick="window.excluirContratoComSenha(${doc.id}, 'documento')" style="border:none;background:none;cursor:pointer;color:#dc2626;" title="Excluir Contrato"><i class="ph ph-trash" style="font-size:1.4rem;"></i></button>`;
 
         html += `
