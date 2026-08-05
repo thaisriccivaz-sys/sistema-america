@@ -1500,6 +1500,10 @@ async function syncColaboradorOneDrive(nomeCompleto) {
  * Reutiliza exatamente a mesma lógica do force-onedrive-sync que está comprovada.
  */
 async function uploadDocToOneDrive(docId) {
+    // A pedido do usuário, o salvamento no OneDrive de documentos de colaboradores foi DESATIVADO.
+    // O armazenamento ocorre exclusivamente via Cloudflare R2 agora.
+    return;
+    
     if (!onedrive || !process.env.ONEDRIVE_CLIENT_ID) return;
 
     try {
@@ -7775,55 +7779,7 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
                     const _tipoSimples2 = (document_type || '').split('###')[1] || '';
                     const _isOcorr2 = /ocorr/i.test(_tipoSimples2);
                     const _isVerbal2 = /verbal/i.test(_tipoSimples2);
-                    const _podeOneDrive2 = tab_name === 'Advertências'
-                        ? (!_isOcorr2 && ((assinafy_status === 'Testemunhas') || (!_isVerbal2 && assinafy_status === 'Assinado')))
-                        : (tab_name !== 'CONTRATOS_AVULSOS' || assinafy_status === 'NAO_EXIGE');
-
-                    if (onedrive && _podeOneDrive2) {
-                        (async () => {
-                            try {
-                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || "RH/1.Colaboradores/Sistema";
-                                const safeColab = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                const safeTab = tab_name === 'CONTRATOS_AVULSOS' ? 'CONTRATOS' : tabToOneDrivePath(tab_name);
-                                const parentDir = `${onedriveBasePath}/${safeColab}/${safeTab}`;
-                                let targetDir = parentDir;
-                                if (year && year !== 'null' && year !== 'undefined' && year !== '' && safeTab !== '01_FICHA_CADASTRAL' && safeTab !== 'CONTRATOS' && tab_name !== 'CONTRATOS_AVULSOS') {
-                                    targetDir += `/${year.replace(/[^0-9]/g, '')}`;
-                                    if (safeTab === 'PAGAMENTOS' && month && month !== 'null' && month !== 'undefined' && month !== '') {
-                                        targetDir += `/${getMesNome(month)}`;
-                                    }
-                                    if (safeTab === 'FACULDADE' && (document_type || '').toUpperCase() === 'BOLETIM') {
-                                        targetDir += '/Boletim';
-                                    }
-                                }
-
-                                if (targetDir !== parentDir) { await onedrive.ensurePath(parentDir); }
-                                await onedrive.ensurePath(targetDir);
-
-                                const fileBuffer = require('fs').readFileSync(file_path);
-                                let cloudFileName = file_name;
-                                if (tab_name === 'Atestados' && req.body.custom_name) {
-                                    cloudFileName = `${req.body.custom_name}.pdf`;
-                                } else if (tab_name === 'CONTRATOS_AVULSOS') {
-                                    cloudFileName = file_name; // Respeita exatamente o nome que já pode ter recebido (1)
-                                } else if (tab_name !== 'AVALIACAO') {
-                                    const safeColabInline = formatarNome(req.body.colaborador_nome || "DESCONHECIDO");
-                                    if (safeTab === '01_FICHA_CADASTRAL') {
-                                        cloudFileName = `${(document_type || tab_name).replace(/\s+/g, '_')}_${safeColabInline}.pdf`;
-                                    } else if (safeTab === 'FACULDADE') {
-                                        const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                                        const mesNomeFac = month && month !== 'null' && month !== '' ? getMesNome(month) + '_' : '';
-                                        cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${mesNomeFac}${docYear}_${safeColabInline}.pdf`;
-                                    } else {
-                                        const docYear = year && year !== 'null' ? String(year).replace(/[^0-9]/g, '') : String(new Date().getFullYear());
-                                        cloudFileName = `${formatarPasta(document_type || tab_name).replace(/\s+/g, '_')}_${docYear}_${safeColabInline}.pdf`;
-                                    }
-                                }
-                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
-                                console.log(`[OneDrive] Upload OK: ${cloudFileName}`);
-                            } catch (e) { console.error("Erro async OneDrive (update):", e.message); }
-                        })();
-                    }
+                    const _podeOneDrive2 = false; // Desativado a pedido do usuário (mantido apenas no R2)
 
                     // Upload para R2 (duplo backup com OneDrive)
                     setImmediate(() => uploadDocToR2(row.id, processedBuffer || req.file.buffer).catch(e => console.warn('[R2-UPDATE] Erro:', e.message)));
@@ -7845,31 +7801,8 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
                     }
 
                     const newDocId = this.lastID;
-                    if ((tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') && onedrive) {
-                        ; (async () => {
-                            try {
-                                const onedriveBasePath = process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema';
-                                const colabNome = req.body.colaborador_nome || '';
-                                const safeColab = formatarNome(colabNome) || 'DESCONHECIDO';
-
-                                let targetDir, cloudFileName;
-                                if (tab_name === 'CONTRATOS' || tab_name === 'CONTRATOS_AVULSOS') {
-                                    // Todos os Contratos na raiz de CONTRATOS, sem subpastas
-                                    targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
-                                    cloudFileName = fileNameToStore; // O multer ou fallback já aplica timestamp / c??d único
-                                }
-
-                                console.log(`[OD-INLINE] ${tab_name} => ${targetDir}/${cloudFileName}`);
-                                await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}`);
-                                await onedrive.ensurePath(`${onedriveBasePath}/${safeColab}/CONTRATOS`);
-                                await onedrive.ensurePath(targetDir);
-                                const fileBuffer = require('fs').readFileSync(file_path);
-                                await onedrive.uploadToOneDrive(targetDir, cloudFileName, fileBuffer);
-                                console.log(`[OD-INLINE] Upload OK: ${cloudFileName}`);
-                            } catch (odErr) {
-                                console.error('[OD-INLINE] Falha OneDrive:', odErr.message);
-                            }
-                        })();
+                    if (false) { // (tab_name === 'CONTRATOS_AVULSOS' || tab_name === 'CONTRATOS') && onedrive) {
+                        // OneDrive upload inline removido a pedido do usuário
                     } else {
                         const _tipoSimples = (document_type || '').split('###')[1] || '';
                         const _isOcorr = /ocorr/i.test(_tipoSimples);
