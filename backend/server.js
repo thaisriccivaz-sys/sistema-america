@@ -12176,11 +12176,43 @@ app.delete('/api/epi-fichas/:id', authenticateToken, (req, res) => {
 // GET: listar entregas de uma ficha de EPI
 app.get('/api/epi-fichas/:id/entregas', authenticateToken, (req, res) => {
     db.all(
-        `SELECT * FROM epi_entregas WHERE ficha_id=? ORDER BY data_entrega ASC`,
+        `SELECT * FROM epi_entregas WHERE ficha_id=?`,
         [req.params.id],
-        (err, rows) => {
+        async (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(rows.map(r => ({ ...r, assinatura_base64: r.assinatura_url || r.assinatura_base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') })));
+            
+            const processRow = async (r) => {
+                let base64 = r.assinatura_base64;
+                if (r.assinatura_url && (!base64 || base64 === '')) {
+                     try {
+                          const response = await fetch(r.assinatura_url);
+                          const arrayBuffer = await response.arrayBuffer();
+                          const buffer = Buffer.from(arrayBuffer);
+                          base64 = 'data:image/png;base64,' + buffer.toString('base64');
+                     } catch(e) {
+                          console.error("[EPI GET] Erro fetch image from R2:", e.message);
+                          base64 = r.assinatura_url; // fallback, mas pode quebrar pdf
+                     }
+                }
+                return { ...r, assinatura_base64: base64, epis_entregues: JSON.parse(r.epis_entregues || '[]') };
+            };
+            
+            let processedRows = await Promise.all(rows.map(processRow));
+            
+            // Ordenar corretamente datas DD/MM/YYYY
+            processedRows.sort((a, b) => {
+                const parseDate = (d) => {
+                    if (!d) return 0;
+                    if (d.includes('/')) {
+                        const [day, month, year] = d.split('/');
+                        return new Date(`${year}-${month}-${day}T00:00:00`).getTime();
+                    }
+                    return new Date(d).getTime();
+                };
+                return parseDate(a.data_entrega) - parseDate(b.data_entrega);
+            });
+            
+            res.json(processedRows);
         }
     );
 });
@@ -19656,9 +19688,29 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                 // Buscar template de EPI
                 db.get('SELECT * FROM epi_templates WHERE id = ?', [ficha.template_id], (err4, template) => {
                     // Buscar entregas assinadas
-                    db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], (err5, entregas) => {
+                    db.all('SELECT * FROM epi_entregas WHERE ficha_id = ? ORDER BY data_entrega ASC', [ficha.id], async (err5, entregas) => {
                         const epis = (() => { try { return JSON.parse(ficha.snapshot_epis || '[]'); } catch (e) { return []; } })();
                         const templateEpis = template ? (() => { try { return JSON.parse(template.epis_json || '[]'); } catch (e) { return []; } })() : epis;
+
+                        const processedEntregas = await Promise.all((entregas || []).map(async (e) => {
+                            let base64 = e.assinatura_base64;
+                            if (e.assinatura_url && (!base64 || base64 === '')) {
+                                try {
+                                    const response = await fetch(e.assinatura_url);
+                                    const arrayBuffer = await response.arrayBuffer();
+                                    const buffer = Buffer.from(arrayBuffer);
+                                    base64 = 'data:image/png;base64,' + buffer.toString('base64');
+                                } catch(errFetch) {
+                                    console.error("[EPI PUBLIC GET] Erro fetch image from R2:", errFetch.message);
+                                    base64 = e.assinatura_url;
+                                }
+                            }
+                            return {
+                                data: e.data_entrega,
+                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
+                                assinatura_base64: base64
+                            };
+                        }));
 
                         res.json({
                             ficha: {
@@ -19676,11 +19728,7 @@ app.get('/api/publico/credenciamento/:token/epi/:epiId', (req, res) => {
                                 dept: colabRow.departamento,
                                 admissao: colabRow.data_admissao
                             } : { nome: colabInfo.nome || 'Colaborador' },
-                            entregas: (entregas || []).map(e => ({
-                                data: e.data_entrega,
-                                descricao: (() => { try { return JSON.parse(e.epis_entregues || '[]').join(', '); } catch (er) { return ''; } })(),
-                                assinatura_base64: e.assinatura_url || e.assinatura_base64
-                            }))
+                            entregas: processedEntregas
                         });
                     });
                 });
@@ -23174,16 +23222,29 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 
 
 // ?????? GET /api/treinamento-presenca/registro/:colaboradorId/:treinamentoId ?????????????????????
-// Busca registro completo (assinatura + selfie) para exibi????o pàs-assinatura
+// Busca registro completo (assinatura + selfie) para exibição pós-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
     `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, instrutor_nome, optou_nao_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
-    (err, row) => {
+    async (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(row || null);
+      if (!row) return res.json(null);
+      
+      try {
+          if (row.assinatura_base64 && row.assinatura_base64.startsWith('http')) {
+              const rA = await fetch(row.assinatura_base64);
+              row.assinatura_base64 = 'data:image/png;base64,' + Buffer.from(await rA.arrayBuffer()).toString('base64');
+          }
+          if (row.selfie_base64 && row.selfie_base64.startsWith('http')) {
+              const rS = await fetch(row.selfie_base64);
+              row.selfie_base64 = 'data:image/png;base64,' + Buffer.from(await rS.arrayBuffer()).toString('base64');
+          }
+      } catch (e) { console.error("Erro fetch imagem treinamento:", e.message); }
+      
+      res.json(row);
     }
   );
 });
@@ -23196,9 +23257,22 @@ app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateT
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
-    (err, row) => {
+    async (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(row || null);
+      if (!row) return res.json(null);
+      
+      try {
+          if (row.assinatura_base64 && row.assinatura_base64.startsWith('http')) {
+              const rA = await fetch(row.assinatura_base64);
+              row.assinatura_base64 = 'data:image/png;base64,' + Buffer.from(await rA.arrayBuffer()).toString('base64');
+          }
+          if (row.selfie_base64 && row.selfie_base64.startsWith('http')) {
+              const rS = await fetch(row.selfie_base64);
+              row.selfie_base64 = 'data:image/png;base64,' + Buffer.from(await rS.arrayBuffer()).toString('base64');
+          }
+      } catch (e) { console.error("Erro fetch imagem treinamento:", e.message); }
+      
+      res.json(row);
     }
   );
 });
@@ -28773,72 +28847,53 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
     });
 });
 
-// ── POST /api/sac/notificar-rafaela ───────────────────────────────────────────
-// Notifica a usuária Rafaela sempre que um novo chamado de SAC for aberto
-app.post('/api/sac/notificar-rafaela', authenticateToken, async (req, res) => {
+// ── POST /api/sac/notificar-novo-chamado ───────────────────────────────────────────
+// Notifica todos os usuários configurados para 'sac_novo_chamado' sempre que um novo chamado for aberto
+app.post('/api/sac/notificar-novo-chamado', authenticateToken, async (req, res) => {
     const { protocol, client } = req.body;
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
     const systemUrl = 'https://sistema-america.onrender.com/';
 
-    // Busca o usuário "rafaela" no banco
-    db.get(`
-        SELECT u.id, u.nome, u.username, u.email as uemail,
-               c.email_corporativo as ec, c.email as ce
-        FROM usuarios u
-        LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
-        WHERE LOWER(TRIM(u.username)) LIKE '%rafaela%' AND u.ativo = 1
-        LIMIT 1
-    `, [], async (err, user) => {
-        if (err || !user) {
-            console.warn('[SAC rafaela] Usuária Rafaela não encontrada:', err?.message || 'não existe');
-            return res.json({ success: false, reason: 'Usuária Rafaela não encontrada' });
+    // 1. Notificação interna (popup/sino)
+    const msgNotif = `Novo chamado SAC aberto: <strong>Nº ${protocol}</strong> — ${client}. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_novo_chamado'`, [], (err, rows) => {
+        if (!err && rows && rows.length > 0) {
+            const stmt = db.prepare(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`);
+            rows.forEach(r => stmt.run(r.usuario_id, 'sac_novo_chamado', msgNotif, JSON.stringify({ protocol, client })));
+            stmt.finalize();
         }
-
-        // 1. Notificação interna (popup/sino)
-        const msgNotif = `Novo chamado SAC aberto: <strong>Nº ${protocol}</strong> — ${client}. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
-        db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-            [user.id, 'sac_novo_chamado', msgNotif, JSON.stringify({ protocol, client })]);
-
-        // 2. E-mail
-        const emailDest = (user.ec || user.ce || user.uemail || '').includes('@')
-            ? (user.ec || user.ce || user.uemail)
-            : null;
-
-        if (emailDest) {
-            try {
-                await sendMailHelper({
-                    to: emailDest,
-                    subject: `📋 SAC — Novo chamado aberto: Nº ${protocol}`,
-                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                        </div>
-                        <div style="padding:24px;">
-                            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
-                                <span style="color:#fff;font-size:1.3rem;font-weight:800;">📋 Novo Chamado de SAC</span>
-                            </div>
-                            <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${user.nome || 'Rafaela'}</strong>!</p>
-                            <p>Um novo chamado de SAC foi registrado no sistema. Confira os detalhes abaixo:</p>
-                            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
-                                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                                <p style="margin:4px 0;"><strong>Cliente:</strong> ${client}</p>
-                            </div>
-                            <div style="text-align:center;margin-top:20px;">
-                                <a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o SAC</a>
-                            </div>
-                            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
-                        </div>
-                    </div>`,
-                    attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
-                });
-                console.log(`[SAC rafaela] E-mail enviado para ${emailDest}`);
-            } catch (mailErr) {
-                console.error('[SAC rafaela] Erro ao enviar e-mail:', mailErr.message);
-            }
-        }
-
-        res.json({ success: true });
     });
+
+    // 2. E-mail (usa o sistema dinâmico de contatos)
+    const subject = `📋 SAC — Novo chamado aberto: Nº ${protocol}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+        </div>
+        <div style="padding:24px;">
+            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+                <span style="color:#fff;font-size:1.3rem;font-weight:800;">📋 Novo Chamado de SAC</span>
+            </div>
+            <p style="font-size:1rem;color:#1e293b;">Olá!</p>
+            <p>Um novo chamado de SAC foi registrado no sistema. Confira os detalhes abaixo:</p>
+            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
+                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                <p style="margin:4px 0;"><strong>Cliente:</strong> ${client}</p>
+            </div>
+            <div style="text-align:center;margin-top:20px;">
+                <a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o SAC</a>
+            </div>
+            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+        </div>
+    </div>`;
+
+    sendEmailParaNotificados('sac_novo_chamado', {
+        subject,
+        html,
+        attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+    });
+
+    res.json({ success: true });
 });
 
 

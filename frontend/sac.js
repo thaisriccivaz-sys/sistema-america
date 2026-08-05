@@ -748,10 +748,6 @@
         assignedUserPhoto = ticket.financialTask.assignedToPhoto;
     }
 
-    const occText = ticket.occurrences && ticket.occurrences.length
-      ? ticket.occurrences.slice(0,2).map(o => `<span style="background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:0.72rem;color:#475569;">${o.name}</span>`).join(' ')
-      : '';
-
     const coverAttachment = (ticket.attachments || []).find(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url || a.originalName || a.name || a.filename));
     const coverHtml = coverAttachment && coverAttachment.url
       ? `<div style="margin:-12px -12px 12px -12px;overflow:hidden;border-radius:8.5px 8.5px 0 0;"><img src="${coverAttachment.url}" style="width:100%;height:140px;object-fit:cover;display:block;"></div>`
@@ -776,7 +772,6 @@
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
-        ${occText}
       </div>
       ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;">
