@@ -445,6 +445,7 @@
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
+                <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap;">
                 <button
                     data-colab-id="${c.id}"
                     data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
@@ -455,6 +456,14 @@
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
+                ${lastP && lastP.respondido && lastP.pdf_url ? `
+                <button
+                    onclick="window.open('${lastP.pdf_url}', '_blank')"
+                    title="Ver PDF do Feedback Assinado"
+                    style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-eye"></i>
+                </button>` : ''}
+                </div>
             </td>
         </tr>
         <tr class="sat-history-row" style="display:none;background:#f8fafc;">
