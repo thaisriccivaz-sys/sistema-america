@@ -463,14 +463,6 @@
                     style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-eye"></i>
                 </button>` : ''}
-                ${lastP && lastP.respondido ? `
-                <button
-                    onclick="window._desRhExcluirAvaliacao(${c.id}, '${lastKey.split('-T')[0]}', '${lastKey.split('-T')[1]}')"
-                    title="Excluir Avaliação"
-                    style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
-                    <i class="ph ph-trash"></i>
-                </button>
-                ` : ''}
                 </div>
             </td>
         </tr>
