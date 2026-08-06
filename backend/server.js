@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -8576,7 +8576,10 @@ app.delete('/api/cargos/:id/anexos/:anexoId', authenticateToken, (req, res) => {
 
 // Departamentos
 app.get('/api/departamentos', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM departamentos ORDER BY nome ASC", [], (err, rows) => {
+    db.all(`SELECT d.*, u.username as responsavel_username, u.id as responsavel_usuario_id
+            FROM departamentos d
+            LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome))
+            ORDER BY d.nome ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
