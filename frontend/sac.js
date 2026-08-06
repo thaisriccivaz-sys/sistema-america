@@ -1648,12 +1648,53 @@
                             })()}
                             <select style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;background:#fff;" onchange="SAC.changeTaskAssignment('${key}', this.value)" ${disabledAttr}>
                                 <option value="">Sem atribuição</option>
-                                ${(window._sacUsersList||[]).map(u => {
-                                    const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, '.');
-                                    const val = u.username || u.login || u.email || normalizeId(u.nome);
-                                    const name = u.nome || u.name || val;
-                                    return `<option value="${val}" ${val === task.assignedTo ? 'selected' : ''}>${name}</option>`;
-                                }).join('')}
+                                ${(() => {
+                                    const allowedDepts = ['Logística', 'Comercial', 'Financeiro'];
+                                    const managers = (_globalDepartamentos || []).filter(d => allowedDepts.includes(d.nome) && d.responsavel_nome).map(d => d.responsavel_nome.toLowerCase());
+                                    const validUsers = (window._sacUsersList || []).filter(u => {
+                                        if (!u.ativo) return false;
+                                        const dept = (u.departamento || '');
+                                        const isAllowedDept = allowedDepts.some(d => dept.toLowerCase().includes(d.toLowerCase()));
+                                        const isManager = managers.includes((u.nome || '').toLowerCase());
+                                        return isAllowedDept || isManager;
+                                    });
+                                    // Sort by name
+                                    validUsers.sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+                                    
+                                    // Guarantee the currently assigned user is visible even if they no longer match
+                                    if (task.assignedTo && !validUsers.find(u => {
+                                        const val = u.username || u.login || u.email || (u.nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                                        return val === task.assignedTo;
+                                    })) {
+                                        const currU = (window._sacUsersList || []).find(u => {
+                                            const val = u.username || u.login || u.email || (u.nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                                            return val === task.assignedTo;
+                                        });
+                                        if (currU) validUsers.unshift(currU);
+                                    }
+
+                                    return validUsers.map(u => {
+                                        const val = u.username || u.login || u.email || (u.nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+                                        const rawName = u.nome || u.name || val;
+                                        
+                                        // Label formatting
+                                        let deptLabel = '';
+                                        const uDept = u.departamento || '';
+                                        let foundDept = allowedDepts.find(d => uDept.toLowerCase().includes(d.toLowerCase()));
+                                        const isManagerOf = (_globalDepartamentos||[]).find(d => allowedDepts.includes(d.nome) && d.responsavel_nome && d.responsavel_nome.toLowerCase() === (u.nome||'').toLowerCase());
+                                        
+                                        if (isManagerOf) {
+                                            deptLabel = `(Gestor ${isManagerOf.nome})`;
+                                        } else if (foundDept) {
+                                            deptLabel = `(${foundDept})`;
+                                        } else if (uDept) {
+                                            deptLabel = `(${uDept})`;
+                                        }
+                                        
+                                        const displayName = deptLabel ? `${rawName} ${deptLabel}` : rawName;
+                                        return `<option value="${val}" ${val === task.assignedTo ? 'selected' : ''}>${displayName}</option>`;
+                                    }).join('');
+                                })()}
                             </select>
                         </div>
                     </div>`;
@@ -2353,17 +2394,90 @@
       const t = _selectedTicket;
       if (!t || !t[key]) return;
       const usersList = window._sacUsersList || [];
-      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\u036f]/g, '').replace(/\\s+/g, '.');
+      const normalizeId = str => (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
+      
       const user = usersList.find(u => (u.username||u.login||u.email||normalizeId(u.nome)) === newUsername);
       const previousAssignee = t[key].assignedTo;
-      t[key] = {
-        ...t[key],
-        assignedTo: newUsername || null,
-        assignedToName: user ? (user.nome||user.name||user.username) : newUsername,
-        assignedToPhoto: user ? (user.foto||user.photo||'') : ''
-      };
+      
+      // -- Transferência de setor baseada no departamento do novo usuário --
+      let targetKey = key;
+      let newGestorSetor = t.gestorSetor;
+      
+      if (user && newUsername) {
+         const uDept = (user.departamento || '').toLowerCase();
+         const isManagerOf = (_globalDepartamentos||[]).find(d => ['Logística','Comercial','Financeiro'].includes(d.nome) && d.responsavel_nome && d.responsavel_nome.toLowerCase() === (user.nome||'').toLowerCase());
+         
+         let determinedDept = '';
+         if (isManagerOf) {
+             determinedDept = isManagerOf.nome;
+         } else if (uDept.includes('logística') || uDept.includes('logistica')) {
+             determinedDept = 'Logística';
+         } else if (uDept.includes('comercial')) {
+             determinedDept = 'Comercial';
+         } else if (uDept.includes('financeiro')) {
+             determinedDept = 'Financeiro';
+         }
+         
+         const mapDepts = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+         
+         if (determinedDept && mapDepts[determinedDept] && mapDepts[determinedDept] !== key) {
+             targetKey = mapDepts[determinedDept];
+             
+             // Cria a nova tarefa no novo setor
+             t[targetKey] = {
+                 name: `Pendente: ${determinedDept} - aguardando resposta.`,
+                 isCompleted: false,
+                 feedback: '',
+                 history: t[key].history || [],
+                 assignedTo: newUsername,
+                 assignedToName: user.nome || user.name || user.username,
+                 assignedToPhoto: user.foto || user.photo || ''
+             };
+             
+             // Timeline
+             t.timeline = t.timeline || [];
+             t.timeline.push({
+                 stage: t.stage,
+                 time: new Date().toISOString(),
+                 notes: `Tarefa transferida de ${key.replace('Task','')} para ${determinedDept} (Atribuído a ${user.nome}).`,
+                 user: { id: window.currentUser ? window.currentUser.id : '', nome: currentUsername() }
+             });
+             
+             // Novo Gestor
+             const novoGestor = (_globalDepartamentos||[]).find(d => d.nome === determinedDept);
+             if (novoGestor && novoGestor.responsavel_nome) {
+                 const gestorUser = usersList.find(u => (u.nome||'').toLowerCase() === novoGestor.responsavel_nome.toLowerCase());
+                 if (gestorUser) {
+                     newGestorSetor = {
+                         id: gestorUser.id,
+                         login: gestorUser.username || gestorUser.login || gestorUser.email,
+                         nome: gestorUser.nome
+                     };
+                 }
+             }
+             
+             // Remove a tarefa antiga
+             t[key] = null;
+         }
+      }
+
+      if (targetKey === key) {
+          // Mesmo setor
+          t[key] = {
+            ...t[key],
+            assignedTo: newUsername || null,
+            assignedToName: user ? (user.nome||user.name||user.username) : newUsername,
+            assignedToPhoto: user ? (user.foto||user.photo||'') : ''
+          };
+      }
+      
+      if (newGestorSetor) {
+          t.gestorSetor = newGestorSetor;
+      }
+      
       updateTicket(t);
-      showToast(`Atribuição de ${key.replace('Task','')} atualizada.`, 'success');
+      showToast(`Atribuição de ${targetKey.replace('Task','')} atualizada.`, 'success');
+      
       if (newUsername && newUsername !== previousAssignee) {
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
         fetch('/api/sac/notificar-atribuicao', {
@@ -2373,7 +2487,7 @@
             ticketId: t.id,
             protocol: t.protocol,
             clientName: t.clientName,
-            setor: key.replace('Task',''),
+            setor: targetKey.replace('Task',''),
             assignedUsername: newUsername,
             assignedUserNome: user ? (user.nome||user.name||user.username) : newUsername
           })
