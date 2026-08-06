@@ -3014,7 +3014,7 @@ app.get('/api/cid10', (req, res) => {
     fs.appendFileSync(path.join(__dirname, 'cid_debug.log'), `[${new Date().toISOString()}] GET /api/cid10?q=${q}\n`);
     if (!q || q.length < 2) return res.json([]);
     const results = cid10Data.filter(c =>
-        c.code.toLowerCase().startsWith(q) || c.desc.toLowerCase().includes(q)
+        c.code.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(q.replace(/[^a-z0-9]/g, '')) || c.desc.toLowerCase().includes(q) || c.desc.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ).slice(0, 12);
     res.json(results);
 });
