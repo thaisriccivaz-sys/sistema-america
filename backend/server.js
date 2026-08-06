@@ -956,7 +956,7 @@ const htmlNR1 = `
 <p style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-bottom: 2rem;">ORDEM DE SERVI??O - NR1</p>
 
 <p style="font-weight: bold; text-decoration: underline;">DESCRIÇÃO DA ATIVIDADE</p>
-<p style="text-transform: uppercase;">FAZER SUC????O COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QU??MICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIATO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
+<p style="text-transform: uppercase;">FAZER SUC????O COM EQUIPAMENTOS APROPRIADOS DOS DEJETOS DOS BANHEIROS, REPOR OS DESODORANTES, EFETUAR LAVAGEM E SECAGEM DOS MESMOS E EFETUAR A CARGA E DESCARGA DOS BANHEIROS QU??MICOS NOS CAMINHÕES E NOS LOCAIS DEFINIDOS PELO SEU SUPERIOR IMEDIÇÃO, NORMAS E PROCEDIMENTOS INTERNOS.</p>
 
 <p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">IDENTIFICA????O DOS RISCOS AMBIENTAIS</p>
 <p style="font-weight: bold;">RISCOS / FONTES GERADORAS</p>
@@ -1824,7 +1824,7 @@ function extractSignedUrl(docData) {
 try {
     if (!fs.existsSync(BASE_UPLOAD_PATH)) {
         fs.mkdirSync(BASE_UPLOAD_PATH, { recursive: true });
-        console.log("DIRETÓRIO BASE DE UPLOAD CRIADO:", BASE_UPLOAD_PATH);
+        console.log("DIRETÓRIO BASE DE UPLOAD CRIAÇÃO:", BASE_UPLOAD_PATH);
     }
 } catch (e) {
     console.error("AVISO CR??TICO: Não foi poss??vel criar a pasta base de upload:", e.message);
@@ -1874,7 +1874,7 @@ const storage = multer.diskStorage({
         try {
             if (!fs.existsSync(finalDir)) {
                 fs.mkdirSync(finalDir, { recursive: true });
-                console.log("DIRETÓRIO CRIADO:", finalDir);
+                console.log("DIRETÓRIO CRIAÇÃO:", finalDir);
             }
             cb(null, finalDir);
         } catch (err) {
@@ -2217,7 +2217,7 @@ async function pollAdmissaoAssinaturas() {
                 };
 
                 // Status do Assinafy que indicam assinatura EFETIVAMENTE completa.
-                // ATEN????O: 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
+                // ATEN????O: 'completed' significa que o envelope foi CRIAÇÃO com sucesso (ainda aguardando assinatura).
                 // Apenas 'certificated' e o código '4' indicam que TODOS assinaram e o certificado foi emitido.
                 const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
                 if (!isSigned) {
@@ -5016,7 +5016,7 @@ app.get('/api/colaboradores/:id/documentos', authenticateToken, (req, res) => {
 });
 
 
-// --- ENDPOINT DEDICADO: Salvar status Santander ------------------------------
+// --- ENDPOINT DEDIÇÃO: Salvar status Santander ------------------------------
 // PUT /api/colaboradores/:id/admissao-responsavel
 app.put('/api/colaboradores/:id/admissao-responsavel', authenticateToken, (req, res) => {
     const { admissao_responsavel_nome } = req.body;
@@ -5115,7 +5115,7 @@ app.get('/api/colaboradores/:id/admissao-assinaturas', authenticateToken, (req, 
 
 
 
-// --- ENDPOINT DEDICADO: Salvar status Santander ------------------------------
+// --- ENDPOINT DEDIÇÃO: Salvar status Santander ------------------------------
 // PUT /api/colaboradores/:id/santander-status
 app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res) => {
     const { santander_ficha_data } = req.body;
@@ -11536,7 +11536,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
         let pStatus = (documentData.status || documentData.status_id || '').toString().toLowerCase();
 
         // status poss??veis no assinafy: certificated (assinado), completed (envelope criado, aguardando), pending, waiting_signatures, error
-        // CORREÇÃO: 'completed' indica que o envelope foi CRIADO com sucesso, NÃO que foi assinado!
+        // CORREÇÃO: 'completed' indica que o envelope foi CRIAÇÃO com sucesso, NÃO que foi assinado!
         // Apenas 'certificated' e código num??rico '4' indicam assinatura efetiva de TODOS os signatérios.
         if (pStatus.includes('certificat') || pStatus === '4') {
             newStatus = 'Assinado';
@@ -23633,21 +23633,21 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
                     : [respostasJson, responsavelNome, idToUpdate];
 
                 db.run(query, params, (err3) => {
-                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avalia��o' : 'Erro ao finalizar avalia��o' });
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
                     
-                    // Disparar email de notifica��o
+                    // Disparar email de notificação
                     db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
                         if (!err4 && colab) {
                             sendEmailParaNotificados('formulario_desempenho', {
-                                subject: `Avalia��o de Desempenho Preenchida - ${colab.nome_completo}`,
+                                subject: `avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avalia��o de Desempenho Preenchida</h2>
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">avaliação de Desempenho Preenchida</h2>
                                     </div>
                                     <div style="padding:20px;background:#f9fafb;color:#333;">
-                                        <p>Ol�,</p>
-                                        <p>A avalia��o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
-                                        <p>Respons�vel pela avalia��o: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p>Olá,</p>
+                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
                                             <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
@@ -23657,7 +23657,7 @@ app.post('/api/desempenho/publico/rascunho', (req, res) => {
                         }
                     });
 
-                    res.json({ success: true, message: isInsert ? 'Avalia��o criada e finalizada' : 'Avalia��o finalizada' });
+                    res.json({ success: true, message: isInsert ? 'avaliação criada e finalizada' : 'avaliação finalizada' });
                 });
             };
 
@@ -23695,21 +23695,21 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
                     : [respostasJson, responsavelNome, idToUpdate];
 
                 db.run(query, params, (err3) => {
-                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avalia��o' : 'Erro ao finalizar avalia��o' });
+                    if (err3) return res.status(500).json({ error: isInsert ? 'Erro ao criar avaliação' : 'Erro ao finalizar avaliação' });
                     
-                    // Disparar email de notifica��o
+                    // Disparar email de notificação
                     db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (err4, colab) => {
                         if (!err4 && colab) {
                             sendEmailParaNotificados('formulario_desempenho', {
-                                subject: `Avalia��o de Desempenho Preenchida - ${colab.nome_completo}`,
+                                subject: `avaliação de Desempenho Preenchida - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                        <h2 style="color:#0f4c81;margin:1rem 0;">Avalia��o de Desempenho Preenchida</h2>
+                                        <h2 style="color:#0f4c81;margin:1rem 0;">avaliação de Desempenho Preenchida</h2>
                                     </div>
                                     <div style="padding:20px;background:#f9fafb;color:#333;">
-                                        <p>Ol�,</p>
-                                        <p>A avalia��o de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
-                                        <p>Respons�vel pela avalia��o: <strong>${responsavelNome || 'N/A'}</strong></p>
+                                        <p>Olá,</p>
+                                        <p>A avaliação de desempenho do colaborador <strong>${colab.nome_completo}</strong> (Ano ${ano} - Trimestre ${trimestre}) foi preenchida e finalizada.</p>
+                                        <p>responsável pela avaliação: <strong>${responsavelNome || 'N/A'}</strong></p>
                                         <p style="margin-top:20px;text-align:center;">
                                             <a href="https://cadastro-colaboradores.onrender.com" style="background:#0ea5e9;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;font-weight:bold;display:inline-block;">Acessar o Sistema</a>
                                         </p>
@@ -23719,7 +23719,7 @@ app.post('/api/desempenho/publico/finalizar', (req, res) => {
                         }
                     });
 
-                    res.json({ success: true, message: isInsert ? 'Avalia��o criada e finalizada' : 'Avalia��o finalizada' });
+                    res.json({ success: true, message: isInsert ? 'avaliação criada e finalizada' : 'avaliação finalizada' });
                 });
             };
 
@@ -28007,17 +28007,17 @@ db.serialize(() => {
         if (err) return;
         let updatedCount = 0;
         const keyMapping = {
-            'Rotina e Carga de Trabalho': 'Organiza��o e Rotina de Trabalho',
-            'Processos e Organiza��o': 'Processos e Fluxo de Trabalho',
+            'Rotina e Carga de Trabalho': 'Organização e Rotina de Trabalho',
+            'Processos e Organização': 'Processos e Fluxo de Trabalho',
             'Treinamentos e Desenvolvimento': 'Crescimento e Desenvolvimento',
             'Crescimento e Oportunidades': 'Crescimento e Desenvolvimento',
-            'Valoriza��o e Reconhecimento': 'Satisfa��o e Motiva��o',
-            'Lideran�a Supervisor P�tio (Joca)': 'Comunica��o e Lideran�a',
-            'Lideran�a Gerente (Jefferson)': 'Comunica��o e Lideran�a',
-            'Lideran�a Supervisor Escrit�rio (Edson)': 'Comunica��o e Lideran�a',
-            'Lideran�a Supervisora (Thais)': 'Comunica��o e Lideran�a',
-            'Comunica��o': 'Comunica��o e Lideran�a',
-            'Lideran�a': 'Comunica��o e Lideran�a'
+            'Valorização e Reconhecimento': 'Satisfação e Motivação',
+            'liderança Supervisor Pátio (Joca)': 'Comunicação e liderança',
+            'liderança Gerente (Jefferson)': 'Comunicação e liderança',
+            'liderança Supervisor Escritório (Edson)': 'Comunicação e liderança',
+            'liderança Supervisora (Thais)': 'Comunicação e liderança',
+            'Comunicação': 'Comunicação e liderança',
+            'liderança': 'Comunicação e liderança'
         };
         const tx = db.prepare("UPDATE avaliacoes SET respostas_json = ? WHERE id = ?");
         rows.forEach(row => {
@@ -29158,7 +29158,7 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
 });
 
 
-// --- Rota tempor�ria para ver os arquivos perdidos ---
+// --- Rota temporária para ver os arquivos perdidos ---
 app.get('/api/arquivos-perdidos', (req, res) => {
     const fs = require('fs');
     const path = require('path');
@@ -29167,12 +29167,12 @@ app.get('/api/arquivos-perdidos', (req, res) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.sendFile(txtPath);
     } else {
-        res.status(404).send('Arquivo n�o encontrado. Rode o script list_missing_files.js primeiro.');
+        res.status(404).send('Arquivo não encontrado. Rode o script list_missing_files.js primeiro.');
     }
 });
 // ----------------------------------------------------
 
-// --- Configura��o de Backup Autom�tico ---
+// --- Configuração de Backup automático ---
 const runBackup = require('./backup_db');
 const syncB2 = require('./sync_b2');
 let lastBackupDate = null;
@@ -29181,7 +29181,7 @@ setInterval(async () => {
     if (now.getHours() === 6) { // 6 UTC = 3 AM Brasilia
         const dateStr = now.toISOString().split('T')[0];
         if (lastBackupDate !== dateStr) {
-            console.log('[CRON] Iniciando backup di�rio programado (03:00 BRT)...');
+            console.log('[CRON] Iniciando backup diário programado (03:00 BRT)...');
             try {
                 await runBackup();
                 console.log('[CRON] Iniciando Sincronizacao B2...');
