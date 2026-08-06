@@ -975,8 +975,34 @@
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
 
-            // Recarregar a tela inteira com dados frescos do servidor
-            if (typeof window.initFeedbackGestor === 'function') await window.initFeedbackGestor();
+            // 1. Atualiza imediatamente o botão da linha no DOM sem esperar re-render
+            const actionBtn = document.querySelector(`[data-colab-id="${colabId}"]`);
+            if (actionBtn) {
+                actionBtn.style.background = '#0ea5e9';
+                actionBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
+                // Insere botão verde de feedback ao lado se ainda não existir
+                const btnCell = actionBtn.parentElement;
+                if (btnCell && !btnCell.querySelector('.btn-fbk-green')) {
+                    const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', actionBtn.dataset.colabDept, actionBtn.dataset.colabCargo) : 'escritorio';
+                    const anoBtn = actionBtn.dataset.ano || currentYear;
+                    const trimBtn = actionBtn.dataset.trim || currentQ;
+                    const nomeSafe = (actionBtn.dataset.colabNome || '').replace(/'/g, "\\'");
+                    const deptSafe = (actionBtn.dataset.colabDept || '').replace(/'/g, "\\'");
+                    const cargoSafe = (actionBtn.dataset.colabCargo || '').replace(/'/g, "\\'");
+                    const fbkBtn = document.createElement('button');
+                    fbkBtn.className = 'btn-fbk-green';
+                    fbkBtn.title = 'Registrar Feedback';
+                    fbkBtn.style.cssText = 'background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;';
+                    fbkBtn.innerHTML = '<i class="ph ph-chat-circle-text"></i>';
+                    fbkBtn.setAttribute('onclick', `window._desFeedbackBtn(${colabId}, '${nomeSafe}', '${deptSafe}', '${cargoSafe}', '${anoBtn}', '${trimBtn}')`);
+                    btnCell.appendChild(fbkBtn);
+                }
+            }
+
+            // 2. Re-render completo em background para sincronizar todos os dados
+            setTimeout(async () => {
+                if (typeof window.initFeedbackGestor === 'function') await window.initFeedbackGestor();
+            }, 400);
 
             
         } catch(err) {

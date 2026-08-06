@@ -29397,12 +29397,17 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
         const PAGE_W = 595, PAGE_H = 842;
         const MARGIN = 50;
         const LINE_H = 18;
-        // A altura do header precisa de mais espaço pois a imagem ocupa toda a largura + titulo abaixo
+        // Calcula a altura proporcional real do logo usando scaleToFit
+        let bannerWidth = PAGE_W;
         let bannerHeight = 80;
         if (logoEmbed) {
-             bannerHeight = (logoEmbed.height / logoEmbed.width) * PAGE_W;
+            // scaleToFit garante que a imagem caiba dentro de (PAGE_W x PAGE_H/4) sem distorcer
+            const dims = logoEmbed.scaleToFit(PAGE_W, PAGE_H / 4);
+            bannerWidth = dims.width;
+            bannerHeight = dims.height;
+            console.log('[PDF] Logo dims:', logoEmbed.width, 'x', logoEmbed.height, '-> renderizado:', Math.round(bannerWidth), 'x', Math.round(bannerHeight));
         }
-        const HEADER_H = bannerHeight + 35; // altura da faixa do topo (logo + texto abaixo)
+        const HEADER_H = bannerHeight + 35; // altura da faixa do topo (logo + faixa do titulo)
 
         let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
         let y = PAGE_H - MARGIN;
@@ -29418,8 +29423,9 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
 
         function drawHeader() {
             if (logoEmbed) {
-                // Imagem ocupa toda a largura da página, proporcional
-                page.drawImage(logoEmbed, { x: 0, y: PAGE_H - bannerHeight, width: PAGE_W, height: bannerHeight });
+                // Centraliza horizontalmente se bannerWidth < PAGE_W
+                const logoX = (PAGE_W - bannerWidth) / 2;
+                page.drawImage(logoEmbed, { x: logoX, y: PAGE_H - bannerHeight, width: bannerWidth, height: bannerHeight });
             } else {
                 page.drawRectangle({ x: 0, y: PAGE_H - bannerHeight, width: PAGE_W, height: bannerHeight, color: rgb(0.059, 0.298, 0.506) });
                 page.drawText('América Rental', { x: MARGIN, y: PAGE_H - 30, size: 14, font: fontBold, color: rgb(1, 1, 1) });
