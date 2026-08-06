@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    desempenho_rh.js — Dashboard de Desempenho dos Colaboradores
    ============================================================ */
 'use strict';
@@ -958,19 +958,202 @@
         }
     };
 
-    /* ── PAINEL DE FEEDBACK: ASSINATURA + SELFIE + PDF ────────────── */
+    /* ── PAINEL DE FEEDBACK: FORMULÁRIO COMPLETO → ASSINATURA + SELFIE + PDF ────── */
     window._desFeedbackBtn = async function(colabId, nome, dept, cargo, ano, trim) {
-        // Verificar se já existe documento assinado
-        let docExistente = null;
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+
+        // 1. Buscar avaliação salva
+        let respostas = {};
         try {
-            const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-            const r = await fetch(`${API}/api/feedback-documentos/${colabId}/${ano}/${trim}`, { headers: { 'Authorization': `Bearer ${tok}` } });
-            if (r.ok) docExistente = await r.json();
+            const r = await fetch(`${API}/api/avaliacoes/desempenho/colaboradores`, { headers: { 'Authorization': `Bearer ${tok}` } });
+            if (r.ok) {
+                const data = await r.json();
+                const colab = (data.colaboradores || []).find(c => c.id == colabId);
+                const key = `${ano}-T${trim}`;
+                const ps = colab?.pesquisas?.[key];
+                if (ps?.respostas) {
+                    respostas = typeof ps.respostas === 'string' ? JSON.parse(ps.respostas) : ps.respostas;
+                }
+            }
         } catch(e) {}
 
-        // Se já existe PDF assinado, mostrar botão de visualizar + opção de reassinatura
-        const jaAssinado = docExistente && docExistente.pdf_r2;
-        
+        // 2. Buscar documento de feedback (obs de feedback já salvas)
+        let docFeedback = null;
+        try {
+            const r = await fetch(`${API}/api/feedback-documentos/${colabId}/${ano}/${trim}`, { headers: { 'Authorization': `Bearer ${tok}` } });
+            if (r.ok) docFeedback = await r.json();
+        } catch(e) {}
+
+        const jaAssinado = docFeedback && docFeedback.pdf_r2;
+        let obsFbkSalvas = {};
+        try { obsFbkSalvas = JSON.parse(docFeedback?.obs_feedback_json || '{}'); } catch(e) {}
+
+        // 3. Obter perguntas do grupo do colaborador
+        const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', dept, cargo) : 'escritorio';
+        const perguntasGroup = (window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho) ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
+
+        // 4. Construir HTML das perguntas
+        let questionsHtml = '';
+        if (perguntasGroup) {
+            const categories = Object.keys(perguntasGroup);
+            const obsRespostas = respostas.__obs__ || {};
+            const obsFbkCats = {};
+            // Compatibilizar obs de feedback: podem estar no root do obsFbkSalvas ou em categoria
+            categories.forEach(cat => {
+                obsFbkCats[cat] = obsFbkSalvas[cat] || [];
+            });
+
+            categories.forEach((cat, catIdx) => {
+                const perguntas = perguntasGroup[cat] || [];
+                const notasCat = respostas[cat] || [];
+                const obsCat = obsRespostas[cat] || [];
+                const fbkCat = obsFbkCats[cat] || [];
+
+                if (!perguntas.length) return;
+
+                questionsHtml += `
+                <div style="margin-bottom:1.5rem;">
+                    <div style="font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7c3aed;margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:2px solid #ede9fe;">
+                        <i class="ph ph-tag" style="margin-right:4px;"></i>${cat}
+                    </div>`;
+
+                perguntas.forEach((q, i) => {
+                    if (!q || !q.trim()) return;
+                    const nota = notasCat[i];
+                    const notaStr = (nota !== null && nota !== undefined) ? nota : '—';
+                    const notaColor = scoreColor(nota);
+                    const notaBg = scoreBg(nota);
+                    const obsDesemp = (Array.isArray(obsCat) ? obsCat[i] : obsCat[String(i)]) || '';
+                    const obsFbk = (Array.isArray(fbkCat) ? fbkCat[i] : fbkCat[String(i)]) || '';
+
+                    questionsHtml += `
+                    <div style="background:#f8fafc;border-radius:10px;padding:0.9rem 1rem;margin-bottom:0.6rem;border:1px solid #e2e8f0;">
+                        <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.55rem;">
+                            <span style="background:${notaBg};color:${notaColor};font-weight:800;font-size:0.9rem;padding:0.2rem 0.55rem;border-radius:6px;flex-shrink:0;min-width:34px;text-align:center;">${notaStr}</span>
+                            <span style="font-size:0.83rem;color:#334155;line-height:1.4;">${q}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.4rem;">
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px;">Observação de Desempenho</label>
+                                <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:0.45rem 0.65rem;font-size:0.83rem;color:#475569;min-height:28px;">${obsDesemp || '<span style="color:#cbd5e1;font-style:italic;">Sem observação</span>'}</div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:2px;">Observação de Feedback</label>
+                                <input type="text" data-cat="${encodeURIComponent(cat)}" data-idx="${i}"
+                                    class="fbk-obs-campo"
+                                    value="${obsFbk.replace(/"/g,'&quot;')}"
+                                    placeholder="Feedback do gestor para esta pergunta..."
+                                    style="width:100%;box-sizing:border-box;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:6px;padding:0.45rem 0.65rem;font-size:0.83rem;color:#1d4ed8;outline:none;">
+                            </div>
+                        </div>
+                    </div>`;
+                });
+
+                questionsHtml += '</div>';
+            });
+        }
+
+        const obsGeralColab = respostas.__obs_gerais__ || (respostas.__obs__ && respostas.__obs__.info_adicional) || '';
+        const fbkGeralSalvo = obsFbkSalvas.__obs_feedback_geral__ || '';
+
+        document.getElementById('fbk-form-overlay')?.remove();
+
+        const html = `
+        <div id="fbk-form-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:780px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.35);overflow:hidden;">
+                <!-- Header -->
+                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                    <div>
+                        <div style="color:#fff;font-size:1.05rem;font-weight:700;"><i class="ph ph-chat-circle-text" style="margin-right:6px;"></i>Formulário de Feedback — ${ano} · ${trim}º Trimestre</div>
+                        <div style="color:#bfdbfe;font-size:0.82rem;margin-top:2px;">${nome} · ${dept}${cargo ? ' · ' + cargo : ''}</div>
+                    </div>
+                    <button onclick="document.getElementById('fbk-form-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;font-size:1.2rem;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+                </div>
+
+                <!-- Body -->
+                <div style="overflow-y:auto;flex:1;padding:1.5rem;">
+                    ${jaAssinado ? `
+                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                        <div style="color:#166534;font-weight:600;font-size:0.88rem;"><i class="ph ph-check-circle" style="margin-right:6px;"></i>Feedback assinado em ${docFeedback.assinado_em || ''} (BRT)</div>
+                        <button onclick="window.open('${docFeedback.pdf_r2}','_blank')" style="background:#166534;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
+                    </div>
+                    ` : ''}
+
+                    <!-- Legenda -->
+                    <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#64748b;"><div style="width:14px;height:14px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:3px;"></div> Observação de Desempenho (somente leitura)</div>
+                        <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#1d4ed8;"><div style="width:14px;height:14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:3px;"></div> Observação de Feedback (editável)</div>
+                    </div>
+
+                    ${questionsHtml || '<div style="text-align:center;padding:2rem;color:#94a3b8;">Perguntas não disponíveis para este colaborador.</div>'}
+
+                    <!-- Obs Geral Colaborador -->
+                    ${obsGeralColab ? `
+                    <div style="margin-top:0.75rem;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+                        <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px;">Informações Adicionais / Observação Geral</label>
+                        <div style="font-size:0.85rem;color:#475569;">${obsGeralColab}</div>
+                    </div>` : ''}
+
+                    <!-- Observação Final do Feedback -->
+                    <div style="margin-top:1rem;padding:1.25rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;">
+                        <label style="display:block;font-size:0.82rem;font-weight:700;color:#1d4ed8;margin-bottom:6px;"><i class="ph ph-note-pencil" style="margin-right:4px;"></i>Observação Final do Feedback</label>
+                        <textarea id="fbk-obs-final" rows="3"
+                            placeholder="Observação final do gestor sobre o feedback geral do colaborador..."
+                            style="width:100%;box-sizing:border-box;padding:0.75rem;border-radius:8px;border:1.5px solid #bfdbfe;font-size:0.88rem;font-family:inherit;resize:vertical;color:#1d4ed8;background:#fff;outline:none;">${fbkGeralSalvo}</textarea>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;background:#f8fafc;flex-shrink:0;flex-wrap:wrap;">
+                    <button onclick="document.getElementById('fbk-form-overlay').remove()" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;font-weight:600;cursor:pointer;">Fechar</button>
+                    <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                        <button onclick="window._fbkSalvarObsDoFormulario(${colabId},${ano},${trim})" style="padding:0.65rem 1.2rem;border-radius:8px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;"><i class="ph ph-floppy-disk"></i> Salvar Feedback</button>
+                        <button onclick="window._fbkAbrirAssinatura(${colabId},'${nome.replace(/'/g,"\\'")}','${dept.replace(/'/g,"\\'")}','${(cargo||'').replace(/'/g,"\\'")}',${ano},${trim})" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#0f4c81,#1d6fa5);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(15,76,129,0.3);"><i class="ph ph-signature"></i> Assinar</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+
+    /* Salva as obs de feedback direto do formulário antes de assinar */
+    window._fbkSalvarObsDoFormulario = async function(colabId, ano, trim) {
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const campos = document.querySelectorAll('.fbk-obs-campo');
+        const obsFbkJson = {};
+        campos.forEach(el => {
+            const cat = decodeURIComponent(el.dataset.cat);
+            const idx = parseInt(el.dataset.idx, 10);
+            if (!obsFbkJson[cat]) obsFbkJson[cat] = [];
+            while (obsFbkJson[cat].length <= idx) obsFbkJson[cat].push('');
+            obsFbkJson[cat][idx] = el.value.trim();
+        });
+        const finalObs = document.getElementById('fbk-obs-final')?.value.trim() || '';
+        if (finalObs) obsFbkJson.__obs_feedback_geral__ = finalObs;
+
+        const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+        try {
+            const r = await fetch(`${API}/api/feedback-documentos/salvar-obs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+                body: JSON.stringify({
+                    colaborador_id: colabId, ano, trimestre: trim,
+                    gestor_nome: erpUser.nome || erpUser.username || '',
+                    obs_feedback_json: JSON.stringify(obsFbkJson)
+                })
+            });
+            if (!r.ok) throw new Error(await r.text());
+            // Visual feedback rápido
+            const btn = document.querySelector('[onclick*="_fbkSalvarObsDoFormulario"]');
+            if (btn) { const orig = btn.innerHTML; btn.innerHTML = '<i class="ph ph-check"></i> Salvo!'; btn.style.background='#dcfce7';btn.style.color='#166534'; setTimeout(()=>{btn.innerHTML=orig;btn.style.background='#eff6ff';btn.style.color='#1d4ed8';},1800); }
+        } catch(e) { alert('Erro ao salvar: ' + e.message); }
+    };
+
+    /* Abre o painel de assinatura + selfie */
+    window._fbkAbrirAssinatura = async function(colabId, nome, dept, cargo, ano, trim) {
+        // Salvar campos de feedback antes de abrir assinatura
+        await window._fbkSalvarObsDoFormulario(colabId, ano, trim);
+
         // Carregar signature_pad via CDN se não estiver disponível
         if (!window.SignaturePad) {
             await new Promise((resolve, reject) => {
@@ -981,28 +1164,31 @@
             });
         }
 
-        const overlayId = 'fbk-sign-overlay';
-        document.getElementById(overlayId)?.remove();
+        document.getElementById('fbk-sign-overlay')?.remove();
 
         const html = `
-        <div id="${overlayId}" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;">
-            <div style="background:#fff;border-radius:16px;width:100%;max-width:700px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;">
+        <div id="fbk-sign-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.82);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:700px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.35);overflow:hidden;">
                 <!-- Header -->
-                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
                     <div>
-                        <div style="color:#fff;font-size:1.1rem;font-weight:700;"><i class="ph ph-signature" style="margin-right:6px;"></i>Feedback — Assinatura do Colaborador</div>
-                        <div style="color:#bfdbfe;font-size:0.82rem;margin-top:2px;">${nome} · ${dept} · ${cargo || ''}</div>
+                        <div style="color:#fff;font-size:1.05rem;font-weight:700;"><i class="ph ph-signature" style="margin-right:6px;"></i>Assinatura de Ciência do Feedback</div>
+                        <div style="color:#bfdbfe;font-size:0.82rem;margin-top:2px;">${nome} · ${dept}${cargo ? ' · ' + cargo : ''}</div>
                     </div>
-                    <button onclick="document.getElementById('${overlayId}').remove();window._fbkStopCamera();" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;font-size:1.2rem;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+                    <button onclick="document.getElementById('fbk-sign-overlay').remove();window._fbkStopCamera();" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;font-size:1.2rem;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
                 </div>
 
                 <div style="overflow-y:auto;flex:1;padding:1.5rem;">
-                    ${jaAssinado ? `
-                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-                        <div style="color:#166534;font-weight:600;font-size:0.9rem;"><i class="ph ph-check-circle" style="margin-right:6px;"></i>Este feedback já foi assinado em ${docExistente.assinado_em || ''} (BRT)</div>
-                        <button onclick="window.open('${docExistente.pdf_r2}','_blank')" style="background:#166534;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
+
+                    <!-- Texto de ciência -->
+                    <div style="background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+                        <div style="font-size:0.88rem;color:#92400e;font-weight:600;margin-bottom:4px;"><i class="ph ph-info" style="margin-right:4px;"></i>Declaração de Ciência</div>
+                        <p style="margin:0;font-size:0.84rem;color:#78350f;line-height:1.55;">
+                            Ao assinar abaixo, <strong>${nome}</strong> declara estar <strong>ciente do feedback de desempenho</strong> recebido referente ao <strong>${trim}º trimestre de ${ano}</strong>,
+                            tendo compreendido os pontos avaliados, as observações do gestor e as expectativas para os próximos períodos.
+                            Esta assinatura não representa concordância, apenas o recebimento e ciência das informações apresentadas.
+                        </p>
                     </div>
-                    ` : ''}
 
                     <!-- Assinatura -->
                     <div style="margin-bottom:1.25rem;">
@@ -1011,32 +1197,32 @@
                             <canvas id="fbk-sig-canvas" style="width:100%;display:block;touch-action:none;cursor:crosshair;" height="140"></canvas>
                             <button onclick="window._fbkClearSig()" style="position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.1);border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.75rem;color:#dc2626;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                         </div>
-                        <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0;">Peça ao colaborador para assinar acima usando o dedo ou mouse.</p>
+                        <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0;">Use o dedo (celular/tablet) ou o mouse para assinar no campo acima.</p>
                     </div>
 
                     <!-- Selfie -->
-                    <div style="margin-bottom:1.25rem;">
-                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>Selfie do Colaborador <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(com data/hora BRT visível)</span></label>
+                    <div style="margin-bottom:1rem;">
+                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>Selfie do Colaborador <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(data/hora BRT carimbada)</span></label>
                         <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
                             <div style="position:relative;border-radius:10px;overflow:hidden;background:#0f172a;width:280px;height:210px;flex-shrink:0;">
                                 <video id="fbk-selfie-video" autoplay playsinline style="width:280px;height:210px;object-fit:cover;display:block;"></video>
                                 <div id="fbk-selfie-ts" style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-family:monospace;"></div>
-                                <canvas id="fbk-selfie-canvas" style="display:none;width:280px;height:210px;"></canvas>
+                                <canvas id="fbk-selfie-canvas" style="display:none;"></canvas>
                                 <img id="fbk-selfie-preview" style="display:none;width:280px;height:210px;object-fit:cover;border-radius:10px;" />
                             </div>
                             <div style="display:flex;flex-direction:column;gap:0.6rem;">
                                 <button id="fbk-btn-capturar" onclick="window._fbkCaptureSelfie()" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-camera"></i> Capturar Selfie</button>
                                 <button id="fbk-btn-recapturar" onclick="window._fbkRetakeSelfie()" style="display:none;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> Recapturar</button>
-                                <p style="font-size:0.75rem;color:#94a3b8;margin:0;max-width:180px;">A selfie registra que o colaborador está presente e ciente do feedback.</p>
+                                <p style="font-size:0.75rem;color:#94a3b8;margin:0;max-width:180px;">A foto comprova que o colaborador está presente e ciente do feedback.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Footer -->
-                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.75rem;background:#f8fafc;">
-                    <button onclick="document.getElementById('${overlayId}').remove();window._fbkStopCamera();" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;font-weight:600;cursor:pointer;">Cancelar</button>
-                    <button id="fbk-btn-salvar" onclick="window._fbkSalvarAssinar(${colabId},'${nome.replace(/'/g,"\\'")}',${ano},${trim})" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);"><i class="ph ph-file-pdf"></i> Assinar e Gerar PDF</button>
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;background:#f8fafc;flex-shrink:0;flex-wrap:wrap;">
+                    <button onclick="document.getElementById('fbk-sign-overlay').remove();window._fbkStopCamera();" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;font-weight:600;cursor:pointer;">Voltar</button>
+                    <button id="fbk-btn-salvar" onclick="window._fbkSalvarAssinar(${colabId},'${nome.replace(/'/g,"\\'")}',${ano},${trim})" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);"><i class="ph ph-file-pdf"></i> Confirmar e Gerar PDF</button>
                 </div>
             </div>
         </div>`;
@@ -1046,7 +1232,6 @@
         const canvas = document.getElementById('fbk-sig-canvas');
         canvas.width = canvas.parentElement.offsetWidth || 640;
         window._fbkSigPad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: '#1e293b', minWidth: 1.5, maxWidth: 3 });
-
         window._fbkClearSig = function() { window._fbkSigPad.clear(); };
 
         // Iniciar câmera
@@ -1059,13 +1244,11 @@
                 window._fbkStream = stream;
                 const vid = document.getElementById('fbk-selfie-video');
                 if (vid) { vid.srcObject = stream; }
-                // Timestamp BRT em tempo real
                 function updateTS() {
                     const tsEl = document.getElementById('fbk-selfie-ts');
                     if (!tsEl || !window._fbkStream) return;
                     const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
-                    const d = nowBRT.toISOString().replace('T',' ').substring(0,19) + ' BRT';
-                    tsEl.textContent = d;
+                    tsEl.textContent = nowBRT.toISOString().replace('T',' ').substring(0,19) + ' BRT';
                     if (!window._fbkSelfieData) setTimeout(updateTS, 1000);
                 }
                 updateTS();
@@ -1075,51 +1258,8 @@
             }
         }
         startCamera();
-
-        window._fbkStopCamera = function() {
-            if (window._fbkStream) { window._fbkStream.getTracks().forEach(t => t.stop()); window._fbkStream = null; }
-        };
-
-        window._fbkCaptureSelfie = function() {
-            const vid = document.getElementById('fbk-selfie-video');
-            const cvs = document.getElementById('fbk-selfie-canvas');
-            const img = document.getElementById('fbk-selfie-preview');
-            if (!vid || !cvs) return;
-            // Timestamp BRT
-            const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
-            const dtStr = nowBRT.toISOString().replace('T',' ').substring(0,19) + ' BRT';
-            cvs.width = vid.videoWidth || 560; cvs.height = vid.videoHeight || 420;
-            const ctx = cvs.getContext('2d');
-            ctx.drawImage(vid, 0, 0, cvs.width, cvs.height);
-            // Carimbo de data/hora
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(4, cvs.height - 26, cvs.width - 8, 22);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 13px monospace';
-            ctx.fillText(dtStr, 10, cvs.height - 9);
-            window._fbkSelfieData = cvs.toDataURL('image/jpeg', 0.88);
-            if (img) { img.src = window._fbkSelfieData; img.style.display = 'block'; }
-            vid.style.display = 'none';
-            document.getElementById('fbk-selfie-ts').style.display = 'none';
-            const btnCap = document.getElementById('fbk-btn-capturar');
-            const btnRecap = document.getElementById('fbk-btn-recapturar');
-            if (btnCap) btnCap.style.display = 'none';
-            if (btnRecap) btnRecap.style.display = 'flex';
-        };
-
-        window._fbkRetakeSelfie = function() {
-            window._fbkSelfieData = null;
-            const vid = document.getElementById('fbk-selfie-video');
-            const img = document.getElementById('fbk-selfie-preview');
-            if (vid) vid.style.display = 'block';
-            if (img) img.style.display = 'none';
-            document.getElementById('fbk-selfie-ts').style.display = 'block';
-            const btnCap = document.getElementById('fbk-btn-capturar');
-            const btnRecap = document.getElementById('fbk-btn-recapturar');
-            if (btnCap) btnCap.style.display = 'flex';
-            if (btnRecap) btnRecap.style.display = 'none';
-        };
     };
+
 
     window._fbkSalvarAssinar = async function(colabId, nome, ano, trim) {
         if (!window._fbkSigPad || window._fbkSigPad.isEmpty()) {
