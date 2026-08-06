@@ -29390,6 +29390,8 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
         const PAGE_W = 595, PAGE_H = 842;
         const MARGIN = 50;
         const LINE_H = 18;
+        // A altura do header precisa de mais espaço pois a imagem ocupa toda a largura + titulo abaixo
+        const HEADER_H = 70; // altura da faixa do topo (logo + texto abaixo)
 
         let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
         let y = PAGE_H - MARGIN;
@@ -29399,27 +29401,25 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 page = pdfDoc.addPage([PAGE_W, PAGE_H]);
                 y = PAGE_H - MARGIN;
                 drawHeader();
-                y -= 55; // Importante para não sobrepor o conteúdo no header
+                y -= HEADER_H + 10;
             }
         }
 
         function drawHeader() {
-            // Faixa azul topo
-            page.drawRectangle({ x: 0, y: PAGE_H - 45, width: PAGE_W, height: 45, color: rgb(0.059, 0.298, 0.506) });
-            
-            let textX = MARGIN;
+            // Faixa azul escuro de fundo cobrindo o topo inteiro
+            page.drawRectangle({ x: 0, y: PAGE_H - HEADER_H, width: PAGE_W, height: HEADER_H, color: rgb(0.059, 0.298, 0.506) });
+
             if (logoEmbed) {
-                const logoW = 120;
-                const logoH = 34; // Manter proporção
-                page.drawImage(logoEmbed, { x: MARGIN, y: PAGE_H - 40, width: logoW, height: logoH });
-                textX += logoW + 15;
+                // Imagem ocupa toda a largura da página, proporcional
+                const logoDims = logoEmbed.scaleToFit(PAGE_W, HEADER_H - 22);
+                page.drawImage(logoEmbed, { x: 0, y: PAGE_H - logoDims.height - 2, width: PAGE_W, height: logoDims.height });
             } else {
-                page.drawText('América Rental — ', { x: textX, y: PAGE_H - 28, size: 13, font: fontBold, color: rgb(1, 1, 1) });
-                textX += 115;
+                page.drawText('América Rental', { x: MARGIN, y: PAGE_H - 30, size: 14, font: fontBold, color: rgb(1, 1, 1) });
             }
 
+            // Título abaixo da imagem, dentro da faixa azul
             page.drawText('Documento de Feedback de Desempenho', {
-                x: textX, y: PAGE_H - 28, size: 13, font: fontBold, color: rgb(1, 1, 1)
+                x: MARGIN, y: PAGE_H - HEADER_H + 8, size: 11, font: fontBold, color: rgb(1, 1, 1)
             });
         }
 
@@ -29467,7 +29467,7 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
 
         // Página 1 — cabeçalho + dados
         drawHeader();
-        y -= 55;
+        y -= HEADER_H + 10;
 
         writeLine(`Colaborador: ${docFeedback.nome_completo}`, { bold: true, size: 12 });
         writeLine(`Cargo: ${docFeedback.cargo || '—'}  |  Departamento: ${docFeedback.departamento || '—'}`, { size: 10 });
@@ -29498,6 +29498,7 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 
                 // Desenhar a pergunta
                 writeWrappedLine(pText, { bold: true, size: 10 });
+                y -= 6; // espaço entre pergunta e badge da nota
                 
                 // Desenhar o badge da nota colorida
                 const notaNum = parseFloat(nota);
@@ -29530,9 +29531,12 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
             writeLine(fbkGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
         }
 
-        // Embed selfie
-        checkNewPage(200);
-        section('Selfie do Colaborador (ciente do feedback)');
+        // Selfie + Assinatura lado a lado
+        const sideH = 160; // altura reservada para a seção
+        checkNewPage(sideH + 60);
+        section('Comprovante de Recebimento do Feedback');
+
+        // --- Selfie (lado esquerdo) ---
         try {
             let selfieEmbed;
             if (selfie_base64.includes('image/png')) {
@@ -29540,31 +29544,34 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
             } else {
                 selfieEmbed = await pdfDoc.embedJpg(selfBuffer);
             }
-            const imgW = 160, imgH = 120;
-            checkNewPage(imgH + 30);
+            const imgW = 150, imgH = 120;
+            checkNewPage(sideH + 30);
             page.drawImage(selfieEmbed, { x: MARGIN, y: y - imgH, width: imgW, height: imgH });
-            page.drawText(`Capturado em: ${dtStr}`, { x: MARGIN, y: y - imgH - 14, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
-            y -= imgH + 30;
+            page.drawText('Selfie (ciente do feedback)', { x: MARGIN, y: y - imgH - 12, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
         } catch(imgErr) {
-            writeLine('[Selfie não pôde ser incorporada ao PDF]', { size: 9, color: rgb(0.6, 0.2, 0.2) });
+            writeLine('[Selfie não incorporada]', { size: 9, color: rgb(0.6, 0.2, 0.2) });
         }
 
-        // Assinatura do colaborador
-        checkNewPage(140);
-        section('Assinatura do Colaborador');
+        // --- Assinatura (lado direito) ---
+        const sigColX = MARGIN + 180;
         try {
             const sigEmbed = await pdfDoc.embedPng(sigBuffer);
-            const sigW = 200, sigH = 80;
-            checkNewPage(sigH + 40);
-            page.drawImage(sigEmbed, { x: MARGIN, y: y - sigH, width: sigW, height: sigH });
-            y -= sigH + 10;
-            page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + 260, y }, thickness: 0.8, color: rgb(0.3, 0.3, 0.3) });
-            y -= 14;
-            writeLine(`${docFeedback.nome_completo}`, { bold: true, size: 10 });
-            writeLine(`Assinado digitalmente em: ${dtStr}`, { size: 9, color: rgb(0.4, 0.4, 0.4) });
+            const sigW = 180, sigH = 80;
+            // Centralizar verticalmente em relação à selfie
+            const sigTopY = y - 20;
+            page.drawImage(sigEmbed, { x: sigColX, y: sigTopY - sigH, width: sigW, height: sigH });
+            page.drawLine({
+                start: { x: sigColX, y: sigTopY - sigH - 8 },
+                end: { x: sigColX + sigW + 30, y: sigTopY - sigH - 8 },
+                thickness: 0.8, color: rgb(0.3, 0.3, 0.3)
+            });
+            page.drawText(docFeedback.nome_completo, { x: sigColX, y: sigTopY - sigH - 22, size: 9, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+            page.drawText(`Assinado digitalmente em: ${dtStr}`, { x: sigColX, y: sigTopY - sigH - 34, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
         } catch(sigErr) {
-            writeLine('[Assinatura não pôde ser incorporada ao PDF]', { size: 9 });
+            page.drawText('[Assinatura não incorporada]', { x: sigColX, y: y - 50, size: 9, font, color: rgb(0.6, 0.2, 0.2) });
         }
+
+        y -= sideH + 10;
 
         // Rodapé na última página
         const allPages = pdfDoc.getPages();
