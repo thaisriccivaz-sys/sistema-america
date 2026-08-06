@@ -75,12 +75,42 @@
         container.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:#94a3b8;"><div class="spinner-sm"></div> Carregando dados de desempenho…</div>';
 
         try {
+            // Busca departamentos diretamente para garantir que temos os dados corretos,
+            // independente da ordem de carregamento assíncrono de _myManagedDeptsGlob
+            let myDepts = window._myManagedDeptsGlob;
+            if (!myDepts || myDepts.length === 0) {
+                try {
+                    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                    const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
+                    const depts = deptsRes.ok ? await deptsRes.json() : [];
+
+                    let cUserId = null, cNome = '';
+                    try {
+                        const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+                        cUserId = String(erpUser.id || '');
+                        cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+                    } catch(e) {}
+
+                    const cleanStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+                    const managed = depts.filter(d => {
+                        const gestorId = d.responsavel_id ? String(d.responsavel_id) : null;
+                        const gestorNome = cleanStr(d.responsavel_nome);
+                        const meuNome = cleanStr(cNome);
+                        return (gestorId && cUserId && gestorId === cUserId) ||
+                               (gestorNome && meuNome && meuNome.length > 3 &&
+                                (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome)));
+                    });
+                    myDepts = managed.map(d => d.nome);
+                    // Salva para uso futuro
+                    window._myManagedDeptsGlob = myDepts;
+                } catch(e) { myDepts = []; }
+            }
+
             const [dash, colabs] = await Promise.all([
                 fetchJSON('/api/avaliacoes/desempenho/dashboard'),
                 fetchJSON('/api/avaliacoes/desempenho/colaboradores'),
             ]);
             
-            const myDepts = window._myManagedDeptsGlob || [];
             if (window.isTopAdmin) {
                 _colabs = colabs;
             } else {

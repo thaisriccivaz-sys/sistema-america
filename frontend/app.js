@@ -807,6 +807,10 @@ window.carregarPermissoesOnline = async function () {
                 return;
             }
 
+            // O nav-item de feedback-gestor é controlado pela lógica de gestor de departamento
+            // (dept-item-gestao), não pelo sistema de permissões. Não ocultar aqui.
+            if (link.closest('#dept-item-gestao')) return;
+
             // Se existir no mapa de permissoes e for TRUE, mostra. Senão, esconde robustamente.
             if (mapPerms[pathId]) {
                 link.style.display = '';
@@ -833,6 +837,9 @@ window.carregarPermissoesOnline = async function () {
         deptSubmenus.forEach(submenu => {
             const navItems = Array.from(submenu.querySelectorAll('.nav-item[data-target]'));
             const headerObj = submenu.parentElement; // o `.dept-item` é o pai
+
+            // O menu Gestão é controlado exclusivamente pela lógica de gestor de departamento (mais abaixo)
+            if (headerObj && headerObj.id === 'dept-item-gestao') return;
 
             if (navItems.length > 0) {
                 // Checa diretamente no mapa de permissões se o cara tem algo liberado aqui!
@@ -888,9 +895,10 @@ window.carregarPermissoesOnline = async function () {
                 const gestaoMenu = document.getElementById('dept-item-gestao');
                 if (gestaoMenu) {
                     if (isManager || window.isTopAdmin) {
-                        gestaoMenu.style.cssText = ''; // Mostra
+                        // Mostra o menu Gestão explicitamente (sobrescreve o display:none do HTML)
+                        gestaoMenu.style.setProperty('display', 'flex', 'important');
                     } else {
-                        gestaoMenu.style.cssText = 'display: none !important;';
+                        gestaoMenu.style.setProperty('display', 'none', 'important');
                     }
                 }
             })
@@ -1267,6 +1275,10 @@ function navigateTo(target) {
         if (typeof window.initDesempenhoRH === 'function') setTimeout(() => window.initDesempenhoRH(), 80);
     } else if (target === 'feedback-gestor') {
         if (typeof window.initFeedbackGestor === 'function') setTimeout(() => window.initFeedbackGestor(), 80);
+    } else if (target === 'gestao-departamentos') {
+        // Menu pai "Gestão" não tem tela própria — redireciona para Feedback
+        navigateTo('feedback-gestor');
+        return;
     } else if (target === 'experiencia-rh') {
         // placeholder
     } else if (target === 'terapias-rh') {
