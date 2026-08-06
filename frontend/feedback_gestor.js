@@ -976,30 +976,14 @@
             });
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
+            _lastOpenedBtn = null;
 
-            // Usa referencia direta ao botao que abriu o form (salva em _lastOpenedBtn)
-            const actionBtn = _lastOpenedBtn;
-            if (actionBtn && actionBtn.isConnected) {
-                actionBtn.style.background = '#0ea5e9';
-                actionBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
-                actionBtn.onclick = function() { window._desOpenFormBtn(actionBtn); };
-                const btnCell = actionBtn.parentElement;
-                if (btnCell && !btnCell.querySelector('.btn-fbk-green')) {
-                    const anoBtn = actionBtn.dataset.ano || currentYear;
-                    const trimBtn = actionBtn.dataset.trim || currentQ;
-                    const nomeEsc = (actionBtn.dataset.colabNome || '').replace(/'/g, "\\'");
-                    const deptEsc = (actionBtn.dataset.colabDept || '').replace(/'/g, "\\'");
-                    const cargoEsc = (actionBtn.dataset.colabCargo || '').replace(/'/g, "\\'");
-                    const fbkBtn = document.createElement('button');
-                    fbkBtn.title = 'Registrar Feedback';
-                    fbkBtn.style.cssText = 'background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;';
-                    fbkBtn.innerHTML = '<i class="ph ph-chat-circle-text"></i>';
-                    fbkBtn.onclick = function() { window._desFeedbackBtn(colabId, nomeEsc, deptEsc, cargoEsc, anoBtn, trimBtn); };
-                    btnCell.appendChild(fbkBtn);
+            // Recarrega a secao para refletir os dados novos
+            setTimeout(function() {
+                if (typeof window.initFeedbackGestor === 'function') {
+                    window.initFeedbackGestor();
                 }
-                _lastOpenedBtn = null;
-            }
-
+            }, 1000);
 
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
