@@ -678,6 +678,22 @@
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
+    /* Handler global para clique nos botões de nota — evita SyntaxError de quotes inline */
+    window._satRhRbtnClick = function(el, isReadonly) {
+        if (isReadonly) return;
+        var grp = el.dataset.group;
+        document.querySelectorAll('.sat-rbtn[data-group="'+grp+'"]').forEach(function(b) {
+            b.style.background = '#fff';
+            b.style.color = b.dataset.color;
+            b.style.borderColor = '#cbd5e1';
+        });
+        el.style.background = el.dataset.bg;
+        el.style.color = '#fff';
+        el.style.borderColor = el.dataset.color;
+        var inp = el.previousElementSibling;
+        if (inp) inp.checked = true;
+    };
+
     window._satOpenFormBtn = function(btn, isReadonly = false) {
         const id = parseInt(btn.dataset.colabId, 10);
         const nome = btn.dataset.colabNome;
@@ -792,7 +808,7 @@
                         <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} ${disabledAttr} style="position:absolute; opacity:0; pointer-events:none;">
                         <div class="sat-rbtn" data-color="${c}" data-bg="${c}" data-group="av_${catIdx}_${idx}"
                              style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:2px solid ${btnBorder}; background:${btnBg}; color:${btnColor}; transition:all 0.15s; cursor:pointer;"
-                             onclick="(function(el){if(isReadonly)return;var grp=el.dataset.group; document.querySelectorAll('.sat-rbtn[data-group=\''+grp+'\']').forEach(function(b){b.style.background='#fff';b.style.color=b.dataset.color;b.style.borderColor='#cbd5e1';}); el.style.background=el.dataset.bg; el.style.color='#fff'; el.style.borderColor=el.dataset.color; var inp=el.previousElementSibling; if(inp)inp.checked=true;})(this)">
+                             onclick="window._satRhRbtnClick(this, ${isReadonly ? 'true' : 'false'})">
                             ${v}
                         </div>
                     </label>`;
