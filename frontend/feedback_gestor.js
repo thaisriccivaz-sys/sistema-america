@@ -497,13 +497,21 @@
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
-                ${lastP && lastP.respondido ? `
-                <button
-                    onclick="window._desFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
-                    title="Registrar / Ver Feedback"
-                    style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
-                    <i class="ph ph-chat-circle-text"></i>
-                </button>` : ''}
+                ${lastP && lastP.respondido ? (
+                    lastP.pdf_url ? `
+                    <button
+                        onclick="window.open('${lastP.pdf_url}', '_blank')"
+                        title="Ver PDF do Feedback Assinado"
+                        style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-eye"></i>
+                    </button>` : `
+                    <button
+                        onclick="window._desFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
+                        title="Registrar Feedback"
+                        style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-chat-circle-text"></i>
+                    </button>`
+                ) : ''}
                 </div>
             </td>
         </tr>
@@ -1343,10 +1351,13 @@
             const assinatura_base64 = window._fbkSigPad.toDataURL('image/png');
             const selfie_base64 = window._fbkSelfieData;
 
+            const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', dept, cargo) : null;
+            const perguntas_text = (grupo && window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho) ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
+
             const r = await fetch(`${API}/api/feedback-documentos/assinar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
-                body: JSON.stringify({ colaborador_id: colabId, ano, trimestre: trim, assinatura_base64, selfie_base64 })
+                body: JSON.stringify({ colaborador_id: colabId, ano, trimestre: trim, assinatura_base64, selfie_base64, perguntas_text })
             });
             const data = await r.json();
             if (!r.ok) throw new Error(data.error || 'Erro ao gerar PDF');
