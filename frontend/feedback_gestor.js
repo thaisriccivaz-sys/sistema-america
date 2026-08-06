@@ -971,40 +971,39 @@
                     obs_feedback_json: JSON.stringify(obsFbkJson)
                 })
             });
-            
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
 
-            // 1. Atualiza imediatamente o botão da linha no DOM sem esperar re-render
-            const actionBtn = document.querySelector(`[data-colab-id="${colabId}"]`);
+            // Atualiza imediatamente o botao da linha no DOM sem depender de re-render
+            const actionBtn = document.querySelector('[data-colab-id="' + colabId + '"]');
+            console.log('[DEBUG-DESEMPENHO] colabId:', colabId, '| botao encontrado:', !!actionBtn);
             if (actionBtn) {
                 actionBtn.style.background = '#0ea5e9';
                 actionBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
-                // Insere botão verde de feedback ao lado se ainda não existir
                 const btnCell = actionBtn.parentElement;
                 if (btnCell && !btnCell.querySelector('.btn-fbk-green')) {
-                    const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', actionBtn.dataset.colabDept, actionBtn.dataset.colabCargo) : 'escritorio';
                     const anoBtn = actionBtn.dataset.ano || currentYear;
                     const trimBtn = actionBtn.dataset.trim || currentQ;
-                    const nomeSafe = (actionBtn.dataset.colabNome || '').replace(/'/g, "\\'");
-                    const deptSafe = (actionBtn.dataset.colabDept || '').replace(/'/g, "\\'");
-                    const cargoSafe = (actionBtn.dataset.colabCargo || '').replace(/'/g, "\\'");
+                    const nomeEsc = (actionBtn.dataset.colabNome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const deptEsc = (actionBtn.dataset.colabDept || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const cargoEsc = (actionBtn.dataset.colabCargo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     const fbkBtn = document.createElement('button');
                     fbkBtn.className = 'btn-fbk-green';
                     fbkBtn.title = 'Registrar Feedback';
                     fbkBtn.style.cssText = 'background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;';
                     fbkBtn.innerHTML = '<i class="ph ph-chat-circle-text"></i>';
-                    fbkBtn.setAttribute('onclick', `window._desFeedbackBtn(${colabId}, '${nomeSafe}', '${deptSafe}', '${cargoSafe}', '${anoBtn}', '${trimBtn}')`);
+                    fbkBtn.setAttribute('onclick', 'window._desFeedbackBtn(' + colabId + ",'" + nomeEsc + "','" + deptEsc + "','" + cargoEsc + "','" + anoBtn + "','" + trimBtn + "')");
                     btnCell.appendChild(fbkBtn);
                 }
+            } else {
+                // Botao nao esta no DOM (ex: usuario filtrou a tabela) — recarregar tela
+                console.warn('[DEBUG-DESEMPENHO] Botao nao encontrado — recarregando tela apos 800ms');
+                setTimeout(function() {
+                    if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();
+                }, 800);
             }
 
-            // 2. Re-render completo em background para sincronizar todos os dados
-            setTimeout(async () => {
-                if (typeof window.initFeedbackGestor === 'function') await window.initFeedbackGestor();
-            }, 400);
 
-            
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
             submitBtn.innerHTML = '<i class="ph ph-check-circle"></i> Salvar Pesquisa';
