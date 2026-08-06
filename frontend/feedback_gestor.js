@@ -948,7 +948,7 @@
             });
             
             if (!r.ok) throw new Error(await r.text());
-}
+
             // Salvar obs de feedback separadamente
             const obsFbkJson = {};
             categories.forEach((cat) => {
