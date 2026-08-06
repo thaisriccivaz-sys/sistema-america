@@ -973,7 +973,29 @@
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
             
-            // Recarregar a tela inteira para atualizar os números
+            // Atualizar a interface (tabela) diretamente para ficar instantâneo
+            const rowBtn = document.querySelector(`button[data-colab-id="${colabId}"]`);
+            if (rowBtn && rowBtn.parentElement) {
+                rowBtn.style.background = '#0ea5e9';
+                rowBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
+                const parent = rowBtn.parentElement;
+                if (!parent.querySelector('button[title="Registrar Feedback"]') && !parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
+                    const cNome = rowBtn.getAttribute('data-colab-nome') || '';
+                    const cDept = rowBtn.getAttribute('data-colab-dept') || '';
+                    const cCargo = rowBtn.getAttribute('data-colab-cargo') || '';
+                    const pAno = rowBtn.getAttribute('data-ano') || currentYear;
+                    const pTrim = rowBtn.getAttribute('data-trim') || currentQ;
+                    parent.insertAdjacentHTML('beforeend', 
+                    `<button
+                        onclick="window._desFeedbackBtn(${colabId}, '${cNome.replace(/'/g,"\\'")}', '${cDept.replace(/'/g,"\\'")}', '${cCargo.replace(/'/g,"\\'")}', '${pAno}', '${pTrim}')"
+                        title="Registrar Feedback"
+                        style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;margin-left:4px;">
+                        <i class="ph ph-chat-circle-text"></i>
+                    </button>`);
+                }
+            }
+
+            // Recarregar a tela inteira em background para atualizar os cards
             if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();
             
         } catch(err) {
@@ -1247,7 +1269,7 @@
                 <!-- Footer -->
                 <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:0.75rem;background:#f8fafc;flex-shrink:0;flex-wrap:wrap;">
                     <button onclick="document.getElementById('fbk-sign-overlay').remove();window._fbkStopCamera();" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;font-weight:600;cursor:pointer;">Voltar</button>
-                    <button id="fbk-btn-salvar" onclick="window._fbkSalvarAssinar(${colabId},'${nome.replace(/'/g,"\\'")}',${ano},${trim})" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);"><i class="ph ph-file-pdf"></i> Confirmar e Gerar PDF</button>
+                    <button id="fbk-btn-salvar" onclick="window._fbkSalvarAssinar(${colabId},'${nome.replace(/'/g,"\\'")}',${ano},${trim},'${dept.replace(/'/g,"\\'")}','${cargo.replace(/'/g,"\\'")}')" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);"><i class="ph ph-file-pdf"></i> Confirmar e Gerar PDF</button>
                 </div>
             </div>
         </div>`;
@@ -1336,7 +1358,7 @@
     };
 
 
-    window._fbkSalvarAssinar = async function(colabId, nome, ano, trim) {
+    window._fbkSalvarAssinar = async function(colabId, nome, ano, trim, deptStr, cargoStr) {
         if (!window._fbkSigPad || window._fbkSigPad.isEmpty()) {
             alert('Por favor, o colaborador deve assinar antes de continuar.'); return;
         }
@@ -1351,7 +1373,7 @@
             const assinatura_base64 = window._fbkSigPad.toDataURL('image/png');
             const selfie_base64 = window._fbkSelfieData;
 
-            const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', dept, cargo) : null;
+            const grupo = window.matchTemplateGroup ? window.matchTemplateGroup('desempenho', deptStr, cargoStr) : null;
             const perguntas_text = (grupo && window.AVALIACAO_QUESTIONS && window.AVALIACAO_QUESTIONS.desempenho) ? window.AVALIACAO_QUESTIONS.desempenho[grupo] : null;
 
             const r = await fetch(`${API}/api/feedback-documentos/assinar`, {
@@ -1364,6 +1386,23 @@
 
             window._fbkStopCamera();
             document.getElementById('fbk-sign-overlay')?.remove();
+
+            // Atualizar o botão da tabela diretamente para virar um ícone de olho
+            const rowBtn = document.querySelector(`button[data-colab-id="${colabId}"]`);
+            if (rowBtn && rowBtn.parentElement) {
+                const parent = rowBtn.parentElement;
+                const regBtn = parent.querySelector('button[title="Registrar Feedback"]');
+                if (regBtn) regBtn.remove();
+                if (!parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
+                    parent.insertAdjacentHTML('beforeend', 
+                    `<button
+                        onclick="window.open('${data.pdf_url}', '_blank')"
+                        title="Ver PDF do Feedback Assinado"
+                        style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;margin-left:4px;">
+                        <i class="ph ph-eye"></i>
+                    </button>`);
+                }
+            }
 
             // Mostrar modal de sucesso com botão para ver PDF
             const s = document.createElement('div');
