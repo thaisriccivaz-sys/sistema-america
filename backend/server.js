@@ -18555,7 +18555,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     const docNamesMap = {
                         'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de VacinaÃ§Ã£o', 'epi': 'Ficha de EPI',
-                        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de ServiÃ§o'
+                        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de ServiÃ§o',
+                        'cid': 'Atestado MÃ©dico (CID)', 'foto_colaborador': 'Foto do Colaborador'
                     };
                     const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
                     const docsList = docsArr.join(' - ') || 'Nenhum';
@@ -18610,7 +18611,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 const docNamesMap = {
                     'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de VacinaÃ§Ã£o', 'epi': 'Ficha de EPI',
-                    'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de ServiÃ§o'
+                    'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de ServiÃ§o',
+                    'cid': 'Atestado MÃ©dico (CID)', 'foto_colaborador': 'Foto do Colaborador'
                 };
                 const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
                 // Agrupar licenÃ§as por empresa
@@ -19502,7 +19504,8 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
                 'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
                 'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de ServiÃ§o', 'OS', 'ordem servico'],
-                'foto_colaborador': ['Foto do Colaborador', 'foto colaborador', 'foto']
+                'foto_colaborador': ['Foto do Colaborador', 'foto colaborador', 'foto'],
+                'cid': ['Atestado MÃ©dico (CID)', 'Atestado Medico (CID)', 'Atestado Medico', 'Atestado MÃ©dico', 'Atestado', 'CID']
             };
 
             // Verificar se foto foi exigida
