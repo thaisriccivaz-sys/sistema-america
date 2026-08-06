@@ -183,7 +183,8 @@
             </div>
 
             
-            <!-- Integração - Dinâmico (cinza/vermelho) -->
+            <!-- Integração - Dinâmico (cinza/vermelho) [OCULTADO] -->
+            <!--
             <div class="dept-item" id="dept-item-integracao" style="--dept-color:#6b7280; --dept-bg:#f3f4f6;">
                 <button class="dept-btn" title="Integração" id="dept-btn-integracao">
                     <i class="ph ph-handshake"></i>
@@ -194,6 +195,21 @@
                     <a href="#" class="nav-item" data-target="integracao" id="nav-integracao-item"
                        onclick="navigateTo('integracao'); return false;"><i class="ph ph-list-checks"></i>
                         Processo de Integração <span id="integracao-badge" style="display:none;background:#ef4444;color:#fff;border-radius:50%;font-size:0.65rem;font-weight:700;padding:1px 5px;margin-left:4px;min-width:16px;text-align:center;line-height:16px;">0</span></a>
+                </div>
+            </div>
+            -->
+
+            <!-- Gestão - Dinâmico (cinza) -->
+            <div class="dept-item" id="dept-item-gestao" style="--dept-color:#4b5563; --dept-bg:#f3f4f6; display:none;">
+                <button class="dept-btn" title="Gestão" id="dept-btn-gestao">
+                    <i class="ph ph-users-three"></i>
+                    <span>Gest&atilde;o</span>
+                </button>
+                <div class="dept-submenu" id="sub-gestao">
+                    <div class="dept-submenu-header" style="color:#4b5563;" id="dept-gestao-header"><i class="ph ph-users-three"></i> Gest&atilde;o</div>
+                    <a href="#" class="nav-item" data-target="feedback-gestor" id="nav-feedback-item"
+                       onclick="navigateTo('feedback-gestor'); return false;"><i class="ph ph-chat-circle-text"></i>
+                        Feedback</a>
                 </div>
             </div>
 
@@ -3983,6 +3999,11 @@
                     <div id="desempenho-rh-container"></div>
                 </section>
 
+                <!-- VIEW: FEEDBACK GESTOR -->
+                <section id="view-feedback-gestor" class="content-view">
+                    <div id="feedback-gestor-container"></div>
+                </section>
+
                 <!-- VIEW: TERAPIAS RH -->
                 <section id="view-terapias-rh" class="content-view">
                     <div style="padding:3rem;text-align:center;color:#94a3b8;">
@@ -6045,6 +6066,10 @@
     <!-- Gerador PDF client-side -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="avaliacoes_perguntas.js?v=20260728v2"></script>
+    <script src="rh_agenda.js"></script>
+    <script src="treinamento_presenca.js"></script>
+    <script src="feedback_gestor.js"></script>
+    <script src="logistica_dashboard.js"></script>
     <script src="avaliacoes.js?v=1778869020176"></script>
     <script src="gerenciar_avaliacoes.js?v=1778869020176"></script>
     <script src="epi.js?v=1778869020178"></script>
