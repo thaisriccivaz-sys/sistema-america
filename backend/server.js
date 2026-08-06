@@ -10814,10 +10814,11 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                     const placeholders2 = colabIds.map(() => '?').join(',');
 
                     db.all(
-                        `SELECT colaborador_id, ano, trimestre, respostas_json, created_at
-                         FROM avaliacoes
-                         WHERE tipo = ? AND colaborador_id IN (${placeholders2})
-                         ORDER BY ano DESC, trimestre DESC`,
+                        `SELECT a.colaborador_id, a.ano, a.trimestre, a.respostas_json, a.created_at, fd.pdf_r2 as pdf_url, fd.assinado_em
+                         FROM avaliacoes a
+                         LEFT JOIN feedback_documentos fd ON a.colaborador_id = fd.colaborador_id AND a.ano = fd.ano AND a.trimestre = fd.trimestre
+                         WHERE a.tipo = ? AND a.colaborador_id IN (${placeholders2})
+                         ORDER BY a.ano DESC, a.trimestre DESC`,
                         [tipoAval, ...colabIds],
                         (err3, avaliacoes) => {
                             if (err3) return res.status(500).json({ error: err3.message });
@@ -10855,7 +10856,7 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     });
                                 }
                                 const media = todas.length > 0 ? parseFloat((todas.reduce((a, b) => a + b, 0) / todas.length).toFixed(2)) : null;
-                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas };
+                                avalMap[a.colaborador_id][key] = { media, respondido: true, created_at: a.created_at, respostas, pdf_url: a.pdf_url, assinado_em: a.assinado_em };
                             });
 
                             const result = colabs.map(c => {
@@ -29272,7 +29273,7 @@ app.post('/api/feedback-documentos/salvar-obs', authenticateToken, (req, res) =>
 // ── POST /api/feedback-documentos/assinar ───────────────────────
 // Recebe assinatura + selfie (base64), faz upload no R2, gera PDF e salva URL
 app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res) => {
-    const { colaborador_id, ano, trimestre, assinatura_base64, selfie_base64 } = req.body;
+    const { colaborador_id, ano, trimestre, assinatura_base64, selfie_base64, perguntas_text } = req.body;
     if (!colaborador_id || !ano || !trimestre) {
         return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
     }
@@ -29328,6 +29329,17 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+        // Tentar embutir o logo
+        let logoEmbed = null;
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const logoPath = path.join(__dirname, '../frontend/assets/logo-header.png');
+            if (fs.existsSync(logoPath)) {
+                logoEmbed = await pdfDoc.embedPng(fs.readFileSync(logoPath));
+            }
+        } catch(e) { console.error('Erro ao carregar logo para PDF', e); }
+
         // Auxiliares de layout
         const PAGE_W = 595, PAGE_H = 842;
         const MARGIN = 50;
@@ -29341,14 +29353,27 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 page = pdfDoc.addPage([PAGE_W, PAGE_H]);
                 y = PAGE_H - MARGIN;
                 drawHeader();
+                y -= 55; // Importante para não sobrepor o conteúdo no header
             }
         }
 
         function drawHeader() {
             // Faixa azul topo
             page.drawRectangle({ x: 0, y: PAGE_H - 45, width: PAGE_W, height: 45, color: rgb(0.059, 0.298, 0.506) });
-            page.drawText('América Rental — Documento de Feedback de Desempenho', {
-                x: MARGIN, y: PAGE_H - 30, size: 13, font: fontBold, color: rgb(1, 1, 1)
+            
+            let textX = MARGIN;
+            if (logoEmbed) {
+                const logoW = 120;
+                const logoH = 34; // Manter proporção
+                page.drawImage(logoEmbed, { x: MARGIN, y: PAGE_H - 40, width: logoW, height: logoH });
+                textX += logoW + 15;
+            } else {
+                page.drawText('América Rental — ', { x: textX, y: PAGE_H - 28, size: 13, font: fontBold, color: rgb(1, 1, 1) });
+                textX += 115;
+            }
+
+            page.drawText('Documento de Feedback de Desempenho', {
+                x: textX, y: PAGE_H - 28, size: 13, font: fontBold, color: rgb(1, 1, 1)
             });
         }
 
@@ -29363,6 +29388,27 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 maxWidth: opts.maxWidth || PAGE_W - MARGIN * 2
             });
             y -= (opts.lineH || LINE_H);
+        }
+
+        function writeWrappedLine(text, opts = {}) {
+            checkNewPage();
+            const words = String(text || '').split(' ');
+            let line = '';
+            let currentY = y;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const testWidth = (opts.bold ? fontBold : font).widthOfTextAtSize(testLine, opts.size || 10);
+                if (testWidth > (opts.maxWidth || PAGE_W - MARGIN * 2) && n > 0) {
+                    page.drawText(line, { x: opts.x || MARGIN, y: currentY, size: opts.size || 10, font: opts.bold ? fontBold : font, color: opts.color || rgb(0.2, 0.2, 0.2) });
+                    line = words[n] + ' ';
+                    currentY -= (opts.lineH || LINE_H);
+                    checkNewPage(); // Checar nova página se a quebra estourar a margem
+                } else {
+                    line = testLine;
+                }
+            }
+            page.drawText(line, { x: opts.x || MARGIN, y: currentY, size: opts.size || 10, font: opts.bold ? fontBold : font, color: opts.color || rgb(0.2, 0.2, 0.2) });
+            y = currentY - (opts.lineH || LINE_H);
         }
 
         function section(title) {
@@ -29400,10 +29446,12 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 if (nota === null || nota === undefined) return;
                 const obsColab = (Array.isArray(obsTopico) ? obsTopico[i] : obsTopico[String(i)]) || '';
                 const obsFbk = fbkTopico[i] || fbkTopico[String(i)] || '';
+                const pText = (perguntas_text && perguntas_text[topico] && perguntas_text[topico][i]) ? perguntas_text[topico][i] : `Pergunta ${i + 1}`;
+                
                 checkNewPage(LINE_H * 4);
-                writeLine(`  Pergunta ${i + 1} — Nota: ${nota}/5`, { bold: true, size: 10 });
-                if (obsColab) writeLine(`    Obs. do colaborador: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
-                if (obsFbk) writeLine(`    Feedback do gestor: ${obsFbk}`, { size: 9, color: rgb(0.059, 0.298, 0.506) });
+                writeWrappedLine(`${pText} — Nota: ${nota}/5`, { bold: true, size: 10 });
+                if (obsColab) writeWrappedLine(`    Observação de Feedback: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
+                if (obsFbk) writeWrappedLine(`    Observação de Desempenho: ${obsFbk}`, { size: 9, color: rgb(0.059, 0.298, 0.506) });
             });
         }
 
