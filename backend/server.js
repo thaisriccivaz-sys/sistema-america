@@ -10534,6 +10534,25 @@ app.get('/api/colaboradores/:id/avaliacoes', authenticateToken, (req, res) => {
     });
 });
 
+app.delete('/api/avaliacoes/desempenho/:colabId/:ano/:trimestre', authenticateToken, async (req, res) => {
+    const { colabId, ano, trimestre } = req.params;
+    try {
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM avaliacoes WHERE colaborador_id = ? AND ano = ? AND trimestre = ? AND tipo = ?',
+                [colabId, ano, trimestre, 'desempenho'], (err) => err ? reject(err) : resolve()
+            );
+        });
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM feedback_documentos WHERE colaborador_id = ? AND ano = ? AND trimestre = ?',
+                [colabId, ano, trimestre], (err) => err ? reject(err) : resolve()
+            );
+        });
+        res.json({ success: true, message: 'Avaliação excluída com sucesso.' });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/migrate-avaliacoes', authenticateToken, (req, res) => {
     db.run("UPDATE avaliacoes SET tipo = 'desempenho' WHERE tipo = 'satisfacao' AND respostas_json LIKE '%Liderança%'", function(err) {
         if (err) return res.status(500).json({error: err.message});
