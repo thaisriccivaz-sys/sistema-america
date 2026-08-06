@@ -29425,9 +29425,12 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 page.drawText('América Rental', { x: MARGIN, y: PAGE_H - 30, size: 14, font: fontBold, color: rgb(1, 1, 1) });
             }
 
-            // Título abaixo da imagem, alinhado à esquerda
+            // Faixa azul para o título
+            page.drawRectangle({ x: 0, y: PAGE_H - bannerHeight - 35, width: PAGE_W, height: 35, color: rgb(0.059, 0.298, 0.506) });
+
+            // Título dentro da faixa azul
             page.drawText('Documento de Feedback de Desempenho', {
-                x: MARGIN, y: PAGE_H - bannerHeight - 20, size: 14, font: fontBold, color: rgb(0.059, 0.298, 0.506)
+                x: MARGIN, y: PAGE_H - bannerHeight - 22, size: 11, font: fontBold, color: rgb(1, 1, 1)
             });
         }
 
