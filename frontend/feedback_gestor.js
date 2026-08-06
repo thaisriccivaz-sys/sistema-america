@@ -107,8 +107,8 @@
             }
 
             const [dash, colabs] = await Promise.all([
-                fetchJSON('/api/avaliacoes/desempenho/dashboard'),
-                fetchJSON('/api/avaliacoes/desempenho/colaboradores'),
+                fetchJSON('/api/avaliacoes/desempenho/dashboard?_t=' + Date.now()),
+                fetchJSON('/api/avaliacoes/desempenho/colaboradores?_t=' + Date.now()),
             ]);
             
             if (window.isTopAdmin) {
@@ -971,14 +971,39 @@
                     obs_feedback_json: JSON.stringify(obsFbkJson)
                 })
             });
-            
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
 
-            // Recarregar a tela inteira com dados frescos do servidor
-            if (typeof window.initFeedbackGestor === 'function') await window.initFeedbackGestor();
+            // Atualiza imediatamente o botao da linha no DOM sem depender de re-render
+            const actionBtn = document.querySelector('[data-colab-id="' + colabId + '"]');
+            console.log('[DEBUG-DESEMPENHO] colabId:', colabId, '| botao encontrado:', !!actionBtn);
+            if (actionBtn) {
+                actionBtn.style.background = '#0ea5e9';
+                actionBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
+                const btnCell = actionBtn.parentElement;
+                if (btnCell && !btnCell.querySelector('.btn-fbk-green')) {
+                    const anoBtn = actionBtn.dataset.ano || currentYear;
+                    const trimBtn = actionBtn.dataset.trim || currentQ;
+                    const nomeEsc = (actionBtn.dataset.colabNome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const deptEsc = (actionBtn.dataset.colabDept || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const cargoEsc = (actionBtn.dataset.colabCargo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const fbkBtn = document.createElement('button');
+                    fbkBtn.className = 'btn-fbk-green';
+                    fbkBtn.title = 'Registrar Feedback';
+                    fbkBtn.style.cssText = 'background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;';
+                    fbkBtn.innerHTML = '<i class="ph ph-chat-circle-text"></i>';
+                    fbkBtn.setAttribute('onclick', 'window._desFeedbackBtn(' + colabId + ",'" + nomeEsc + "','" + deptEsc + "','" + cargoEsc + "','" + anoBtn + "','" + trimBtn + "')");
+                    btnCell.appendChild(fbkBtn);
+                }
+            } else {
+                // Botao nao esta no DOM (ex: usuario filtrou a tabela) — recarregar tela
+                console.warn('[DEBUG-DESEMPENHO] Botao nao encontrado — recarregando tela apos 800ms');
+                setTimeout(function() {
+                    if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();
+                }, 800);
+            }
 
-            
+
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
             submitBtn.innerHTML = '<i class="ph ph-check-circle"></i> Salvar Pesquisa';
@@ -1218,30 +1243,32 @@
                         </p>
                     </div>
 
-                    <!-- Assinatura -->
-                    <div style="margin-bottom:1.25rem;">
-                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-pen-nib" style="color:#0f4c81;margin-right:4px;"></i>Assinatura do Colaborador</label>
-                        <div style="position:relative;border:2px dashed #cbd5e1;border-radius:10px;background:#f8fafc;overflow:hidden;">
-                            <canvas id="fbk-sig-canvas" style="width:100%;display:block;touch-action:none;cursor:crosshair;" height="140"></canvas>
-                            <button onclick="window._fbkClearSig()" style="position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.1);border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.75rem;color:#dc2626;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
-                        </div>
-                        <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0;">Use o dedo (celular/tablet) ou o mouse para assinar no campo acima.</p>
-                    </div>
-
-                    <!-- Selfie -->
-                    <div style="margin-bottom:1rem;">
-                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>Selfie do Colaborador <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(data/hora BRT carimbada)</span></label>
-                        <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
-                            <div style="position:relative;border-radius:10px;overflow:hidden;background:#0f172a;width:280px;height:210px;flex-shrink:0;">
-                                <video id="fbk-selfie-video" autoplay playsinline style="width:280px;height:210px;object-fit:cover;display:block;"></video>
-                                <div id="fbk-selfie-ts" style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-family:monospace;"></div>
-                                <canvas id="fbk-selfie-canvas" style="display:none;"></canvas>
-                                <img id="fbk-selfie-preview" style="display:none;width:280px;height:210px;object-fit:cover;border-radius:10px;" />
+                    <!-- Assinatura e Selfie lado a lado -->
+                    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+                        <!-- Assinatura -->
+                        <div style="flex:1;min-width:300px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-pen-nib" style="color:#0f4c81;margin-right:4px;"></i>Assinatura do Colaborador</label>
+                            <div style="position:relative;border:2px dashed #cbd5e1;border-radius:10px;background:#f8fafc;overflow:hidden;">
+                                <canvas id="fbk-sig-canvas" style="width:100%;display:block;touch-action:none;cursor:crosshair;" height="140"></canvas>
+                                <button onclick="window._fbkClearSig()" style="position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.1);border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.75rem;color:#dc2626;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
                             </div>
-                            <div style="display:flex;flex-direction:column;gap:0.6rem;">
-                                <button id="fbk-btn-capturar" onclick="window._fbkCaptureSelfie()" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-camera"></i> Capturar Selfie</button>
-                                <button id="fbk-btn-recapturar" onclick="window._fbkRetakeSelfie()" style="display:none;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> Recapturar</button>
-                                <p style="font-size:0.75rem;color:#94a3b8;margin:0;max-width:180px;">A foto comprova que o colaborador está presente e ciente do feedback.</p>
+                            <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0;">Use o dedo (celular/tablet) ou o mouse para assinar no campo acima.</p>
+                        </div>
+
+                        <!-- Selfie -->
+                        <div style="flex:1;min-width:300px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>Selfie do Colaborador <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(data/hora BRT carimbada)</span></label>
+                            <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+                                <div style="position:relative;border-radius:10px;overflow:hidden;background:#0f172a;width:180px;height:140px;flex-shrink:0;">
+                                    <video id="fbk-selfie-video" autoplay playsinline style="width:180px;height:140px;object-fit:cover;display:block;"></video>
+                                    <div id="fbk-selfie-ts" style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-family:monospace;"></div>
+                                    <canvas id="fbk-selfie-canvas" style="display:none;"></canvas>
+                                    <img id="fbk-selfie-preview" style="display:none;width:180px;height:140px;object-fit:cover;border-radius:10px;" />
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:0.6rem;">
+                                    <button id="fbk-btn-capturar" onclick="window._fbkCaptureSelfie()" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-camera"></i> Capturar</button>
+                                    <button id="fbk-btn-recapturar" onclick="window._fbkRetakeSelfie()" style="display:none;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> Recapturar</button>
+                                </div>
                             </div>
                         </div>
                     </div>
