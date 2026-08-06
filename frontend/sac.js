@@ -1555,7 +1555,9 @@
             const isTopAdminX = window.isTopAdmin || false;
             const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
             const isPopupCloser = POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase());
-            const canClose = !pendingPopupType || isPopupCloser;
+            // gestorRequired='1' → só o gestor do setor precisa preencher; '0' ou ausente → pode fechar com X
+            const gestorRequired = localStorage.getItem('sac_popup_gestor_required_' + t.id) === '1';
+            const canClose = !pendingPopupType || isPopupCloser || !gestorRequired;
             return canClose 
                 ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
                 : '';
@@ -2363,7 +2365,9 @@
           const isTopAdminX = window.isTopAdmin || false;
           const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
           
-          const canClose = POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
+          const isCloserByList = POPUP_CLOSERS.some(x => x.toLowerCase() === u || x.toLowerCase() === u.replace(/\s+/g, '.'));
+          const gestorRequiredClose = localStorage.getItem('sac_popup_gestor_required_' + _selectedTicket.id) === '1';
+          const canClose = isCloserByList || !gestorRequiredClose;
           if (!canClose) {
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
@@ -2372,6 +2376,7 @@
             if (pendingTipo === 'aguard') _selectedTicket.aguardPendingJustification = false;
             if (pendingTipo === 'followup') _selectedTicket.followUpPendingJustification = false;
             updateTicket(_selectedTicket);
+            localStorage.removeItem('sac_popup_gestor_required_' + _selectedTicket.id);
             localStorage.removeItem('sac_pending_popup_' + _selectedTicket.id);
           }
         }
@@ -3313,13 +3318,18 @@
         const isGestorBySacPerm = (permsNow['sac'] === true || permsNow['sac-atribuidos'] === true) && !canSeeAllNow;
 
         if (!isAssignedPopup && !isGestorByTicket && !isGestorByDept && !isPopupCloser && !isGestorBySacPerm && !canSeeAllNow) return;
-        // Para SAC Ver todos (canSeeAllNow): mostrar popup mas apenas com opção de fechar (X), sem obrigatoriedade
+        // Somente o gestor real do setor (isGestorByTicket || isGestorByDept) precisa preencher obrigatoriamente
+        // Demais (assignedTo, admins, canSeeAll) podem fechar com X
+        const mustJustify = (isGestorByTicket || isGestorByDept) && !isPopupCloser;
+        localStorage.setItem('sac_popup_gestor_required_' + ticket.id, mustJustify ? '1' : '0');
       }
     } else {
       let cUserId = null;
       try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
       const isNotified = _sacSlaNotificadosIds.includes(cUserId) || POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
       if (!isNotified) return;
+      // sla/followup: popup informativo — apenas POPUP_CLOSERS são obrigados (flag já cuidado no closeModal)
+      localStorage.setItem('sac_popup_gestor_required_' + ticket.id, '0');
     }
 
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
