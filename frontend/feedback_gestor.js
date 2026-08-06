@@ -977,13 +977,8 @@
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
             _lastOpenedBtn = null;
+            await window.initFeedbackGestor();
 
-            // Recarrega a secao para refletir os dados novos
-            setTimeout(function() {
-                if (typeof window.initFeedbackGestor === 'function') {
-                    window.initFeedbackGestor();
-                }
-            }, 1000);
 
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
