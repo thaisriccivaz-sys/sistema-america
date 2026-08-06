@@ -498,7 +498,7 @@
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
                 ${lastP && lastP.respondido ? (
-                    lastP.pdf_url ? `
+                    (lastP.pdf_url && lastP.pdf_url !== 'null' && lastP.pdf_url !== 'undefined') ? `
                     <button
                         onclick="window.open('${lastP.pdf_url}', '_blank')"
                         title="Ver PDF do Feedback Assinado"
