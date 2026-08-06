@@ -2072,15 +2072,17 @@
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
         const respId = (d.responsavel_id || '').toString().trim();
-        const respNome = (d.responsavel_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+        const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+        const respNomeClean = clean(d.responsavel_nome);
+        const respLoginClean = clean(d.responsavel_login || d.responsavel_username);
         
-        const normCurrNome = currNome ? currNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+        const currNomeClean = clean(cu ? cu.nome : '');
+        const currUsernameClean = clean(currUsername);
         
         return (currUserId && respId === currUserId) ||
-               (currUsername && respLogin && respLogin === currUsername.toLowerCase()) ||
-               (normCurrNome && respNome && respNome === normCurrNome) ||
-               (normCurrNome && respNome && (respNome.includes(normCurrNome) || normCurrNome.includes(respNome)) && normCurrNome.length > 3);
+               (currUsernameClean && respLoginClean && respLoginClean === currUsernameClean) ||
+               (currNomeClean && respNomeClean && respNomeClean === currNomeClean) ||
+               (currNomeClean && respNomeClean && (respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
       })
       .map(d => (d.nome || '').trim());
 
@@ -2650,9 +2652,10 @@
              (usernameActual && gs.login && gs.login === usernameActual) ||
              (() => {
                  if (!effectiveNome || !gs.nome) return false;
-                 const normCurr = effectiveNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                 const normGs = gs.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                 return normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs);
+                 const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+                 const normCurr = clean(effectiveNome);
+                 const normGs = clean(gs.nome);
+                 return normGs && normCurr && (normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs));
              })()
          );
 
@@ -3255,24 +3258,27 @@
           (currentUser && gs.login && gs.login === currentUser.toLowerCase()) ||
           (() => {
               if (!currNomeCompleto || !gs.nome) return false;
-              const normCurr = currNomeCompleto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-              const normGs = gs.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-              return normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs);
+              const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+              const normCurr = clean(currNomeCompleto);
+              const normGs = clean(gs.nome);
+              return normGs && normCurr && (normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs));
           })()
         );
 
         // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
         const myDeptsPopup = _globalDepartamentos.filter(d => {
           const respId   = (d.responsavel_id || '').toString().trim();
-          const respNome = (d.responsavel_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+          const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+          const respNomeClean = clean(d.responsavel_nome);
+          const respLoginClean = clean(d.responsavel_login || d.responsavel_username);
           
-          const normCurrNome = currNomeCompleto ? currNomeCompleto.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+          const currNomeClean = clean(currNomeCompleto);
+          const currUserClean = clean(currentUser);
           
           return (cUserId && respId && respId === cUserId) ||
-                 (currentUser && respLogin && respLogin === currentUser.toLowerCase()) ||
-                 (normCurrNome && respNome && respNome === normCurrNome) ||
-                 (normCurrNome && respNome && (respNome.includes(normCurrNome) || normCurrNome.includes(respNome)) && normCurrNome.length > 3);
+                 (currUserClean && respLoginClean && respLoginClean === currUserClean) ||
+                 (currNomeClean && respNomeClean && respNomeClean === currNomeClean) ||
+                 (currNomeClean && respNomeClean && (respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
         }).map(d => (d.nome || '').trim());
 
         const sectorNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
