@@ -29355,7 +29355,12 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
             const path = require('path');
             const logoPath = path.join(__dirname, '../frontend/assets/logo-header.png');
             if (fs.existsSync(logoPath)) {
-                logoEmbed = await pdfDoc.embedPng(fs.readFileSync(logoPath));
+                const buf = fs.readFileSync(logoPath);
+                try {
+                    logoEmbed = await pdfDoc.embedPng(buf);
+                } catch (errPng) {
+                    logoEmbed = await pdfDoc.embedJpg(buf);
+                }
             }
         } catch(e) { console.error('Erro ao carregar logo para PDF', e); }
 
@@ -29468,9 +29473,24 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
                 const pText = (perguntas_text && perguntas_text[topico] && perguntas_text[topico][i]) ? perguntas_text[topico][i] : `Pergunta ${i + 1}`;
                 
                 checkNewPage(LINE_H * 4);
-                writeWrappedLine(`${pText} — Nota: ${nota}/5`, { bold: true, size: 10 });
-                if (obsColab) writeWrappedLine(`    Observação de Feedback: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
-                if (obsFbk) writeWrappedLine(`    Observação de Desempenho: ${obsFbk}`, { size: 9, color: rgb(0.059, 0.298, 0.506) });
+                
+                // Desenhar a pergunta
+                writeWrappedLine(pText, { bold: true, size: 10 });
+                
+                // Desenhar o badge da nota colorida
+                const notaNum = parseFloat(nota);
+                let bgCor = rgb(0.8, 0.8, 0.8);
+                if (notaNum >= 4) bgCor = rgb(0.13, 0.65, 0.38); // verde
+                else if (notaNum === 3) bgCor = rgb(0.96, 0.62, 0.04); // amarelo
+                else bgCor = rgb(0.93, 0.26, 0.26); // vermelho
+
+                page.drawRectangle({ x: MARGIN + 10, y: y + 2, width: 75, height: 15, color: bgCor });
+                page.drawText(`Nota: ${nota}/5`, { x: MARGIN + 18, y: y + 6, size: 9, font: fontBold, color: rgb(1,1,1) });
+                y -= LINE_H + 4; // avança a linha após desenhar o badge
+
+                // Textos corrigidos: o que o colaborador escreveu é Desempenho, o que o gestor escreveu é Feedback
+                if (obsColab) writeWrappedLine(`    Observação de Desempenho: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
+                if (obsFbk) writeWrappedLine(`    Observação de Feedback: ${obsFbk}`, { size: 9, color: rgb(0.059, 0.298, 0.506) });
             });
         }
 
