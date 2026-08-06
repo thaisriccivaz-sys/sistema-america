@@ -2072,12 +2072,15 @@
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
         const respId = (d.responsavel_id || '').toString().trim();
-        const respNome = (d.responsavel_nome || '').toLowerCase();
+        const respNome = (d.responsavel_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+        
+        const normCurrNome = currNome ? currNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+        
         return (currUserId && respId === currUserId) ||
                (currUsername && respLogin && respLogin === currUsername.toLowerCase()) ||
-               (currNome && respNome && respNome === currNome) ||
-               (currNome && respNome && respNome.includes(currNome) && currNome.length > 5);
+               (normCurrNome && respNome && respNome === normCurrNome) ||
+               (normCurrNome && respNome && (respNome.includes(normCurrNome) || normCurrNome.includes(respNome)) && normCurrNome.length > 3);
       })
       .map(d => (d.nome || '').trim());
 
@@ -2645,8 +2648,12 @@
          const isGestorByTicket = gs && (
              (cUserIdNow && gs.id && gs.id === cUserIdNow) ||
              (usernameActual && gs.login && gs.login === usernameActual) ||
-             (effectiveNome && gs.nome && gs.nome === effectiveNome) ||
-             (effectiveNome && gs.nome && gs.nome.includes(effectiveNome) && effectiveNome.length > 5)
+             (() => {
+                 if (!effectiveNome || !gs.nome) return false;
+                 const normCurr = effectiveNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                 const normGs = gs.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                 return normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs);
+             })()
          );
 
          // Usu\u00e1rio \u00e9 gestor do departamento do chamado via _globalDepartamentos?
@@ -3246,19 +3253,26 @@
         const isGestorByTicket = gs && (
           (cUserId && gs.id && gs.id === cUserId) ||
           (currentUser && gs.login && gs.login === currentUser.toLowerCase()) ||
-          (currNomeCompleto && gs.nome && gs.nome === currNomeCompleto) ||
-          (currNomeCompleto && gs.nome && gs.nome.includes(currNomeCompleto) && currNomeCompleto.length > 5)
+          (() => {
+              if (!currNomeCompleto || !gs.nome) return false;
+              const normCurr = currNomeCompleto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const normGs = gs.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              return normGs === normCurr || normGs.includes(normCurr) || normCurr.includes(normGs);
+          })()
         );
 
         // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
         const myDeptsPopup = _globalDepartamentos.filter(d => {
           const respId   = (d.responsavel_id || '').toString().trim();
-          const respNome = (d.responsavel_nome || '').toLowerCase();
+          const respNome = (d.responsavel_nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
           const respLogin = (d.responsavel_login || d.responsavel_username || '').toLowerCase();
+          
+          const normCurrNome = currNomeCompleto ? currNomeCompleto.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+          
           return (cUserId && respId && respId === cUserId) ||
                  (currentUser && respLogin && respLogin === currentUser.toLowerCase()) ||
-                 (currNomeCompleto && respNome && respNome === currNomeCompleto) ||
-                 (currNomeCompleto && respNome && respNome.includes(currNomeCompleto) && currNomeCompleto.length > 5);
+                 (normCurrNome && respNome && respNome === normCurrNome) ||
+                 (normCurrNome && respNome && (respNome.includes(normCurrNome) || normCurrNome.includes(respNome)) && normCurrNome.length > 3);
         }).map(d => (d.nome || '').trim());
 
         const sectorNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
