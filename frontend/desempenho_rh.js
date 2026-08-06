@@ -456,7 +456,7 @@
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
-                ${lastP && lastP.respondido && lastP.pdf_url ? `
+                ${lastP && lastP.respondido && (lastP.pdf_url && lastP.pdf_url !== 'null' && lastP.pdf_url !== 'undefined') ? `
                 <button
                     onclick="window.open('${lastP.pdf_url}', '_blank')"
                     title="Ver PDF do Feedback Assinado"
