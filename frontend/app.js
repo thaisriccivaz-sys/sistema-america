@@ -849,30 +849,42 @@ window.carregarPermissoesOnline = async function () {
         });
         
         // Lógica especial para o menu "Gestão" (exclusivo para gestores de departamento)
-        // Busca departamentos e verifica se o usuário logado gerencia algum.
-        fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('token') || ''}` } })
+        // Usa o mesmo padrão do SAC: lê nome completo do erp_user e compara com responsavel_nome
+        fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || ''}` } })
             .then(r => r.ok ? r.json() : [])
             .then(depts => {
                 let isManager = false;
-                const cu = window.currentUser;
-                if (cu) {
-                    const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
-                    const currUserId = String(cu.id);
-                    const currUsernameClean = clean(cu.username || cu.login || cu.email);
-                    const currNomeClean = clean(cu.nome);
-                    
-                    const myManagedDepts = depts.filter(d => {
-                        const respUserId = (d.responsavel_usuario_id || '').toString().trim();
-                        const respUsernameClean = clean(d.responsavel_username);
-                        const respNomeClean = clean(d.responsavel_nome);
-                        return (currUserId && respUserId && respUserId === currUserId) ||
-                               (currUsernameClean && respUsernameClean && respUsernameClean === currUsernameClean) ||
-                               (currNomeClean && respNomeClean && (respNomeClean === currNomeClean || respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
-                    });
-                    if (myManagedDepts.length > 0) isManager = true;
-                    // Salvar para o feedback_gestor.js usar
-                    window._myManagedDeptsGlob = myManagedDepts.map(d => d.nome);
+                // Lê dados do usuário logado — mesmo padrão do SAC
+                let cUserId = null, cNome = null, cUsername = null;
+                try {
+                    const erpUser = JSON.parse(localStorage.getItem('erp_user'));
+                    if (erpUser) {
+                        cUserId = String(erpUser.id);
+                        cNome   = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+                        cUsername = (erpUser.username || '').toLowerCase().trim();
+                    }
+                } catch(e) {}
+                // Fallback para window.currentUser
+                if (!cUserId && window.currentUser) {
+                    cUserId = String(window.currentUser.id);
+                    cNome   = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
+                    cUsername = (window.currentUser.username || '').toLowerCase().trim();
                 }
+
+                const myManagedDepts = depts.filter(d => {
+                    const gestorId   = d.responsavel_id ? String(d.responsavel_id) : null;
+                    const gestorNome = (d.responsavel_nome || '').toLowerCase().trim();
+                    const gestorUsername = (d.responsavel_username || '').toLowerCase().trim();
+                    // Compara ID do colaborador ou nome completo (igual ao SAC)
+                    return (gestorId && cUserId && gestorId === cUserId) ||
+                           (gestorNome && cNome && gestorNome.length > 3 && (gestorNome === cNome || gestorNome.includes(cNome) || cNome.includes(gestorNome))) ||
+                           (gestorUsername && cUsername && gestorUsername === cUsername);
+                });
+
+                if (myManagedDepts.length > 0) isManager = true;
+                // Salvar para o feedback_gestor.js usar
+                window._myManagedDeptsGlob = myManagedDepts.map(d => d.nome);
+
                 const gestaoMenu = document.getElementById('dept-item-gestao');
                 if (gestaoMenu) {
                     if (isManager || window.isTopAdmin) {
@@ -1033,7 +1045,8 @@ const TAB_META = {
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
     'rh-logistica-sinistros': { color: '#f503c5', icon: 'ph-warning', title: 'Sinistros' },
     'rh-logistica-multas': { color: '#f503c5', icon: 'ph-receipt', title: 'Multas' },
-    // Processos - Vermelho
+    'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
+    'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
 };
 

@@ -650,6 +650,40 @@ db.run("UPDATE departamentos SET nome = 'Manutenção' WHERE nome LIKE '%Manuten
 db.run("UPDATE colaboradores SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
 db.run("UPDATE cargos SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o%' AND departamento != 'Manutenção'");
 
+// Remover departamentos duplicados com encoding corrompido (Manutenção, Ajudante Pátio, Liderança, Logística)
+// Para cada um: migrar colaboradores e depois apagar o registro corrompido
+['Manutenção', 'Ajudante Pátio', 'Liderança', 'Logística', 'Motorista'].forEach(nomeCorreto => {
+    db.all("SELECT id, nome FROM departamentos WHERE nome != ? AND (nome LIKE ? OR nome LIKE ?)", 
+        [nomeCorreto, `%${nomeCorreto.substring(0,5)}%`, `%${nomeCorreto.substring(0,4)}%`],
+        (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(row => {
+                // Só remove se for claramente uma corrupção do mesmo nome (mesmo início)
+                const semAcento = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                if (semAcento(row.nome).startsWith(semAcento(nomeCorreto).substring(0,5))) {
+                    db.run("UPDATE colaboradores SET departamento = ? WHERE departamento = ?", [nomeCorreto, row.nome]);
+                    db.run("UPDATE cargos SET departamento = ? WHERE departamento = ?", [nomeCorreto, row.nome]);
+                    db.run("DELETE FROM departamentos WHERE id = ?", [row.id], () => {
+                        console.log(`[DEPT FIX] Removido duplicado corrompido id=${row.id}: "${row.nome}" → "${nomeCorreto}"`);
+                    });
+                }
+            });
+        }
+    );
+});
+
+// Limpeza de duplicatas por nome idêntico (caso existam 2 Ajudante Pátio com IDs diferentes)
+db.all("SELECT nome, MIN(id) as id_keep, COUNT(*) as cnt FROM departamentos GROUP BY LOWER(TRIM(nome)) HAVING cnt > 1", [], (err, dupes) => {
+    if (err || !dupes) return;
+    dupes.forEach(d => {
+        db.run("UPDATE colaboradores SET departamento = (SELECT nome FROM departamentos WHERE id = ?) WHERE LOWER(TRIM(departamento)) = LOWER(TRIM(?))", [d.id_keep, d.nome]);
+        db.run("DELETE FROM departamentos WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) AND id != ?", [d.nome, d.id_keep], () => {
+            console.log(`[DEPT FIX] Removidas duplicatas de "${d.nome}", mantido id=${d.id_keep}`);
+        });
+    });
+});
+
+
 
 // Recarregar configurações do sistema (ex: certificado)
 db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
