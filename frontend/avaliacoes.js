@@ -100,8 +100,10 @@ window.renderAvaliacaoTab = async function(container) {
             let perc = 0;
             let avId = null;
             let avStatusHtml = '';
+            let avUrl = null;
             if (hasData) {
                 const av = avYear.find(a=>a.trimestre===t);
+                avUrl = av.pdf_url;
                 avId = av.id;
                 const res = JSON.parse(av.respostas_json);
                 if (tipo === 'experiencia' && res.__status__) {
@@ -140,8 +142,8 @@ window.renderAvaliacaoTab = async function(container) {
                         <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                             <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                         </button>
-                        ${isFull ? (tipo === 'desempenho' && av.pdf_url ? `
-                        <button onclick="window.open('${av.pdf_url}', '_blank')" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar PDF Assinado">
+                        ${isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
+                        <button onclick="window.open('${avUrl}', '_blank')" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar PDF Assinado">
                             <i class="ph ph-eye"></i>
                         </button>
                         ` : `
