@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -98,7 +98,7 @@ async function sendMailHelper(opts) {
     
     return _globalTransporter.sendMail({
         ...opts,
-        from: opts.from || `"America Rental" <${defaultEmail}>`,
+        from: opts.from || `"América Rental" <${defaultEmail}>`,
         replyTo: opts.replyTo || defaultEmail,
         text: textPlain,
         headers: {
@@ -113,7 +113,7 @@ async function sendMailHelper(opts) {
 
 /**
  * Utilitário: envia e-mail para todos os usuários configurados para receber um tipo de notificação.
- * Usa m??ltiplas estratégias de busca de e-mail para garantir entrega:
+ * Usa múltiplas estratégias de busca de e-mail para garantir entrega:
  *   1. email_corporativo do colaborador (JOIN por nome)
  *   2. email do colaborador (JOIN por nome)
  *   3. email_corporativo do colaborador (JOIN por username)
@@ -128,7 +128,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
-        // Busca todos os usuários configurados para o tipo, com m??ltiplas fontes de e-mail
+        // Busca todos os usuários configurados para o tipo, com múltiplas fontes de e-mail
         db.all(`
             SELECT
                 u.id as uid, u.nome as unome, u.username, u.email as uemail,
@@ -282,7 +282,7 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
             const enderecoLabel = enderecoNome || '—';
             const qtdMaxLabel = qtdMax !== null ? String(qtdMax) : '—';
             const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">' +
-                '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>' +
+                '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" /></div>' +
                 '<h2 style="color:#ea580c;text-align:center;">&#9888; Estoque M&iacute;nimo Atingido</h2>' +
                 '<p>Um item do estoque atingiu ou est&aacute; abaixo da quantidade m&iacute;nima ap&oacute;s <b>' + labelTipo + '</b>:</p>' +
                 '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">' +
@@ -551,13 +551,13 @@ REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
 const ENCODING_FIXES = [
     { de: 'Responsabilidade Bilhete ??nico',   para: 'Responsabilidade Bilhete \u00danico' },
     { de: 'Acordo Individual Benef??cios',      para: 'Acordo Individual Benef\u00edcios' },
-    { de: 'Bloqueio de Farm??cia e Mercado',    para: 'Bloqueio de Farm\u00e1cia e Mercado' },
+    { de: 'Bloqueio de Farmácia e Mercado',    para: 'Bloqueio de Farm\u00e1cia e Mercado' },
     { de: 'Autoriza????o de Desconto em Folha', para: 'Autoriza\u00e7\u00e3o de Desconto em Folha' },
     { de: 'Autoriza????o de Uso de Imagem',     para: 'Autoriza\u00e7\u00e3o de Uso de Imagem' },
     { de: 'Solicita????o de VT',               para: 'Solicita\u00e7\u00e3o de VT' },
     { de: 'Responsabilidade Bilhete Un\u0301ico', para: 'Responsabilidade Bilhete \u00danico' },
     // Termo de NÃO Interesse Terapia — variações com encoding quebrado
-    { de: 'Termo de N??O Interesse Terapia',   para: 'Termo de N\u00c3O Interesse Terapia' },
+    { de: 'Termo de NºO Interesse Terapia',   para: 'Termo de N\u00c3O Interesse Terapia' },
     { de: 'Termo de N\u00c3\u00c3O Interesse Terapia', para: 'Termo de N\u00c3O Interesse Terapia' },
     { de: 'Termo de NAO Interesse Terapia',    para: 'Termo de N\u00c3O Interesse Terapia' },
 ];
@@ -591,7 +591,7 @@ const CARGOS_ENCODING_FIXES = [
     { de: 'Sup. Log??stica', para: 'Sup. Log\u00edstica' },
     { de: 'Ger. Log??stica', para: 'Ger. Log\u00edstica' },
     { de: 'Lid. Log??stica', para: 'Lid. Log\u00edstica' },
-    { de: 'Manuten????o', para: 'Manuten\u00e7\u00e3o' }
+    { de: 'Manutenº??o', para: 'Manuten\u00e7\u00e3o' }
 ];
 
 CARGOS_ENCODING_FIXES.forEach(({ de, para }) => {
@@ -662,7 +662,7 @@ db.all("SELECT chave, valor FROM configuracoes_sistema", [], (err, rows) => {
     }
 });
 
-// -- DIAGN??STICO DE PERSIST??NCIA ----------------------------------------
+// -- DIAGNºSTICO DE PERSIST??NCIA ----------------------------------------
 const dbPathAtual = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
 if (!process.env.DATABASE_PATH) {
     console.warn('??  AVISO: DATABASE_PATH não definido! O banco está em disco ef??mero.');
@@ -987,7 +987,7 @@ const htmlNR1 = `
 <p style="font-weight: bold; text-decoration: underline; margin-top: 1.5rem;">MEDIDAS ADMINISTRATIVAS</p>
 <ul style="margin-top: 0.5rem; line-height: 1.6;">
     <li>TREINAMENTO E MONITORAMENTO DAS ATIVIDADES.</li>
-    <li>ORIENTAÇÕES DE SEGURAN??A DOS LOCAIS DE PRESTAÇÃO DE SERVI??OS.</li>
+    <li>ORIENTAÇÕES DE SEGURANºA DOS LOCAIS DE PRESTAÇÃO DE SERVI??OS.</li>
 </ul>
 
 <p style="margin-top: 2rem;">Declaro ter recebido as instru????es de Segurança e Sa??de no Trabalho de acordo com a NR-1, bem como os EPIs necessários e comprometo-me a cumprir todas as normas estabelecidas.</p>
@@ -1157,7 +1157,7 @@ GERADORES_PERFIL.forEach(nome => {
 // MIGRATION: Seed do gerador "Aceite de Recebimento por E-mail"
 (function seedAceiteEmail() {
     const nomeGerador = 'Aceite de Recebimento por E-mail';
-    const conteudoHTML = `<p><b>ACEITE DE RECEBIMENTO POR E-MAIL</b></p><br><p>Eu, <b>\${NOME_COMPLETO}</b>, portador(a) do CPF n?? <b>\${CPF}</b>, ocupando o cargo de <b>\${CARGO}</b> no departamento de <b>\${DEPARTAMENTO}</b>, admitido(a) em <b>\${DATA_ADMISSAO}</b>, venho por meio deste documento <b>declarar meu aceite e ciência</b> de que:</p><p>1. Estou ciente de que a empresa <b>América Rental Equipamentos Ltda.</b> poder?? me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <b>e-mail</b>, inclusive com validade legal.</p><p>2. O endereço de e-mail cadastrado para recebimento dessas comunicações ??: <b>\${EMAIL}</b>.</p><p>3. Reconhe??o que sou o(a) <b>responsável pela guarda, confidencialidade e acesso</b> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</p><p>4. Comprometo-me a comunicar imediatamente ao setor de Recursos Humanos caso ocorra qualquer alteração no endereço de e-mail acima informado ou caso eu perca o acesso a ele.</p><p>5. Estou ciente de que a América Rental Equipamentos Ltda. não se responsabiliza pelo uso indevido da minha conta de e-mail por terceiros, nem por acessos não autorizados decorrentes de neglig??ncia de minha parte na guarda da minha senha.</p>`;
+    const conteudoHTML = `<p><b>ACEITE DE RECEBIMENTO POR E-MAIL</b></p><br><p>Eu, <b>\${NOME_COMPLETO}</b>, portador(a) do CPF nº <b>\${CPF}</b>, ocupando o cargo de <b>\${CARGO}</b> no departamento de <b>\${DEPARTAMENTO}</b>, admitido(a) em <b>\${DATA_ADMISSAO}</b>, venho por meio deste documento <b>declarar meu aceite e ciência</b> de que:</p><p>1. Estou ciente de que a empresa <b>América Rental Equipamentos Ltda.</b> poder?? me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <b>e-mail</b>, inclusive com validade legal.</p><p>2. O endereço de e-mail cadastrado para recebimento dessas comunicações ??: <b>\${EMAIL}</b>.</p><p>3. Reconhe??o que sou o(a) <b>responsável pela guarda, confidencialidade e acesso</b> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</p><p>4. Comprometo-me a comunicar imediatamente ao setor de Recursos Humanos caso ocorra qualquer alteração no endereço de e-mail acima informado ou caso eu perca o acesso a ele.</p><p>5. Estou ciente de que a América Rental Equipamentos Ltda. não se responsabiliza pelo uso indevido da minha conta de e-mail por terceiros, nem por acessos não autorizados decorrentes de neglig??ncia de minha parte na guarda da minha senha.</p>`;
 
     // Forçar atualização do conte??do para quem já tem a tabela
     db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
@@ -1188,11 +1188,11 @@ GERADORES_PERFIL.forEach(nome => {
     <tr><td colspan="3" style="text-align:center;font-weight:bold;font-size:14px;border:1px solid #000;padding:6px 0;">SOLICITAÇÃO DO VALE - TRANSPORTE</td></tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nome Empregado:</b> \${NOME_COMPLETO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>N?? Reg.:</b> \${ID}</td>
+      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>Nº Reg.:</b> \${ID}</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;"><b>Função:</b> \${CARGO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;"><b>CTPS N??:</b> \${CTPS}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>CTPS Nº:</b> \${CTPS}</td>
       <td style="border:1px solid #000;padding:5px 8px;"><b>S??rie:</b></td>
     </tr>
   </table>
@@ -1223,11 +1223,11 @@ GERADORES_PERFIL.forEach(nome => {
   <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
     <tr>
       <td style="padding:8px 8px;font-size:10.5px;line-height:1.6;" colspan="3">
-        Nos termos do artigo 7º do Decreto N?? 95.247 de 17 de novembro de 1987 solicito receber o Vale - Transporte e comprometo-me:<br>
+        Nos termos do artigo 7º do Decreto Nº 95.247 de 17 de novembro de 1987 solicito receber o Vale - Transporte e comprometo-me:<br>
         a) a utilizá-lo exclusivamente para meu efetivo deslocamento residência - trabalho e vice-versa;<br>
         b) a renovar anualmente ou sempre que ocorrer alteração no meu endereço residencial ou dos servi??os e meios de transporte mais adequados ao meu deslocamento residência/trabalho e vice-versa;<br>
-        c) autorizo a descontar até 6% ( seis por cento ) do meu sal??rio bàsico mensal para concorrer ao custeio do Vale-Transporte (conforme o artigo 9º do Decreto n?? 95.247/87).<br>
-        d) declaro estar ciente de que a declaração falsa ou o uso indevido do Vale - Transporte constituem falta grave (conforme o parágrafo 3?? do artigo 7º do Decreto n?? 95.247/87).
+        c) autorizo a descontar até 6% ( seis por cento ) do meu sal??rio bàsico mensal para concorrer ao custeio do Vale-Transporte (conforme o artigo 9º do Decreto nº 95.247/87).<br>
+        d) declaro estar ciente de que a declaração falsa ou o uso indevido do Vale - Transporte constituem falta grave (conforme o parágrafo 3?? do artigo 7º do Decreto nº 95.247/87).
       </td>
     </tr>
   </table>
@@ -1235,7 +1235,7 @@ GERADORES_PERFIL.forEach(nome => {
     <tr><td style="padding:6px 8px;font-size:11px;" colspan="5"><b>Minha Resid??ncia Atual:</b></td></tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Rua/Av.:</b> \${VT_ENDERECO}</td>
-      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>N??:</b> \${VT_NUMERO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nº:</b> \${VT_NUMERO}</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;"><b>Bairro:</b> \${VT_BAIRRO}</td>
@@ -1764,7 +1764,7 @@ if (!process.env.SECRET_KEY) {
 }
 const SECRET_KEY = process.env.SECRET_KEY;
 
-// Configuração de Armazenamento (Din??mico para Render/Linux ou Disco Persistente)
+// Configuração de Armazenamento (Dinºmico para Render/Linux ou Disco Persistente)
 const BASE_PATH = process.env.STORAGE_PATH || path.join(__dirname, 'data', 'Colaboradores');
 const BASE_UPLOAD_PATH = BASE_PATH; // Mantendo compatibilidade
 
@@ -2140,7 +2140,7 @@ app.get('/api/check-pfx', authenticateToken, (req, res) => {
 const signPdfPfx = require('./sign_pdf_pfx');
 // -----------------------------------------------------------------------------
 
-// --- POLLING AUTOM??TICO: Atualizar status de documentos de admissão -----------
+// --- POLLING AUTOMÁTICO: Atualizar status de documentos de admissão -----------
 // Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
 async function pollAdmissaoAssinaturas() {
     try {
@@ -2217,7 +2217,7 @@ async function pollAdmissaoAssinaturas() {
                 };
 
                 // Status do Assinafy que indicam assinatura EFETIVAMENTE completa.
-                // ATEN????O: 'completed' significa que o envelope foi CRIAÇÃO com sucesso (ainda aguardando assinatura).
+                // ATENº??O: 'completed' significa que o envelope foi CRIAÇÃO com sucesso (ainda aguardando assinatura).
                 // Apenas 'certificated' e o código '4' indicam que TODOS assinaram e o certificado foi emitido.
                 const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
                 if (!isSigned) {
@@ -2261,7 +2261,7 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
-                // O buffer final que ser?? salvo (com cert se dispon??vel, ou apenas assinado pelo colab)
+                // O buffer final que ser?? salvo (com cert se disponºvel, ou apenas assinado pelo colab)
                 const finalBuffer = certSignedBuffer || pdfBuffer;
 
                 // Tentar sincronizar com OneDrive diretamente da memória (sem salvar em disco)
@@ -2342,7 +2342,7 @@ async function pollAdmissaoAssinaturas() {
                         fs.writeFileSync(destPath, finalBuffer);
                         signedPath = destPath;
                     } catch (e) {
-                        console.warn(`[POLL-ADMISSAO] Disco local indispon??vel (normal no Render): ${e.message}`);
+                        console.warn(`[POLL-ADMISSAO] Disco local indisponºvel (normal no Render): ${e.message}`);
                     }
                 }
 
@@ -2363,7 +2363,7 @@ async function pollAdmissaoAssinaturas() {
                 // PROTEÇÃO: só marca 'Assinado' se o PDF assinado foi efetivamente baixado.
                 // Sem PDF, significa que o Assinafy ainda não gerou o certificado (falso positivo).
                 if (!finalBuffer) {
-                    console.warn(`[POLL-ADMISSAO] ??? Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF dispon??vel. Mantendo como Pendente.`);
+                    console.warn(`[POLL-ADMISSAO] ??? Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF disponºvel. Mantendo como Pendente.`);
                 } else {
                     // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
                     db.run(
@@ -2790,7 +2790,7 @@ app.post('/api/admissao-assinaturas/verificar-status', authenticateToken, async 
     }
 });
 
-// DIAGN??STICO: compara tabelas e status real no Assinafy
+// DIAGNºSTICO: compara tabelas e status real no Assinafy
 app.get('/api/admissao-assinaturas/diagnostico/:colaborador_id', authenticateToken, async (req, res) => {
     const { colaborador_id } = req.params;
     try {
@@ -2840,7 +2840,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
     }
 
     try {
-        // --- TRAVA DE SEGURAN??A: VERIFICAR SE J?? EST?? ASSINADO NO ASSINAFY ANTES DE GERAR NOVO ---
+        // --- TRAVA DE SEGURANºA: VERIFICAR SE J?? EST?? ASSINADO NO ASSINAFY ANTES DE GERAR NOVO ---
         const docExistente = await new Promise((res, rej) => db.get('SELECT assinafy_id, assinafy_status, signed_file_path FROM documentos WHERE id = ?', [document_id], (err, row) => err ? rej(err) : res(row)));
         
         if (docExistente && docExistente.assinafy_id) {
@@ -3866,9 +3866,9 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         if (novoStatus && novoStatus !== 'Desligado' && novoStatus !== 'Iniciado' && !novoStatus.toLowerCase().includes('iniciado')) {
             db.get(`SELECT d.tipo as tipo_dept FROM departamentos d WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?))`, [dept], (errD, rowD) => {
                 if (isOperacional || (rowD && rowD.tipo_dept === 'Operacional')) {
-                    const msg = `O colaborador <strong>${nomeOriginal}</strong> à um novo colaborador dispon??vel para distribui????o de equipe (Fora de Equipe).`;
+                    const msg = `O colaborador <strong>${nomeOriginal}</strong> à um novo colaborador disponºvel para distribui????o de equipe (Fora de Equipe).`;
                     if (typeof notificarResponsaveisEquipes === 'function') {
-                        notificarResponsaveisEquipes(msg, 'Novo Colaborador Dispon??vel', 'ph-user-plus', '#ec4899', false);
+                        notificarResponsaveisEquipes(msg, 'Novo Colaborador Disponºvel', 'ph-user-plus', '#ec4899', false);
                     }
                 }
             });
@@ -3932,7 +3932,7 @@ app.get('/api/test/america', authenticateToken, async (req, res) => {
 });
 
 /**
- * ROTA DE DIAGN??STICO: Buscar colaborador por e-mail
+ * ROTA DE DIAGNºSTICO: Buscar colaborador por e-mail
  * GET /api/maintenance/buscar-email?email=xxx
  */
 app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
@@ -3952,7 +3952,7 @@ app.get('/api/maintenance/buscar-email', authenticateToken, (req, res) => {
 });
 
 /**
- * DIAGN??STICO: Consultar signatério diretamente na API Assinafy
+ * DIAGNºSTICO: Consultar signatério diretamente na API Assinafy
  * GET /api/maintenance/assinafy-signer?email=xxx
  */
 app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) => {
@@ -3987,7 +3987,7 @@ app.get('/api/maintenance/assinafy-signer', authenticateToken, async (req, res) 
 });
 
 /**
- * ROTA DE DIAGN??STICO: Verificar Persist??ncia do Banco
+ * ROTA DE DIAGNºSTICO: Verificar Persist??ncia do Banco
  */
 app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
     const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
@@ -4022,7 +4022,7 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
 });
 
 /**
- * ROTA DE DIAGN?????STICO: Testar Conex??o OneDrive
+ * ROTA DE DIAGNº???STICO: Testar Conex??o OneDrive
  */
 app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
     try {
@@ -4207,8 +4207,8 @@ async function checkColaboradorDesligado(colaboradorId) {
         ).join('');
         const htmlContent = '<div style="font-family:Arial,sans-serif;color:#333;line-height:1.6;max-width:600px;margin:0 auto;border:1px solid #eee;padding:20px;border-radius:8px;">'
             + '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" style="max-height:80px;max-width:100%;"></div>'
-            + '<h2 style="color:#c92a2a;border-bottom:2px solid #c92a2a;padding-bottom:10px;">Acao Necessaria - Responsavel de Departamento Desligado</h2>'
-            + '<p>Em <strong>' + dataHoje + '</strong>, o colaborador abaixo foi <strong style="color:#c92a2a;">desligado</strong> do sistema e era responsavel por departamento(s) que precisam de novo responsavel.</p>'
+            + '<h2 style="color:#c92a2a;border-bottom:2px solid #c92a2a;padding-bottom:10px;">Ação Necessária - Responsável de Departamento Desligado</h2>'
+            + '<p>Em <strong>' + dataHoje + '</strong>, o colaborador abaixo foi <strong style="color:#c92a2a;">desligado</strong> do sistema e era responsável por departamento(s) que precisam de novo responsável.</p>'
             + '<div style="background:#f1f5f9;padding:15px;border-radius:8px;margin:20px 0;">'
             + '<p style="margin:4px 0;"><strong>Colaborador:</strong> ' + colab.nome_completo + '</p>'
             + '<p style="margin:4px 0;"><strong>Cargo:</strong> ' + (colab.cargo || 'Nao definido') + '</p>'
@@ -4220,7 +4220,7 @@ async function checkColaboradorDesligado(colaboradorId) {
             + '<th style="padding:10px 12px;text-align:left;color:#fff;font-size:0.85rem;">Departamento</th>'
             + '<th style="padding:10px 12px;text-align:left;color:#fff;font-size:0.85rem;">Tipo</th>'
             + '</tr></thead><tbody>' + deptosRows + '</tbody></table>'
-            + '<p style="margin-top:20px;color:#334155;">Acesse o sistema e defina um novo responsavel para cada departamento acima, garantindo a continuidade do fluxo de comunicacao.</p>'
+            + '<p style="margin-top:20px;color:#334155;">Acesse o sistema e defina um novo responsável para cada departamento acima, garantindo a continuidade do fluxo de comunicação.</p>'
             + '<div style="text-align:center;margin:24px 0;">'
             + '<a href="https://sistema-america.onrender.com/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestao de Departamentos</a>'
             + '</div>'
@@ -4236,7 +4236,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         await sendMailHelper({
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailsUnicos.join(', '),
-            subject: 'Acao necessaria: ' + colab.nome_completo + ' foi desligado(a) e era responsavel por departamento(s)',
+            subject: 'Ação necessária: ' + colab.nome_completo + ' foi desligado(a) e era responsável por departamento(s)',
             html: htmlContent,
             attachments
         });
@@ -4812,7 +4812,7 @@ app.post('/api/upload-foto/:id', authenticateToken, uploadFoto.single('foto'), a
         const caminhoRelativo = path.posix.join('files', 'Colaboradores', safeNome, 'FOTOS', filename);
 
 
-        // Processamento Autom??tico (Sharp) - buffer reutilizado para ambos os destinos
+        // Processamento Automático (Sharp) - buffer reutilizado para ambos os destinos
         const processedBuffer = await sharp(req.file.buffer)
             .resize(800, 1000, {
                 fit: sharp.fit.cover,
@@ -5665,7 +5665,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         console.log('[Sinistro] tipo_sinistro:', JSON.stringify(sin.tipo_sinistro), '| geradores disponiveis:', todosGeradores.map(g => g.nome));
         let gerador = todosGeradores.find(g => normalize(g.nome).includes(tipoNorm))
             || todosGeradores.find(g => tipoNorm.split(' ').filter(w => w.length > 3).every(w => normalize(g.nome).includes(w)))
-            || todosGeradores[0] // fallback: pega o primeiro gerador de sinistro dispon??vel
+            || todosGeradores[0] // fallback: pega o primeiro gerador de sinistro disponºvel
             || null;
         console.log('[Sinistro] gerador escolhido:', gerador ? gerador.nome : 'NENHUM');
 
@@ -5753,7 +5753,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}/gi, sin.placa || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
         const isIsento = (sin.valor_total === '0,00' || sin.valor_total === '0' || sin.valor_total === 0);
-        const condicoesTexto = isIsento ? 'ISENTO DE COBRAN??A' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
+        const condicoesTexto = isIsento ? 'ISENTO DE COBRANºA' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
         
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PARCELAS\}|\{QTDE_PARCELAS\}/gi, String(sin.parcelas || 1));
         htmlFinal = htmlFinal.replace(/\{SINISTRO_VALOR_PARCELA\}|\{VALOR_PARCELA\}/gi, sin.valor_parcela || '');
@@ -5865,7 +5865,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
             (nParc === 3 ? '(<strong>X</strong>) 3x' : '(   ) 3x')
         );
 
-        // ===== AJUSTES PARA SINISTRO ISENTO DE COBRAN??A =====
+        // ===== AJUSTES PARA SINISTRO ISENTO DE COBRANºA =====
         if (isIsento) {
             // 1. Remove linhas que exibam "Valor total do dano: R$ 0,00"
             htmlFinal = htmlFinal.replace(
@@ -5883,7 +5883,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 '1.1. O presente termo tem por objeto formalizar a ci\u00eancia do colaborador sobre o sinistro aberto.'
             );
 
-            // 3. Remove a CL??USULA TERCEIRA atual inteira até o início da próxima cl??usula (para limpar a de COBRAN??A)
+            // 3. Remove a CL??USULA TERCEIRA atual inteira até o início da próxima cl??usula (para limpar a de COBRANºA)
             htmlFinal = htmlFinal.replace(
                 /CL[??A]USULA\s+TERCEIRA\s*[???\-]\s*DO\s+VALOR\s+DO\s+DANO[\s\S]{0,800}?(?=CL[??A]USULA\s+QUARTA|CL[??A]USULA\s+4|<p[^>]*>\s*4\.1\.)/gi,
                 ''
@@ -5909,7 +5909,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 'TERMO DE CI\u00caNCIA DE SINISTRO'
             );
         } else {
-            // ===== AJUSTES PARA SINISTRO COM COBRAN??A =====
+            // ===== AJUSTES PARA SINISTRO COM COBRANºA =====
 
             // 1. Remove a cl??usula 3.2 (fica acordado o desconto a título de ressarcimento)
             htmlFinal = htmlFinal.replace(
@@ -7100,7 +7100,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 finalAit || '',
                                 pontuacaoInt,
                                 valorOriginal,
-                                'nic', // Para forçar cobran??a
+                                'nic', // Para forçar cobranºa
                                 finalParcelas
                             ],
                             function(errInsert) {
@@ -7258,9 +7258,9 @@ table.dados td:first-child{font-weight:600;width:170px}
 .rodape{font-size:11px;color:#64748b;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
 p{line-height:1.5;margin:5px 0}
 </style></head><body>
-<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AM??RICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
+<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AMÉRICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
 <h1>Declaração de Responsabilidade por Infração de Tr??nsito</h1>
-<h2>CNPJ n?? 03.434.448/0001-01 ??? Rua Salto da Divisa, n?? 97, Parque Alvorada ??? Guarulhos/SP</h2>
+<h2>CNPJ nº 03.434.448/0001-01 ??? Rua Salto da Divisa, nº 97, Parque Alvorada ??? Guarulhos/SP</h2>
 <div class="bloco">
   <div class="bloco-title">Dados do Colaborador</div>
   <table class="dados">
@@ -7279,8 +7279,8 @@ p{line-height:1.5;margin:5px 0}
     <tr><td>ENDEREÇO:</td><td>${m.local_infracao || '???'}</td></tr>
     <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '???'}</td></tr>
   </table>
-  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeit??vel ??rg??o que a pontuação seja lan??ada em meu prontuário, nos termos do artigo 257, parágrafo 7º do C??digo de Tr??nsito Brasileiro e da Resolu????o do Contran n?? 918, de 28 de março de 2022, em todos os ??rg??os que se fizer necessário.</p>
-  <p style="font-size:11px;color:#475569;">Resolu????o CONTRAN n?? 918, de 28 de março de 2022 - Se????o I - Da Identificação do Condutor Infrator - Art. 5?? à 1??. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8º do CTB, que prev?? que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jur??dica, ser?? lavrada nova multa, cujo valor ser?? o dobro da multa origin??ria. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
+  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeit??vel ??rg??o que a pontuação seja lanºada em meu prontuário, nos termos do artigo 257, parágrafo 7º do C??digo de Tr??nsito Brasileiro e da Resolu????o do Contran nº 918, de 28 de março de 2022, em todos os ??rg??os que se fizer necessário.</p>
+  <p style="font-size:11px;color:#475569;">Resolu????o CONTRAN nº 918, de 28 de março de 2022 - Se????o I - Da Identificação do Condutor Infrator - Art. 5?? à 1??. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8º do CTB, que prev?? que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jur??dica, ser?? lavrada nova multa, cujo valor ser?? o dobro da multa originºria. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
 </div>
 <div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
   <div class="opcao-titulo">OPÇÃO 1 - INDICA????O DO CONDUTOR</div>
@@ -7291,16 +7291,16 @@ p{line-height:1.5;margin:5px 0}
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
   <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICA????O DO CONDUTOR (NIC)</div>
   <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que ser?? aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
-  <p><strong>Valor da Multa Origin??ria:</strong> ${fmtMoney(valorOriginal)}</p>
-  <p><strong>Valor da Multa NIC</strong> (2x a origin??ria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <p><strong>Valor da Multa Originºria:</strong> ${fmtMoney(valorOriginal)}</p>
+  <p><strong>Valor da Multa NIC</strong> (2x a originºria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
-  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, à 8º, do C??digo de Tr??nsito Brasileiro, no valor correspondente ao dobro da multa origin??ria.</p>
-  <p>Autorizo a empresa AM??RICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ n?? 03.434.448/0001-01, com sede na Rua Salto da Divisa, n?? 97, CEP 07242-300, Parque Alvorada ??? Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
+  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, à 8º, do C??digo de Tr??nsito Brasileiro, no valor correspondente ao dobro da multa originºria.</p>
+  <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07242-300, Parque Alvorada ??? Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x &nbsp; (${numParcelas>3?'???':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
-  <div class="opcao-titulo">OPÇÃO 3 - COBRAN??A DE MULTA, PRAZO DE INDICA????O PERDIDO</div>
+  <div class="opcao-titulo">OPÇÃO 3 - COBRANºA DE MULTA, PRAZO DE INDICA????O PERDIDO</div>
   <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Al??m disso, estou ciente de que não ser?? feita nenhuma indicação de pontuação na minha carteira de habilitação, por??m assumo integralmente as responsabilidades legais.</p>
   <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x</p>
@@ -7497,7 +7497,7 @@ app.get('/api/logistica/multas/:id/documento', (req, res) => {
             return res.sendFile(path.resolve(row.documento_path));
         }
 
-        return res.status(404).json({ error: 'Arquivo não dispon??vel. Fa??a o upload novamente.' });
+        return res.status(404).json({ error: 'Arquivo não disponºvel. Fa??a o upload novamente.' });
     });
 });
 
@@ -7519,7 +7519,7 @@ app.get('/api/logistica/multas/:id/termo-desconto', (req, res) => {
             return res.redirect(row.termo_desconto_url);
         }
 
-        if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não dispon??vel.' });
+        if (!row.termo_desconto_base64) return res.status(404).json({ error: 'Termo de desconto não disponºvel.' });
 
         const nome = row.termo_desconto_nome || 'termo_desconto.pdf';
         res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nome)}"`);
@@ -9091,7 +9091,7 @@ app.post('/api/recibos/anexar-massa-lote', authenticateToken, async (req, res) =
 let pagamentosMassa = null;
 try {
     pagamentosMassa = require('./pagamentos_massa');
-    console.log('[PAGAMENTOS-MASSA] M??dulo carregado com sucesso.');
+    console.log('[PAGAMENTOS-MASSA] Módulo carregado com sucesso.');
 } catch (e) {
     console.error('[PAGAMENTOS-MASSA] ERRO ao carregar módulo:', e.message);
 }
@@ -9099,7 +9099,7 @@ const _massaJobs = {}; // jobId ??? { total, done, erros, resultados }
 
 app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).any(), async (req, res) => {
     try {
-        if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não dispon??vel. Verifique os logs do servidor.' });
+        if (!pagamentosMassa) return res.status(503).json({ error: 'Módulo de processamento PDF não disponºvel. Verifique os logs do servidor.' });
         
         const tipoDocumento = req.body.tipoDocumento || 'Holerite Adiantamento';
         const files = req.files || [];
@@ -9914,7 +9914,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
         );
         if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
 
-        // 1. Arquivo local como fonte prim??ria
+        // 1. Arquivo local como fonte primária
         let pathToFile = row.signed_file_path;
 
         if (pathToFile && fs.existsSync(pathToFile)) {
@@ -9999,7 +9999,7 @@ app.post('/api/admissao-assinaturas/:id/assinar-certificado', authenticateToken,
             const docData = docInfo.data || docInfo;
             const signedUrl = docData?.artifacts?.find(a => a.type === 'signed_document')?.url ||
                 docData?.signed_url || docData?.download_url;
-            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não dispon??vel no Assinafy.' });
+            if (!signedUrl) return res.status(400).json({ ok: false, error: 'PDF assinado ainda não disponºvel no Assinafy.' });
 
             pdfBuffer = await new Promise((resolve, reject) => {
                 https.get(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } }, resp => {
@@ -10304,7 +10304,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     'MENSALIDADE': colaborador.f_valor ? `R$ ${parseFloat(colaborador.f_valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '---'
                 };
 
-                // Valores Din??micos Form (se presentes no body)
+                // Valores Dinºmicos Form (se presentes no body)
                 if (req.body) {
                     mapping['MODAL_DESCRICAO'] = req.body.desconto_descricao || '';
                     mapping['MODAL_VALOR'] = req.body.desconto_valor || '0,00';
@@ -11018,7 +11018,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         }
         const ehEsocial = duracaoDias >= 16;
 
-        // Textos din??micos conforme período
+        // Textos dinºmicos conforme período
         const emailTitulo = ehEsocial
             ? '???? Documento RH ??? Afastamento para eSocial'
             : '???? Documento RH ??? Controle de Afastamento';
@@ -11026,8 +11026,8 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             ? `Documento RH enviado por América Rental - ${colab.nome_completo} (eSocial)`
             : `Documento RH enviado por América Rental - ${colab.nome_completo} (Controle)`;
         const emailIntro = ehEsocial
-            ? `Encaminhamos o atestado m??dico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento à de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
-            : `Encaminhamos o atestado m??dico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lan??amento</strong>.`;
+            ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento à de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lanºamento</strong>.`;
         const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
 
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
@@ -11105,7 +11105,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         return res.status(400).json({ sucesso: false, error: 'document_id e email_to são obrigatórios.' });
     }
 
-    // Nodemailer requer v??rgula para m??ltiplos destinatários, substituindo ; por ,
+    // Nodemailer requer vírgula para múltiplos destinatários, substituindo ; por ,
     email_to = email_to.replace(/;/g, ',');
 
     try {
@@ -11484,7 +11484,7 @@ app.get('/api/documentos/download-assinado/:id', authenticateToken, (req, res) =
             }
         }
 
-        return res.status(404).json({ error: 'PDF assinado ainda não dispon??vel. Aguarde alguns instantes.' });
+        return res.status(404).json({ error: 'PDF assinado ainda não disponºvel. Aguarde alguns instantes.' });
     });
 });
 /**
@@ -11537,7 +11537,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 
         // status poss??veis no assinafy: certificated (assinado), completed (envelope criado, aguardando), pending, waiting_signatures, error
         // CORREÇÃO: 'completed' indica que o envelope foi CRIAÇÃO com sucesso, NÃO que foi assinado!
-        // Apenas 'certificated' e código num??rico '4' indicam assinatura efetiva de TODOS os signatérios.
+        // Apenas 'certificated' e código numérico '4' indicam assinatura efetiva de TODOS os signatérios.
         if (pStatus.includes('certificat') || pStatus === '4') {
             newStatus = 'Assinado';
         } else if (pStatus.includes('complet') || pStatus.includes('pend') || pStatus.includes('wait') || pStatus === '2' || pStatus === '3') {
@@ -11647,7 +11647,7 @@ app.post('/api/documentos/:id/sync-assinafy', authenticateToken, async (req, res
 });
 
 /**
- * DIAGN??STICO: Força re-envio de documento assinado ao OneDrive e retorna log detalhado
+ * DIAGNºSTICO: Força re-envio de documento assinado ao OneDrive e retorna log detalhado
  */
 app.post('/api/documentos/:id/force-onedrive-sync', authenticateToken, async (req, res) => {
     const docId = req.params.id;
@@ -11891,7 +11891,7 @@ app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res
         res.json({ ok, fail, total: (rows || []).length });
     });
 });
-// DIAGN??STICO: Verificar estado de um documento e seus campos
+// DIAGNºSTICO: Verificar estado de um documento e seus campos
 app.get('/api/debug-outros-contratos/:docId', authenticateToken, async (req, res) => {
     const { docId } = req.params;
     db.get('SELECT id, colaborador_id, tab_name, document_type, file_path, assinafy_status, assinafy_sent_at, assinafy_signed_at, assinafy_id FROM documentos WHERE id = ?', [docId], (err, row) => {
@@ -12600,7 +12600,7 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
         const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
         const pdfBuffer = Buffer.from(base64Data, 'base64');
         const onedriveBase = `${process.env.ONEDRIVE_BASE_PATH || 'RH/1.Colaboradores/Sistema'}/${safeNome}`;
-        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, n??mero sequencial)
+        // Pasta EPI: FichaEPI_N_Nome.pdf (sem sobrepor, nºmero sequencial)
         const epiFolder = `${onedriveBase}/EPI`;
         await onedrive.ensurePath(epiFolder);
         // EPI: um ??nico arquivo por ficha (sobrescreve a cada entrega)
@@ -13964,7 +13964,7 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('--- PROMESSA N????O TRATADA (Unhandled Rejection) ---');
+    console.error('--- PROMESSA Nº??O TRATADA (Unhandled Rejection) ---');
     console.error(reason);
 });
 
@@ -13974,18 +13974,18 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Tabela CTB: código ? { pontuacao, valor }
 const CTB_TABLE = {
-    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do sem??foro' },
+    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do semáforo' },
     '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicação ao volante' },
     '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de segurança' },
     '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em até 20%' },
     '5556': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
     '5553': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
-    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à m??xima permitida em até 20%' },
-    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à m??xima entre 20% e 50%' },
-    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à m??xima em mais de 50%' },
+    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à máxima permitida em até 20%' },
+    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à máxima entre 20% e 50%' },
+    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à máxima em mais de 50%' },
     '6050': { pontuacao: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
     '6010': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
-    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avan??ar sobre cal??ada' },
+    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avanºar sobre cal??ada' },
     '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o veículo sujo' },
     '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influ??ncia de ??lcool' },
     '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emerg??ncia' },
@@ -14121,7 +14121,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                         const htmlContent = `
                             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;padding:10px;">
-                                    <h3 style="color:#1e293b;margin:0;">AM??RICA RENTAL EQUIPAMENTOS</h3>
+                                    <h3 style="color:#1e293b;margin:0;">AMÉRICA RENTAL EQUIPAMENTOS</h3>
                                 </div>
                                 <div style="padding:24px;">
                                     <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Nova Multa no prontuário</h2>
@@ -16255,7 +16255,7 @@ const multerVideo = require('multer')({
     }
 });
 
-// Gera short_code ??nico de 6 chars (alfanum??rico case-insensitive)
+// Gera short_code único de 6 chars (alfanumérico case-insensitive)
 function gerarShortCode() {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // sem 0,1,i,l,o para evitar confusão
     let code = '';
@@ -16429,10 +16429,10 @@ app.get('/api/logistica/os/agenda-endereco', authenticateToken, (req, res) => {
 
     // 1. Busca exata e parcial pelo texto do endereço
     const endTrimmed = (endereco || '').trim();
-    // Separa por espa??os/v??rgulas e pega até os 6 primeiros termos (inclui n??mero da casa)
+    // Separa por espa??os/v??rgulas e pega até os 6 primeiros termos (inclui nºmero da casa)
     const endTokens = endTrimmed.split(/[\s,]+/).filter(t => t.length >= 1).slice(0, 6);
 
-    // Gera condi????es LIKE din??micas para todos os tokens extra??dos
+    // Gera condi????es LIKE dinºmicas para todos os tokens extra??dos
     const likeConditions = endTokens.map(() => `endereco LIKE ?`).join(' AND ');
     const likeParams = endTokens.map(t => `%${t}%`);
 
@@ -16532,8 +16532,8 @@ function agregaDias(rows) {
         .sort((a, b) => b.ocorrencias - a.ocorrencias);
 }
 
-// GET /api/logistica/os/buscar ??? Busca OS por n??mero
-// Retorna array de todos os servi??os registrados para esse n??mero de OS
+// GET /api/logistica/os/buscar ??? Busca OS por nºmero
+// Retorna array de todos os servi??os registrados para esse nºmero de OS
 app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     const { numero_os, cliente, contrato, endereco, patrimonio } = req.query;
     if (!numero_os && !cliente && !contrato && !endereco && !patrimonio) {
@@ -16638,7 +16638,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
 
     const sanitizeCliente = (str) => (str || '').replace(/[\p{Emoji}\p{So}\s]+/gu, ' ').trim().toLowerCase();
 
-    // Verifica se já existe uma OS com esse n??mero mas cliente DIFERENTE
+    // Verifica se já existe uma OS com esse nºmero mas cliente DIFERENTE
     db.get(
         `SELECT cliente FROM os_logistica WHERE numero_os = ? AND status = 'ativo' LIMIT 1`,
         [numero_os.trim()],
@@ -16650,7 +16650,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                 const clienteNovo = sanitizeCliente(cliente);
                 if (clienteExistente !== clienteNovo) {
                     return res.status(409).json({
-                        error: `O n??mero de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não à poss??vel usar este n??mero para outro cliente.`,
+                        error: `O nºmero de OS "${numero_os}" já está cadastrado para o cliente: "${existente.cliente}". Não à poss??vel usar este nºmero para outro cliente.`,
                         cliente_existente: existente.cliente
                     });
                 }
@@ -16887,7 +16887,7 @@ app.delete('/api/logistica/os/:id', authenticateToken, (req, res) => {
 });
 
 // Verifica se o tipo de servi??o à recorrente (Manutenção regular ou VAC)
-// Manuten????es AVULSAS são pontuais (filtradas por data_os) - não são recorrentes
+// Manutenº??es AVULSAS são pontuais (filtradas por data_os) - não são recorrentes
 function isRecorrente(tipoServico) {
     const t = (tipoServico || '').toLowerCase();
     if (t.includes('avulsa')) return false; // Avulsa = pontual, ignora dias da semana
@@ -17009,7 +17009,7 @@ app.delete('/api/logistica/pipeline/excluir-selecionadas', authenticateToken, ex
 
 // DELETE /api/logistica/pipeline/limpar - Remove todas as OS
 app.delete('/api/logistica/pipeline/limpar', authenticateToken, (req, res) => {
-    // ATEN????O: Isso vai remover permanentemente TODAS as OS da base
+    // ATENº??O: Isso vai remover permanentemente TODAS as OS da base
     db.run(`DELETE FROM os_logistica`, [], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         const changes = this.changes;
@@ -17043,7 +17043,7 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
         const fim = new Date(ate + 'T12:00:00');
         const cur = new Date(de + 'T12:00:00');
         let limit = 0;
-        while (cur <= fim && limit < 8) { // no m??ximo 8 dias, depois disso todos os dias já estão no Set
+        while (cur <= fim && limit < 8) { // no máximo 8 dias, depois disso todos os dias já estão no Set
             set.add(DIAS_ABBR[cur.getDay()]);
             set.add(DIAS_FULL[cur.getDay()]);
             cur.setDate(cur.getDate() + 1);
@@ -17390,7 +17390,7 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
     const { km_na_manutencao, custo, fornecedor, observacoes } = req.body;
     const now = new Date().toISOString().split('T')[0];
     try {
-        // Finalizar todas as manuten????es ativas (agendada ou em_andamento) do veículo
+        // Finalizar todas as manutenº??es ativas (agendada ou em_andamento) do veículo
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE frota_manutencoes
@@ -17462,7 +17462,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
                 );
             });
         } else {
-            // Registra manuten????es preventivas (uma por servi??o selecionado)
+            // Registra manutenº??es preventivas (uma por servi??o selecionado)
             const servicos = Array.isArray(servicos_preventivos) ? servicos_preventivos : [];
             for (const s of servicos) {
                 await new Promise((resolve, reject) => {
@@ -17487,7 +17487,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
     }
 });
 
-// GET - listar manuten????es corretivas com dias parado calculado
+// GET - listar manutenº??es corretivas com dias parado calculado
 app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     const { status, veiculo_id } = req.query;
     let sql = `
@@ -17537,7 +17537,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
 
     db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        // Se concluída ou cancelada, verificar se o veículo ainda tem manuten????es ativas
+        // Se concluída ou cancelada, verificar se o veículo ainda tem manutenº??es ativas
         if (status === 'concluida' || status === 'cancelada') {
             db.get(
                 `SELECT fm.veiculo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
@@ -17600,7 +17600,7 @@ app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) 
 // MANUTENÇÕES DE FROTA
 // =====================================================================
 
-// GET - listar manuten????es (todas ou por veículo)
+// GET - listar manutenº??es (todas ou por veículo)
 
 // GET - listar categorias
 app.get('/api/frota/categorias', authenticateToken, (req, res) => {
@@ -17645,7 +17645,7 @@ app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DEBUG - ver últimas manuten????es (tempor??rio)
+// DEBUG - ver últimas manutenº??es (tempor??rio)
 app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
     db.all(`SELECT id, veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, created_at 
             FROM frota_manutencoes ORDER BY id DESC LIMIT 30`, [], (err, rows) => {
@@ -17658,7 +17658,7 @@ app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
 app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
     const vid = req.params.veiculo_id;
     db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, v) => {
-        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manuten????es
+        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manutenº??es
         const kmAtual = v?.km_atual || 0;
         const emManutencao = v?.em_manutencao || 0;
 
@@ -18198,7 +18198,7 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     });
 });
 
-// POST - agendar manuten????es preventivas em massa (atualiza registros existentes)
+// POST - agendar manutenº??es preventivas em massa (atualiza registros existentes)
 app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async (req, res) => {
     const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
@@ -18297,7 +18297,7 @@ app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
     }
 });
 
-// GET - histórico de manuten????es realizadas (Drawer)
+// GET - histórico de manutenº??es realizadas (Drawer)
 app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     db.all(`
         SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo,
@@ -18315,7 +18315,7 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     });
 });
 
-// POST - finalizar manuten????es agendadas em massa
+// POST - finalizar manutenº??es agendadas em massa
 app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, res) => {
     const { veiculo_id, servicos_ids, data_conclusao, observacoes, km_realizado } = req.body;
     if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
@@ -18350,7 +18350,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                             count++;
                             if (count === servicos_ids.length) {
                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
+                                                res.json({ message: 'Manutenº??es finalizadas com sucesso' });
                             }
                             return;
                         }
@@ -18379,7 +18379,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                             count++;
                                             if (count === servicos_ids.length) {
                                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
+                                                res.json({ message: 'Manutenº??es finalizadas com sucesso' });
                                             }
                                         }
                                     );
@@ -18395,7 +18395,7 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                             count++;
                                             if (count === servicos_ids.length) {
                                                 if (errorMsg) return res.status(500).json({ error: errorMsg });
-                                                res.json({ message: 'Manuten????es finalizadas com sucesso' });
+                                                res.json({ message: 'Manutenº??es finalizadas com sucesso' });
                                             }
                                         }
                                     );
@@ -19227,9 +19227,9 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     const linhasLic = (lics || []).map(l => `- ${l.nome} (${l.empresa || 'América Rental'})`);
 
                     let txt = `*Credenciamento - ${cliente_nome}*\nOS: ${os || '-'}\n`;
-                    if (linhasCol.length) txt += `\n????*Equipe:*\n${linhasCol.join('\n')}\n`;
-                    if (linhasVeic.length) txt += `\n????*Veículos:*\n${linhasVeic.join('\n')}\n`;
-                    if (linhasLic.length) txt += `\n????*Licenças:*\n${linhasLic.join('\n')}\n`;
+                    if (linhasCol.length) txt += `\nº??*Equipe:*\n${linhasCol.join('\n')}\n`;
+                    if (linhasVeic.length) txt += `\nº??*Veículos:*\n${linhasVeic.join('\n')}\n`;
+                    if (linhasLic.length) txt += `\nº??*Licenças:*\n${linhasLic.join('\n')}\n`;
                     return txt.trim();
                 };
 
@@ -19622,7 +19622,7 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
 
             let veics = [];
             try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
-            // Nota: JSON parsing converte n??meros para int/string. Vamos comparar como string.
+            // Nota: JSON parsing converte nºmeros para int/string. Vamos comparar como string.
             if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
 
             const base64Data = row.crlv_base64.replace(/^data:application\/pdf;base64,/, "");
@@ -19751,7 +19751,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
     try {
         const https = require('https');
 
-        // Filtra apenas cookies do dom??nio Google
+        // Filtra apenas cookies do domínio Google
         const cookieStr = cookies
             .filter(c => c.domain && c.domain.includes('google'))
             .map(c => `${c.name}=${c.value}`)
@@ -19808,7 +19808,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
         // Se vier HTML = não está autenticado
         if (!jsonStr || jsonStr.startsWith('<')) {
             console.error('[Itinerantes] Google retornou HTML - cookies inválidos.');
-            return res.status(401).json({ error: 'Sessão inv??lida. Exporte os cookies novamente em guia an??nima logada em maps.google.com.' });
+            return res.status(401).json({ error: 'Sessão inv??lida. Exporte os cookies novamente em guia anºnima logada em maps.google.com.' });
         }
 
         if (!jsonStr.startsWith('[')) {
@@ -19838,7 +19838,7 @@ app.post('/api/itinerantes/localizacoes', authenticateToken, express.json(), asy
                 // p[1][2] = Precisão em metros
                 // p[1][6] = Timestamp da ??ltima atualização (ms)
                 // p[1][4] = Endereço/localização textual
-                // p[1][3] = N??vel de bateria (0-4 aprox) ??? ou null
+                // p[1][3] = Nºvel de bateria (0-4 aprox) ??? ou null
                 const nome = p[0]?.[1] || p[0]?.[3] || 'Desconhecido';
                 const photoUrl = p[0]?.[6]?.[1] || null;
                 const lat = p[1]?.[0] ? p[1][0] / 1e7 : null;
@@ -20021,7 +20021,7 @@ app.get('/api/logistica/agenda', authenticateToken, (req, res) => {
                                 data: dataStr,
                                 tipo: 'afastado',
                                 titulo: 'Afastado: ' + a.nome_completo.split(' ')[0],
-                                descricao: 'Afastamento m??dico para ' + a.nome_completo,
+                                descricao: 'Afastamento médico para ' + a.nome_completo,
                                 horario: '',
                                 setor: 'logistica',
                                 responsaveis: '[]',
@@ -20312,11 +20312,11 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
                         if (c.escala_ciclo_inicio) {
                             const ciclo12 = new Date(c.escala_ciclo_inicio + 'T12:00:00');
                             const diffMs = d - ciclo12;
-                            if (diffMs < 0) return false; // antes do início do ciclo: dispon??vel
+                            if (diffMs < 0) return false; // antes do início do ciclo: disponºvel
                             const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
                             return diffDias % 2 === 1; // par = trabalha, ímpar = folga (36h)
                         }
-                        return false; // sem data de refer??ncia: sempre dispon??vel
+                        return false; // sem data de refer??ncia: sempre disponºvel
                     }
 
                     // ?????? Verificar Domingo de Lei ?????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -20700,7 +20700,7 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                         motivo = 'Colaborador desligado';
                     } else if (statusSistema === 'férias' || statusSistema === 'ferias') {
                         if (c.ferias_programadas_fim && data > c.ferias_programadas_fim) {
-                            // Data da rota à DEPOIS das férias, então está dispon??vel
+                            // Data da rota à DEPOIS das férias, então está disponºvel
                         } else {
                             status = 'ferias';
                             motivo = 'Em Férias (status cadastro)';
@@ -20737,13 +20737,13 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     // Agenda logàstica - respeita o tipo do card (falta, afastado, ferias ou terapia)
                     if (agendaMap.has(c.id)) {
                         const tipoAgenda = agendaMap.get(c.id);
-                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lan??ada na Agenda'; }
-                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lan??ada na Agenda'; }
+                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lanºada na Agenda'; }
+                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lanºada na Agenda'; }
                         else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
                         else if (tipoAgenda === 'terapia' && status === 'disponivel') { status = 'terapia'; motivo = 'Terapia agendada para hoje'; }
                     }
 
-                    // Folga da escala (s?? se ainda dispon??vel)
+                    // Folga da escala (s?? se ainda disponºvel)
                     if (status === 'disponivel') {
                         if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
                     }
@@ -21233,17 +21233,17 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
         const mailOpts = {
             from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
             to: emailDestino,
-            subject: '[TESTE] ALERTA DE ESTOQUE M??NIMO - America Rental',
+            subject: '[TESTE] ALERTA DE ESTOQUE MÍNIMO - América Rental',
             html: `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">
-                <div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="America Rental" style="max-height:80px;" /></div>
-                <h2 style="color:#dc2626;text-align:center;">?????? [TESTE] Aviso de Estoque M??nimo</h2>
+                <div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" /></div>
+                <h2 style="color:#dc2626;text-align:center;">⚠️ [TESTE] Aviso de Estoque Mínimo</h2>
                 <p>Este é um e-mail de <b>TESTE</b>. Produto usado: <b>${item.nome}</b></p>
                 ${fotoHtml}
                 <table style="width:100%;border-collapse:collapse;margin-top:15px;">
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Item</th><td style="padding:8px;border:1px solid #e2e8f0;font-weight:bold;">${item.nome}</td></tr>
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Departamento</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.departamento || '-'}</td></tr>
                     <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Atual</th><td style="padding:8px;border:1px solid #e2e8f0;color:#dc2626;font-weight:bold;">${item.quantidade_atual}</td></tr>
-                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade M??nima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
+                    <tr><th style="text-align:left;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;">Quantidade Mínima</th><td style="padding:8px;border:1px solid #e2e8f0;">${item.quantidade_minima}</td></tr>
                 </table>
                 <p style="margin-top:16px;color:#64748b;font-size:12px;">Foto veiculada via: ${fotoAttachment ? 'CID inline ???' : (item.foto_url ? 'URL direta (pode ser bloqueada pelo Outlook)' : 'Sem foto cadastrada')}</p>
             </div>`,
@@ -21309,7 +21309,7 @@ app.post('/api/estoque', authenticateToken, async (req, res) => {
         if (nome) nome = nome.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
         const usuario = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
 
-        // Upload da foto para R2 se dispon??vel
+        // Upload da foto para R2 se disponºvel
         let foto_url = null;
         let foto_b64_salvar = null;
         if (foto_base64 && foto_base64.startsWith('data:')) {
@@ -21416,7 +21416,7 @@ app.put('/api/estoque/:id', authenticateToken, async (req, res) => {
             );
         }
 
-        // Lógica de Notificação de Estoque M??nimo
+        // Lógica de Notificação de Estoque Mínimo
         try {
             if (quantidade_atual <= quantidade_minima && oldRow.quantidade_atual > oldRow.quantidade_minima) {
                 const msg = `ESTOQUE BAIXO: O item "${nome}" (${departamento}) atingiu o estoque mínimo. Quantidade Atual: ${quantidade_atual}.`;
@@ -21647,10 +21647,10 @@ app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
     const qmin = parseInt(quantidade_minima) || 0;
     const qmax = parseInt(quantidade_maxima) || 0;
 
-    // Primeiro busca o saldo atual para calcular a diferen??a no total
+    // Primeiro busca o saldo atual para calcular a diferenºa no total
     db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, endereco_id], (errS, saldoAtual) => {
         const qtdAnterior = saldoAtual ? (saldoAtual.quantidade || 0) : 0;
-        const diff = qtd - qtdAnterior; // diferen??a para atualizar o total do produto
+        const diff = qtd - qtdAnterior; // diferenºa para atualizar o total do produto
 
         // Upsert no saldo por endereço - SET absoluto (não soma)
         db.run(
@@ -21664,7 +21664,7 @@ app.post('/api/estoque/:id/saldo-enderecos', authenticateToken, (req, res) => {
             (err) => {
                 if (err) return res.status(500).json({ error: err.message });
 
-                // Atualiza o total geral do produto pela diferen??a
+                // Atualiza o total geral do produto pela diferenºa
                 db.run('UPDATE estoque SET quantidade_atual = MAX(0, quantidade_atual + ?), atualizado_em = CURRENT_TIMESTAMP WHERE id = ?', [diff, id], (errU) => {
                     if (errU) return res.status(500).json({ error: errU.message });
 
@@ -21733,7 +21733,7 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
 
     const qtdRaw = parseInt(quantidade);
     if (isNaN(qtdRaw) || qtdRaw === 0) {
-        return res.status(400).json({ error: 'Quantidade inv??lida. Informe um n??mero diferente de zero.' });
+        return res.status(400).json({ error: 'Quantidade inv??lida. Informe um nºmero diferente de zero.' });
     }
 
     const isEntrada = qtdRaw > 0;
@@ -21747,7 +21747,7 @@ app.post('/api/estoque/:id/movimentar', authenticateToken, (req, res) => {
 
         // Validação de saldo apenas para sa??das
         if (!isEntrada && item.quantidade_atual < qtdAbs) {
-            return res.status(400).json({ error: `Estoque insuficiente. Dispon??vel: ${item.quantidade_atual} unid.` });
+            return res.status(400).json({ error: `Estoque insuficiente. Disponºvel: ${item.quantidade_atual} unid.` });
         }
 
         const novaQtd = isEntrada
@@ -21812,7 +21812,7 @@ app.post('/api/estoque/:id/transferir', authenticateToken, (req, res) => {
         db.get('SELECT quantidade FROM estoque_saldo_por_endereco WHERE estoque_id = ? AND endereco_id = ?', [id, origem_id], (errO, saldoRow) => {
             if (errO) return res.status(500).json({ error: errO.message });
             const saldoOrigem = saldoRow ? saldoRow.quantidade : 0;
-            if (saldoOrigem < qtd) return res.status(400).json({ error: `Saldo insuficiente no endereço de origem (dispon??vel: ${saldoOrigem}).` });
+            if (saldoOrigem < qtd) return res.status(400).json({ error: `Saldo insuficiente no endereço de origem (disponºvel: ${saldoOrigem}).` });
 
             // Debitar da origem
             db.run(
@@ -22321,7 +22321,7 @@ app.get('/api/public/pesquisa-treinamento/:token', (req, res) => {
             // Fallback for old trainings that have no questions configured
             perguntas = [
                 { id: 'default1', pergunta: 'O conte??do do treinamento foi claro e bem estruturado?', ordem: 1 },
-                { id: 'default2', pergunta: 'O instrutor demonstrou dom??nio sobre o assunto?', ordem: 2 },
+                { id: 'default2', pergunta: 'O instrutor demonstrou domínio sobre o assunto?', ordem: 2 },
                 { id: 'default3', pergunta: 'Como voc?? avalia este treinamento no geral?', ordem: 3 }
             ];
         }
@@ -22389,7 +22389,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
                               html: `
                                   <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
                                       <div style="text-align: center; margin-bottom: 20px;">
-                                          <img src="cid:empresa-logo" alt="America Rental" style="max-height: 80px;" />
+                                          <img src="cid:empresa-logo" alt="América Rental" style="max-height: 80px;" />
                                       </div>
                                       <h2 style="color: #0e7490; text-align: center;">Nova Pesquisa de Satisfação Respondida</h2>
                                       <p>Temos uma nova resposta para a pesquisa de satisfação de treinamento.</p>
@@ -22618,7 +22618,7 @@ function _extrairPublicId(url) {
   } catch (_) { return ''; }
 }
 
-console.log('[TREINAMENTO] M??dulo de treinamentos carregado.');
+console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
 
 // ?????? MIGRA????O: colunas de assinatura/selfie na tabela treinamento_presenca ????????????
 ['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome', 'optou_nao_participar'].forEach(col => {
@@ -23395,7 +23395,7 @@ app.post('/api/assinaturas/templates', authenticateToken, uploadFoto.single('bg_
                 const key = `assinaturas/templates/bg_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                 bg_image_path = await r2.uploadToR2(key, req.file.buffer, req.file.mimetype);
             } else {
-                return res.status(500).json({ error: "Serviço de upload indispon??vel (R2 não configurado)." });
+                return res.status(500).json({ error: "Serviço de upload indisponºvel (R2 não configurado)." });
             }
         }
 
@@ -25022,7 +25022,7 @@ app.listen(PORT, () => {
 
     // ?????? Seed automático: categorias e servi??os de manutenção ??????????????????????????????????????????????????????
     // Se o banco não tiver nenhuma categoria, insere as categorias e servi??os padrão.
-    // Isso garante que ambientes novos (homologação, staging) funcionem sem interven????o manual.
+    // Isso garante que ambientes novos (homologação, staging) funcionem sem intervenº??o manual.
     db.get('SELECT COUNT(*) as c FROM frota_categorias_manutencao', [], (err, row) => {
         if (err || (row && row.c > 0)) return; // já tem dados, não precisa seed
         console.log('[SEED] Banco sem categorias de manutenção. Inserindo dados padrão...');
@@ -25031,7 +25031,7 @@ app.listen(PORT, () => {
             [4,'Suspensão e Direção','car',4],[5,'Transmissão','gear-six',5],
             [6,'Sistema El??trico','lightning',6],[7,'Ar Condicionado','thermometer',7],
             [8,'Hidr??ulica / Operacional','drop',8],[9,'Sistema de Suc????o','funnel',9],
-            [10,'Estrutura / Carroceria','truck',10],[11,'Seguran??a e Legalização','shield-check',11]
+            [10,'Estrutura / Carroceria','truck',10],[11,'Seguranºa e Legalização','shield-check',11]
         ];
         const servicos = [
             [1,'Troca de ??leo do motor','KM/Tempo',10000,'km','Alta',1,1,1,0,1],
@@ -26339,7 +26339,7 @@ app.post('/api/mtr/sincronizar', authenticateToken, async (req, res) => {
 });
 
 // ?????? POST /api/mtr/importar ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-// Importa uma MTR existente (gerada pelo cliente) sabendo o n??mero
+// Importa uma MTR existente (gerada pelo cliente) sabendo o nºmero
 app.post('/api/mtr/importar', authenticateToken, async (req, res) => {
   const { numero_mtr } = req.body;
   if (!numero_mtr) return res.status(400).json({ mensagem: 'Número do MTR obrigatório' });
@@ -26452,7 +26452,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     const payload = [{
       seuCodigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
-      nomeMotorista: motorista || 'M??RCIO JORGE VILAR DA SILVA',
+      nomeMotorista: motorista || 'MÁRCIO JORGE VILAR DA SILVA',
       placaVeiculo: (placa || 'DPE5A75').replace(/[^a-zA-Z0-9]/g, ''),
       dataExpedicao: dtExpedicao,
       transportador: { cpfCnpj: transpCnpj, unidade: transpUnidade },
@@ -26811,7 +26811,7 @@ app.delete('/api/propostas/:id', authenticateToken, (req, res) => {
   });
 });
 
-console.log('[PROPOSTAS] M??dulo de propostas comerciais carregado.');
+console.log('[PROPOSTAS] Módulo de propostas comerciais carregado.');
 
 
 
@@ -27097,7 +27097,7 @@ app.post('/api/celulares/atribuicoes', authenticateToken, (req, res) => {
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const newAtribId = this.lastID;
-                // Auto-preencher telefone_corporativo com o n??mero do chip 1
+                // Auto-preencher telefone_corporativo com o nºmero do chip 1
                 if (colaborador_id && chip_id) {
                     db.get(`SELECT numero FROM celulares_chips WHERE id = ?`, [chip_id], (errCh, chipRow) => {
                         if (!errCh && chipRow && chipRow.numero) {
@@ -27227,7 +27227,7 @@ app.get('/api/celulares/historico/chip/:id', authenticateToken, (req, res) => {
     });
 });
 
-console.log('[CELULARES] M??dulo de celulares corporativos carregado.');
+console.log('[CELULARES] Módulo de celulares corporativos carregado.');
 
 try { require('../rescue_estoque.js'); } catch(e) { console.error('Rescue script error:', e); }
 
@@ -27988,7 +27988,7 @@ app.delete('/api/emails/:id', authenticateToken, (req, res) => {
     });
 });
 
-console.log('[EMAILS] M??dulo de E-mails Corporativos carregado.');
+console.log('[EMAILS] Módulo de E-mails Corporativos carregado.');
 
 
 
