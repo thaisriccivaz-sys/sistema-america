@@ -1251,6 +1251,56 @@
         window._fbkSigPad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: '#1e293b', minWidth: 1.5, maxWidth: 3 });
         window._fbkClearSig = function() { window._fbkSigPad.clear(); };
 
+        window._fbkStopCamera = function() {
+            if (window._fbkStream) {
+                window._fbkStream.getTracks().forEach(t => t.stop());
+                window._fbkStream = null;
+            }
+        };
+
+        window._fbkCaptureSelfie = function() {
+            const vid = document.getElementById('fbk-selfie-video');
+            const can = document.getElementById('fbk-selfie-canvas');
+            const pre = document.getElementById('fbk-selfie-preview');
+            const tsEl = document.getElementById('fbk-selfie-ts');
+            if (!vid || !can || !pre || !tsEl) return;
+            
+            can.width = vid.videoWidth || 560;
+            can.height = vid.videoHeight || 420;
+            const ctx = can.getContext('2d');
+            ctx.drawImage(vid, 0, 0, can.width, can.height);
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, can.height - 40, can.width, 40);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '16px monospace';
+            ctx.fillText(tsEl.textContent, 10, can.height - 15);
+            
+            window._fbkSelfieData = can.toDataURL('image/jpeg', 0.85);
+            pre.src = window._fbkSelfieData;
+            
+            vid.style.display = 'none';
+            tsEl.style.display = 'none';
+            pre.style.display = 'block';
+            
+            const btnCap = document.getElementById('fbk-btn-capturar');
+            const btnRec = document.getElementById('fbk-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'none';
+            if (btnRec) btnRec.style.display = 'flex';
+        };
+
+        window._fbkRetakeSelfie = function() {
+            window._fbkSelfieData = null;
+            document.getElementById('fbk-selfie-preview').style.display = 'none';
+            document.getElementById('fbk-selfie-video').style.display = 'block';
+            document.getElementById('fbk-selfie-ts').style.display = 'block';
+            
+            const btnCap = document.getElementById('fbk-btn-capturar');
+            const btnRec = document.getElementById('fbk-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'flex';
+            if (btnRec) btnRec.style.display = 'none';
+        };
+
         // Iniciar câmera
         window._fbkStream = null;
         window._fbkSelfieData = null;
