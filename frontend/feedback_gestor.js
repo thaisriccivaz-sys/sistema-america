@@ -76,8 +76,8 @@
 
         try {
             const [dash, colabs] = await Promise.all([
-                fetchJSON('/avaliacoes/desempenho/dashboard'),
-                fetchJSON('/avaliacoes/desempenho/colaboradores'),
+                fetchJSON('/api/avaliacoes/desempenho/dashboard'),
+                fetchJSON('/api/avaliacoes/desempenho/colaboradores'),
             ]);
             
             const myDepts = window._myManagedDeptsGlob || [];
@@ -840,7 +840,7 @@
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
             submitBtn.disabled = true;
             
-            const r = await fetch(API_URL.replace('/api', '') + '/api/avaliacoes', {
+            const r = await fetch(API + '/api/avaliacoes', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
