@@ -8576,9 +8576,13 @@ app.delete('/api/cargos/:id/anexos/:anexoId', authenticateToken, (req, res) => {
 
 // Departamentos
 app.get('/api/departamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT d.*, u.username as responsavel_username, u.id as responsavel_usuario_id
+    db.all(`SELECT d.*, 
+                   COALESCE(u2.username, u.username) as responsavel_username, 
+                   COALESCE(u2.id, u.id) as responsavel_usuario_id
             FROM departamentos d
             LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome))
+            LEFT JOIN colaboradores c ON c.id = d.responsavel_id
+            LEFT JOIN usuarios u2 ON LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email_corporativo)) OR LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email))
             ORDER BY d.nome ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
