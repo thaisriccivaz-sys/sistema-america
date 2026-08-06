@@ -948,7 +948,7 @@
             });
             
             if (!r.ok) throw new Error(await r.text());
-
+}
             // Salvar obs de feedback separadamente
             const obsFbkJson = {};
             categories.forEach((cat) => {
@@ -974,31 +974,10 @@
             
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
-            
-            // Atualizar a interface (tabela) diretamente para ficar instantâneo
-            const rowBtn = document.querySelector(`button[data-colab-id="${colabId}"]`);
-            if (rowBtn && rowBtn.parentElement) {
-                rowBtn.style.background = '#0ea5e9';
-                rowBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
-                const parent = rowBtn.parentElement;
-                if (!parent.querySelector('button[title="Registrar Feedback"]') && !parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
-                    const cNome = rowBtn.getAttribute('data-colab-nome') || '';
-                    const cDept = rowBtn.getAttribute('data-colab-dept') || '';
-                    const cCargo = rowBtn.getAttribute('data-colab-cargo') || '';
-                    const pAno = rowBtn.getAttribute('data-ano') || currentYear;
-                    const pTrim = rowBtn.getAttribute('data-trim') || currentQ;
-                    parent.insertAdjacentHTML('beforeend', 
-                    `<button
-                        onclick="window._desFeedbackBtn(${colabId}, '${cNome.replace(/'/g,"\\'")}', '${cDept.replace(/'/g,"\\'")}', '${cCargo.replace(/'/g,"\\'")}', '${pAno}', '${pTrim}')"
-                        title="Registrar Feedback"
-                        style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;margin-left:4px;">
-                        <i class="ph ph-chat-circle-text"></i>
-                    </button>`);
-                }
-            }
 
-            // Recarregar a tela inteira em background para atualizar os cards
-            if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();
+            // Recarregar a tela inteira com dados frescos do servidor
+            if (typeof window.initFeedbackGestor === 'function') await window.initFeedbackGestor();
+
             
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
