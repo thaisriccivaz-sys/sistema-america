@@ -10564,6 +10564,13 @@ app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     const { colaborador_id, tipo, ano, trimestre, respostas_json } = req.body;
     if (!colaborador_id || !tipo || !ano || !trimestre) return res.status(400).json({ error: 'colaborador_id, tipo, ano e trimestre são obrigatórios.' });
 
+    // Se for desempenho, invalida qualquer PDF assinado anterior (pois as respostas mudaram)
+    if (tipo === 'desempenho') {
+        db.run('DELETE FROM feedback_documentos WHERE colaborador_id = ? AND ano = ? AND trimestre = ?', [colaborador_id, ano, trimestre], (err) => {
+            if (err) console.error('Erro ao limpar feedback_documentos antigo ao salvar avaliação:', err.message);
+        });
+    }
+
     // Upsert (atualiza se já existir para o mesmo colaborador/ano/trimestre/tipo)
     db.run(`
         INSERT INTO avaliacoes (colaborador_id, tipo, ano, trimestre, respostas_json)
