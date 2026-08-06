@@ -561,7 +561,8 @@
                                     }
 
                                     // If empty but has details in other categories? or just empty
-                                    const pillStyle = nVal !== '—' && nVal.indexOf('<span') === -1 ? `background:${nBg};color:${nColor};font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;display:inline-block;min-width:28px;` : `color:#cbd5e1;`;
+                                    const nValStr = String(nVal);
+                                    const pillStyle = nVal !== '—' && nValStr.indexOf('<span') === -1 ? `background:${nBg};color:${nColor};font-weight:700;font-size:0.82rem;padding:2px 8px;border-radius:12px;display:inline-block;min-width:28px;` : `color:#cbd5e1;`;
                                     
                                     tbodyHtml += `<td style="text-align:center;padding:6px 12px;">
                                         <span style="${pillStyle}">${nVal}</span>
