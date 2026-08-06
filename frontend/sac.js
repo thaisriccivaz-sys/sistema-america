@@ -2071,18 +2071,20 @@
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
-        const respId = (d.responsavel_id || '').toString().trim();
         const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+        // Match por ID de usuario (mais confiavel - vem do JOIN no backend)
+        const respUserId = (d.responsavel_usuario_id || '').toString().trim();
+        // Match por username (vem do JOIN com tabela usuarios)
+        const respUsernameClean = clean(d.responsavel_username);
+        // Match por nome (fallback)
         const respNomeClean = clean(d.responsavel_nome);
-        const respLoginClean = clean(d.responsavel_login || d.responsavel_username);
         
         const currNomeClean = clean(cu ? cu.nome : '');
         const currUsernameClean = clean(currUsername);
         
-        return (currUserId && respId === currUserId) ||
-               (currUsernameClean && respLoginClean && respLoginClean === currUsernameClean) ||
-               (currNomeClean && respNomeClean && respNomeClean === currNomeClean) ||
-               (currNomeClean && respNomeClean && (respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
+        return (currUserId && respUserId && respUserId === currUserId) ||
+               (currUsernameClean && respUsernameClean && respUsernameClean === currUsernameClean) ||
+               (currNomeClean && respNomeClean && (respNomeClean === currNomeClean || respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
       })
       .map(d => (d.nome || '').trim());
 
