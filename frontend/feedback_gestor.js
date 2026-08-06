@@ -484,16 +484,27 @@
                 </td>`;
             }).join('')}
             <td style="text-align:center;">
+                <div style="display:flex;gap:4px;justify-content:center;align-items:center;flex-wrap:wrap;">
                 <button
                     data-colab-id="${c.id}"
                     data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
                     data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
+                    data-ano="${lastKey ? lastKey.split('-T')[0] : ''}"
+                    data-trim="${lastKey ? lastKey.split('-T')[1] : ''}"
                     onclick="window._desOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
+                ${lastP && lastP.respondido ? `
+                <button
+                    onclick="window._desFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
+                    title="Registrar / Ver Feedback"
+                    style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                    <i class="ph ph-chat-circle-text"></i>
+                </button>` : ''}
+                </div>
             </td>
         </tr>
         <tr class="sat-history-row" style="display:none;background:#f8fafc;">
@@ -796,9 +807,13 @@
                     </label>`;
                 }
                 
+                const fbkObsSaved = (saved.__feedback_obs__ && saved.__feedback_obs__[topico]) ? (saved.__feedback_obs__[topico][idx] || saved.__feedback_obs__[topico][String(idx)] || '') : '';
                 html += `
                         </div>
-                        <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" ${isReadonly ? 'disabled' : ''} placeholder="Observação (opcional)..." style="flex:1; min-width:250px; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                        <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:250px;">
+                            <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" ${isReadonly ? 'disabled' : ''} placeholder="Observação do colaborador (opcional)..." style="width:100%; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
+                            <input type="text" name="av_fbk_${catIdx}_${idx}" value="${String(fbkObsSaved).replace(/"/g, '&quot;')}" placeholder="📝 Feedback do gestor (opcional)..." style="width:100%; padding:0.4rem 0.6rem; border:1.5px solid #bfdbfe; border-radius:6px; font-size:0.85rem; outline:none; color:#1d4ed8; background:#eff6ff; height:32px; box-sizing:border-box;">
+                        </div>
                     </div>
                 </div>`;
             });
@@ -807,10 +822,16 @@
         });
 
         const infoAdic = saved.__obs_gerais__ ? saved.__obs_gerais__ : ((saved.__obs__ && saved.__obs__.info_adicional) ? saved.__obs__.info_adicional : '');
+        const fbkGeralSaved = saved.__feedback_obs_geral__ || '';
         html += `
                         <div style="margin-top:2.5rem;padding:1.5rem;background:#fff;border:1px dashed #cbd5e1;border-radius:8px;">
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
-                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações, feedback extra...">${infoAdic}</textarea>
+                            <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações gerais...">${infoAdic}</textarea>
+                        </div>
+
+                        <div style="margin-top:1rem;padding:1.5rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#1d4ed8;margin-bottom:0.5rem;"><i class="ph ph-chat-circle-text" style="margin-right:4px;"></i>Observações de Feedback do Gestor (Opcional)</label>
+                            <textarea name="obs_feedback_geral" rows="3" style="width:100%;padding:0.75rem;border-radius:6px;border:1.5px solid #bfdbfe;font-size:0.9rem;font-family:inherit;resize:vertical;background:#fff;color:#1d4ed8;" placeholder="Observações gerais de feedback para o colaborador...">${fbkGeralSaved}</textarea>
                         </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
@@ -840,7 +861,7 @@
         const currentQ = refTrim || Math.floor(new Date().getMonth() / 3) + 1;
         
         // build respostas_json — salva como arrays para compatibilidade com backend
-        const respostas = { __obs__: {} };
+        const respostas = { __obs__: {}, __feedback_obs__: {} };
         const perguntasGroup = window.AVALIACAO_QUESTIONS.desempenho[grupo];
         const categories = Object.keys(perguntasGroup);
         let missingRequired = [];
@@ -848,8 +869,9 @@
         categories.forEach((cat, catIdx) => {
             respostas[cat] = [];
             respostas.__obs__[cat] = [];
+            respostas.__feedback_obs__[cat] = [];
             perguntasGroup[cat].forEach((q, i) => {
-                if (!q || !q.trim()) { respostas[cat].push(null); respostas.__obs__[cat].push(''); return; }
+                if (!q || !q.trim()) { respostas[cat].push(null); respostas.__obs__[cat].push(''); respostas.__feedback_obs__[cat].push(''); return; }
                 const rads = form.elements[`av_${catIdx}_${i}`];
                 const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
                 if (selected) {
@@ -860,9 +882,12 @@
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
                 respostas.__obs__[cat].push((obs && obs.value.trim()) ? obs.value.trim() : '');
+                const fbk = form.elements[`av_fbk_${catIdx}_${i}`];
+                respostas.__feedback_obs__[cat].push((fbk && fbk.value.trim()) ? fbk.value.trim() : '');
             });
-            // limpar array de obs vazio ao final
+            // limpar arrays vazios ao final
             if (respostas.__obs__[cat].every(v => v === '')) delete respostas.__obs__[cat];
+            if (respostas.__feedback_obs__[cat].every(v => v === '')) delete respostas.__feedback_obs__[cat];
         });
         
         if (missingRequired.length > 0) {
@@ -872,6 +897,9 @@
         
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
+        
+        const obsFbkGeral = form.elements['obs_feedback_geral']?.value;
+        if (obsFbkGeral) { respostas.__feedback_obs_geral__ = obsFbkGeral.trim(); }
         
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
@@ -893,6 +921,29 @@
             });
             
             if (!r.ok) throw new Error(await r.text());
+
+            // Salvar obs de feedback separadamente
+            const obsFbkJson = {};
+            categories.forEach((cat) => {
+                if (respostas.__feedback_obs__[cat]) obsFbkJson[cat] = respostas.__feedback_obs__[cat];
+            });
+            if (obsFbkGeral) obsFbkJson.__obs_feedback_geral__ = obsFbkGeral.trim();
+
+            const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+            await fetch(API + '/api/feedback-documentos/salvar-obs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token'))
+                },
+                body: JSON.stringify({
+                    colaborador_id: colabId,
+                    ano: currentYear,
+                    trimestre: currentQ,
+                    gestor_nome: erpUser.nome || erpUser.username || '',
+                    obs_feedback_json: JSON.stringify(obsFbkJson)
+                })
+            });
             
             alert('Pesquisa salva com sucesso!');
             window._desCloseForm();
@@ -906,4 +957,216 @@
             submitBtn.disabled = false;
         }
     };
+
+    /* ── PAINEL DE FEEDBACK: ASSINATURA + SELFIE + PDF ────────────── */
+    window._desFeedbackBtn = async function(colabId, nome, dept, cargo, ano, trim) {
+        // Verificar se já existe documento assinado
+        let docExistente = null;
+        try {
+            const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+            const r = await fetch(`${API}/api/feedback-documentos/${colabId}/${ano}/${trim}`, { headers: { 'Authorization': `Bearer ${tok}` } });
+            if (r.ok) docExistente = await r.json();
+        } catch(e) {}
+
+        // Se já existe PDF assinado, mostrar botão de visualizar + opção de reassinatura
+        const jaAssinado = docExistente && docExistente.pdf_r2;
+        
+        // Carregar signature_pad via CDN se não estiver disponível
+        if (!window.SignaturePad) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js';
+                s.onload = resolve; s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        const overlayId = 'fbk-sign-overlay';
+        document.getElementById(overlayId)?.remove();
+
+        const html = `
+        <div id="${overlayId}" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.7);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;">
+            <div style="background:#fff;border-radius:16px;width:100%;max-width:700px;max-height:95vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;">
+                <!-- Header -->
+                <div style="background:linear-gradient(135deg,#0f4c81,#1d6fa5);padding:1.25rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="color:#fff;font-size:1.1rem;font-weight:700;"><i class="ph ph-signature" style="margin-right:6px;"></i>Feedback — Assinatura do Colaborador</div>
+                        <div style="color:#bfdbfe;font-size:0.82rem;margin-top:2px;">${nome} · ${dept} · ${cargo || ''}</div>
+                    </div>
+                    <button onclick="document.getElementById('${overlayId}').remove();window._fbkStopCamera();" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;color:#fff;font-size:1.2rem;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>
+                </div>
+
+                <div style="overflow-y:auto;flex:1;padding:1.5rem;">
+                    ${jaAssinado ? `
+                    <div style="background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                        <div style="color:#166534;font-weight:600;font-size:0.9rem;"><i class="ph ph-check-circle" style="margin-right:6px;"></i>Este feedback já foi assinado em ${docExistente.assinado_em || ''} (BRT)</div>
+                        <button onclick="window.open('${docExistente.pdf_r2}','_blank')" style="background:#166534;color:#fff;border:none;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
+                    </div>
+                    ` : ''}
+
+                    <!-- Assinatura -->
+                    <div style="margin-bottom:1.25rem;">
+                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-pen-nib" style="color:#0f4c81;margin-right:4px;"></i>Assinatura do Colaborador</label>
+                        <div style="position:relative;border:2px dashed #cbd5e1;border-radius:10px;background:#f8fafc;overflow:hidden;">
+                            <canvas id="fbk-sig-canvas" style="width:100%;display:block;touch-action:none;cursor:crosshair;" height="140"></canvas>
+                            <button onclick="window._fbkClearSig()" style="position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.1);border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.75rem;color:#dc2626;cursor:pointer;"><i class="ph ph-eraser"></i> Limpar</button>
+                        </div>
+                        <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0;">Peça ao colaborador para assinar acima usando o dedo ou mouse.</p>
+                    </div>
+
+                    <!-- Selfie -->
+                    <div style="margin-bottom:1.25rem;">
+                        <label style="display:block;font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:0.5rem;"><i class="ph ph-camera" style="color:#0f4c81;margin-right:4px;"></i>Selfie do Colaborador <span style="color:#64748b;font-weight:400;font-size:0.78rem;">(com data/hora BRT visível)</span></label>
+                        <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+                            <div style="position:relative;border-radius:10px;overflow:hidden;background:#0f172a;width:280px;height:210px;flex-shrink:0;">
+                                <video id="fbk-selfie-video" autoplay playsinline style="width:280px;height:210px;object-fit:cover;display:block;"></video>
+                                <div id="fbk-selfie-ts" style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;font-family:monospace;"></div>
+                                <canvas id="fbk-selfie-canvas" style="display:none;width:280px;height:210px;"></canvas>
+                                <img id="fbk-selfie-preview" style="display:none;width:280px;height:210px;object-fit:cover;border-radius:10px;" />
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:0.6rem;">
+                                <button id="fbk-btn-capturar" onclick="window._fbkCaptureSelfie()" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-camera"></i> Capturar Selfie</button>
+                                <button id="fbk-btn-recapturar" onclick="window._fbkRetakeSelfie()" style="display:none;background:#64748b;color:#fff;border:none;border-radius:8px;padding:0.6rem 1rem;font-size:0.83rem;font-weight:600;cursor:pointer;"><i class="ph ph-arrow-counter-clockwise"></i> Recapturar</button>
+                                <p style="font-size:0.75rem;color:#94a3b8;margin:0;max-width:180px;">A selfie registra que o colaborador está presente e ciente do feedback.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:0.75rem;background:#f8fafc;">
+                    <button onclick="document.getElementById('${overlayId}').remove();window._fbkStopCamera();" style="padding:0.65rem 1.25rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;font-weight:600;cursor:pointer;">Cancelar</button>
+                    <button id="fbk-btn-salvar" onclick="window._fbkSalvarAssinar(${colabId},'${nome.replace(/'/g,"\\'")}',${ano},${trim})" style="padding:0.65rem 1.4rem;border-radius:8px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(16,185,129,0.35);"><i class="ph ph-file-pdf"></i> Assinar e Gerar PDF</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        // Inicializar signature pad
+        const canvas = document.getElementById('fbk-sig-canvas');
+        canvas.width = canvas.parentElement.offsetWidth || 640;
+        window._fbkSigPad = new SignaturePad(canvas, { backgroundColor: 'rgba(255,255,255,0)', penColor: '#1e293b', minWidth: 1.5, maxWidth: 3 });
+
+        window._fbkClearSig = function() { window._fbkSigPad.clear(); };
+
+        // Iniciar câmera
+        window._fbkStream = null;
+        window._fbkSelfieData = null;
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 560, height: 420 }, audio: false });
+                window._fbkStream = stream;
+                const vid = document.getElementById('fbk-selfie-video');
+                if (vid) { vid.srcObject = stream; }
+                // Timestamp BRT em tempo real
+                function updateTS() {
+                    const tsEl = document.getElementById('fbk-selfie-ts');
+                    if (!tsEl || !window._fbkStream) return;
+                    const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+                    const d = nowBRT.toISOString().replace('T',' ').substring(0,19) + ' BRT';
+                    tsEl.textContent = d;
+                    if (!window._fbkSelfieData) setTimeout(updateTS, 1000);
+                }
+                updateTS();
+            } catch(e) {
+                const cap = document.getElementById('fbk-btn-capturar');
+                if (cap) { cap.disabled = true; cap.title = 'Câmera não disponível: ' + e.message; }
+            }
+        }
+        startCamera();
+
+        window._fbkStopCamera = function() {
+            if (window._fbkStream) { window._fbkStream.getTracks().forEach(t => t.stop()); window._fbkStream = null; }
+        };
+
+        window._fbkCaptureSelfie = function() {
+            const vid = document.getElementById('fbk-selfie-video');
+            const cvs = document.getElementById('fbk-selfie-canvas');
+            const img = document.getElementById('fbk-selfie-preview');
+            if (!vid || !cvs) return;
+            // Timestamp BRT
+            const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+            const dtStr = nowBRT.toISOString().replace('T',' ').substring(0,19) + ' BRT';
+            cvs.width = vid.videoWidth || 560; cvs.height = vid.videoHeight || 420;
+            const ctx = cvs.getContext('2d');
+            ctx.drawImage(vid, 0, 0, cvs.width, cvs.height);
+            // Carimbo de data/hora
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(4, cvs.height - 26, cvs.width - 8, 22);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px monospace';
+            ctx.fillText(dtStr, 10, cvs.height - 9);
+            window._fbkSelfieData = cvs.toDataURL('image/jpeg', 0.88);
+            if (img) { img.src = window._fbkSelfieData; img.style.display = 'block'; }
+            vid.style.display = 'none';
+            document.getElementById('fbk-selfie-ts').style.display = 'none';
+            const btnCap = document.getElementById('fbk-btn-capturar');
+            const btnRecap = document.getElementById('fbk-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'none';
+            if (btnRecap) btnRecap.style.display = 'flex';
+        };
+
+        window._fbkRetakeSelfie = function() {
+            window._fbkSelfieData = null;
+            const vid = document.getElementById('fbk-selfie-video');
+            const img = document.getElementById('fbk-selfie-preview');
+            if (vid) vid.style.display = 'block';
+            if (img) img.style.display = 'none';
+            document.getElementById('fbk-selfie-ts').style.display = 'block';
+            const btnCap = document.getElementById('fbk-btn-capturar');
+            const btnRecap = document.getElementById('fbk-btn-recapturar');
+            if (btnCap) btnCap.style.display = 'flex';
+            if (btnRecap) btnRecap.style.display = 'none';
+        };
+    };
+
+    window._fbkSalvarAssinar = async function(colabId, nome, ano, trim) {
+        if (!window._fbkSigPad || window._fbkSigPad.isEmpty()) {
+            alert('Por favor, o colaborador deve assinar antes de continuar.'); return;
+        }
+        if (!window._fbkSelfieData) {
+            alert('Por favor, capture a selfie do colaborador antes de continuar.'); return;
+        }
+        const btn = document.getElementById('fbk-btn-salvar');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner-sm" style="border-color:#a7f3d0;border-top-color:#fff;width:16px;height:16px;border-width:2px;"></div> Gerando PDF...'; }
+
+        try {
+            const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+            const assinatura_base64 = window._fbkSigPad.toDataURL('image/png');
+            const selfie_base64 = window._fbkSelfieData;
+
+            const r = await fetch(`${API}/api/feedback-documentos/assinar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tok}` },
+                body: JSON.stringify({ colaborador_id: colabId, ano, trimestre: trim, assinatura_base64, selfie_base64 })
+            });
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Erro ao gerar PDF');
+
+            window._fbkStopCamera();
+            document.getElementById('fbk-sign-overlay')?.remove();
+
+            // Mostrar modal de sucesso com botão para ver PDF
+            const s = document.createElement('div');
+            s.innerHTML = `
+            <div id="fbk-success-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;">
+                <div style="background:#fff;border-radius:16px;padding:2.5rem 2rem;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
+                    <h3 style="margin:0 0 0.5rem;color:#166534;">Feedback Registrado!</h3>
+                    <p style="color:#64748b;margin:0 0 1.5rem;font-size:0.9rem;">Assinatura e selfie salvas com sucesso. O PDF foi gerado e armazenado.</p>
+                    <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
+                        <button onclick="window.open('${data.pdf_url}','_blank')" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
+                        <button onclick="document.getElementById('fbk-success-overlay').remove();if(typeof window.initFeedbackGestor==='function')window.initFeedbackGestor();" style="background:#f1f5f9;color:#334155;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:600;cursor:pointer;">Fechar</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(s);
+
+        } catch(err) {
+            alert('Erro: ' + err.message);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-file-pdf"></i> Assinar e Gerar PDF'; }
+        }
+    };
 })();
+

@@ -29213,7 +29213,285 @@ app.get('/api/arquivos-perdidos', (req, res) => {
 });
 // ----------------------------------------------------
 
+// ============================================================
+// FEEDBACK DOCUMENTOS — Tabela + Rotas
+// ============================================================
+
+// Tabela principal
+db.run(`CREATE TABLE IF NOT EXISTS feedback_documentos (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  colaborador_id   INTEGER NOT NULL,
+  ano              INTEGER NOT NULL,
+  trimestre        INTEGER NOT NULL,
+  gestor_nome      TEXT,
+  obs_feedback_json TEXT DEFAULT '{}',
+  assinatura_r2    TEXT,
+  selfie_r2        TEXT,
+  pdf_r2           TEXT,
+  assinado_em      TEXT,
+  created_at       TEXT DEFAULT (datetime('now','-3 hours')),
+  updated_at       TEXT DEFAULT (datetime('now','-3 hours')),
+  UNIQUE(colaborador_id, ano, trimestre)
+)`, (err) => {
+    if (err) console.error('[FEEDBACK_DOC] Erro ao criar tabela:', err.message);
+    else console.log('[FEEDBACK_DOC] Tabela feedback_documentos OK.');
+});
+
+// ── GET /api/feedback-documentos/:colabId/:ano/:trim ─────────────
+app.get('/api/feedback-documentos/:colabId/:ano/:trim', authenticateToken, (req, res) => {
+    const { colabId, ano, trim } = req.params;
+    db.get(
+        `SELECT * FROM feedback_documentos WHERE colaborador_id=? AND ano=? AND trimestre=?`,
+        [colabId, ano, trim],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(row || null);
+        }
+    );
+});
+
+// ── POST /api/feedback-documentos/salvar-obs ─────────────────────
+// Salva apenas as observações de feedback do gestor (antes da assinatura)
+app.post('/api/feedback-documentos/salvar-obs', authenticateToken, (req, res) => {
+    const { colaborador_id, ano, trimestre, gestor_nome, obs_feedback_json } = req.body;
+    if (!colaborador_id || !ano || !trimestre) {
+        return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
+    }
+    const obsStr = typeof obs_feedback_json === 'string' ? obs_feedback_json : JSON.stringify(obs_feedback_json || {});
+    db.run(`
+        INSERT INTO feedback_documentos (colaborador_id, ano, trimestre, gestor_nome, obs_feedback_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now','-3 hours'))
+        ON CONFLICT(colaborador_id, ano, trimestre)
+        DO UPDATE SET gestor_nome=excluded.gestor_nome, obs_feedback_json=excluded.obs_feedback_json, updated_at=datetime('now','-3 hours')
+    `, [colaborador_id, ano, trimestre, gestor_nome || '', obsStr], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// ── POST /api/feedback-documentos/assinar ───────────────────────
+// Recebe assinatura + selfie (base64), faz upload no R2, gera PDF e salva URL
+app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res) => {
+    const { colaborador_id, ano, trimestre, assinatura_base64, selfie_base64 } = req.body;
+    if (!colaborador_id || !ano || !trimestre) {
+        return res.status(400).json({ error: 'colaborador_id, ano e trimestre são obrigatórios.' });
+    }
+    if (!assinatura_base64 || !selfie_base64) {
+        return res.status(400).json({ error: 'Assinatura e selfie são obrigatórias.' });
+    }
+
+    try {
+        const r2mod = require('./utils/r2');
+        const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
+
+        // Buscar dados do documento de feedback e do colaborador
+        const docFeedback = await new Promise((resolve, reject) =>
+            db.get(`SELECT fd.*, c.nome_completo, c.cargo, c.departamento
+                    FROM feedback_documentos fd
+                    JOIN colaboradores c ON c.id = fd.colaborador_id
+                    WHERE fd.colaborador_id=? AND fd.ano=? AND fd.trimestre=?`,
+                [colaborador_id, ano, trimestre], (err, row) => err ? reject(err) : resolve(row))
+        );
+        if (!docFeedback) return res.status(404).json({ error: 'Documento de feedback não encontrado. Salve as observações primeiro.' });
+
+        // Buscar avaliação salva para pegar notas e obs do colaborador
+        const avalRow = await new Promise((resolve, reject) =>
+            db.get(`SELECT respostas_json FROM avaliacoes WHERE colaborador_id=? AND ano=? AND trimestre=? AND tipo='desempenho'`,
+                [colaborador_id, ano, trimestre], (err, row) => err ? reject(err) : resolve(row))
+        );
+        let respostas = {};
+        try { respostas = JSON.parse(avalRow?.respostas_json || '{}'); } catch(e) {}
+        let obsFeedback = {};
+        try { obsFeedback = JSON.parse(docFeedback.obs_feedback_json || '{}'); } catch(e) {}
+
+        // Timestamp BRT (UTC-3)
+        const nowBRT = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const dtStr = nowBRT.toISOString().replace('T', ' ').substring(0, 19) + ' (BRT)';
+        const dtFileStr = nowBRT.toISOString().replace(/[:.T]/g, '-').substring(0, 19);
+
+        // Prefixo R2
+        const safeNome = (docFeedback.nome_completo || 'colaborador').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const prefix = `Feedback/${safeNome}/${ano}-T${trimestre}`;
+
+        // 1. Upload assinatura
+        const sigBuffer = Buffer.from(assinatura_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const sigKey = `${prefix}/assinatura_${dtFileStr}.png`;
+        const sigUrl = await r2mod.uploadToR2(sigKey, sigBuffer, 'image/png');
+
+        // 2. Upload selfie
+        const selfBuffer = Buffer.from(selfie_base64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+        const selfieKey = `${prefix}/selfie_${dtFileStr}.jpg`;
+        const selfieUrl = await r2mod.uploadToR2(selfieKey, selfBuffer, 'image/jpeg');
+
+        // 3. Gerar PDF com pdf-lib
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        // Auxiliares de layout
+        const PAGE_W = 595, PAGE_H = 842;
+        const MARGIN = 50;
+        const LINE_H = 18;
+
+        let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+        let y = PAGE_H - MARGIN;
+
+        function checkNewPage(neededH = LINE_H * 2) {
+            if (y < MARGIN + neededH) {
+                page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+                y = PAGE_H - MARGIN;
+                drawHeader();
+            }
+        }
+
+        function drawHeader() {
+            // Faixa azul topo
+            page.drawRectangle({ x: 0, y: PAGE_H - 45, width: PAGE_W, height: 45, color: rgb(0.059, 0.298, 0.506) });
+            page.drawText('América Rental — Documento de Feedback de Desempenho', {
+                x: MARGIN, y: PAGE_H - 30, size: 13, font: fontBold, color: rgb(1, 1, 1)
+            });
+        }
+
+        function writeLine(text, opts = {}) {
+            checkNewPage();
+            page.drawText(String(text || ''), {
+                x: opts.x || MARGIN,
+                y,
+                size: opts.size || 10,
+                font: opts.bold ? fontBold : font,
+                color: opts.color || rgb(0.2, 0.2, 0.2),
+                maxWidth: opts.maxWidth || PAGE_W - MARGIN * 2
+            });
+            y -= (opts.lineH || LINE_H);
+        }
+
+        function section(title) {
+            checkNewPage(LINE_H * 3);
+            y -= 6;
+            page.drawRectangle({ x: MARGIN - 5, y: y - 4, width: PAGE_W - MARGIN * 2 + 10, height: LINE_H + 4, color: rgb(0.88, 0.93, 0.98) });
+            page.drawText(title, { x: MARGIN, y, size: 11, font: fontBold, color: rgb(0.059, 0.298, 0.506) });
+            y -= LINE_H + 6;
+        }
+
+        // Página 1 — cabeçalho + dados
+        drawHeader();
+        y -= 55;
+
+        writeLine(`Colaborador: ${docFeedback.nome_completo}`, { bold: true, size: 12 });
+        writeLine(`Cargo: ${docFeedback.cargo || '—'}  |  Departamento: ${docFeedback.departamento || '—'}`, { size: 10 });
+        writeLine(`Período de Avaliação: ${ano} — ${trimestre}º Trimestre`, { size: 10 });
+        writeLine(`Gestor responsável: ${docFeedback.gestor_nome || '—'}`, { size: 10 });
+        writeLine(`Data de geração: ${dtStr}`, { size: 10 });
+        y -= 10;
+
+        // Notas e observações por tópico
+        const topicos = Object.keys(respostas).filter(k => !k.startsWith('__'));
+        const obs = respostas.__obs__ || {};
+
+        for (const topico of topicos) {
+            const notas = respostas[topico];
+            if (!Array.isArray(notas)) continue;
+            section(`Tópico: ${topico}`);
+
+            const obsTopico = obs[topico] || [];
+            const fbkTopico = obsFeedback[topico] || {};
+
+            notas.forEach((nota, i) => {
+                if (nota === null || nota === undefined) return;
+                const obsColab = (Array.isArray(obsTopico) ? obsTopico[i] : obsTopico[String(i)]) || '';
+                const obsFbk = fbkTopico[i] || fbkTopico[String(i)] || '';
+                checkNewPage(LINE_H * 4);
+                writeLine(`  Pergunta ${i + 1} — Nota: ${nota}/5`, { bold: true, size: 10 });
+                if (obsColab) writeLine(`    Obs. do colaborador: ${obsColab}`, { size: 9, color: rgb(0.3, 0.3, 0.3) });
+                if (obsFbk) writeLine(`    Feedback do gestor: ${obsFbk}`, { size: 9, color: rgb(0.059, 0.298, 0.506) });
+            });
+        }
+
+        // Observação geral do colaborador
+        const obsGeral = respostas.__obs_gerais__ || respostas.__obs__?.info_adicional || '';
+        if (obsGeral) {
+            section('Observação Geral do Colaborador');
+            writeLine(obsGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
+        }
+
+        // Observação de Feedback Geral (gestor)
+        const fbkGeral = obsFeedback.__obs_feedback_geral__ || '';
+        if (fbkGeral) {
+            section('Observações de Feedback do Gestor');
+            writeLine(fbkGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
+        }
+
+        // Embed selfie
+        checkNewPage(200);
+        section('Selfie do Colaborador (ciente do feedback)');
+        try {
+            let selfieEmbed;
+            if (selfie_base64.includes('image/png')) {
+                selfieEmbed = await pdfDoc.embedPng(selfBuffer);
+            } else {
+                selfieEmbed = await pdfDoc.embedJpg(selfBuffer);
+            }
+            const imgW = 160, imgH = 120;
+            checkNewPage(imgH + 30);
+            page.drawImage(selfieEmbed, { x: MARGIN, y: y - imgH, width: imgW, height: imgH });
+            page.drawText(`Capturado em: ${dtStr}`, { x: MARGIN, y: y - imgH - 14, size: 8, font, color: rgb(0.4, 0.4, 0.4) });
+            y -= imgH + 30;
+        } catch(imgErr) {
+            writeLine('[Selfie não pôde ser incorporada ao PDF]', { size: 9, color: rgb(0.6, 0.2, 0.2) });
+        }
+
+        // Assinatura do colaborador
+        checkNewPage(140);
+        section('Assinatura do Colaborador');
+        try {
+            const sigEmbed = await pdfDoc.embedPng(sigBuffer);
+            const sigW = 200, sigH = 80;
+            checkNewPage(sigH + 40);
+            page.drawImage(sigEmbed, { x: MARGIN, y: y - sigH, width: sigW, height: sigH });
+            y -= sigH + 10;
+            page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + 260, y }, thickness: 0.8, color: rgb(0.3, 0.3, 0.3) });
+            y -= 14;
+            writeLine(`${docFeedback.nome_completo}`, { bold: true, size: 10 });
+            writeLine(`Assinado digitalmente em: ${dtStr}`, { size: 9, color: rgb(0.4, 0.4, 0.4) });
+        } catch(sigErr) {
+            writeLine('[Assinatura não pôde ser incorporada ao PDF]', { size: 9 });
+        }
+
+        // Rodapé na última página
+        const allPages = pdfDoc.getPages();
+        allPages.forEach((p, pi) => {
+            p.drawText(`Pág. ${pi + 1} / ${allPages.length}  |  América Rental — Confidencial`, {
+                x: MARGIN, y: 20, size: 8, font, color: rgb(0.6, 0.6, 0.6)
+            });
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        const pdfBuffer = Buffer.from(pdfBytes);
+        const pdfKey = `${prefix}/feedback_assinado_${dtFileStr}.pdf`;
+        const pdfUrl = await r2mod.uploadToR2(pdfKey, pdfBuffer, 'application/pdf');
+
+        // 4. Salvar tudo no banco
+        const assinadoEm = nowBRT.toISOString().replace('T', ' ').substring(0, 19);
+        await new Promise((resolve, reject) =>
+            db.run(`UPDATE feedback_documentos
+                    SET assinatura_r2=?, selfie_r2=?, pdf_r2=?, assinado_em=?, updated_at=datetime('now','-3 hours')
+                    WHERE colaborador_id=? AND ano=? AND trimestre=?`,
+                [sigUrl, selfieUrl, pdfUrl, assinadoEm, colaborador_id, ano, trimestre],
+                (err) => err ? reject(err) : resolve())
+        );
+
+        res.json({ success: true, pdf_url: pdfUrl, assinatura_url: sigUrl, selfie_url: selfieUrl });
+
+    } catch (err) {
+        console.error('[FEEDBACK_DOC/assinar] Erro:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+
 // --- Configuração de Backup automático ---
+
 const runBackup = require('./backup_db');
 const syncB2 = require('./sync_b2');
 let lastBackupDate = null;
