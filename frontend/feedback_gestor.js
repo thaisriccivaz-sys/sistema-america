@@ -81,7 +81,14 @@
             ]);
             
             const myDepts = window._myManagedDeptsGlob || [];
-            _colabs = colabs.filter(c => myDepts.includes(c.departamento));
+            if (window.isTopAdmin) {
+                _colabs = colabs;
+            } else {
+                _colabs = {
+                    ...colabs,
+                    colaboradores: (colabs.colaboradores || []).filter(c => myDepts.includes(c.departamento))
+                };
+            }
             _dash = dash;
         } catch (e) {
             container.innerHTML = `<div style="padding:2rem;color:#ef4444;">Erro ao carregar: ${e.message}</div>`;
