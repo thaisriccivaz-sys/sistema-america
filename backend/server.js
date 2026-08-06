@@ -10576,12 +10576,34 @@ app.post('/api/avaliacoes', authenticateToken, (req, res) => {
     });
 });
 
-app.delete('/api/avaliacoes/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Avaliação não encontrada.' });
-        res.json({ deleted: this.changes, message: 'Avaliação exclu??da com sucesso' });
-    });
+app.delete('/api/avaliacoes/:id', authenticateToken, async (req, res) => {
+    try {
+        // Primeiro, buscar os dados da avaliação para poder limpar o feedback_documentos depois
+        const row = await new Promise((resolve, reject) => {
+            db.get('SELECT colaborador_id, ano, trimestre, tipo FROM avaliacoes WHERE id = ?', [req.params.id], (err, r) => err ? reject(err) : resolve(r));
+        });
+        if (!row) return res.status(404).json({ error: 'Avaliação não encontrada.' });
+
+        // Deletar a avaliação
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM avaliacoes WHERE id = ?', [req.params.id], function(err) {
+                if (err) return reject(err);
+                resolve(this.changes);
+            });
+        });
+
+        // Se for desempenho, também limpar o feedback_documentos (PDF assinado) para reset completo
+        if (row.tipo === 'desempenho') {
+            await new Promise((resolve, reject) => {
+                db.run('DELETE FROM feedback_documentos WHERE colaborador_id = ? AND ano = ? AND trimestre = ?',
+                    [row.colaborador_id, row.ano, row.trimestre], (err) => err ? reject(err) : resolve());
+            });
+        }
+
+        res.json({ deleted: 1, message: 'Avaliação excluída com sucesso' });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- ROTAS DE TEMPLATES DE AVALIA????O ---
