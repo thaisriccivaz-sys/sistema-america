@@ -2438,7 +2438,7 @@
                  history: t[key].history || [],
                  assignedTo: newUsername,
                  assignedToName: user.nome || user.name || user.username,
-                 assignedToPhoto: user.foto || user.photo || ''
+                 assignedToPhoto: user.foto || user.photo || user.foto_colaborador || ''
              };
              
              // Timeline
@@ -2474,7 +2474,7 @@
             ...t[key],
             assignedTo: newUsername || null,
             assignedToName: user ? (user.nome||user.name||user.username) : newUsername,
-            assignedToPhoto: user ? (user.foto||user.photo||'') : ''
+            assignedToPhoto: user ? (user.foto||user.photo||user.foto_colaborador||'') : ''
           };
       }
       
