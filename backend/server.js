@@ -30084,3 +30084,17 @@ app.get('/api/admin/restore-from-r2-v2', async (req, res) => {
         res.status(500).send('Erro: ' + e.message);
     }
 });
+
+// ROTA DE EMERGENCIA: Forcar backup manual agora (com WAL checkpoint)
+app.get('/api/admin/run-backup', async (req, res) => {
+    try {
+        console.log('[BACKUP-MANUAL] Iniciando backup manual...');
+        const runBackup = require('./backup_db');
+        await runBackup();
+        console.log('[BACKUP-MANUAL] Backup manual concluido.');
+        res.send('OK: Backup concluido com sucesso. Verifique o R2/B2.');
+    } catch(e) {
+        console.error('[BACKUP-MANUAL] Erro:', e.message);
+        res.status(500).send('Erro no backup: ' + e.message);
+    }
+});
