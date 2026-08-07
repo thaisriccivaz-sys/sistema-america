@@ -99,6 +99,10 @@ window.gerarFeedbackIA = async function(formElement) {
         if (data.error) throw new Error(data.error);
         
         textarea.value = data.texto;
+        // Ajusta a altura da textarea automaticamente para mostrar todo o texto
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight + 10) + 'px';
+        
         showToast("Feedback gerado com sucesso!", "success");
     } catch (err) {
         console.error(err);
