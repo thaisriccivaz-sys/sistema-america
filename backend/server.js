@@ -314,6 +314,11 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
 
 const db = require('./database');
 
+// AUTO-PATCH: Corrigir caracteres especiais corrompidos no banco de produção
+db.run("UPDATE geradores SET nome = 'Solicitação de VT' WHERE nome LIKE 'Solicita%de VT'");
+db.run("UPDATE documentos SET document_type = 'Solicitação de VT' WHERE document_type LIKE 'Solicita%de VT'");
+db.run("UPDATE admissao_assinaturas SET nome_documento = 'Solicitação de VT' WHERE nome_documento LIKE 'Solicita%de VT'");
+
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
 db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
 
