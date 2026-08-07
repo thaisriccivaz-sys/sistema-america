@@ -2996,7 +2996,7 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `Você é um Consultor de Recursos Humanos sênior especializado em criar relatórios de feedback de desempenho empáticos, profissionais e construtivos.
 Eu vou te passar as notas (de 1 a 5) que o gestor deu para o funcionário em vários quesitos e também algumas observações soltas que o gestor escreveu.
