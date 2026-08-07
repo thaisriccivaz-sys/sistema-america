@@ -507,7 +507,17 @@
     function renderColabRow(c, periodos) {
         const lastKey = periodos.length > 0 ? `${periodos[periodos.length - 1].ano}-T${periodos[periodos.length - 1].trimestre}` : null;
         const lastP = lastKey ? c.pesquisas?.[lastKey] : null;
-        const isNaoAdmitidoLast = lastP?.nao_admitido;
+        
+        let isFull = false;
+        if (lastP && lastP.respostas) {
+            let rObj = lastP.respostas;
+            if (typeof rObj === 'string') {
+                try { rObj = JSON.parse(rObj); } catch(e) {}
+            }
+            if (rObj && typeof rObj === 'object') {
+                isFull = Object.keys(rObj).some(cat => !cat.startsWith('__') && cat !== 'info_adicional' && cat !== 'scores') && !Object.keys(rObj).some(cat => !cat.startsWith('__') && cat !== 'info_adicional' && cat !== 'scores' && Array.isArray(rObj[cat]) && rObj[cat].includes(null));
+            }
+        }
 
         return `<tbody class="sat-colab-group"><tr>\n            <td>\n                <div class="sat-avatar-cell">\n                    <button class="btn-sat-toggle-history" onclick="window._desGestorToggleHistory(this)" style="background:transparent;border:none;cursor:pointer;padding:0.2rem;margin-right:0.5rem;display:flex;align-items:center;justify-content:center;color:#64748b;transition:transform 0.2s;"><i class="ph ph-caret-right" style="font-size:1.1rem;font-weight:bold;"></i></button>
                     ${avatarHTML(c)}
@@ -519,7 +529,6 @@
             </td>
             <td style="color:#64748b;font-size:.82rem;">
                 <div style="font-weight:bold;color:#334155;">${c.departamento || '—'}</div>
-                ${c.responsavel_nome ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:2px;">${c.responsavel_nome}</div>` : ''}
             </td>
             ${periodos.map(p => {
                 const key = `${p.ano}-T${p.trimestre}`;
@@ -529,9 +538,7 @@
                     return `<td style="text-align:center;background:#f8fafc;"><span style="color:#cbd5e1;font-size:.75rem;">N/A</span></td>`;
                 }
                 if (!ps.respondido) {
-                    return `<td style="text-align:center;">
-                        <span id="score-${c.id}-${key}" class="score-pill" style="background:#fef3c7;color:#d97706;">Pendente</span>
-                    </td>`;
+                    return `<td style="text-align:center;background:#fef9c3;"><span style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
                 }
                 return `<td style="text-align:center;">
                     <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
@@ -544,7 +551,7 @@
                     data-colab-nome="${(c.nome_completo || '').replace(/"/g, '&quot;')}"
                     data-colab-cargo="${(c.cargo || '').replace(/"/g, '&quot;')}"
                     data-colab-dept="${(c.departamento || '').replace(/"/g, '&quot;')}"
-                    data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
+                    data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(typeof lastP.respostas === 'string' ? lastP.respostas : JSON.stringify(lastP.respostas)))) : ''}"
                     data-ano="${lastKey ? lastKey.split('-T')[0] : ''}"
                     data-trim="${lastKey ? lastKey.split('-T')[1] : ''}"
                     onclick="window._desGestorOpenFormBtn(this)"
@@ -558,7 +565,7 @@
                         title="Ver PDF do Feedback Assinado"
                         style="background:#0f4c81;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                         <i class="ph ph-eye"></i>
-                    </button>` : `
+                    </button>` : (isFull ? `
                     <button
                         onclick="window._desGestorFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
                         title="Registrar Feedback"
@@ -1082,14 +1089,17 @@
             // Atualização manual do DOM para o fluxo instantâneo
             console.log('DEBUG: Tentando atualizar a UI. _lastOpenedBtn existe?', !!_lastOpenedBtn);
             if (_lastOpenedBtn) {
+                // Atualiza o dataset para que o próximo clique em Editar recarregue os dados recém salvos
+                _lastOpenedBtn.dataset.respostas = btoa(unescape(encodeURIComponent(JSON.stringify(respostas))));
+                
                 // 1. Muda o botão de Responder para Editar
                 _lastOpenedBtn.style.background = '#0ea5e9';
                 _lastOpenedBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
                 console.log('DEBUG: Botão alterado para Editar');
 
-                // 2. Adiciona o botão de Registrar Feedback se não existir
+                // 2. Adiciona o botão de Registrar Feedback se não existir E se o form estiver 100% preenchido
                 const parent = _lastOpenedBtn.parentElement;
-                if (parent && !parent.querySelector('button[title="Registrar Feedback"]') && !parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
+                if (parent && missingRequired.length === 0 && !parent.querySelector('button[title="Registrar Feedback"]') && !parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
                     const colabNome = _lastOpenedBtn.getAttribute('data-colab-nome') || '';
                     const colabDept = _lastOpenedBtn.getAttribute('data-colab-dept') || '';
                     const colabCargo = _lastOpenedBtn.getAttribute('data-colab-cargo') || '';
@@ -1098,9 +1108,13 @@
                         onclick="window._desGestorFeedbackBtn(${colabId}, '${colabNome.replace(/'/g,"\\'")}', '${colabDept.replace(/'/g,"\\'")}', '${colabCargo.replace(/'/g,"\\'")}', '${currentYear}', '${currentQ}')"
                         title="Registrar Feedback"
                         style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
-                        <i class="ph ph-file-pdf" style="margin-right:4px;"></i>Feedback
+                        <i class="ph ph-chat-circle-text" style="margin-right:4px;"></i>Feedback
                     </button>`);
                     console.log('DEBUG: Botão Registrar Feedback adicionado');
+                } else if (parent && missingRequired.length > 0) {
+                    // Remove o botão de Feedback se ele existir e o form foi salvo parcialmente
+                    const btnFeedback = parent.querySelector('button[title="Registrar Feedback"]');
+                    if (btnFeedback) btnFeedback.remove();
                 }
 
                 // 3. Atualiza a célula "Pendente" para a nova nota
