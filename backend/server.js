@@ -30055,3 +30055,32 @@ app.get('/api/admin/restore-from-r2', async (req, res) => {
         res.status(500).send('Erro: ' + e.message);
     }
 });
+
+// ROTA DE EMERGENCIA v2: Restaura banco E limpa arquivos WAL/SHM corrompidos
+app.get('/api/admin/restore-from-r2-v2', async (req, res) => {
+    try {
+        const r2helper = require('./utils/r2');
+        const fs = require('fs');
+        const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
+        const walPath = dbPath + '-wal';
+        const shmPath = dbPath + '-shm';
+        console.log('[RESTORE-V2] Baixando banco do R2...');
+        const fileData = await r2helper.downloadStreamFromR2('Backups/database_emergency_restore.sqlite');
+        const chunks = [];
+        fileData.stream.on('data', chunk => chunks.push(chunk));
+        fileData.stream.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            // Apaga arquivos WAL e SHM corrompidos
+            try { fs.unlinkSync(walPath); console.log('[RESTORE-V2] WAL removido'); } catch(e) { console.log('[RESTORE-V2] WAL nao encontrado (ok)'); }
+            try { fs.unlinkSync(shmPath); console.log('[RESTORE-V2] SHM removido'); } catch(e) { console.log('[RESTORE-V2] SHM nao encontrado (ok)'); }
+            // Grava o banco limpo
+            fs.writeFileSync(dbPath, buffer);
+            console.log('[RESTORE-V2] Banco restaurado! Tamanho:', buffer.length, 'bytes');
+            res.send('OK-V2: Banco restaurado (' + (buffer.length / 1024 / 1024).toFixed(2) + ' MB). WAL/SHM limpos. Reiniciando...');
+            setTimeout(() => process.exit(0), 500);
+        });
+        fileData.stream.on('error', e => res.status(500).send('Erro stream: ' + e.message));
+    } catch(e) {
+        res.status(500).send('Erro: ' + e.message);
+    }
+});
