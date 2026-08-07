@@ -1067,9 +1067,18 @@
 
             _lastOpenedBtn = null;
 
-            // Dispara background fetch para atualizar dados globais silenciosamente (para quando mudar de aba/etc)
-            if (typeof window._desRefreshTable === 'function') {
-                window._desRefreshTable();
+            // Atualiza a memória local para que ordenações e buscas mantenham o estado
+            if (window._colabs && window._colabs.colaboradores) {
+                const cIndex = window._colabs.colaboradores.findIndex(c => String(c.id) === String(colabId));
+                if (cIndex !== -1) {
+                    const c = window._colabs.colaboradores[cIndex];
+                    if (!c.pesquisas) c.pesquisas = {};
+                    const key = `${currentYear}-T${currentQ}`;
+                    if (!c.pesquisas[key]) c.pesquisas[key] = { respondido: false, media: null };
+                    c.pesquisas[key].respondido = true;
+                    c.pesquisas[key].media = media;
+                    c.pesquisas[key].respostas = respostas;
+                }
             }
 
         } catch(err) {
