@@ -504,7 +504,7 @@
                     data-respostas="${lastP && lastP.respostas ? btoa(unescape(encodeURIComponent(JSON.stringify(lastP.respostas)))) : ''}"
                     data-ano="${lastKey ? lastKey.split('-T')[0] : ''}"
                     data-trim="${lastKey ? lastKey.split('-T')[1] : ''}"
-                    onclick="window._desOpenFormBtn(this)"
+                    onclick="window._desGestorOpenFormBtn(this)"
                     style="background:${lastP && lastP.respondido ? '#0ea5e9' : '#7c3aed'};color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                     <i class="ph ph-pencil-simple" style="margin-right:4px;"></i>${lastP && lastP.respondido ? 'Editar' : 'Responder'}
                 </button>
@@ -784,7 +784,7 @@
 
     let _lastOpenedBtn = null; // referencia direta ao botao que abriu o form
 
-    window._desOpenFormBtn = function(btn, isReadonly = false) {
+    window._desGestorOpenFormBtn = function(btn, isReadonly = false) {
         _lastOpenedBtn = isReadonly ? null : btn; // guarda referencia para atualizar depois
         const id = parseInt(btn.dataset.colabId, 10);
         const nome = btn.dataset.colabNome;
@@ -798,10 +798,10 @@
                 try { saved = JSON.parse(decodeURIComponent(escape(atob(raw)))); } catch(e) { saved = {}; }
             }
         } catch(e) { saved = {}; }
-        const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._desOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
+        const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._desGestorOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
     };
 
-    window._desOpenForm = function(colabId, nome, cargo, dept, saved = {}, isReadonly = false, ano = null, trim = null) {
+    window._desGestorOpenForm = function(colabId, nome, cargo, dept, saved = {}, isReadonly = false, ano = null, trim = null) {
         if (!window.AVALIACAO_QUESTIONS || !window.AVALIACAO_QUESTIONS.desempenho) {
             alert('Erro: Perguntas de desempenho não carregadas.');
             return;
@@ -928,7 +928,7 @@
         document.body.insertAdjacentHTML('beforeend', html);
     };
 
-    window._desCloseForm = function() {
+    window._desGestorCloseForm = function() {
         const overlay = document.getElementById('sat-modal-overlay');
         if (overlay) overlay.remove();
     };
@@ -1034,7 +1034,7 @@
                 })
             });
             console.log('DEBUG: Observações de feedback salvas. Fechando formulário.');
-            window._desCloseForm();
+            window._desGestorCloseForm();
             
             // Calculamos a media para atualizar a UI instantaneamente
             const media = totalCount > 0 ? parseFloat((totalVal / totalCount).toFixed(2)) : null;
