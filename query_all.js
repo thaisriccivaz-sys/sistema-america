@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('backend/database.sqlite');
-db.all('SELECT a.id, c.nome_completo, a.tipo, a.ano, a.trimestre FROM avaliacoes a JOIN colaboradores c ON a.colaborador_id = c.id WHERE c.nome_completo LIKE "%Teste%"', (err, rows) => {
+db.all('SELECT * FROM avaliacoes', (err, rows) => {
     if (err) { console.error('Error:', err); }
     else { console.log(JSON.stringify(rows, null, 2)); }
     db.close();

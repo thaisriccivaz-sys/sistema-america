@@ -3035,17 +3035,14 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 Evite completamente o "tom de IA" (evite palavras rebuscadas como "verdadeiramente exemplar", "ímpar", "lucidez analítica", ou elogios exagerados e genéricos). Foque exatamente nos fatos reportados.
 
 Regras fundamentais:
-1. Comece o texto com o título "Relatório de Feedback de Desempenho" seguido de uma linha em branco.
-2. Primeiro Parágrafo (Resumo Geral): Inicie com "Com base nas notas atribuídas e nas observações registradas...". Faça um resumo equilibrado destacando os pontos fortes e, se houver notas abaixo de 5 ou observações negativas, mencionando que existem aspectos a desenvolver.
-3. Próximos Parágrafos (Pontos Fortes): Agrupe os quesitos onde o colaborador tirou nota MÁXIMA (apenas nota 5) e descreva de forma fluida.
-4. Parágrafos Seguintes (Oportunidades de Melhoria): VOCÊ DEVE OBRIGATORIAMENTE olhar as notas abaixo da máxima (notas 1, 2, 3 e 4) e também ANALISAR PROFUNDAMENTE as "Observações do Gestor" preenchidas na frente de cada nota. Relate esses problemas claramente e recomende melhorias de forma construtiva e respeitosa. (Ex: "O principal ponto de atenção identificado...")
-5. Último Parágrafo (Conclusão): Finalize resumindo o potencial do colaborador e como o desenvolvimento dos pontos citados contribuirá para seu crescimento.
-6. Não use NENHUMA formatação markdown (nem asteriscos, nem hashtags). Apenas texto limpo.
+1. Primeiro Parágrafo (Resumo Geral): Inicie com "Com base nas notas atribuídas e nas observações registradas...". Faça um resumo equilibrado destacando os pontos fortes e, se houver notas abaixo de 5 ou observações negativas, mencionando que existem aspectos a desenvolver.
+2. Próximos Parágrafos (Pontos Fortes): Agrupe os quesitos onde o colaborador tirou nota MÁXIMA (apenas nota 5) e descreva de forma fluida.
+3. Parágrafos Seguintes (Oportunidades de Melhoria): VOCÊ DEVE OBRIGATORIAMENTE olhar as notas abaixo da máxima (notas 1, 2, 3 e 4) e também ANALISAR PROFUNDAMENTE as "Observações do Gestor" preenchidas na frente de cada nota. Relate esses problemas claramente e recomende melhorias de forma construtiva e respeitosa. (Ex: "O principal ponto de atenção identificado...")
+4. Último Parágrafo (Conclusão): Finalize resumindo o potencial do colaborador e como o desenvolvimento dos pontos citados contribuirá para seu crescimento.
+5. Não use NENHUMA formatação markdown (nem asteriscos, nem hashtags, e NÃO inclua título no topo). Apenas texto limpo.
 
 EXEMPLO DO TOM DESEJADO:
-Relatório de Feedback de Desempenho
-
-Com base nas notas atribuídas e nas observações registradas durante o processo de avaliação, o colaborador apresenta um desempenho geral positivo, destacando-se pela disposição em colaborar... Entretanto, foram identificados alguns aspectos que necessitam de desenvolvimento...
+Com base nas notas atribuídas e nas observações registradas durante o processo de avaliação, o colaborador apresenta um desempenho geral positivo, destacando-se pela disposição em colaborar, flexibilidade diante das demandas e comprometimento com as entregas. Entretanto, foram identificados alguns aspectos comportamentais e técnicos que necessitam de desenvolvimento para potencializar sua evolução profissional.
 [... descreve pontos fortes baseados APENAS nas notas 5 ...]
 O principal ponto de atenção identificado na avaliação refere-se a [área de nota menor que 5 ou comentada na observação]. É necessário que o colaborador passe a...
 De forma geral, a avaliação evidencia um colaborador com bom potencial...
