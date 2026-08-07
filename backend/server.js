@@ -314,10 +314,20 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
 
 const db = require('./database');
 
-// AUTO-PATCH: Corrigir caracteres especiais corrompidos no banco de produção
-db.run("UPDATE geradores SET nome = 'Solicitação de VT' WHERE nome LIKE 'Solicita%de VT'");
-db.run("UPDATE documentos SET document_type = 'Solicitação de VT' WHERE document_type LIKE 'Solicita%de VT'");
-db.run("UPDATE admissao_assinaturas SET nome_documento = 'Solicitação de VT' WHERE nome_documento LIKE 'Solicita%de VT'");
+// AUTO-PATCH: Excluir permanentemente geradores com caracteres especiais quebrados
+db.run("DELETE FROM geradores WHERE nome LIKE '%Ã%' OR nome LIKE '%%'", err => { if(err) console.error(err); });
+
+// AUTO-PATCH: Remover geradores duplicados com o exato mesmo nome (mantém o mais antigo)
+db.run("DELETE FROM geradores WHERE id NOT IN (SELECT MIN(id) FROM geradores GROUP BY TRIM(nome))", err => { if(err) console.error(err); });
+
+// AUTO-PATCH: Corrigir os registros de documentos que foram gerados com o nome corrompido para que voltem a vincular
+db.run("UPDATE documentos SET document_type = REPLACE(document_type, 'Ã§Ã£', 'çã') WHERE document_type LIKE '%Ã%'", err => {});
+db.run("UPDATE documentos SET document_type = REPLACE(document_type, 'Ã§', 'ç') WHERE document_type LIKE '%Ã%'", err => {});
+db.run("UPDATE documentos SET document_type = REPLACE(document_type, 'Ã£', 'ã') WHERE document_type LIKE '%Ã%'", err => {});
+db.run("UPDATE admissao_assinaturas SET nome_documento = REPLACE(nome_documento, 'Ã§Ã£', 'çã') WHERE nome_documento LIKE '%Ã%'", err => {});
+db.run("UPDATE admissao_assinaturas SET nome_documento = REPLACE(nome_documento, 'Ã§', 'ç') WHERE nome_documento LIKE '%Ã%'", err => {});
+db.run("UPDATE admissao_assinaturas SET nome_documento = REPLACE(nome_documento, 'Ã£', 'ã') WHERE nome_documento LIKE '%Ã%'", err => {});
+
 
 // AUTO-PATCH: Corrige OSs importadas sem data_os (ex: Entrega/Retirada da primeira importação noturna)
 db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", err => { });
