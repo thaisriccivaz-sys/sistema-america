@@ -522,8 +522,8 @@
                     </button>`
                 ) : ''}
                 <button
-                    onclick="if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();"
-                    title="Atualizar tela"
+                    onclick="window._desRefreshTable(this)"
+                    title="Atualizar linha/tabela"
                     style="background:#e2e8f0;color:#64748b;border:none;border-radius:6px;padding:0.2rem;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;height:27px;width:27px;">
                     <i class="ph ph-arrows-clockwise"></i>
                 </button>
@@ -728,6 +728,41 @@
         const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
     };
+
+    window._desRefreshTable = async function(btn = null) {
+        if (btn) {
+            const icon = btn.querySelector('i');
+            if (icon) { icon.classList.add('fa-spin'); icon.style.animation = 'spin 1s linear infinite'; }
+        }
+        try {
+            const [dash, colabs] = await Promise.all([
+                fetchJSON('/api/avaliacoes/desempenho/dashboard?_t=' + Date.now()),
+                fetchJSON('/api/avaliacoes/desempenho/colaboradores?_t=' + Date.now()),
+            ]);
+            _dash = dash;
+            if (window.isTopAdmin) {
+                _colabs = colabs;
+            } else {
+                _colabs = {
+                    ...colabs,
+                    colaboradores: (colabs.colaboradores || []).filter(c => (window._myManagedDeptsGlob||[]).includes(c.departamento))
+                };
+            }
+            const wrap = document.getElementById('sat-colab-table-wrap');
+            if (wrap) {
+                const vc = document.getElementById('views-container');
+                const sy = vc ? vc.scrollTop : window.scrollY;
+                wrap.innerHTML = renderColabTable();
+                if (vc) vc.scrollTop = sy;
+                else window.scrollTo(0, sy);
+            }
+        } catch(e) {}
+        if (btn) {
+            const icon = btn.querySelector('i');
+            if (icon) { icon.classList.remove('fa-spin'); icon.style.animation = ''; }
+        }
+    };
+
 
     /* Handler global para clique nos botões de nota — evita SyntaxError de quotes inline */
     window._desRbtnClick = function(el, isReadonly) {
@@ -1007,8 +1042,9 @@
             </div>`;
             document.body.appendChild(s);
 
-            if (typeof window.initFeedbackGestor === 'function') {
-                window.initFeedbackGestor(true); // silent = true
+            // Atualiza apenas a tabela (sem piscar a tela inteira) em background
+            if (typeof window._desRefreshTable === 'function') {
+                window._desRefreshTable();
             }
 
         } catch(err) {
