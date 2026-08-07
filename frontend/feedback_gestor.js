@@ -292,14 +292,14 @@
         const grupos = ['all', ...new Set((_dash.dashboard || []).map(d => d.grupo))];
         return `<div class="sat-tabs" id="sat-group-tabs">
             ${grupos.map(g => `
-                <button class="sat-tab ${g === _filterGroup ? 'active' : ''}" onclick="window._desSetGroup('${g}')">
+                <button class="sat-tab ${g === _filterGroup ? 'active' : ''}" onclick="window._desGestorSetGroup('${g}')">
                     ${g === 'all' ? 'Todos os grupos' : grupoLabel(g)}
                 </button>
             `).join('')}
         </div>`;
     }
 
-    window._desSetGroup = function (g) {
+    window._desGestorSetGroup = function (g) {
         _filterGroup = g;
         document.querySelectorAll('.sat-tab').forEach(b => {
             b.classList.toggle('active', b.textContent.trim() === (g === 'all' ? 'Todos os grupos' : grupoLabel(g)));
@@ -417,7 +417,7 @@
             Colaboradores — histórico individual
         </div>
         <div class="sat-search-bar">
-            <input class="sat-search-input" id="sat-colab-search" placeholder="Filtrar por nome, departamento ou cargo…" oninput="window._desFilterColabs()" />
+            <input class="sat-search-input" id="sat-colab-search" placeholder="Filtrar por nome, departamento ou cargo…" oninput="window._desGestorFilterColabs()" />
         </div>
         <div class="sat-legend" style="margin-bottom:.75rem;">
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Não estava admitido na época</div>
@@ -450,8 +450,8 @@
         </div>
         <table class="sat-table" id="sat-colab-table">
             <thead><tr>
-                <th onclick="window._desSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'▲':'▼'):''}</th>
-                <th onclick="window._desSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
+                <th onclick="window._desGestorSortColabs('nome')">Colaborador ${_sortCol==='nome'?(_sortDir>0?'▲':'▼'):''}</th>
+                <th onclick="window._desGestorSortColabs('departamento')">Departamento ${_sortCol==='departamento'?(_sortDir>0?'▲':'▼'):''}</th>
                 ${periodos.map(p => `<th style="text-align:center;">${periodLabel(p)}</th>`).join('')}
                 <th style="text-align:center;width:100px;">Ações</th>
             </tr></thead>
@@ -466,7 +466,7 @@
         const lastP = lastKey ? c.pesquisas?.[lastKey] : null;
         const isNaoAdmitidoLast = lastP?.nao_admitido;
 
-        return `<tbody class="sat-colab-group"><tr>\n            <td>\n                <div class="sat-avatar-cell">\n                    <button class="btn-sat-toggle-history" onclick="window._desToggleHistory(this)" style="background:transparent;border:none;cursor:pointer;padding:0.2rem;margin-right:0.5rem;display:flex;align-items:center;justify-content:center;color:#64748b;transition:transform 0.2s;"><i class="ph ph-caret-right" style="font-size:1.1rem;font-weight:bold;"></i></button>
+        return `<tbody class="sat-colab-group"><tr>\n            <td>\n                <div class="sat-avatar-cell">\n                    <button class="btn-sat-toggle-history" onclick="window._desGestorToggleHistory(this)" style="background:transparent;border:none;cursor:pointer;padding:0.2rem;margin-right:0.5rem;display:flex;align-items:center;justify-content:center;color:#64748b;transition:transform 0.2s;"><i class="ph ph-caret-right" style="font-size:1.1rem;font-weight:bold;"></i></button>
                     ${avatarHTML(c)}
                     <div>
                         <div style="font-weight:600;color:#1e293b;font-size:.83rem;" title="${c.nome_completo}">${c.nome_completo.length > 15 ? c.nome_completo.substring(0, 15) + '...' : c.nome_completo}</div>
@@ -517,7 +517,7 @@
                         <i class="ph ph-eye"></i>
                     </button>` : `
                     <button
-                        onclick="window._desFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
+                        onclick="window._desGestorFeedbackBtn(${c.id}, '${(c.nome_completo||'').replace(/'/g,"'")}', '${(c.departamento||'').replace(/'/g,"'")}', '${(c.cargo||'').replace(/'/g,"'")}', '${lastKey ? lastKey.split('-T')[0] : ''}', '${lastKey ? lastKey.split('-T')[1] : ''}')"
                         title="Registrar Feedback"
                         style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                         <i class="ph ph-chat-circle-text"></i>
@@ -670,7 +670,7 @@
     }
 
     
-    window._desToggleHistory = function(btn) {
+    window._desGestorToggleHistory = function(btn) {
         const tbody = btn.closest('tbody');
         const historyRow = tbody.querySelector('.sat-history-row');
         const icon = btn.querySelector('i');
@@ -712,20 +712,20 @@
         // nothing extra needed — oninput / onclick are inline
     }
 
-    window._desFilterColabs = function () {
+    window._desGestorFilterColabs = function () {
         _searchText = document.getElementById('sat-colab-search')?.value || '';
         const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._desSortColabs = function (col) {
+    window._desGestorSortColabs = function (col) {
         if (_sortCol === col) _sortDir *= -1;
         else { _sortCol = col; _sortDir = 1; }
         const wrap = document.getElementById('sat-colab-table-wrap');
         if (wrap) wrap.innerHTML = renderColabTable();
     };
 
-    window._desRefreshTable = async function(btn = null) {
+    window._desGestorRefreshTable = async function(btn = null) {
         if (btn) {
             const icon = btn.querySelector('i');
             if (icon) { icon.classList.add('fa-spin'); icon.style.animation = 'spin 1s linear infinite'; }
@@ -761,7 +761,7 @@
 
 
     /* Handler global para clique nos botões de nota — evita SyntaxError de quotes inline */
-    window._desRbtnClick = function(el, isReadonly) {
+    window._desGestorRbtnClick = function(el, isReadonly) {
         if (isReadonly) return;
         var grp = el.dataset.group;
         document.querySelectorAll('.sat-rbtn[data-group="'+grp+'"]').forEach(function(b) {
@@ -877,7 +877,7 @@
                         <input type="radio" name="av_${catIdx}_${idx}" value="${v}" ${checkedAttr} ${disabledAttr} style="position:absolute; opacity:0; pointer-events:none;">
                         <div class="sat-rbtn" data-color="${c}" data-bg="${c}" data-group="av_${catIdx}_${idx}"
                              style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:700; font-size:0.85rem; border:2px solid ${btnBorder}; background:${btnBg}; color:${btnColor}; transition:all 0.15s; cursor:pointer;"
-                             onclick="window._desRbtnClick(this, ${isReadonly ? 'true' : 'false'})">
+                             onclick="window._desGestorRbtnClick(this, ${isReadonly ? 'true' : 'false'})">
                             ${v}
                         </div>
                     </label>`;
@@ -1044,7 +1044,7 @@
                     const colabCargo = _lastOpenedBtn.getAttribute('data-colab-cargo') || '';
                     parent.insertAdjacentHTML('beforeend', `
                     <button
-                        onclick="window._desFeedbackBtn(${colabId}, '${colabNome.replace(/'/g,"\\'")}', '${colabDept.replace(/'/g,"\\'")}', '${colabCargo.replace(/'/g,"\\'")}', '${currentYear}', '${currentQ}')"
+                        onclick="window._desGestorFeedbackBtn(${colabId}, '${colabNome.replace(/'/g,"\\'")}', '${colabDept.replace(/'/g,"\\'")}', '${colabCargo.replace(/'/g,"\\'")}', '${currentYear}', '${currentQ}')"
                         title="Registrar Feedback"
                         style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                         <i class="ph ph-file-pdf" style="margin-right:4px;"></i>Feedback
@@ -1088,7 +1088,7 @@
     };
 
     /* ── PAINEL DE FEEDBACK: FORMULÁRIO COMPLETO → ASSINATURA + SELFIE + PDF ────── */
-    window._desFeedbackBtn = async function(colabId, nome, dept, cargo, ano, trim) {
+    window._desGestorFeedbackBtn = async function(colabId, nome, dept, cargo, ano, trim) {
         const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
 
         // 1. Buscar avaliação salva
@@ -1510,7 +1510,7 @@
         }
     };
     // Helper global para excluir avaliação
-    window._desExcluirAvaliacao = async function(colabId, ano, trimestre) {
+    window._desGestorExcluirAvaliacao = async function(colabId, ano, trimestre) {
         if (!confirm('Tem certeza que deseja excluir esta avaliação de desempenho e recomeçar?\n\nIsso apagará o formulário respondido e o PDF gerado (se houver).')) return;
         
         try {
@@ -1528,4 +1528,5 @@
         }
     };
 })();
+
 
