@@ -30007,3 +30007,7 @@ setInterval(async () => {
     }
 }, 1000 * 60 * 60); // 1 hora
 // ----------------------------------------
+
+// ROTA DE EMERGÊNCIA: Baixar backup direto do R2
+app.get('/api/admin/rescue', async (req, res) => { try { const r2 = require('./utils/r2'); const fileData = await r2.downloadStreamFromR2('Backups/2026-08-07_06-08-20_hr_system_v2.sqlite'); res.setHeader('Content-Disposition', 'attachment; filename="backup.sqlite"'); res.setHeader('Content-Type', fileData.contentType); fileData.stream.pipe(res); } catch (e) { res.send('Erro ao tentar baixar do R2: ' + e.message); } });
+
