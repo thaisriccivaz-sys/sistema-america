@@ -3031,17 +3031,28 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: modelName });
 
-        const prompt = `Você é um Consultor de Recursos Humanos sênior especializado em criar relatórios de feedback de desempenho empáticos, profissionais e construtivos.
-Eu vou te passar as notas (de 1 a 5) que o gestor deu para o funcionário em vários quesitos e também algumas observações soltas que o gestor escreveu.
-Seu trabalho é consolidar tudo isso em um texto fluido e coeso de 3 a 4 parágrafos, formatado em texto limpo (sem markdown, sem asteriscos, sem títulos), pronto para ser inserido no campo "Observação Geral".
+        const prompt = `Você é um Consultor de Recursos Humanos sênior. Seu objetivo é analisar as notas (1 a 5) e as observações de uma avaliação de desempenho e escrever um relatório em tom estritamente humano, profissional, realista e objetivo. 
+Evite completamente o "tom de IA" (evite palavras rebuscadas como "verdadeiramente exemplar", "ímpar", "lucidez analítica", ou elogios exagerados e genéricos). Foque exatamente nos fatos reportados.
 
-Regras:
-1. Comece diretamente com o texto do feedback, sem introduções.
-2. Seja construtivo: elogie os pontos fortes (notas altas) e aponte oportunidades de melhoria com empatia (notas baixas).
-3. Não invente fatos que não estão nas observações ou nas notas. Escreva no formato de relatório (ex: "O colaborador demonstra...").
+Regras fundamentais:
+1. Comece o texto com o título "Relatório de Feedback de Desempenho" seguido de uma linha em branco.
+2. Primeiro Parágrafo (Resumo Geral): Inicie com "Com base nas notas atribuídas e nas observações registradas...". Faça um resumo equilibrado destacando os pontos fortes e, se houver notas baixas, mencionando que existem aspectos a desenvolver.
+3. Próximos Parágrafos (Pontos Fortes): Agrupe os quesitos onde o colaborador tirou notas altas (4 ou 5) e descreva de forma fluida. Ex: "O colaborador demonstra..."
+4. Parágrafos Seguintes (Oportunidades de Melhoria): VOCÊ DEVE OBRIGATORIAMENTE olhar as notas baixas (1, 2 ou 3) e as observações. Relate-os claramente apontando os problemas e recomendando melhorias de forma construtiva e respeitosa. (Ex: "O principal ponto de atenção identificado...")
+5. Último Parágrafo (Conclusão): Finalize resumindo o potencial do colaborador e como o desenvolvimento dos pontos citados contribuirá para seu crescimento.
+6. Não use NENHUMA formatação markdown (nem asteriscos, nem hashtags). Apenas texto limpo.
 
-DADOS DA AVALIAÇÃO:
-Notas:
+EXEMPLO DO TOM DESEJADO:
+Relatório de Feedback de Desempenho
+
+Com base nas notas atribuídas e nas observações registradas durante o processo de avaliação, o colaborador apresenta um desempenho geral positivo, destacando-se pela disposição em colaborar... Entretanto, foram identificados alguns aspectos que necessitam de desenvolvimento...
+[... descreve pontos fortes ...]
+O principal ponto de atenção identificado na avaliação refere-se a [área de nota baixa]. É necessário que o colaborador passe a...
+De forma geral, a avaliação evidencia um colaborador com bom potencial...
+(FIM DO EXEMPLO)
+
+AGORA É A SUA VEZ. ANALISE OS DADOS ABAIXO E GERE O RELATÓRIO:
+Notas recebidas (1 a 5, onde 1 a 3 indicam problemas e 4 a 5 indicam excelência):
 ${notas.map(n => `- ${n.pergunta}: Nota ${n.nota}/5`).join('\n')}
 
 Observações do Gestor:
