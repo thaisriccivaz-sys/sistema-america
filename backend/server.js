@@ -11193,12 +11193,6 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             db.get('SELECT * FROM colaboradores WHERE id = ?', [doc.colaborador_id], (err, row) => err ? reject(err) : resolve(row)));
         if (!colab) return res.status(404).json({ sucesso: false, error: 'Colaborador não encontrado.' });
 
-        // Verificar se o arquivo existe
-        const filePath = path.resolve(doc.file_path);
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado não encontrado no servidor.' });
-        }
-
         // Extrair CID e descri????o de document_type (formato: "Z57 - Problemas laborais")
         const docTypeParts = (doc.document_type || '').split(' - ');
         const cidCode = docTypeParts[0] || '-';
@@ -11247,6 +11241,36 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
         const attachmentName = `${cidCode}_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`;
 
+        let pdfAttachmentBuffer = null;
+        const r2Utils = require('./utils/r2');
+        const r2Key = doc.signed_r2_key || doc.r2_key;
+        
+        if (r2Key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    pdfAttachmentBuffer = Buffer.from(await fileData.stream.transformToByteArray());
+                } else {
+                    const chunks = [];
+                    for await (let chunk of fileData.stream) chunks.push(chunk);
+                    pdfAttachmentBuffer = Buffer.concat(chunks);
+                }
+            } catch (err) {
+                console.warn('[R2-ATTACH-ATESTADO] Falha ao baixar PDF do R2:', err.message);
+            }
+        }
+
+        if (!pdfAttachmentBuffer) {
+            const activeFilePath = doc.signed_file_path || doc.file_path || '';
+            if (activeFilePath && fs.existsSync(activeFilePath) && fs.statSync(activeFilePath).isFile()) {
+                pdfAttachmentBuffer = fs.readFileSync(activeFilePath);
+            }
+        }
+
+        if (!pdfAttachmentBuffer) {
+            return res.status(404).json({ sucesso: false, error: 'Arquivo do atestado não encontrado no servidor ou nuvem.' });
+        }
+
         const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
 
         const htmlContent = `
@@ -11284,7 +11308,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
             html: htmlContent,
             attachments: [
                 { filename: 'logo.png', path: logoPath, cid: 'empresa-logo' },
-                { filename: attachmentName, path: filePath, contentType: 'application/pdf' }
+                { filename: attachmentName, content: pdfAttachmentBuffer, contentType: 'application/pdf' }
             ]
         });
 
@@ -11503,7 +11527,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
                 <div style="text-align: center; margin-bottom: 20px;">
                     <img src="cid:empresa-logo" style="max-height: 80px; max-width:100%;">
                 </div>
-                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">?? ${tipoDocumento}</h2>
+                <h2 style="color: #c0392b; border-bottom: 2px solid #c0392b; padding-bottom: 10px;">⚠️ ${tipoDocumento}</h2>
                 <p>Informamos que o colaborador abaixo recebeu uma <strong>${tipoDocumento.toLowerCase()}</strong> que deve ser <strong>considerada no fechamento da folha de pagamento</strong>.</p>
 
                 <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:20px 0;">
@@ -11520,7 +11544,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
                 <div style="background:#fff3cd; border:1px solid #ffc107; padding:15px; border-radius:8px; margin:20px 0; text-align:center;">
                     <p style="margin:0; color:#856404; font-weight:700; font-size:1rem;">
-                        à Atenção: Este documento disciplinar deve ser considerado na folha de pagamento do colaborador.<br>
+                        ⚠️ Atenção: Este documento disciplinar deve ser considerado na folha de pagamento do colaborador.<br>
                         Favor analisar para o fechamento do mês.
                     </p>
                 </div>
@@ -20676,14 +20700,11 @@ app.get('/api/logistica/escala', authenticateToken, (req, res) => {
 app.get('/api/rh/escala', authenticateToken, (req, res) => {
     const { inicio, fim } = req.query;
     if (!inicio || !fim) return res.status(400).json({ error: 'Informe inicio e fim.' });
-    const INCL = ['Administrativo', 'Comercial', 'Financeiro', 'Limpeza', 'Logística', 'Logística Noturna', 'Noturno', 'Manutenção', 'RH', 'Supervisão', 'Ajudante Geral', 'Ajudante Pátio', 'Liderança', 'Motorista'];
-    const incStr = INCL.map(() => '?').join(',');
     db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, aso_exame_data,
                    escala_tipo, escala_folgas, escala_ciclo_inicio, horario_entrada, horario_saida, status
             FROM colaboradores WHERE status IN ('Ativo','Afastado','Férias')
-            AND departamento IN (${incStr})
             AND (tipo_contrato IS NULL OR tipo_contrato != 'Intermitente')
-            ORDER BY nome_completo ASC`, INCL, (err, colabs) => {
+            ORDER BY nome_completo ASC`, (err, colabs) => {
         if (err) return res.status(500).json({ error: err.message });
         const ids = (colabs || []).map(c => c.id);
         if (!ids.length) return res.json([]);

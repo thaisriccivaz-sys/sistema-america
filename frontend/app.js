@@ -6851,7 +6851,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
 
 
-                    ${isSaved && !isAssinado ? `
+                    ${isSaved && !isAssinado && !(tabId === 'Advertências' && ['Assinado', 'Testemunhas'].includes(stMain) && (docType && (docType.toLowerCase().includes('suspens') || docType.toLowerCase().includes('advert')))) ? `
                         <button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>
                     ` : ''}
 
@@ -6889,7 +6889,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
-                        ${isSaved && !(isAssinado && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `
+                        ${isSaved && !(isAssinado && (tabId === 'Pagamentos' || tabId === 'ASO')) && !(tabId === 'Atestados' && existingDoc.atestado_tipo !== 'horas') ? `
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                             ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
@@ -6945,7 +6945,6 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height:36px;">
                                 <i class="ph ph-eye"></i>
                             </button>
-                            ${!isAssinado ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height:36px;"><i class="ph ph-trash"></i></button>` : ''}
                             <button type="button"
                                     onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
                                     style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
