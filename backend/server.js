@@ -29725,24 +29725,38 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
         }
 
         function writeWrappedLine(text, opts = {}) {
-            checkNewPage();
-            const words = String(text || '').split(' ');
-            let line = '';
-            let currentY = y;
-            for (let n = 0; n < words.length; n++) {
-                const testLine = line + words[n] + ' ';
-                const testWidth = (opts.bold ? fontBold : font).widthOfTextAtSize(testLine, opts.size || 10);
-                if (testWidth > (opts.maxWidth || PAGE_W - MARGIN * 2) && n > 0) {
-                    page.drawText(line, { x: opts.x || MARGIN, y: currentY, size: opts.size || 10, font: opts.bold ? fontBold : font, color: opts.color || rgb(0.2, 0.2, 0.2) });
-                    line = words[n] + ' ';
-                    currentY -= (opts.lineH || LINE_H);
-                    checkNewPage(); // Checar nova página se a quebra estourar a margem
-                } else {
-                    line = testLine;
+            const fontToUse = opts.bold ? fontBold : font;
+            const size = opts.size || 10;
+            const maxWidth = opts.maxWidth || PAGE_W - MARGIN * 2;
+            const color = opts.color || rgb(0.2, 0.2, 0.2);
+            
+            const paragraphs = String(text || '').split('\n');
+            for (const para of paragraphs) {
+                if (!para.trim()) {
+                    y -= (opts.lineH || LINE_H);
+                    checkNewPage(LINE_H * 2);
+                    continue;
+                }
+                const words = para.split(' ');
+                let line = '';
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const testWidth = fontToUse.widthOfTextAtSize(testLine, size);
+                    if (testWidth > maxWidth && line.trim().length > 0) {
+                        checkNewPage(LINE_H * 2);
+                        page.drawText(line.trim(), { x: opts.x || MARGIN, y, size, font: fontToUse, color });
+                        y -= (opts.lineH || LINE_H);
+                        line = words[n] + ' ';
+                    } else {
+                        line = testLine;
+                    }
+                }
+                if (line.trim().length > 0) {
+                    checkNewPage(LINE_H * 2);
+                    page.drawText(line.trim(), { x: opts.x || MARGIN, y, size, font: fontToUse, color });
+                    y -= (opts.lineH || LINE_H);
                 }
             }
-            page.drawText(line, { x: opts.x || MARGIN, y: currentY, size: opts.size || 10, font: opts.bold ? fontBold : font, color: opts.color || rgb(0.2, 0.2, 0.2) });
-            y = currentY - (opts.lineH || LINE_H);
         }
 
         function section(title) {
@@ -29809,14 +29823,14 @@ app.post('/api/feedback-documentos/assinar', authenticateToken, async (req, res)
         const obsGeral = respostas.__obs_gerais__ || respostas.__obs__?.info_adicional || '';
         if (obsGeral) {
             section('Observação Geral do Colaborador');
-            writeLine(obsGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
+            writeWrappedLine(obsGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
         }
 
         // Observação de Feedback Geral (gestor)
         const fbkGeral = obsFeedback.__obs_feedback_geral__ || '';
         if (fbkGeral) {
             section('Observações de Feedback do Gestor');
-            writeLine(fbkGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
+            writeWrappedLine(fbkGeral, { size: 10, maxWidth: PAGE_W - MARGIN * 2 });
         }
 
         // Selfie + Assinatura lado a lado

@@ -1014,10 +1014,11 @@
             if (respostas.__feedback_obs__[cat].every(v => v === '')) delete respostas.__feedback_obs__[cat];
         });
         
-        if (missingRequired.length > 0) {
+        // Permitir salvamento parcial (não bloqueia mais por missingRequired)
+        /* if (missingRequired.length > 0) {
             alert('Por favor, responda todas as perguntas antes de salvar.\n\nPendentes:\n' + missingRequired.slice(0,5).join('\n'));
             return;
-        }
+        } */
         
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
@@ -1547,8 +1548,8 @@
                     <h3 style="margin:0 0 0.5rem;color:#166534;">Feedback Registrado!</h3>
                     <p style="color:#64748b;margin:0 0 1.5rem;font-size:0.9rem;">Assinatura e selfie salvas com sucesso. O PDF foi gerado e armazenado.</p>
                     <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
-                        <button onclick="window.open('${data.pdf_url}','_blank')" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
-                        <button onclick="document.getElementById('fbk-success-overlay').remove();if(typeof window.initFeedbackGestor==='function')window.initFeedbackGestor();" style="background:#f1f5f9;color:#334155;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:600;cursor:pointer;">Fechar</button>
+                        <button onclick="window.open('${data.pdf_url}','_blank'); document.getElementById('fbk-success-overlay')?.remove(); document.getElementById('modal-feedback-assinar')?.remove(); document.getElementById('fbk-form-overlay')?.remove(); if(typeof window.initFeedbackGestor==='function')window.initFeedbackGestor();" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-eye"></i> Ver PDF</button>
+                        <button onclick="document.getElementById('fbk-success-overlay')?.remove(); document.getElementById('modal-feedback-assinar')?.remove(); document.getElementById('fbk-form-overlay')?.remove(); if(typeof window.initFeedbackGestor==='function')window.initFeedbackGestor();" style="background:#f1f5f9;color:#334155;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:600;cursor:pointer;">Fechar</button>
                     </div>
                 </div>
             </div>`;

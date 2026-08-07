@@ -894,10 +894,11 @@
             if (respostas.__obs__[cat].every(v => v === '')) delete respostas.__obs__[cat];
         });
         
-        if (missingRequired.length > 0) {
+        // Permitir salvamento parcial (não bloqueia mais por missingRequired)
+        /* if (missingRequired.length > 0) {
             alert('Por favor, responda todas as perguntas antes de salvar.\n\nPendentes:\n' + missingRequired.slice(0,5).join('\n'));
             return;
-        }
+        } */
         
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
