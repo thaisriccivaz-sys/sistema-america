@@ -2997,24 +2997,29 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        let modelName = "gemini-1.5-flash"; // fallback
+        let modelName = "gemini-1.5-flash"; // fallback original
         let listModelsError = null;
         let availableModels = [];
         try {
-            // Tenta listar os modelos disponíveis para esta chave específica (evita erro 404 de versão)
-            const modelsResult = await genAI.listModels();
-            availableModels = modelsResult.models.map(m => m.name);
-            const textModels = modelsResult.models.filter(m => m.supportedGenerationMethods.includes("generateContent") && m.name.includes("flash"));
-            if (textModels.length > 0) {
-                // Pega o modelo mais recente que tenha "flash" no nome e suporte geração de texto
-                modelName = textModels[0].name.replace("models/", "");
-            } else if (modelsResult.models.length > 0) {
-                modelName = modelsResult.models[0].name.replace("models/", "");
+            // Usa fetch nativo para listar os modelos reais vinculados a essa chave
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(`HTTP ${response.status}: ${text}`);
+            }
+            const data = await response.json();
+            if (data && data.models) {
+                availableModels = data.models.map(m => m.name);
+                const textModels = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent") && m.name.includes("flash"));
+                if (textModels.length > 0) {
+                    modelName = textModels[0].name.replace("models/", "");
+                } else if (data.models.length > 0) {
+                    modelName = data.models[0].name.replace("models/", "");
+                }
             }
         } catch (e) {
-            console.warn("Aviso ao listar modelos do Gemini:", e.message);
+            console.warn("Aviso ao listar modelos do Gemini via REST:", e.message);
             listModelsError = e.message;
-            modelName = "gemini-1.5-flash-latest"; // fallback alternativo
         }
 
         const model = genAI.getGenerativeModel({ model: modelName });
