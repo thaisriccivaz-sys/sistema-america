@@ -15306,7 +15306,7 @@ window.salvarAssinaturasTestemunhas = async function () {
     }
 
     const doc = currentDocDataForWitness;
-    if (!doc || !doc.file_path) { alert('Documento original não encontrado.'); return; }
+    if (!doc) { alert('Documento original não encontrado.'); return; }
     if (typeof PDFLib === 'undefined') { alert('A biblioteca de processamento de PDF não está carregada.'); return; }
 
     const btn = document.getElementById('btn-salvar-testemunhas');
@@ -15663,7 +15663,7 @@ window.salvarAssinaturaColaborador = async function () {
     }
 
     const doc = currentDocs.find(d => d.id === currentDocIdForColab);
-    if (!doc || !doc.file_path) { alert('Documento não encontrado.'); return; }
+    if (!doc) { alert('Documento não encontrado.'); return; }
 
     const btn = document.getElementById('btn-salvar-colaborador');
     const originalBtn = btn.innerHTML;
