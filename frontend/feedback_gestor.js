@@ -841,7 +841,7 @@
                     <style>
                         @keyframes satModalFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
                     </style>
-                    <form id="sat-modal-form" onsubmit="window._desSubmitForm(event, ${colabId}, '${grupo}', ${ano}, ${trim})">`;
+                    <form id="sat-modal-form" onsubmit="window._desGestorSubmitForm(event, ${colabId}, '${grupo}', ${ano}, ${trim})">`;
 
         let catIdx = 0;
         Object.keys(perguntasGroup).forEach(topico => {
@@ -933,7 +933,7 @@
         if (overlay) overlay.remove();
     };
 
-    window._desSubmitForm = async function(e, colabId, grupo, refAno, refTrim) {
+    window._desGestorSubmitForm = async function(e, colabId, grupo, refAno, refTrim) {
         e.preventDefault();
         const form = e.target;
         const submitBtn = document.getElementById('sat-btn-submit');
