@@ -84,7 +84,7 @@ window.gerarFeedbackIA = async function(formElement) {
     btn.disabled = true;
 
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('erp_token');
         const res = await fetch(`${window.API_URL}/ai/gerar-feedback`, {
             method: 'POST',
             headers: {
