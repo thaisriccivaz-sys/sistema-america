@@ -25147,20 +25147,28 @@ app.get('/api/admin/fix-cargos-e-deps', (req, res) => {
         
         db.serialize(() => {
             // 1. Fix department names inside colaboradores
-            db.run(`UPDATE colaboradores SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manutenção'`);
-            db.run(`UPDATE colaboradores SET departamento = 'Logística' WHERE departamento LIKE 'Log%stica' AND departamento != 'Logística'`);
-            db.run(`UPDATE colaboradores SET departamento = 'Ajudante Pátio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante Pátio'`);
+            db.run(`UPDATE colaboradores SET departamento = 'Manuten\u00e7\u00e3o' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manuten\u00e7\u00e3o'`);
+            db.run(`UPDATE colaboradores SET departamento = 'Log\u00edstica' WHERE departamento LIKE 'Log%stica' AND departamento != 'Log\u00edstica'`);
+            db.run(`UPDATE colaboradores SET departamento = 'Ajudante P\u00e1tio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante P\u00e1tio'`);
             
             // 2. Fix department names inside cargos
-            db.run(`UPDATE cargos SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manutenção'`);
-            db.run(`UPDATE cargos SET departamento = 'Logística' WHERE departamento LIKE 'Log%stica' AND departamento != 'Logística'`);
-            db.run(`UPDATE cargos SET departamento = 'Ajudante Pátio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante Pátio'`);
+            db.run(`UPDATE cargos SET departamento = 'Manuten\u00e7\u00e3o' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manuten\u00e7\u00e3o'`);
+            db.run(`UPDATE cargos SET departamento = 'Log\u00edstica' WHERE departamento LIKE 'Log%stica' AND departamento != 'Log\u00edstica'`);
+            db.run(`UPDATE cargos SET departamento = 'Ajudante P\u00e1tio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante P\u00e1tio'`);
 
             // 3. Fix corrupted cargos
             db.all("SELECT id, nome, status FROM cargos", [], (err, rows) => {
                 if (err) return res.status(500).json({error: err.message});
                 
-                const broken = rows.filter(r => r.nome.includes('Ã') || r.nome.includes('Â'));
+                const broken = rows.filter(r => 
+                    r.nome.includes('\ufffd') || 
+                    r.nome.includes('') || 
+                    r.nome.includes('Ã') || 
+                    r.nome.includes('Â') ||
+                    (r.nome.includes('stica') && !r.nome.includes('Log\u00edstica')) ||
+                    (r.nome.includes('Manuten') && !r.nome.includes('Manuten\u00e7\u00e3o')) ||
+                    (r.nome.includes('P\u00e1tio') === false && (r.nome.includes('P\ufffdtio') || r.nome.includes('Ptio') || r.nome.includes('P\u01edtio') || r.nome.includes('Ptio') || r.nome.includes('P\u022dtio') || r.nome.includes('P\u01fdtio')))
+                );
                 
                 let pending = broken.length;
                 if (pending === 0) {
@@ -25169,13 +25177,20 @@ app.get('/api/admin/fix-cargos-e-deps', (req, res) => {
                 
                 broken.forEach(b => {
                     let correctName = null;
-                    if (b.nome.includes('Ajudante P')) correctName = 'Ajudante Pátio';
-                    if (b.nome.includes('Ass. Log')) correctName = b.nome.replace(/Ass\. Log.*stica (1|2)/, 'Ass. Logística $1');
-                    if (b.nome.includes('Ass. de Manuten')) correctName = b.nome.replace(/Ass\. de Manuten.* (1|2)/, 'Ass. de Manutenção $1');
+                    if (b.nome.includes('Ajudante P')) correctName = 'Ajudante P\u00e1tio';
+                    else if (b.nome.includes('Sup. P')) correctName = 'Sup. P\u00e1tio';
+                    else if (b.nome.includes('Ger. Log')) correctName = 'Ger. Log\u00edstica';
+                    else if (b.nome.includes('Lid. Log')) correctName = 'Lid. Log\u00edstica';
+                    else if (b.nome.includes('Aux. Log')) correctName = 'Aux. Log\u00edstica';
+                    else if (b.nome.includes('Sup. Log')) correctName = 'Sup. Log\u00edstica';
+                    else if (b.nome.includes('Ass. Log')) correctName = b.nome.replace(/Ass\. Log.*stica (1|2)/, 'Ass. Log\u00edstica $1');
+                    else if (b.nome.includes('Aux. de Manuten')) correctName = 'Aux. de Manuten\u00e7\u00e3o';
+                    else if (b.nome.includes('Sup. de Manuten')) correctName = 'Sup. de Manuten\u00e7\u00e3o';
+                    else if (b.nome.includes('Ass. de Manuten')) correctName = b.nome.replace(/Ass\. de Manuten.* (1|2)/, 'Ass. de Manuten\u00e7\u00e3o $1');
                     
                     if (correctName) {
                         const correctCargo = rows.find(r => r.nome === correctName);
-                        if (correctCargo) {
+                        if (correctCargo && correctCargo.id !== b.id) {
                             db.run(`UPDATE colaboradores SET cargo = ? WHERE cargo = ?`, [correctName, b.nome], () => {
                                 db.run(`UPDATE cargo_anexos SET cargo_id = ? WHERE cargo_id = ?`, [correctCargo.id, b.id], () => {
                                     db.run(`DELETE FROM cargos WHERE id = ?`, [b.id], () => {
