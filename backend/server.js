@@ -25140,6 +25140,77 @@ app.get('/api/fix-deps', (req, res) => {
     });
 });
 
+app.get('/api/admin/fix-cargos-e-deps', (req, res) => {
+    try {
+        const logs = [];
+        let totalCargosFix = 0;
+        
+        db.serialize(() => {
+            // 1. Fix department names inside colaboradores
+            db.run(`UPDATE colaboradores SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manutenção'`);
+            db.run(`UPDATE colaboradores SET departamento = 'Logística' WHERE departamento LIKE 'Log%stica' AND departamento != 'Logística'`);
+            db.run(`UPDATE colaboradores SET departamento = 'Ajudante Pátio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante Pátio'`);
+            
+            // 2. Fix department names inside cargos
+            db.run(`UPDATE cargos SET departamento = 'Manutenção' WHERE departamento LIKE '%Manuten%o' AND departamento != 'Manutenção'`);
+            db.run(`UPDATE cargos SET departamento = 'Logística' WHERE departamento LIKE 'Log%stica' AND departamento != 'Logística'`);
+            db.run(`UPDATE cargos SET departamento = 'Ajudante Pátio' WHERE departamento LIKE 'Ajudante P%tio' AND departamento != 'Ajudante Pátio'`);
+
+            // 3. Fix corrupted cargos
+            db.all("SELECT id, nome, status FROM cargos", [], (err, rows) => {
+                if (err) return res.status(500).json({error: err.message});
+                
+                const broken = rows.filter(r => r.nome.includes('Ã') || r.nome.includes('Â'));
+                
+                let pending = broken.length;
+                if (pending === 0) {
+                    return res.json({ok: true, msg: "Nenhum cargo corrompido encontrado.", fixed_deps: true});
+                }
+                
+                broken.forEach(b => {
+                    let correctName = null;
+                    if (b.nome.includes('Ajudante P')) correctName = 'Ajudante Pátio';
+                    if (b.nome.includes('Ass. Log')) correctName = b.nome.replace(/Ass\. Log.*stica (1|2)/, 'Ass. Logística $1');
+                    if (b.nome.includes('Ass. de Manuten')) correctName = b.nome.replace(/Ass\. de Manuten.* (1|2)/, 'Ass. de Manutenção $1');
+                    
+                    if (correctName) {
+                        const correctCargo = rows.find(r => r.nome === correctName);
+                        if (correctCargo) {
+                            db.run(`UPDATE colaboradores SET cargo = ? WHERE cargo = ?`, [correctName, b.nome], () => {
+                                db.run(`UPDATE cargo_anexos SET cargo_id = ? WHERE cargo_id = ?`, [correctCargo.id, b.id], () => {
+                                    db.run(`DELETE FROM cargos WHERE id = ?`, [b.id], () => {
+                                        db.run(`UPDATE cargos SET status = 'Ativo' WHERE id = ?`, [correctCargo.id], () => {
+                                            logs.push(`Fixed ${b.nome} -> ${correctName}`);
+                                            totalCargosFix++;
+                                            pending--;
+                                            if (pending === 0) res.json({ok: true, logs, totalCargosFix});
+                                        });
+                                    });
+                                });
+                            });
+                        } else {
+                            db.run(`UPDATE cargos SET nome = ? WHERE id = ?`, [correctName, b.id], () => {
+                                db.run(`UPDATE colaboradores SET cargo = ? WHERE cargo = ?`, [correctName, b.nome], () => {
+                                    logs.push(`Renamed ${b.nome} -> ${correctName}`);
+                                    totalCargosFix++;
+                                    pending--;
+                                    if (pending === 0) res.json({ok: true, logs, totalCargosFix});
+                                });
+                            });
+                        }
+                    } else {
+                        logs.push(`Could not map ${b.nome}`);
+                        pending--;
+                        if (pending === 0) res.json({ok: true, logs, totalCargosFix});
+                    }
+                });
+            });
+        });
+    } catch (e) {
+        res.status(500).json({error: String(e)});
+    }
+});
+
 app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
