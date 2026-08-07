@@ -15729,8 +15729,7 @@ window.salvarAssinaturaColaborador = async function () {
         const cImgY   = cLineY + 6;
         const cLabelY = cImgY  + cImgH + 6;
 
-        // Label
-        sigPage.drawText('Colaborador (Ciente):', { x: cX, y: cLabelY, size: 10, color: PDFLib.rgb(0.2, 0.2, 0.2) });
+        // Label removida (solicitação do usuário)
 
         // Imagem da assinatura
         const png1Bytes = await getHQCanvas2('canvas-colaborador');
