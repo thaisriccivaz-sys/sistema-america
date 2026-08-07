@@ -69,10 +69,10 @@
     let _sortDir = 1;
 
     window._desGestorToggleMainTab = function(tabName) {
-        const btnColabs = document.getElementById('tab-btn-colaboradores');
-        const btnRelatorios = document.getElementById('tab-btn-relatorios');
-        const contentColabs = document.getElementById('sat-tab-content-colaboradores');
-        const contentRelatorios = document.getElementById('sat-tab-content-relatorios');
+        const btnColabs = document.getElementById('gestor-tab-btn-colaboradores');
+        const btnRelatorios = document.getElementById('gestor-tab-btn-relatorios');
+        const contentColabs = document.getElementById('gestor-tab-content-colaboradores');
+        const contentRelatorios = document.getElementById('gestor-tab-content-relatorios');
 
         if(tabName === 'colaboradores') {
             btnColabs.style.color = '#7c3aed';
@@ -226,23 +226,22 @@
 
             ${hasData ? '' : renderNoData()}
             
-            ${hasData ? renderGroupTabs() : ''}
-
             ${hasData ? `
             <div style="display: flex; gap: 1rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem;">
-                <button id="tab-btn-colaboradores" onclick="window._desGestorToggleMainTab('colaboradores')" style="padding: 0.5rem 1rem; font-weight: 600; color: #7c3aed; border-bottom: 3px solid #7c3aed; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <button id="gestor-tab-btn-colaboradores" onclick="window._desGestorToggleMainTab('colaboradores')" style="padding: 0.5rem 1rem; font-weight: 600; color: #7c3aed; border-bottom: 3px solid #7c3aed; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
                     <i class="ph ph-users"></i> Colaboradores
                 </button>
-                <button id="tab-btn-relatorios" onclick="window._desGestorToggleMainTab('relatorios')" style="padding: 0.5rem 1rem; font-weight: 600; color: #64748b; border-bottom: 3px solid transparent; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                <button id="gestor-tab-btn-relatorios" onclick="window._desGestorToggleMainTab('relatorios')" style="padding: 0.5rem 1rem; font-weight: 600; color: #64748b; border-bottom: 3px solid transparent; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
                     <i class="ph ph-chart-bar"></i> Relatórios
                 </button>
             </div>
             ` : ''}
 
-            <div id="sat-tab-content-colaboradores">
+            <div id="gestor-tab-content-colaboradores">
                 ${renderColaboradoresSection()}
             </div>
-            <div id="sat-tab-content-relatorios" style="display:none;">
+            <div id="gestor-tab-content-relatorios" style="display:none;">
+                ${hasData ? renderGroupTabs() : ''}
                 ${hasData ? renderOverviewCards() : ''}
                 ${hasData ? `<div id="sat-dashboard-area"></div>` : ''}
             </div>
@@ -345,6 +344,10 @@
             b.classList.toggle('active', b.textContent.trim() === (g === 'all' ? 'Todos os grupos' : grupoLabel(g)));
         });
         renderDashboardArea();
+        
+        // Atualiza tambem a tabela de colaboradores
+        const wrap = document.getElementById('sat-colab-table-wrap');
+        if (wrap) wrap.innerHTML = renderColabTable();
     };
 
     /* ── DASHBOARD AREA (topic table per group) ──────────────── */
@@ -725,6 +728,12 @@
 /* ── FILTER & SORT ──────────────────────────────────────── */
     function getFilteredColabs() {
         let colabs = (_colabs.colaboradores || []).slice();
+        
+        // Filtro por departamento (botoes roxos)
+        if (_filterGroup !== 'all') {
+            colabs = colabs.filter(c => c.departamento === _filterGroup || (grupoLabel(c.departamento) === _filterGroup) || (grupoLabel(_filterGroup) === grupoLabel(c.departamento)));
+        }
+
         if (_searchText) {
             const normalize = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
             const q = normalize(_searchText);

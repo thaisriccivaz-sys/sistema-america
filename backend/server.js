@@ -25113,8 +25113,34 @@ app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
 });
 // ============================================================
 
-app.listen(PORT, () => {
+app.get('/api/fix-deps', (req, res) => {
+    db.serialize(() => {
+        db.all('SELECT id, nome, responsavel_id FROM departamentos', [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const toDelete = [];
+            const seen = new Set();
+            rows.forEach(r => {
+                const isBroken = r.nome.includes('Ã') || r.nome.includes('Â');
+                const isDupe = seen.has(r.nome.toLowerCase().trim());
+                if (isBroken || isDupe) {
+                    toDelete.push(r.id);
+                } else {
+                    seen.add(r.nome.toLowerCase().trim());
+                }
+            });
+            if (toDelete.length > 0) {
+                db.run('DELETE FROM departamentos WHERE id IN (' + toDelete.join(',') + ')', function(e) {
+                    if(e) return res.status(500).json({ error: e.message });
+                    res.json({ ok: true, msg: 'Deletados ' + this.changes + ' departamentos corrompidos/duplicados.' });
+                });
+            } else {
+                res.json({ ok: true, msg: 'Nenhum departamento corrompido encontrado.' });
+            }
+        });
+    });
+});
 
+app.listen(PORT, () => {
 
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');

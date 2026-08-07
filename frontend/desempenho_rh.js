@@ -178,8 +178,6 @@
 
             ${hasData ? '' : renderNoData()}
             
-            ${hasData ? renderGroupTabs() : ''}
-
             ${hasData ? `
             <div style="display: flex; gap: 1rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem;">
                 <button id="tab-btn-colaboradores" onclick="window._desToggleMainTab('colaboradores')" style="padding: 0.5rem 1rem; font-weight: 600; color: #7c3aed; border-bottom: 3px solid #7c3aed; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
@@ -195,6 +193,7 @@
                 ${renderColaboradoresSection()}
             </div>
             <div id="sat-tab-content-relatorios" style="display:none;">
+                ${hasData ? renderGroupTabs() : ''}
                 ${hasData ? renderOverviewCards() : ''}
                 ${hasData ? `<div id="sat-dashboard-area"></div>` : ''}
             </div>
