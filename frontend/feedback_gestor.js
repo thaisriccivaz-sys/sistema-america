@@ -991,6 +991,7 @@
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
             submitBtn.disabled = true;
             
+            console.log('DEBUG: Iniciando requisição para POST /api/avaliacoes');
             const r = await fetch(API + '/api/avaliacoes', {
                 method: 'POST',
                 headers: {
@@ -1005,10 +1006,12 @@
                     respostas_json: JSON.stringify(respostas)
                 })
             });
+            console.log('DEBUG: Requisição concluída. Status:', r.status);
             
             if (!r.ok) throw new Error(await r.text());
 
             // Salvar obs de feedback separadamente
+            console.log('DEBUG: Salvando observações de feedback separadamente...');
             const obsFbkJson = {};
             categories.forEach((cat) => {
                 if (respostas.__feedback_obs__[cat]) obsFbkJson[cat] = respostas.__feedback_obs__[cat];
@@ -1030,16 +1033,20 @@
                     obs_feedback_json: JSON.stringify(obsFbkJson)
                 })
             });
+            console.log('DEBUG: Observações de feedback salvas. Fechando formulário.');
             window._desCloseForm();
             
             // Calculamos a media para atualizar a UI instantaneamente
             const media = totalCount > 0 ? parseFloat((totalVal / totalCount).toFixed(2)) : null;
+            console.log('DEBUG: Respostas calculadas. Media=', media, 'Total perguntas=', totalCount);
 
             // Atualização manual do DOM para o fluxo instantâneo
+            console.log('DEBUG: Tentando atualizar a UI. _lastOpenedBtn existe?', !!_lastOpenedBtn);
             if (_lastOpenedBtn) {
                 // 1. Muda o botão de Responder para Editar
                 _lastOpenedBtn.style.background = '#0ea5e9';
                 _lastOpenedBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
+                console.log('DEBUG: Botão alterado para Editar');
 
                 // 2. Adiciona o botão de Registrar Feedback se não existir
                 const parent = _lastOpenedBtn.parentElement;
@@ -1054,14 +1061,18 @@
                         style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                         <i class="ph ph-file-pdf" style="margin-right:4px;"></i>Feedback
                     </button>`);
+                    console.log('DEBUG: Botão Registrar Feedback adicionado');
                 }
 
                 // 3. Atualiza a célula "Pendente" para a nova nota
-                const scorePill = document.getElementById(`score-${colabId}-${currentYear}-T${currentQ}`);
+                const scoreId = `score-${colabId}-${currentYear}-T${currentQ}`;
+                const scorePill = document.getElementById(scoreId);
+                console.log('DEBUG: Procurando elemento da nota:', scoreId, 'Encontrado?', !!scorePill);
                 if (scorePill && media !== null) {
                     scorePill.style.background = scoreBg(media);
                     scorePill.style.color = scoreColor(media);
                     scorePill.textContent = fmtScore(media);
+                    console.log('DEBUG: Nota atualizada visualmente na tabela');
                 }
             }
 
