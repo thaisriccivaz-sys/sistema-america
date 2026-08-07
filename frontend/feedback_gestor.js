@@ -523,12 +523,6 @@
                         <i class="ph ph-chat-circle-text"></i>
                     </button>`
                 ) : ''}
-                <button
-                    onclick="window._desRefreshTable(this)"
-                    title="Atualizar linha/tabela"
-                    style="background:#e2e8f0;color:#64748b;border:none;border-radius:6px;padding:0.2rem;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;height:27px;width:27px;">
-                    <i class="ph ph-arrows-clockwise"></i>
-                </button>
                 </div>
             </td>
         </tr>
@@ -831,7 +825,7 @@
                         <h2 style="margin:0;font-size:1.25rem;color:#fff;"><i class="ph ph-smiley" style="color:#cffafe;margin-right:.5rem;"></i>Avaliação de Desempenho</h2>
                         <div style="color:#e0f2fe;font-size:0.85rem;margin-top:0.3rem;"><strong>${nome}</strong> — ${cargo || dept}</div>
                     </div>
-                    <button onclick="window._desCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#fff;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
+                    <button onclick="window._desGestorCloseForm()" style="background:none;border:none;font-size:1.5rem;color:#fff;cursor:pointer;transition:color 0.2s;"><i class="ph ph-x"></i></button>
                 </div>
                 
                 <div style="padding:2rem;overflow-y:auto;flex:1;background:#f8fafc;" id="sat-form-body">
@@ -894,7 +888,6 @@
                         </div>
                         <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:250px;">
                             <input type="text" name="av_obs_${catIdx}_${idx}" value="${String(obsStr).replace(/"/g, '&quot;')}" ${isReadonly ? 'disabled' : ''} placeholder="Observação do colaborador (opcional)..." style="width:100%; padding:0.4rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; outline:none; color:#334155; height:32px; box-sizing:border-box;">
-                            <input type="text" name="av_fbk_${catIdx}_${idx}" value="${String(fbkObsSaved).replace(/"/g, '&quot;')}" placeholder="📝 Feedback do gestor (opcional)..." style="width:100%; padding:0.4rem 0.6rem; border:1.5px solid #bfdbfe; border-radius:6px; font-size:0.85rem; outline:none; color:#1d4ed8; background:#eff6ff; height:32px; box-sizing:border-box;">
                         </div>
                     </div>
                 </div>`;
@@ -910,14 +903,9 @@
                             <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:0.5rem;">Informações Adicionais / Observação Geral (Opcional)</label>
                             <textarea name="info_adicional" ${isReadonly ? 'disabled' : ''} rows="2" style="width:100%;padding:0.75rem;border-radius:6px;border:1px solid #cbd5e1;font-size:0.9rem;font-family:inherit;resize:vertical;" placeholder="Observações gerais...">${infoAdic}</textarea>
                         </div>
-
-                        <div style="margin-top:1rem;padding:1.5rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;">
-                            <label style="display:block;font-size:0.85rem;font-weight:600;color:#1d4ed8;margin-bottom:0.5rem;"><i class="ph ph-chat-circle-text" style="margin-right:4px;"></i>Observações de Feedback do Gestor (Opcional)</label>
-                            <textarea name="obs_feedback_geral" rows="3" style="width:100%;padding:0.75rem;border-radius:6px;border:1.5px solid #bfdbfe;font-size:0.9rem;font-family:inherit;resize:vertical;background:#fff;color:#1d4ed8;" placeholder="Observações gerais de feedback para o colaborador...">${fbkGeralSaved}</textarea>
-                        </div>
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
-                            <button type="button" onclick="window._desCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
+                            <button type="button" onclick="window._desGestorCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
                             ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>`}
                         </div>
                     </form>
