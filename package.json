@@ -10,6 +10,7 @@
     "@aws-sdk/client-s3": "^3.1043.0",
     "@aws-sdk/lib-storage": "^3.1104.0",
     "@azure/msal-node": "^5.1.1",
+    "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@signpdf/placeholder-plain": "^3.3.0",
     "@signpdf/signer-p12": "^3.3.0",

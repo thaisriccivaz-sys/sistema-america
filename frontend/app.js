@@ -19,10 +19,95 @@ function showToast(msg, type) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// Estado global
 let currentUser = null;
 let currentToken = null;
 let currentDocs = [];
+
+// --- FUNÇÃO GLOBAL: GERAR FEEDBACK IA ---
+window.gerarFeedbackIA = async function(formElement) {
+    const btn = document.getElementById('btn-gerar-ia');
+    const textarea = formElement.querySelector('textarea[name="info_adicional"]');
+    
+    if (!btn || !textarea) return;
+
+    // Capturar notas e observações
+    const notas = [];
+    const observacoes = [];
+    
+    // O form contém inputs de rádio e text para as observações.
+    // O nome dos rádios é av_{catIdx}_{idx}
+    const formData = new FormData(formElement);
+    
+    // Encontrar todos os rádios selecionados
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('av_') && !key.startsWith('av_obs_')) {
+            // value é a nota
+            // pegar a pergunta. Ela está no div irmão ou próximo...
+            // Mais fácil: pegar o elemento input e buscar o título.
+            const radio = formElement.querySelector(`input[name="${key}"]:checked`);
+            if (radio) {
+                const row = radio.closest('div[style*="display:flex; justify-content:space-between"]');
+                if (row) {
+                    const perguntaDiv = row.querySelector('div:first-child');
+                    if (perguntaDiv) {
+                        notas.push({ pergunta: perguntaDiv.textContent.trim(), nota: value });
+                    }
+                }
+            }
+        } else if (key.startsWith('av_obs_')) {
+            if (value && value.trim() !== '') {
+                // encontrar a pergunta baseada no name
+                const idxParts = key.split('_').slice(2); // ['catIdx', 'idx']
+                const radioKey = `av_${idxParts[0]}_${idxParts[1]}`;
+                const radio = formElement.querySelector(`input[name="${radioKey}"]`);
+                if (radio) {
+                    const row = radio.closest('div[style*="display:flex; justify-content:space-between"]');
+                    if (row) {
+                        const perguntaDiv = row.querySelector('div:first-child');
+                        if (perguntaDiv) {
+                            observacoes.push({ pergunta: perguntaDiv.textContent.trim(), texto: value.trim() });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (notas.length === 0) {
+        alert("Por favor, preencha algumas notas antes de gerar o feedback.");
+        return;
+    }
+
+    // Mudar estado do botão
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando...';
+    btn.disabled = true;
+
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${window.API_URL}/ai/gerar-feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ notas, observacoes })
+        });
+        
+        const data = await res.json();
+        
+        if (data.error) throw new Error(data.error);
+        
+        textarea.value = data.texto;
+        showToast("Feedback gerado com sucesso!", "success");
+    } catch (err) {
+        console.error(err);
+        alert(err.message || "Erro ao gerar texto.");
+    } finally {
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
+    }
+};
 let viewedColaborador = null;
 window.viewedColaborador = null; // Alias para módulos externos (epi.js, etc.)
 

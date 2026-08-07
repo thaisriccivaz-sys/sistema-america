@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // HELPER: Validação anti-corrupção (UTF-8)
 function validateTextSanity(text) {
@@ -2984,6 +2985,45 @@ function authenticateToken(req, res, next) {
         next();
     });
 }
+
+// --- INTEGRAÇÃO IA (GEMINI) ---
+app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
+    try {
+        const { notas, observacoes } = req.body;
+        
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(400).json({ error: "Chave da API do Gemini não configurada no servidor." });
+        }
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `Você é um Consultor de Recursos Humanos sênior especializado em criar relatórios de feedback de desempenho empáticos, profissionais e construtivos.
+Eu vou te passar as notas (de 1 a 5) que o gestor deu para o funcionário em vários quesitos e também algumas observações soltas que o gestor escreveu.
+Seu trabalho é consolidar tudo isso em um texto fluido e coeso de 3 a 4 parágrafos, formatado em texto limpo (sem markdown, sem asteriscos, sem títulos), pronto para ser inserido no campo "Observação Geral".
+
+Regras:
+1. Comece diretamente com o texto do feedback, sem introduções.
+2. Seja construtivo: elogie os pontos fortes (notas altas) e aponte oportunidades de melhoria com empatia (notas baixas).
+3. Não invente fatos que não estão nas observações ou nas notas. Escreva no formato de relatório (ex: "O colaborador demonstra...").
+
+DADOS DA AVALIAÇÃO:
+Notas:
+${notas.map(n => `- ${n.pergunta}: Nota ${n.nota}/5`).join('\n')}
+
+Observações do Gestor:
+${observacoes && observacoes.length > 0 ? observacoes.map(o => `- Sobre "${o.pergunta}": ${o.texto}`).join('\n') : "Nenhuma observação extra fornecida."}`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        res.json({ texto: text.trim() });
+    } catch (error) {
+        console.error("Erro no Gemini:", error);
+        res.status(500).json({ error: "Erro ao gerar feedback via IA: " + error.message });
+    }
+});
 
 // --- ROTAS DE AUTENTICA?????????O ---
 const loginLimiter = rateLimit({

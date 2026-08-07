@@ -843,6 +843,7 @@
                         
                         <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:2rem;">
                             <button type="button" onclick="window._desCloseForm()" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;">Cancelar</button>
+                            ${isReadonly ? '' : `<button type="button" id="btn-gerar-ia" onclick="window.gerarFeedbackIA(document.getElementById('sat-modal-form'))" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:1px solid #a855f7;background:#f3e8ff;color:#9333ea;cursor:pointer;display:flex;align-items:center;gap:0.5rem;"><i class="ph ph-sparkle"></i> Gerar Texto com IA</button>`}
                             ${isReadonly ? '' : `<button type="submit" id="sat-btn-submit" style="padding:0.75rem 1.5rem;border-radius:8px;font-weight:600;border:none;background:#0f4c81;color:#fff;cursor:pointer;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 4px rgba(15,76,129,0.3);"><i class="ph ph-check-circle"></i> Salvar Respostas</button>`}
                         </div>
                     </form>
