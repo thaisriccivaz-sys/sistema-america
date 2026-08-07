@@ -69,10 +69,15 @@
     let _sortDir = 1;
 
     /* ── MAIN INIT ───────────────────────────────────────────── */
-    window.initFeedbackGestor = async function () {
+    window.initFeedbackGestor = async function (silent = false) {
         const container = document.getElementById('feedback-gestor-container');
         if (!container) return;
-        container.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:#94a3b8;"><div class="spinner-sm"></div> Carregando dados de desempenho…</div>';
+        
+        let scrollY = window.scrollY;
+
+        if (!silent) {
+            container.innerHTML = '<div style="display:flex;align-items:center;gap:1rem;padding:2rem;color:#94a3b8;"><div class="spinner-sm"></div> Carregando dados de desempenho…</div>';
+        }
 
         try {
             // Busca departamentos diretamente para garantir que temos os dados corretos,
@@ -126,6 +131,10 @@
         }
 
         render(container);
+        
+        if (silent) {
+            window.scrollTo(0, scrollY);
+        }
     };
 
     /* ── RENDER ──────────────────────────────────────────────── */
@@ -982,9 +991,24 @@
             });
             window._desCloseForm();
             _lastOpenedBtn = null;
-            alert('Pesquisa salva com sucesso!');
+            
+            // Mostrar modal de sucesso bonitinho sem travar o JS
+            const s = document.createElement('div');
+            s.innerHTML = `
+            <div id="des-success-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;">
+                <div style="background:#fff;border-radius:16px;padding:2.5rem 2rem;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
+                    <h3 style="margin:0 0 0.5rem;color:#166534;">Pesquisa salva com sucesso!</h3>
+                    <p style="color:#64748b;margin:0 0 1.5rem;font-size:0.9rem;">As respostas foram registradas e as médias calculadas.</p>
+                    <div style="display:flex;gap:0.75rem;justify-content:center;">
+                        <button onclick="document.getElementById('des-success-overlay').remove();" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:600;cursor:pointer;">Continuar</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(s);
+
             if (typeof window.initFeedbackGestor === 'function') {
-                window.initFeedbackGestor();
+                window.initFeedbackGestor(true); // silent = true
             }
 
         } catch(err) {
