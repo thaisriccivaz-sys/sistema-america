@@ -2996,7 +2996,21 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        let modelName = "gemini-1.5-flash";
+        try {
+            // Tenta listar os modelos disponíveis para esta chave específica (evita erro 404 de versão)
+            const modelsResult = await genAI.listModels();
+            const textModels = modelsResult.models.filter(m => m.supportedGenerationMethods.includes("generateContent") && m.name.includes("flash"));
+            if (textModels.length > 0) {
+                // Pega o modelo mais recente que tenha "flash" no nome e suporte geração de texto
+                modelName = textModels[0].name.replace("models/", "");
+            }
+        } catch (e) {
+            console.warn("Aviso ao listar modelos do Gemini:", e.message);
+        }
+
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const prompt = `Você é um Consultor de Recursos Humanos sênior especializado em criar relatórios de feedback de desempenho empáticos, profissionais e construtivos.
 Eu vou te passar as notas (de 1 a 5) que o gestor deu para o funcionário em vários quesitos e também algumas observações soltas que o gestor escreveu.
