@@ -16109,59 +16109,83 @@ app.get('/api/desempenho/test-email', async (req, res) => {
         const hoje = new Date();
         let expectedTrim = 1;
         const mes = hoje.getMonth();
-        if (mes >= 3 && mes <= 5) expectedTrim = 2;
-        else if (mes > 5) expectedTrim = 3;
+        if (mes >= 0 && mes <= 2) expectedTrim = 1;
+        else if (mes >= 3 && mes <= 5) expectedTrim = 2;
+        else expectedTrim = 3;
         const expectedAno = hoje.getFullYear();
 
-        // Simulando colaboradores pendentes para a Thais
-        const colaboradoresMock = [
-            "João da Silva Souza",
-            "Maria Oliveira Costa",
-            "Pedro Almeida Ribeiro"
-        ];
-        
-        const baseUrl = req.protocol + '://' + req.get('host');
-        const link = `${baseUrl}/#feedback-gestor`;
-        const subject = `[TESTE] Pesquisas de Desempenho Pendentes - ${expectedTrim}º Trim. ${expectedAno}`;
-        const managerName = 'Thais';
-        
-        const listaHTML = colaboradoresMock.map(nome => `<li style="padding: 4px 0;">${nome}</li>`).join('');
+        db.all(`SELECT c.id, c.nome_completo, c.departamento,
+                   d.responsavel_id,
+                   COALESCE(
+                       (SELECT NULLIF(email_corporativo, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM colaboradores WHERE id = d.responsavel_id),
+                       (SELECT NULLIF(email, '') FROM usuarios WHERE TRIM(LOWER(nome)) = TRIM(LOWER((SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id))) LIMIT 1)
+                   ) as resp_email,
+                   (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as resp_nome,
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'desempenho' AND ano = ? AND trimestre = ? AND situacao = 'finalizado') as has_avaliation
+            FROM colaboradores c
+            LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
+            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
+            
+            if (err) return res.status(500).json({ error: err.message });
 
-        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-            </div>
-            <div style="padding:24px;">
-                <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliações de Desempenho Pendentes</h2>
-                <p>Olá <strong>${managerName}</strong>,</p>
-                <p>Lembramos que existem <strong>Pesquisas de Desempenho</strong> pendentes de preenchimento referentes ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong>.</p>
-                <p><strong>Colaboradores pendentes:</strong></p>
-                <ul style="color:#444; background:#f9fafb; padding:15px 15px 15px 35px; border-radius:6px; border:1px solid #e5e7eb;">
-                    ${listaHTML}
-                </ul>
-                <p>Por favor, acesse o sistema no menu <strong>Gestão > Feedback</strong> para completar as avaliações diretamente pela plataforma.</p>
-                <div style="text-align:center;margin:30px 0;">
-                    <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
-                        Acessar Painel de Gestão
-                    </a>
+            const pending = [];
+            let managerName = 'Thais';
+
+            for (const r of rows) {
+                if (r.has_avaliation > 0) continue;
+                if (r.resp_email && r.resp_email.toLowerCase() === 'thais.ricci@americarental.com.br') {
+                    pending.push(r.nome_completo);
+                    managerName = (r.resp_nome || 'Thais').split(' ')[0];
+                }
+            }
+
+            if (pending.length === 0) {
+                return res.json({ ok: true, msg: 'Voce nao tem colaboradores pendentes de avaliacao de desempenho no sistema.' });
+            }
+
+            const baseUrl = req.protocol + '://' + req.get('host');
+            const link = `${baseUrl}/#feedback-gestor`;
+            const subject = `[TESTE REAL] Pesquisas de Desempenho Pendentes - ${expectedTrim}º Trim. ${expectedAno}`;
+            
+            const listaHTML = pending.map(nome => `<li style="padding: 4px 0;">${nome}</li>`).join('');
+
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                 </div>
-                <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
-            </div>
-        </div>`;
+                <div style="padding:24px;">
+                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliações de Desempenho Pendentes</h2>
+                    <p>Olá <strong>${managerName}</strong>,</p>
+                    <p>Lembramos que existem <strong>Pesquisas de Desempenho</strong> pendentes de preenchimento referentes ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong>.</p>
+                    <p><strong>Colaboradores pendentes:</strong></p>
+                    <ul style="color:#444; background:#f9fafb; padding:15px 15px 15px 35px; border-radius:6px; border:1px solid #e5e7eb;">
+                        ${listaHTML}
+                    </ul>
+                    <p>Por favor, acesse o sistema no menu <strong>Gestão > Feedback</strong> para completar as avaliações diretamente pela plataforma.</p>
+                    <div style="text-align:center;margin:30px 0;">
+                        <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
+                            Acessar Painel de Gestão
+                        </a>
+                    </div>
+                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+                </div>
+            </div>`;
 
-        try {
-            await sendMailHelper({ 
-                to: 'thais.ricci@americarental.com.br', 
-                subject: subject, 
-                html: html,
-                attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
-            });
-            console.log('Test email consolidado sent successfully.');
-        } catch (e) {
-            console.error('Error sending test email:', e.message);
-        }
-
-        res.json({ ok: true, msg: 'Test emails consolidated triggered to thais.ricci@americarental.com.br' });
+            try {
+                await sendMailHelper({ 
+                    to: 'thais.ricci@americarental.com.br', 
+                    subject: subject, 
+                    html: html,
+                    attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                });
+                console.log('Test email consolidado sent successfully with real data.');
+                res.json({ ok: true, msg: 'Test emails consolidated triggered to thais.ricci@americarental.com.br com dados reais.' });
+            } catch (e) {
+                console.error('Error sending test email:', e.message);
+                res.status(500).json({ error: e.message });
+            }
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

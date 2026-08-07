@@ -410,6 +410,12 @@ if (btnLogout) {
 
 
 window.navigateInitialPage = function () {
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+        navigateTo(hash);
+        return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     const colabId = params.get('colaborador_id');
     const autoOpenDesempenho = params.get('autoOpenDesempenho');
