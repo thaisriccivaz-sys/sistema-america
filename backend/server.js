@@ -11453,16 +11453,44 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
         // Arquivo em anexo (tenta pegar a versão final, se não, pega a versão com as testemunhas)
         const attachments = [];
-        const activeFilePath = doc.signed_file_path ? path.resolve(doc.signed_file_path) : path.resolve(doc.file_path);
-        if (fs.existsSync(activeFilePath)) {
-            const nomeNorm = (colab.nome_completo || 'Colaborador')
-                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
-            const hoje = new Date();
-            const dd = String(hoje.getDate()).padStart(2, '0');
-            const mm = String(hoje.getMonth() + 1).padStart(2, '0');
-            const yyyy = hoje.getFullYear();
-            const prefixoNome = isAdvertencia ? 'Advertencia' : 'Suspensao';
-            attachments.push({ filename: `${prefixoNome}_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`, path: activeFilePath, contentType: 'application/pdf' });
+        let pdfAttachmentBuffer = null;
+        let pdfAttachmentName = '';
+        
+        const r2Utils = require('./utils/r2');
+        const nomeNorm = (colab.nome_completo || 'Colaborador')
+            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_');
+        const hoje = new Date();
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const yyyy = hoje.getFullYear();
+        const prefixoNome = isAdvertencia ? 'Advertencia' : 'Suspensao';
+        pdfAttachmentName = `${prefixoNome}_Assinada_${dd}-${mm}-${yyyy}_${nomeNorm}.pdf`;
+
+        const r2Key = doc.signed_r2_key || doc.r2_key;
+        if (r2Key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    pdfAttachmentBuffer = Buffer.from(await fileData.stream.transformToByteArray());
+                } else {
+                    const chunks = [];
+                    for await (let chunk of fileData.stream) chunks.push(chunk);
+                    pdfAttachmentBuffer = Buffer.concat(chunks);
+                }
+            } catch (err) {
+                console.warn('[R2-ATTACH] Falha ao baixar PDF do R2:', err.message);
+            }
+        }
+
+        if (!pdfAttachmentBuffer) {
+            const activeFilePath = doc.signed_file_path || doc.file_path || '';
+            if (activeFilePath && fs.existsSync(activeFilePath) && fs.statSync(activeFilePath).isFile()) {
+                pdfAttachmentBuffer = fs.readFileSync(activeFilePath);
+            }
+        }
+
+        if (pdfAttachmentBuffer) {
+            attachments.push({ filename: pdfAttachmentName, content: pdfAttachmentBuffer, contentType: 'application/pdf' });
         } else {
             return res.status(404).json({ sucesso: false, error: 'Arquivo PDF assinado não encontrado no servidor.' });
         }
