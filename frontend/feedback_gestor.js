@@ -486,7 +486,9 @@
                     return `<td style="text-align:center;background:#f8fafc;"><span style="color:#cbd5e1;font-size:.75rem;">N/A</span></td>`;
                 }
                 if (!ps.respondido) {
-                    return `<td style="text-align:center;background:#fef9c3;"><span style="color:#92400e;font-size:.75rem;font-weight:600;">Pendente</span></td>`;
+                    return `<td style="text-align:center;">
+                        <span id="score-${c.id}-${key}" class="score-pill" style="background:#fef3c7;color:#d97706;">Pendente</span>
+                    </td>`;
                 }
                 return `<td style="text-align:center;">
                     <span class="score-pill" style="background:${scoreBg(ps.media)};color:${scoreColor(ps.media)};">${fmtScore(ps.media)}</span>
@@ -946,6 +948,7 @@
         const categories = Object.keys(perguntasGroup);
         let missingRequired = [];
         
+        let totalVal = 0; let totalCount = 0;
         categories.forEach((cat, catIdx) => {
             respostas[cat] = [];
             respostas.__obs__[cat] = [];
@@ -955,7 +958,10 @@
                 const rads = form.elements[`av_${catIdx}_${i}`];
                 const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
                 if (selected) {
-                    respostas[cat].push(parseInt(selected.value, 10));
+                    let v = parseInt(selected.value, 10);
+                    respostas[cat].push(v);
+                    totalVal += v;
+                    totalCount++;
                 } else {
                     respostas[cat].push(null);
                     missingRequired.push(`${cat} — Pergunta ${i+1}`);
@@ -1025,24 +1031,43 @@
                 })
             });
             window._desCloseForm();
-            _lastOpenedBtn = null;
             
-            // Mostrar modal de sucesso bonitinho sem travar o JS
-            const s = document.createElement('div');
-            s.innerHTML = `
-            <div id="des-success-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;">
-                <div style="background:#fff;border-radius:16px;padding:2.5rem 2rem;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                    <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
-                    <h3 style="margin:0 0 0.5rem;color:#166534;">Pesquisa salva com sucesso!</h3>
-                    <p style="color:#64748b;margin:0 0 1.5rem;font-size:0.9rem;">As respostas foram registradas e as médias calculadas.</p>
-                    <div style="display:flex;gap:0.75rem;justify-content:center;">
-                        <button onclick="document.getElementById('des-success-overlay').remove();" style="background:#0f4c81;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.25rem;font-weight:600;cursor:pointer;">Continuar</button>
-                    </div>
-                </div>
-            </div>`;
-            document.body.appendChild(s);
+            // Calculamos a media para atualizar a UI instantaneamente
+            const media = totalCount > 0 ? parseFloat((totalVal / totalCount).toFixed(2)) : null;
 
-            // Atualiza apenas a tabela (sem piscar a tela inteira) em background
+            // Atualização manual do DOM para o fluxo instantâneo
+            if (_lastOpenedBtn) {
+                // 1. Muda o botão de Responder para Editar
+                _lastOpenedBtn.style.background = '#0ea5e9';
+                _lastOpenedBtn.innerHTML = '<i class="ph ph-pencil-simple" style="margin-right:4px;"></i>Editar';
+
+                // 2. Adiciona o botão de Registrar Feedback se não existir
+                const parent = _lastOpenedBtn.parentElement;
+                if (parent && !parent.querySelector('button[title="Registrar Feedback"]') && !parent.querySelector('button[title="Ver PDF do Feedback Assinado"]')) {
+                    const colabNome = _lastOpenedBtn.getAttribute('data-colab-nome') || '';
+                    const colabDept = _lastOpenedBtn.getAttribute('data-colab-dept') || '';
+                    const colabCargo = _lastOpenedBtn.getAttribute('data-colab-cargo') || '';
+                    parent.insertAdjacentHTML('beforeend', `
+                    <button
+                        onclick="window._desFeedbackBtn(${colabId}, '${colabNome.replace(/'/g,"\\'")}', '${colabDept.replace(/'/g,"\\'")}', '${colabCargo.replace(/'/g,"\\'")}', '${currentYear}', '${currentQ}')"
+                        title="Registrar Feedback"
+                        style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
+                        <i class="ph ph-file-pdf" style="margin-right:4px;"></i>Feedback
+                    </button>`);
+                }
+
+                // 3. Atualiza a célula "Pendente" para a nova nota
+                const scorePill = document.getElementById(`score-${colabId}-${currentYear}-T${currentQ}`);
+                if (scorePill && media !== null) {
+                    scorePill.style.background = scoreBg(media);
+                    scorePill.style.color = scoreColor(media);
+                    scorePill.textContent = fmtScore(media);
+                }
+            }
+
+            _lastOpenedBtn = null;
+
+            // Dispara background fetch para atualizar dados globais silenciosamente (para quando mudar de aba/etc)
             if (typeof window._desRefreshTable === 'function') {
                 window._desRefreshTable();
             }
