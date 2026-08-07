@@ -68,6 +68,29 @@
     let _sortCol = null;
     let _sortDir = 1;
 
+    window._desGestorToggleMainTab = function(tabName) {
+        const btnColabs = document.getElementById('tab-btn-colaboradores');
+        const btnRelatorios = document.getElementById('tab-btn-relatorios');
+        const contentColabs = document.getElementById('sat-tab-content-colaboradores');
+        const contentRelatorios = document.getElementById('sat-tab-content-relatorios');
+
+        if(tabName === 'colaboradores') {
+            btnColabs.style.color = '#7c3aed';
+            btnColabs.style.borderBottom = '3px solid #7c3aed';
+            btnRelatorios.style.color = '#64748b';
+            btnRelatorios.style.borderBottom = '3px solid transparent';
+            contentColabs.style.display = 'block';
+            contentRelatorios.style.display = 'none';
+        } else {
+            btnRelatorios.style.color = '#7c3aed';
+            btnRelatorios.style.borderBottom = '3px solid #7c3aed';
+            btnColabs.style.color = '#64748b';
+            btnColabs.style.borderBottom = '3px solid transparent';
+            contentRelatorios.style.display = 'block';
+            contentColabs.style.display = 'none';
+        }
+    };
+
     /* ── MAIN INIT ───────────────────────────────────────────── */
     window.initFeedbackGestor = async function (silent = false) {
         const container = document.getElementById('feedback-gestor-container');
@@ -202,10 +225,27 @@
             <p class="sub">Acompanhe a desempenho por departamento e tópico nas últimas 4 pesquisas</p>
 
             ${hasData ? '' : renderNoData()}
-            ${hasData ? renderOverviewCards() : ''}
+            
             ${hasData ? renderGroupTabs() : ''}
-            ${hasData ? `<div id="sat-dashboard-area"></div>` : ''}
-            ${renderColaboradoresSection()}
+
+            ${hasData ? `
+            <div style="display: flex; gap: 1rem; border-bottom: 2px solid #e2e8f0; margin-bottom: 1.5rem;">
+                <button id="tab-btn-colaboradores" onclick="window._desGestorToggleMainTab('colaboradores')" style="padding: 0.5rem 1rem; font-weight: 600; color: #7c3aed; border-bottom: 3px solid #7c3aed; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                    <i class="ph ph-users"></i> Colaboradores
+                </button>
+                <button id="tab-btn-relatorios" onclick="window._desGestorToggleMainTab('relatorios')" style="padding: 0.5rem 1rem; font-weight: 600; color: #64748b; border-bottom: 3px solid transparent; background: none; border-top: none; border-left: none; border-right: none; cursor: pointer;">
+                    <i class="ph ph-chart-bar"></i> Relatórios
+                </button>
+            </div>
+            ` : ''}
+
+            <div id="sat-tab-content-colaboradores">
+                ${renderColaboradoresSection()}
+            </div>
+            <div id="sat-tab-content-relatorios" style="display:none;">
+                ${hasData ? renderOverviewCards() : ''}
+                ${hasData ? `<div id="sat-dashboard-area"></div>` : ''}
+            </div>
         </div>
         `;
 
