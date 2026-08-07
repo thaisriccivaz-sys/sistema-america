@@ -512,6 +512,12 @@
                         <i class="ph ph-chat-circle-text"></i>
                     </button>`
                 ) : ''}
+                <button
+                    onclick="if (typeof window.initFeedbackGestor === 'function') window.initFeedbackGestor();"
+                    title="Atualizar tela"
+                    style="background:#e2e8f0;color:#64748b;border:none;border-radius:6px;padding:0.2rem;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;height:27px;width:27px;">
+                    <i class="ph ph-arrows-clockwise"></i>
+                </button>
                 </div>
             </td>
         </tr>
@@ -977,8 +983,9 @@
             window._desCloseForm();
             _lastOpenedBtn = null;
             alert('Pesquisa salva com sucesso!');
-            window.location.reload();
-
+            if (typeof window.initFeedbackGestor === 'function') {
+                window.initFeedbackGestor();
+            }
 
         } catch(err) {
             alert('Erro ao salvar pesquisa: ' + err.message);
