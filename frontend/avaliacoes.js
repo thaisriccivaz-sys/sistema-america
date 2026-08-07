@@ -554,6 +554,12 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         if (modal) modal.remove();
         
         renderAvaliacaoTab(document.getElementById('docs-list-container'));
+        
+        // Recarregar a lista de colaboradores (Atualiza views de Gestão/Feedback)
+        if (typeof window.loadColaboradores === 'function') {
+            window.loadColaboradores();
+        }
+
         alert(tipo === 'experiencia' ? 'Avaliação de experiência salva com sucesso!' : 'Avaliação do ' + trimestre + 'º trimestre salva!');
     } catch(e) {
         errSpan.textContent = '';
