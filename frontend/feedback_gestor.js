@@ -571,7 +571,7 @@
                         title="Registrar Feedback"
                         style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.6rem;font-size:0.75rem;cursor:pointer;font-weight:600;">
                         <i class="ph ph-chat-circle-text"></i>
-                    </button>`
+                    </button>` : '')
                 ) : ''}
                 </div>
             </td>
