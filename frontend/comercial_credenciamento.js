@@ -166,7 +166,7 @@ window.abrirModalSolicitarCredenciamento = async function(id = null) {
             window.mudarTipoEnvioComercial();
             const chkDados = document.getElementById('solic-apenas-dados');
             if (chkDados) chkDados.checked = item.apenas_dados == 1;
-            document.getElementById('solic-endereco-instalacao').value = item.endereco_instalacao || '';
+            const endInstEl = document.getElementById('solic-endereco-instalacao'); if (endInstEl) endInstEl.value = item.endereco_instalacao || '';
             document.getElementById('solic-qtd-colabs').value = item.qtd_max_colaboradores || 0;
             document.getElementById('solic-qtd-veiculos').value = item.qtd_max_veiculos || 0;
             document.getElementById('solic-data-limite').value = item.data_limite_envio ? item.data_limite_envio.split('T')[0] : '';
@@ -213,7 +213,7 @@ window.salvarSolicitacaoCredenciamento = async function() {
         cliente_email: document.getElementById('solic-cliente-email').value,
         cliente_whatsapp: document.getElementById('solic-cliente-whatsapp') ? document.getElementById('solic-cliente-whatsapp').value : '',
         apenas_dados: document.getElementById('solic-apenas-dados') && document.getElementById('solic-apenas-dados').checked ? 1 : 0,
-        endereco_instalacao: document.getElementById('solic-endereco-instalacao').value,
+        endereco_instalacao: document.getElementById('solic-endereco-instalacao') ? document.getElementById('solic-endereco-instalacao').value : '',
         qtd_max_colaboradores: document.getElementById('solic-qtd-colabs').value || 0,
         qtd_max_veiculos: document.getElementById('solic-qtd-veiculos').value || 0,
         data_limite_envio: document.getElementById('solic-data-limite').value || null,
