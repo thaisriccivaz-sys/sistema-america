@@ -315,10 +315,22 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
 const db = require('./database');
 
 // AUTO-PATCH: Excluir permanentemente geradores com caracteres especiais quebrados
-db.run("DELETE FROM geradores WHERE nome LIKE '%Ã%' OR nome LIKE '%%'", err => { if(err) console.error(err); });
+db.run("DELETE FROM geradores WHERE nome LIKE '%Ã%'", err => { if(err) console.error(err); });
 
 // AUTO-PATCH: Remover geradores duplicados com o exato mesmo nome (mantém o mais antigo)
 db.run("DELETE FROM geradores WHERE id NOT IN (SELECT MIN(id) FROM geradores GROUP BY TRIM(nome))", err => { if(err) console.error(err); });
+
+// AUTO-RESTORE: Recuperar geradores apagados
+try {
+  const restData = require('./restore_geradores.json');
+  restData.forEach(g => {
+    db.get('SELECT id FROM geradores WHERE TRIM(nome) = TRIM(?)', [g.nome], (err, row) => {
+      if (!row) {
+        db.run('INSERT INTO geradores (nome, conteudo, variaveis, tipo, created_at, visibilidade_regra) VALUES (?, ?, ?, ?, ?, ?)', [g.nome, g.conteudo, g.variaveis, g.tipo, g.created_at, g.visibilidade_regra], err => { if(err) console.error(err); });
+      }
+    });
+  });
+} catch(e) { console.error('Restore script error:', e); }
 
 // AUTO-PATCH: Corrigir os registros de documentos que foram gerados com o nome corrompido para que voltem a vincular
 db.run("UPDATE documentos SET document_type = REPLACE(document_type, 'Ã§Ã£', 'çã') WHERE document_type LIKE '%Ã%'", err => {});
