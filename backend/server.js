@@ -30015,3 +30015,20 @@ app.get('/api/admin/rescue', async (req, res) => { try { const r2 = require('./u
 // ROTA PARA BAIXAR O BANCO REAL DO RENDER
 app.get('/api/admin/download-real-db', (req, res) => { const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite'); res.download(dbPath); });
 
+
+// ROTA DE EMERGENCIA: Upload do banco de dados seguro para restauracao
+const multerEmergency = require('multer');
+const uploadEmergency = multerEmergency({ dest: '/tmp/' });
+app.post('/api/admin/upload-db', uploadEmergency.single('database'), (req, res) => {
+    if (!req.file) return res.status(400).send('Nenhum arquivo enviado.');
+    const fs = require('fs');
+    const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
+    try {
+        fs.copyFileSync(req.file.path, dbPath);
+        fs.unlinkSync(req.file.path);
+        res.send('OK: Banco de dados restaurado com sucesso! Reiniciando...');
+        setTimeout(() => process.exit(0), 1000);
+    } catch(e) {
+        res.status(500).send('Erro: ' + e.message);
+    }
+});
