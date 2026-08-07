@@ -9,6 +9,14 @@ const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 const pdfParse = require('pdf-parse');
+
+// HELPER: Validação anti-corrupção (UTF-8)
+function validateTextSanity(text) {
+    if (!text) return true;
+    if (typeof text !== 'string') return true;
+    if (text.includes('\uFFFD')) return false; // Bloqueia caractere de substituição (encoding quebrado)
+    return true;
+}
 const cron = require('node-cron');
 const rateLimit = require('express-rate-limit');
 // ????????? MULTAS ANTIGAS: AITs já tratados e encerrados ??????????????????????????????????????????????????????????????????????????????
@@ -3754,6 +3762,13 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Nome, CPF, Email e Telefone são campos obrigatórios" });
     }
 
+    if (data.cargo && !validateTextSanity(data.cargo)) {
+        return res.status(400).json({ error: "Caracteres inválidos detectados no campo Cargo." });
+    }
+    if (data.departamento && !validateTextSanity(data.departamento)) {
+        return res.status(400).json({ error: "Caracteres inválidos detectados no campo Departamento." });
+    }
+
     const nomePasta = formatarNome(nomeOriginal);
     const pastaColaborador = path.join(BASE_PATH, nomePasta);
 
@@ -4348,6 +4363,13 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
 
     if (('email' in data && !data.email) || ('telefone' in data && !data.telefone)) {
         return res.status(400).json({ error: "Email e Telefone são campos obrigatórios e não podem ser vazios" });
+    }
+
+    if (data.cargo && !validateTextSanity(data.cargo)) {
+        return res.status(400).json({ error: "Caracteres inválidos detectados no campo Cargo." });
+    }
+    if (data.departamento && !validateTextSanity(data.departamento)) {
+        return res.status(400).json({ error: "Caracteres inválidos detectados no campo Departamento." });
     }
 
     const colunas = [
@@ -8321,6 +8343,7 @@ app.get('/api/cargos/por-nome', authenticateToken, (req, res) => {
 
 app.post('/api/cargos', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento, status } = req.body;
+    if (!validateTextSanity(nome)) return res.status(400).json({ error: 'Caracteres inválidos detectados no nome. Por favor, digite novamente sem copiar/colar de fontes com formatação estranha.' });
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     db.run("INSERT INTO cargos (nome, documentos_obrigatorios, departamento, status) VALUES (?, ?, ?, ?)",
         [nome, documentos_obrigatorios || "", departamento || "", status || "Ativo"], function (err) {
@@ -8339,6 +8362,7 @@ app.post('/api/cargos', authenticateToken, (req, res) => {
 
 app.put('/api/cargos/:id', authenticateToken, (req, res) => {
     const { nome, documentos_obrigatorios, departamento, status } = req.body;
+    if (!validateTextSanity(nome)) return res.status(400).json({ error: 'Caracteres inválidos detectados no nome. Por favor, digite novamente sem copiar/colar de fontes com formatação estranha.' });
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     console.log(`Recebida alteração para cargo ${req.params.id}:`, { nome, documentos_obrigatorios, departamento, status });
 
@@ -8626,6 +8650,7 @@ app.get('/api/departamentos', authenticateToken, (req, res) => {
 
 app.post('/api/departamentos', authenticateToken, (req, res) => {
     const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    if (!validateTextSanity(nome)) return res.status(400).json({ error: 'Caracteres inválidos detectados no nome. Por favor, digite novamente sem copiar/colar de fontes com formatação estranha.' });
     db.run("INSERT INTO departamentos (nome, tipo, responsavel_id, responsavel_nome, nome_aso) VALUES (?, ?, ?, ?, ?)", [nome, tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null], function (err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
@@ -8639,6 +8664,7 @@ app.post('/api/departamentos', authenticateToken, (req, res) => {
 
 app.put('/api/departamentos/:id', authenticateToken, (req, res) => {
     const { nome, tipo, responsavel_id, responsavel_nome, nome_aso } = req.body;
+    if (!validateTextSanity(nome)) return res.status(400).json({ error: 'Caracteres inválidos detectados no nome. Por favor, digite novamente sem copiar/colar de fontes com formatação estranha.' });
     db.run("UPDATE departamentos SET nome = ?, tipo = ?, responsavel_id = ?, responsavel_nome = ?, nome_aso = ? WHERE id = ?", [nome.trim(), tipo || 'Operacional', responsavel_id || null, responsavel_nome || null, nome_aso || null, req.params.id], function (updateErr) {
         if (updateErr) return res.status(500).json({ error: updateErr.message });
         res.json({ message: 'Departamento atualizado com sucesso' });
