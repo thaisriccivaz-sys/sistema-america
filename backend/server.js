@@ -15919,7 +15919,6 @@ let _cronUltimaExecucao = null;
 
 function verificarDesempenhosPendentes() {
     const hoje = new Date();
-    // Determinando o trimestre esperado baseado na data atual
     let expectedTrim = 1;
     let expectedAno = hoje.getFullYear();
     const mes = hoje.getMonth();
@@ -15946,38 +15945,52 @@ function verificarDesempenhosPendentes() {
             WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
         if (err) { console.error('[Desempenho CRON]', err.message); return; }
 
+        // Agrupamento por gestor (resp_email)
+        const pendenciasPorGestor = {};
+
         for (const r of rows) {
-            // Se já tem avaliação finalizada para este trimestre, pula
+            // Se já tem avaliação finalizada, pula
             if (r.has_avaliation > 0) continue;
 
             const emailDestino = r.resp_email;
-            if (!emailDestino) {
-                console.log(`[Desempenho CRON] Sem e-mail do responsavel para ${r.nome_completo} (${r.departamento}).`);
-                continue;
-            }
+            if (!emailDestino) continue; // Sem email corporativo do gestor, não agrupa
 
-            const tokenPayload = jwt.sign({
-                colab_id: r.id,
-                ano: expectedAno,
-                trimestre: expectedTrim
-            }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias de validade
+            if (!pendenciasPorGestor[emailDestino]) {
+                pendenciasPorGestor[emailDestino] = {
+                    managerName: (r.resp_nome || 'Gestor').split(' ')[0],
+                    colaboradores: []
+                };
+            }
+            pendenciasPorGestor[emailDestino].colaboradores.push(r.nome_completo);
+        }
+
+        // Para cada gestor, enviar um unico email consolidado
+        for (const [emailDestino, dados] of Object.entries(pendenciasPorGestor)) {
+            if (dados.colaboradores.length === 0) continue;
+
             const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
-            const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
-            const managerName = (r.resp_nome || 'Gestor').split(' ')[0];
-            const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
+            const link = `${baseUrl}/#feedback-gestor`;
+            const subject = `Pesquisas de Desempenho Pendentes - ${expectedTrim}º Trim. ${expectedAno}`;
             
+            // Construindo a lista HTML de colaboradores
+            const listaHTML = dados.colaboradores.map(nome => `<li style="padding: 4px 0;">${nome}</li>`).join('');
+
             const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                 </div>
                 <div style="padding:24px;">
-                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
-                    <p>Olá <strong>${managerName}</strong>,</p>
-                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
-                    <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
+                    <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliações de Desempenho Pendentes</h2>
+                    <p>Olá <strong>${dados.managerName}</strong>,</p>
+                    <p>Lembramos que existem <strong>Pesquisas de Desempenho</strong> pendentes de preenchimento referentes ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong>.</p>
+                    <p><strong>Colaboradores pendentes:</strong></p>
+                    <ul style="color:#444; background:#f9fafb; padding:15px 15px 15px 35px; border-radius:6px; border:1px solid #e5e7eb;">
+                        ${listaHTML}
+                    </ul>
+                    <p>Por favor, acesse o sistema no menu <strong>Gestão > Feedback</strong> para completar as avaliações diretamente pela plataforma.</p>
                     <div style="text-align:center;margin:30px 0;">
                         <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
-                            Preencher Avaliação de Desempenho
+                            Acessar Painel de Gestão
                         </a>
                     </div>
                     <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
@@ -15991,10 +16004,10 @@ function verificarDesempenhosPendentes() {
                     html: html,
                     attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
                 });
-                console.log(`[Desempenho CRON] E-mail enviado para ${emailDestino} ref. ${r.nome_completo}`);
+                console.log(`[Desempenho CRON] E-mail consolidado enviado para ${emailDestino} com ${dados.colaboradores.length} pendentes.`);
                 await new Promise(res => setTimeout(res, 2000));
             } catch (err) {
-                console.error(`[Desempenho CRON] Erro ao enviar para ${emailDestino}`, err.message);
+                console.error(`[Desempenho CRON] Erro ao enviar consolidado para ${emailDestino}`, err.message);
             }
         }
     });
@@ -16100,51 +16113,55 @@ app.get('/api/desempenho/test-email', async (req, res) => {
         else if (mes > 5) expectedTrim = 3;
         const expectedAno = hoje.getFullYear();
 
-        const targets = ['vivian', 'abner'];
-        for (const target of targets) {
-            db.get(`SELECT id, nome_completo, departamento FROM colaboradores WHERE LOWER(nome_completo) LIKE ? AND status = 'Ativo' LIMIT 1`, [`%${target}%`], async (err, r) => {
-                if (err || !r) return;
-                
-                const tokenPayload = jwt.sign({
-                    colab_id: r.id,
-                    ano: expectedAno,
-                    trimestre: expectedTrim
-                }, SECRET_KEY, { expiresIn: 30 * 24 * 60 * 60 }); // 30 dias
-                const baseUrl = req.protocol + '://' + req.get('host');
-                const link = `${baseUrl}/desempenho-publico.html?token=${tokenPayload}`;
-                const subject = `Pesquisa de Desempenho - ${r.nome_completo}`;
-                
-                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                    </div>
-                    <div style="padding:24px;">
-                        <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliação de Desempenho Pendente</h2>
-                        <p>Olá <strong>Thais</strong>,</p>
-                        <p>Lembramos que a <strong>Pesquisa de Desempenho</strong> do colaborador <strong>${r.nome_completo}</strong> referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> está pendente de preenchimento.</p>
-                        <p>Por favor, acesse o sistema clicando no botão abaixo. O formulário abrirá automaticamente.</p>
-                        <div style="text-align:center;margin:30px 0;">
-                            <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
-                                Preencher Avaliação de Desempenho
-                            </a>
-                        </div>
-                        <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
-                    </div>
-                </div>`;
-                try {
-                    await sendMailHelper({ 
-                        to: 'thais.ricci@americarental.com.br', 
-                        subject: subject, 
-                        html: html,
-                        attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
-                    });
-                    console.log('Test email sent for', r.nome_completo);
-                } catch (e) {
-                    console.error('Error sending test email:', e.message);
-                }
+        // Simulando colaboradores pendentes para a Thais
+        const colaboradoresMock = [
+            "João da Silva Souza",
+            "Maria Oliveira Costa",
+            "Pedro Almeida Ribeiro"
+        ];
+        
+        const baseUrl = req.protocol + '://' + req.get('host');
+        const link = `${baseUrl}/#feedback-gestor`;
+        const subject = `[TESTE] Pesquisas de Desempenho Pendentes - ${expectedTrim}º Trim. ${expectedAno}`;
+        const managerName = 'Thais';
+        
+        const listaHTML = colaboradoresMock.map(nome => `<li style="padding: 4px 0;">${nome}</li>`).join('');
+
+        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+            </div>
+            <div style="padding:24px;">
+                <h2 style="color:#1d4ed8;text-align:center;margin-top:0;">📊 Avaliações de Desempenho Pendentes</h2>
+                <p>Olá <strong>${managerName}</strong>,</p>
+                <p>Lembramos que existem <strong>Pesquisas de Desempenho</strong> pendentes de preenchimento referentes ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong>.</p>
+                <p><strong>Colaboradores pendentes:</strong></p>
+                <ul style="color:#444; background:#f9fafb; padding:15px 15px 15px 35px; border-radius:6px; border:1px solid #e5e7eb;">
+                    ${listaHTML}
+                </ul>
+                <p>Por favor, acesse o sistema no menu <strong>Gestão > Feedback</strong> para completar as avaliações diretamente pela plataforma.</p>
+                <div style="text-align:center;margin:30px 0;">
+                    <a href="${link}" style="background-color:#1d4ed8;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
+                        Acessar Painel de Gestão
+                    </a>
+                </div>
+                <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+            </div>
+        </div>`;
+
+        try {
+            await sendMailHelper({ 
+                to: 'thais.ricci@americarental.com.br', 
+                subject: subject, 
+                html: html,
+                attachments: [{ filename: 'logo-header.png', path: path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
             });
+            console.log('Test email consolidado sent successfully.');
+        } catch (e) {
+            console.error('Error sending test email:', e.message);
         }
-        res.json({ ok: true, msg: 'Test emails triggered' });
+
+        res.json({ ok: true, msg: 'Test emails consolidated triggered to thais.ricci@americarental.com.br' });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
