@@ -726,13 +726,20 @@
         const cargo = btn.dataset.colabCargo;
         const dept = btn.dataset.colabDept;
         let saved = {};
+        
         try { 
-            const raw = btn.dataset.respostas || '';
+            const raw = btn.dataset.respostas || btn.dataset.saved || '';
             if (raw) {
-                // decodificar base64
-                try { saved = JSON.parse(decodeURIComponent(escape(atob(raw)))); } catch(e) { saved = {}; }
+                try {
+                    // decodificar base64 primeiro
+                    saved = JSON.parse(decodeURIComponent(escape(atob(raw))));
+                } catch (e1) {
+                    // se falhar, tenta como JSON puro
+                    try { saved = JSON.parse(raw); } catch (e2) {}
+                }
             }
         } catch(e) { saved = {}; }
+        
         const ano = btn.dataset.ano; const trim = btn.dataset.trim; window._desOpenForm(id, nome, cargo, dept, saved, isReadonly, ano, trim);
     };
 
