@@ -3036,9 +3036,9 @@ Evite completamente o "tom de IA" (evite palavras rebuscadas como "verdadeiramen
 
 Regras fundamentais:
 1. Comece o texto com o título "Relatório de Feedback de Desempenho" seguido de uma linha em branco.
-2. Primeiro Parágrafo (Resumo Geral): Inicie com "Com base nas notas atribuídas e nas observações registradas...". Faça um resumo equilibrado destacando os pontos fortes e, se houver notas baixas, mencionando que existem aspectos a desenvolver.
-3. Próximos Parágrafos (Pontos Fortes): Agrupe os quesitos onde o colaborador tirou notas altas (4 ou 5) e descreva de forma fluida. Ex: "O colaborador demonstra..."
-4. Parágrafos Seguintes (Oportunidades de Melhoria): VOCÊ DEVE OBRIGATORIAMENTE olhar as notas baixas (1, 2 ou 3) e as observações. Relate-os claramente apontando os problemas e recomendando melhorias de forma construtiva e respeitosa. (Ex: "O principal ponto de atenção identificado...")
+2. Primeiro Parágrafo (Resumo Geral): Inicie com "Com base nas notas atribuídas e nas observações registradas...". Faça um resumo equilibrado destacando os pontos fortes e, se houver notas abaixo de 5 ou observações negativas, mencionando que existem aspectos a desenvolver.
+3. Próximos Parágrafos (Pontos Fortes): Agrupe os quesitos onde o colaborador tirou nota MÁXIMA (apenas nota 5) e descreva de forma fluida.
+4. Parágrafos Seguintes (Oportunidades de Melhoria): VOCÊ DEVE OBRIGATORIAMENTE olhar as notas abaixo da máxima (notas 1, 2, 3 e 4) e também ANALISAR PROFUNDAMENTE as "Observações do Gestor" preenchidas na frente de cada nota. Relate esses problemas claramente e recomende melhorias de forma construtiva e respeitosa. (Ex: "O principal ponto de atenção identificado...")
 5. Último Parágrafo (Conclusão): Finalize resumindo o potencial do colaborador e como o desenvolvimento dos pontos citados contribuirá para seu crescimento.
 6. Não use NENHUMA formatação markdown (nem asteriscos, nem hashtags). Apenas texto limpo.
 
@@ -3046,16 +3046,16 @@ EXEMPLO DO TOM DESEJADO:
 Relatório de Feedback de Desempenho
 
 Com base nas notas atribuídas e nas observações registradas durante o processo de avaliação, o colaborador apresenta um desempenho geral positivo, destacando-se pela disposição em colaborar... Entretanto, foram identificados alguns aspectos que necessitam de desenvolvimento...
-[... descreve pontos fortes ...]
-O principal ponto de atenção identificado na avaliação refere-se a [área de nota baixa]. É necessário que o colaborador passe a...
+[... descreve pontos fortes baseados APENAS nas notas 5 ...]
+O principal ponto de atenção identificado na avaliação refere-se a [área de nota menor que 5 ou comentada na observação]. É necessário que o colaborador passe a...
 De forma geral, a avaliação evidencia um colaborador com bom potencial...
 (FIM DO EXEMPLO)
 
 AGORA É A SUA VEZ. ANALISE OS DADOS ABAIXO E GERE O RELATÓRIO:
-Notas recebidas (1 a 5, onde 1 a 3 indicam problemas e 4 a 5 indicam excelência):
+Notas recebidas (1 a 5, onde 1 a 4 indicam necessidade de melhoria obrigatória, e APENAS 5 indica excelência/elogio):
 ${notas.map(n => `- ${n.pergunta}: Nota ${n.nota}/5`).join('\n')}
 
-Observações do Gestor:
+Observações do Gestor (analise com muita atenção e incorpore no texto os detalhes informados aqui):
 ${observacoes && observacoes.length > 0 ? observacoes.map(o => `- Sobre "${o.pergunta}": ${o.texto}`).join('\n') : "Nenhuma observação extra fornecida."}`;
 
         try {
