@@ -30032,3 +30032,26 @@ app.post('/api/admin/upload-db', uploadEmergency.single('database'), (req, res) 
         res.status(500).send('Erro: ' + e.message);
     }
 });
+
+// ROTA DE EMERGENCIA: Baixar banco do R2 e restaurar (substitui apenas o arquivo de banco de dados no disco)
+app.get('/api/admin/restore-from-r2', async (req, res) => {
+    try {
+        const r2helper = require('./utils/r2');
+        const fs = require('fs');
+        const dbPath = process.env.DATABASE_PATH || require('path').join(__dirname, 'data', 'hr_system_v2.sqlite');
+        console.log('[RESTORE] Baixando banco do R2...');
+        const fileData = await r2helper.downloadStreamFromR2('Backups/database_emergency_restore.sqlite');
+        const chunks = [];
+        fileData.stream.on('data', chunk => chunks.push(chunk));
+        fileData.stream.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            fs.writeFileSync(dbPath, buffer);
+            console.log('[RESTORE] Banco restaurado com sucesso! Tamanho:', buffer.length, 'bytes');
+            res.send('OK: Banco restaurado com sucesso (' + (buffer.length / 1024 / 1024).toFixed(2) + ' MB). Reiniciando...');
+            setTimeout(() => process.exit(0), 1000);
+        });
+        fileData.stream.on('error', e => res.status(500).send('Erro no stream: ' + e.message));
+    } catch(e) {
+        res.status(500).send('Erro: ' + e.message);
+    }
+});
