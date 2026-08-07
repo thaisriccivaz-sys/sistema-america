@@ -2997,17 +2997,24 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        let modelName = "gemini-1.5-flash";
+        let modelName = "gemini-1.5-flash"; // fallback
+        let listModelsError = null;
+        let availableModels = [];
         try {
             // Tenta listar os modelos disponíveis para esta chave específica (evita erro 404 de versão)
             const modelsResult = await genAI.listModels();
+            availableModels = modelsResult.models.map(m => m.name);
             const textModels = modelsResult.models.filter(m => m.supportedGenerationMethods.includes("generateContent") && m.name.includes("flash"));
             if (textModels.length > 0) {
                 // Pega o modelo mais recente que tenha "flash" no nome e suporte geração de texto
                 modelName = textModels[0].name.replace("models/", "");
+            } else if (modelsResult.models.length > 0) {
+                modelName = modelsResult.models[0].name.replace("models/", "");
             }
         } catch (e) {
             console.warn("Aviso ao listar modelos do Gemini:", e.message);
+            listModelsError = e.message;
+            modelName = "gemini-1.5-flash-latest"; // fallback alternativo
         }
 
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -3028,14 +3035,24 @@ ${notas.map(n => `- ${n.pergunta}: Nota ${n.nota}/5`).join('\n')}
 Observações do Gestor:
 ${observacoes && observacoes.length > 0 ? observacoes.map(o => `- Sobre "${o.pergunta}": ${o.texto}`).join('\n') : "Nenhuma observação extra fornecida."}`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({ texto: text.trim() });
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+            res.json({ texto: text.trim() });
+        } catch (genError) {
+            console.error("Erro no Gemini:", genError);
+            let errorMessage = genError.message;
+            if (listModelsError) {
+                errorMessage += ` | Obs: Falha prévia ao listar modelos: ${listModelsError}. Tentou usar o modelo: ${modelName}`;
+            } else if (availableModels.length > 0) {
+                errorMessage += ` | Modelos disponíveis na chave: ${availableModels.join(", ")}. Usou: ${modelName}`;
+            }
+            res.status(500).json({ error: "Erro ao gerar feedback via IA: " + errorMessage });
+        }
     } catch (error) {
-        console.error("Erro no Gemini:", error);
-        res.status(500).json({ error: "Erro ao gerar feedback via IA: " + error.message });
+        console.error("Erro no catch externo:", error);
+        res.status(500).json({ error: "Erro interno: " + error.message });
     }
 });
 
