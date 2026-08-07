@@ -11226,16 +11226,16 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
         }
         const ehEsocial = duracaoDias >= 16;
 
-        // Textos dinºmicos conforme período
+        // Textos dinâmicos conforme período
         const emailTitulo = ehEsocial
-            ? '???? Documento RH ??? Afastamento para eSocial'
-            : '???? Documento RH ??? Controle de Afastamento';
+            ? '📄 Documento RH — Afastamento para eSocial'
+            : '📄 Documento RH — Controle de Afastamento';
         const emailSubject = ehEsocial
             ? `Documento RH enviado por América Rental - ${colab.nome_completo} (eSocial)`
             : `Documento RH enviado por América Rental - ${colab.nome_completo} (Controle)`;
         const emailIntro = ehEsocial
-            ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento à de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
-            : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lanºamento</strong>.`;
+            ? `Encaminhamos o atestado médico do colaborador abaixo para <strong>inclusão no cadastro do eSocial</strong>, pois o período de afastamento é de <strong style="color:#0f4c81;">${duracaoDias} dia(s)</strong>, atingindo o limite de 16 dias exigido pelo eSocial.`
+            : `Encaminhamos o atestado médico do colaborador abaixo <strong>apenas para controle interno</strong>. O período de afastamento de <strong>${duracaoDias > 0 ? duracaoDias + ' dia(s)' : tipo}</strong> não atinge o mínimo de 16 dias exigido pelo eSocial e <strong>não requer lançamento</strong>.`;
         const tituloColor = ehEsocial ? '#0f4c81' : '#64748b';
 
         // Nome do arquivo anexo: CID_DD-MM-YYYY_NomeColaborador.pdf
