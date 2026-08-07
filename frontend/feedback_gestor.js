@@ -515,7 +515,26 @@
                 try { rObj = JSON.parse(rObj); } catch(e) {}
             }
             if (rObj && typeof rObj === 'object') {
-                isFull = Object.keys(rObj).some(cat => !cat.startsWith('__') && cat !== 'info_adicional' && cat !== 'scores') && !Object.keys(rObj).some(cat => !cat.startsWith('__') && cat !== 'info_adicional' && cat !== 'scores' && Array.isArray(rObj[cat]) && rObj[cat].includes(null));
+                const cats = Object.keys(rObj).filter(cat => !cat.startsWith('__') && cat !== 'info_adicional' && cat !== 'scores');
+                const hasMissingScore = cats.some(cat => Array.isArray(rObj[cat]) && rObj[cat].includes(null));
+                
+                let hasMissingObs = false;
+                const obsObj = (rObj.__obs__ || {});
+                cats.forEach(cat => {
+                    if (Array.isArray(rObj[cat])) {
+                        rObj[cat].forEach((score, idx) => {
+                            if ([1, 2, 3, 4].includes(score)) {
+                                const obsList = obsObj[cat] || [];
+                                const obs = obsList[idx] || '';
+                                if (!obs.trim()) {
+                                    hasMissingObs = true;
+                                }
+                            }
+                        });
+                    }
+                });
+                
+                isFull = cats.length > 0 && !hasMissingScore && !hasMissingObs;
             }
         }
 
@@ -1007,6 +1026,12 @@
                     respostas[cat].push(v);
                     totalVal += v;
                     totalCount++;
+                    
+                    const obs = form.elements[`av_obs_${catIdx}_${i}`];
+                    const obsValue = (obs && obs.value.trim()) ? obs.value.trim() : '';
+                    if ([1, 2, 3, 4].includes(v) && !obsValue) {
+                        missingRequired.push(`${cat} — Pergunta ${i+1} (Obs obrigatória para nota ${v})`);
+                    }
                 } else {
                     respostas[cat].push(null);
                     missingRequired.push(`${cat} — Pergunta ${i+1}`);
