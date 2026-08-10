@@ -83,7 +83,7 @@ window.renderAvaliacaoTab = async function(container) {
             1: 'Janeiro (1º Trim.)',
             2: 'Abril (2º Trim.)',
             3: 'Julho (3º Trim.)',
-            4: 'Setembro (4º Trim.)'
+            4: 'Outubro (4º Trim.)'
         };
 
         // Action Steps
@@ -94,8 +94,22 @@ window.renderAvaliacaoTab = async function(container) {
 
         const maxTrim = tipo === 'experiencia' ? 1 : 4;
         for (let t=1; t<=maxTrim; t++) {
-            // Todos os trimestres ficam liberados para preenchimento a pedido do usuário
             const hasData = trimestersOverall[t] !== null;
+
+            if (!hasData && tipo !== 'experiencia') {
+                let releaseMonth; // 1-indexed
+                if (t === 1) releaseMonth = 1;
+                else if (t === 2) releaseMonth = 4;
+                else if (t === 3) releaseMonth = 7;
+                else if (t === 4) releaseMonth = 10;
+                
+                const releaseDay = (tipo === 'desempenho') ? 15 : 1;
+                const releaseDate = new Date(year, releaseMonth - 1, releaseDay);
+                
+                if (dateRightNow < releaseDate) {
+                    continue;
+                }
+            }
 
             let perc = 0;
             let avId = null;

@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -16114,18 +16114,89 @@ function ativarColaboradoresPorAdmissao() {
 // Variavel para rastrear a ultima execucao do cron
 let _cronUltimaExecucao = null;
 
+
+function verificarSatisfacaoPendentes() {
+    const hoje = new Date();
+    const mes = hoje.getMonth() + 1; // 1 to 12
+    const dia = hoje.getDate();
+    let expectedTrim;
+    let expectedAno = hoje.getFullYear();
+    
+    // Satisfacao liberada a partir do dia 01
+    if (mes >= 1 && mes <= 3) expectedTrim = 1;
+    else if (mes >= 4 && mes <= 6) expectedTrim = 2;
+    else if (mes >= 7 && mes <= 9) expectedTrim = 3;
+    else if (mes >= 10 && mes <= 12) expectedTrim = 4;
+
+    db.all(`SELECT c.id, c.nome_completo, c.departamento,
+                   COALESCE(c.email_corporativo, c.email) as colab_email,
+                   (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'satisfacao' AND ano = ? AND trimestre = ?) as has_avaliation
+            FROM colaboradores c
+            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
+        if (err) { console.error('[Satisfacao CRON]', err.message); return; }
+
+        for (const r of rows) {
+            // Pula se ja tem avaliacao ou se n tem email
+            if (r.has_avaliation > 0 || !r.colab_email) continue;
+
+            const emailDestino = r.colab_email;
+            const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
+            const link = `${baseUrl}/?t=rh&tab=avaliacoes`;
+            const subject = `Pesquisa de Satisfação - ${expectedTrim}º Trim. ${expectedAno}`;
+            
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                </div>
+                <div style="padding:24px;">
+                    <h2 style="color:#8b5cf6;text-align:center;margin-top:0;">Pesquisa de Satisfação</h2>
+                    <p>Olá <strong>${r.nome_completo.split(' ')[0]}</strong>,</p>
+                    <p>A Pesquisa de Satisfação referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> já está disponível.</p>
+                    <p>Sua opinião é fundamental para melhorarmos continuamente nosso ambiente de trabalho. Por favor, acesse o sistema no menu <strong>RH > Avaliações</strong> para responder.</p>
+                    <div style="text-align:center;margin:30px 0;">
+                        <a href="${link}" style="background-color:#8b5cf6;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
+                            Responder Pesquisa
+                        </a>
+                    </div>
+                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+                </div>
+            </div>`;
+            
+            try {
+                await sendMailHelper({ 
+                    to: emailDestino, 
+                    subject: subject, 
+                    html: html,
+                    attachments: [{ filename: 'logo-header.png', path: require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                });
+                console.log(`[Satisfacao CRON] E-mail enviado para ${emailDestino}.`);
+                await new Promise(res => setTimeout(res, 2000));
+            } catch (err) {
+                console.error(`[Satisfacao CRON] Erro ao enviar para ${emailDestino}`, err.message);
+            }
+        }
+    });
+}
+
+
 function verificarDesempenhosPendentes() {
     const hoje = new Date();
-    let expectedTrim = 1;
+    const mes = hoje.getMonth() + 1; // 1 to 12
+    const dia = hoje.getDate();
+    let expectedTrim;
     let expectedAno = hoje.getFullYear();
-    const mes = hoje.getMonth();
     
-    if (mes >= 0 && mes <= 2) {
-        expectedTrim = 1;
-    } else if (mes >= 3 && mes <= 5) {
-        expectedTrim = 2;
-    } else {
-        expectedTrim = 3;
+    // Determine current active quarter
+    if ((mes === 1 && dia >= 15) || mes === 2 || mes === 3) expectedTrim = 1;
+    else if ((mes === 4 && dia >= 15) || mes === 5 || mes === 6) expectedTrim = 2;
+    else if ((mes === 7 && dia >= 15) || mes === 8 || mes === 9) expectedTrim = 3;
+    else if ((mes === 10 && dia >= 15) || mes === 11 || mes === 12) expectedTrim = 4;
+    else {
+        // Gap before the 15th. We should point to the previous quarter
+        if (mes === 1) { expectedTrim = 4; expectedAno--; }
+        else if (mes === 4) { expectedTrim = 1; }
+        else if (mes === 7) { expectedTrim = 2; }
+        else if (mes === 10) { expectedTrim = 3; }
     }
 
     db.all(`SELECT c.id, c.nome_completo, c.departamento,
@@ -16273,6 +16344,7 @@ cron.schedule('0 8 * * *', () => {
 
     ativarColaboradoresPorAdmissao();
     verificarExperienciasVencendo();
+    verificarSatisfacaoPendentes();
     verificarDesempenhosPendentes();
     verificarAtestadosVencidos();
     verificarCRLVVencidoCron();
@@ -16294,7 +16366,8 @@ setImmediate(() => ativarColaboradoresPorAdmissao());
 // Endpoint para forçar envio em lote (botão "Disparar E-mails")
 app.post('/api/desempenho/cron/forcar', authenticateToken, async (req, res) => {
     try {
-        verificarDesempenhosPendentes();
+        verificarSatisfacaoPendentes();
+    verificarDesempenhosPendentes();
         return res.json({ ok: true, msg: 'Rotina de envio de desempenho iniciada em background.' });
     } catch (e) {
         return res.status(500).json({ error: e.message });
@@ -30008,7 +30081,7 @@ setInterval(async () => {
 }, 1000 * 60 * 60); // 1 hora
 // ----------------------------------------
 
-// ROTA DE EMERG�NCIA: Baixar backup direto do R2
+// ROTA DE EMERG�NCIA: Baixar backup direto do R2
 app.get('/api/admin/rescue', async (req, res) => { try { const r2 = require('./utils/r2'); const fileData = await r2.downloadStreamFromR2('Backups/2026-08-07_06-08-20_hr_system_v2.sqlite'); res.setHeader('Content-Disposition', 'attachment; filename="backup.sqlite"'); res.setHeader('Content-Type', fileData.contentType); fileData.stream.pipe(res); } catch (e) { res.send('Erro ao tentar baixar do R2: ' + e.message); } });
 
 
