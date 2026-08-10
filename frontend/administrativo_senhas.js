@@ -118,7 +118,7 @@ function initAdministrativoSenhas() {
 }
 
 function carregarSenhasAdministrativo() {
-    fetch('/api/administrativo/senhas', {
+    fetch('/api/administrativo/senhas?_t=' + Date.now(), {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
     })
     .then(r => r.json())
@@ -458,7 +458,7 @@ window.abrirHistoricoSenhas = async function() {
 
     try {
         const tok = localStorage.getItem('erp_token') || '';
-        const res = await fetch('/api/administrativo/senhas/historico', {
+        const res = await fetch('/api/administrativo/senhas/historico?_t=' + Date.now(), {
             headers: { 'Authorization': 'Bearer ' + tok }
         });
         const data = await res.json();
