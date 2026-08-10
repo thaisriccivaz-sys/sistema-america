@@ -30098,3 +30098,8 @@ app.get('/api/admin/run-backup', async (req, res) => {
         res.status(500).send('Erro no backup: ' + e.message);
     }
 });
+
+// [FIX] Migracao de correcao para adicionar coluna documento_url
+db.run("ALTER TABLE multas_logistica ADD COLUMN documento_url TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION documento_url]', err.message);
+});
