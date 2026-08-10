@@ -112,21 +112,32 @@
                     const deptsRes = await fetch('/api/departamentos', { headers: { 'Authorization': `Bearer ${token}` } });
                     const depts = deptsRes.ok ? await deptsRes.json() : [];
 
-                    let cUserId = null, cNome = '';
+                    let cUserId = null, cNome = '', cUsername = '';
                     try {
                         const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
-                        cUserId = String(erpUser.id || '');
-                        cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+                        if (erpUser.id) {
+                            cUserId = String(erpUser.id || '');
+                            cNome = (erpUser.nome || erpUser.username || '').toLowerCase().trim();
+                            cUsername = (erpUser.username || '').toLowerCase().trim();
+                        }
                     } catch(e) {}
+                    
+                    if (!cUserId && window.currentUser) {
+                        cUserId = String(window.currentUser.id || '');
+                        cNome = (window.currentUser.nome || window.currentUser.username || '').toLowerCase().trim();
+                        cUsername = (window.currentUser.username || '').toLowerCase().trim();
+                    }
 
                     const cleanStr = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
                     const managed = depts.filter(d => {
                         const gestorId = d.responsavel_id ? String(d.responsavel_id) : null;
                         const gestorNome = cleanStr(d.responsavel_nome);
                         const meuNome = cleanStr(cNome);
+                        const gestorUsername = cleanStr(d.responsavel_username);
                         return (gestorId && cUserId && gestorId === cUserId) ||
                                (gestorNome && meuNome && meuNome.length > 3 &&
-                                (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome)));
+                                (gestorNome === meuNome || gestorNome.includes(meuNome) || meuNome.includes(gestorNome))) ||
+                               (gestorUsername && cUsername && gestorUsername === cUsername);
                     });
                     myDepts = managed.map(d => d.nome);
                     // Salva para uso futuro
