@@ -3324,12 +3324,14 @@
         localStorage.setItem('sac_popup_gestor_required_' + ticket.id, mustJustify ? '1' : '0');
       }
     } else {
-      let cUserId = null;
-      try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); } catch(e){}
-      const isNotified = _sacSlaNotificadosIds.includes(cUserId) || POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
-      if (!isNotified) return;
-      // sla/followup: popup informativo — apenas POPUP_CLOSERS são obrigados (flag já cuidado no closeModal)
-      localStorage.setItem('sac_popup_gestor_required_' + ticket.id, '0');
+      const permsNow = window.activeUserPerms || {};
+      const isTopAdminNow = window.isTopAdmin || false;
+      const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
+      
+      if (!canSeeAllNow) return;
+
+      const isPopupCloser = POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
+      localStorage.setItem('sac_popup_gestor_required_' + ticket.id, isPopupCloser ? '0' : '1');
     }
 
     localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);

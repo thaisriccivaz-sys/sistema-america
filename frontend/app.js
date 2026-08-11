@@ -14903,8 +14903,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff3e6'; color = '#e67700'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
                 } else if (notif.tipo === 'sac_atribuicao') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
-                } else if (notif.tipo === 'sac_novo_chamado') {
-                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
+                } else if (notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = 'Novo SAC aberto'; navTarget = 'sac';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -15066,8 +15066,8 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
-                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
-                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
+                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); setTimeout(() => { if (window.SAC && window.SAC.openDetail) window.SAC.openDetail('${dados.id}'); }, 300);`;
                 }
 
                 popup.innerHTML = `

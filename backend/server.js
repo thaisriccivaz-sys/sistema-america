@@ -29752,10 +29752,12 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
     if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
 
-    const ticketExiste = await new Promise(resolve => {
-        db.get('SELECT id FROM sac_tickets WHERE id = ?', [ticketId], (err, row) => resolve(!!row));
+    const updateChanges = await new Promise(resolve => {
+        db.run('UPDATE sac_tickets SET sla_overdue_notified = 1 WHERE id = ? AND (sla_overdue_notified = 0 OR sla_overdue_notified IS NULL)', [ticketId], function(err) {
+            resolve(err ? 0 : this.changes);
+        });
     });
-    if (!ticketExiste) return res.json({ success: false, msg: 'Chamado excluído ou não encontrado.' });
+    if (updateChanges === 0) return res.json({ success: false, msg: 'Chamado excluído ou SLA já notificado.' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
     const systemUrl = 'https://sistema-america.onrender.com/';
