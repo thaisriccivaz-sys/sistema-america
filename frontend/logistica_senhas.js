@@ -20,7 +20,7 @@ function initLogisticaSenhas() {
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <button class="btn btn-secondary" onclick="abrirHistoricoSenhas()" style="display:flex;align-items:center;gap:6px;border-color:#cbd5e1;color:#475569;"><i class="ph ph-clock-counter-clockwise"></i> Histórico</button>
-                <button class="btn btn-primary" onclick="openSenhasModal()"><i class="ph ph-plus"></i> Nova Senha</button>
+                <button class="btn btn-primary" onclick="openSenhasLogisticaModal()"><i class="ph ph-plus"></i> Nova Senha</button>
             </div>
         </div>
 
@@ -70,47 +70,47 @@ function initLogisticaSenhas() {
         </div>
 
         <!-- Modal Nova/Editar Senha -->
-        <div id="modal-senhas" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:center; justify-content:center; padding:1rem;">
+        <div id="modal-log-senhas" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:center; justify-content:center; padding:1rem;">
             <div style="background:#fff; border-radius:14px; width:100%; max-width:500px; box-shadow:0 25px 80px rgba(0,0,0,0.35);">
                 <div style="background:#f8fafc; padding:1.25rem 1.5rem; border-radius:14px 14px 0 0; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e2e8f0;">
-                    <h3 id="modal-senhas-title" style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:600;"><i class="ph ph-lock-key" style="margin-right:8px; color:#2d9e5f;"></i>Cadastrar Nova Senha</h3>
-                    <button onclick="document.getElementById('modal-senhas').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
+                    <h3 id="modal-log-senhas-title" style="margin:0; font-size:1.1rem; color:#1e293b; font-weight:600;"><i class="ph ph-lock-key" style="margin-right:8px; color:#2d9e5f;"></i>Cadastrar Nova Senha</h3>
+                    <button onclick="document.getElementById('modal-log-senhas').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
                 </div>
                 <div style="padding:1.5rem;">
-                    <form id="form-senhas" onsubmit="salvarSenha(event)" onkeydown="if(event.key==='Enter'&&event.target.type!=='submit'){event.preventDefault();const campos=Array.from(this.querySelectorAll('input,select,textarea'));const idx=campos.indexOf(event.target);if(idx>-1&&idx<campos.length-1)campos[idx+1].focus();}">
-                        <input type="hidden" id="senha-id">
+                    <form id="form-log-senhas" onsubmit="salvarSenhaLogistica(event)" onkeydown="if(event.key==='Enter'&&event.target.type!=='submit'){event.preventDefault();const campos=Array.from(this.querySelectorAll('input,select,textarea'));const idx=campos.indexOf(event.target);if(idx>-1&&idx<campos.length-1)campos[idx+1].focus();}">
+                        <input type="hidden" id="log-senha-id">
                         <div class="input-group mb-3">
                             <label>Nome</label>
-                            <input type="text" id="senha-nome" list="colaboradores-senha-list" placeholder="Nome do Colaborador (ou Conta Principal)" autocomplete="off">
-                            <datalist id="colaboradores-senha-list"></datalist>
+                            <input type="text" id="log-senha-nome" list="colaboradores-log-senha-list" placeholder="Nome do Colaborador (ou Conta Principal)" autocomplete="off">
+                            <datalist id="colaboradores-log-senha-list"></datalist>
                         </div>
                         <div class="input-group mb-3">
                             <label>Visibilidade</label>
-                            <select id="senha-tipo" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;background:#f8fafc;">
+                            <select id="log-senha-tipo" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:6px;outline:none;background:#f8fafc;">
                                 <option value="compartilhada">Senha Compartilhada (Uso Geral)</option>
                                 <option value="pessoal">Senha Pessoal (Privado)</option>
                             </select>
                         </div>
                         <div class="input-group mb-3">
                             <label>Nome do Serviço / Tipo de Acesso</label>
-                            <input type="text" id="senha-servico" list="servicos-list" placeholder="Ex: Cobli, SimpliRoute, etc" autocomplete="off">
-                            <datalist id="servicos-list"></datalist>
+                            <input type="text" id="log-senha-servico" list="servicos-log-list" placeholder="Ex: Cobli, SimpliRoute, etc" autocomplete="off">
+                            <datalist id="servicos-log-list"></datalist>
                         </div>
                         <div class="input-group mb-3">
                             <label>Link de Acesso (URL)</label>
-                            <input type="url" id="senha-link" placeholder="https://..." autocomplete="off">
+                            <input type="url" id="log-senha-link" placeholder="https://..." autocomplete="off">
                         </div>
                         <div class="input-group mb-3">
                             <label>Usuário</label>
-                            <input type="text" id="senha-usuario" placeholder="Login ou e-mail" autocomplete="off">
+                            <input type="text" id="log-senha-usuario" placeholder="Login ou e-mail" autocomplete="off">
                         </div>
                         <div class="input-group mb-4" style="position:relative;">
                             <label>Senha</label>
-                            <input type="password" id="senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
-                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibility('senha-valor', 'toggle-senha-visibility')"></i>
+                            <input type="password" id="log-senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
+                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibility('log-senha-valor', 'toggle-log-senha-visibility')"></i>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
-                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-senhas').style.display='none'">Cancelar</button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-log-senhas').style.display='none'">Cancelar</button>
                             <button type="submit" class="btn btn-primary" style="background:#2d9e5f; border-color:#2d9e5f;"><i class="ph ph-floppy-disk"></i> Salvar</button>
                         </div>
                     </form>
@@ -147,7 +147,7 @@ function carregarSenhas() {
 }
 
 function atualizarDatalist() {
-    const datalist = document.getElementById('servicos-list');
+    const datalist = document.getElementById('servicos-log-list');
     if (!datalist) return;
     datalist.innerHTML = '';
     Array.from(uniqueServicos).sort().forEach(servico => {
@@ -251,52 +251,52 @@ function filtrarSenhasMulti() {
     renderSenhasTable(filtradas);
 }
 
-function openSenhasModal() {
-    document.getElementById('senha-id').value = '';
-    document.getElementById('senha-nome').value = '';
-    document.getElementById('senha-tipo').value = currentSenhaTab;
-    document.getElementById('senha-servico').value = '';
-    document.getElementById('senha-link').value = '';
-    document.getElementById('senha-usuario').value = '';
-    document.getElementById('senha-valor').value = '';
-    document.getElementById('modal-senhas-title').innerHTML = '<i class="ph ph-lock-key" style="margin-right:8px; color:#2d9e5f;"></i>Cadastrar Nova Senha';
+function openSenhasLogisticaModal() {
+    document.getElementById('log-senha-id').value = '';
+    document.getElementById('log-senha-nome').value = '';
+    document.getElementById('log-senha-tipo').value = currentSenhaTab;
+    document.getElementById('log-senha-servico').value = '';
+    document.getElementById('log-senha-link').value = '';
+    document.getElementById('log-senha-usuario').value = '';
+    document.getElementById('log-senha-valor').value = '';
+    document.getElementById('modal-log-senhas-title').innerHTML = '<i class="ph ph-lock-key" style="margin-right:8px; color:#2d9e5f;"></i>Cadastrar Nova Senha';
     
     // Reset password visibility
-    const pwdInput = document.getElementById('senha-valor');
+    const pwdInput = document.getElementById('log-senha-valor');
     pwdInput.type = 'password';
     document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
 
-    document.getElementById('modal-senhas').style.display = 'flex';
-    setTimeout(() => document.getElementById('senha-servico').focus(), 100);
+    document.getElementById('modal-log-senhas').style.display = 'flex';
+    setTimeout(() => document.getElementById('log-senha-servico').focus(), 100);
 }
 
 function editarSenha(senhaObj) {
-    document.getElementById('senha-id').value = senhaObj.id;
-    document.getElementById('senha-nome').value = senhaObj.nome || '';
-    document.getElementById('senha-tipo').value = senhaObj.tipo || 'compartilhada';
-    document.getElementById('senha-servico').value = senhaObj.servico;
-    document.getElementById('senha-link').value = senhaObj.link || '';
-    document.getElementById('senha-usuario').value = senhaObj.usuario;
-    document.getElementById('senha-valor').value = senhaObj.senha;
-    document.getElementById('modal-senhas-title').innerHTML = '<i class="ph ph-pencil" style="margin-right:8px; color:#2d9e5f;"></i>Editar Senha';
+    document.getElementById('log-senha-id').value = senhaObj.id;
+    document.getElementById('log-senha-nome').value = senhaObj.nome || '';
+    document.getElementById('log-senha-tipo').value = senhaObj.tipo || 'compartilhada';
+    document.getElementById('log-senha-servico').value = senhaObj.servico;
+    document.getElementById('log-senha-link').value = senhaObj.link || '';
+    document.getElementById('log-senha-usuario').value = senhaObj.usuario;
+    document.getElementById('log-senha-valor').value = senhaObj.senha;
+    document.getElementById('modal-log-senhas-title').innerHTML = '<i class="ph ph-pencil" style="margin-right:8px; color:#2d9e5f;"></i>Editar Senha';
     
     // Reset password visibility
-    const pwdInput = document.getElementById('senha-valor');
+    const pwdInput = document.getElementById('log-senha-valor');
     pwdInput.type = 'password';
     document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
 
-    document.getElementById('modal-senhas').style.display = 'flex';
+    document.getElementById('modal-log-senhas').style.display = 'flex';
 }
 
-function salvarSenha(e) {
+function salvarSenhaLogistica(e) {
     e.preventDefault();
-    const id = document.getElementById('senha-id').value;
-    const nome = document.getElementById('senha-nome').value.trim();
-    const servico = document.getElementById('senha-servico').value.trim();
-    const link = document.getElementById('senha-link').value.trim();
-    const usuario = document.getElementById('senha-usuario').value.trim();
-    const senha = document.getElementById('senha-valor').value.trim();
-    const tipo = document.getElementById('senha-tipo').value;
+    const id = document.getElementById('log-senha-id').value;
+    const nome = document.getElementById('log-senha-nome').value.trim();
+    const servico = document.getElementById('log-senha-servico').value.trim();
+    const link = document.getElementById('log-senha-link').value.trim();
+    const usuario = document.getElementById('log-senha-usuario').value.trim();
+    const senha = document.getElementById('log-senha-valor').value.trim();
+    const tipo = document.getElementById('log-senha-tipo').value;
 
     
 
@@ -322,7 +322,7 @@ function salvarSenha(e) {
             timer: 1500,
             showConfirmButton: false
         });
-        document.getElementById('modal-senhas').style.display = 'none';
+        document.getElementById('modal-log-senhas').style.display = 'none';
         carregarSenhas();
     })
     .catch(err => {
@@ -431,7 +431,7 @@ function carregarColaboradoresParaSenhas() {
     })
     .then(r => r.json())
     .then(data => {
-        const datalist = document.getElementById('colaboradores-senha-list');
+        const datalist = document.getElementById('colaboradores-log-senha-list');
         if (!datalist) return;
         datalist.innerHTML = '';
         data.forEach(c => {
