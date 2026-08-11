@@ -54,13 +54,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
         db.run('PRAGMA journal_mode = WAL;');
         // Cache de 8MB em memória para reduzir leituras de disco sem estourar memória do Render
         db.run('PRAGMA cache_size = -8000;');
-        // Sincronização normal (mais rápido que FULL, ainda seguro)
-        db.run('PRAGMA synchronous = NORMAL;');
+        // FULL garante que cada escrita seja confirmada no disco antes de retornar "sucesso".
+        // Isso evita perda de dados quando o servidor reinicia por OOM (Out of Memory) no Render.
+        db.run('PRAGMA synchronous = FULL;');
         // Armazena tabelas temporárias em memória
         db.run('PRAGMA temp_store = MEMORY;');
         // Desabilitado mmap (0) para garantir que não vai estourar o limite de 512MB do Render
         db.run('PRAGMA mmap_size = 0;');
-        console.log('[DB] PRAGMAs de performance aplicados (WAL + cache otimizado para Render).');
+        console.log('[DB] PRAGMAs aplicados: WAL + synchronous=FULL (durabilidade garantida).');
         // ────────────────────────────────────────────────────────────────────
         
         db.serialize(() => {

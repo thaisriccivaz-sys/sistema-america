@@ -77,7 +77,7 @@ function initLogisticaSenhas() {
                     <button onclick="document.getElementById('modal-senhas').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.2rem;">&times;</button>
                 </div>
                 <div style="padding:1.5rem;">
-                    <form id="form-senhas" onsubmit="salvarSenha(event)">
+                    <form id="form-senhas" onsubmit="salvarSenha(event)" onkeydown="if(event.key==='Enter'&&event.target.type!=='submit'){event.preventDefault();const campos=Array.from(this.querySelectorAll('input,select,textarea'));const idx=campos.indexOf(event.target);if(idx>-1&&idx<campos.length-1)campos[idx+1].focus();}">
                         <input type="hidden" id="senha-id">
                         <div class="input-group mb-3">
                             <label>Nome</label>

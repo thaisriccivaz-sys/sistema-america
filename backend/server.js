@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -6634,7 +6634,11 @@ app.post('/api/logistica/senhas', authenticateToken, (req, res) => {
         // Registra no histórico
         db.run("INSERT INTO logistica_senhas_historico (senha_id, acao, campo_alterado, valor_anterior, valor_novo, usuario_id, usuario_nome) VALUES (?, 'criacao', 'servico', null, ?, ?, ?)",
             [newId, servico || '', req.user.id, req.user.nome || req.user.username]);
-        res.json({ id: newId, message: 'Senha cadastrada com sucesso' });
+        // Força checkpoint do WAL para garantir que o dado chegou ao disco principal
+        // antes de retornar sucesso. Previne perda de dados em reinicialização por OOM.
+        db.run('PRAGMA wal_checkpoint(PASSIVE);', () => {
+            res.json({ id: newId, message: 'Senha cadastrada com sucesso' });
+        });
     });
 });
 
