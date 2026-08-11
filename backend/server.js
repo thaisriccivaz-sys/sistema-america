@@ -29649,6 +29649,12 @@ setTimeout(() => {
 app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res) => {
     const { ticketId, protocol, clientName, followUpDeadline } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
+    if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
+
+    const ticketExiste = await new Promise(resolve => {
+        db.get('SELECT id FROM sac_tickets WHERE id = ?', [ticketId], (err, row) => resolve(!!row));
+    });
+    if (!ticketExiste) return res.json({ success: false, msg: 'Chamado excluído ou não encontrado.' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
     const systemUrl = 'https://sistema-america.onrender.com/';
@@ -29692,6 +29698,12 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
 app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) => {
     const { ticketId, protocol, clientName, openDate, typeKey } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
+    if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
+
+    const ticketExiste = await new Promise(resolve => {
+        db.get('SELECT id FROM sac_tickets WHERE id = ?', [ticketId], (err, row) => resolve(!!row));
+    });
+    if (!ticketExiste) return res.json({ success: false, msg: 'Chamado excluído ou não encontrado.' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
     const systemUrl = 'https://sistema-america.onrender.com/';
