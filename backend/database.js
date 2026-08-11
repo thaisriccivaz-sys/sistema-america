@@ -58,8 +58,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
         db.run('PRAGMA synchronous = NORMAL;');
         // Armazena tabelas temporárias em memória
         db.run('PRAGMA temp_store = MEMORY;');
-        // Mmap de 64MB para acesso mais rápido ao banco sem estourar memória do Render (limite de 512MB)
-        db.run('PRAGMA mmap_size = 67108864;');
+        // Desabilitado mmap (0) para garantir que não vai estourar o limite de 512MB do Render
+        db.run('PRAGMA mmap_size = 0;');
         console.log('[DB] PRAGMAs de performance aplicados (WAL + cache otimizado para Render).');
         // ────────────────────────────────────────────────────────────────────
         
