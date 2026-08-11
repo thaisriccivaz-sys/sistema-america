@@ -7100,7 +7100,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                     </div>
                     <div style="padding:24px;">
-                        <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Tr??nsito</h2>
+                        <h2 style="color: #2c3e50; border-bottom: 2px solid #ea580c; padding-bottom: 10px;">Desconto Financeiro - Multa de Trânsito</h2>
                         <p>Olá, favor realizar o desconto financeiro referente à multa de trânsito abaixo:</p>
                         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
                             <p><strong>Colaborador:</strong> ${colab.nome_completo || colab.nome}</p>
