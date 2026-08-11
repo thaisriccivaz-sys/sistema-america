@@ -14811,6 +14811,8 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_novo_chamado') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = 'NOTIFICAÇÃO'; navTarget = 'sac';
+                } else if (notif.tipo === 'sac_sla_vencido') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clock-countdown'; titulo = 'SAC com SLA vencido'; navTarget = 'sac';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -14951,6 +14953,17 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:600;font-size:1rem;margin-bottom:4px;">${colabNome}</div>
                         <div style="color:#64748b;font-size:0.85rem;">Novo participante no programa de Celular Corporativo.</div>
                     `;
+                } else if (notif.tipo === 'sac_sla_vencido') {
+                    const clName = dados.clientName || 'Cliente';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">
+                            ${clName}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">SLA estourado no chamado <b>Nº ${dados.protocol || '---'}</b>. Marcado como urgente.</div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -14974,6 +14987,12 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
+                } else if (notif.tipo === 'sac_sla_vencido') {
+                    if (dados.ticketId) {
+                        btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('sac'); setTimeout(() => { if(window.SAC && window.SAC.openDetail) window.SAC.openDetail('${dados.ticketId}'); }, 300);`;
+                    } else {
+                        btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
+                    }
                 }
 
                 popup.innerHTML = `
