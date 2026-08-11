@@ -1585,7 +1585,13 @@ async function excluirDocExtraEspecifico(multaId, idx) {
         const data = await resp.json();
         mostrarToastSucesso('Documento removido!');
         const m = multasLogistica.find(x => x.id === multaId);
-        if (m && data.documentos_extras !== undefined) m.documentos_extras = JSON.stringify(data.documentos_extras);
+        if (m && data.documentos_extras !== undefined) {
+            m.documentos_extras = JSON.stringify(data.documentos_extras);
+        }
+        if (m && idx === 2) {
+            m.documento_base64 = null;
+            m.documento_path = null;
+        }
         abrirModalGerenciarMulta(multaId);
     } catch(e) {
         mostrarToastErro('Erro ao excluir documento: ' + e.message);
@@ -1617,7 +1623,13 @@ window.excluirDocExtra = async function(multaId, idx) {
         }
         
         const m = multasLogistica.find(x => x.id === multaId);
-        if (m && data.documentos_extras) m.documentos_extras = JSON.stringify(data.documentos_extras);
+        if (m && data.documentos_extras) {
+            m.documentos_extras = JSON.stringify(data.documentos_extras);
+        }
+        if (m && idx === 2) {
+            m.documento_base64 = null;
+            m.documento_path = null;
+        }
     } catch(e) {
         if (typeof mostrarToastErro === 'function') mostrarToastErro(e.message);
     }
