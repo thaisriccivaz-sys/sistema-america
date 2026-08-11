@@ -26,8 +26,8 @@ function initAdministrativoSenhas() {
 
         <!-- ABAS -->
         <div style="display:flex; gap:1rem; border-bottom:1px solid #e2e8f0; padding:0.5rem 0 0; margin-bottom:0; background:var(--bg-main); position:sticky; top:120px; z-index:90;">
-            <button class="tab-senhas" id="tab-senha-comp" onclick="setSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #e8590c; color:#e8590c; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
-            <button class="tab-senhas" id="tab-senha-pess" onclick="setSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
+            <button class="tab-senhas" id="adm-tab-senha-comp" onclick="setSenhaTab('compartilhada')" style="background:none; border:none; border-bottom:2px solid #e8590c; color:#e8590c; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Compartilhadas</button>
+            <button class="tab-senhas" id="adm-tab-senha-pess" onclick="setSenhaTab('pessoal')" style="background:none; border:none; border-bottom:2px solid transparent; color:#64748b; font-weight:600; padding:0.5rem 1rem; cursor:pointer; font-size:1rem;">Senhas Pessoais</button>
         </div>
 
         <!-- FILTROS -->
@@ -50,12 +50,12 @@ function initAdministrativoSenhas() {
                         <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Serviço / Acesso</th>
                         <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Link</th>
                         <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0;">Usuário</th>
-                        <th id="th-dono-senha" style="display:none; padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; color:#d9480f;">Dono do Sistema</th>
+                        <th id="adm-th-dono-senha" style="display:none; padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; color:#d9480f;">Dono do Sistema</th>
                         <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; width:200px;">Senha</th>
                         <th style="padding:0.75rem 1rem; border-bottom:2px solid #e2e8f0; text-align:right; width:120px;">Ações</th>
                     </tr>
                 </thead>
-                <tbody id="table-senhas-body">
+                <tbody id="adm-table-senhas-body">
                     <tr><td colspan="7" style="text-align:center; padding: 2rem; color: #94a3b8;">Carregando senhas...</td></tr>
                 </tbody>
             </table>
@@ -100,7 +100,7 @@ function initAdministrativoSenhas() {
                         <div class="input-group mb-4" style="position:relative;">
                             <label>Senha</label>
                             <input type="password" id="adm-senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
-                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibilityAdm('adm-senha-valor', 'toggle-adm-senha-visibility')"></i>
+                            <i class="ph ph-eye" id="toggle-adm-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibilityAdm('adm-senha-valor', 'toggle-adm-senha-visibility')"></i>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
                             <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-adm-senhas').style.display='none'">Cancelar</button>
@@ -129,13 +129,13 @@ function carregarSenhasAdministrativo() {
     })
     .catch(err => {
         console.error('Erro ao carregar senhas:', err);
-        document.getElementById('table-senhas-body').innerHTML = `<tr><td colspan="7" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
+        document.getElementById('adm-table-senhas-body').innerHTML = `<tr><td colspan="7" class="text-danger text-center">Erro ao carregar senhas.</td></tr>`;
     });
 }
 
 function renderSenhasAdm() {
-    const tbody = document.getElementById('table-senhas-body');
-    const thDono = document.getElementById('th-dono-senha');
+    const tbody = document.getElementById('adm-table-senhas-body');
+    const thDono = document.getElementById('adm-th-dono-senha');
     
     // Configura interface de acordo com a aba atual e perfil
     const isDiretoria = window.isTopAdmin || (window.currentUser && String(window.currentUser.departamento).toLowerCase().includes('diretoria') || String(window.currentUser?.role).toLowerCase() === 'diretoria');
@@ -222,7 +222,7 @@ function openSenhasAdmModal() {
     
     const pwdInput = document.getElementById('adm-senha-valor');
     pwdInput.type = 'password';
-    document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
+    document.getElementById('toggle-adm-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
     
     document.getElementById('modal-adm-senhas').style.display = 'flex';
 }
@@ -242,7 +242,7 @@ function abrirModalEditarSenha(id) {
     
     const pwdInput = document.getElementById('adm-senha-valor');
     pwdInput.type = 'password';
-    document.getElementById('toggle-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
+    document.getElementById('toggle-adm-senha-visibility').classList.replace('ph-eye-slash', 'ph-eye');
 
     document.getElementById('modal-adm-senhas').style.display = 'flex';
 }
@@ -366,8 +366,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setSenhaTab(tipo) {
     currentSenhaAdmTab = tipo;
-    const btnComp = document.getElementById('tab-senha-comp');
-    const btnPess = document.getElementById('tab-senha-pess');
+    const btnComp = document.getElementById('adm-tab-senha-comp');
+    const btnPess = document.getElementById('adm-tab-senha-pess');
     
     if (tipo === 'compartilhada') {
         btnComp.style.borderBottomColor = '#e8590c'; btnComp.style.color = '#e8590c';
@@ -412,13 +412,13 @@ function _injetarModalHistoricoSenhasAdm() {
                     </div>
                     <div>
                         <h3 style="margin:0; color:#f1f5f9; font-size:1rem; font-weight:700;">HISTÓRICO DE ALTERAÇÕES — COFRE DE SENHAS</h3>
-                        <p id="hist-senhas-subtitle" style="margin:0; color:#94a3b8; font-size:0.75rem;">Últimas 200 operações registradas</p>
+                        <p id="adm-hist-senhas-subtitle" style="margin:0; color:#94a3b8; font-size:0.75rem;">Últimas 200 operações registradas</p>
                     </div>
                 </div>
                 <button onclick="document.getElementById('adm-modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
             <div style="padding:0.75rem 1.5rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:0.75rem; flex-shrink:0;">
-                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhasAdm()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
+                <input type="text" id="adm-hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhasAdm()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
             </div>
             <div style="overflow-y:auto; flex:1;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
@@ -433,7 +433,7 @@ function _injetarModalHistoricoSenhasAdm() {
                             <th style="padding:0.75rem 1rem; text-align:left; font-weight:700; color:#22c55e; border-bottom:2px solid #e2e8f0;">Depois</th>
                         </tr>
                     </thead>
-                    <tbody id="hist-senhas-tbody">
+                    <tbody id="adm-hist-senhas-tbody">
                         <tr><td colspan="7" style="text-align:center; padding:2rem; color:#94a3b8;">Carregando...</td></tr>
                     </tbody>
                 </table>
@@ -453,7 +453,7 @@ window.abrirHistoricoSenhas = async function() {
     const modal = document.getElementById('adm-modal-historico-senhas');
     modal.style.display = 'flex';
 
-    const tbody = document.getElementById('hist-senhas-tbody');
+    const tbody = document.getElementById('adm-hist-senhas-tbody');
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8;"><i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;font-size:1.5rem;"></i><br>Carregando histórico...</td></tr>';
 
     try {
@@ -471,7 +471,7 @@ window.abrirHistoricoSenhas = async function() {
 };
 
 function _filtrarHistoricoSenhasAdm() {
-    const q = (document.getElementById('hist-senhas-filtro')?.value || '').toLowerCase().trim();
+    const q = (document.getElementById('adm-hist-senhas-filtro')?.value || '').toLowerCase().trim();
     if (!q) { _renderHistoricoSenhasAdm(_histSenhasAdmData); return; }
     const filtrado = _histSenhasAdmData.filter(r =>
         (r.usuario_nome||'').toLowerCase().includes(q) ||
@@ -483,7 +483,7 @@ function _filtrarHistoricoSenhasAdm() {
 }
 
 function _renderHistoricoSenhasAdm(rows) {
-    const tbody = document.getElementById('hist-senhas-tbody');
+    const tbody = document.getElementById('adm-hist-senhas-tbody');
     if (!tbody) return;
 
     if (!rows || rows.length === 0) {
