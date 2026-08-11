@@ -16,21 +16,29 @@ async function backupDatabase(dbPath, dbName) {
             return resolve();
         }
 
-        console.log(`🔄 Preparando backup de ${dbName} (${dbPath})...`);
-        const fileSize = fs.statSync(dbPath).size;
-        console.log(`   Tamanho: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`🔄 Preparando backup seguro (VACUUM INTO) de ${dbName} (${dbPath})...`);
+        const tempPath = dbPath + '.backup_tmp';
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
-        // Abre o banco em modo leitura para fazer checkpoint do WAL antes de copiar
         const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
             if (err) {
-                console.warn(`⚠️ Não foi possível abrir banco para checkpoint: ${err.message}. Copiando direto.`);
-                return copyAndUpload(dbPath, dbName, resolve, reject);
+                console.warn(`⚠️ Não foi possível abrir banco para backup: ${err.message}`);
+                return resolve();
             }
 
-            // Força o WAL a ser consolidado no arquivo principal antes do backup
-            db.run('PRAGMA wal_checkpoint(FULL);', (err) => {
-                db.close(() => {
-                    copyAndUpload(dbPath, dbName, resolve, reject);
+            db.run(`VACUUM INTO '${tempPath.replace(/'/g, "''")}';`, (err) => {
+                db.close(async () => {
+                    if (err) {
+                        console.error(`❌ Erro no VACUUM INTO para ${dbName}:`, err.message);
+                        return resolve();
+                    }
+                    
+                    try {
+                        await new Promise((res, rej) => copyAndUpload(tempPath, dbName, res, rej));
+                    } finally {
+                        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+                    }
+                    resolve();
                 });
             });
         });

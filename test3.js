@@ -1,1 +1,9 @@
-const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('./backend/database.sqlite'); db.all('SELECT id, file_name, document_type, year, vencimento FROM documentos ORDER BY id DESC LIMIT 5', function(err, rows) { console.log(JSON.stringify(rows, null, 2)); db.close(); });
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('./backend/data/hr_system_v2.sqlite');
+db.all("SELECT name FROM sqlite_master WHERE type='table'", (err, rows) => {
+    if (err) {
+        console.error(err);
+    } else {
+        console.log(rows);
+    }
+});

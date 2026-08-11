@@ -7790,7 +7790,11 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
         try { extras = JSON.parse(row.documentos_extras || '[]'); } catch (_) { }
 
         const idx = parseInt(req.params.idx);
-        if (isNaN(idx) || idx < 0 || idx >= extras.length) {
+        if (isNaN(idx) || idx < 0) {
+            return res.status(404).json({ error: 'Índice inválido' });
+        }
+        
+        if (idx !== 2 && idx >= extras.length) {
             return res.status(404).json({ error: 'Documento não encontrado' });
         }
 

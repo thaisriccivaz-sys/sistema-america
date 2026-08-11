@@ -46,8 +46,8 @@ window.renderAvaliacaoTab = async function(container) {
     const safeGroupKey = (AVALIACAO_QUESTIONS[selectedTipo] && AVALIACAO_QUESTIONS[selectedTipo][groupKey]) ? groupKey
         : (selectedTipo === 'satisfacao' ? defaultSatisfacao : (selectedTipo === 'experiencia' ? defaultExperiencia : defaultDesempenho));
 
-    const questions = AVALIACAO_QUESTIONS[selectedTipo][safeGroupKey];
-    const categories = Object.keys(questions);
+    const questions = AVALIACAO_QUESTIONS[selectedTipo] && safeGroupKey ? AVALIACAO_QUESTIONS[selectedTipo][safeGroupKey] : undefined;
+    const categories = questions ? Object.keys(questions) : [];
 
     container.innerHTML = '<p style="color:#64748b; padding:1rem;">Carregando avaliações...</p>';
 
@@ -55,6 +55,39 @@ window.renderAvaliacaoTab = async function(container) {
     const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
     
     const renderDashboard = (year, tipo) => {
+        if (!questions) {
+            let actionsHtml = `<div style="flex:1; padding:2rem; text-align:center; color:#ef4444; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; margin-top:1rem;">
+                <i class="ph ph-warning" style="font-size:2rem; margin-bottom:0.5rem;"></i><br>
+                <strong>Template não configurado.</strong><br>
+                Não há um template de ${tipo} cadastrado para o cargo ou departamento deste colaborador (${dept || 'Não informado'}).
+            </div>`;
+            
+            container.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap:wrap; gap:1rem;">
+                    
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <!-- Tipo de Avaliacao -->
+                        <div style="display:flex; align-items:center; gap:0.5rem; background:#fff; padding:0.3rem; border-radius:8px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.05); flex-wrap:wrap;">
+                            <button onclick="window.tabPersistence['av-tipo-select']='desempenho'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                    style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'desempenho' ? 'background:#0ea5e9; color:#fff; box-shadow:0 2px 4px rgba(14,165,233,0.3);' : 'background:transparent; color:#64748b;'}">
+                                <i class="ph ph-trend-up" style="font-size:1.2rem;"></i> Desempenho
+                            </button>
+                            <button onclick="window.tabPersistence['av-tipo-select']='satisfacao'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                    style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'satisfacao' ? 'background:#8b5cf6; color:#fff; box-shadow:0 2px 4px rgba(139,92,246,0.3);' : 'background:transparent; color:#64748b;'}">
+                                <i class="ph ph-smiley" style="font-size:1.2rem;"></i> Satisfação
+                            </button>
+                            <button onclick="window.tabPersistence['av-tipo-select']='experiencia'; renderAvaliacaoTab(document.getElementById('docs-list-container'));" 
+                                    style="display:flex; align-items:center; gap:0.5rem; border:none; border-radius:6px; padding:0.6rem 1rem; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.9rem; ${tipo === 'experiencia' ? 'background:#f59e0b; color:#fff; box-shadow:0 2px 4px rgba(245,158,11,0.3);' : 'background:transparent; color:#64748b;'}">
+                                <i class="ph ph-medal" style="font-size:1.2rem;"></i> Experiência
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                ${actionsHtml}
+            `;
+            return;
+        }
+
         // Filtrar do ano atual E do tipo atual
         const avYear = avaliacoes.filter(a => Number(a.ano) === Number(year) && a.tipo === tipo);
         
