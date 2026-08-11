@@ -15067,7 +15067,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
-                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); setTimeout(() => { if (window.SAC && window.SAC.openDetail) window.SAC.openDetail('${dados.id}'); }, 300);`;
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); let attempts = 0; let intv = setInterval(() => { if (window.SAC && typeof window.SAC.openDetail === 'function') { window.SAC.openDetail('${dados.id}'); if (document.getElementById('sac-modal-overlay') && document.getElementById('sac-modal-overlay').style.display !== 'none') clearInterval(intv); } if (++attempts > 20) clearInterval(intv); }, 250);`;
                 }
 
                 popup.innerHTML = `
