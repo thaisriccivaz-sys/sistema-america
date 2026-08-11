@@ -10540,7 +10540,7 @@ window.buildAdmissaoSignatureRows = function (availableGeradores, assinaturas, d
         else if (docEquivalente && docEquivalente.assinafy_status === 'Aguardando') realStatus = 'Pendente';
         else if (ass && ass.assinafy_status === 'Pendente') realStatus = 'Pendente';
         else if (docEquivalente && docEquivalente.assinafy_status === 'NAO_EXIGE') realStatus = 'NAO_EXIGE';
-        else if (docEquivalente && docEquivalente.file_path) realStatus = 'Anexado';
+        else if (docEquivalente && (docEquivalente.file_path || docEquivalente.r2_key)) realStatus = 'Anexado';
 
         const isSigned = realStatus === 'Assinado';
         const isPending = realStatus === 'Pendente';
@@ -13725,14 +13725,14 @@ function updateAdmissaoStepPercentages(colab) {
 
     const itemsFicha = fixed.map(docType => {
         const found = fichaDocs.find(d => d.document_type === docType);
-        if (found && found.file_path) preenchidos4++;
+        if (found && (found.file_path || found.r2_key)) preenchidos4++;
         if (found) capturedDocIds.add(found.id);
         return { nome: docType, doc: found };
     });
 
     fichaDocs.forEach(d => {
         if (!capturedDocIds.has(d.id)) {
-            if (d.file_path) preenchidos4++;
+            if (d.file_path || d.r2_key) preenchidos4++;
             capturedDocIds.add(d.id);
             itemsFicha.push({ nome: d.document_type || d.original_name, doc: d });
         }
@@ -13766,7 +13766,7 @@ function updateAdmissaoStepPercentages(colab) {
         expectedForDep.forEach(cfg => {
             const fullDocType = `${cfg.label}###DEP_${safeDepName}`;
             const found = dependentDocs.find(d => d.document_type === fullDocType);
-            if (found && found.file_path) preenchidos4++;
+            if (found && (found.file_path || found.r2_key)) preenchidos4++;
             if (found) capturedDocIds.add(found.id);
             itemsFicha.push({ nome: `Dep. ${dep.nome ? dep.nome.split(' ')[0] : ''}: ${cfg.label}`, doc: found });
         });
@@ -13774,7 +13774,7 @@ function updateAdmissaoStepPercentages(colab) {
 
     dependentDocs.forEach(d => {
         if (!capturedDocIds.has(d.id)) {
-            if (d.file_path) preenchidos4++;
+            if (d.file_path || d.r2_key) preenchidos4++;
             capturedDocIds.add(d.id);
             let label = d.document_type || d.original_name;
             if (label && label.includes('###DEP_')) label = label.split('###DEP_')[0];
@@ -13787,7 +13787,7 @@ function updateAdmissaoStepPercentages(colab) {
     const containerStep4 = document.getElementById('admissao-checklist-step3');
     if (containerStep4) {
         containerStep4.innerHTML = itemsFicha.map(item => {
-            const hasFile = item.doc && item.doc.file_path;
+            const hasFile = item.doc && (item.doc.file_path || item.doc.r2_key);
             const statusBadge = hasFile
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>`
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
@@ -13817,17 +13817,17 @@ function updateAdmissaoStepPercentages(colab) {
     let preenchidos5 = 0;
     const itemsAso = listAso.map(docType => {
         const found = asoDocs.find(d => d.document_type === docType);
-        if (found && found.file_path) preenchidos5++;
+        if (found && (found.file_path || found.r2_key)) preenchidos5++;
         return { nome: docType, doc: found };
     });
 
     const extras5 = asoDocs.filter(d => !listAso.includes(d.document_type));
     extras5.forEach(d => {
-        if (d.file_path) preenchidos5++;
+        if (d.file_path || d.r2_key) preenchidos5++;
         itemsAso.push({ nome: d.document_type || d.original_name, doc: d });
     });
 
-    const asoDocAnexado = itemsAso.some(item => item.doc && item.doc.file_path);
+    const asoDocAnexado = itemsAso.some(item => item.doc && (item.doc.file_path || item.doc.r2_key));
 
     if (asoDocAnexado) {
         pc5 = 100;
@@ -13846,7 +13846,7 @@ function updateAdmissaoStepPercentages(colab) {
     const containerStep5 = document.getElementById('step5-aso-status');
     if (containerStep5) {
         containerStep5.innerHTML = itemsAso.map(item => {
-            const hasFile = item.doc && item.doc.file_path;
+            const hasFile = item.doc && (item.doc.file_path || item.doc.r2_key);
             const statusBadge = hasFile
                 ? `<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-check-circle"></i> Anexado</span>`
                 : `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:700;"><i class="ph ph-x-circle"></i> Faltante</span>`;
