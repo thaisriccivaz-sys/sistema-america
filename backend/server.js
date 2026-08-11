@@ -16130,64 +16130,114 @@ let _cronUltimaExecucao = null;
 
 function verificarSatisfacaoPendentes() {
     const hoje = new Date();
+    // Para manter consistência com o timezone America/Sao_Paulo (o cron roda 08:00 AM local)
     const mes = hoje.getMonth() + 1; // 1 to 12
-    const dia = hoje.getDate();
+    const ano = hoje.getFullYear();
     let expectedTrim;
-    let expectedAno = hoje.getFullYear();
-    
+    let expectedAno = ano;
+    let dataInicioTrimestre;
+
     // Satisfacao liberada a partir do dia 01
-    if (mes >= 1 && mes <= 3) expectedTrim = 1;
-    else if (mes >= 4 && mes <= 6) expectedTrim = 2;
-    else if (mes >= 7 && mes <= 9) expectedTrim = 3;
-    else if (mes >= 10 && mes <= 12) expectedTrim = 4;
+    if (mes >= 1 && mes <= 3) {
+        expectedTrim = 1;
+        dataInicioTrimestre = new Date(ano, 0, 1);
+    } else if (mes >= 4 && mes <= 6) {
+        expectedTrim = 2;
+        dataInicioTrimestre = new Date(ano, 3, 1);
+    } else if (mes >= 7 && mes <= 9) {
+        expectedTrim = 3;
+        dataInicioTrimestre = new Date(ano, 6, 1);
+    } else if (mes >= 10 && mes <= 12) {
+        expectedTrim = 4;
+        dataInicioTrimestre = new Date(ano, 9, 1);
+    }
+
+    // Calcula os dias corridos desde o início do trimestre
+    // Ignoramos a hora para evitar problemas com timezone
+    const hjDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const inicioTrim = new Date(dataInicioTrimestre.getFullYear(), dataInicioTrimestre.getMonth(), dataInicioTrimestre.getDate());
+    
+    const diffTime = Math.abs(hjDia - inicioTrim);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Verifica se é um múltiplo exato de 7 dias a partir do início
+    if (diffDays % 7 !== 0) {
+        return;
+    }
 
     db.all(`SELECT c.id, c.nome_completo, c.departamento,
-                   COALESCE(c.email_corporativo, c.email) as colab_email,
                    (SELECT COUNT(*) FROM avaliacoes WHERE colaborador_id = c.id AND tipo = 'satisfacao' AND ano = ? AND trimestre = ?) as has_avaliation
             FROM colaboradores c
-            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], async (err, rows) => {
+            WHERE c.status = 'Ativo'`, [expectedAno, expectedTrim], (err, rows) => {
         if (err) { console.error('[Satisfacao CRON]', err.message); return; }
 
-        for (const r of rows) {
-            // Pula se ja tem avaliacao ou se n tem email
-            if (r.has_avaliation > 0 || !r.colab_email) continue;
+        const pendentes = rows.filter(r => r.has_avaliation === 0);
+        
+        if (pendentes.length === 0) {
+            console.log(`[Satisfacao CRON] Nenhuma pendência de pesquisa para o ${expectedTrim}º Trim. de ${expectedAno}.`);
+            return;
+        }
 
-            const emailDestino = r.colab_email;
+        // Consultar quem deve receber a notificação
+        db.all(`SELECT u.email, cn.email_override 
+                FROM config_notificacoes cn 
+                JOIN usuarios u ON cn.usuario_id = u.id 
+                WHERE cn.tipo = 'pesquisa_satisfacao' AND u.ativo = 1`, [], async (errC, rowsC) => {
+            if (errC) { console.error('[Satisfacao CRON]', errC.message); return; }
+            
+            if (rowsC.length === 0) {
+                console.log(`[Satisfacao CRON] Pendências encontradas (${pendentes.length}), mas nenhum usuário configurado para receber alerta.`);
+                return;
+            }
+
+            const subject = `Lembrete: Pendências da Pesquisa de Satisfação - ${expectedTrim}º Trim. ${expectedAno}`;
             const baseUrl = process.env.NODE_ENV === 'production' ? 'https://sistema-america.onrender.com' : 'http://localhost:3000';
             const link = `${baseUrl}/?t=rh&tab=avaliacoes`;
-            const subject = `Pesquisa de Satisfação - ${expectedTrim}º Trim. ${expectedAno}`;
             
+            // Generate list of employees
+            let htmlList = '<ul style="text-align: left; max-height: 250px; overflow-y: auto; background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb;">';
+            pendentes.forEach(p => {
+                htmlList += `<li style="margin-bottom: 4px; font-size: 14px;">${p.nome_completo} ${p.departamento ? `<span style="color:#6b7280;">(${p.departamento})</span>` : ''}</li>`;
+            });
+            htmlList += '</ul>';
+
             const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                 <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                     <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                 </div>
                 <div style="padding:24px;">
                     <h2 style="color:#8b5cf6;text-align:center;margin-top:0;">Pesquisa de Satisfação</h2>
-                    <p>Olá <strong>${r.nome_completo.split(' ')[0]}</strong>,</p>
-                    <p>A Pesquisa de Satisfação referente ao <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong> já está disponível.</p>
-                    <p>Sua opinião é fundamental para melhorarmos continuamente nosso ambiente de trabalho. Por favor, acesse o sistema no menu <strong>RH > Avaliações</strong> para responder.</p>
+                    <p>Olá,</p>
+                    <p>Atualmente, <strong>${pendentes.length} colaboradores</strong> ativos ainda não responderam à Pesquisa de Satisfação do <strong>${expectedTrim}º Trimestre de ${expectedAno}</strong>.</p>
+                    <p>Abaixo está a lista dos colaboradores pendentes:</p>
+                    ${htmlList}
+                    <p>Por favor, acesse o sistema e faça a cobrança necessária para que o quadro da empresa seja avaliado.</p>
                     <div style="text-align:center;margin:30px 0;">
                         <a href="${link}" style="background-color:#8b5cf6;color:white;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;display:inline-block;">
-                            Responder Pesquisa
+                            Acessar RH > Avaliações
                         </a>
                     </div>
-                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Equipe RH</p>
+                    <p style="margin-bottom:0;color:#666;">Atenciosamente,<br>Sistema América Rental</p>
                 </div>
             </div>`;
-            
-            try {
-                await sendMailHelper({ 
-                    to: emailDestino, 
-                    subject: subject, 
-                    html: html,
-                    attachments: [{ filename: 'logo-header.png', path: require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
-                });
-                console.log(`[Satisfacao CRON] E-mail enviado para ${emailDestino}.`);
-                await new Promise(res => setTimeout(res, 2000));
-            } catch (err) {
-                console.error(`[Satisfacao CRON] Erro ao enviar para ${emailDestino}`, err.message);
+
+            for (const rc of rowsC) {
+                const emailDestino = rc.email_override || rc.email;
+                if (!emailDestino) continue;
+                
+                try {
+                    await sendMailHelper({ 
+                        to: emailDestino, 
+                        subject: subject, 
+                        html: html,
+                        attachments: [{ filename: 'logo-header.png', path: require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+                    });
+                    console.log(`[Satisfacao CRON] Alerta com ${pendentes.length} pendentes enviado para ${emailDestino}.`);
+                } catch (errM) {
+                    console.error(`[Satisfacao CRON] Erro ao enviar alerta para ${emailDestino}`, errM.message);
+                }
             }
-        }
+        });
     });
 }
 

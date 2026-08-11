@@ -17,6 +17,7 @@ const TIPOS_NOTIFICACAO = [
     { id: 'estoque_reposicao', nome: 'Mínimo para reposição de estoque', icone: 'ph-arrows-left-right', descricao: 'Notificado quando um item em endereço do tipo "Pedido de Reposição" atinge o estoque mínimo.' },
     { id: 'novo_colaborador_equipe', nome: 'Equipe para distribuição', icone: 'ph-users-three' },
     { id: 'nova_ocorrencia', nome: 'Nova Ocorrência no Prontuário', icone: 'ph-warning' },
+    { id: 'pesquisa_satisfacao', nome: 'Pesquisa de Satisfação', icone: 'ph-star', descricao: 'E-mail e notificação com a lista de colaboradores que ainda não responderam à pesquisa. NENHUM e-mail é enviado aos colaboradores, apenas aos usuários de RH marcados aqui.' },
     { id: 'pesquisa_satisfacao_treinamento', nome: 'Pesquisa de Satisfação de Treinamentos', icone: 'ph-star' },
     { id: 'atualizacao_cnds', nome: 'Atualização de CNDs', icone: 'ph-file-pdf', descricao: 'Notificado para fazer upload externo de novas CNDs vencidas.' },
     { id: 'sac_sla_vencido', nome: 'Recebe notificações sobre SLA vencido (SAC)', icone: 'ph-timer', descricao: 'Recebe e-mail e popup quando um chamado SAC tiver o SLA estourado ou o prazo de acompanhamento vencido. O chamado também será marcado automaticamente como Urgente.' }
