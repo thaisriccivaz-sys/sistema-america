@@ -29747,7 +29747,7 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
 
 // ── POST /api/sac/notificar-sla-vencido ───────────────────────────────────────
 // Notifica usuários configurados quando o SLA de um chamado estourar
-app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) => {
+app.post('/api/sac/notificar-sla-vencido', authenticateToken, (req, res) => {
     const { ticketId, protocol, clientName, openDate, typeKey } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
     if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
@@ -29759,41 +29759,47 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
     });
     if (updateChanges === 0) return res.json({ success: false, msg: 'Chamado excluído ou SLA já notificado.' });
 
-    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const systemUrl = 'https://sistema-america.onrender.com/';
-    const abertoFmt = openDate ? new Date(openDate).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+    db.get(`SELECT id FROM sac_tickets WHERE id = ?`, [ticketId], (err, ticket) => {
+        if (err || !ticket) {
+            return res.json({ success: true, message: 'Chamado excluído. Notificação cancelada.' });
+        }
 
-    const subject = `🔴 SAC — SLA Estourado: Chamado Nº ${protocol}`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
-        <div style="padding:24px;">
-            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">🔴 SLA Estourado</span></div>
-            <p style="font-size:1rem;color:#1e293b;">Um chamado SAC <strong>ultrapassou o prazo de SLA</strong> e não foi concluído a tempo.</p>
-            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
-                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
-                <p style="margin:4px 0;"><strong>Aberto em:</strong> ${abertoFmt}</p>
+        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+        const systemUrl = 'https://sistema-america.onrender.com/';
+        const abertoFmt = openDate ? new Date(openDate).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+        const subject = `🔴 SAC — SLA Estourado: Chamado Nº ${protocol}`;
+        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
+            <div style="padding:24px;">
+                <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">🔴 SLA Estourado</span></div>
+                <p style="font-size:1rem;color:#1e293b;">Um chamado SAC <strong>ultrapassou o prazo de SLA</strong> e não foi concluído a tempo.</p>
+                <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
+                    <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                    <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                    <p style="margin:4px 0;"><strong>Aberto em:</strong> ${abertoFmt}</p>
+                </div>
+                <p>O chamado foi marcado como <strong>URGENTE</strong> automaticamente. Acesse o sistema para verificar e justificar o atraso.</p>
+                <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
+                <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
             </div>
-            <p>O chamado foi marcado como <strong>URGENTE</strong> automaticamente. Acesse o sistema para verificar e justificar o atraso.</p>
-            <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
-            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
-        </div>
-    </div>`;
+        </div>`;
 
-    // Enviar e-mail para configurados em sac_sla_vencido
-    sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
+        // Enviar e-mail para configurados em sac_sla_vencido
+        sendEmailParaNotificados('sac_sla_vencido', { subject, html, attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }] });
 
-    // Popup interno para configurados
-    db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err, rows) => {
-        if (err || !rows || rows.length === 0) return;
-        const msg = `🔴 SLA estourado no chamado <strong>Nº ${protocol}</strong> — ${clientName}. Marcado como urgente. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
-        rows.forEach(r => {
-            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                [r.usuario_id, 'sac_sla_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+        // Popup interno para configurados
+        db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo = 'sac_sla_vencido'`, [], (err2, rows) => {
+            if (err2 || !rows || rows.length === 0) return;
+            const msg = `🔴 SLA estourado no chamado <strong>Nº ${protocol}</strong> — ${clientName}. Marcado como urgente. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+            rows.forEach(r => {
+                db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                    [r.usuario_id, 'sac_sla_vencido', msg, JSON.stringify({ ticketId, protocol, clientName })]);
+            });
         });
-    });
 
-    res.json({ success: true });
+        res.json({ success: true });
+    });
 });
 
 
