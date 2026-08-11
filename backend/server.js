@@ -29159,6 +29159,58 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0, JSON.stringify(t.tags||[])
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
+        
+        // Notificar usuários com permissão Ver Todos no SAC
+        const getSACUsersQuery = `
+            SELECT u.id as usuario_id, u.nome, COALESCE(NULLIF(c.email_corporativo, ''), NULLIF(u.email, '')) as dest_email
+            FROM usuarios u
+            JOIN permissoes_grupo pg ON u.grupo_permissao_id = pg.grupo_id
+            LEFT JOIN colaboradores c ON (LOWER(TRIM(c.email)) = LOWER(TRIM(u.email))) OR (LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome)))
+            WHERE pg.modulo = 'Processos' AND pg.pagina_id = 'sac' AND pg.visualizar = 1 AND u.ativo = 1
+        `;
+        db.all(getSACUsersQuery, [], async (errQ, users) => {
+            if (!errQ && users && users.length > 0) {
+                const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                const systemUrl = 'https://sistema-america.onrender.com/';
+                const subject = `📢 Novo SAC Registrado: Chamado Nº ${t.protocol}`;
+                
+                const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
+                    <div style="padding:24px;">
+                        <h2 style="color:#0ea5e9;text-align:center;margin-top:0;">Novo Chamado SAC</h2>
+                        <p style="font-size:1rem;color:#1e293b;">Um novo chamado de SAC foi aberto no sistema.</p>
+                        <div style="background:#f0f9ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #0ea5e9;">
+                            <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${t.protocol}</p>
+                            <p style="margin:4px 0;"><strong>Cliente:</strong> ${t.clientName || 'Não informado'}</p>
+                            <p style="margin:4px 0;"><strong>Contato:</strong> ${t.contactName || 'Não informado'} ${t.contactPhone ? `(${t.contactPhone})` : ''}</p>
+                            <p style="margin:4px 0;"><strong>Canal:</strong> ${t.channel || 'Não informado'}</p>
+                        </div>
+                        <p style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #e2e8f0;color:#334155;font-size:0.95rem;"><strong>Descrição:</strong><br>${t.description || 'Sem descrição'}</p>
+                        <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#0ea5e9;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Sistema</a></div>
+                        <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+                    </div>
+                </div>`;
+
+                for (const u of users) {
+                    const msg = `Novo chamado SAC registrado: Nº ${t.protocol}`;
+                    const dadosStr = JSON.stringify({ protocolo: t.protocol, id: t.id });
+                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [u.usuario_id, 'novo_sac', msg, dadosStr]);
+
+                    if (!u.dest_email || !u.dest_email.includes('@')) continue;
+                    try {
+                        await sendMailHelper({
+                            to: u.dest_email,
+                            subject,
+                            html,
+                            attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                        });
+                    } catch (e) {
+                        console.error(`[SAC EMAIL NOVO] Erro ao enviar para ${u.dest_email}: ${e.message}`);
+                    }
+                }
+            }
+        });
+
         res.json({ success: true, id: t.id });
     });
 });
