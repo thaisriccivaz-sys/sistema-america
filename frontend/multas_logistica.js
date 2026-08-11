@@ -1622,10 +1622,9 @@ window.excluirDocExtra = async function(multaId, idx) {
     }
 };
 
-// Visualizar documento extra em nova aba (inline)
 function visualizarDocExtra(multaId, idx) {
     const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    const url = `/api/logistica/multas/${multaId}/documento-extra/${idx}?token=${encodeURIComponent(token)}`;
+    const url = `/api/logistica/multas/${multaId}/documento-extra/${idx}?token=${encodeURIComponent(token)}&cb=${Date.now()}`;
     window.open(url, '_blank');
 }
 
