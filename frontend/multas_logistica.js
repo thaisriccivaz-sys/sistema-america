@@ -1255,8 +1255,9 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                                         <span style="font-size:0.8rem; font-weight:700; color:#065f46;">Doc. Notificação</span>
                                     </div>
                                     <div style="margin-bottom:6px; display:flex; gap:5px; flex-wrap:wrap;">
-                                        ${(multa.documento_base64 || multa.documento_path)
-                                            ? `<button type="button" onclick="visualizarDocumentoMulta(${multa.id})" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.76rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i> Ver</button>`
+                                        ${(docsExtras[2] || multa.documento_base64 || multa.documento_path)
+                                            ? `<button type="button" onclick="${docsExtras[2] ? `visualizarDocExtra(${multa.id}, 2)` : `visualizarDocumentoMulta(${multa.id})`}" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.76rem;font-weight:600;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-eye"></i> Ver</button>
+                                               <button type="button" onclick="excluirDocExtraEspecifico(${multa.id}, 2)" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:0.76rem;"><i class="ph ph-trash"></i></button>`
                                             : '<span style="font-size:0.73rem;color:#94a3b8;">Não anexado</span>'}
                                     </div>
                                     <input type="file" id="gm-doc-slot-2" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; font-size:0.73rem; margin-bottom:5px;">

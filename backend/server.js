@@ -7794,14 +7794,19 @@ app.delete('/api/logistica/multas/:id/documento-extra/:idx', authenticateToken, 
             return res.status(404).json({ error: 'Documento não encontrado' });
         }
 
-        extras.splice(idx, 1);
+        extras[idx] = null;
         const extrasJson = JSON.stringify(extras);
 
         db.run('UPDATE multas_logistica SET documentos_extras = ? WHERE id = ?', [extrasJson, req.params.id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
+
+            if (idx === 2) {
+                db.run('UPDATE multas_logistica SET documento_base64 = NULL, documento_path = NULL WHERE id = ?', [req.params.id]);
+            }
+
             res.json({
                 ok: true,
-                documentos_extras: extras.map((d, i) => ({ nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em }))
+                documentos_extras: extras.map((d, i) => d ? { nome: d.nome, tipo: d.tipo, idx: i, adicionado_em: d.adicionado_em } : null)
             });
         });
     });
