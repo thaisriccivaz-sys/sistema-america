@@ -33,14 +33,9 @@ function initLogisticaSenhas() {
         <!-- FILTROS -->
         <div style="background:var(--bg-main); padding:0.75rem 0 0.5rem; position:sticky; top:164px; z-index:89; border-bottom:1px solid #e2e8f0;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-servico" placeholder="Filtrar por Serviço..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
-                </div>
-
-                <div style="position:relative;">
-                    <i class="ph ph-funnel" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-colaborador" placeholder="Filtrar por Colaborador..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
+                <div style="position:relative; grid-column: span 2;">
+                    <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
+                    <input type="text" id="filter-senha-busca" placeholder="🔍 Buscar por Serviço, Nome, Usuário ou Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
                 </div>
                 <div style="position:relative;">
                     <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
@@ -234,22 +229,23 @@ function renderSenhasTable(senhas) {
 }
 
 function filtrarSenhasMulti() {
-    const fServico = document.getElementById('filter-senha-servico')?.value.toLowerCase().trim() || '';
-    const fColaborador = document.getElementById('filter-senha-colaborador')?.value.toLowerCase().trim() || '';
+    const fBusca = document.getElementById('filter-senha-busca')?.value.toLowerCase().trim() || '';
     const fStatus = document.getElementById('filter-senha-status')?.value || '';
 
     const filtradas = senhasLogisticaList.filter(s => {
-        let matchServico = true;
-        let matchColaborador = true;
         let matchStatus = true;
-
-        if (fServico) matchServico = s.servico && s.servico.toLowerCase().includes(fServico);
-        if (fColaborador) matchColaborador = s.nome && s.nome.toLowerCase().includes(fColaborador);
         if (fStatus === 'ativo') matchStatus = s.colab_status !== 'Desligado';
         if (fStatus === 'inativo') matchStatus = s.colab_status === 'Desligado';
 
         let matchTab = (s.tipo === currentSenhaTab || (!s.tipo && currentSenhaTab === 'compartilhada'));
-        return matchServico && matchColaborador && matchStatus && matchTab;
+        
+        let matchBusca = true;
+        if (fBusca) {
+            const textToSearch = [s.servico, s.nome, s.usuario, s.link, s.owner_nome].filter(Boolean).join(' ').toLowerCase();
+            matchBusca = textToSearch.includes(fBusca);
+        }
+
+        return matchBusca && matchStatus && matchTab;
     });
 
     renderSenhasTable(filtradas);
