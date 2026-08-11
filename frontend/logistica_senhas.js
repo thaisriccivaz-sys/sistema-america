@@ -35,10 +35,10 @@ function initLogisticaSenhas() {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
                 <div style="position:relative; grid-column: span 2;">
                     <i class="ph ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>
-                    <input type="text" id="filter-senha-busca" placeholder="🔍 Buscar por Serviço, Nome, Usuário ou Link..." oninput="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
+                    <input type="text" id="log-filter-senha-busca" placeholder="🔍 Buscar por Serviço, Nome, Usuário ou Link..." oninput="filtrarSenhasMultiLog()" style="width:100%;padding:0.6rem 0.75rem 0.6rem 2.2rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;">
                 </div>
                 <div style="position:relative;">
-                    <select id="filter-senha-status" onchange="filtrarSenhasMulti()" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
+                    <select id="log-filter-senha-status" onchange="filtrarSenhasMultiLog()" style="width:100%;padding:0.6rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;background:#fff;color:#64748b;appearance:none;cursor:pointer;">
                         <option value="ativo" selected>🟢 Ativo (Padrão)</option>
                         <option value="">Todos os Status</option>
                         <option value="inativo">🔴 Inativo</option>
@@ -107,7 +107,7 @@ function initLogisticaSenhas() {
                         <div class="input-group mb-4" style="position:relative;">
                             <label>Senha</label>
                             <input type="password" id="log-senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
-                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibility('log-senha-valor', 'toggle-log-senha-visibility')"></i>
+                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibilityLog('log-senha-valor', 'toggle-log-senha-visibility')"></i>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
                             <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-log-senhas').style.display='none'">Cancelar</button>
@@ -120,8 +120,8 @@ function initLogisticaSenhas() {
     `;
 
     carregarSenhas();
-    carregarColaboradoresParaSenhas();
-    _injetarModalHistoricoSenhas();
+    carregarColaboradoresParaSenhasLog();
+    _injetarModalHistoricoSenhasLog();
 }
 
 function carregarSenhas() {
@@ -138,7 +138,7 @@ function carregarSenhas() {
         data.forEach(s => uniqueServicos.add(s.servico));
         atualizarDatalist();
 
-        filtrarSenhasMulti();
+        filtrarSenhasMultiLog();
     })
     .catch(err => {
         console.error('Erro ao carregar senhas:', err);
@@ -185,10 +185,10 @@ function renderSenhasTable(senhas) {
         const pwdHtml = `
             <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:4px 8px;">
                 <input type="password" id="${pwdId}" value="${s.senha.replace(/"/g, '&quot;')}" readonly style="border:none; background:transparent; width:100%; outline:none; font-family:monospace; color:#334155; pointer-events:none;">
-                <button type="button" onclick="togglePasswordVisibility('${pwdId}', 'icon-${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Mostrar/Ocultar">
+                <button type="button" onclick="togglePasswordVisibilityLog('${pwdId}', 'icon-${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Mostrar/Ocultar">
                     <i class="ph ph-eye" id="icon-${pwdId}"></i>
                 </button>
-                <button type="button" onclick="copiarSenha('${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Copiar Senha">
+                <button type="button" onclick="copiarSenhaLog('${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Copiar Senha">
                     <i class="ph ph-copy"></i>
                 </button>
             </div>
@@ -220,7 +220,7 @@ function renderSenhasTable(senhas) {
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn-action btn-sm" style="color:#228be6; background:#e7f5ff; border:none;" onclick='editarSenha(${JSON.stringify(s)})' title="Editar"><i class="ph ph-pencil"></i></button>
-                    <button class="btn-action btn-sm" style="color:#ef4444; background:#fee2e2; border:none;" onclick="excluirSenha(${s.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                    <button class="btn-action btn-sm" style="color:#ef4444; background:#fee2e2; border:none;" onclick="excluirSenhaLog(${s.id})" title="Excluir"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
         `;
@@ -228,9 +228,9 @@ function renderSenhasTable(senhas) {
     });
 }
 
-function filtrarSenhasMulti() {
-    const fBusca = document.getElementById('filter-senha-busca')?.value.toLowerCase().trim() || '';
-    const fStatus = document.getElementById('filter-senha-status')?.value || '';
+function filtrarSenhasMultiLog() {
+    const fBusca = document.getElementById('log-filter-senha-busca')?.value.toLowerCase().trim() || '';
+    const fStatus = document.getElementById('log-filter-senha-status')?.value || '';
 
     const filtradas = senhasLogisticaList.filter(s => {
         let matchStatus = true;
@@ -330,7 +330,7 @@ function salvarSenhaLogistica(e) {
     });
 }
 
-function excluirSenha(id) {
+function excluirSenhaLog(id) {
     Swal.fire({
         title: 'Excluir Senha?',
         text: "Essa ação não pode ser desfeita.",
@@ -357,7 +357,7 @@ function excluirSenha(id) {
     });
 }
 
-function togglePasswordVisibility(inputId, iconId) {
+function togglePasswordVisibilityLog(inputId, iconId) {
     const input = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
     if (!input || !icon) return;
@@ -371,7 +371,7 @@ function togglePasswordVisibility(inputId, iconId) {
     }
 }
 
-function copiarSenha(inputId) {
+function copiarSenhaLog(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
     
@@ -421,11 +421,11 @@ function switchSenhaTab(tipo) {
         btnPess.style.borderBottomColor = '#2d9e5f'; btnPess.style.color = '#2d9e5f';
         btnComp.style.borderBottomColor = 'transparent'; btnComp.style.color = '#64748b';
     }
-    filtrarSenhasMulti();
+    filtrarSenhasMultiLog();
 }
 
 
-function carregarColaboradoresParaSenhas() {
+function carregarColaboradoresParaSenhasLog() {
     fetch('/api/colaboradores', {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
     })
@@ -445,11 +445,11 @@ function carregarColaboradoresParaSenhas() {
 
 // ─── HISTÓRICO DE ALTERAÇÕES ────────────────────────────────────────────────
 
-function _injetarModalHistoricoSenhas() {
-    if (document.getElementById('modal-historico-senhas')) return; // já existe
+function _injetarModalHistoricoSenhasLog() {
+    if (document.getElementById('log-modal-historico-senhas')) return; // já existe
 
     const modal = document.createElement('div');
-    modal.id = 'modal-historico-senhas';
+    modal.id = 'log-modal-historico-senhas';
     modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto;';
     modal.innerHTML = `
         <div style="background:#fff; border-radius:14px; width:100%; max-width:900px; box-shadow:0 25px 80px rgba(0,0,0,0.35); display:flex; flex-direction:column; max-height:90vh;">
@@ -464,11 +464,11 @@ function _injetarModalHistoricoSenhas() {
                         <p id="hist-senhas-subtitle" style="margin:0; color:#94a3b8; font-size:0.75rem;">Últimas 200 operações registradas</p>
                     </div>
                 </div>
-                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                <button onclick="document.getElementById('log-modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
             <!-- Filtro -->
             <div style="padding:0.75rem 1.5rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:0.75rem; flex-shrink:0;">
-                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhas()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
+                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhasLog()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
             </div>
             <!-- Tabela -->
             <div style="overflow-y:auto; flex:1;">
@@ -491,7 +491,7 @@ function _injetarModalHistoricoSenhas() {
             </div>
             <!-- Footer -->
             <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; border-radius:0 0 14px 14px; display:flex; justify-content:flex-end; flex-shrink:0;">
-                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
+                <button onclick="document.getElementById('log-modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>
         </div>
     `;
@@ -501,8 +501,8 @@ function _injetarModalHistoricoSenhas() {
 let _histSenhasData = [];
 
 window.abrirHistoricoSenhas = async function() {
-    _injetarModalHistoricoSenhas();
-    const modal = document.getElementById('modal-historico-senhas');
+    _injetarModalHistoricoSenhasLog();
+    const modal = document.getElementById('log-modal-historico-senhas');
     modal.style.display = 'flex';
 
     const tbody = document.getElementById('hist-senhas-tbody');
@@ -516,25 +516,25 @@ window.abrirHistoricoSenhas = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao carregar histórico');
         _histSenhasData = data;
-        _renderHistoricoSenhas(data);
+        _renderHistoricoSenhasLog(data);
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar: ${e.message}</td></tr>`;
     }
 };
 
-function _filtrarHistoricoSenhas() {
+function _filtrarHistoricoSenhasLog() {
     const q = (document.getElementById('hist-senhas-filtro')?.value || '').toLowerCase().trim();
-    if (!q) { _renderHistoricoSenhas(_histSenhasData); return; }
+    if (!q) { _renderHistoricoSenhasLog(_histSenhasData); return; }
     const filtrado = _histSenhasData.filter(r =>
         (r.usuario_nome||'').toLowerCase().includes(q) ||
         (r.acao||'').toLowerCase().includes(q) ||
         (r.senha_servico||r.campo_alterado||'').toLowerCase().includes(q) ||
         (r.senha_nome||'').toLowerCase().includes(q)
     );
-    _renderHistoricoSenhas(filtrado);
+    _renderHistoricoSenhasLog(filtrado);
 }
 
-function _renderHistoricoSenhas(rows) {
+function _renderHistoricoSenhasLog(rows) {
     const tbody = document.getElementById('hist-senhas-tbody');
     if (!tbody) return;
 

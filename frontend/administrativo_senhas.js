@@ -100,7 +100,7 @@ function initAdministrativoSenhas() {
                         <div class="input-group mb-4" style="position:relative;">
                             <label>Senha</label>
                             <input type="password" id="adm-senha-valor" placeholder="Sua senha" autocomplete="new-password" style="padding-right:40px;">
-                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibility('adm-senha-valor', 'toggle-adm-senha-visibility')"></i>
+                            <i class="ph ph-eye" id="toggle-senha-visibility" style="position:absolute; right:12px; top:36px; cursor:pointer; color:#94a3b8; font-size:1.2rem;" onclick="togglePasswordVisibilityAdm('adm-senha-valor', 'toggle-adm-senha-visibility')"></i>
                         </div>
                         <div class="flex-between" style="justify-content:flex-end; gap:1rem;">
                             <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-adm-senhas').style.display='none'">Cancelar</button>
@@ -113,8 +113,8 @@ function initAdministrativoSenhas() {
     `;
 
     carregarSenhasAdministrativo();
-    carregarColaboradoresParaSenhas();
-    _injetarModalHistoricoSenhas();
+    carregarColaboradoresParaSenhasAdm();
+    _injetarModalHistoricoSenhasAdm();
 }
 
 function carregarSenhasAdministrativo() {
@@ -181,10 +181,10 @@ function renderSenhasAdm() {
         const pwdHtml = `
             <div style="display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:4px 8px;">
                 <input type="password" id="${pwdId}" value="${s.senha.replace(/"/g, '&quot;')}" readonly style="border:none; background:transparent; width:100%; outline:none; font-family:monospace; color:#334155; pointer-events:none;">
-                <button type="button" onclick="togglePasswordVisibility('${pwdId}', 'icon-${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Mostrar/Ocultar">
+                <button type="button" onclick="togglePasswordVisibilityAdm('${pwdId}', 'icon-${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Mostrar/Ocultar">
                     <i class="ph ph-eye" id="icon-${pwdId}"></i>
                 </button>
-                <button type="button" onclick="copiarSenha('${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Copiar Senha">
+                <button type="button" onclick="copiarSenhaAdm('${pwdId}')" style="background:none; border:none; cursor:pointer; color:#64748b; display:flex; align-items:center;" title="Copiar Senha">
                     <i class="ph ph-copy"></i>
                 </button>
             </div>
@@ -205,7 +205,7 @@ function renderSenhasAdm() {
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                     <button class="btn-action btn-sm" style="color:#228be6; background:#e7f5ff; border:none;" onclick='abrirModalEditarSenha(${s.id})' title="Editar"><i class="ph ph-pencil"></i></button>
-                    <button class="btn-action btn-sm" style="color:#ef4444; background:#fee2e2; border:none;" onclick="excluirSenha(${s.id})" title="Excluir"><i class="ph ph-trash"></i></button>
+                    <button class="btn-action btn-sm" style="color:#ef4444; background:#fee2e2; border:none;" onclick="excluirSenhaAdm(${s.id})" title="Excluir"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
         `;
@@ -288,7 +288,7 @@ async function salvarSenhaAdministrativo(e) {
     }
 }
 
-function excluirSenha(id) {
+function excluirSenhaAdm(id) {
     Swal.fire({
         title: 'Excluir Senha?',
         text: "Essa ação não pode ser desfeita.",
@@ -315,7 +315,7 @@ function excluirSenha(id) {
     });
 }
 
-function togglePasswordVisibility(inputId, iconId) {
+function togglePasswordVisibilityAdm(inputId, iconId) {
     const input = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
     if (!input || !icon) return;
@@ -329,7 +329,7 @@ function togglePasswordVisibility(inputId, iconId) {
     }
 }
 
-function copiarSenha(inputId) {
+function copiarSenhaAdm(inputId) {
     const input = document.getElementById(inputId);
     if (!input) return;
     
@@ -379,7 +379,7 @@ function setSenhaTab(tipo) {
     renderSenhasAdm();
 }
 
-function carregarColaboradoresParaSenhas() {
+function carregarColaboradoresParaSenhasAdm() {
     fetch('/api/colaboradores', {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('erp_token') }
     })
@@ -397,11 +397,11 @@ function carregarColaboradoresParaSenhas() {
     .catch(console.error);
 }
 
-function _injetarModalHistoricoSenhas() {
-    if (document.getElementById('modal-historico-senhas')) return;
+function _injetarModalHistoricoSenhasAdm() {
+    if (document.getElementById('adm-modal-historico-senhas')) return;
 
     const modal = document.createElement('div');
-    modal.id = 'modal-historico-senhas';
+    modal.id = 'adm-modal-historico-senhas';
     modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.75); z-index:99999; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto;';
     modal.innerHTML = `
         <div style="background:#fff; border-radius:14px; width:100%; max-width:900px; box-shadow:0 25px 80px rgba(0,0,0,0.35); display:flex; flex-direction:column; max-height:90vh;">
@@ -415,10 +415,10 @@ function _injetarModalHistoricoSenhas() {
                         <p id="hist-senhas-subtitle" style="margin:0; color:#94a3b8; font-size:0.75rem;">Últimas 200 operações registradas</p>
                     </div>
                 </div>
-                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+                <button onclick="document.getElementById('adm-modal-historico-senhas').style.display='none'" style="background:rgba(255,255,255,0.1);border:none;color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;">&times;</button>
             </div>
             <div style="padding:0.75rem 1.5rem; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:0.75rem; flex-shrink:0;">
-                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhas()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
+                <input type="text" id="hist-senhas-filtro" placeholder="🔍 Filtrar por usuário, serviço ou ação..." oninput="_filtrarHistoricoSenhasAdm()" style="flex:1; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:8px; font-size:0.87rem; outline:none;">
             </div>
             <div style="overflow-y:auto; flex:1;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.84rem;">
@@ -439,7 +439,7 @@ function _injetarModalHistoricoSenhas() {
                 </table>
             </div>
             <div style="padding:0.75rem 1.5rem; background:#f8fafc; border-top:1px solid #e2e8f0; border-radius:0 0 14px 14px; display:flex; justify-content:flex-end; flex-shrink:0;">
-                <button onclick="document.getElementById('modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
+                <button onclick="document.getElementById('adm-modal-historico-senhas').style.display='none'" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.5rem;font-weight:600;cursor:pointer;">Fechar</button>
             </div>
         </div>
     `;
@@ -449,8 +449,8 @@ function _injetarModalHistoricoSenhas() {
 let _histSenhasAdmData = [];
 
 window.abrirHistoricoSenhas = async function() {
-    _injetarModalHistoricoSenhas();
-    const modal = document.getElementById('modal-historico-senhas');
+    _injetarModalHistoricoSenhasAdm();
+    const modal = document.getElementById('adm-modal-historico-senhas');
     modal.style.display = 'flex';
 
     const tbody = document.getElementById('hist-senhas-tbody');
@@ -464,25 +464,25 @@ window.abrirHistoricoSenhas = async function() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao carregar histórico');
         _histSenhasAdmData = data;
-        _renderHistoricoSenhas(data);
+        _renderHistoricoSenhasAdm(data);
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444;">Erro ao carregar: ${e.message}</td></tr>`;
     }
 };
 
-function _filtrarHistoricoSenhas() {
+function _filtrarHistoricoSenhasAdm() {
     const q = (document.getElementById('hist-senhas-filtro')?.value || '').toLowerCase().trim();
-    if (!q) { _renderHistoricoSenhas(_histSenhasAdmData); return; }
+    if (!q) { _renderHistoricoSenhasAdm(_histSenhasAdmData); return; }
     const filtrado = _histSenhasAdmData.filter(r =>
         (r.usuario_nome||'').toLowerCase().includes(q) ||
         (r.acao||'').toLowerCase().includes(q) ||
         (r.senha_servico||r.campo_alterado||'').toLowerCase().includes(q) ||
         (r.senha_nome||'').toLowerCase().includes(q)
     );
-    _renderHistoricoSenhas(filtrado);
+    _renderHistoricoSenhasAdm(filtrado);
 }
 
-function _renderHistoricoSenhas(rows) {
+function _renderHistoricoSenhasAdm(rows) {
     const tbody = document.getElementById('hist-senhas-tbody');
     if (!tbody) return;
 
