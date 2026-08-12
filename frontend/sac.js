@@ -397,10 +397,11 @@
 
     // Label: positive hours remaining or negative hours overdue
     let label;
+    const sign = isOverdue ? '-' : '';
     if (isFrozen) {
-      label = `🔒 ${fmtHM(remainMs)}`;
-    } else if (isWeekendPause && !isOverdue) {
-      label = `❄️ ${fmtHM(remainMs)}`;
+      label = `🔒 ${sign}${fmtHM(remainMs)}`;
+    } else if (isWeekendPause) {
+      label = `❄️ ${sign}${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
