@@ -2606,7 +2606,7 @@
               await updateTicket(t);
               if (textInput) textInput.value = '';
               showToast('Justificativa registrada com sucesso.', 'success');
-              SAC.openDetail(t.id);
+              setTimeout(() => { SAC.closeModal(); }, 100);
               return;
           } else {
               isHandled = true;
