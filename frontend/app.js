@@ -20028,7 +20028,7 @@ window.renderEnvioContabilidadeLog = function () {
     if (anexosEl && colab.admissao_contabil_anexos) {
         const lista = colab.admissao_contabil_anexos.split(',').map(s => s.trim()).filter(Boolean);
         if (lista.length > 0) {
-            anexosEl.innerHTML = lista.map(a => `<li>­ƒôä ${a}</li>`).join('');
+            anexosEl.innerHTML = lista.map(a => `<li><i class="ph ph-paperclip" style="margin-right:4px;"></i> ${a}</li>`).join('');
         } else {
             anexosEl.innerHTML = '<li style="color:#94a3b8">Nenhum anexo registrado</li>';
         }
