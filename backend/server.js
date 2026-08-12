@@ -29257,7 +29257,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
 
                 for (const u of users) {
                     const msg = `Novo chamado SAC registrado: Nº ${t.protocol}`;
-                    const dadosStr = JSON.stringify({ protocolo: t.protocol, id: t.id });
+                    const dadosStr = JSON.stringify({ protocolo: t.protocol, id: t.id, clientName: t.clientName });
                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [u.usuario_id, 'novo_sac', msg, dadosStr]);
 
                     if (!u.dest_email || !u.dest_email.includes('@')) continue;
