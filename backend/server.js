@@ -29473,10 +29473,10 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
     const sectorName = sectorLabels[setor] || setor || 'SAC';
     const systemUrl = 'https://sistema-america.onrender.com/';
 
-    // Busca usuário + email para notificar
+    // Busca usuário + email + departamento para notificar
     db.get(`
         SELECT u.id, u.nome, u.username, u.email as uemail,
-               c.email_corporativo as ec, c.email as ce
+               c.email_corporativo as ec, c.email as ce, c.departamento
         FROM usuarios u
         LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
         WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(?)) AND u.ativo = 1
@@ -29484,14 +29484,13 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
     `, [assignedUsername], async (err, user) => {
         if (err) { console.error('[SAC notif] Erro:', err.message); return res.status(500).json({ error: err.message }); }
 
-        // 1. Notificação interna (popup/sino)
+        // --- 1. Notificação para o colaborador atribuído ---
         const msgNotif = `Você foi atribuído ao chamado <strong>Nº ${protocol}</strong> — ${clientName} (${sectorName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
         if (user) {
             db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
                 [user.id, 'sac_atribuicao', msgNotif, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName })]);
         }
 
-        // 2. E-mail
         const emailDest = (user && (user.ec || user.ce || user.uemail || '').includes('@'))
             ? (user.ec || user.ce || user.uemail)
             : null;
@@ -29530,6 +29529,60 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
             }
         } else {
             console.warn(`[SAC notif] Nenhum e-mail encontrado para usuário "${assignedUsername}"`);
+        }
+
+        // --- 2. Notificação para o gestor do departamento ---
+        if (user && user.departamento) {
+            db.get(`
+                SELECT u.id, u.nome, u.email as uemail, c.email_corporativo as ec, c.email as ce
+                FROM departamentos d
+                JOIN colaboradores gestor_c ON gestor_c.id = d.responsavel_id
+                JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(gestor_c.nome_completo))
+                WHERE LOWER(TRIM(d.nome)) = LOWER(TRIM(?)) AND u.ativo = 1
+                LIMIT 1
+            `, [user.departamento], async (errG, gestor) => {
+                if (!errG && gestor && gestor.id !== user.id) {
+                    const msgNotifGestor = `O colaborador <strong>${user.nome || assignedUsername}</strong> foi atribuído ao chamado SAC <strong>Nº ${protocol}</strong> (${clientName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+                    
+                    db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                        [gestor.id, 'sac_atribuicao_gestor', msgNotifGestor, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName, assignedTo: user.nome || assignedUsername })]);
+
+                    const emailGestor = (gestor.ec || gestor.ce || gestor.uemail || '').includes('@') ? (gestor.ec || gestor.ce || gestor.uemail) : null;
+                    if (emailGestor) {
+                        try {
+                            await sendMailHelper({
+                                to: emailGestor,
+                                subject: `🔔 SAC — Novo chamado atribuído para ${user.nome || assignedUsername}: Nº ${protocol}`,
+                                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                    <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                        <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                    </div>
+                                    <div style="padding:24px;">
+                                        <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+                                            <span style="color:#fff;font-size:1.3rem;font-weight:800;">🔔 Chamado Atribuído à sua Equipe</span>
+                                        </div>
+                                        <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${gestor.nome}</strong>!</p>
+                                        <p>Um chamado de SAC foi atribuído ao colaborador <strong>${user.nome || assignedUsername}</strong> do seu departamento.</p>
+                                        <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
+                                            <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                                            <p style="margin:4px 0;"><strong>Cliente:</strong> ${(clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim()}</p>
+                                            <p style="margin:4px 0;"><strong>Setor:</strong> ${sectorName}</p>
+                                        </div>
+                                        <div style="text-align:center;margin-top:20px;">
+                                            <a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a>
+                                        </div>
+                                        <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+                                    </div>
+                                </div>`,
+                                attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                            });
+                            console.log(`[SAC notif] E-mail de atribuição (cópia gestor) enviado para ${emailGestor}`);
+                        } catch (mailErr) {
+                            console.error('[SAC notif] Erro ao enviar e-mail para gestor:', mailErr.message);
+                        }
+                    }
+                }
+            });
         }
 
         res.json({ success: true });
