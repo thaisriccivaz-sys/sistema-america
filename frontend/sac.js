@@ -778,15 +778,9 @@
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
       </div>
       ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
-<<<<<<< Updated upstream
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:100%;box-sizing:border-box;max-width:100%;overflow:hidden;">
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;flex-shrink:0;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
         <span style="font-size:0.7rem;color:#475569;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${assignedUser}">${assignedUser.length > 20 ? assignedUser.substring(0, 20) + '...' : assignedUser}</span>
-=======
-      ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:fit-content;max-width:100%;">
-        <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;background:#cbd5e1;flex-shrink:0;" onerror="this.style.display='none'">
-        <span style="font-size:0.7rem;color:#475569;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${assignedUser}">${assignedUserShort}</span>
->>>>>>> Stashed changes
       </div>` : ''}
       ${showCL ? `<div style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-bottom:4px;">
         <i class="ph ph-check-square" style="color:#15803d;"></i>

@@ -14136,6 +14136,10 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 db.all('SELECT * FROM dependentes WHERE colaborador_id = ?', [id], (e, r) => resolve(r || []))
             );
             row.dependentes = deps;
+            const anexosParaEnviar = [];
+            const anexosExcedentesLinks = [];
+            let totalSize = 0;
+            const MAX_SIZE = 14 * 1024 * 1024; // 14 MB (margem segura para limite de 20MB devido ao Base64)
 
             const dtObj = new Date(data_inicio + 'T12:00:00');
             const dtFormated = dtObj.toLocaleDateString('pt-BR');
@@ -14151,8 +14155,6 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 return dt.includes('ficha') || dt.includes('admissão') || dt.includes('admissao');
             });
 
-            const anexosParaEnviar = [];
-
             // Add generated Ficha ONLY if none exists in DB
             if (!hasFichaInDb) {
                 const htmlPdf = require('html-pdf-node');
@@ -14166,6 +14168,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                     filename: `Ficha Admissional - ${nomeSeguro}.pdf`,
                     content: pdfBuffer
                 });
+                totalSize += pdfBuffer.length;
             }
 
             // Iterate docs to rename them uniformly, always favor signed version
@@ -14230,10 +14233,28 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                         console.warn(`[CONTABILIDADE] ASO sem assinatura sendo usado para ${row.nome_completo}.`);
                     }
 
-                    anexosParaEnviar.push({
-                        filename: safeName,
-                        content: pdfAttachmentBuffer
-                    });
+                    if (totalSize + pdfAttachmentBuffer.length <= MAX_SIZE) {
+                        anexosParaEnviar.push({
+                            filename: safeName,
+                            content: pdfAttachmentBuffer
+                        });
+                        totalSize += pdfAttachmentBuffer.length;
+                    } else {
+                        // Documento excede o limite, gerar link
+                        let linkUrl = '';
+                        const publicR2 = process.env.R2_PUBLIC_URL;
+                        if (r2Key && publicR2) {
+                            linkUrl = `${publicR2}/${r2Key.split('/').map(encodeURIComponent).join('/')}`;
+                        } else {
+                            const activeFilePath = doc.signed_file_path || doc.file_path || '';
+                            if (activeFilePath.startsWith('http')) {
+                                linkUrl = activeFilePath;
+                            }
+                        }
+                        if (linkUrl) {
+                            anexosExcedentesLinks.push({ nome: safeName, url: linkUrl });
+                        }
+                    }
                 }
             }
 
@@ -14246,12 +14267,21 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                 </div>
                 <div style="padding:30px;">
                     <p style="font-size:1.1rem;margin-top:0;"><strong>Olá, Contabilidade!</strong></p>
-                    <p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro cont??bil admissional do colaborador abaixo.</p>
+                    <p>Segue em anexo a Ficha de Admissão e todos os documentos necessários recolhidos para o cadastro contábil admissional do colaborador abaixo.</p>
                     <div style="background:#f8fafc;border-left:4px solid #f503c5;padding:15px;margin:20px 0;border-radius:0 8px 8px 0;">
                         <p style="margin:0 0 5px 0;"><strong>Colaborador(a):</strong> ${row.nome_completo || row.nome}</p>
                         <p style="margin:0 0 5px 0;"><strong>Função / Cargo:</strong> ${row.cargo || 'Não informado'}</p>
                         <p style="margin:0;"><strong>Data de Início Solicitada:</strong> ${dtFormated}</p>
                     </div>
+                    ${anexosExcedentesLinks.length > 0 ? `
+                    <div style="background:#fff7ed;border:1px solid #fed7aa;padding:15px;margin:20px 0;border-radius:8px;">
+                        <p style="margin:0 0 10px 0;color:#c2410c;font-weight:700;">⚠️ Alguns documentos excederam o limite de tamanho do e-mail (20MB) e não puderam ser anexados diretamente.</p>
+                        <p style="margin:0 0 10px 0;">Você pode baixá-los de forma segura através dos links abaixo:</p>
+                        <ul style="margin:0;padding-left:20px;font-size:0.95rem;">
+                            ${anexosExcedentesLinks.map(a => `<li style="margin-bottom:8px;"><a href="${a.url}" target="_blank" style="color:#0ea5e9;text-decoration:none;"><strong>${a.nome}</strong></a></li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
                     <p>Por favor, providenciar os registros cabíveis e retorno dos documentos em caso de pendências.</p>
                     <hr style="border:none;border-top:1px solid #e2e8f0;margin:30px 0;">
                     <p style="margin:0;font-size:0.9rem;color:#64748b;">Atenciosamente,<br><strong>RH - América Rental</strong></p>
