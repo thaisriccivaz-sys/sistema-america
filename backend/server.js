@@ -29513,7 +29513,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                             <p>Você foi atribuído a um chamado de SAC. Acesse o sistema para verificar os detalhes e responder o mais breve possível.</p>
                             <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
                                 <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                                <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                                <p style="margin:4px 0;"><strong>Cliente:</strong> ${(clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim()}</p>
                                 <p style="margin:4px 0;"><strong>Setor:</strong> ${sectorName}</p>
                             </div>
                             <div style="text-align:center;margin-top:20px;">
@@ -29780,15 +29780,15 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
     const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
         <div style="padding:24px;">
-            <div style="background:#f97316;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">⚠️ Prazo de Acompanhamento Vencido</span></div>
+            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;"><span style="color:#fff;font-size:1.3rem;font-weight:800;">🚨 Tempo de Acompanhamento Estourado</span></div>
             <p style="font-size:1rem;color:#1e293b;">O prazo de acompanhamento de um chamado SAC <strong>venceu sem conclusão</strong>.</p>
-            <div style="background:#fff7ed;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f97316;">
+            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
                 <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                <p style="margin:4px 0;"><strong>Cliente:</strong> ${(clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim()}</p>
                 <p style="margin:4px 0;"><strong>Prazo Programado:</strong> ${prazoFmt}</p>
             </div>
             <p>O sistema aguarda o preenchimento do motivo e devolução do chamado para a Triagem.</p>
-            <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#f97316;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
+            <div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a></div>
             <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
         </div>
     </div>`;
@@ -29840,7 +29840,7 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
                 <p style="font-size:1rem;color:#1e293b;">Um chamado SAC <strong>ultrapassou o prazo de SLA</strong> e não foi concluído a tempo.</p>
                 <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
                     <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                    <p style="margin:4px 0;"><strong>Cliente:</strong> ${clientName}</p>
+                    <p style="margin:4px 0;"><strong>Cliente:</strong> ${(clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim()}</p>
                     <p style="margin:4px 0;"><strong>Aberto em:</strong> ${abertoFmt}</p>
                 </div>
                 <p>O chamado foi marcado como <strong>URGENTE</strong> automaticamente. Acesse o sistema para verificar e justificar o atraso.</p>
