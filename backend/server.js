@@ -29829,7 +29829,7 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
     const systemUrl = 'https://sistema-america.onrender.com/';
     const prazoFmt = followUpDeadline ? new Date(followUpDeadline).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 
-    const subject = `⚠️ SAC — Prazo de Acompanhamento Vencido: Nº ${protocol}`;
+    const subject = `🚨 SAC — Tempo de Acompanhamento Estourado: Nº ${protocol}`;
     const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
         <div style="padding:24px;">
