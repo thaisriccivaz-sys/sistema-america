@@ -14142,7 +14142,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
             // Find existing docs in DB
             const docsDb = await new Promise(resolve => {
-                db.all("SELECT * FROM documentos WHERE colaborador_id = ? AND tab_name IN ('01_FICHA_CADASTRAL', 'ASO')", [id], (err, rows) => resolve(rows || []));
+                db.all("SELECT * FROM documentos WHERE colaborador_id = ? AND tab_name IN ('01_FICHA_CADASTRAL', 'ASO', 'CONTRATOS', 'CONTRATOS_AVULSOS')", [id], (err, rows) => resolve(rows || []));
             });
 
             // Check if there is already a Ficha in the database attachments
@@ -14161,8 +14161,9 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
                     { content: html },
                     { format: 'A4', margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' }, printBackground: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
                 );
+                let nomeSeguro = (row.nome_completo || row.nome || 'Colaborador').replace(/[^\w\s\u00C0-\u00FF-]/g, '').trim();
                 anexosParaEnviar.push({
-                    filename: `Ficha Admissional - ${row.nome_completo || row.nome || 'Colaborador'}.pdf`,
+                    filename: `Ficha Admissional - ${nomeSeguro}.pdf`,
                     content: pdfBuffer
                 });
             }
@@ -14171,34 +14172,67 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
             for (const doc of docsDb) {
                 const fs = require('fs');
                 const path = require('path');
+                const r2Utils = require('./utils/r2');
 
                 // For ASO docs: signed = assinado por ambos (empresa + colaborador)
-                // Priority: signed_file_path > file_path
-                let localPath = null;
+                // Priority: signed_r2_key > r2_key > signed_file_path > file_path
                 let isSigned = false;
+                let pdfAttachmentBuffer = null;
+                
+                const r2Key = doc.signed_r2_key || doc.r2_key;
+                if (doc.signed_r2_key || doc.signed_file_path) isSigned = true;
 
-                if (doc.signed_file_path && fs.existsSync(doc.signed_file_path)) {
-                    localPath = doc.signed_file_path;
-                    isSigned = true;
-                } else if (doc.file_path && fs.existsSync(doc.file_path)) {
-                    localPath = doc.file_path;
-                    isSigned = false;
+                if (r2Key && r2Utils.isReady()) {
+                    try {
+                        const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                        if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                            pdfAttachmentBuffer = Buffer.from(await fileData.stream.transformToByteArray());
+                        } else {
+                            const chunks = [];
+                            for await (let chunk of fileData.stream) chunks.push(chunk);
+                            pdfAttachmentBuffer = Buffer.concat(chunks);
+                        }
+                    } catch (err) {
+                        console.warn('[CONTABILIDADE] Falha ao baixar doc do R2:', err.message);
+                    }
                 }
 
-                if (localPath) {
-                    const ext = path.extname(localPath) || '.pdf';
-                    let baseType = (doc.document_type || 'Documento').replace(/[^a-zA-Z0-9 ????????????????????????????????-]/g, '').trim();
-                    // For ASO, annotate if it's the signed version
+                if (!pdfAttachmentBuffer) {
+                    const activeFilePath = doc.signed_file_path || doc.file_path || '';
+                    if (activeFilePath && fs.existsSync(activeFilePath) && fs.statSync(activeFilePath).isFile()) {
+                        pdfAttachmentBuffer = fs.readFileSync(activeFilePath);
+                    } else if (activeFilePath.startsWith('http')) {
+                        try {
+                            const resp = await fetch(activeFilePath);
+                            if (resp.ok) {
+                                const arrBuffer = await resp.arrayBuffer();
+                                pdfAttachmentBuffer = Buffer.from(arrBuffer);
+                            }
+                        } catch(e) {
+                            console.warn('[CONTABILIDADE] Falha ao baixar doc via URL:', e.message);
+                        }
+                    }
+                }
+
+                if (pdfAttachmentBuffer) {
+                    let ext = '.pdf';
+                    if (doc.file_name) ext = path.extname(doc.file_name) || '.pdf';
+                    
+                    // Remover emojis e caracteres estranhos
+                    let baseType = (doc.document_type || 'Documento').replace(/[^\w\s\u00C0-\u00FF-]/g, '').trim();
+                    if (!baseType) baseType = 'Documento';
+
                     let signedTag = (doc.tab_name === 'ASO' && isSigned) ? ' (Assinado)' : '';
-                    let safeName = `${baseType}${signedTag} - ${row.nome_completo || row.nome}${ext}`;
+                    let nomeSeguro = (row.nome_completo || row.nome || '').replace(/[^\w\s\u00C0-\u00FF-]/g, '').trim();
+                    let safeName = `${baseType}${signedTag} - ${nomeSeguro}${ext}`;
 
                     if (doc.tab_name === 'ASO' && !isSigned) {
-                        console.warn(`[CONTABILIDADE] ASO sem assinatura sendo usado para ${row.nome_completo}. Signed path: ${doc.signed_file_path || 'N/A'}`);
+                        console.warn(`[CONTABILIDADE] ASO sem assinatura sendo usado para ${row.nome_completo}.`);
                     }
 
                     anexosParaEnviar.push({
                         filename: safeName,
-                        path: localPath
+                        content: pdfAttachmentBuffer
                     });
                 }
             }
