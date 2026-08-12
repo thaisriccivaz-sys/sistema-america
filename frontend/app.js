@@ -15113,11 +15113,14 @@ async function checkUserNotificacoes() {
                     }
                 }
 
+                const hasEmojiIcon = ['sac_atribuicao', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
+
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
+                        ${!hasEmojiIcon ? `
                         <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:${color};">
                             <i class="ph ${icon}"></i>
-                        </div>
+                        </div>` : ''}
                         <div style="flex:1;">
                             ${contentHTML}
                             <div style="display:flex;gap:8px;margin-top:12px;">
