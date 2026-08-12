@@ -15112,7 +15112,7 @@ async function checkUserNotificacoes() {
 
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia') {
+                if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && !notif.tipo.includes('sac')) {
                     setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
                 }
             } catch (parseErr) { }
