@@ -3326,6 +3326,10 @@
         // Demais (assignedTo, admins, canSeeAll) podem fechar com X
         const mustJustify = (isGestorByTicket || isGestorByDept) && !isPopupCloser;
         localStorage.setItem('sac_popup_gestor_required_' + ticket.id, mustJustify ? '1' : '0');
+        localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
+        if (mustJustify) {
+            SAC.openDetail(ticket.id);
+        }
       }
     } else {
       const permsNow = window.activeUserPerms || {};
@@ -3335,11 +3339,14 @@
       if (!canSeeAllNow) return;
 
       const isPopupCloser = POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase());
-      localStorage.setItem('sac_popup_gestor_required_' + ticket.id, isPopupCloser ? '0' : '1');
+      const mustJustify = !isPopupCloser;
+      localStorage.setItem('sac_popup_gestor_required_' + ticket.id, mustJustify ? '1' : '0');
+      localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
+      
+      if (mustJustify) {
+          SAC.openDetail(ticket.id);
+      }
     }
-
-    localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
-    SAC.openDetail(ticket.id);
   }
 
   // ══════════════════════════════════════════════════════
