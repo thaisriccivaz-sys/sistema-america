@@ -29781,7 +29781,7 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
 
 // ── POST /api/sac/notificar-sla-vencido ───────────────────────────────────────
 // Notifica usuários configurados quando o SLA de um chamado estourar
-app.post('/api/sac/notificar-sla-vencido', authenticateToken, (req, res) => {
+app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) => {
     const { ticketId, protocol, clientName, openDate, typeKey } = req.body;
     if (!protocol) return res.status(400).json({ error: 'protocol obrigatório' });
     if (!ticketId) return res.status(400).json({ error: 'ticketId obrigatório' });
