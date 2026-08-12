@@ -14902,11 +14902,13 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'computador_controle') {
                     bg = '#fff3e6'; color = '#e67700'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
                 } else if (notif.tipo === 'sac_atribuicao') {
-                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = 'Novo Chamado do SAC'; navTarget = 'sac';
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = '📢 Novo Chamado do SAC'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
-                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = 'Novo SAC aberto'; navTarget = 'sac';
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = '📢 Novo SAC aberto'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_sla_vencido') {
-                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clock-countdown'; titulo = 'SAC com SLA vencido'; navTarget = 'sac';
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clock-countdown'; titulo = '🔴 SAC com SLA vencido'; navTarget = 'sac';
+                } else if (notif.tipo === 'sac_acompanhamento_vencido') {
+                    bg = '#fffbeb'; color = '#d97706'; icon = 'ph-warning'; titulo = '⚠️ Tempo de resposta estourado'; navTarget = 'sac';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -15048,7 +15050,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#64748b;font-size:0.85rem;">Novo participante no programa de Celular Corporativo.</div>
                     `;
                 } else if (notif.tipo === 'sac_sla_vencido') {
-                    const clName = dados.clientName || 'Cliente';
+                    const clName = (dados.clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
@@ -15057,6 +15059,17 @@ async function checkUserNotificacoes() {
                             ${clName}
                         </div>
                         <div style="color:#64748b;font-size:0.85rem;">SLA estourado no chamado <b>Nº ${dados.protocol || '---'}</b>. Marcado como urgente.</div>
+                    `;
+                } else if (notif.tipo === 'sac_acompanhamento_vencido') {
+                    const clName = (dados.clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">
+                            ${clName}
+                        </div>
+                        <div style="color:#64748b;font-size:0.85rem;">Tempo de resposta estourado no chamado <b>Nº ${dados.protocol || '---'}</b>.</div>
                     `;
                 } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
                     const clName = (dados.clientName || dados.client || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
