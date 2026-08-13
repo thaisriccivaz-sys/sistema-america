@@ -2047,13 +2047,25 @@
         `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluído</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
         <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
         (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
-        `<div class="sac-field"><label>${pt.targetStageId === 'concluido' ? 'Informações de conclusão' : 'Próximos Passos'} <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
-        ${pt.targetStageId === 'concluido' ? `<div class="sac-field" style="margin-top:8px;"><label>Tipos de Ocorrência por Chamado</label><div style="font-size:0.8rem;color:#64748b;margin-bottom:6px;">Pressione Ctrl (ou Cmd no Mac) para selecionar mais de uma opção</div><select id="trans-occurrences" multiple style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;min-height:90px;outline:none;">${(window._sacOccurrencesRaw||[]).filter(o=>o.type_key===(ticket?ticket.typeKey:'')).map(o=>`<option value="${o.description}" ${((ticket?ticket.occurrences:null)||[]).some(tOcc=>tOcc.name===o.description)?'selected':''}>${o.description}</option>`).join('')}</select></div>` : ''}
-        ${pt.targetStageId === 'execucao' ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#c2410c;font-weight:700;display:block;margin-bottom:6px;"><i class=\'ph ph-calendar-check\'></i> Data/Hora Limite do Acompanhamento <span style=\'color:#dc2626\'>*</span></label><input type="datetime-local" id="trans-followup-deadline" style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.9rem;box-sizing:border-box;" min="' + new Date().toISOString().slice(0,16) + '"></div>' : ''}
+        (pt.targetStageId === 'concluido' ? 
+          `<div class="sac-field" style="margin-bottom:0;"><label>Ocorrências <span style="color:#dc2626">*</span></label></div>
+           <div id="trans-concluido-occs"></div>
+           <button onclick="SAC.addTransOccRow()" style="background:#f1f5f9;color:#334155;border:1px dashed #cbd5e1;padding:8px;border-radius:6px;cursor:pointer;width:100%;font-size:0.85rem;font-weight:600;margin-top:8px;">+ Adicionar Ocorrência</button>
+           <textarea id="trans-next" style="display:none;"></textarea>` 
+          :
+          `<div class="sac-field"><label>Próximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`
+        ) +
+        `${pt.targetStageId === 'execucao' ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#c2410c;font-weight:700;display:block;margin-bottom:6px;"><i class=\'ph ph-calendar-check\'></i> Data/Hora Limite do Acompanhamento <span style=\'color:#dc2626\'>*</span></label><input type="datetime-local" id="trans-followup-deadline" style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.9rem;box-sizing:border-box;" min="' + new Date().toISOString().slice(0,16) + '"></div>' : ''}
         <textarea id="trans-obs" style="display:none;"></textarea>`) +
       `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
       </div>`;
     if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
+    if (pt.targetStageId === 'concluido') {
+        window._transOccsState = (ticket && ticket.occurrences && ticket.occurrences.length > 0) 
+            ? JSON.parse(JSON.stringify(ticket.occurrences))
+            : [{ name: '', note: '' }];
+        setTimeout(() => SAC.renderTransOccsRows(), 0);
+    }
   }
 
   // ── PERMISSIONS ───────────────────────────────────────────────
@@ -2249,6 +2261,50 @@
 
   // ── AÇÕES PÚBLICO ─────────────────────────────────────────────
   const SAC = window.SAC = {
+    renderTransOccsRows() {
+      const container = document.getElementById('trans-concluido-occs');
+      if (!container) return;
+      
+      const pt = _pendingTransition;
+      const ticket = _tickets.find(t => t.id === pt.ticketId);
+      const typeKey = ticket ? ticket.typeKey : '';
+      const opts = (window._sacOccurrencesRaw||[]).filter(o => o.type_key === typeKey);
+      
+      const state = window._transOccsState || [];
+      
+      let html = '';
+      state.forEach((item, idx) => {
+        const selOpts = opts.map(o => `<option value="${o.description}" ${o.description === item.name ? 'selected' : ''}>${o.description}</option>`).join('');
+        html += `
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;position:relative;">
+            ${state.length > 1 ? `<button onclick="SAC.removeTransOccRow(${idx})" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ef4444;cursor:pointer;"><i class="ph ph-trash"></i></button>` : ''}
+            <div style="margin-bottom:8px;">
+              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Ocorrência <span style="color:#dc2626">*</span></label>
+              <select onchange="window._transOccsState[${idx}].name=this.value" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;outline:none;">
+                <option value="">Selecione...</option>
+                ${selOpts}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Informações de conclusão <span style="color:#dc2626">*</span></label>
+              <textarea onchange="window._transOccsState[${idx}].note=this.value" rows="2" placeholder="Descreva os próximos passos ou resolução..." style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;resize:vertical;outline:none;">${item.note}</textarea>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    },
+    addTransOccRow() {
+      window._transOccsState = window._transOccsState || [];
+      window._transOccsState.push({ name: '', note: '' });
+      SAC.renderTransOccsRows();
+    },
+    removeTransOccRow(idx) {
+      if (window._transOccsState && window._transOccsState.length > 1) {
+        window._transOccsState.splice(idx, 1);
+        SAC.renderTransOccsRows();
+      }
+    },
     async refreshData() {
       const btn = document.querySelector('button[onclick="SAC.refreshData()"]');
       if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
@@ -2935,16 +2991,22 @@
       let closeReason= document.getElementById('trans-closing-reason')?.value || 'Concluído';
       let clJust     = (document.getElementById('trans-cl-just')?.value||'').trim();
 
+      if (pt.targetStageId === 'concluido') {
+        const state = window._transOccsState || [];
+        const missing = state.some(o => !o.name || !o.note || !o.note.trim());
+        if (missing) {
+          showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
+          return;
+        }
+        nextSteps = state.map(o => `[${o.name}] ${o.note.trim()}`).join('\\n');
+      }
+
       if (isClosing) {
         if (!obs) { showToast('O resumo de encerramento é obrigatório.','warning'); return; }
         if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
         if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
       } else {
-        if (!nextSteps) { 
-          const label = pt.targetStageId === 'concluido' ? 'As informações de conclusão são obrigatórias' : 'Os próximos passos são obrigatórios';
-          showToast(label + '.','warning'); 
-          return; 
-        }
+        if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
 
       // Build logNotes — for execucao (Acompanhamento), put SLA info before Próximos passos
@@ -2994,16 +3056,11 @@
       if (!ticket.comments) ticket.comments = [];
 
       if (pt.targetStageId === 'concluido') {
-        const selOcc = document.getElementById('trans-occurrences');
-        if (selOcc) {
-          const selected = Array.from(selOcc.selectedOptions).map(opt => opt.value);
-          if (!ticket.occurrences) ticket.occurrences = [];
-          selected.forEach(val => {
-            if (!ticket.occurrences.some(o => o.name === val)) {
-              ticket.occurrences.push({ name: val, note: '', images: [] });
-            }
-          });
-        }
+        const state = window._transOccsState || [];
+        ticket.occurrences = state.map(s => {
+           const exist = (ticket.occurrences||[]).find(o => o.name === s.name);
+           return { name: s.name, note: s.note.trim(), images: exist ? exist.images : [] };
+        });
       }
 
       if (isAguard) {
