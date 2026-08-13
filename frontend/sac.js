@@ -501,7 +501,8 @@
             // Não recarregar se houve um save nos últimos 30 segundos (anti race-condition)
             const secsSinceLastSave = (Date.now() - (window._sacLastSaveMs || 0)) / 1000;
             if (secsSinceLastSave < 30) return;
-            if (!document.querySelector('.sac-modal-overlay')) {
+            const ov = document.getElementById('sac-modal-overlay');
+            if (!ov || ov.style.display === 'none') {
                 await loadTickets();
                 renderAll();
             }
