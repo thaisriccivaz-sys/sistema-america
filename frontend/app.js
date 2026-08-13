@@ -14901,8 +14901,8 @@ async function checkUserNotificacoes() {
                     bg = '#fff5e6'; color = '#e67700'; icon = 'ph-device-mobile'; titulo = 'Celular Corporativo'; navTarget = 'celulares-corporativos';
                 } else if (notif.tipo === 'computador_controle') {
                     bg = '#fff3e6'; color = '#e67700'; icon = 'ph-desktop'; titulo = 'Computador Corporativo'; navTarget = 'computadores-corporativos';
-                } else if (notif.tipo === 'sac_atribuicao') {
-                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = '📢 Novo Chamado do SAC'; navTarget = 'sac';
+                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_atribuicao_gestor') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-headset'; titulo = '✨ SAC Atribuído'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clipboard-text'; titulo = '📢 Novo SAC aberto'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_sla_vencido') {
@@ -14914,8 +14914,10 @@ async function checkUserNotificacoes() {
                 }
 
                 const popup = document.createElement('div');
+                popup.classList.add('custom-user-popup-toast');
+                const offset = 24 + (document.querySelectorAll('.custom-user-popup-toast').length * 150);
                 popup.style.cssText = `
-                    position:fixed; bottom:24px; right:24px; z-index:99999;
+                    position:fixed; bottom:${offset}px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
                     max-width:380px; animation: slideInRight 0.4s ease-out;
@@ -15105,7 +15107,7 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
                 } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac' || notif.tipo === 'sac_atribuicao_gestor') {
-                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); let attempts = 0; let intv = setInterval(() => { if (window.SAC && typeof window.SAC.openDetail === 'function') { window.SAC.openDetail('${dados.id}'); if (document.getElementById('sac-modal-overlay') && document.getElementById('sac-modal-overlay').style.display !== 'none') clearInterval(intv); } if (++attempts > 20) clearInterval(intv); }, 250);`;
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); let attempts = 0; let intv = setInterval(() => { if (window.SAC && typeof window.SAC.openDetail === 'function') { window.SAC.openDetail('${dados.ticketId || dados.id}'); if (document.getElementById('sac-modal-overlay') && document.getElementById('sac-modal-overlay').style.display !== 'none') clearInterval(intv); } if (++attempts > 20) clearInterval(intv); }, 250);`;
                 } else if (notif.tipo === 'sac_sla_vencido') {
                     if (dados.ticketId) {
                         btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('sac'); setTimeout(() => { if(window.SAC && window.SAC.openDetail) window.SAC.openDetail('${dados.ticketId}'); }, 300);`;

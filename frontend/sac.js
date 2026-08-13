@@ -2724,6 +2724,11 @@
 
       updateTicket(t);
       if (textInput) textInput.value = '';
+      
+      // Atualizar o modal para mostrar o novo comentário
+      if (!isHandled) {
+          SAC.openDetail(t.id);
+      }
     },
     completeTask(key) {
       const t = _selectedTicket;
