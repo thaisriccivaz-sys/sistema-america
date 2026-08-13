@@ -29288,7 +29288,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         db.all(getSACUsersQuery, [], async (errQ, users) => {
             if (!errQ && users && users.length > 0) {
                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                const systemUrl = 'https://sistema-america.onrender.com/';
+                const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${t.id}`;
                 const subject = `📢 Novo SAC Registrado: Chamado Nº ${t.protocol}`;
                 
                 const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -29526,7 +29526,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
     const sectorMap = { logisticsTask: 'Logística', commercialTask: 'Comercial', financialTask: 'Financeiro',
                         'Logística': 'Logística', 'Comercial': 'Comercial', 'Financeiro': 'Financeiro' };
     const sectorName = sectorMap[setor] || setor || 'SAC';
-    const systemUrl = 'https://sistema-america.onrender.com/';
+    const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
 
     const cleanClientName = (clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
 
@@ -29631,9 +29631,9 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
 // ── POST /api/sac/notificar-novo-chamado ───────────────────────────────────────────
 // Notifica todos os usuários configurados para 'sac_novo_chamado' sempre que um novo chamado for aberto
 app.post('/api/sac/notificar-novo-chamado', authenticateToken, async (req, res) => {
-    const { protocol, client } = req.body;
+    const { ticketId, protocol, client } = req.body;
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const systemUrl = 'https://sistema-america.onrender.com/';
+    const systemUrl = ticketId ? `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}` : 'https://sistema-america.onrender.com/';
 
     // 1. Notificação interna (popup/sino)
     const msgNotif = `Novo chamado SAC aberto: <strong>Nº ${protocol}</strong> — ${client}. <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
@@ -29865,7 +29865,7 @@ app.post('/api/sac/notificar-acompanhamento', authenticateToken, async (req, res
     if (!ticketExiste) return res.json({ success: false, msg: 'Chamado excluído ou não encontrado.' });
 
     const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-    const systemUrl = 'https://sistema-america.onrender.com/';
+    const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
     const prazoFmt = followUpDeadline ? new Date(followUpDeadline).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 
     const subject = `🚨 SAC — Tempo de Acompanhamento Estourado: Nº ${protocol}`;
@@ -29929,7 +29929,7 @@ app.post('/api/sac/notificar-sla-vencido', authenticateToken, async (req, res) =
         }
 
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-        const systemUrl = 'https://sistema-america.onrender.com/';
+        const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
         const abertoFmt = openDate ? new Date(openDate).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 
         const subject = `🔴 SAC — SLA Estourado: Chamado Nº ${protocol}`;

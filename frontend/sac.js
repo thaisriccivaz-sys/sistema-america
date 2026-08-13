@@ -2348,7 +2348,7 @@
         fetch('/api/sac/notificar-novo-chamado', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ protocol: proto, client: newTicket.clientName })
+            body: JSON.stringify({ ticketId: newTicket.id, protocol: proto, client: newTicket.clientName })
         }).catch(e => console.error(e));
 
         _tickets.unshift(newTicket);

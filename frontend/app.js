@@ -520,6 +520,17 @@ window.navigateInitialPage = function () {
         return;
     }
     
+    const sacTicketId = params.get('sac_ticket_id');
+    if (sacTicketId) {
+        navigateTo('sac');
+        setTimeout(() => {
+            if (window.SAC && typeof window.SAC.openDetail === 'function') {
+                window.SAC.openDetail(sacTicketId);
+            }
+        }, 1000); // 1s wait to let sac.js load and fetch tickets
+        return;
+    }
+    
     const abrirChamados = params.get('abrir_chamados');
     if (abrirChamados) {
         setTimeout(() => {
