@@ -1620,7 +1620,7 @@
 
             <div style="display:none;margin-top:24px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Próximos Passos</div>
-                <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${t.nextSteps||'Nenhum próximo passo registrado.'}</div>
+                <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${(t.nextSteps||'Nenhum próximo passo registrado.').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
             </div>
 
             <div style="margin-top:24px;">
@@ -1801,11 +1801,11 @@
                                 const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
-                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"').replace(/\n/g, '<br>');
+                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
                                 if (formattedNotes.startsWith('Respondido via justificativa')) formattedNotes = '';
                                 // Buscar justificativa associada (comentário 📝 com timestamp próximo)
                                 const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
-                                const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"') : null;
+                                const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') : null;
                                 // Mostrar usuário apenas se não for retorno automático do sistema
                                 const showUser = item.user && !isAutoReturn;
                                 return `<div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
@@ -2998,7 +2998,7 @@
           showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
           return;
         }
-        nextSteps = state.map(o => `${o.name} - ${o.note.trim()}`).join('\n');
+        nextSteps = state.map(o => `**${o.name}** - ${o.note.trim()}`).join('\n');
       }
 
       if (isClosing) {
