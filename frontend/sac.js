@@ -2839,7 +2839,7 @@
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return; }
       const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsiblePhoto, responsibleName };
       t.costCenters = [...(t.costCenters||[]), cc];
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} — ${formatBRL(valor)}`, user:currentUsername() });
+      
       updateTicket(t);
       showToast('Lançamento adicionado!','success');
     },
@@ -2862,14 +2862,19 @@
         const deptKey = normalizeStr(baseSector);
         
         let validUsers = (window._sacUsersList || []).filter(u => {
-            if (!u.ativo) return false;
+            if (u.ativo === false || u.ativo === 0 || u.ativo === '0') return false;
+            if (u.status && u.status.toLowerCase() !== 'ativo') return false;
             const uDept = normalizeStr(u.departamento || '');
-            return uDept.includes(deptKey) || deptKey.includes(uDept);
+            return uDept.includes(deptKey) || deptKey.includes(uDept) || (deptKey === 'motorista' && uDept.includes('motor'));
         });
         
         const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
         if (managerName) {
-            const manager = (window._sacUsersList || []).find(u => (u.nome || '').toLowerCase() === managerName.toLowerCase());
+            const manager = (window._sacUsersList || []).find(u => {
+                const n = (u.nome || '').toLowerCase();
+                const m = managerName.toLowerCase();
+                return n === m || n.includes(m) || m.includes(n);
+            });
             if (manager && !validUsers.some(vu => vu.id === manager.id)) {
                 validUsers.unshift(manager);
             }
@@ -3297,8 +3302,7 @@
         
         let html = `
         <div class="sac-modal sac-animated" style="width:80vw;max-width:80vw;margin:20px auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:24px;" onclick="event.stopPropagation()">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h3 style="margin:0;font-size:1.1rem;color:#1e293b;"><i class="ph ph-currency-dollar"></i> Custos da OS</h3>
+            <div style="position:absolute;top:16px;right:16px;">
                 <button onclick="document.getElementById('sac-custos-overlay').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
             </div>
             
@@ -3325,19 +3329,21 @@
                         <input type="number" id="cc-valor" step="0.01" min="0" placeholder="Ex: 250" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Descrição do Motivo Financeiro</label>
-                    <textarea id="cc-motivo" placeholder="Justificativa da avaria ou perda..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;min-height:60px;font-family:inherit;"></textarea>
-                </div>
-                <div style="display:flex;justify-content:flex-end;align-items:center;">
-                    <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter(); document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal();"><i class="ph ph-plus"></i> Adicionar</button>
+                <div style="display:flex;gap:12px;align-items:flex-end;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Descrição do Motivo Financeiro</label>
+                        <textarea id="cc-motivo" placeholder="Justificativa da avaria ou perda..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;min-height:50px;font-family:inherit;"></textarea>
+                    </div>
+                    <div style="padding-bottom:2px;">
+                        <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter(); document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal();" style="height:50px;padding:0 24px;"><i class="ph ph-plus"></i> Adicionar</button>
+                    </div>
                 </div>
             </div>
 
             <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;">Histórico de Custos</div>
-            <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
+            <div style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1;">
                 ${(t.costCenters||[]).length===0 ? '<div style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:16px;">Nenhum custo lançado.</div>' : 
-                (t.costCenters||[]).map(c => {
+                [...(t.costCenters||[])].reverse().map(c => {
                     const isPositive = c.sector === 'Cliente (Cobrar do Cliente)';
                     const color = isPositive ? '#16a34a' : '#dc2626';
                     const sign = isPositive ? '+' : '-';
