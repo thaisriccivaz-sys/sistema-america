@@ -2865,9 +2865,9 @@
           responsibleName = opt.getAttribute('data-name');
       }
 
-      if (valor<=0) { showToast('Informe um valor maior que zero.','warning'); return false; }
+      if (isNaN(valor) || valor < 0) { showToast('Informe um valor válido (pode ser zero).','warning'); return false; }
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return false; }
-      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsibleName };
+      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsibleName, responsiblePhoto };
       t.costCenters = [...(t.costCenters||[]), cc];
       
       updateTicket(t);
