@@ -2047,7 +2047,8 @@
         `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluído</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
         <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
         (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
-        `<div class="sac-field"><label>Próximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
+        `<div class="sac-field"><label>${pt.targetStageId === 'concluido' ? 'Informações de conclusão' : 'Próximos Passos'} <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>
+        ${pt.targetStageId === 'concluido' ? `<div class="sac-field" style="margin-top:8px;"><label>Tipos de Ocorrência por Chamado</label><div style="font-size:0.8rem;color:#64748b;margin-bottom:6px;">Pressione Ctrl (ou Cmd no Mac) para selecionar mais de uma opção</div><select id="trans-occurrences" multiple style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;min-height:90px;outline:none;">${(window._sacOccurrencesRaw||[]).filter(o=>o.type_key===(ticket?ticket.typeKey:'')).map(o=>`<option value="${o.description}" ${((ticket?ticket.occurrences:null)||[]).some(tOcc=>tOcc.name===o.description)?'selected':''}>${o.description}</option>`).join('')}</select></div>` : ''}
         ${pt.targetStageId === 'execucao' ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#c2410c;font-weight:700;display:block;margin-bottom:6px;"><i class=\'ph ph-calendar-check\'></i> Data/Hora Limite do Acompanhamento <span style=\'color:#dc2626\'>*</span></label><input type="datetime-local" id="trans-followup-deadline" style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.9rem;box-sizing:border-box;" min="' + new Date().toISOString().slice(0,16) + '"></div>' : ''}
         <textarea id="trans-obs" style="display:none;"></textarea>`) +
       `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
@@ -2939,7 +2940,11 @@
         if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
         if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
       } else {
-        if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
+        if (!nextSteps) { 
+          const label = pt.targetStageId === 'concluido' ? 'As informações de conclusão são obrigatórias' : 'Os próximos passos são obrigatórios';
+          showToast(label + '.','warning'); 
+          return; 
+        }
       }
 
       // Build logNotes — for execucao (Acompanhamento), put SLA info before Próximos passos
@@ -2987,6 +2992,19 @@
       }
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
       if (!ticket.comments) ticket.comments = [];
+
+      if (pt.targetStageId === 'concluido') {
+        const selOcc = document.getElementById('trans-occurrences');
+        if (selOcc) {
+          const selected = Array.from(selOcc.selectedOptions).map(opt => opt.value);
+          if (!ticket.occurrences) ticket.occurrences = [];
+          selected.forEach(val => {
+            if (!ticket.occurrences.some(o => o.name === val)) {
+              ticket.occurrences.push({ name: val, note: '', images: [] });
+            }
+          });
+        }
+      }
 
       if (isAguard) {
         const userSelect = document.getElementById('trans-assigned-user');
