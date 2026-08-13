@@ -2846,13 +2846,14 @@
           responsibleName = opt.getAttribute('data-name');
       }
 
-      if (valor<=0) { showToast('Informe um valor maior que zero.','warning'); return; }
-      if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return; }
-      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsiblePhoto, responsibleName };
+      if (valor<=0) { showToast('Informe um valor maior que zero.','warning'); return false; }
+      if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return false; }
+      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsibleName };
       t.costCenters = [...(t.costCenters||[]), cc];
       
       updateTicket(t);
       showToast('Lançamento adicionado!','success');
+      return true;
     },
     removeCostCenter(ccId) {
       const t = _selectedTicket;
@@ -3382,7 +3383,7 @@
                         <textarea id="cc-motivo" placeholder="Justificativa da avaria ou perda..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;min-height:50px;font-family:inherit;"></textarea>
                     </div>
                     <div style="padding-bottom:2px;">
-                        <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter(); document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal();" style="height:50px;padding:0 24px;"><i class="ph ph-plus"></i> Adicionar</button>
+                        <button class="sac-btn sac-btn-primary" onclick="if(SAC.saveCostCenter()) { document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal(); }" style="height:50px;padding:0 24px;"><i class="ph ph-plus"></i> Adicionar</button>
                     </div>
                 </div>
             </div>
