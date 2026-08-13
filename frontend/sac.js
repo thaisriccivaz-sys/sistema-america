@@ -2560,8 +2560,8 @@
       updateTicket(t);
     },
     async addComment(ticketId) {
-      const t = _tickets.find(x => x.id === ticketId);
-      if (!t) return;
+      let tLocal = _tickets.find(x => x.id === ticketId);
+      if (!tLocal) return;
       const textInput = document.getElementById('new-comment-text');
       const text = textInput ? textInput.value.trim() : '';
       if (!text) return;
