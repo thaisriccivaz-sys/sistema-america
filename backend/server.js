@@ -29172,11 +29172,13 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_pending_justification INTEGER DEFAULT 0`,
   `ALTER TABLE sac_tickets ADD COLUMN tags TEXT`,
 ];
-sacMigrations.forEach(sql => {
-  db.run(sql, err => {
-    if (err && !err.message.includes('duplicate column')) {
-      // Coluna já existe — ignorar
-    }
+db.serialize(() => {
+  sacMigrations.forEach(sql => {
+    db.run(sql, err => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('[SAC Migration Error]', err.message);
+      }
+    });
   });
 });
 console.log('[SAC] Migração de colunas concluída.');
