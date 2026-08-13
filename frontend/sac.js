@@ -2235,7 +2235,13 @@
     }
 
     if (colId === 'respondido') {
-        alert('A coluna "Respondido" s\u00f3 \u00e9 atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        _draggedId = null;
+        return;
+    }
+
+    if (colId === 'concluido' && (!ticket.costCenters || ticket.costCenters.length === 0)) {
+        alert('Bloqueio: É obrigatório lançar um Centro de Custo no botão roxo antes de concluir o chamado.\n\nSe não houver cobrança, selecione "Cliente (Não Cobrar do Cliente)" e coloque um valor simbólico (ex: 0.01).');
         _draggedId = null;
         return;
     }
@@ -2461,6 +2467,11 @@
       if (!t || t.stage === targetId) return;
       if (targetId === 'respondido') {
           alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+          renderDetailModal();
+          return;
+      }
+      if (targetId === 'concluido' && (!t.costCenters || t.costCenters.length === 0)) {
+          alert('Bloqueio: É obrigatório lançar um Centro de Custo no botão roxo antes de concluir o chamado.\n\nSe não houver cobrança, selecione "Cliente (Não Cobrar do Cliente)" e coloque um valor simbólico (ex: 0.01).');
           renderDetailModal();
           return;
       }
