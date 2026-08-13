@@ -806,7 +806,7 @@
         const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
         const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
         const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
-        const countLabel = isOverAguard ? `🔴 -${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
         return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
@@ -2998,6 +2998,20 @@
         ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 1000).toISOString();
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
+
+        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+        fetch('/api/sac/notificar-atribuicao', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticketId: ticket.id,
+            protocol: ticket.protocol,
+            clientName: ticket.clientName,
+            setor: sector,
+            assignedUsername: assignedUsername,
+            assignedUserNome: assignedUserNome
+          })
+        }).catch(e => console.error('[SAC] Erro ao notificar atribuicao na transicao:', e));
       }
 
       updateTicket(ticket);
@@ -3207,6 +3221,7 @@
   };
 
   async function updateTicket(t, _retries = 0) {
+    window._sacLastSaveMs = Date.now(); // Marca imediatamente para evitar auto-refresh durante o save
     _tickets = _tickets.map(x => x.id===t.id ? t : x);
     const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
     try {
