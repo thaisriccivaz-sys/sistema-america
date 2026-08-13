@@ -1758,10 +1758,13 @@
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta ação não pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
                 </div>
-                <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
-                    <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
-                    Chamado Urgente
-                </label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openCustosModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#7e22ce;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-currency-dollar"></i> Centro de Custos</button>` : ''}
+                    <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
+                        <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
+                        Chamado Urgente
+                    </label>
+                </div>
             </div>
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;flex-direction:column;flex:1;min-height:500px;margin-bottom:24px;">
                 <div style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;" id="sac-comments-list">
@@ -3236,27 +3239,29 @@
                 <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:12px;text-transform:uppercase;">Lançar Novo Custo</div>
                 <div style="display:flex;gap:12px;margin-bottom:12px;">
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Setor</label>
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Setor / Responsável</label>
                         <select id="cc-sector" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;">
-                            ${_globalDepartamentos.map(d=>`<option value="${d.nome}">${d.nome}</option>`).join('')}
-                            <option value="Cliente" selected>Cliente (Mau Uso / Dano)</option>
-                            <option value="Terceiros">Terceiros (Roubo / Furto)</option>
+                            <option value="Cliente (Cobrar do Cliente)">Cliente (Cobrar do Cliente)</option>
+                            <option value="Cliente (Não Cobrar do Cliente)">Cliente (Não Cobrar do Cliente)</option>
+                            <option value="Setor Técnico (Interno)">Setor Técnico (Interno)</option>
+                            <option value="Logística (Interno)">Logística (Interno)</option>
+                            <option value="Comercial (Interno)">Comercial (Interno)</option>
+                            <option value="Financeiro (Interno)">Financeiro (Interno)</option>
+                            <option value="Pátio (Interno)">Pátio (Interno)</option>
+                            <option value="Motorista (Interno)">Motorista (Interno)</option>
+                            <option value="Outro Responsável">Outro Responsável</option>
                         </select>
                     </div>
                     <div style="width:120px;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Valor (R$)</label>
-                        <input type="number" id="cc-valor" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Valor do Prejuízo (R$)</label>
+                        <input type="number" id="cc-valor" step="0.01" min="0" placeholder="Ex: 250" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Motivo / Descrição</label>
-                    <input type="text" id="cc-motivo" placeholder="Ex: Peça queimada" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
+                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Descrição do Motivo Financeiro</label>
+                    <textarea id="cc-motivo" placeholder="Justificativa da avaria ou perda..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;min-height:60px;font-family:inherit;"></textarea>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <label style="font-size:0.85rem;color:#1e293b;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                        <input type="checkbox" id="cc-billing">
-                        <span>Gerar Cobrança Extra?</span>
-                    </label>
+                <div style="display:flex;justify-content:flex-end;align-items:center;">
                     <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter(); document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal();"><i class="ph ph-plus"></i> Adicionar</button>
                 </div>
             </div>
@@ -3269,7 +3274,6 @@
                     <div style="flex:1;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                             <span style="font-weight:700;font-size:0.85rem;color:#1e293b;">${c.sector}</span>
-                            ${c.hasBilling ? '<span style="font-size:0.6rem;background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:12px;font-weight:600;">COBRAR</span>' : ''}
                         </div>
                         <div style="font-size:0.75rem;color:#64748b;">${c.reason}</div>
                     </div>
