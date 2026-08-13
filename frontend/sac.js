@@ -2306,15 +2306,7 @@
             return;
         }
 
-        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-      let t = tLocal;
-      try {
-          const resp = await fetch('/api/sac/tickets/' + ticketId, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (resp.ok) {
-              t = await resp.json();
-          }
-      } catch (e) { console.error('Erro ao buscar versão mais recente do ticket', e); }
-      const user = currentUsername();
+        const user = currentUsername();
         const now = new Date().toISOString();
         const newTicket = {
           id: 'sac-'+Date.now(),
@@ -2573,6 +2565,16 @@
       const textInput = document.getElementById('new-comment-text');
       const text = textInput ? textInput.value.trim() : '';
       if (!text) return;
+
+      const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+      let t = tLocal;
+      try {
+          const resp = await fetch('/api/sac/tickets/' + ticketId, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (resp.ok) {
+              t = await resp.json();
+          }
+      } catch (e) { console.error('Erro ao buscar versão mais recente do ticket', e); }
+
       const user = currentUsername();
       if (!t.comments) t.comments = [];
       let isHandled = false;
