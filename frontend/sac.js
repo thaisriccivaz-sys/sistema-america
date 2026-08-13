@@ -3482,6 +3482,110 @@
         overlay.innerHTML = html;
         document.body.appendChild(overlay);
     },
+    openChecklistModal() {
+        const t = _selectedTicket;
+        if (!t) return;
+        
+        const cl = t.sacChecklist || {};
+        
+        const renderRatingQuestion = (id, text, val) => {
+            let btns = '';
+            for(let i=1; i<=5; i++) {
+                const sel = val == i;
+                btns += `<label style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;font-weight:700;font-size:0.9rem;border:1.5px solid ${sel ? '#0369a1' : '#e2e8f0'};background:${sel ? '#0369a1' : '#fff'};color:${sel ? '#fff' : '#64748b'};transition:all 0.2s;">
+                    <input type="radio" name="chk_${id}" value="${i}" ${sel ? 'checked' : ''} style="display:none;" onchange="
+                        const labels = this.parentElement.parentElement.querySelectorAll('label');
+                        labels.forEach(l => { l.style.background='#fff'; l.style.color='#64748b'; l.style.borderColor='#e2e8f0'; });
+                        this.parentElement.style.background='#0369a1';
+                        this.parentElement.style.color='#fff';
+                        this.parentElement.style.borderColor='#0369a1';
+                    ">
+                    ${i}
+                </label>`;
+            }
+            return `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <div style="font-weight:600;font-size:0.9rem;color:#1e293b;margin-bottom:12px;">${text}</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    ${btns}
+                </div>
+            </div>
+            `;
+        };
+
+        const renderCheckboxQuestion = (id, text, checked) => {
+            return `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-weight:600;font-size:0.9rem;color:#1e293b;">
+                    <input type="checkbox" id="chk_${id}" ${checked ? 'checked' : ''} style="width:18px;height:18px;accent-color:#0369a1;cursor:pointer;">
+                    ${text}
+                </label>
+            </div>
+            `;
+        };
+
+        let html = `
+        <div class="sac-modal sac-animated" style="width:600px;max-width:90vw;max-height:85vh;margin:auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:24px;" onclick="event.stopPropagation()">
+            <button onclick="document.getElementById('sac-checklist-overlay').remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;"><i class="ph ph-x"></i></button>
+            
+            <div style="font-size:1.2rem;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                <i class="ph ph-list-checks" style="color:#0369a1;"></i> SAC Check-list
+            </div>
+            
+            <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:8px;" class="custom-scroll">
+                ${renderRatingQuestion('q1', '1. O tipo do chamado e ocorrência foram inseridas corretamente?', cl.q1)}
+                ${t.logisticsTask ? renderRatingQuestion('q2', '2. A solicitação foi resolvida pela logística dentro do SLA?', cl.q2) : ''}
+                ${t.financialTask ? renderRatingQuestion('q3', '3. A solicitação foi resolvida pelo financeiro dentro do SLA?', cl.q3) : ''}
+                ${t.commercialTask ? renderRatingQuestion('q4', '4. A solicitação foi resolvida pelo comercial dentro do SLA?', cl.q4) : ''}
+                ${renderRatingQuestion('q5', '5. Ações e ocorrências foram preenchidas corretamente na OS?', cl.q5)}
+                
+                ${renderCheckboxQuestion('q6', '6. As evidências obrigatórias (fotos, B.O., avaria) foram inseridas?', cl.q6)}
+                ${renderCheckboxQuestion('q7', '7. O cliente foi informado sobre todas as etapas até a conclusão?', cl.q7)}
+                ${renderCheckboxQuestion('q8', '8. Houve necessidade de escalonamento para Diretoria?', cl.q8)}
+                
+                ${renderRatingQuestion('q9', '9. O laudo relata claramente a ação executada e solução aplicada?', cl.q9)}
+                ${renderRatingQuestion('q10', '10. O cliente foi atendido de maneira satisfatória?', cl.q10)}
+            </div>
+            
+            <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+                <button class="sac-btn sac-btn-primary" onclick="SAC.saveChecklist();" style="padding:10px 24px;font-size:0.9rem;background:#0369a1;"><i class="ph ph-check"></i> Salvar Check-list</button>
+            </div>
+        </div>
+        `;
+        
+        let overlay = document.getElementById('sac-checklist-overlay');
+        if (overlay) overlay.remove();
+        
+        overlay = document.createElement('div');
+        overlay.id = 'sac-checklist-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    },
+    saveChecklist() {
+        const t = _selectedTicket;
+        if (!t) return;
+        
+        const cl = {};
+        
+        ['q1','q2','q3','q4','q5','q9','q10'].forEach(q => {
+            const sel = document.querySelector(`input[name="chk_${q}"]:checked`);
+            if (sel) cl[q] = parseInt(sel.value);
+        });
+        
+        ['q6','q7','q8'].forEach(q => {
+            const chk = document.getElementById(`chk_${q}`);
+            if (chk) cl[q] = chk.checked;
+        });
+        
+        t.sacChecklist = cl;
+        updateTicket(t);
+        
+        const ov = document.getElementById('sac-checklist-overlay');
+        if (ov) ov.remove();
+        showToast('Check-list salvo!','success');
+    },
     // drag handlers públicos
     onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop
   };
