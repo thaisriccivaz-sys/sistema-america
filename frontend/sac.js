@@ -2820,13 +2820,24 @@
     saveCostCenter() {
       const t = _selectedTicket;
       if (!t) return;
-      const sector  = document.getElementById('cc-sector')?.value||'Cliente';
+      const sector  = document.getElementById('cc-sector')?.value||'Cliente (Cobrar do Cliente)';
       const valor   = parseFloat(document.getElementById('cc-valor')?.value||0);
       const motivo  = document.getElementById('cc-motivo')?.value?.trim()||'';
-      const billing = document.getElementById('cc-billing')?.checked||false;
+      
+      const responsibleUserSelect = document.getElementById('cc-responsible-user');
+      let responsibleUser = null;
+      let responsiblePhoto = null;
+      let responsibleName = null;
+      if (responsibleUserSelect && responsibleUserSelect.value) {
+          responsibleUser = responsibleUserSelect.value;
+          const opt = responsibleUserSelect.options[responsibleUserSelect.selectedIndex];
+          responsiblePhoto = opt.getAttribute('data-photo');
+          responsibleName = opt.getAttribute('data-name');
+      }
+
       if (valor<=0) { showToast('Informe um valor maior que zero.','warning'); return; }
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return; }
-      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:billing };
+      const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsiblePhoto, responsibleName };
       t.costCenters = [...(t.costCenters||[]), cc];
       t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Centro de custo adicionado: ${sector} — ${formatBRL(valor)}`, user:currentUsername() });
       updateTicket(t);
@@ -2838,6 +2849,62 @@
       t.costCenters = (t.costCenters||[]).filter(c=>c.id!==ccId);
       updateTicket(t);
       showToast('Lançamento removido.','warning');
+    },
+    onCostCenterSectorChange() {
+      const sector = document.getElementById('cc-sector')?.value || '';
+      const targetSectors = ['Logística (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)'];
+      const container = document.getElementById('cc-user-container');
+      if (!container) return;
+
+      if (targetSectors.includes(sector)) {
+        const baseSector = sector.split(' (')[0]; 
+        const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const deptKey = normalizeStr(baseSector);
+        
+        let validUsers = (window._sacUsersList || []).filter(u => {
+            if (!u.ativo) return false;
+            const uDept = normalizeStr(u.departamento || '');
+            return uDept.includes(deptKey) || deptKey.includes(uDept);
+        });
+        
+        const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
+        if (managerName) {
+            const manager = (window._sacUsersList || []).find(u => (u.nome || '').toLowerCase() === managerName.toLowerCase());
+            if (manager && !validUsers.some(vu => vu.id === manager.id)) {
+                validUsers.unshift(manager);
+            }
+        }
+        
+        let html = `
+            <div style="margin-top:12px;">
+                <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Qual colaborador da ${baseSector} o custo se aplica?</label>
+                <div style="position:relative;">
+                    <select id="cc-responsible-user" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;appearance:none;cursor:pointer;" onchange="
+                        const sel = this;
+                        const opt = sel.options[sel.selectedIndex];
+                        const photo = opt.getAttribute('data-photo');
+                        const imgEl = document.getElementById('cc-user-photo-preview');
+                        if (photo) {
+                            imgEl.src = photo;
+                            imgEl.style.display = 'block';
+                        } else {
+                            imgEl.style.display = 'none';
+                        }
+                    ">
+                        <option value="">Selecione um colaborador...</option>
+                        ${validUsers.map(u => `<option value="${u.username||u.email||u.nome}" data-photo="${u.foto_colaborador||''}" data-name="${u.nome||u.username}">${u.nome||u.username} ${managerName && (u.nome||'').toLowerCase()===managerName.toLowerCase() ? '(Gestor)' : ''}</option>`).join('')}
+                    </select>
+                    <img id="cc-user-photo-preview" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;position:absolute;right:32px;top:50%;transform:translateY(-50%);display:none;border:1px solid #cbd5e1;pointer-events:none;background:#fff;">
+                    <i class="ph ph-caret-down" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+        container.style.display = 'block';
+      } else {
+        container.innerHTML = '';
+        container.style.display = 'none';
+      }
     },
     async addAttachments(files) {
       const t = _selectedTicket;
@@ -3229,7 +3296,7 @@
         if (!t) return;
         
         let html = `
-        <div class="sac-modal sac-animated" style="width:100vw;max-width:500px;margin:20px auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:24px;" onclick="event.stopPropagation()">
+        <div class="sac-modal sac-animated" style="width:80vw;max-width:80vw;margin:20px auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:24px;" onclick="event.stopPropagation()">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                 <h3 style="margin:0;font-size:1.1rem;color:#1e293b;"><i class="ph ph-currency-dollar"></i> Custos da OS</h3>
                 <button onclick="document.getElementById('sac-custos-overlay').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
@@ -3240,7 +3307,7 @@
                 <div style="display:flex;gap:12px;margin-bottom:12px;">
                     <div style="flex:1;">
                         <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Setor / Responsável</label>
-                        <select id="cc-sector" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;">
+                        <select id="cc-sector" onchange="SAC.onCostCenterSectorChange()" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;">
                             <option value="Cliente (Cobrar do Cliente)">Cliente (Cobrar do Cliente)</option>
                             <option value="Cliente (Não Cobrar do Cliente)">Cliente (Não Cobrar do Cliente)</option>
                             <option value="Setor Técnico (Interno)">Setor Técnico (Interno)</option>
@@ -3251,9 +3318,10 @@
                             <option value="Motorista (Interno)">Motorista (Interno)</option>
                             <option value="Outro Responsável">Outro Responsável</option>
                         </select>
+                        <div id="cc-user-container" style="display:none;"></div>
                     </div>
-                    <div style="width:120px;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Valor do Prejuízo (R$)</label>
+                    <div style="width:140px;">
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Valor do Prejuízo (R$)</label>
                         <input type="number" id="cc-valor" step="0.01" min="0" placeholder="Ex: 250" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
@@ -3269,26 +3337,65 @@
             <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;">Histórico de Custos</div>
             <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;">
                 ${(t.costCenters||[]).length===0 ? '<div style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:16px;">Nenhum custo lançado.</div>' : 
-                (t.costCenters||[]).map(c => `
+                (t.costCenters||[]).map(c => {
+                    const isPositive = c.sector === 'Cliente (Cobrar do Cliente)';
+                    const color = isPositive ? '#16a34a' : '#dc2626';
+                    const sign = isPositive ? '+' : '-';
+                    return `
                 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                     <div style="flex:1;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                             <span style="font-weight:700;font-size:0.85rem;color:#1e293b;">${c.sector}</span>
+                            ${c.responsibleName ? `<div style="display:flex;align-items:center;gap:4px;background:#f1f5f9;padding:2px 8px;border-radius:12px;border:1px solid #e2e8f0;"><img src="${c.responsiblePhoto||''}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;${c.responsiblePhoto?'':'display:none;'}"><span style="font-size:0.7rem;color:#475569;font-weight:600;">${c.responsibleName}</span></div>` : ''}
                         </div>
                         <div style="font-size:0.75rem;color:#64748b;">${c.reason}</div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-weight:800;font-size:0.95rem;color:#dc2626;margin-bottom:4px;">R$ ${c.lossValue.toFixed(2)}</div>
+                        <div style="font-weight:800;font-size:0.95rem;color:${color};margin-bottom:4px;">${sign} R$ ${c.lossValue.toFixed(2)}</div>
                         <button style="background:none;border:none;color:#94a3b8;font-size:0.7rem;cursor:pointer;text-decoration:underline;" onclick="SAC.removeCostCenter('${c.id}'); document.getElementById('sac-custos-overlay').remove(); SAC.openCustosModal();">Remover</button>
                     </div>
                 </div>
-                `).join('')}
+                `}).join('')}
             </div>
             
-            <div style="margin-top:16px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:700;font-size:0.9rem;color:#1e293b;">Total:</span>
-                <span style="font-weight:800;font-size:1.1rem;color:#dc2626;">R$ ${(t.costCenters||[]).reduce((a,b)=>a+b.lossValue,0).toFixed(2)}</span>
-            </div>
+            ${(() => {
+                const costs = t.costCenters || [];
+                const totalPositive = costs.filter(c => c.sector === 'Cliente (Cobrar do Cliente)').reduce((a,b)=>a+b.lossValue,0);
+                const totalNegative = costs.filter(c => c.sector !== 'Cliente (Cobrar do Cliente)').reduce((a,b)=>a+b.lossValue,0);
+                
+                let totalsHtml = '';
+                if (totalPositive > 0 && totalNegative > 0) {
+                    const balance = totalPositive - totalNegative;
+                    const balanceColor = balance >= 0 ? '#16a34a' : '#dc2626';
+                    totalsHtml = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                        <span style="font-size:0.85rem;color:#64748b;">Total Positivo (Receitas):</span>
+                        <span style="font-weight:700;font-size:0.9rem;color:#16a34a;">+ R$ ${totalPositive.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <span style="font-size:0.85rem;color:#64748b;">Total Negativo (Custos Internos):</span>
+                        <span style="font-weight:700;font-size:0.9rem;color:#dc2626;">- R$ ${totalNegative.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #cbd5e1;padding-top:8px;">
+                        <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">Saldo Final:</span>
+                        <span style="font-weight:800;font-size:1.2rem;color:${balanceColor};">${balance >= 0 ? '+' : '-'} R$ ${Math.abs(balance).toFixed(2)}</span>
+                    </div>`;
+                } else if (totalPositive > 0) {
+                    totalsHtml = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">Total Positivo:</span>
+                        <span style="font-weight:800;font-size:1.2rem;color:#16a34a;">+ R$ ${totalPositive.toFixed(2)}</span>
+                    </div>`;
+                } else if (totalNegative > 0) {
+                    totalsHtml = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">Total Negativo:</span>
+                        <span style="font-weight:800;font-size:1.2rem;color:#dc2626;">- R$ ${totalNegative.toFixed(2)}</span>
+                    </div>`;
+                }
+                
+                return totalsHtml ? `<div style="margin-top:16px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">${totalsHtml}</div>` : '';
+            })()}
         </div>
         `;
         
