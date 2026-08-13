@@ -29075,19 +29075,27 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         const parsed = rows.map(r => ({
             ...r,
-            openDate: r.open_date || r.created_at,
-            osNumber: r.os_number, clientName: r.client_name, cnpjCpf: r.cnpj_cpf, contactName: r.contact_name,
-            contactPhone: r.contact_phone, contactEmail: r.contact_email, typeKey: r.type_key, nextSteps: r.next_steps, isUrgent: r.is_urgent === 1, isUrgent: r.is_urgent === 1,
-            costCenters: r.cost_centers ? JSON.parse(r.cost_centers) : [],
-            logisticsTask: r.logistics_task ? JSON.parse(r.logistics_task) : null,
-            commercialTask: r.commercial_task ? JSON.parse(r.commercial_task) : null,
-            financialTask: r.financial_task ? JSON.parse(r.financial_task) : null,
-            occurrences: r.occurrences ? JSON.parse(r.occurrences) : [],
-            timeline: r.timeline ? JSON.parse(r.timeline) : [],
-            attachments: r.attachments ? JSON.parse(r.attachments) : [],
-            checklist: r.checklist ? JSON.parse(r.checklist) : [],
-            comments: r.comments ? JSON.parse(r.comments) : [],
-            tags: r.tags ? JSON.parse(r.tags) : [],
+            timeline: JSON.parse(r.timeline||'[]'),
+            costCenters: JSON.parse(r.cost_centers||'[]'),
+            attachments: JSON.parse(r.attachments||'[]'),
+            checklist: JSON.parse(r.checklist||'[]'),
+            logisticsTask: JSON.parse(r.logistics_task||'null'),
+            commercialTask: JSON.parse(r.commercial_task||'null'),
+            financialTask: JSON.parse(r.financial_task||'null'),
+            occurrences: JSON.parse(r.occurrences||'[]'),
+            comments: JSON.parse(r.comments||'[]'),
+            tags: JSON.parse(r.tags||'[]'),
+            isUrgent: r.is_urgent === 1,
+            nextSteps: r.next_steps,
+            clientName: r.client_name,
+            cnpjCpf: r.cnpj_cpf,
+            osNumber: r.os_number,
+            contactName: r.contact_name,
+            contactPhone: r.contact_phone,
+            contactEmail: r.contact_email,
+            typeKey: r.type_key,
+            openDate: r.created_at,
+            closeDate: r.close_date,
             slaFrozenAt: r.sla_frozen_at,
             slaElapsedMs: r.sla_elapsed_ms,
             followUpDeadline: r.follow_up_deadline,
@@ -29098,8 +29106,51 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             aguardPendingJustification: r.aguard_pending_justification === 1,
             slaOverdueNotified: r.sla_overdue_notified === 1,
             slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
-            closeDate: r.close_date
+            gestorSetor: (r.logistics_task ? JSON.parse(r.logistics_task).gestorSetor : null) || (r.commercial_task ? JSON.parse(r.commercial_task).gestorSetor : null) || (r.financial_task ? JSON.parse(r.financial_task).gestorSetor : null)
         }));
+        res.json(parsed);
+    });
+});
+
+app.get('/api/sac/tickets/:id', authenticateToken, (req, res) => {
+    db.get("SELECT * FROM sac_tickets WHERE id = ?", [req.params.id], (err, r) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!r) return res.status(404).json({ error: 'Not found' });
+        const parsed = {
+            ...r,
+            timeline: JSON.parse(r.timeline||'[]'),
+            costCenters: JSON.parse(r.cost_centers||'[]'),
+            attachments: JSON.parse(r.attachments||'[]'),
+            checklist: JSON.parse(r.checklist||'[]'),
+            logisticsTask: JSON.parse(r.logistics_task||'null'),
+            commercialTask: JSON.parse(r.commercial_task||'null'),
+            financialTask: JSON.parse(r.financial_task||'null'),
+            occurrences: JSON.parse(r.occurrences||'[]'),
+            comments: JSON.parse(r.comments||'[]'),
+            tags: JSON.parse(r.tags||'[]'),
+            isUrgent: r.is_urgent === 1,
+            nextSteps: r.next_steps,
+            clientName: r.client_name,
+            cnpjCpf: r.cnpj_cpf,
+            osNumber: r.os_number,
+            contactName: r.contact_name,
+            contactPhone: r.contact_phone,
+            contactEmail: r.contact_email,
+            typeKey: r.type_key,
+            openDate: r.created_at,
+            closeDate: r.close_date,
+            slaFrozenAt: r.sla_frozen_at,
+            slaElapsedMs: r.sla_elapsed_ms,
+            followUpDeadline: r.follow_up_deadline,
+            followUpNotified: r.follow_up_notified === 1,
+            followUpPendingJustification: r.follow_up_pending_justification === 1,
+            aguardDeadline: r.aguard_deadline,
+            aguardNotified: r.aguard_notified === 1,
+            aguardPendingJustification: r.aguard_pending_justification === 1,
+            slaOverdueNotified: r.sla_overdue_notified === 1,
+            slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
+            gestorSetor: (r.logistics_task ? JSON.parse(r.logistics_task).gestorSetor : null) || (r.commercial_task ? JSON.parse(r.commercial_task).gestorSetor : null) || (r.financial_task ? JSON.parse(r.financial_task).gestorSetor : null)
+        };
         res.json(parsed);
     });
 });
@@ -29499,14 +29550,14 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
             try {
                 await sendMailHelper({
                     to: emailDest,
-                    subject: `🔔 SAC — Novo chamado atribuído a você: Nº ${protocol}`,
+                    subject: `✨ SAC - Novo chamado atribuído a você: Nº ${protocol}`,
                     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                         <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
                             <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
-                                <span style="color:#fff;font-size:1.3rem;font-weight:800;">🔔 Novo Chamado Atribuído</span>
+                                <span style="color:#fff;font-size:1.3rem;font-weight:800;">✨ Novo Chamado Atribuído a Você</span>
                             </div>
                             <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${assignedUserNome || assignedUsername}</strong>!</p>
                             <p>Você foi atribuído a um chamado de SAC. Acesse o sistema para verificar os detalhes e responder o mais breve possível.</p>
@@ -29552,14 +29603,14 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                         try {
                             await sendMailHelper({
                                 to: emailGestor,
-                                subject: `🔔 SAC — Novo chamado atribuído para ${user.nome || assignedUsername}: Nº ${protocol}`,
+                                subject: `✨ Novo SAC atribuído ao setor: Nº ${protocol}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
                                         <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                                     </div>
                                     <div style="padding:24px;">
                                         <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
-                                            <span style="color:#fff;font-size:1.3rem;font-weight:800;">🔔 Chamado Atribuído à sua Equipe</span>
+                                            <span style="color:#fff;font-size:1.3rem;font-weight:800;">✨ Novo SAC atribuído ao setor</span>
                                         </div>
                                         <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${gestor.nome}</strong>!</p>
                                         <p>Um chamado de SAC foi atribuído ao colaborador <strong>${user.nome || assignedUsername}</strong> do seu departamento.</p>

@@ -506,7 +506,7 @@
                 renderAll();
             }
         }
-      }, 5 * 60 * 1000);
+      }, 30 * 1000);
     }
     // Loop de alertas: SLA vencido + follow-up vencido a cada 1 min
     if (!window._sacAlertLoop) {
@@ -2306,7 +2306,15 @@
             return;
         }
 
-        const user = currentUsername();
+        const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
+      let t = tLocal;
+      try {
+          const resp = await fetch('/api/sac/tickets/' + ticketId, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (resp.ok) {
+              t = await resp.json();
+          }
+      } catch (e) { console.error('Erro ao buscar versão mais recente do ticket', e); }
+      const user = currentUsername();
         const now = new Date().toISOString();
         const newTicket = {
           id: 'sac-'+Date.now(),
@@ -2569,8 +2577,9 @@
       if (!t.comments) t.comments = [];
       let isHandled = false;
       const pendingTipo = localStorage.getItem('sac_pending_popup_' + t.id);
+      const isGestorJustifying = pendingTipo && localStorage.getItem('sac_popup_gestor_required_' + t.id) === '1';
 
-      if (pendingTipo) {
+      if (isGestorJustifying) {
           const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
           const justTimestamp = new Date().toISOString();
           
@@ -3357,7 +3366,11 @@
     const now = Date.now();
     _tickets.forEach(ticket => {
       // Não processar tickets já respondidos ou encerrados
-      if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) return;
+      if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) {
+        if (ticket.aguardPendingJustification === true) showMandatoryJustificationPopup(ticket, 'aguard');
+        if (ticket.followUpPendingJustification === true) showMandatoryJustificationPopup(ticket, 'followup');
+        return;
+      }
       if (ticket.stage === 'execucao' && ticket.followUpDeadline) {
         const prazo = new Date(ticket.followUpDeadline).getTime();
         if (!isNaN(prazo)) {
@@ -3409,7 +3422,10 @@
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
-      if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) return;
+      if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) {
+        if (ticket.slaOverduePendingJustification === true) showMandatoryJustificationPopup(ticket, 'sla');
+        return;
+      }
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
 

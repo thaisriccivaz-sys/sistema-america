@@ -15071,7 +15071,7 @@ async function checkUserNotificacoes() {
                         </div>
                         <div style="color:#64748b;font-size:0.85rem;">Tempo de acompanhamento estourado no chamado <b>Nº ${dados.protocol || '---'}</b>.</div>
                     `;
-                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
+                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac' || notif.tipo === 'sac_atribuicao_gestor') {
                     const clName = (dados.clientName || dados.client || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -15080,6 +15080,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-weight:800;font-size:1.15rem;margin-bottom:4px;">
                             ${clName}
                         </div>
+                        ${notif.tipo === 'sac_atribuicao_gestor' ? `<div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Colaborador: <b>${dados.assignedTo || '---'}</b></div>` : ''}
                         <div style="color:#64748b;font-size:0.85rem;">Nº ${dados.protocol || dados.protocolo || '---'}</div>
                     `;
                 } else {
@@ -15103,7 +15104,7 @@ async function checkUserNotificacoes() {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('celulares-corporativos');`;
                 } else if (notif.tipo === 'computador_controle') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('computadores-corporativos');`;
-                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac') {
+                } else if (notif.tipo === 'sac_atribuicao' || notif.tipo === 'sac_novo_chamado' || notif.tipo === 'novo_sac' || notif.tipo === 'sac_atribuicao_gestor') {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC(); let attempts = 0; let intv = setInterval(() => { if (window.SAC && typeof window.SAC.openDetail === 'function') { window.SAC.openDetail('${dados.id}'); if (document.getElementById('sac-modal-overlay') && document.getElementById('sac-modal-overlay').style.display !== 'none') clearInterval(intv); } if (++attempts > 20) clearInterval(intv); }, 250);`;
                 } else if (notif.tipo === 'sac_sla_vencido') {
                     if (dados.ticketId) {
@@ -15113,7 +15114,7 @@ async function checkUserNotificacoes() {
                     }
                 }
 
-                const hasEmojiIcon = ['sac_atribuicao', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
+                const hasEmojiIcon = ['sac_atribuicao', 'sac_atribuicao_gestor', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
 
                 popup.innerHTML = `
                     <div style="display:flex;align-items:flex-start;gap:1rem;">
