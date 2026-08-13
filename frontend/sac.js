@@ -1801,7 +1801,7 @@
                                 const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
-                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
+                                let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"').replace(/\n/g, '<br>');
                                 if (formattedNotes.startsWith('Respondido via justificativa')) formattedNotes = '';
                                 // Buscar justificativa associada (comentário 📝 com timestamp próximo)
                                 const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
@@ -2998,7 +2998,7 @@
           showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
           return;
         }
-        nextSteps = state.map(o => `[${o.name}] ${o.note.trim()}`).join('\\n');
+        nextSteps = state.map(o => `${o.name} - ${o.note.trim()}`).join('\n');
       }
 
       if (isClosing) {
@@ -3017,6 +3017,8 @@
       } else if (isExecucao) {
         // Will be completed after deadline is set below
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName;
+      } else if (pt.targetStageId === 'concluido') {
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Informações de conclusão: \n' + nextSteps;
       } else {
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Pr\u00f3ximos passos: "' + nextSteps + '"' + (obs ? ' | Obs: "' + obs + '"' : '');
       }
