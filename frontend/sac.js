@@ -2861,25 +2861,44 @@
         const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const deptKey = normalizeStr(baseSector);
         
+        const isMatch = (uDept, key) => {
+            if (!uDept) return false;
+            if (key === 'comercial') return uDept.includes('comerc') || uDept.includes('venda');
+            if (key === 'financeiro') return uDept.includes('finan');
+            if (key === 'logistica') return uDept.includes('logist') || uDept.includes('opera') || uDept.includes('estoq');
+            if (key === 'motorista') return uDept.includes('motor') || uDept.includes('motob') || uDept.includes('transp');
+            return uDept.includes(key);
+        };
+        
         let validUsers = (window._sacUsersList || []).filter(u => {
-            if (u.ativo === false || u.ativo === 0 || u.ativo === '0') return false;
-            if (u.status && u.status.toLowerCase() !== 'ativo') return false;
             const uDept = normalizeStr(u.departamento || '');
-            return uDept.includes(deptKey) || deptKey.includes(uDept) || (deptKey === 'motorista' && uDept.includes('motor'));
+            return isMatch(uDept, deptKey);
         });
         
         const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
+        let manager = null;
         if (managerName) {
-            const manager = (window._sacUsersList || []).find(u => {
-                const n = (u.nome || '').toLowerCase();
-                const m = managerName.toLowerCase();
-                return n === m || n.includes(m) || m.includes(n);
+            const m = normalizeStr(managerName);
+            const mFirst = m.split(' ')[0];
+            manager = (window._sacUsersList || []).find(u => {
+                const n = normalizeStr(u.nome || u.nome_completo || u.username || '');
+                if (!n) return false;
+                return n === m || n.includes(m) || m.includes(n) || (mFirst && n.startsWith(mFirst));
             });
             if (manager && !validUsers.some(vu => vu.id === manager.id)) {
                 validUsers.unshift(manager);
             }
         }
         
+        // Ordenar alfabeticamente, mas garantir que o gestor (se existir) fique no topo
+        validUsers.sort((a,b) => {
+            if (manager && a.id === manager.id) return -1;
+            if (manager && b.id === manager.id) return 1;
+            const nameA = normalizeStr(a.nome || a.nome_completo || a.username || '');
+            const nameB = normalizeStr(b.nome || b.nome_completo || b.username || '');
+            return nameA.localeCompare(nameB);
+        });
+
         let html = `
             <div style="margin-top:12px;">
                 <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Qual colaborador da ${baseSector} o custo se aplica?</label>
@@ -2897,7 +2916,7 @@
                         }
                     ">
                         <option value="">Selecione um colaborador...</option>
-                        ${validUsers.map(u => `<option value="${u.username||u.email||u.nome}" data-photo="${u.foto_colaborador||''}" data-name="${u.nome||u.username}">${u.nome||u.username} ${managerName && (u.nome||'').toLowerCase()===managerName.toLowerCase() ? '(Gestor)' : ''}</option>`).join('')}
+                        ${validUsers.map(u => `<option value="${u.username||u.email||u.nome}" data-photo="${u.foto_colaborador||''}" data-name="${u.nome||u.nome_completo||u.username}">${u.nome||u.nome_completo||u.username} ${manager && u.id === manager.id ? '(Gestor)' : ''}</option>`).join('')}
                     </select>
                     <img id="cc-user-photo-preview" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;position:absolute;right:32px;top:50%;transform:translateY(-50%);display:none;border:1px solid #cbd5e1;pointer-events:none;background:#fff;">
                     <i class="ph ph-caret-down" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
