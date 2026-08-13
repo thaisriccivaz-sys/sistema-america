@@ -29566,7 +29566,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
 
             // Busca gestor diretamente pelo setor (nao depende do departamento do colaborador)
             db.get(
-                "SELECT u.id, u.nome, u.email as uemail, c.email_corporativo as ec, c.email as ce FROM departamentos d LEFT JOIN colaboradores gestor_c ON gestor_c.id = d.responsavel_id LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(gestor_c.nome_completo)) AND u.ativo = 1 WHERE LOWER(d.nome) LIKE LOWER(?) LIMIT 1",
+                "SELECT u.id, u.nome, u.email as uemail, gestor_c.email_corporativo as ec, gestor_c.email as ce FROM departamentos d LEFT JOIN colaboradores gestor_c ON gestor_c.id = d.responsavel_id LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(gestor_c.nome_completo)) AND u.ativo = 1 WHERE LOWER(d.nome) LIKE LOWER(?) LIMIT 1",
                 ['%' + sectorName + '%'],
                 async (errG, gestor) => {
                     console.log('[SAC notif-atrib] Gestor setor ' + sectorName + ':', gestor ? ('id=' + gestor.id + ' nome=' + gestor.nome + ' ec=' + gestor.ec + ' uemail=' + gestor.uemail) : 'NAO ENCONTRADO');
