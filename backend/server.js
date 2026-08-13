@@ -29279,7 +29279,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         
         // Notificar usuários com permissão Ver Todos no SAC
         const getSACUsersQuery = `
-            SELECT u.id as usuario_id, u.nome, COALESCE(NULLIF(c.email_corporativo, ''), NULLIF(u.email, '')) as dest_email
+            SELECT u.id as usuario_id, u.nome, NULLIF(c.email_corporativo, '') as dest_email
             FROM usuarios u
             JOIN permissoes_grupo pg ON u.grupo_permissao_id = pg.grupo_id
             LEFT JOIN colaboradores c ON (LOWER(TRIM(c.email)) = LOWER(TRIM(u.email))) OR (LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome)))
@@ -29546,7 +29546,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                     [user.id, 'sac_atribuicao', msgNotif, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName })]);
             }
 
-            const emailDest = user ? (user.ec || user.ce || user.uemail || null) : null;
+            const emailDest = user ? (user.ec || null) : null;
             if (emailDest && emailDest.includes('@')) {
                 try {
                     await sendMailHelper({
@@ -29587,7 +29587,7 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                         db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
                             [gestor.id, 'sac_atribuicao_gestor', msgGestor, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName, assignedTo: assignedUserNome || assignedUsername })]);
 
-                        const emailGestor = gestor.ec || gestor.ce || gestor.uemail || '';
+                        const emailGestor = gestor.ec || '';
                         if (emailGestor.includes('@')) {
                             try {
                                 await sendMailHelper({
