@@ -29530,9 +29530,9 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                c.email_corporativo as ec, c.email as ce, c.departamento
         FROM usuarios u
         LEFT JOIN colaboradores c ON LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome))
-        WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(?)) AND u.ativo = 1
+        WHERE (LOWER(TRIM(u.username)) = LOWER(TRIM(?)) OR LOWER(TRIM(u.nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(REPLACE(u.nome, ' ', '.'))) = LOWER(TRIM(?))) AND u.ativo = 1
         LIMIT 1
-    `, [assignedUsername], async (err, user) => {
+    `, [assignedUsername, assignedUserNome || assignedUsername, assignedUsername], async (err, user) => {
         if (err) { console.error('[SAC notif] Erro:', err.message); return res.status(500).json({ error: err.message }); }
 
         // --- 1. Notificação para o colaborador atribuído ---
