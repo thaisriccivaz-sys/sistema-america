@@ -2850,7 +2850,7 @@
       updateTicket(t);
       showToast('Lançamento removido.','warning');
     },
-    onCostCenterSectorChange() {
+    async onCostCenterSectorChange() {
       const sector = document.getElementById('cc-sector')?.value || '';
       const targetSectors = ['Logística (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)'];
       const container = document.getElementById('cc-user-container');
@@ -2861,70 +2861,87 @@
         const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const deptKey = normalizeStr(baseSector);
         
-        const isMatch = (uDept, key) => {
-            if (!uDept) return false;
-            if (key === 'comercial') return uDept.includes('comerc') || uDept.includes('venda');
-            if (key === 'financeiro') return uDept.includes('finan');
-            if (key === 'logistica') return uDept.includes('logist') || uDept.includes('opera') || uDept.includes('estoq');
-            if (key === 'motorista') return uDept.includes('motor') || uDept.includes('motob') || uDept.includes('transp');
-            return uDept.includes(key);
-        };
-        
-        let validUsers = (window._sacUsersList || []).filter(u => {
-            const uDept = normalizeStr(u.departamento || '');
-            return isMatch(uDept, deptKey);
-        });
-        
-        const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
-        let manager = null;
-        if (managerName) {
-            const m = normalizeStr(managerName);
-            const mFirst = m.split(' ')[0];
-            manager = (window._sacUsersList || []).find(u => {
-                const n = normalizeStr(u.nome || u.nome_completo || u.username || '');
-                if (!n) return false;
-                return n === m || n.includes(m) || m.includes(n) || (mFirst && n.startsWith(mFirst));
-            });
-            if (manager && !validUsers.some(vu => vu.id === manager.id)) {
-                validUsers.unshift(manager);
-            }
-        }
-        
-        // Ordenar alfabeticamente, mas garantir que o gestor (se existir) fique no topo
-        validUsers.sort((a,b) => {
-            if (manager && a.id === manager.id) return -1;
-            if (manager && b.id === manager.id) return 1;
-            const nameA = normalizeStr(a.nome || a.nome_completo || a.username || '');
-            const nameB = normalizeStr(b.nome || b.nome_completo || b.username || '');
-            return nameA.localeCompare(nameB);
-        });
-
-        let html = `
-            <div style="margin-top:12px;">
-                <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Qual colaborador da ${baseSector} o custo se aplica?</label>
-                <div style="position:relative;">
-                    <select id="cc-responsible-user" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;appearance:none;cursor:pointer;" onchange="
-                        const sel = this;
-                        const opt = sel.options[sel.selectedIndex];
-                        const photo = opt.getAttribute('data-photo');
-                        const imgEl = document.getElementById('cc-user-photo-preview');
-                        if (photo) {
-                            imgEl.src = photo;
-                            imgEl.style.display = 'block';
-                        } else {
-                            imgEl.style.display = 'none';
-                        }
-                    ">
-                        <option value="">Selecione um colaborador...</option>
-                        ${validUsers.map(u => `<option value="${u.username||u.email||u.nome}" data-photo="${u.foto_colaborador||''}" data-name="${u.nome||u.nome_completo||u.username}">${u.nome||u.nome_completo||u.username} ${manager && u.id === manager.id ? '(Gestor)' : ''}</option>`).join('')}
-                    </select>
-                    <img id="cc-user-photo-preview" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;position:absolute;right:32px;top:50%;transform:translateY(-50%);display:none;border:1px solid #cbd5e1;pointer-events:none;background:#fff;">
-                    <i class="ph ph-caret-down" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
-                </div>
-            </div>
-        `;
-        container.innerHTML = html;
+        container.innerHTML = '<div style="margin-top:12px;font-size:0.8rem;color:#64748b;">Buscando colaboradores...</div>';
         container.style.display = 'block';
+        
+        try {
+            const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const res = await fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(baseSector)}&_t=${Date.now()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            let validUsers = [];
+            if (res.ok) {
+                validUsers = await res.json();
+            }
+            
+            const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
+            let manager = null;
+            if (managerName) {
+                const m = normalizeStr(managerName);
+                const mFirst = m.split(' ')[0];
+                manager = validUsers.find(u => {
+                    const n = normalizeStr(u.nome || u.nome_completo || u.username || '');
+                    if (!n) return false;
+                    return n === m || n.includes(m) || m.includes(n) || (mFirst && n.startsWith(mFirst));
+                });
+                if (!manager) {
+                    // Try to find in global _sacUsersList if not in sector list
+                    const globalManager = (window._sacUsersList || []).find(u => {
+                        const n = normalizeStr(u.nome || u.nome_completo || u.username || '');
+                        if (!n) return false;
+                        return n === m || n.includes(m) || m.includes(n) || (mFirst && n.startsWith(mFirst));
+                    });
+                    if (globalManager) {
+                        manager = {
+                            id: globalManager.id,
+                            nome: globalManager.nome || globalManager.nome_completo || globalManager.username,
+                            username: globalManager.username || globalManager.email,
+                            foto_colaborador: globalManager.foto_colaborador || ''
+                        };
+                        validUsers.unshift(manager);
+                    }
+                }
+            }
+            
+            // Ordenar alfabeticamente, mas garantir que o gestor (se existir) fique no topo
+            validUsers.sort((a,b) => {
+                if (manager && a.id === manager.id) return -1;
+                if (manager && b.id === manager.id) return 1;
+                const nameA = normalizeStr(a.nome || a.nome_completo || a.username || '');
+                const nameB = normalizeStr(b.nome || b.nome_completo || b.username || '');
+                return nameA.localeCompare(nameB);
+            });
+
+            let html = `
+                <div style="margin-top:12px;">
+                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Qual colaborador da ${baseSector} o custo se aplica?</label>
+                    <div style="position:relative;">
+                        <select id="cc-responsible-user" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;appearance:none;cursor:pointer;" onchange="
+                            const sel = this;
+                            const opt = sel.options[sel.selectedIndex];
+                            const photo = opt.getAttribute('data-photo');
+                            const imgEl = document.getElementById('cc-user-photo-preview');
+                            if (photo) {
+                                imgEl.src = photo;
+                                imgEl.style.display = 'block';
+                            } else {
+                                imgEl.style.display = 'none';
+                            }
+                        ">
+                            <option value="">Selecione um colaborador...</option>
+                            ${validUsers.map(u => `<option value="${u.username||u.nome||u.nome_completo}" data-photo="${u.foto_colaborador||u.foto_path||''}" data-name="${u.nome||u.nome_completo||u.username}">${u.nome||u.nome_completo||u.username} ${manager && u.id === manager.id ? '(Gestor)' : ''}</option>`).join('')}
+                        </select>
+                        <img id="cc-user-photo-preview" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;position:absolute;right:32px;top:50%;transform:translateY(-50%);display:none;border:1px solid #cbd5e1;pointer-events:none;background:#fff;">
+                        <i class="ph ph-caret-down" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;"></i>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Erro ao buscar colaboradores:', err);
+            container.innerHTML = '<div style="margin-top:12px;font-size:0.8rem;color:#dc2626;">Erro ao carregar colaboradores.</div>';
+        }
       } else {
         container.innerHTML = '';
         container.style.display = 'none';
