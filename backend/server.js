@@ -29106,7 +29106,7 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             aguardPendingJustification: r.aguard_pending_justification === 1,
             slaOverdueNotified: r.sla_overdue_notified === 1,
             slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
-            gestorSetor: (r.logistics_task ? JSON.parse(r.logistics_task).gestorSetor : null) || (r.commercial_task ? JSON.parse(r.commercial_task).gestorSetor : null) || (r.financial_task ? JSON.parse(r.financial_task).gestorSetor : null)
+            gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
         res.json(parsed);
     });
@@ -29149,7 +29149,7 @@ app.get('/api/sac/tickets/:id', authenticateToken, (req, res) => {
             aguardPendingJustification: r.aguard_pending_justification === 1,
             slaOverdueNotified: r.sla_overdue_notified === 1,
             slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
-            gestorSetor: (r.logistics_task ? JSON.parse(r.logistics_task).gestorSetor : null) || (r.commercial_task ? JSON.parse(r.commercial_task).gestorSetor : null) || (r.financial_task ? JSON.parse(r.financial_task).gestorSetor : null)
+            gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         };
         res.json(parsed);
     });
