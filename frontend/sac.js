@@ -1759,6 +1759,7 @@
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta ação não pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
+                    ${(window.isTopAdmin || ((window.activeUserPerms||{})['sac'] === true && (window.activeUserPerms||{})['sac-atribuidos'] !== true)) ? `<button onclick="SAC.openChecklistModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#0369a1;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-checks"></i> Check-list</button>` : ''}
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openCustosModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#7e22ce;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-currency-dollar"></i> Centro de Custos</button>` : ''}
                     <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
                         <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
@@ -2257,6 +2258,21 @@
     _draggedId = null;
   }
 
+  function isChecklistComplete(ticket) {
+    const cl = ticket.sacChecklist || {};
+    if (!cl.q1 || cl.q1 < 1 || cl.q1 > 5) return false;
+    if (ticket.logisticsTask && (!cl.q2 || cl.q2 < 1 || cl.q2 > 5)) return false;
+    if (ticket.financialTask && (!cl.q3 || cl.q3 < 1 || cl.q3 > 5)) return false;
+    if (ticket.commercialTask && (!cl.q4 || cl.q4 < 1 || cl.q4 > 5)) return false;
+    if (!cl.q5 || cl.q5 < 1 || cl.q5 > 5) return false;
+    if (!cl.q6) return false;
+    if (!cl.q7) return false;
+    // q8 is optional
+    if (!cl.q9 || cl.q9 < 1 || cl.q9 > 5) return false;
+    if (!cl.q10 || cl.q10 < 1 || cl.q10 > 5) return false;
+    return true;
+  }
+
   function checkGate(ticket, targetStageId) {
     const srcIdx = PIPELINE_STAGES.findIndex(s => s.id === ticket.stage);
     const tgtIdx = PIPELINE_STAGES.findIndex(s => s.id === targetStageId);
@@ -2264,6 +2280,9 @@
       if (ticket.logisticsTask && !ticket.logisticsTask.isCompleted) return { sector:'Logística', task: ticket.logisticsTask.name };
       if (ticket.commercialTask && !ticket.commercialTask.isCompleted) return { sector:'Comercial', task: ticket.commercialTask.name };
       if (ticket.financialTask  && !ticket.financialTask.isCompleted)  return { sector:'Financeiro',  task: ticket.financialTask.name };
+    }
+    if (targetStageId === 'concluido' && !isChecklistComplete(ticket)) {
+      return { sector:'SAC', task: 'Preenchimento do Check-list Obrigatório' };
     }
     return null;
   }
