@@ -8406,8 +8406,19 @@ window.uploadDynamicDocument = function (inputEl, tabId) {
 }
 
 window.deleteDoc = async function (docId, btnEl) {
-    if (!confirm("Tem certeza que deseja excluir esse anexo?")) {
-        return;
+    const isAtestadosTab = document.querySelector('#tabs-list li.active') && document.querySelector('#tabs-list li.active').dataset.tab === 'Atestados';
+    const isAtestadoList = btnEl && btnEl.closest('#atestados-list-container');
+    
+    if (isAtestadosTab || isAtestadoList) {
+        const pwd = prompt("Para excluir este atestado, informe a senha:");
+        if (pwd !== 'cba') {
+            if (pwd !== null) alert("Senha incorreta.");
+            return;
+        }
+    } else {
+        if (!confirm("Tem certeza que deseja excluir esse anexo?")) {
+            return;
+        }
     }
 
     // Remoção otimista: esconde o card imediatamente para feedback visual instantâneo
