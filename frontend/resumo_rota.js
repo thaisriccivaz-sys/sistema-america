@@ -225,10 +225,14 @@ function _rrMontarColB(v) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         } else if (icon) {
-            // Mostra a tag principal da variável se a pessoa clicou no botão e não escreveu nada
-            const fallbackTxt = icon.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
-            const linhaObs = `${icon} ${nome}: ${fallbackTxt}`;
-            if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
+            // Só mostra linha de obs se o ícone veio de texto nas obs/notas (não do nome do cliente)
+            const textoSemCliente = [os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
+            const iconSemCliente = _rrObsIcon(textoSemCliente);
+            if (iconSemCliente) {
+                const fallbackTxt = iconSemCliente.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
+                const linhaObs = `${iconSemCliente} ${nome}: ${fallbackTxt}`;
+                if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
+            }
         }
     });
     if (obsLinhas.length) { lines.push(...obsLinhas); lines.push(''); }
