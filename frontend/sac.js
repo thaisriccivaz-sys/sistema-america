@@ -2533,6 +2533,7 @@
           cnpjCpf: t.cnpjCpf || '',
           equipment: t.equipment || '',
           address: t.address || '',
+          contacts: t.contacts ? JSON.parse(JSON.stringify(t.contacts)) : [],
           contactName: t.contactName || '',
           contactPhone: t.contactPhone || '',
           contactEmail: t.contactEmail || '',
@@ -2541,8 +2542,8 @@
           stage: 'abertura',
           nextSteps: 'Triagem inicial pendente.',
           timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto via duplicação da OS ' + t.protocol + '. Triagem inicial pendente.', user }],
-          occurrences: t.occurrences || [],
-          attachments: t.attachments || [],
+          occurrences: t.occurrences ? JSON.parse(JSON.stringify(t.occurrences)) : [],
+          attachments: t.attachments ? JSON.parse(JSON.stringify(t.attachments)) : [],
           isUrgent: t.isUrgent || false,
           comments: [],
           costCenters: []
@@ -2552,12 +2553,25 @@
       if (modal) modal.style.display = 'none';
       
       try {
-          await updateTicket(newTicket);
+          const res = await fetch('/api/sac/tickets', {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
+              },
+              body: JSON.stringify(newTicket)
+          });
+          if (!res.ok) throw new Error('Erro ao salvar duplicata');
+          
           await loadTickets();
           renderAll();
           showToast('Chamado duplicado com sucesso!', 'success');
-          SAC.openDetail(newTicket.id);
+          
+          setTimeout(() => {
+              SAC.openDetail(newTicket.id);
+          }, 300);
       } catch (e) {
+          console.error(e);
           showToast('Erro ao duplicar chamado', 'error');
       }
     },

@@ -1,8 +1,7 @@
-const fs = require('fs');
-let js = fs.readFileSync('backend/server.js', 'utf8');
-
-const target = "app.delete('/api/usuarios/:id'";
-const idx = js.indexOf(target);
-if (idx !== -1) {
-    console.log(js.substring(Math.max(0, idx - 800), idx + 200));
-}
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('./data/database.sqlite', sqlite3.OPEN_READONLY, (err) => {
+  if (err) { console.error(err.message); }
+  db.all(`SELECT id, nome_completo as nome, departamento, status FROM colaboradores WHERE nome_completo LIKE '%ygor%' OR nome_completo LIKE '%beatriz%' OR nome_completo LIKE '%thais%';`, [], (err, rows) => {
+    console.log(rows);
+  });
+});
