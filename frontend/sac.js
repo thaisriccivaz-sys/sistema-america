@@ -1109,22 +1109,37 @@
     const num = (contratoVal || '').trim();
     if (!num) return;
     
-    const existingTickets = _tickets.filter(t => String(t.cnpjCpf) === String(num));
-    if (existingTickets.length > 0) {
-        // Encontrar o ticket mais recente com os dados preenchidos
-        const refTicket = existingTickets.sort((a,b) => new Date(b.openDate) - new Date(a.openDate))[0];
-        if (refTicket) {
-            if (refTicket.clientName) _sacWiz('clientName', refTicket.clientName);
-            if (refTicket.address) _sacWiz('address', refTicket.address);
-            if (refTicket.equipment) _sacWiz('equipment', refTicket.equipment);
-            if (refTicket.contactName) _sacWiz('contactName', refTicket.contactName);
-            if (refTicket.contactPhone) _sacWiz('contactPhone', refTicket.contactPhone);
-            if (refTicket.contactEmail) _sacWiz('contactEmail', refTicket.contactEmail);
-            renderWizard();
-            showToast('Dados preenchidos via Contrato!', 'success');
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const res = await fetch('/api/logistica/os/buscar?contrato=' + encodeURIComponent(num), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.length > 0) {
+                // Preenche com a OS mais recente desse contrato
+                const os = data[0];
+                if (os.cliente) _sacWiz('clientName', os.cliente);
+                if (os.endereco) _sacWiz('address', os.endereco);
+                if (os.equipamento) _sacWiz('equipment', os.equipamento);
+                
+                // Múltiplos contatos (usaremos a nova lógica depois, mas mantemos o fallback por agora)
+                if (os.responsavel) _sacWiz('contactName', os.responsavel);
+                if (os.telefone) _sacWiz('contactPhone', os.telefone);
+                if (os.email) _sacWiz('contactEmail', os.email);
+                
+                renderWizard();
+                showToast('Dados preenchidos via Contrato!', 'success');
+            } else {
+                showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+            }
+        } else {
+            showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
         }
-    } else {
-        showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+    } catch (e) {
+        console.error('Erro ao buscar contrato:', e);
+        showToast('Erro de conexão ao buscar contrato.', 'error');
     }
   }
 
