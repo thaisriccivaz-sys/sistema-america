@@ -589,13 +589,66 @@ window.rrImportarPlanilha = async function(input) {
         // Col 8  = Título (cliente / nome da OS)
         // Col 29 = Observações
         // Col 36 = Notas (tipo de serviço + produto)
+        // Col 23 = Load (qtd banheiro principal)
+        // Col 24 = Load 2
+        // Col 25 = Load 3
+        // Col 26 = Load 4
         const veiculo   = (r[7]  || '').toString().trim();
         if (!veiculo) return;
         const motorista = (r[5]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
         const ajudante  = (r[6]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
         const cliente   = (r[8]  || '').toString().trim();
         const obsCol    = (r[29] || '').toString().trim();
-        const notas     = (r[36] || '').toString().trim();
+        let notas       = (r[36] || '').toString().trim();
+
+        // ── FALLBACK: quando SimpliRoute não exporta a col Notas ──────────────
+        // Reconstruir notas a partir do Título (emojis) + colunas Load
+        if (!notas) {
+            const load1 = parseInt(r[23]) || 0; // banheiro STD principal (obra)
+            const load2 = parseInt(r[24]) || 0; // ELX / STD evento / Retirada
+            const load3 = parseInt(r[25]) || 0; // PCD / grande evento (🦽)
+            const load4 = parseInt(r[26]) || 0;
+            const titulo = cliente; // col 8 = Título = nome do cliente com emojis
+            const tUp = titulo.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            // Detectar tipo de serviço pelos emojis do Título
+            const isEvento   = titulo.includes('💜') || titulo.includes('🟪');
+            const isRetirada = titulo.includes('⭕');
+            const isCarret   = titulo.includes('🔗');
+            const isPCD      = titulo.includes('🦽') || titulo.includes('♿');
+            const isEntrega  = !isRetirada; // padrão é entrega/manutenção
+
+            // Linha de serviço
+            let servicoLine = '';
+            if (isRetirada) servicoLine = 'RETIRADA OBRA TOTAL';
+            else if (isEvento) servicoLine = 'ENTREGA EVENTO';
+            else servicoLine = 'MANUTENCAO OBRA';
+
+            // Linhas de produto
+            const prodLines = [];
+            if (load3 > 0) {
+                // Load 3 = total da carga (eventos grandes com carretinha)
+                // No padrão com 🦽: PCD EVENTO
+                if (isPCD) prodLines.push(`${load3} PCD EVENTO`);
+                else if (isEvento) prodLines.push(`${load3} STD EVENTO`);
+                else prodLines.push(`${load3} STD OBRA`);
+            }
+            if (load2 > 0) {
+                if (isEvento) prodLines.push(`${load2} STD EVENTO`);
+                else if (isRetirada && load1 > 0) {/* load2 em retirada = parte do total, load1 já conta */}
+                else prodLines.push(`${load2} ELX OBRA`);
+            }
+            if (load1 > 0) {
+                if (isEvento) prodLines.push(`${load1} STD EVENTO`);
+                else prodLines.push(`${load1} STD OBRA`);
+            }
+            if (load4 > 0) prodLines.push(`${load4} STD OBRA`);
+
+            if (servicoLine || prodLines.length > 0) {
+                notas = [servicoLine, ...prodLines].filter(Boolean).join('\n');
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         if (!map[veiculo]) map[veiculo] = { veiculo, motorista, ajudante, os: [] };
         // Atualiza motorista se estiver vazio (primeiras linhas podem ter emoji diferente)
