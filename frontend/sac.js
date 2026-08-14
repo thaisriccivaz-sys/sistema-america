@@ -1104,6 +1104,30 @@
     return _TIPOS_EXCLUIR_LOOKUP.some(ex => ts.includes(ex.replace(/ /g,'')) || ts.replace(/ /g,'').includes(ex.replace(/ /g,'')));
   }
 
+  window._sacBuscarContrato = async function(contratoVal) {
+    _sacWiz('cnpjCpf', contratoVal);
+    const num = (contratoVal || '').trim();
+    if (!num) return;
+    
+    const existingTickets = _tickets.filter(t => String(t.cnpjCpf) === String(num));
+    if (existingTickets.length > 0) {
+        // Encontrar o ticket mais recente com os dados preenchidos
+        const refTicket = existingTickets.sort((a,b) => new Date(b.openDate) - new Date(a.openDate))[0];
+        if (refTicket) {
+            if (refTicket.clientName) _sacWiz('clientName', refTicket.clientName);
+            if (refTicket.address) _sacWiz('address', refTicket.address);
+            if (refTicket.equipment) _sacWiz('equipment', refTicket.equipment);
+            if (refTicket.contactName) _sacWiz('contactName', refTicket.contactName);
+            if (refTicket.contactPhone) _sacWiz('contactPhone', refTicket.contactPhone);
+            if (refTicket.contactEmail) _sacWiz('contactEmail', refTicket.contactEmail);
+            renderWizard();
+            showToast('Dados preenchidos via Contrato!', 'success');
+        }
+    } else {
+        showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+    }
+  }
+
   window._sacBuscarOSLogistica = async function(osNum) {
     _sacWiz('osNumber', osNum);
     const num = (osNum || '').trim();
@@ -1354,7 +1378,7 @@
               <i class="ph-fill ph-warning-circle" style="color:#ef4444;"></i> Chamado Urgente
             </label>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
             <div class="sac-field">
               <label>Protocolo / Nº Chamado</label>
               <input type="text" autocomplete="off" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
@@ -1365,23 +1389,19 @@
                 <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="Nº da OS" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarOSLogistica(this.value);}" style="flex:1;">
                 <button onclick="_sacBuscarOSLogistica(document.getElementById('wiz-osNumber').value)" title="Buscar OS" style="background:#1e293b;color:#fff;border:none;border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
               </div>
-              ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✅ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
+              ${_wiz._osLinked ? '<div style="font-size:0.72rem;color:#15803d;font-weight:600;margin-top:2px;">✓ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
             </div>
-
+            <div class="sac-field">
+              <label>Nº Contrato</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="text" autocomplete="off" value="${_wiz.cnpjCpf||''}" placeholder="Nº do Contrato" id="wiz-contract" oninput="_sacWiz('cnpjCpf',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarContrato(this.value);}" style="flex:1;">
+                <button onclick="_sacBuscarContrato(document.getElementById('wiz-contract').value)" title="Buscar Contrato" style="background:#1e293b;color:#fff;border:none;border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
+              </div>
+            </div>
           </div>
           <div class="sac-field">
             <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
             <input type="text" autocomplete="off" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-            <div class="sac-field">
-              <label>Nº Contrato</label>
-              <input type="text" autocomplete="off" value="${_wiz.cnpjCpf}" oninput="_sacWiz('cnpjCpf',this.value)">
-            </div>
-            <div class="sac-field">
-              <label>Canal de Entrada</label>
-              <select onchange="_sacWiz('channel',this.value)">${channelOpts}</select>
-            </div>
           </div>
           <div class="sac-field">
             <label>Equipamento <span style="color:#dc2626">*</span></label>
@@ -1757,9 +1777,10 @@
                 <div style="display:flex;align-items:center;gap:8px;">
                     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta ação não pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
+                    <button onclick="SAC.duplicateTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-copy"></i> Duplicar</button>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    ${(window.isTopAdmin || ((window.activeUserPerms||{})['sac'] === true && (window.activeUserPerms||{})['sac-atribuidos'] !== true)) ? `<button onclick="SAC.openChecklistModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#0369a1;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-checks"></i> Check-list</button>` : ''}
+                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openChecklistModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#0369a1;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-checks"></i> Check-list</button>` : ''}
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openCustosModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#7e22ce;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-currency-dollar"></i> Centro de Custos</button>` : ''}
                     <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
                         <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
@@ -2190,7 +2211,13 @@
   // ── DRAG & DROP ────────────────────────────────────────────────
   function onDragStart(e, id) {
     const t = _tickets.find(x => x.id === id);
-    if (t && !canMoveTicket(t)) {
+    if (!t) return;
+    if (t.stage === 'concluido') {
+        e.preventDefault();
+        showToast('Chamados concluídos não podem ser movidos.', 'warning');
+        return;
+    }
+    if (!canMoveTicket(t)) {
         e.preventDefault();
         showToast('Você só pode mover chamados abertos por você.', 'warning');
         return;
@@ -2340,6 +2367,52 @@
       renderAll();
       showToast('Dados atualizados', 'success');
       if (btn) btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i>';
+    },
+    async duplicateTicket(id) {
+      const t = _tickets.find(x => x.id === id);
+      if (!t) return;
+      if (!confirm('Deseja duplicar este chamado? Será criado um novo card idêntico na coluna Abertura, com um novo número de protocolo e histórico zerado.')) return;
+      
+      const user = window.currentUser ? window.currentUser.nome || currentUsername() : currentUsername();
+      const now = new Date().toISOString();
+      const proto = nextProtocol();
+      
+      const newTicket = {
+          id: 'sac-'+Date.now(),
+          protocol: proto,
+          osNumber: t.osNumber || '',
+          openDate: now,
+          clientName: t.clientName || '',
+          cnpjCpf: t.cnpjCpf || '',
+          equipment: t.equipment || '',
+          address: t.address || '',
+          contactName: t.contactName || '',
+          contactPhone: t.contactPhone || '',
+          contactEmail: t.contactEmail || '',
+          typeKey: t.typeKey || 'manutencao',
+          description: t.description || '',
+          stage: 'abertura',
+          nextSteps: 'Triagem inicial pendente.',
+          timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto via duplicação da OS ' + t.protocol + '. Triagem inicial pendente.', user }],
+          occurrences: t.occurrences || [],
+          attachments: t.attachments || [],
+          isUrgent: t.isUrgent || false,
+          comments: [],
+          costCenters: []
+      };
+      
+      const modal = document.getElementById('sac-detail-overlay');
+      if (modal) modal.style.display = 'none';
+      
+      try {
+          await updateTicket(newTicket);
+          await loadTickets();
+          renderAll();
+          showToast('Chamado duplicado com sucesso!', 'success');
+          SAC.openDetail(newTicket.id);
+      } catch (e) {
+          showToast('Erro ao duplicar chamado', 'error');
+      }
     },
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
@@ -3489,16 +3562,18 @@
         const cl = t.sacChecklist || {};
         
         const renderRatingQuestion = (id, text, val) => {
+            const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
             let btns = '';
             for(let i=1; i<=5; i++) {
                 const sel = val == i;
-                btns += `<label style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;font-weight:700;font-size:0.9rem;border:1.5px solid ${sel ? '#0369a1' : '#e2e8f0'};background:${sel ? '#0369a1' : '#fff'};color:${sel ? '#fff' : '#64748b'};transition:all 0.2s;">
+                const c = colors[i-1];
+                btns += `<label style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;font-weight:700;font-size:0.9rem;border:1.5px solid ${sel ? c : '#e2e8f0'};background:${sel ? c : '#fff'};color:${sel ? '#fff' : '#64748b'};transition:all 0.2s;">
                     <input type="radio" name="chk_${id}" value="${i}" ${sel ? 'checked' : ''} style="display:none;" onchange="
                         const labels = this.parentElement.parentElement.querySelectorAll('label');
                         labels.forEach(l => { l.style.background='#fff'; l.style.color='#64748b'; l.style.borderColor='#e2e8f0'; });
-                        this.parentElement.style.background='#0369a1';
+                        this.parentElement.style.background='${c}';
                         this.parentElement.style.color='#fff';
-                        this.parentElement.style.borderColor='#0369a1';
+                        this.parentElement.style.borderColor='${c}';
                     ">
                     ${i}
                 </label>`;
@@ -3539,12 +3614,12 @@
                 ${t.commercialTask ? renderRatingQuestion('q4', '4. A solicitação foi resolvida pelo comercial dentro do SLA?', cl.q4) : ''}
                 ${renderRatingQuestion('q5', '5. Ações e ocorrências foram preenchidas corretamente na OS?', cl.q5)}
                 
-                ${renderCheckboxQuestion('q6', '6. As evidências obrigatórias (fotos, B.O., avaria) foram inseridas?', cl.q6)}
-                ${renderCheckboxQuestion('q7', '7. O cliente foi informado sobre todas as etapas até a conclusão?', cl.q7)}
-                ${renderCheckboxQuestion('q8', '8. Houve necessidade de escalonamento para Diretoria?', cl.q8)}
+                ${renderRatingQuestion('q9', '6. O laudo relata claramente a ação executada e solução aplicada?', cl.q9)}
+                ${renderRatingQuestion('q10', '7. O cliente foi atendido de maneira satisfatória?', cl.q10)}
                 
-                ${renderRatingQuestion('q9', '9. O laudo relata claramente a ação executada e solução aplicada?', cl.q9)}
-                ${renderRatingQuestion('q10', '10. O cliente foi atendido de maneira satisfatória?', cl.q10)}
+                ${renderCheckboxQuestion('q6', '8. As evidências obrigatórias (fotos, B.O., avaria) foram inseridas?', cl.q6)}
+                ${renderCheckboxQuestion('q7', '9. O cliente foi informado sobre todas as etapas até a conclusão?', cl.q7)}
+                ${renderCheckboxQuestion('q8', '10. Houve necessidade de escalonamento para Diretoria?', cl.q8)}
             </div>
             
             <div style="margin-top:20px;display:flex;justify-content:flex-end;">
