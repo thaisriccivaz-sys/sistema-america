@@ -1110,35 +1110,123 @@
     _sacWiz('cnpjCpf', contratoVal);
     const num = (contratoVal || '').trim();
     if (!num) return;
-    
+
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/logistica/os/buscar?contrato=' + encodeURIComponent(num), {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0) {
-                // Preenche com a OS mais recente desse contrato
-                const os = data[0];
-                if (os.cliente) _sacWiz('clientName', os.cliente);
-                if (os.endereco) _sacWiz('address', os.endereco);
-                if (os.equipamento) _sacWiz('equipment', os.equipamento);
-                // Múltiplos contatos
-                if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
-                if (os.responsavel) _wiz.contacts[0].name = os.responsavel;
-                if (os.telefone) _wiz.contacts[0].phone = os.telefone;
-                if (os.email) _wiz.contacts[0].email = os.email;
-                
-                renderWizard();
-                showToast('Dados preenchidos via Contrato!', 'success');
-            } else {
-                showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
-            }
-        } else {
-            showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+
+        if (!res.ok) {
+            showToast('Nenhuma OS encontrada para este contrato.', 'info');
+            return;
         }
+
+        const rawLista = await res.json();
+
+        const fixStr = (str) => {
+            if (!str || typeof str !== 'string') return str;
+            try { if (/[\xC2\xC3][\x80-\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
+            return str;
+        };
+        if (Array.isArray(rawLista)) {
+            rawLista.forEach(r => {
+                if (r.endereco) r.endereco = fixStr(r.endereco);
+                if (r.cliente)  r.cliente  = fixStr(r.cliente);
+            });
+        }
+
+        const osList = Array.isArray(rawLista) ? rawLista : (rawLista.data || []);
+        if (!osList.length) {
+            showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+            return;
+        }
+
+        const clienteNome = osList[0].cliente || '';
+        const _clienteLimpo = window._stripEmojis(clienteNome);
+
+        // Build address list with OS prefix
+        const enderecosFormatados = osList.map(o => {
+            const ender = [o.endereco, o.complemento].filter(Boolean).join(', ');
+            return {
+                original: ender,
+                label: o.numero_os ? `OS ${o.numero_os} - ${ender}` : ender,
+                os: o
+            };
+        }).filter(x => x.original);
+
+        const labelsUnicos = [...new Set(enderecosFormatados.map(e => e.label))];
+
+        // Show address selection modal if multiple
+        const _enderRes = labelsUnicos.length > 1
+            ? await _sacEscolherEndereco(labelsUnicos, _clienteLimpo || clienteNome, osList)
+            : { label: labelsUnicos[0] || '', todos: false };
+
+        const labelSelecionado = _enderRes ? _enderRes.label : null;
+
+        if (labelsUnicos.length > 1 && labelSelecionado === null) return;
+
+        const selecionado = enderecosFormatados.find(e => e.label === labelSelecionado) || enderecosFormatados[0];
+        const enderecoFinal = selecionado ? selecionado.original : '';
+
+        // Get OS entries for selected address
+        let osDoEndereco;
+        if (selecionado && selecionado.os && selecionado.os.numero_os) {
+            osDoEndereco = osList.filter(o => o.numero_os === selecionado.os.numero_os);
+        } else {
+            osDoEndereco = osList.filter(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal);
+        }
+        const os = osDoEndereco[0] || osList[0];
+
+        // Parse products
+        const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
+
+        const SAC_EQUIP_ICONS = {
+            'STD OBRA': '🚻', 'STD EVENTO': '🚻',
+            'LX OBRA': '🚻', 'LX EVENTO': '🚻',
+            'EXL OBRA': '🚻', 'EXL EVENTO': '🚻',
+            'PCD OBRA': '♿', 'PCD EVENTO': '♿',
+            'CHUVEIRO OBRA': '🚿', 'CHUVEIRO EVENTO': '🚿',
+            'MICTÓRIO OBRA': '💧', 'MICTÓRIO EVENTO': '💧',
+            'PBII OBRA': '🧼', 'PBII EVENTO': '🧼',
+            'PBIII OBRA': '🧼', 'PBIII EVENTO': '🧼',
+            'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
+            'GUARITA DUPLA OBRA': '⚪', 'GUARITA DUPLA EVENTO': '⚪',
+            'LIMPA FOSSA OBRA': '💧', 'LIMPA FOSSA EVENTO': '💧',
+            'CARRINHO': '🛤', 'CAIXA DAGUA': '🧊'
+        };
+
+        const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
+            const icone = SAC_EQUIP_ICONS[p.desc] || '';
+            return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
+        }));
+        const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
+        const precisaModal = prodsUnicos.length > 1 || (prodsUnicos.length === 1 && (() => {
+            const m = prodsUnicos[0].match(/(\d+)x /);
+            return m && parseInt(m[1]) > 1;
+        })());
+        const equipFinal = precisaModal
+            ? await _sacEscolherEquipamento(prodsUnicos, _clienteLimpo || os.cliente || '', enderecoFinal)
+            : (prodsUnicos[0] || _parseProds(os)[0]?.desc || '');
+        if (equipFinal === null) return;
+
+        // Fill wizard fields
+        _wiz.clientName = _clienteLimpo || os.cliente || '';
+        _wiz.cnpjCpf    = num;
+        _wiz.osNumber   = os.numero_os || os.numero || '';
+        _wiz.equipment  = equipFinal;
+        _wiz.address    = enderecoFinal;
+
+        if (!_wiz.contacts || _wiz.contacts.length === 0) {
+            _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
+        }
+        if (os.responsavel) _wiz.contacts[0].name  = os.responsavel;
+        if (os.telefone)    _wiz.contacts[0].phone = os.telefone;
+        if (os.email)       _wiz.contacts[0].email = os.email;
+
+        renderWizard();
+        showToast('Dados preenchidos via Contrato!', 'success');
+
     } catch (e) {
         console.error('Erro ao buscar contrato:', e);
         showToast('Erro de conexão ao buscar contrato.', 'error');
