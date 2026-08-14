@@ -348,8 +348,7 @@
     }
 
     // SLA congelado no Acompanhamento (pausa no fds)
-    let elapsedMs = (ticket.typeKey === 'tipo_teste') ? (endCalc - opened) : getSlaElapsedMs(opened, endCalc);
-    if (ticket.typeKey === 'tipo_teste') isFrozen = false;
+    let elapsedMs = getSlaElapsedMs(opened, endCalc);
     if (isFrozen) {
         if (ticket.slaElapsedMs) elapsedMs = ticket.slaElapsedMs;
         else if (fallbackElapsed) elapsedMs = getSlaElapsedMs(opened, opened + fallbackElapsed);
@@ -799,9 +798,8 @@
       </div>
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
-        const isTeste = ticket.typeKey === 'tipo_teste';
-        const AGUARD_TOTAL_MS = isTeste ? (2 * 60 * 1000) : (2 * 60 * 60 * 1000); // 2 min ou 2 horas
-        const bizMs = isTeste ? (new Date(ticket.aguardDeadline).getTime() - Date.now()) : businessMsUntilDeadline(ticket.aguardDeadline);
+        const AGUARD_TOTAL_MS = 2 * 60 * 60 * 1000; // 2 horas em ms
+        const bizMs = businessMsUntilDeadline(ticket.aguardDeadline);
         const isOverAguard = bizMs <= 0;
         const absMs = Math.abs(bizMs);
         const hh = Math.floor(absMs/3600000).toString().padStart(2,'0');
@@ -809,7 +807,7 @@
         const ss = Math.floor((absMs%60000)/1000).toString().padStart(2,'0');
         const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
         const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
-        const isPaused = !isTeste && (nowDow===0 || nowDow===6 || nowH<8 || nowH>=17);
+        const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
         const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
@@ -3633,8 +3631,8 @@
         ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana (exceto tipo_teste)
-        ticket.aguardDeadline = (ticket.typeKey === 'tipo_teste') ? new Date(Date.now() + 2 * 60 * 1000).toISOString() : addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString();
+        // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
+        ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString(); // 2 horas
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
 
