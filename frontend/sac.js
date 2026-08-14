@@ -122,9 +122,7 @@
     cnpjCpf: '',
     equipment: '',
     address: '',
-    contactName: '',
-    contactPhone: '',
-    contactEmail: '',
+    contacts: [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }],
     channel: 'WhatsApp',
     typeKey: 'manutencao',
     occList: [],
@@ -1076,7 +1074,7 @@
 
   // ── WIZARD ABERTURA ───────────────────────────────────────────
   function openWizard() {
-    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contactName:'', contactPhone:'', contactEmail:'', channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
+    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contacts:[{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }], channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
     renderWizard();
   }
 
@@ -1123,11 +1121,11 @@
                 if (os.cliente) _sacWiz('clientName', os.cliente);
                 if (os.endereco) _sacWiz('address', os.endereco);
                 if (os.equipamento) _sacWiz('equipment', os.equipamento);
-                
-                // Múltiplos contatos (usaremos a nova lógica depois, mas mantemos o fallback por agora)
-                if (os.responsavel) _sacWiz('contactName', os.responsavel);
-                if (os.telefone) _sacWiz('contactPhone', os.telefone);
-                if (os.email) _sacWiz('contactEmail', os.email);
+                // Múltiplos contatos
+                if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
+                if (os.responsavel) _wiz.contacts[0].name = os.responsavel;
+                if (os.telefone) _wiz.contacts[0].phone = os.telefone;
+                if (os.email) _wiz.contacts[0].email = os.email;
                 
                 renderWizard();
                 showToast('Dados preenchidos via Contrato!', 'success');
@@ -1276,9 +1274,10 @@
       _wiz.cnpjCpf    = os.contrato || os.numero_contrato || '';
       _wiz.equipment  = equipFinal;
       _wiz.address    = enderecoFinal;
-      _wiz.contactName = os.responsavel || '';
-      _wiz.contactPhone = os.telefone || '';
-      _wiz.contactEmail = os.email || '';
+      if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
+      _wiz.contacts[0].name = os.responsavel || '';
+      _wiz.contacts[0].phone = os.telefone || '';
+      _wiz.contacts[0].email = os.email || '';
       _wiz.protocol   = nextProtocol();
       _wiz._protocolLocked = true;
       _wiz._osLinked  = true;
@@ -1428,20 +1427,41 @@
           </div>
 
           <!-- SEÇÃO 2: CONTATO & TIPO -->
-          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;">Informações de Contato</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-            <div class="sac-field">
-              <label>CONTATO DE INSTALAÇÃO <span style="color:#dc2626">*</span></label>
-              <input type="text" autocomplete="off" value="${_wiz.contactName}" placeholder="Nome completo" oninput="_sacWiz('contactName',this.value)">
-            </div>
-            <div class="sac-field">
-              <label>Telefone</label>
-              <input type="text" autocomplete="off" value="${_wiz.contactPhone}" placeholder="(XX) XXXXX-XXXX" oninput="_sacWiz('contactPhone',this.value)">
-            </div>
-          </div>
-          <div class="sac-field" style="margin-bottom:24px;">
-            <label>E-mail</label>
-            <input type="email" autocomplete="off" value="${_wiz.contactEmail}" oninput="_sacWiz('contactEmail',this.value)">
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;display:flex;justify-content:space-between;align-items:center;">
+            Informações de Contato
+            <button onclick="SAC.wizAddContact()" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:4px 8px;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar</button>
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:24px;">
+              ${_wiz.contacts.map((c, i) => `
+                  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;position:relative;">
+                      ${_wiz.contacts.length > 1 ? `<button onclick="SAC.wizRemoveContact(${c.id})" style="position:absolute;top:8px;right:8px;background:transparent;border:none;color:#dc2626;cursor:pointer;" title="Remover Contato"><i class="ph ph-trash"></i></button>` : ''}
+                      
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                          <div class="sac-field" style="margin-bottom:0;">
+                              <label>Tipo de Contato</label>
+                              <select onchange="SAC.wizUpdateContact(${c.id}, 'type', this.value)">
+                                  <option value="Contato de Instalação" ${c.type==='Contato de Instalação'?'selected':''}>Contato de Instalação</option>
+                                  <option value="Contato Financeiro" ${c.type==='Contato Financeiro'?'selected':''}>Contato Financeiro</option>
+                                  <option value="Contato de Contrato" ${c.type==='Contato de Contrato'?'selected':''}>Contato de Contrato</option>
+                              </select>
+                          </div>
+                          <div class="sac-field" style="margin-bottom:0;">
+                              <label>Nome do Contato <span style="color:#dc2626">*</span></label>
+                              <input type="text" autocomplete="off" value="${c.name}" placeholder="Nome completo" oninput="SAC.wizUpdateContact(${c.id}, 'name', this.value)">
+                          </div>
+                      </div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                          <div class="sac-field" style="margin-bottom:0;">
+                              <label>Telefone</label>
+                              <input type="text" autocomplete="off" value="${c.phone}" placeholder="(XX) XXXXX-XXXX" oninput="SAC.wizUpdateContact(${c.id}, 'phone', this.value)">
+                          </div>
+                          <div class="sac-field" style="margin-bottom:0;">
+                              <label>E-mail</label>
+                              <input type="email" autocomplete="off" value="${c.email}" placeholder="E-mail" oninput="SAC.wizUpdateContact(${c.id}, 'email', this.value)">
+                          </div>
+                      </div>
+                  </div>
+              `).join('')}
           </div>
         </div>
 
@@ -1758,6 +1778,7 @@
                 <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;margin-top:8px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px;">Adicionar Ocorrência</div>
                 <select id="modal-occ-select" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;margin-bottom:6px;">${occOpts}</select>
+
                 <textarea id="modal-occ-note" rows="2" placeholder="Observação sobre a ocorrência..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
                 <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
                 </div>`:''}
@@ -1779,8 +1800,21 @@
                 <div><strong>Nº OS Relacionada:</strong> ${t.osNumber||'—'}</div>
                 <div><strong>Canal:</strong> ${t.channel||'—'}</div>
                 <div><strong>Nº Contrato:</strong> ${t.cnpjCpf||'—'}</div>
-                <div><strong>Contato de Instalação:</strong> ${t.contactName||'—'} ${t.contactPhone?'· '+t.contactPhone:''}</div>
-                ${t.contactEmail?`<div><strong>E-mail:</strong> ${t.contactEmail}</div>`:''}
+                <div style="margin-top:16px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:16px;display:flex;justify-content:space-between;align-items:center;">
+                    <h4 style="margin:0;font-size:0.9rem;color:#0f172a;">Contatos</h4>
+                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openEditContactsModal('${t.id}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil-simple"></i> Editar</button>` : ''}
+                </div>
+                ${(() => {
+                    const contactsList = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ type: 'Contato de Instalação', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
+                    return contactsList.filter(c => c.name).map(c => `
+                        <div style="margin-bottom:12px;background:#f8fafc;padding:8px;border-radius:6px;border:1px solid #e2e8f0;">
+                            <div style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">${c.type}</div>
+                            <div><strong>Nome:</strong> ${c.name}</div>
+                            ${c.phone ? `<div><strong>Telefone:</strong> ${c.phone}</div>` : ''}
+                            ${c.email ? `<div><strong>E-mail:</strong> ${c.email}</div>` : ''}
+                        </div>
+                    `).join('');
+                })()}
             </div>
             </div>
     </div>
@@ -2463,9 +2497,12 @@
       renderWizard();
     },
     wizRemoveOcc(i) { _wiz.occList.splice(i,1); renderWizard(); },
+    wizAddContact() { _wiz.contacts.push({ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }); renderWizard(); },
+    wizUpdateContact(id, field, value) { const c = _wiz.contacts.find(x => x.id === id); if (c) c[field] = value; },
+    wizRemoveContact(id) { if (_wiz.contacts.length <= 1) { showToast('Mínimo 1 contato.', 'warning'); return; } _wiz.contacts = _wiz.contacts.filter(x => x.id !== id); renderWizard(); },
     async wizSubmit() {
       if (!_wiz.clientName.trim()||!_wiz.equipment.trim()) { showToast('Dados obrigatórios ausentes.','warning'); return; }
-      if (!_wiz.contactName.trim() || !_wiz.description.trim()) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
+      if (_wiz.contacts.some(c => !c.name.trim()) || !_wiz.description.trim()) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
 
       const btn = document.getElementById('wiz-submit-btn');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Criando...'; }
@@ -2491,9 +2528,11 @@
           cnpjCpf: _wiz.cnpjCpf.trim(),
           equipment: _wiz.equipment.trim(),
           address: _wiz.address.trim(),
-          contactName: _wiz.contactName.trim(),
-          contactPhone: _wiz.contactPhone.trim(),
-          contactEmail: _wiz.contactEmail.trim(),
+          contacts: _wiz.contacts.map(c => ({ ...c, name: c.name.trim(), phone: c.phone.trim(), email: c.email.trim() })),
+          // Fallback fields for older systems / compatibility if ever read directly
+          contactName: _wiz.contacts[0].name.trim(),
+          contactPhone: _wiz.contacts[0].phone.trim(),
+          contactEmail: _wiz.contacts[0].email.trim(),
           channel: _wiz.channel,
           typeKey: _wiz.typeKey,
           isUrgent: _wiz.isUrgent,
@@ -2961,6 +3000,140 @@
       updateTicket(t);
       showToast('Lançamento adicionado!','success');
       return true;
+    },
+    openEditContactsModal(ticketId) {
+        const t = _tickets.find(x => x.id === ticketId);
+        if (!t) return;
+        window._modalContactsTicketId = ticketId;
+        // fallback
+        const initialContacts = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ id: Date.now(), type: 'Contato de Instalação', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
+        window._modalContacts = JSON.parse(JSON.stringify(initialContacts)); // deep copy
+        
+        let overlay = document.getElementById('sac-edit-contacts-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'sac-edit-contacts-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
+            document.body.appendChild(overlay);
+        }
+        
+        SAC._renderContactsModal();
+    },
+    _renderContactsModal() {
+        const overlay = document.getElementById('sac-edit-contacts-overlay');
+        if (!overlay) return;
+        
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 25px rgba(0,0,0,0.15);overflow:hidden;">
+                <!-- HEADER -->
+                <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:700;font-size:1.05rem;color:#0f172a;display:flex;align-items:center;gap:8px;">
+                        <i class="ph ph-users" style="color:#0369a1;font-size:1.2rem;"></i>
+                        Editar Contatos
+                    </div>
+                    <button onclick="document.getElementById('sac-edit-contacts-overlay').remove()" style="background:transparent;border:none;cursor:pointer;color:#94a3b8;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#94a3b8'">
+                        <i class="ph ph-x" style="font-size:1.2rem;"></i>
+                    </button>
+                </div>
+                
+                <!-- BODY -->
+                <div style="padding:20px;overflow-y:auto;flex:1;background:#fff;">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                        <button onclick="SAC.addContactToModal()" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:6px 12px;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                            <i class="ph ph-plus"></i> Novo Contato
+                        </button>
+                    </div>
+                    
+                    <div style="display:flex;flex-direction:column;gap:16px;">
+                        ${window._modalContacts.map((c, i) => `
+                            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;position:relative;">
+                                ${window._modalContacts.length > 1 ? `<button onclick="SAC.removeContactFromModal(${c.id})" style="position:absolute;top:8px;right:8px;background:transparent;border:none;color:#dc2626;cursor:pointer;" title="Remover Contato"><i class="ph ph-trash"></i></button>` : ''}
+                                
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                                    <div class="sac-field" style="margin-bottom:0;">
+                                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Tipo de Contato</label>
+                                        <select onchange="SAC.updateContactInModal(${c.id}, 'type', this.value)" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                                            <option value="Contato de Instalação" ${c.type==='Contato de Instalação'?'selected':''}>Contato de Instalação</option>
+                                            <option value="Contato Financeiro" ${c.type==='Contato Financeiro'?'selected':''}>Contato Financeiro</option>
+                                            <option value="Contato de Contrato" ${c.type==='Contato de Contrato'?'selected':''}>Contato de Contrato</option>
+                                        </select>
+                                    </div>
+                                    <div class="sac-field" style="margin-bottom:0;">
+                                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Nome <span style="color:#dc2626">*</span></label>
+                                        <input type="text" value="${c.name||''}" placeholder="Nome completo" oninput="SAC.updateContactInModal(${c.id}, 'name', this.value)" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                    <div class="sac-field" style="margin-bottom:0;">
+                                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Telefone</label>
+                                        <input type="text" value="${c.phone||''}" placeholder="(XX) XXXXX-XXXX" oninput="SAC.updateContactInModal(${c.id}, 'phone', this.value)" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                                    </div>
+                                    <div class="sac-field" style="margin-bottom:0;">
+                                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">E-mail</label>
+                                        <input type="email" value="${c.email||''}" placeholder="E-mail" oninput="SAC.updateContactInModal(${c.id}, 'email', this.value)" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- FOOTER -->
+                <div style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:16px 20px;display:flex;justify-content:flex-end;gap:12px;">
+                    <button onclick="document.getElementById('sac-edit-contacts-overlay').remove()" class="sac-btn sac-btn-secondary" style="background:#fff;">Cancelar</button>
+                    <button onclick="SAC.saveContactsModal()" class="sac-btn sac-btn-primary"><i class="ph ph-check-circle"></i> Salvar Alterações</button>
+                </div>
+            </div>
+        `;
+    },
+    addContactToModal() {
+        if (!window._modalContacts) return;
+        window._modalContacts.push({ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' });
+        SAC._renderContactsModal();
+    },
+    removeContactFromModal(id) {
+        if (!window._modalContacts) return;
+        if (window._modalContacts.length <= 1) {
+            showToast('O chamado precisa de pelo menos 1 contato.', 'warning');
+            return;
+        }
+        window._modalContacts = window._modalContacts.filter(x => x.id !== id);
+        SAC._renderContactsModal();
+    },
+    updateContactInModal(id, field, value) {
+        if (!window._modalContacts) return;
+        const c = window._modalContacts.find(x => x.id === id);
+        if (c) c[field] = value;
+    },
+    saveContactsModal() {
+        if (!window._modalContacts || !window._modalContactsTicketId) return;
+        
+        // Validation
+        if (window._modalContacts.some(c => !c.name || !c.name.trim())) {
+            showToast('Preencha o nome de todos os contatos.', 'warning');
+            return;
+        }
+        
+        const t = _tickets.find(x => x.id === window._modalContactsTicketId);
+        if (!t) return;
+        
+        // Format and clean up
+        t.contacts = window._modalContacts.map(c => ({ ...c, name: c.name.trim(), phone: (c.phone||'').trim(), email: (c.email||'').trim() }));
+        
+        // Update fallbacks for old readers just in case
+        t.contactName = t.contacts[0].name;
+        t.contactPhone = t.contacts[0].phone;
+        t.contactEmail = t.contacts[0].email;
+        
+        updateTicket(t);
+        
+        // Refresh details modal if it's the open one
+        if (_selectedTicket && _selectedTicket.id === t.id) {
+            renderDetailModal();
+        }
+        
+        document.getElementById('sac-edit-contacts-overlay').remove();
+        showToast('Contatos atualizados com sucesso!', 'success');
     },
     removeCostCenter(ccId) {
       const t = _selectedTicket;
