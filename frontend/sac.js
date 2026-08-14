@@ -798,7 +798,7 @@
       </div>
       ${(() => {
         if (ticket.stage !== 'aguardando_setores' || !ticket.aguardDeadline) return '';
-        const AGUARD_TOTAL_MS = 2 * 60 * 1000;
+        const AGUARD_TOTAL_MS = 2 * 60 * 60 * 1000; // 2 horas em ms
         const bizMs = businessMsUntilDeadline(ticket.aguardDeadline);
         const isOverAguard = bizMs <= 0;
         const absMs = Math.abs(bizMs);
@@ -3616,7 +3616,7 @@
         ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
         // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
-        ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 1000).toISOString();
+        ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString(); // 2 horas
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
 
