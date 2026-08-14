@@ -1167,7 +1167,7 @@
         if (labelsUnicos.length > 1 && labelSelecionado === null) return;
 
         const selecionado = enderecosFormatados.find(e => e.label === labelSelecionado) || enderecosFormatados[0];
-        const enderecoFinal = selecionado ? selecionado.original : '';
+        const enderecoFinal = selecionado ? String(selecionado.original || '') : '';
 
         // Get OS entries for selected address
         let osDoEndereco;
@@ -1324,10 +1324,11 @@
       
       const todosEnderecos = osList.map(o => [o.endereco, o.complemento].filter(Boolean).join(', ')).filter(Boolean);
       const enderecosUnicos = [...new Set(todosEnderecos)];
-      const enderecoFinal = enderecosUnicos.length > 1
+      const _enderRes = enderecosUnicos.length > 1
         ? await _sacEscolherEndereco(enderecosUnicos, _clienteLimpo || clienteNome)
-        : (enderecosUnicos[0] || '');
-      if (enderecosUnicos.length > 1 && enderecoFinal === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+        : { label: enderecosUnicos[0] || '', todos: false };
+      if (enderecosUnicos.length > 1 && _enderRes === null) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
+      const enderecoFinal = (_enderRes && typeof _enderRes === 'object') ? (_enderRes.label || '') : (_enderRes || '');
 
       const osDoEndereco = osList.filter(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal);
       const os = osDoEndereco[0] || osList[0];
@@ -1365,7 +1366,7 @@
       _wiz.clientName = _clienteLimpo || os.cliente || '';
       _wiz.cnpjCpf    = os.contrato || os.numero_contrato || '';
       _wiz.equipment  = equipFinal;
-      _wiz.address    = enderecoFinal;
+      _wiz.address    = typeof enderecoFinal === 'string' ? enderecoFinal : (enderecoFinal?.label || '');
       if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
       _wiz.contacts[0].name = os.responsavel || '';
       _wiz.contacts[0].phone = os.telefone || '';
