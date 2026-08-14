@@ -1,99 +1,103 @@
-﻿// ============================================================
-// MÃ“DULO: SAC â€” Portal de OcorrÃªncias (Kanban de Chamados)
-// Adaptado de: kanban-flow prototype (React â†’ Vanilla JS)
+// ============================================================
+// MÓDULO: SAC — Portal de Ocorrências (Kanban de Chamados)
+// Adaptado de: kanban-flow prototype (React → Vanilla JS)
 // ============================================================
 
 (function () {
   'use strict';
 
-  // â”€â”€ CONSTANTES DE PIPELINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── CONSTANTES DE PIPELINE ───────────────────────────────────
   const PIPELINE_STAGES = [
     { id: 'abertura',          name: 'Abertura',           color: '#6c757d', bg: '#f8f9fa' },
     { id: 'triagem',           name: 'Triagem',            color: '#0e7490', bg: '#cffafe' },
     { id: 'aguardando_setores',name: 'Aguard. Setores',    color: '#c2410c', bg: '#fff7ed' },
     { id: 'respondido',        name: 'Respondido',         color: '#7c3aed', bg: '#ede9fe' },
     { id: 'execucao',          name: 'Acompanhamento',     color: '#1d4ed8', bg: '#dbeafe' },
-    { id: 'concluido',         name: 'ConcluÃ­do',          color: '#15803d', bg: '#dcfce7' },
+    { id: 'concluido',         name: 'Concluído',          color: '#15803d', bg: '#dcfce7' },
     { id: 'encerrado',         name: 'Encerrado',          color: '#374151', bg: '#f3f4f6' }
   ];
 
   const TICKET_TYPES = {
-    manutencao:          { name: 'MANUTENÃ‡ÃƒO',            sla: 36, icon: 'ðŸª£' },
-    avaria_funcional:    { name: 'AVARIA FUNCIONAL',      sla: 48, icon: 'âš ï¸' },
-    avaria_nao_funcional:{ name: 'AVARIA NÃƒO FUNCIONAL',  sla: 36, icon: 'âš™ï¸' },
-    entrega:             { name: 'ENTREGA',                sla: 48, icon: 'ðŸšš' },
-    retirada:            { name: 'RETIRADA',               sla: 48, icon: 'ðŸ“¦' },
-    contrato:            { name: 'CONTRATO',               sla: 48, icon: 'âœï¸' },
-    furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: 'ðŸ›¡ï¸' },
-    visita_tecnica:      { name: 'VISITA TÃ‰CNICA',         sla: 48, icon: 'ðŸ”§' },
-    tipo_teste:          { name: 'TIPO TESTE',             sla: (2/60), icon: 'ðŸ§ª' }
+    manutencao:          { name: 'MANUTENÇÃO',            sla: 36, icon: '🪣' },
+    avaria_funcional:    { name: 'AVARIA FUNCIONAL',      sla: 48, icon: '⚠️' },
+    avaria_nao_funcional:{ name: 'AVARIA NÃO FUNCIONAL',  sla: 36, icon: '⚙️' },
+    entrega:             { name: 'ENTREGA',                sla: 48, icon: '🚚' },
+    retirada:            { name: 'RETIRADA',               sla: 48, icon: '📦' },
+    contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
+    furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
+    visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' },
+    tipo_teste:          { name: 'TIPO TESTE',             sla: (2/60), icon: '🧪' }
   };
 
   const POPUP_CLOSERS = ['Thais.Ricci', 'renata.comercial'];
   let _sacSlaNotificadosIds = [];
 
   let OCCURRENCES_BY_TYPE = {
-    manutencao:          ['ManutenÃ§Ã£o nÃ£o realizada', 'ReclamaÃ§Ã£o de limpeza', 'ManutenÃ§Ã£o suspensa por falta de pagamento'],
-    avaria_funcional:    ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do LavatÃ³rio', 'Caixa de Descarga', 'Chuveiro', 'MictÃ³rio Interno', 'Puxador', 'Vaso SanitÃ¡rio', 'Vidro da Guarita'],
-    avaria_nao_funcional:['Assento SanitÃ¡rio', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
-    entrega:             ['EndereÃ§o incorreto', 'Equipe nÃ£o localizou o ponto', 'Cliente ausente', 'Produto entregue errado', 'Atraso na entrega'],
-    retirada:            ['Fim de contrato indesejada', 'Retirada InfrutÃ­fera', 'Desmontagem'],
-    contrato:            ['AlteraÃ§Ã£o Cadastral', 'Ruptura de contrato', 'ProrrogaÃ§Ã£o de locaÃ§Ã£o'],
-    furto:               ['Furto no Cliente', 'Furto em TrÃ¢nsito', 'Extravio / Perda'],
-    visita_tecnica:      ['AvaliaÃ§Ã£o tÃ©cnica de equipamento', 'SolicitaÃ§Ã£o do cliente', 'Vistoria de campo', 'ReclamaÃ§Ã£o de funcionamento', 'VerificaÃ§Ã£o prÃ©-contrato'],
+    manutencao:          ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
+    avaria_funcional:    ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
+    avaria_nao_funcional:['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+    entrega:             ['Endereço incorreto', 'Equipe não localizou o ponto', 'Cliente ausente', 'Produto entregue errado', 'Atraso na entrega'],
+    retirada:            ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
+    contrato:            ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
+    furto:               ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
+    visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato'],
     tipo_teste:          ['Teste 1', 'Teste 2']
   };
 
   const CHECKLISTS_BY_TYPE = {
     all: [
-      'Confirmar documentaÃ§Ã£o e dados bÃ¡sicos do cliente',
+      'Confirmar documentação e dados básicos do cliente',
       'Registrar fotos do local e status do equipamento antes de iniciar',
       'Coletar assinatura de termo de vistoria de campo'
     ],
     manutencao: [
-      'Verificar integridade da estrutura fÃ­sica do equipamento',
-      'Realizar limpeza interna e higienizaÃ§Ã£o profunda',
-      'Reabastecer insumos consumÃ­veis padrÃ£o',
-      'Aferir funcionamento dos sensores e travas automÃ¡ticas'
+      'Verificar integridade da estrutura física do equipamento',
+      'Realizar limpeza interna e higienização profunda',
+      'Reabastecer insumos consumíveis padrão',
+      'Aferir funcionamento dos sensores e travas automáticas'
     ],
     avaria_funcional: [
-      'O reparo funcional do equipamento foi 100% concluÃ­do?',
-      'Foi feita inspeÃ§Ã£o para garantir que nÃ£o hÃ¡ outras avarias ocultas?',
+      'O reparo funcional do equipamento foi 100% concluído?',
+      'Foi feita inspeção para garantir que não há outras avarias ocultas?',
       'A OS de Avaria foi emitida, preenchida e anexada ao sistema?'
     ],
     avaria_nao_funcional: [
-      'Foi validado visualmente que o reparo estÃ©tico foi realizado?',
+      'Foi validado visualmente que o reparo estético foi realizado?',
       'A OS de Avaria correspondente foi devidamente emitida e registrada?'
     ],
     entrega: [
       'A entrega foi efetivada com sucesso no local do cliente?',
-      'Os endereÃ§os foram atualizados corretamente em todos os sistemas?'
+      'Os endereços foram atualizados corretamente em todos os sistemas?'
     ],
     retirada: [
-      'A retirada fÃ­sica do equipamento no cliente foi concluÃ­da?',
-      'O registro sistÃªmico da retirada (baixa de alocaÃ§Ã£o) foi realizado?'
+      'A retirada física do equipamento no cliente foi concluída?',
+      'O registro sistêmico da retirada (baixa de alocação) foi realizado?'
     ],
     contrato: [
-      'A alteraÃ§Ã£o contratual foi realizada e salva corretamente no sistema?',
-      'Foi solicitada a emissÃ£o de um novo boleto ao financeiro (se houver impacto)?'
+      'A alteração contratual foi realizada e salva corretamente no sistema?',
+      'Foi solicitada a emissão de um novo boleto ao financeiro (se houver impacto)?'
     ],
     furto: [
-      'A cÃ³pia oficial do Boletim de OcorrÃªncia (B.O.) foi solicitada e anexada?',
+      'A cópia oficial do Boletim de Ocorrência (B.O.) foi solicitada e anexada?',
       'A OS de Avaria por Furto foi formalmente emitida?',
-      'A reposiÃ§Ã£o de um novo equipamento para o cliente foi registrada?',
-      'O setor responsÃ¡vel foi notificado para dar baixa no patrimÃ´nio furtado?'
+      'A reposição de um novo equipamento para o cliente foi registrada?',
+      'O setor responsável foi notificado para dar baixa no patrimônio furtado?'
     ],
     visita_tecnica: [
-      'O relatÃ³rio de visita tÃ©cnica foi preenchido e assinado pelo cliente?',
-      'Foram registradas fotos de todas as nÃ£o conformidades encontradas?',
-      'O cliente foi orientado sobre os prÃ³ximos passos / prazo de retorno?'
+      'O relatório de visita técnica foi preenchido e assinado pelo cliente?',
+      'Foram registradas fotos de todas as não conformidades encontradas?',
+      'O cliente foi orientado sobre os próximos passos / prazo de retorno?'
     ]
   };
 
   const LS_KEY = 'sac_tickets_v1';
 
-  // â”€â”€ ESTADO DO MÃ“DULO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ESTADO DO MÓDULO ─────────────────────────────────────────
   let _tickets = [];
+  window._stripEmojis = function(str) {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/^[^a-zA-Z0-9À-ɏ]+/, '').replace(/[🌀-🧿☀-⛿✀-➿😀-🙏🚀-🛿🇠-🇿]/gu, '').trim();
+  };
   let _view = 'pipeline'; // 'pipeline' | 'tabela' | 'config'
   let _searchTerm = '';
   let _filterType = 'all';
@@ -122,7 +126,7 @@
     cnpjCpf: '',
     equipment: '',
     address: '',
-    contacts: [{ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' }],
+    contacts: [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }],
     channel: 'WhatsApp',
     typeKey: 'manutencao',
     occList: [],
@@ -146,15 +150,15 @@
   let _transForm = {
     nextSteps: '',
     obs: '',
-    sector: 'LogÃ­stica',
-    closingReason: 'ConcluÃ­do',
+    sector: 'Logística',
+    closingReason: 'Concluído',
     checklistJustification: '',
     closingAttachments: []
   };
 
-  // â”€â”€ PERSISTÃŠNCIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PERSISTÊNCIA ─────────────────────────────────────────────
   function saveTickets() {
-    // Agora Ã© feito via API no updateTicket / wizSubmit
+    // Agora é feito via API no updateTicket / wizSubmit
   }
 
   let _globalDepartamentos = [];
@@ -188,8 +192,8 @@
     if (!_tickets) _tickets = [];
   }
 
-  // â”€â”€ BUSINESS HOURS HELPERS (Seg-Sex 08:00-17:00) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // addBusinessHours: avanÃ§a N ms de horas Ãºteis a partir de start
+  // ── BUSINESS HOURS HELPERS (Seg-Sex 08:00-17:00) ─────────────
+  // addBusinessHours: avança N ms de horas úteis a partir de start
   function addBusinessHours(start, hoursMs) {
     const WS = 8, WE = 17;
     let cur = new Date(start), rem = hoursMs, g = 0;
@@ -267,7 +271,7 @@
     }
     return Math.round(elapsed);
   }
-  // â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
     if (!str) return str;
     if (typeof str === 'string') {
@@ -279,16 +283,16 @@
   }
 
   function formatDate(iso) {
-    if (!iso) return 'â€”';
+    if (!iso) return '—';
     const d = new Date(_normDate(iso));
-    if (isNaN(d.getTime())) return 'â€”';
+    if (isNaN(d.getTime())) return '—';
     return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
   }
 
   function formatDateShort(iso) {
-    if (!iso) return 'â€”';
+    if (!iso) return '—';
     const d = new Date(_normDate(iso));
-    if (isNaN(d.getTime())) return 'â€”';
+    if (isNaN(d.getTime())) return '—';
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const hh = String(d.getHours()).padStart(2,'0');
@@ -311,22 +315,22 @@
 
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
-    if (!type) return { label: 'â€”', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+    if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
     const openStr = _normDate(ticket.openDate || new Date().toISOString());
     const opened = new Date(openStr).getTime();
     const limitMs = type.sla * 3600000;
-    // isOpen = ticket ainda nÃ£o encerrado ou concluÃ­do
+    // isOpen = ticket ainda não encerrado ou concluído
     const isConcluido = ticket.stage === 'concluido';
     const isClosed = isConcluido || ticket.stage === 'encerrado';
 
-    // Se a data de abertura for invÃ¡lida, retorna fallback seguro
-    if (isNaN(opened)) return { label: 'â€”', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+    // Se a data de abertura for inválida, retorna fallback seguro
+    if (isNaN(opened)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
 
     let endCalc = Date.now();
     let isFrozen = !!ticket.slaFrozenAt;
     let fallbackElapsed = null;
 
-    // Fallback para chamados que jÃ¡ estÃ£o em Acompanhamento mas nÃ£o salvaram slaFrozenAt
+    // Fallback para chamados que já estão em Acompanhamento mas não salvaram slaFrozenAt
     if (!isFrozen && ticket.stage === 'execucao' && ticket.timeline) {
         const log = [...ticket.timeline].reverse().find(l => l.stage === 'execucao');
         if (log) {
@@ -367,10 +371,10 @@
     const consumedPct = Math.min(100, Math.max(0, 100 - pct));
     const isOverdue = remainMs <= 0;
 
-    // â€” Para chamados CONCLUÃDOS: exibe tempo total desde abertura â€”
+    // — Para chamados CONCLUÍDOS: exibe tempo total desde abertura —
     if (isConcluido) {
       const withinSLA = elapsedMs <= limitMs;
-      const concludedLabel = `âœ“ ${fmtHM(elapsedMs)} (${withinSLA ? 'no prazo' : 'em atraso'})`;
+      const concludedLabel = `✓ ${fmtHM(elapsedMs)} (${withinSLA ? 'no prazo' : 'em atraso'})`;
       const concludedColor = withinSLA ? '#15803d' : '#dc2626';
       const concludedBarPct = Math.min(100, Math.round((elapsedMs / limitMs) * 100));
       return {
@@ -397,9 +401,9 @@
     let label;
     const sign = isOverdue ? '-' : '';
     if (isFrozen) {
-      label = `ðŸ”’ ${sign}${fmtHM(remainMs)}`;
+      label = `🔒 ${sign}${fmtHM(remainMs)}`;
     } else if (isWeekendPause) {
-      label = `â„ï¸ ${sign}${fmtHM(remainMs)}`;
+      label = `❄️ ${sign}${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
@@ -440,7 +444,7 @@
   }
 
   function currentUsername() {
-    try { const u = JSON.parse(localStorage.getItem('erp_user')); return u ? (u.nome || u.username || 'UsuÃ¡rio') : 'UsuÃ¡rio'; } catch(e) { return 'UsuÃ¡rio'; }
+    try { const u = JSON.parse(localStorage.getItem('erp_user')); return u ? (u.nome || u.username || 'Usuário') : 'Usuário'; } catch(e) { return 'Usuário'; }
   }
 
   function showToast(msg, type='success') {
@@ -462,7 +466,7 @@
     el._timer = setTimeout(() => { el.style.display = 'none'; }, 4000);
   }
 
-  // â”€â”€ INICIALIZAÃ‡ÃƒO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── INICIALIZAÇÃO ────────────────────────────────────────────
   window.initSAC = async function () {
     const c = document.getElementById('view-sac');
     if (!c) return;
@@ -486,17 +490,17 @@
     _wiz.protocol = nextProtocol();
     renderAll();
     
-    // Auto-refresh a cada 5 minutos â€” protegido contra sobrescrever saves recentes
+    // Auto-refresh a cada 5 minutos — protegido contra sobrescrever saves recentes
     let _lastSaveTime = 0;
     window._sacLastSaveTime = () => _lastSaveTime;
     const _origUpdate = updateTicket;
-    // Decorar updateTicket para registrar timestamp do Ãºltimo save
-    // (jÃ¡ feito inline abaixo via _lastSaveTime)
+    // Decorar updateTicket para registrar timestamp do último save
+    // (já feito inline abaixo via _lastSaveTime)
     if (!window._sacAutoRefresh) {
       window._sacAutoRefresh = setInterval(async () => {
         const root = document.getElementById('view-sac');
         if (root && root.style.display !== 'none' && document.body.contains(root)) {
-            // NÃ£o recarregar se houve um save nos Ãºltimos 30 segundos (anti race-condition)
+            // Não recarregar se houve um save nos últimos 30 segundos (anti race-condition)
             const secsSinceLastSave = (Date.now() - (window._sacLastSaveMs || 0)) / 1000;
             if (secsSinceLastSave < 30) return;
             const ov = document.getElementById('sac-modal-overlay');
@@ -517,7 +521,7 @@
         }
       }, 60 * 1000);
     }
-    // Verificar imediatamente ao carregar (reoabrir popups pendentes apÃ³s reload)
+    // Verificar imediatamente ao carregar (reoabrir popups pendentes após reload)
     setTimeout(() => {
       checkFollowUpAlerts();
       checkSLAOverdue();
@@ -531,7 +535,7 @@
     }, 2000);
   };
 
-  // â”€â”€ SHELL PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SHELL PRINCIPAL ──────────────────────────────────────────
   function buildSACShell() {
     return `
     <div id="sac-root" style="display:flex;flex-direction:column;height:100%;font-family:'Inter',system-ui,sans-serif;background:#f8fafc;">
@@ -542,11 +546,11 @@
       <div id="sac-topbar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:16px;min-height:56px;flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:10px;">
           <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
-          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;color:#1e293b;">SAC <span style="font-weight:400;font-size:0.8rem;color:#64748b;margin-left:4px;">Portal de OcorrÃªncias</span></span>
+          <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;color:#1e293b;">SAC <span style="font-weight:400;font-size:0.8rem;color:#64748b;margin-left:4px;">Portal de Ocorrências</span></span>
         </div>
         <div style="flex:1;display:flex;align-items:center;gap:8px;justify-content:center;">
           <button class="sac-nav-btn" data-view="pipeline" onclick="SAC.setView('pipeline')"><i class="ph ph-kanban"></i> Pipeline</button>
-          <button class="sac-nav-btn" data-view="tabela"   onclick="SAC.setView('tabela')"><i class="ph ph-table"></i> RelatÃ³rio</button>
+          <button class="sac-nav-btn" data-view="tabela"   onclick="SAC.setView('tabela')"><i class="ph ph-table"></i> Relatório</button>
           <button class="sac-nav-btn" data-view="config"   onclick="SAC.setView('config')"><i class="ph ph-sliders-horizontal"></i> Parametrizar</button>
         </div>
         <button onclick="SAC.refreshData()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-weight:600;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;margin-right:8px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="Atualizar chamados">
@@ -577,7 +581,7 @@
         
         <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;">
           De: <input type="date" id="sac-filter-datestart" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" onchange="SAC.onFilterDate(this.value, document.getElementById('sac-filter-dateend').value)">
-          AtÃ©: <input type="date" id="sac-filter-dateend" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" onchange="SAC.onFilterDate(document.getElementById('sac-filter-datestart').value, this.value)">
+          Até: <input type="date" id="sac-filter-dateend" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;" onchange="SAC.onFilterDate(document.getElementById('sac-filter-datestart').value, this.value)">
         </div>
 
         <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#1e293b;cursor:pointer;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;">
@@ -587,7 +591,7 @@
 
         <div style="position:relative;display:flex;align-items:center;">
           <i class="ph ph-user-circle" style="position:absolute;left:8px;color:#64748b;font-size:0.9rem;pointer-events:none;"></i>
-          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuiÃ§Ã£o..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
+          <input id="sac-filter-assigned" type="text" placeholder="Filtrar por atribuição..." style="padding:7px 8px 7px 28px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;min-width:180px;" oninput="SAC.onFilterAssigned(this.value)">
           <button id="sac-filter-assigned-clear" onclick="document.getElementById('sac-filter-assigned').value='';SAC.onFilterAssigned('')" style="position:absolute;right:4px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;display:none;" title="Limpar">&#x2715;</button>
         </div>
         
@@ -648,7 +652,7 @@
     </style>`;
   }
 
-  // â”€â”€ RENDER PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── RENDER PRINCIPAL ─────────────────────────────────────────
   function renderAll() {
     updateNavBtns();
     const main = document.getElementById('sac-main');
@@ -682,7 +686,7 @@
     badge.textContent = `${total} OS encontradas | ${open} em aberto`;
   }
 
-  // â”€â”€ PIPELINE KANBAN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PIPELINE KANBAN ──────────────────────────────────────────
   function renderPipeline(container) {
     const filtered = getFilteredTickets();
     container.innerHTML = `
@@ -704,7 +708,7 @@
           </div>
           <div style="flex:1;overflow-y:auto;padding:10px 8px;">
             ${cards.length === 0
-              ? `<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:20px 0;">Sem ocorrÃªncias</div>`
+              ? `<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:20px 0;">Sem ocorrências</div>`
               : cards.map(t => renderCard(t, stage)).join('')
             }
           </div>
@@ -714,16 +718,16 @@
   }
 
   function renderCard(ticket, stage) {
-    const type = TICKET_TYPES[ticket.typeKey] || { name: ticket.typeKey, icon: 'â“', sla: 48 };
+    const type = TICKET_TYPES[ticket.typeKey] || { name: ticket.typeKey, icon: '❓', sla: 48 };
     const sla = getSLADetails(ticket);
     const slaColor = sla.labelColor || (sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d');
 
     const slaConsumedPct = sla.consumedPct !== undefined ? sla.consumedPct : Math.min(100, Math.max(0, 100 - sla.pct));
     const slaBarColor = sla.barColor || slaColor;
 
-    const cleanClientName = (ticket.clientName || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
+    const cleanClientName = window._stripEmojis(ticket.clientName);
     const clientShort = cleanClientName.length > 25
-      ? cleanClientName.substring(0, 25) + 'â€¦'
+      ? cleanClientName.substring(0, 25) + '…'
       : cleanClientName;
 
     const cl = getChecklist(ticket);
@@ -749,7 +753,7 @@
     }
     
     const assignedUserShort = assignedUser && assignedUser.length > 20 
-      ? assignedUser.substring(0, 20) + 'â€¦' 
+      ? assignedUser.substring(0, 20) + '…' 
       : assignedUser;
 
     const coverAttachment = (ticket.attachments || []).find(a => /\.(jpeg|jpg|gif|png|webp|bmp)$/i.test(a.url || a.originalName || a.name || a.filename));
@@ -765,7 +769,7 @@
       ${coverHtml}
       <div style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">NÂº ${ticket.protocol}${ticket.osNumber ? ' Â· OS ' + ticket.osNumber : ''}</span>
+          <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}${ticket.osNumber ? ' · OS ' + ticket.osNumber : ''}</span>
           ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Urgente"><i class="ph-fill ph-warning-circle"></i></span>' : ''}
           ${(ticket.tags || []).includes('Reagendamento') ? `<span style="background:#ffedd5;color:#ea580c;border-radius:4px;padding:2px 6px;font-size:0.65rem;font-weight:700;">Reagendamento</span>` : ''}
         </div>
@@ -777,7 +781,7 @@
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
       </div>
-      ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. atÃ© ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
+      ${ticket.followUpDeadline && ticket.stage === 'execucao' ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:3px 7px;font-size:0.68rem;color:#c2410c;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:3px;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(ticket.followUpDeadline)}</div>` : ''}
       ${assignedUser ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f8fafc;padding:4px;border-radius:6px;border:1px solid #e2e8f0;width:100%;box-sizing:border-box;max-width:100%;overflow:hidden;">
         <img src="${assignedUserPhoto||''}" style="width:20px;height:20px;flex-shrink:0;border-radius:50%;object-fit:cover;background:#cbd5e1;" onerror="this.style.display='none'">
         <span style="font-size:0.7rem;color:#475569;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${assignedUser}">${assignedUser.length > 20 ? assignedUser.substring(0, 20) + '...' : assignedUser}</span>
@@ -804,12 +808,12 @@
         const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
         const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
         const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
-        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `â„ï¸ ${hh}:${mm}:${ss}` : `â³ ${hh}:${mm}:${ss}`;
+        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
-        const pendSector = hasPendingLog ? 'LogÃ­stica' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
+        const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
         return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
         <div style="font-size:0.63rem;color:${barColor};font-weight:700;margin-top:1px;display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:${isOverAguard ? '#dc2626' : '#854d0e'};">${pendSector ? (isOverAguard ? 'ðŸ”´ Aguard. ' : 'â³ Aguard. ') + pendSector : ''}</span>
+          <span style="color:${isOverAguard ? '#dc2626' : '#854d0e'};">${pendSector ? (isOverAguard ? '🔴 Aguard. ' : '⏳ Aguard. ') + pendSector : ''}</span>
           <span>${countLabel}</span>
         </div>`;
       })()}
@@ -818,7 +822,7 @@
 
 
 
-  // â”€â”€ TABELA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── TABELA ───────────────────────────────────────────────────
   function renderTabela(container) {
     const all = getFilteredTickets();
 
@@ -843,14 +847,14 @@
     if (_tablePage > totalPages) _tablePage = totalPages;
     const paged = filtered.slice((_tablePage-1)*TABLE_PAGE_SIZE, _tablePage*TABLE_PAGE_SIZE);
 
-    function sortIcon(key) { if (_sortKey!==key) return 'â‡…'; return _sortDir==='asc'?'â†‘':'â†“'; }
+    function sortIcon(key) { if (_sortKey!==key) return '⇅'; return _sortDir==='asc'?'↑':'↓'; }
 
     container.innerHTML = `
     <div style="padding:16px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;gap:12px;">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <label style="font-size:0.78rem;font-weight:700;color:#475569;">De:</label>
         <input type="date" value="${_tableStartDate}" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;" onchange="SAC.setTableDate('start',this.value)">
-        <label style="font-size:0.78rem;font-weight:700;color:#475569;">AtÃ©:</label>
+        <label style="font-size:0.78rem;font-weight:700;color:#475569;">Até:</label>
         <input type="date" value="${_tableEndDate}" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;" onchange="SAC.setTableDate('end',this.value)">
         <button class="sac-btn sac-btn-primary" onclick="SAC.exportCSV()" style="margin-left:auto;"><i class="ph ph-download-simple"></i> Exportar CSV</button>
       </div>
@@ -858,21 +862,21 @@
         <table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
           <thead>
             <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('protocol')">NÂº ${sortIcon('protocol')}</th>
+              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('protocol')">Nº ${sortIcon('protocol')}</th>
               <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('openDate')">Data Abertura ${sortIcon('openDate')}</th>
               <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('clientName')">Cliente ${sortIcon('clientName')}</th>
               <th style="padding:10px 12px;text-align:left;">Equipamento</th>
               <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('typeKey')">Tipo ${sortIcon('typeKey')}</th>
               <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('stage')">Etapa ${sortIcon('stage')}</th>
               <th style="padding:10px 12px;text-align:left;">SLA</th>
-              <th style="padding:10px 12px;text-align:right;">AÃ§Ãµes</th>
+              <th style="padding:10px 12px;text-align:right;">Ações</th>
             </tr>
           </thead>
           <tbody>
           ${paged.length===0?`<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum chamado encontrado</td></tr>`:
           paged.map(t => {
             const stage = PIPELINE_STAGES.find(s=>s.id===t.stage)||{name:t.stage,color:'#64748b'};
-            const type  = TICKET_TYPES[t.typeKey]||{name:t.typeKey,icon:'â“'};
+            const type  = TICKET_TYPES[t.typeKey]||{name:t.typeKey,icon:'❓'};
             const sla   = getSLADetails(t);
             const slaColor = sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d';
             return `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
@@ -894,15 +898,15 @@
       <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;color:#64748b;">
         <span>${filtered.length} registros</span>
         <div style="display:flex;gap:6px;align-items:center;">
-          <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;" onclick="SAC.setPage(${_tablePage-1})" ${_tablePage<=1?'disabled':''}>â† Ant.</button>
-          <span>PÃ¡g. ${_tablePage} / ${totalPages}</span>
-          <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;" onclick="SAC.setPage(${_tablePage+1})" ${_tablePage>=totalPages?'disabled':''}>PrÃ³x. â†’</button>
+          <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;" onclick="SAC.setPage(${_tablePage-1})" ${_tablePage<=1?'disabled':''}>← Ant.</button>
+          <span>Pág. ${_tablePage} / ${totalPages}</span>
+          <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;" onclick="SAC.setPage(${_tablePage+1})" ${_tablePage>=totalPages?'disabled':''}>Próx. →</button>
         </div>
       </div>
     </div>`;
   }
 
-  // â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── CONFIG ───────────────────────────────────────────────────
   function renderConfig(container) {
     const typesList = Object.entries(TICKET_TYPES);
     const rawOccs = window._sacOccurrencesRaw || [];
@@ -911,10 +915,10 @@
     <div style="padding:20px;overflow-y:auto;height:100%;box-sizing:border-box;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <h3 style="margin:0;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:8px;">
-          <i class="ph ph-sliders-horizontal" style="color:#f97316;"></i> Tipos de OcorrÃªncia por Chamado
+          <i class="ph ph-sliders-horizontal" style="color:#f97316;"></i> Tipos de Ocorrência por Chamado
         </h3>
         <button onclick="window._sacOpenNewOccModal()" style="background:#ef4444;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;font-size:0.85rem;">
-          <i class="ph ph-plus"></i> Nova OcorrÃªncia
+          <i class="ph ph-plus"></i> Nova Ocorrência
         </button>
       </div>
 
@@ -930,7 +934,7 @@
             ${typeDef.icon} ${typeDef.name}
           </div>
           <div style="padding:12px 16px;">
-            ${occsForType.length === 0 ? '<p style="margin:0;color:#94a3b8;font-size:0.85rem;">Nenhuma ocorrÃªncia cadastrada.</p>' : `
+            ${occsForType.length === 0 ? '<p style="margin:0;color:#94a3b8;font-size:0.85rem;">Nenhuma ocorrência cadastrada.</p>' : `
               <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
                 <tbody>
                   ${occsForType.map(o => `
@@ -958,10 +962,10 @@
   }
 
 
-  // â”€â”€ OCCURRENCES CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── OCCURRENCES CRUD ───────────────────────────────────────────────────
   window._sacOpenNewOccModal = function() {
     window._sacCurrentEditOccId = null;
-    document.getElementById('sac-occ-modal-title').innerText = 'Nova OcorrÃªncia';
+    document.getElementById('sac-occ-modal-title').innerText = 'Nova Ocorrência';
     document.getElementById('sac-occ-type').value = 'manutencao';
     document.getElementById('sac-occ-desc').value = '';
     document.getElementById('sac-occ-modal').style.display = 'flex';
@@ -972,7 +976,7 @@
     const occ = rawOccs.find(o => o.id === id);
     if (!occ) return;
     window._sacCurrentEditOccId = id;
-    document.getElementById('sac-occ-modal-title').innerText = 'Editar OcorrÃªncia';
+    document.getElementById('sac-occ-modal-title').innerText = 'Editar Ocorrência';
     document.getElementById('sac-occ-type').value = occ.type_key;
     document.getElementById('sac-occ-desc').value = occ.description;
     document.getElementById('sac-occ-modal').style.display = 'flex';
@@ -985,7 +989,7 @@
   window._sacSaveOcc = async function() {
     const type_key = document.getElementById('sac-occ-type').value;
     const description = document.getElementById('sac-occ-desc').value.trim();
-    if (!description) { showToast('DescriÃ§Ã£o Ã© obrigatÃ³ria', 'error'); return; }
+    if (!description) { showToast('Descrição é obrigatória', 'error'); return; }
 
     const id = window._sacCurrentEditOccId;
     const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
@@ -1007,7 +1011,7 @@
       }
       
       if (res.ok) {
-        showToast('OcorrÃªncia salva!', 'success');
+        showToast('Ocorrência salva!', 'success');
         _sacCloseOccModal();
         await loadTickets(); // Reloads occurrences globally
         renderAll(); // Re-render current view (Config)
@@ -1016,12 +1020,12 @@
       }
     } catch (e) {
       console.error(e);
-      showToast('Erro de conexÃ£o', 'error');
+      showToast('Erro de conexão', 'error');
     }
   };
 
   window._sacDeleteOcc = async function(id) {
-    if (!confirm('Deseja realmente excluir esta ocorrÃªncia?')) return;
+    if (!confirm('Deseja realmente excluir esta ocorrência?')) return;
     const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
     try {
       const res = await fetch(`/api/sac/ocorrencias/${id}`, {
@@ -1029,7 +1033,7 @@
         headers: {'Authorization':'Bearer '+token}
       });
       if (res.ok) {
-        showToast('OcorrÃªncia excluÃ­da!', 'success');
+        showToast('Ocorrência excluída!', 'success');
         await loadTickets();
         renderAll();
       } else {
@@ -1037,7 +1041,7 @@
       }
     } catch(e) {
       console.error(e);
-      showToast('Erro de conexÃ£o', 'error');
+      showToast('Erro de conexão', 'error');
     }
   };
 
@@ -1047,7 +1051,7 @@
       <div id="sac-occ-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px);">
         <div style="background:#fff;width:100%;max-width:400px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.1);overflow:hidden;">
           <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">
-            <h3 id="sac-occ-modal-title" style="margin:0;font-size:1.05rem;color:#1e293b;font-weight:700;">Nova OcorrÃªncia</h3>
+            <h3 id="sac-occ-modal-title" style="margin:0;font-size:1.05rem;color:#1e293b;font-weight:700;">Nova Ocorrência</h3>
             <button onclick="window._sacCloseOccModal()" style="background:transparent;border:none;font-size:1.2rem;cursor:pointer;color:#64748b;"><i class="ph ph-x"></i></button>
           </div>
           <div style="padding:20px;">
@@ -1058,7 +1062,7 @@
               </select>
             </div>
             <div style="margin-bottom:20px;">
-              <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:6px;">DescriÃ§Ã£o</label>
+              <label style="display:block;font-size:0.85rem;font-weight:600;color:#475569;margin-bottom:6px;">Descrição</label>
               <input type="text" id="sac-occ-desc" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;outline:none;box-sizing:border-box;" placeholder="Ex: Produto entregue errado..." />
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;">
@@ -1072,9 +1076,9 @@
     document.body.insertAdjacentHTML('beforeend', modalHtml);
   }
 
-  // â”€â”€ WIZARD ABERTURA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── WIZARD ABERTURA ───────────────────────────────────────────
   function openWizard() {
-    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contacts:[{ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' }], channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
+    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contacts:[{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }], channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
     renderWizard();
   }
 
@@ -1102,119 +1106,6 @@
     return _TIPOS_EXCLUIR_LOOKUP.some(ex => ts.includes(ex.replace(/ /g,'')) || ts.replace(/ /g,'').includes(ex.replace(/ /g,'')));
   }
 
-  window._sacProcessarResultadoBusca = async function(rawLista, num, isContract) {
-      const fixStr = (str) => {
-          if (!str || typeof str !== 'string') return str;
-          try { if (/[\xC2\xC3][\x80-\xBF]/.test(str)) return decodeURIComponent(escape(str)); } catch(e) {}
-          return str;
-      };
-      if (Array.isArray(rawLista)) {
-          rawLista.forEach(r => {
-              if (r.endereco) r.endereco = fixStr(r.endereco);
-              if (r.cliente) r.cliente = fixStr(r.cliente);
-          });
-      }
-      const lista = rawLista;
-      const osList = Array.isArray(lista) ? lista : (lista.data || []);
-      if (!osList.length) { 
-          if (isContract) showToast('Nenhuma OS encontrada para este contrato no histÃ³rico.', 'info');
-          else { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); }
-          return; 
-      }
-      
-      const clienteNome = osList[0].cliente || '';
-      const _clienteLimpo = window._stripEmojis(clienteNome);
-      
-      const enderecosFormatados = osList.map(o => {
-          const ender = [o.endereco, o.complemento].filter(Boolean).join(', ');
-          return {
-              original: ender,
-              label: isContract && o.numero_os ? `OS ${o.numero_os} - ${ender}` : ender,
-              os: o
-          };
-      }).filter(x => x.original);
-      
-      const labelsUnicos = [...new Set(enderecosFormatados.map(e => e.label))];
-      
-      const labelSelecionado = labelsUnicos.length > 1
-        ? await _sacEscolherEndereco(labelsUnicos, _clienteLimpo || clienteNome)
-        : (labelsUnicos[0] || '');
-        
-      if (labelsUnicos.length > 1 && labelSelecionado === null) { 
-          if (!isContract) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); }
-          return; 
-      }
-
-      const selecionado = enderecosFormatados.find(e => e.label === labelSelecionado) || enderecosFormatados[0];
-      const enderecoFinal = selecionado ? selecionado.original : '';
-      
-      let osDoEndereco = osList;
-      if (isContract && selecionado && selecionado.os && selecionado.os.numero_os) {
-          osDoEndereco = osList.filter(o => o.numero_os === selecionado.os.numero_os);
-      } else {
-          osDoEndereco = osList.filter(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal);
-      }
-      
-      const os = osDoEndereco[0] || osList[0];
-
-      // produtos vem como JSON string do banco SQLite - fazer parse
-      const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
-      
-      const SAC_EQUIP_ICONS = {
-          'STD OBRA': 'ðŸš»', 'STD EVENTO': 'ðŸš»',
-          'LX OBRA': 'ðŸš»', 'LX EVENTO': 'ðŸš»',
-          'EXL OBRA': 'ðŸš»', 'EXL EVENTO': 'ðŸš»',
-          'PCD OBRA': 'â™¿', 'PCD EVENTO': 'â™¿',
-          'CHUVEIRO OBRA': 'ðŸš¿', 'CHUVEIRO EVENTO': 'ðŸš¿',
-          'HIDRÃULICO OBRA': 'ðŸš°', 'HIDRÃULICO EVENTO': 'ðŸš°',
-          'MICTÃ“RIO OBRA': 'ðŸš½', 'MICTÃ“RIO EVENTO': 'ðŸš½',
-          'PBII OBRA': 'ðŸš¾', 'PBII EVENTO': 'ðŸš¾',
-          'PBIII OBRA': 'ðŸš¾', 'PBIII EVENTO': 'ðŸš¾',
-          'GUARITA INDIVIDUAL OBRA': 'ðŸ›–', 'GUARITA INDIVIDUAL EVENTO': 'ðŸ›–',
-          'GUARITA DUPLA OBRA': 'ðŸ›–', 'GUARITA DUPLA EVENTO': 'ðŸ›–',
-          'LIMPA FOSSA OBRA': 'ðŸš›', 'LIMPA FOSSA EVENTO': 'ðŸš›',
-          'CARRINHO': 'ðŸ›’', 'CAIXA DAGUA': 'ðŸš°'
-      };
-
-      const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
-          const icone = SAC_EQUIP_ICONS[p.desc] || '';
-          return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
-      }));
-      const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
-      const precisaModal = prodsUnicos.length > 1 || (prodsUnicos.length === 1 && (() => { const m = prodsUnicos[0].match(/(\d+)x /); return m && parseInt(m[1]) > 1; })());
-      
-      const equipFinal = precisaModal
-        ? await _sacEscolherEquipamento(prodsUnicos, _clienteLimpo || os.cliente || '', enderecoFinal)
-        : (prodsUnicos[0] || _parseProds(os)[0]?.desc || '');
-        
-      if (precisaModal && equipFinal === null) { 
-          if (!isContract) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); }
-          return; 
-      }
-      
-      _wiz.clientName = _clienteLimpo || os.cliente || '';
-      _wiz.cnpjCpf    = os.contrato || os.numero_contrato || (isContract ? num : '');
-      _wiz.equipment  = equipFinal;
-      _wiz.address    = enderecoFinal;
-      
-      if (isContract) {
-          _wiz.osNumber = os.numero_os || '';
-      }
-      
-      if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' }];
-      if (os.responsavel) _wiz.contacts[0].name = os.responsavel;
-      if (os.telefone) _wiz.contacts[0].phone = os.telefone;
-      if (os.email) _wiz.contacts[0].email = os.email;
-      
-      if (!isContract) {
-          _wiz.protocol   = nextProtocol();
-          _wiz._protocolLocked = true;
-          _wiz._osLinked  = true;
-      }
-      renderWizard();
-      if (isContract) showToast('Dados preenchidos via Contrato!', 'success');
-  };
-
   window._sacBuscarContrato = async function(contratoVal) {
     _sacWiz('cnpjCpf', contratoVal);
     const num = (contratoVal || '').trim();
@@ -1227,17 +1118,32 @@
         });
         
         if (res.ok) {
-            const rawLista = await res.json();
-            await _sacProcessarResultadoBusca(rawLista, num, true);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                // Preenche com a OS mais recente desse contrato
+                const os = data[0];
+                if (os.cliente) _sacWiz('clientName', os.cliente);
+                if (os.endereco) _sacWiz('address', os.endereco);
+                if (os.equipamento) _sacWiz('equipment', os.equipamento);
+                // Múltiplos contatos
+                if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
+                if (os.responsavel) _wiz.contacts[0].name = os.responsavel;
+                if (os.telefone) _wiz.contacts[0].phone = os.telefone;
+                if (os.email) _wiz.contacts[0].email = os.email;
+                
+                renderWizard();
+                showToast('Dados preenchidos via Contrato!', 'success');
+            } else {
+                showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
+            }
         } else {
-            showToast('Nenhuma OS encontrada para este contrato no histÃ³rico.', 'info');
+            showToast('Nenhuma OS encontrada para este contrato no histórico.', 'info');
         }
     } catch (e) {
         console.error('Erro ao buscar contrato:', e);
-        showToast('Erro de conexÃ£o ao buscar contrato.', 'error');
+        showToast('Erro de conexão ao buscar contrato.', 'error');
     }
   }
-
 
   window._sacBuscarOSLogistica = async function(osNum) {
     _sacWiz('osNumber', osNum);
@@ -1251,7 +1157,7 @@
             const typeDef = TICKET_TYPES[t.typeKey] || TICKET_TYPES.manutencao;
             const coverImg = (t.attachments && t.attachments.length > 0) ? t.attachments[0].url : null;
             const imgHtml = coverImg ? `<div style="height:120px;border-radius:8px;overflow:hidden;margin-bottom:12px;background:#e2e8f0;"><img src="${coverImg}" style="width:100%;height:100%;object-fit:cover;"></div>` : '';
-            const desc = t.description ? (t.description.length > 80 ? t.description.substring(0,80)+'...' : t.description) : 'Sem descriÃ§Ã£o';
+            const desc = t.description ? (t.description.length > 80 ? t.description.substring(0,80)+'...' : t.description) : 'Sem descrição';
             const clientInfo = t.clientName ? `<div style="font-size:0.8rem;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-user" style="margin-top:2px;color:#94a3b8;"></i><span style="font-weight:600;flex:1;line-height:1.3;">${window._stripEmojis(t.clientName)}</span></div>` : '';
             const addressInfo = t.address ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-map-pin" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.address}</span></div>` : '';
             const equipmentInfo = t.equipment ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:10px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-package" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.equipment}</span></div>` : '';
@@ -1298,7 +1204,7 @@
             return;
         }
         if (!result.isConfirmed) {
-            return; // UsuÃ¡rio clicou em Cancelar ou clicou fora, aborta a busca e criaÃ§Ã£o
+            return; // Usuário clicou em Cancelar ou clicou fora, aborta a busca e criação
         }
     }
 
@@ -1326,7 +1232,7 @@
       if (!osList.length) { _wiz._osLinked = false; _wiz._protocolLocked = false; renderWizard(); return; }
       
       const clienteNome = osList[0].cliente || '';
-      const _clienteLimpo = clienteNome.replace(/^[\\s\\S]*?([A-Z\u00C0-\u024F])/u, '$1').trim();
+      const _clienteLimpo = window._stripEmojis(clienteNome);
       
       const todosEnderecos = osList.map(o => [o.endereco, o.complemento].filter(Boolean).join(', ')).filter(Boolean);
       const enderecosUnicos = [...new Set(todosEnderecos)];
@@ -1338,23 +1244,23 @@
       const osDoEndereco = osList.filter(o => [o.endereco, o.complemento].filter(Boolean).join(', ') === enderecoFinal);
       const os = osDoEndereco[0] || osList[0];
 
-      // produtos vem como JSON string do banco SQLite â€” fazer parse
+      // produtos vem como JSON string do banco SQLite — fazer parse
       const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
       
       const SAC_EQUIP_ICONS = {
-          'STD OBRA': 'ðŸ’™', 'STD EVENTO': 'ðŸ’œ',
-          'LX OBRA': 'ðŸŸ¦', 'LX EVENTO': 'ðŸŸ£',
-          'EXL OBRA': 'ðŸ”µ', 'EXL EVENTO': 'ðŸŸ£',
-          'PCD OBRA': 'â™¿', 'PCD EVENTO': 'â™¿',
-          'CHUVEIRO OBRA': 'ðŸš¿', 'CHUVEIRO EVENTO': 'ðŸš¿',
-          'HIDRÃULICO OBRA': 'ðŸš½', 'HIDRÃULICO EVENTO': 'ðŸš½',
-          'MICTÃ“RIO OBRA': 'ðŸ’¦', 'MICTÃ“RIO EVENTO': 'ðŸ’¦',
-          'PBII OBRA': 'ðŸ§¼', 'PBII EVENTO': 'ðŸ§¼',
-          'PBIII OBRA': 'ðŸ§¼', 'PBIII EVENTO': 'ðŸ§¼',
-          'GUARITA INDIVIDUAL OBRA': 'â¬œ', 'GUARITA INDIVIDUAL EVENTO': 'â¬œ',
-          'GUARITA DUPLA OBRA': 'âšª', 'GUARITA DUPLA EVENTO': 'âšª',
-          'LIMPA FOSSA OBRA': 'ðŸ’§', 'LIMPA FOSSA EVENTO': 'ðŸ’§',
-          'CARRINHO': 'ðŸ›¤', 'CAIXA DAGUA': 'ðŸ§Š'
+          'STD OBRA': '💙', 'STD EVENTO': '💜',
+          'LX OBRA': '🟦', 'LX EVENTO': '🟣',
+          'EXL OBRA': '🔵', 'EXL EVENTO': '🟣',
+          'PCD OBRA': '♿', 'PCD EVENTO': '♿',
+          'CHUVEIRO OBRA': '🚿', 'CHUVEIRO EVENTO': '🚿',
+          'HIDRÁULICO OBRA': '🚽', 'HIDRÁULICO EVENTO': '🚽',
+          'MICTÓRIO OBRA': '💦', 'MICTÓRIO EVENTO': '💦',
+          'PBII OBRA': '🧼', 'PBII EVENTO': '🧼',
+          'PBIII OBRA': '🧼', 'PBIII EVENTO': '🧼',
+          'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
+          'GUARITA DUPLA OBRA': '⚪', 'GUARITA DUPLA EVENTO': '⚪',
+          'LIMPA FOSSA OBRA': '💧', 'LIMPA FOSSA EVENTO': '💧',
+          'CARRINHO': '🛤', 'CAIXA DAGUA': '🧊'
       };
 
       const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
@@ -1372,7 +1278,7 @@
       _wiz.cnpjCpf    = os.contrato || os.numero_contrato || '';
       _wiz.equipment  = equipFinal;
       _wiz.address    = enderecoFinal;
-      if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' }];
+      if (!_wiz.contacts || _wiz.contacts.length === 0) _wiz.contacts = [{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }];
       _wiz.contacts[0].name = os.responsavel || '';
       _wiz.contacts[0].phone = os.telefone || '';
       _wiz.contacts[0].email = os.email || '';
@@ -1386,25 +1292,34 @@
     }
   };
 
-  async function _sacEscolherEndereco(enderecos, cliente) {
+  async function _sacEscolherEndereco(enderecos, cliente, osList) {
     return new Promise(resolve => {
+      const clienteLimpo = window._stripEmojis ? window._stripEmojis(cliente) : (cliente||'').replace(/^[^a-zA-Z0-9À-ɏ]+/, '').trim();
       const div = document.createElement('div');
       div.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;';
-      div.innerHTML = `<div style="background:white;border-radius:12px;padding:24px;min-width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
-        <h3 style="margin:0 0 12px;font-size:1rem;color:#1e293b;">Mais de um endereÃ§o encontrado</h3>
-        <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #e2e8f0;">
-          <div style="font-size:0.85rem;color:#1e293b;margin-bottom:4px;font-weight:600;">${cliente}</div>
-        </div>
-        <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual endereÃ§o deseja utilizar na ocorrÃªncia?</p>
-        <div id="_sac-ender-opts" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;">
-          ${enderecos.map((e,i)=>`<button data-idx="${i}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;color:#1e293b;transition:all 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">ðŸ“ ${e}</button>`).join('')}
-        </div>
-        <button id="_sac-ender-cancel" style="margin-top:14px;background:#e2e8f0;border:none;border-radius:6px;padding:8px 18px;font-size:0.8rem;cursor:pointer;color:#475569;width:100%;font-weight:600;">Cancelar</button>
-      </div>`;
+      const btnsHtml = enderecos.map((e,i) =>
+        `<button data-idx="${i}" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.82rem;cursor:pointer;text-align:left;font-weight:500;color:#1e293b;transition:all 0.15s;display:flex;align-items:flex-start;gap:8px;" onmouseover="this.style.background='#f1f5f9';this.style.borderColor='#3b82f6';" onmouseout="this.style.background='#fff';this.style.borderColor='#e2e8f0';"><span style='color:#ef4444;flex-shrink:0;'>📍</span><span style='flex:1;line-height:1.4;'>${e}</span></button>`
+      ).join('');
+      div.innerHTML = `
+        <div style="background:white;border-radius:12px;padding:24px;min-width:340px;max-width:600px;width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+          <h3 style="margin:0 0 12px;font-size:1rem;color:#1e293b;">Mais de um endereço encontrado</h3>
+          <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #e2e8f0;">
+            <div style="font-size:0.9rem;color:#1e293b;font-weight:700;">${clienteLimpo}</div>
+          </div>
+          <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual endereço deseja utilizar na ocorrência?</p>
+          <div id="_sac-ender-opts" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:4px;margin-bottom:12px;">
+            ${btnsHtml}
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="_sac-ender-todos" style="flex:1;background:#10b981;color:white;border:none;border-radius:6px;padding:9px 14px;font-size:0.82rem;cursor:pointer;font-weight:700;">✔ Adicionar Todos</button>
+            <button id="_sac-ender-cancel" style="flex:1;background:#e2e8f0;border:none;border-radius:6px;padding:9px 14px;font-size:0.82rem;cursor:pointer;color:#475569;font-weight:600;">Cancelar</button>
+          </div>
+        </div>`;
       document.body.appendChild(div);
       div.querySelectorAll('[data-idx]').forEach(btn => {
-        btn.addEventListener('click', () => { div.remove(); resolve(enderecos[+btn.dataset.idx]); });
+        btn.addEventListener('click', () => { div.remove(); resolve({ label: enderecos[+btn.dataset.idx], todos: false }); });
       });
+      div.querySelector('#_sac-ender-todos').addEventListener('click', () => { div.remove(); resolve({ label: enderecos[0], todos: true }); });
       div.querySelector('#_sac-ender-cancel').addEventListener('click', () => { div.remove(); resolve(null); });
     });
   }
@@ -1417,9 +1332,9 @@
         <h3 style="margin:0 0 12px;font-size:1rem;color:#1e293b;">Mais de um equipamento encontrado</h3>
         <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #e2e8f0;">
           <div style="font-size:0.85rem;color:#1e293b;margin-bottom:4px;font-weight:600;">${cliente}</div>
-          <div style="font-size:0.75rem;color:#64748b;">ðŸ“ ${endereco}</div>
+          <div style="font-size:0.75rem;color:#64748b;">📍 ${endereco}</div>
         </div>
-        <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual equipamento deseja incluir na ocorrÃªncia?</p>
+        <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Qual equipamento deseja incluir na ocorrência?</p>
         <div id="_sac-equip-opts" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;padding-right:4px;">
           ${prods.map((p,i)=>{
               const m = p.match(/^.*?(\d+)x/);
@@ -1446,7 +1361,7 @@
             if (max > 1) {
                 const input = document.getElementById(`_sac-equip-qtd-${idx}`);
                 let val = parseInt(input.value);
-                if (isNaN(val) || val < 1 || val > max) { alert('Quantidade invÃ¡lida!'); return; }
+                if (isNaN(val) || val < 1 || val > max) { alert('Quantidade inválida!'); return; }
                 prodStr = prodStr.replace(/(\d+)x\s*/, `${val}x `);
             }
             div.remove(); resolve(prodStr); 
@@ -1471,18 +1386,18 @@
           <i class="ph ph-headset" style="font-size:1.4rem;color:#dc2626;"></i>
           <span style="font-weight:800;font-size:1.05rem;letter-spacing:-0.01em;color:#1e293b;">SAC <span style="font-weight:400;font-size:0.8rem;color:#64748b;margin-left:4px;">Novo Chamado</span></span>
         </div>
-        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;transition:color 0.2s;" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">âœ•</button>
+        <button onclick="SAC.closeWizard()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;padding:4px;transition:color 0.2s;" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#94a3b8'">✕</button>
       </div>
 
       <div style="max-width:1000px;margin:28px auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
         <div style="margin-bottom:24px;">
-          <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Detalhes da SolicitaÃ§Ã£o</h2>
-          <div style="font-size:0.8rem;color:#64748b;">Preencha todas as informaÃ§Ãµes abaixo para abrir a ocorrÃªncia.</div>
+          <h2 style="margin:2px 0 0;font-size:1.25rem;color:#1e293b;">Detalhes da Solicitação</h2>
+          <div style="font-size:0.8rem;color:#64748b;">Preencha todas as informações abaixo para abrir a ocorrência.</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
         <!-- COLUNA 1 -->
         <div>
-          <!-- SEÃ‡ÃƒO 1: DADOS DA OS -->
+          <!-- SEÇÃO 1: DADOS DA OS -->
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:0;">
             <h3 style="font-size:1rem;color:#0f172a;margin:0;border-left:3px solid #3b82f6;padding-left:8px;">Dados do Chamado & Cliente</h3>
             <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:#1e293b;cursor:pointer;background:#fee2e2;padding:4px 8px;border-radius:6px;border:1px solid #fca5a5;">
@@ -1492,41 +1407,41 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;align-items:flex-end;">
             <div class="sac-field" style="margin-bottom:0;">
-              <label>NÂº Chamado</label>
+              <label>Nº Chamado</label>
               <input type="text" autocomplete="off" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
             </div>
             <div class="sac-field" style="margin-bottom:0;position:relative;">
-              <label>NÂº OS</label>
+              <label>Nº OS</label>
               <div style="display:flex;gap:6px;align-items:center;">
-                <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="NÂº da OS" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarOSLogistica(this.value);}" style="flex:1;">
+                <input type="text" autocomplete="off" value="${_wiz.osNumber||''}" placeholder="Nº da OS" id="wiz-osNumber" oninput="_sacWiz('osNumber',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarOSLogistica(this.value);}" style="flex:1;">
                 <button onclick="_sacBuscarOSLogistica(document.getElementById('wiz-osNumber').value)" title="Buscar OS" style="background:#1e293b;color:#fff;border:none;border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
               </div>
-              ${_wiz._osLinked ? '<div style="position:absolute;top:100%;left:0;font-size:0.72rem;color:#15803d;font-weight:600;margin-top:4px;">âœ“ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
+              ${_wiz._osLinked ? '<div style="position:absolute;top:100%;left:0;font-size:0.72rem;color:#15803d;font-weight:600;margin-top:4px;">✓ Dados preenchidos da OS #'+_wiz.osNumber+'</div>' : ''}
             </div>
             <div class="sac-field" style="margin-bottom:0;">
-              <label>NÂº Contrato</label>
+              <label>Nº Contrato</label>
               <div style="display:flex;gap:6px;align-items:center;">
-                <input type="text" autocomplete="off" value="${_wiz.cnpjCpf||''}" placeholder="NÂº do Contrato" id="wiz-contract" oninput="_sacWiz('cnpjCpf',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarContrato(this.value);}" style="flex:1;">
+                <input type="text" autocomplete="off" value="${_wiz.cnpjCpf||''}" placeholder="Nº do Contrato" id="wiz-contract" oninput="_sacWiz('cnpjCpf',this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_sacBuscarContrato(this.value);}" style="flex:1;">
                 <button onclick="_sacBuscarContrato(document.getElementById('wiz-contract').value)" title="Buscar Contrato" style="background:#1e293b;color:#fff;border:none;border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'"><i class="ph ph-magnifying-glass" style="font-size:1rem;"></i></button>
               </div>
             </div>
           </div>
           <div class="sac-field">
             <label>Nome do Cliente <span style="color:#dc2626">*</span></label>
-            <input type="text" autocomplete="off" value="${_wiz.clientName}" id="wiz-clientName" placeholder="RazÃ£o Social / Nome" oninput="_sacWiz('clientName',this.value)">
+            <input type="text" autocomplete="off" value="${_wiz.clientName}" id="wiz-clientName" placeholder="Razão Social / Nome" oninput="_sacWiz('clientName',this.value)">
           </div>
           <div class="sac-field">
             <label>Equipamento <span style="color:#dc2626">*</span></label>
-            <input type="text" autocomplete="off" value="${_wiz.equipment}" placeholder="Ex.: SanitÃ¡rio QuÃ­mico ID #1234" oninput="_sacWiz('equipment',this.value)">
+            <input type="text" autocomplete="off" value="${_wiz.equipment}" placeholder="Ex.: Sanitário Químico ID #1234" oninput="_sacWiz('equipment',this.value)">
           </div>
           <div class="sac-field" style="margin-bottom:24px;">
-            <label>EndereÃ§o / Local</label>
+            <label>Endereço / Local</label>
             <input type="text" autocomplete="off" value="${_wiz.address}" oninput="_sacWiz('address',this.value)">
           </div>
 
-          <!-- SEÃ‡ÃƒO 2: CONTATO & TIPO -->
+          <!-- SEÇÃO 2: CONTATO & TIPO -->
           <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #eab308;padding-left:8px;display:flex;justify-content:space-between;align-items:center;">
-            InformaÃ§Ãµes de Contato
+            Informações de Contato
             <button onclick="SAC.wizAddContact()" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:4px 8px;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-plus"></i> Adicionar</button>
           </h3>
           <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:24px;">
@@ -1538,7 +1453,7 @@
                           <div class="sac-field" style="margin-bottom:0;">
                               <label>Tipo de Contato</label>
                               <select onchange="SAC.wizUpdateContact(${c.id}, 'type', this.value)">
-                                  <option value="Contato de InstalaÃ§Ã£o" ${c.type==='Contato de InstalaÃ§Ã£o'?'selected':''}>Contato de InstalaÃ§Ã£o</option>
+                                  <option value="Contato de Instalação" ${c.type==='Contato de Instalação'?'selected':''}>Contato de Instalação</option>
                                   <option value="Contato Financeiro" ${c.type==='Contato Financeiro'?'selected':''}>Contato Financeiro</option>
                                   <option value="Contato de Contrato" ${c.type==='Contato de Contrato'?'selected':''}>Contato de Contrato</option>
                               </select>
@@ -1565,28 +1480,28 @@
 
         <!-- COLUNA 2 -->
         <div>
-          <!-- SEÃ‡ÃƒO 3: OCORRÃŠNCIAS & DESCRIÃ‡ÃƒO -->
+          <!-- SEÇÃO 3: OCORRÊNCIAS & DESCRIÇÃO -->
           <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;margin-top:0;border-left:3px solid #ef4444;padding-left:8px;">Detalhes do Problema</h3>
           <div class="sac-field">
             <label>Tipo de Chamado</label>
             <select onchange="_sacWiz('typeKey',this.value)">${typeOptions}</select>
           </div>
           <div class="sac-field">
-            <label>DescriÃ§Ã£o / Detalhamento <span style="color:#dc2626">*</span></label>
-            <textarea rows="6" placeholder="Descreva o problema ou solicitaÃ§Ã£o com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
+            <label>Descrição / Detalhamento <span style="color:#dc2626">*</span></label>
+            <textarea rows="6" placeholder="Descreva o problema ou solicitação com detalhes..." oninput="_sacWiz('description',this.value)" style="resize:vertical;">${_wiz.description}</textarea>
           </div>
 
           <div style="display:none;margin-bottom:24px;border:1px dashed #cbd5e1;padding:12px;border-radius:8px;background:#f8fafc;">
             <div class="sac-field" style="margin-bottom:8px;">
-              <label>Especificar OcorrÃªncia (Opcional)</label>
+              <label>Especificar Ocorrência (Opcional)</label>
               <select id="wiz-occ-select" onchange="_sacWiz('currentOcc',this.value)">${occOptions}</select>
             </div>
             <div class="sac-field" style="margin-bottom:8px;">
-              <textarea rows="1" placeholder="Notas sobre a ocorrÃªncia especÃ­fica..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
+              <textarea rows="1" placeholder="Notas sobre a ocorrência específica..." oninput="_sacWiz('currentOccNote',this.value)" style="resize:vertical;">${_wiz.currentOccNote}</textarea>
             </div>
-            <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;width:100%;"><i class="ph ph-plus"></i> Adicionar OcorrÃªncia Ã  Lista</button>
+            <button class="sac-btn sac-btn-secondary" onclick="SAC.wizAddOcc()" style="margin-bottom:12px;width:100%;"><i class="ph ph-plus"></i> Adicionar Ocorrência à Lista</button>
             <div id="wiz-occ-list">
-              ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">Nenhuma ocorrÃªncia adicionada</div>`:
+              ${_wiz.occList.length===0?`<div style="color:#94a3b8;font-size:0.82rem;text-align:center;padding:12px;">Nenhuma ocorrência adicionada</div>`:
               _wiz.occList.map((o,i)=>`
               <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start;">
                 <div>
@@ -1598,8 +1513,8 @@
             </div>
           </div>
 
-          <!-- SEÃ‡ÃƒO 4: ANEXOS -->
-          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #10b981;padding-left:8px;">Anexos (Fotos / VÃ­deos / Documentos)</h3>
+          <!-- SEÇÃO 4: ANEXOS -->
+          <h3 style="font-size:1rem;color:#0f172a;margin-bottom:12px;border-left:3px solid #10b981;padding-left:8px;">Anexos (Fotos / Vídeos / Documentos)</h3>
           <div class="sac-field" style="margin-bottom:24px;">
             ${(() => {
                 const list = _wiz.attachments || [];
@@ -1641,7 +1556,7 @@
 
   window._sacWiz = function(field, val) { _wiz[field] = val; if (field === 'typeKey') { _wiz.currentOcc = (OCCURRENCES_BY_TYPE[val]||[])[0]||''; } };
 
-  // â”€â”€ MODAL DETALHES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── MODAL DETALHES ───────────────────────────────────────────
   function openDetail(id) {
     _selectedTicket = _tickets.find(t => t.id === id);
     if (!_selectedTicket) return;
@@ -1694,7 +1609,7 @@
     };
 
     const allTasks = [
-      t.logisticsTask && { label:'LogÃ­stica', task:t.logisticsTask, key:'logisticsTask' },
+      t.logisticsTask && { label:'Logística', task:t.logisticsTask, key:'logisticsTask' },
       t.commercialTask && { label:'Comercial', task:t.commercialTask, key:'commercialTask' },
       t.financialTask && { label:'Financeiro', task:t.financialTask, key:'financialTask' }
     ].filter(Boolean);
@@ -1703,22 +1618,22 @@
     <div class="sac-modal sac-animated" id="sac-modal-dropzone" style="width:100vw;max-width:100vw;margin:0;border-radius:0;background:#fff;display:flex;flex-direction:column;position:relative;height:100vh;max-height:100vh;overflow:hidden;" onclick="event.stopPropagation()">
       <div style="padding:16px 24px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:flex-end;align-items:center; ${pendingPopupType === 'sla' ? 'background:#dc2626;color:#fff;' : pendingPopupType === 'aguard' ? 'background:#d97706;color:#fff;' : pendingPopupType === 'followup' ? 'background:#2563eb;color:#fff;' : ''}">
         ${pendingPopupType === 'sla'
-            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">âš ï¸ SLA Estourado - Justificativa ObrigatÃ³ria</div>`
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⚠️ SLA Estourado - Justificativa Obrigatória</div>`
             : pendingPopupType === 'aguard'
-            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">â° Tempo de resposta de chamado excedido. Justificativa obrigatÃ³ria.</div>`
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de resposta de chamado excedido. Justificativa obrigatória.</div>`
             : pendingPopupType === 'followup'
-            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">â° Tempo de acompanhamento de chamado excedido. Justificativa obrigatÃ³ria.</div>`
+            ? `<div style="flex:1;font-weight:700;color:#fff;font-size:1.1rem;">⏰ Tempo de acompanhamento de chamado excedido. Justificativa obrigatória.</div>`
             : ''}
         ${(() => {
             const permsNowX = window.activeUserPerms || {};
             const isTopAdminX = window.isTopAdmin || false;
             const canSeeAllNowX = isTopAdminX || (permsNowX['sac'] === true && permsNowX['sac-atribuidos'] !== true);
             const isPopupCloser = POPUP_CLOSERS.some(u => currentUsername().toLowerCase() === u.toLowerCase());
-            // gestorRequired='1' â†’ sÃ³ o gestor do setor precisa preencher; '0' ou ausente â†’ pode fechar com X
+            // gestorRequired='1' → só o gestor do setor precisa preencher; '0' ou ausente → pode fechar com X
             const gestorRequired = localStorage.getItem('sac_popup_gestor_required_' + t.id) === '1';
             const canClose = !pendingPopupType || isPopupCloser || !gestorRequired;
             return canClose 
-                ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">âœ•</button>` 
+                ? `<button onclick="SAC.closeModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:${pendingPopupType?'#fff':'#94a3b8'};padding:4px;line-height:1;">✕</button>` 
                 : '';
         })()}
       </div>
@@ -1728,11 +1643,11 @@
         <!-- COLUNA ESQUERDA -->
         <div style="display:flex;flex-direction:column;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">NÂº ${t.protocol}</span>
+                <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">Nº ${t.protocol}</span>
                 <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
                 <span class="sac-tag" style="background:#e0e7ff;color:#4338ca;"><i class="ph ${type.icon}"></i> ${type.name}</span>
                 <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"><i class="ph ph-clock"></i> ${sla.label}</span>
-                ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="ph ph-calendar-check"></i> Acomp. atÃ© ${formatDateShort(t.followUpDeadline)}</span>` : ''}
+                ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(t.followUpDeadline)}</span>` : ''}
             </div>
             <div style="margin-top: 8px; width: 100%; max-width:320px;">
                 <div class="sac-sla-bar" style="height: 6px;"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
@@ -1765,22 +1680,22 @@
                 return `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;flex-wrap:nowrap;width:100%;gap:10px;">
                     <div style="display:flex;align-items:center;gap:6px;">
                         <span style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">MOVER PARA:</span>
-                        <select style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:pointer;background:#fff;" onchange="SAC.changeStageFromModal(this.value)" ${!canMoveTicket(t) ? 'disabled title="VocÃª sÃ³ pode mover chamados abertos por vocÃª."' : ''}>${stageOpts}</select>
+                        <select style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;cursor:pointer;background:#fff;" onchange="SAC.changeStageFromModal(this.value)" ${!canMoveTicket(t) ? 'disabled title="Você só pode mover chamados abertos por você."' : ''}>${stageOpts}</select>
                     </div>
                     ${creatorInfo}
                 </div>`;
             })()}
 
             <div style="display:none;margin-top:24px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">PrÃ³ximos Passos</div>
-                <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${(t.nextSteps||'Nenhum prÃ³ximo passo registrado.').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
+                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Próximos Passos</div>
+                <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${(t.nextSteps||'Nenhum próximo passo registrado.').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
             </div>
 
             <div style="margin-top:24px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">DescriÃ§Ã£o</div>
+                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Descrição</div>
                 <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" oninput="this.style.borderColor='#3b82f6'">${t.description||''}</textarea>
                 <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-                    <button class="sac-btn sac-btn-secondary" style="padding:6px 12px;font-size:0.8rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;cursor:pointer;font-weight:700;color:#2563eb;" onclick="SAC.saveDescription('${t.id}')">Salvar DescriÃ§Ã£o</button>
+                    <button class="sac-btn sac-btn-secondary" style="padding:6px 12px;font-size:0.8rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;cursor:pointer;font-weight:700;color:#2563eb;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
                 </div>
             </div>
 
@@ -1789,7 +1704,7 @@
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Tarefas Setoriais</div>
                 ${allTasks.map(({label,task,key}) => {
                     const canEdit = canEditAssignment(t, label);
-                    const disabledAttr = canEdit ? '' : 'disabled title="Apenas o criador ou gestor podem alterar a atribuiÃ§Ã£o"';
+                    const disabledAttr = canEdit ? '' : 'disabled title="Apenas o criador ou gestor podem alterar a atribuição"';
                     return `
                     <div style="background:${task.isCompleted?'#f0fdf4':'#fffbeb'};border:1.5px solid ${task.isCompleted?'#86efac':'#fde68a'};border-radius:8px;padding:12px;margin-bottom:8px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -1798,7 +1713,7 @@
                             <span style="font-size:0.8rem;color:#475569;">${task.name}</span>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:0.75rem;color:#64748b;">ResponsÃ¡vel:</span>
+                            <span style="font-size:0.75rem;color:#64748b;">Responsável:</span>
                             ${(() => {
                                 const assignedUser = (window._sacUsersList||[]).find(u => {
                                     const val = u.username || u.login || u.email || (u.nome || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.');
@@ -1808,9 +1723,9 @@
                                 return photoUrl ? `<img src="${photoUrl}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid #cbd5e1;flex-shrink:0;">` : '';
                             })()}
                             <select style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;background:#fff;" onchange="SAC.changeTaskAssignment('${key}', this.value)" ${disabledAttr}>
-                                <option value="">Sem atribuiÃ§Ã£o</option>
+                                <option value="">Sem atribuição</option>
                                 ${(() => {
-                                    const allowedDepts = ['LogÃ­stica', 'Comercial', 'Financeiro'];
+                                    const allowedDepts = ['Logística', 'Comercial', 'Financeiro'];
                                     const managers = (_globalDepartamentos || []).filter(d => allowedDepts.includes(d.nome) && d.responsavel_nome).map(d => d.responsavel_nome.toLowerCase());
                                     const validUsers = (window._sacUsersList || []).filter(u => {
                                         if (!u.ativo) return false;
@@ -1863,7 +1778,7 @@
             </div>` : ''}
 
             <div style="display:none;margin-top:24px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">OcorrÃªncias (${t.occurrences.length})</div>
+                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Ocorrências (${t.occurrences.length})</div>
                 ${t.occurrences.map((o,i)=>`
                 <div style="background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                 <div style="flex:1;">
@@ -1874,10 +1789,10 @@
                 </div>`).join('')}
                 ${!['concluido','encerrado'].includes(t.stage)?`
                 <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;margin-top:8px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px;">Adicionar OcorrÃªncia</div>
+                <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px;">Adicionar Ocorrência</div>
                 <select id="modal-occ-select" style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;margin-bottom:6px;">${occOpts}</select>
 
-                <textarea id="modal-occ-note" rows="2" placeholder="ObservaÃ§Ã£o sobre a ocorrÃªncia..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
+                <textarea id="modal-occ-note" rows="2" placeholder="Observação sobre a ocorrência..." style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:6px;"></textarea>
                 <button class="sac-btn sac-btn-secondary" onclick="SAC.addOccurrenceFromModal()"><i class="ph ph-plus"></i> Adicionar</button>
                 </div>`:''}
             </div>
@@ -1888,22 +1803,22 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Dados da OS</div>
                 <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
-                    <!-- BotÃµes ocultos conforme solicitado -->
+                    <!-- Botões ocultos conforme solicitado -->
                 </div>
             </div>
             
             <div style="font-size:0.85rem;color:#1e293b;line-height:1.8;margin-bottom:24px;">
                 <div><strong>Abertura:</strong> ${formatDate(t.openDate)}</div>
                 ${t.closeDate?`<div><strong>Encerramento:</strong> ${formatDate(t.closeDate)}</div>`:''}
-                <div><strong>NÂº OS Relacionada:</strong> ${t.osNumber||'â€”'}</div>
-                <div><strong>Canal:</strong> ${t.channel||'â€”'}</div>
-                <div><strong>NÂº Contrato:</strong> ${t.cnpjCpf||'â€”'}</div>
+                <div><strong>Nº OS Relacionada:</strong> ${t.osNumber||'—'}</div>
+                <div><strong>Canal:</strong> ${t.channel||'—'}</div>
+                <div><strong>Nº Contrato:</strong> ${t.cnpjCpf||'—'}</div>
                 <div style="margin-top:16px;margin-bottom:8px;border-top:1px solid #e2e8f0;padding-top:16px;display:flex;justify-content:space-between;align-items:center;">
                     <h4 style="margin:0;font-size:0.9rem;color:#0f172a;">Contatos</h4>
                     ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openEditContactsModal('${t.id}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-pencil-simple"></i> Editar</button>` : ''}
                 </div>
                 ${(() => {
-                    const contactsList = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ type: 'Contato de InstalaÃ§Ã£o', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
+                    const contactsList = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ type: 'Contato de Instalação', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
                     return contactsList.filter(c => c.name).map(c => `
                         <div style="margin-bottom:12px;background:#f8fafc;padding:8px;border-radius:6px;border:1px solid #e2e8f0;">
                             <div style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;">${c.type}</div>
@@ -1920,10 +1835,10 @@
         <!-- COLUNA DIREITA -->
         <div style="display:flex;flex-direction:column;height:100%;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <!-- COMENTÃRIOS / HISTÃ“RICO -->
+                <!-- COMENTÁRIOS / HISTÓRICO -->
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">ComentÃ¡rios</div>
-                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta aÃ§Ã£o nÃ£o pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
+                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Comentários</div>
+                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="if(confirm('Tem certeza que deseja EXCLUIR este chamado? Esta ação não pode ser desfeita!'))SAC.deleteTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-trash"></i> Excluir</button>` : ''}
                     <button onclick="SAC.duplicateTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-copy"></i> Duplicar</button>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
@@ -1940,11 +1855,11 @@
                     ${(() => {
                         const stageColors = {};
                         if (typeof PIPELINE_STAGES !== 'undefined') PIPELINE_STAGES.forEach(s => stageColors[s.id] = s.color);
-                        // Filtrar comentÃ¡rios redundantes do sistema de retorno automÃ¡tico
+                        // Filtrar comentários redundantes do sistema de retorno automático
                         const systemRedundant = new Set();
-                        (t.timeline || []).forEach(l => { if (l.notes && l.notes.startsWith('Retorno automÃ¡tico:')) systemRedundant.add(l.time); });
+                        (t.timeline || []).forEach(l => { if (l.notes && l.notes.startsWith('Retorno automático:')) systemRedundant.add(l.time); });
                         const filteredComments = (t.comments || []).filter(c => {
-                            if (c.text && c.text.startsWith('â†© Chamado devolvido para Triagem')) return false;
+                            if (c.text && c.text.startsWith('↩ Chamado devolvido para Triagem')) return false;
                             return true;
                         });
                         const unified = [
@@ -1954,13 +1869,13 @@
                         if (!unified.length) return '<div style="color:#94a3b8;font-size:0.8rem;text-align:center;padding:20px;">Nenhum registro.</div>';
                         return unified.map(item => {
                             if (item.type === 'comment') {
-                                const isJust = item.text && item.text.startsWith('ðŸ“ Justificativa');
+                                const isJust = item.text && item.text.startsWith('📝 Justificativa');
                                 const isSlaJust = isJust && item.text.includes('(SLA');
                                 const isAguardJust = isJust && item.text.includes('(prazo de aguardo');
-                                // followup e aguard justificativas sÃ£o embutidas ou renderizadas na timeline, SLA fica separado
+                                // followup e aguard justificativas são embutidas ou renderizadas na timeline, SLA fica separado
                                 if (isJust && !isSlaJust) return '';
                                 const formattedText = (item.text || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"');
-                                // Para justificativas (SLA/aguard), nÃ£o mostra o nome do usuÃ¡rio
+                                // Para justificativas (SLA/aguard), não mostra o nome do usuário
                                 const showCommentUser = !isJust;
                                 return `<div style="background:${isJust ? '#fffbeb' : '#fff'};border:1px solid ${isJust ? '#fde68a' : '#e2e8f0'};border-radius:6px;padding:8px;">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -1970,15 +1885,15 @@
                                 <div style="font-size:0.8rem;color:#475569;white-space:pre-wrap;">${formattedText}</div>
                                 </div>`;
                             } else {
-                                const isAutoReturn = item.notes && item.notes.startsWith('Retorno automÃ¡tico:');
+                                const isAutoReturn = item.notes && item.notes.startsWith('Retorno automático:');
                                 const stageName = (typeof PIPELINE_STAGES !== 'undefined' ? (PIPELINE_STAGES.find(s=>s.id===item.stage)?.name||item.stage) : item.stage);
                                 const sColor = stageColors[item.stage] || '#475569';
                                 let formattedNotes = (item.notes || '').replace(/"([^"]+)"/g, '"<strong>$1</strong>"').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
                                 if (formattedNotes.startsWith('Respondido via justificativa')) formattedNotes = '';
-                                // Buscar justificativa associada (comentÃ¡rio ðŸ“ com timestamp prÃ³ximo)
-                                const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('ðŸ“ Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
+                                // Buscar justificativa associada (comentário 📝 com timestamp próximo)
+                                const justEntry = (t.comments||[]).find(c => c.text && c.text.startsWith('📝 Justificativa') && Math.abs(new Date(c.time).getTime()-new Date(item.time).getTime()) < 5000);
                                 const justFormatted = justEntry ? justEntry.text.replace(/"([^"]+)"/g,'"<strong>$1</strong>"').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') : null;
-                                // Mostrar usuÃ¡rio apenas se nÃ£o for retorno automÃ¡tico do sistema
+                                // Mostrar usuário apenas se não for retorno automático do sistema
                                 const showUser = item.user && !isAutoReturn;
                                 return `<div style="background:#f1f5f9;border-left:3px solid ${sColor};border-radius:0 6px 6px 0;padding:6px 10px;">
                                 <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1994,9 +1909,9 @@
                     })()}
                 </div>
                 <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;flex-direction:column;">
-                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:${pendingPopupType === 'sla' ? '#dc2626' : '#d97706'};font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado nÃ£o ter sido concluÃ­do conforme programado:</div>` : ''}
+                    ${pendingPopupType ? `<div style="font-size:0.8rem;color:${pendingPopupType === 'sla' ? '#dc2626' : '#d97706'};font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
                     <div style="display:flex;gap:6px;">
-                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatÃ³ria aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
                         <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType === 'sla' ? 'background:#dc2626' : pendingPopupType ? 'background:#d97706' : ''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
                     </div>
                 </div>
@@ -2049,14 +1964,14 @@
   function renderModalCusto(t) {
     const list = t.costCenters || [];
     const total = list.reduce((s,c)=>s+(c.lossValue||0),0);
-    const sectors = ['Cliente','CS (Cortesia)','Setor TÃ©cnico','LogÃ­stica','Comercial','Financeiro','PÃ¡tio','Motorista'];
+    const sectors = ['Cliente','CS (Cortesia)','Setor Técnico','Logística','Comercial','Financeiro','Pátio','Motorista'];
 
     return `
     <div>
       ${list.length?`
       <div style="margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <span style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">LanÃ§amentos (${list.length})</span>
+          <span style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;">Lançamentos (${list.length})</span>
           <span style="font-weight:800;font-size:1rem;color:#dc2626;">${formatBRL(total)}</span>
         </div>
         ${list.map(cc=>`
@@ -2074,30 +1989,30 @@
           </div>
         </div>`).join('')}
       </div>`:
-      `<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum lanÃ§amento de custo registrado.</div>`}
+      `<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum lançamento de custo registrado.</div>`}
 
       <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:16px;">
-        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:10px;text-transform:uppercase;">Novo LanÃ§amento</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:10px;text-transform:uppercase;">Novo Lançamento</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div class="sac-field" style="margin:0;">
-            <label>Setor ResponsÃ¡vel</label>
+            <label>Setor Responsável</label>
             <select id="cc-sector" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.83rem;width:100%;">
               ${sectors.map(s=>`<option>${s}</option>`).join('')}
             </select>
           </div>
           <div class="sac-field" style="margin:0;">
-            <label>Valor do PrejuÃ­zo (R$)</label>
+            <label>Valor do Prejuízo (R$)</label>
             <input type="number" id="cc-valor" min="0" step="0.01" placeholder="0,00" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.83rem;width:100%;box-sizing:border-box;">
           </div>
         </div>
         <div class="sac-field" style="margin-bottom:10px;">
           <label>Motivo / Justificativa</label>
-          <textarea id="cc-motivo" rows="2" placeholder="Descreva a causa do prejuÃ­zo..." style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.83rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
+          <textarea id="cc-motivo" rows="2" placeholder="Descreva a causa do prejuízo..." style="width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.83rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:0.83rem;cursor:pointer;margin-bottom:12px;">
           <input type="checkbox" id="cc-billing"> Cobrar do cliente em boleto
         </label>
-        <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter()"><i class="ph ph-plus-circle"></i> Adicionar LanÃ§amento</button>
+        <button class="sac-btn sac-btn-primary" onclick="SAC.saveCostCenter()"><i class="ph ph-plus-circle"></i> Adicionar Lançamento</button>
       </div>
     </div>`;
   }
@@ -2116,7 +2031,7 @@
             ${a.originalName||a.name||a.filename||'Arquivo'}
             ${a.url ? `</a>` : ''}
           </div>
-          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'Â· '+(a.date||formatDate(a.uploadDate)):''}</div>
+          <div style="font-size:0.72rem;color:#94a3b8;">${a.size||''} ${a.date||a.uploadDate?'· '+(a.date||formatDate(a.uploadDate)):''}</div>
         </div>
         <button class="sac-btn sac-btn-danger" style="padding:3px 8px;font-size:0.72rem;" onclick="SAC.removeAttachment('${a.r2Key||a.originalName||a.name||a.filename}')"><i class="ph ph-trash"></i></button>
       </div>`).join('')}`:`<div style="text-align:center;color:#94a3b8;padding:16px;">Nenhum arquivo anexado.</div>`}
@@ -2124,7 +2039,7 @@
         <i class="ph ph-upload-simple" style="font-size:1.5rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>
         <label style="cursor:pointer;font-size:0.83rem;font-weight:600;color:#f97316;">
           <input type="file" multiple onchange="SAC.addAttachments(this.files)" style="display:none;">
-          Selecionar arquivos para upload (serÃ£o enviados na hora)
+          Selecionar arquivos para upload (serão enviados na hora)
         </label>
         <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px;">PDF, imagens, documentos</div>
       </div>
@@ -2137,7 +2052,7 @@
     return `
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <span style="font-size:0.82rem;color:#64748b;">${checked}/${cl.length} itens concluÃ­dos</span>
+        <span style="font-size:0.82rem;color:#64748b;">${checked}/${cl.length} itens concluídos</span>
         <span style="font-weight:700;font-size:0.88rem;color:${pct===100?'#15803d':'#f97316'};">${pct}%</span>
       </div>
       <div class="sac-sla-bar" style="height:6px;margin-bottom:16px;"><div class="sac-sla-fill" style="width:${pct}%;background:${pct===100?'#15803d':'#f97316'};"></div></div>
@@ -2159,7 +2074,7 @@
     const src = PIPELINE_STAGES.find(s => s.id === ticket.stage);
     const tgt = PIPELINE_STAGES.find(s => s.id === targetStageId);
     let usersList = window._sacUsersList || [];
-    let lastSector = 'LogÃ­stica';
+    let lastSector = 'Logística';
     let lastUser = '';
     
     if (targetStageId === 'aguardando_setores') {
@@ -2179,13 +2094,13 @@
               }
           }
       };
-      checkTask(ticket.logisticsTask, 'LogÃ­stica');
+      checkTask(ticket.logisticsTask, 'Logística');
       checkTask(ticket.commercialTask, 'Comercial');
       checkTask(ticket.financialTask, 'Financeiro');
     }
     
     _pendingTransition = { ticketId, targetStageId, srcName: src?.name||ticket.stage, tgtName: tgt?.name||targetStageId, usersList };
-    _transForm = { nextSteps:'', obs:'', sector: lastSector, assignedUser: lastUser, closingReason:'ConcluÃ­do', checklistJustification:'', closingAttachments:[] };
+    _transForm = { nextSteps:'', obs:'', sector: lastSector, assignedUser: lastUser, closingReason:'Concluído', checklistJustification:'', closingAttachments:[] };
     renderTransModal();
   }
 
@@ -2198,38 +2113,38 @@
     const isAguard  = pt.targetStageId === 'aguardando_setores';
     const cl = ticket ? getChecklist(ticket) : [];
     const hasUnchecked = cl.some(i => !i.checked);
-    const sectorOpts = ['LogÃ­stica','Comercial','Financeiro'];
+    const sectorOpts = ['Logística','Comercial','Financeiro'];
     ov.innerHTML = '<div class="sac-modal sac-animated" style="width:500px;max-width:95vw;padding:24px;" onclick="event.stopPropagation()">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
-        '<div><div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">TransiÃ§Ã£o de Etapa</div>' +
-        '<h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">' + pt.srcName + ' â†’ ' + pt.tgtName + '</h3></div>' +
+        '<div><div style="font-size:0.75rem;color:#94a3b8;font-weight:600;">Transição de Etapa</div>' +
+        '<h3 style="margin:2px 0 0;font-size:1rem;color:#1e293b;">' + pt.srcName + ' → ' + pt.tgtName + '</h3></div>' +
         '<button onclick="SAC.cancelTransition()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;">&times;</button>' +
       '</div>' +
       (isAguard ?
         `<div class="sac-field"><label>Setor Demandado <span style="color:#dc2626">*</span></label>
         <select id="trans-sector" onchange="SAC.filterTransUsers(this.value)" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;">
-          <option value="LogÃ­stica" ${_transForm.sector==='LogÃ­stica'?'selected':''}>LogÃ­stica</option>
+          <option value="Logística" ${_transForm.sector==='Logística'?'selected':''}>Logística</option>
           <option value="Comercial" ${_transForm.sector==='Comercial'?'selected':''}>Comercial</option>
           <option value="Financeiro" ${_transForm.sector==='Financeiro'?'selected':''}>Financeiro</option>
         </select></div>
-        <div class="sac-field"><label>UsuÃ¡rio AtribuÃ­do <span style="color:#dc2626">*</span></label>
-        <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuÃ¡rio...</option></select>
+        <div class="sac-field"><label>Usuário Atribuído <span style="color:#dc2626">*</span></label>
+        <div style="display:flex;align-items:center;gap:10px;"><select id="trans-assigned-user" onchange="document.getElementById('trans-assigned-photo').src=this.options[this.selectedIndex].dataset.photo||'';document.getElementById('trans-assigned-photo').style.display=this.options[this.selectedIndex].dataset.photo?'block':'none';" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;flex:1;"><option value="">Selecione um usuário...</option></select>
         <img id="trans-assigned-photo" src="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;background:#e2e8f0;display:none;" onerror="this.style.display='none'"></div></div>` : '') +
       (isClosing ?
-        `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>ConcluÃ­do</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
+        `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluído</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
         <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
-        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist nÃ£o foram concluÃ­dos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
+        (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
         (pt.targetStageId === 'concluido' ? 
-          `<div class="sac-field" style="margin-bottom:0;"><label>OcorrÃªncias <span style="color:#dc2626">*</span></label></div>
+          `<div class="sac-field" style="margin-bottom:0;"><label>Ocorrências <span style="color:#dc2626">*</span></label></div>
            <div id="trans-concluido-occs"></div>
-           <button onclick="SAC.addTransOccRow()" style="background:#f1f5f9;color:#334155;border:1px dashed #cbd5e1;padding:8px;border-radius:6px;cursor:pointer;width:100%;font-size:0.85rem;font-weight:600;margin-top:8px;">+ Adicionar OcorrÃªncia</button>
+           <button onclick="SAC.addTransOccRow()" style="background:#f1f5f9;color:#334155;border:1px dashed #cbd5e1;padding:8px;border-radius:6px;cursor:pointer;width:100%;font-size:0.85rem;font-weight:600;margin-top:8px;">+ Adicionar Ocorrência</button>
            <textarea id="trans-next" style="display:none;"></textarea>` 
           :
-          `<div class="sac-field"><label>PrÃ³ximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que serÃ¡ feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`
+          `<div class="sac-field"><label>Próximos Passos <span style="color:#dc2626">*</span></label><textarea id="trans-next" rows="3" placeholder="O que será feito a seguir?" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>`
         ) +
         `${pt.targetStageId === 'execucao' ? '<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#c2410c;font-weight:700;display:block;margin-bottom:6px;"><i class=\'ph ph-calendar-check\'></i> Data/Hora Limite do Acompanhamento <span style=\'color:#dc2626\'>*</span></label><input type="datetime-local" id="trans-followup-deadline" style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.9rem;box-sizing:border-box;" min="' + new Date().toISOString().slice(0,16) + '"></div>' : ''}
         <textarea id="trans-obs" style="display:none;"></textarea>`) +
-      `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar TransiÃ§Ã£o</button></div>
+      `<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;"><button class="sac-btn sac-btn-secondary" onclick="SAC.cancelTransition()">Cancelar</button><button class="sac-btn sac-btn-primary" onclick="SAC.confirmTransition()"><i class="ph ph-check-circle"></i> Confirmar Transição</button></div>
       </div>`;
     if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
     if (pt.targetStageId === 'concluido') {
@@ -2240,7 +2155,7 @@
     }
   }
 
-  // â”€â”€ PERMISSIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PERMISSIONS ───────────────────────────────────────────────
   function canMoveTicket(t) {
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
@@ -2248,7 +2163,7 @@
     return canSeeAll;
   }
 
-  // â”€â”€ FILTRAGEM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── FILTRAGEM ─────────────────────────────────────────────────
   function getFilteredTickets() {
     const s = _searchTerm.toLowerCase();
     const cu = window.currentUser;
@@ -2261,7 +2176,7 @@
     const currNome = (cu ? (cu.nome || '') : '').toLowerCase();
     let currUserId = null;
     try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currUserId = String(u.id); } catch(e){}
-    const deptMap = { 'LogÃ­stica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+    const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
         const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -2355,18 +2270,18 @@
     });
   }
 
-  // â”€â”€ DRAG & DROP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── DRAG & DROP ────────────────────────────────────────────────
   function onDragStart(e, id) {
     const t = _tickets.find(x => x.id === id);
     if (!t) return;
     if (t.stage === 'concluido') {
         e.preventDefault();
-        showToast('Chamados concluÃ­dos nÃ£o podem ser movidos.', 'warning');
+        showToast('Chamados concluídos não podem ser movidos.', 'warning');
         return;
     }
     if (!canMoveTicket(t)) {
         e.preventDefault();
-        showToast('VocÃª sÃ³ pode mover chamados abertos por vocÃª.', 'warning');
+        showToast('Você só pode mover chamados abertos por você.', 'warning');
         return;
     }
     _draggedId = id;
@@ -2410,20 +2325,20 @@
     }
 
     if (colId === 'respondido') {
-        alert('A coluna "Respondido" sÃ³ Ã© atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+        alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
         _draggedId = null;
         return;
     }
 
     if (colId === 'concluido' && (!ticket.costCenters || ticket.costCenters.length === 0)) {
-        alert('Bloqueio: Ã‰ obrigatÃ³rio lanÃ§ar um Centro de Custo no botÃ£o roxo antes de concluir o chamado.\n\nSe nÃ£o houver cobranÃ§a, selecione "Cliente (NÃ£o Cobrar do Cliente)" e coloque um valor simbÃ³lico (ex: 0.01).');
+        alert('Bloqueio: É obrigatório lançar um Centro de Custo no botão roxo antes de concluir o chamado.\n\nSe não houver cobrança, selecione "Cliente (Não Cobrar do Cliente)" e coloque um valor simbólico (ex: 0.01).');
         _draggedId = null;
         return;
     }
 
     const gate = checkGate(ticket, colId);
     if (gate) {
-      alert(`Bloqueio de Conformidade:\n\nEste chamado possui uma TAREFA DE ${gate.sector.toUpperCase()} pendente.\n"${gate.task}"\n\nConclua essa pendÃªncia antes de avanÃ§ar.`);
+      alert(`Bloqueio de Conformidade:\n\nEste chamado possui uma TAREFA DE ${gate.sector.toUpperCase()} pendente.\n"${gate.task}"\n\nConclua essa pendência antes de avançar.`);
       _draggedId = null;
       return;
     }
@@ -2451,17 +2366,17 @@
     const srcIdx = PIPELINE_STAGES.findIndex(s => s.id === ticket.stage);
     const tgtIdx = PIPELINE_STAGES.findIndex(s => s.id === targetStageId);
     if (tgtIdx > srcIdx) {
-      if (ticket.logisticsTask && !ticket.logisticsTask.isCompleted) return { sector:'LogÃ­stica', task: ticket.logisticsTask.name };
+      if (ticket.logisticsTask && !ticket.logisticsTask.isCompleted) return { sector:'Logística', task: ticket.logisticsTask.name };
       if (ticket.commercialTask && !ticket.commercialTask.isCompleted) return { sector:'Comercial', task: ticket.commercialTask.name };
       if (ticket.financialTask  && !ticket.financialTask.isCompleted)  return { sector:'Financeiro',  task: ticket.financialTask.name };
     }
     if (targetStageId === 'concluido' && !isChecklistComplete(ticket)) {
-      return { sector:'SAC', task: 'Preenchimento do Check-list ObrigatÃ³rio' };
+      return { sector:'SAC', task: 'Preenchimento do Check-list Obrigatório' };
     }
     return null;
   }
 
-  // â”€â”€ AÃ‡Ã•ES PÃšBLICO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── AÇÕES PÚBLICO ─────────────────────────────────────────────
   const SAC = window.SAC = {
     renderTransOccsRows() {
       const container = document.getElementById('trans-concluido-occs');
@@ -2481,15 +2396,15 @@
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;position:relative;">
             ${state.length > 1 ? `<button onclick="SAC.removeTransOccRow(${idx})" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ef4444;cursor:pointer;"><i class="ph ph-trash"></i></button>` : ''}
             <div style="margin-bottom:8px;">
-              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">OcorrÃªncia <span style="color:#dc2626">*</span></label>
+              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Ocorrência <span style="color:#dc2626">*</span></label>
               <select onchange="window._transOccsState[${idx}].name=this.value" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;outline:none;">
                 <option value="">Selecione...</option>
                 ${selOpts}
               </select>
             </div>
             <div>
-              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">InformaÃ§Ãµes de conclusÃ£o <span style="color:#dc2626">*</span></label>
-              <textarea onchange="window._transOccsState[${idx}].note=this.value" rows="2" placeholder="Descreva os prÃ³ximos passos ou resoluÃ§Ã£o..." style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;resize:vertical;outline:none;">${item.note}</textarea>
+              <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Informações de conclusão <span style="color:#dc2626">*</span></label>
+              <textarea onchange="window._transOccsState[${idx}].note=this.value" rows="2" placeholder="Descreva os próximos passos ou resolução..." style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;resize:vertical;outline:none;">${item.note}</textarea>
             </div>
           </div>
         `;
@@ -2518,7 +2433,7 @@
     async duplicateTicket(id) {
       const t = _tickets.find(x => x.id === id);
       if (!t) return;
-      if (!confirm('Deseja duplicar este chamado? SerÃ¡ criado um novo card idÃªntico na coluna Abertura, com um novo nÃºmero de protocolo e histÃ³rico zerado.')) return;
+      if (!confirm('Deseja duplicar este chamado? Será criado um novo card idêntico na coluna Abertura, com um novo número de protocolo e histórico zerado.')) return;
       
       const user = window.currentUser ? window.currentUser.nome || currentUsername() : currentUsername();
       const now = new Date().toISOString();
@@ -2541,7 +2456,7 @@
           description: t.description || '',
           stage: 'abertura',
           nextSteps: 'Triagem inicial pendente.',
-          timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto via duplicaÃ§Ã£o da OS ' + t.protocol + '. Triagem inicial pendente.', user }],
+          timeline: [{ stage:'abertura', time:now, notes:'Chamado aberto via duplicação da OS ' + t.protocol + '. Triagem inicial pendente.', user }],
           occurrences: t.occurrences ? JSON.parse(JSON.stringify(t.occurrences)) : [],
           attachments: t.attachments ? JSON.parse(JSON.stringify(t.attachments)) : [],
           isUrgent: t.isUrgent || false,
@@ -2553,26 +2468,22 @@
       if (modal) modal.style.display = 'none';
       
       try {
-          const res = await fetch('/api/sac/tickets', {
+          const _dupToken = localStorage.getItem('erp_token') || localStorage.getItem('token');
+          const _dupRes = await fetch('/api/sac/tickets', {
               method: 'POST',
-              headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
-              },
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _dupToken },
               body: JSON.stringify(newTicket)
           });
-          if (!res.ok) throw new Error('Erro ao salvar duplicata');
-          
+          if (!_dupRes.ok) throw new Error('Erro ao salvar duplicata: ' + _dupRes.status);
+          const _saved = await _dupRes.json().catch(() => newTicket);
+          const _savedId = (_saved && _saved.id) ? _saved.id : newTicket.id;
           await loadTickets();
           renderAll();
           showToast('Chamado duplicado com sucesso!', 'success');
-          
-          setTimeout(() => {
-              SAC.openDetail(newTicket.id);
-          }, 300);
+          setTimeout(() => { SAC.openDetail(_savedId); }, 400);
       } catch (e) {
-          console.error(e);
-          showToast('Erro ao duplicar chamado', 'error');
+          console.error('Erro duplicar:', e);
+          showToast('Erro ao duplicar chamado: ' + e.message, 'error');
       }
     },
     setView(v)    { _view = v; renderAll(); },
@@ -2595,26 +2506,26 @@
     wizStep(delta){
       if (delta > 0) {
         if (_wiz.step===1 && (!_wiz.clientName.trim()||!_wiz.equipment.trim())) { showToast('Preencha o nome do cliente e o equipamento.','warning'); return; }
-        if (_wiz.step===2 && (!_wiz.contactName.trim() || !_wiz.description.trim())) { showToast('Preencha os campos obrigatÃ³rios (*).','warning'); return; }
+        if (_wiz.step===2 && (!_wiz.contactName.trim() || !_wiz.description.trim())) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
       }
       _wiz.step = Math.max(1, Math.min(3, _wiz.step+delta));
       renderWizard();
     },
     wizAddOcc() {
       const occ = _wiz.currentOcc;
-      if (!occ) { showToast('Selecione uma ocorrÃªncia.','warning'); return; }
-      if (_wiz.occList.some(o=>o.name===occ)) { showToast('OcorrÃªncia jÃ¡ adicionada.','warning'); return; }
-      _wiz.occList.push({ name:occ, note:_wiz.currentOccNote.trim()||'Sem observaÃ§Ãµes.', images:[] });
+      if (!occ) { showToast('Selecione uma ocorrência.','warning'); return; }
+      if (_wiz.occList.some(o=>o.name===occ)) { showToast('Ocorrência já adicionada.','warning'); return; }
+      _wiz.occList.push({ name:occ, note:_wiz.currentOccNote.trim()||'Sem observações.', images:[] });
       _wiz.currentOccNote = '';
       renderWizard();
     },
     wizRemoveOcc(i) { _wiz.occList.splice(i,1); renderWizard(); },
-    wizAddContact() { _wiz.contacts.push({ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' }); renderWizard(); },
+    wizAddContact() { _wiz.contacts.push({ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }); renderWizard(); },
     wizUpdateContact(id, field, value) { const c = _wiz.contacts.find(x => x.id === id); if (c) c[field] = value; },
-    wizRemoveContact(id) { if (_wiz.contacts.length <= 1) { showToast('MÃ­nimo 1 contato.', 'warning'); return; } _wiz.contacts = _wiz.contacts.filter(x => x.id !== id); renderWizard(); },
+    wizRemoveContact(id) { if (_wiz.contacts.length <= 1) { showToast('Mínimo 1 contato.', 'warning'); return; } _wiz.contacts = _wiz.contacts.filter(x => x.id !== id); renderWizard(); },
     async wizSubmit() {
-      if (!_wiz.clientName.trim()||!_wiz.equipment.trim()) { showToast('Dados obrigatÃ³rios ausentes.','warning'); return; }
-      if (_wiz.contacts.some(c => !c.name.trim()) || !_wiz.description.trim()) { showToast('Preencha os campos obrigatÃ³rios (*).','warning'); return; }
+      if (!_wiz.clientName.trim()||!_wiz.equipment.trim()) { showToast('Dados obrigatórios ausentes.','warning'); return; }
+      if (_wiz.contacts.some(c => !c.name.trim()) || !_wiz.description.trim()) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
 
       const btn = document.getElementById('wiz-submit-btn');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Criando...'; }
@@ -2624,7 +2535,7 @@
 
         const proto = _wiz.protocol.trim() || nextProtocol();
         const dupl = _tickets.find(t => t.protocol === proto);
-        if (dupl && !confirm(`JÃ¡ existe a OS ${proto} (${dupl.clientName}). Criar mesmo assim?`)) {
+        if (dupl && !confirm(`Já existe a OS ${proto} (${dupl.clientName}). Criar mesmo assim?`)) {
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Criar Chamado'; }
             return;
         }
@@ -2648,7 +2559,7 @@
           channel: _wiz.channel,
           typeKey: _wiz.typeKey,
           isUrgent: _wiz.isUrgent,
-          occurrences: _wiz.occList.length ? _wiz.occList : [{ name: _wiz.currentOcc||'OcorrÃªncia geral', note: '', images:[] }],
+          occurrences: _wiz.occList.length ? _wiz.occList : [{ name: _wiz.currentOcc||'Ocorrência geral', note: '', images:[] }],
           description: _wiz.description.trim(),
           stage: 'abertura',
           nextSteps: 'Triagem inicial pendente.',
@@ -2699,7 +2610,7 @@
           const gestorRequiredClose = localStorage.getItem('sac_popup_gestor_required_' + _selectedTicket.id) === '1';
           const canClose = isCloserByList || !gestorRequiredClose;
           if (!canClose) {
-            showToast('Preencha a justificativa obrigatÃ³ria antes de fechar.', 'warning');
+            showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
           } else {
             _selectedTicket.slaOverduePendingJustification = false;
@@ -2724,17 +2635,17 @@
       const t = _selectedTicket;
       if (!t || t.stage === targetId) return;
       if (targetId === 'respondido') {
-          alert('A coluna "Respondido" sÃ³ Ã© atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
+          alert('A coluna "Respondido" só é atingida automaticamente ao marcar uma Tarefa Setorial como Respondida.');
           renderDetailModal();
           return;
       }
       if (targetId === 'concluido' && (!t.costCenters || t.costCenters.length === 0)) {
-          alert('Bloqueio: Ã‰ obrigatÃ³rio lanÃ§ar um Centro de Custo no botÃ£o roxo antes de concluir o chamado.\n\nSe nÃ£o houver cobranÃ§a, selecione "Cliente (NÃ£o Cobrar do Cliente)" e coloque um valor simbÃ³lico (ex: 0.01).');
+          alert('Bloqueio: É obrigatório lançar um Centro de Custo no botão roxo antes de concluir o chamado.\n\nSe não houver cobrança, selecione "Cliente (Não Cobrar do Cliente)" e coloque um valor simbólico (ex: 0.01).');
           renderDetailModal();
           return;
       }
       const gate = checkGate(t, targetId);
-      if (gate) { alert(`Bloqueio: PendÃªncia ${gate.sector} nÃ£o concluÃ­da.\n${gate.task}`); renderDetailModal(); return; }
+      if (gate) { alert(`Bloqueio: Pendência ${gate.sector} não concluída.\n${gate.task}`); renderDetailModal(); return; }
       openTransitionModal(t.id, targetId);
     },
     changeTaskAssignment(key, newUsername) {
@@ -2746,26 +2657,26 @@
       const user = usersList.find(u => (u.username||u.login||u.email||normalizeId(u.nome)) === newUsername);
       const previousAssignee = t[key].assignedTo;
       
-      // -- TransferÃªncia de setor baseada no departamento do novo usuÃ¡rio --
+      // -- Transferência de setor baseada no departamento do novo usuário --
       let targetKey = key;
       let newGestorSetor = t.gestorSetor;
       
       if (user && newUsername) {
          const uDept = (user.departamento || '').toLowerCase();
-         const isManagerOf = (_globalDepartamentos||[]).find(d => ['LogÃ­stica','Comercial','Financeiro'].includes(d.nome) && d.responsavel_nome && d.responsavel_nome.toLowerCase() === (user.nome||'').toLowerCase());
+         const isManagerOf = (_globalDepartamentos||[]).find(d => ['Logística','Comercial','Financeiro'].includes(d.nome) && d.responsavel_nome && d.responsavel_nome.toLowerCase() === (user.nome||'').toLowerCase());
          
          let determinedDept = '';
          if (isManagerOf) {
              determinedDept = isManagerOf.nome;
-         } else if (uDept.includes('logÃ­stica') || uDept.includes('logistica')) {
-             determinedDept = 'LogÃ­stica';
+         } else if (uDept.includes('logística') || uDept.includes('logistica')) {
+             determinedDept = 'Logística';
          } else if (uDept.includes('comercial')) {
              determinedDept = 'Comercial';
          } else if (uDept.includes('financeiro')) {
              determinedDept = 'Financeiro';
          }
          
-         const mapDepts = { 'LogÃ­stica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+         const mapDepts = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
          
          if (determinedDept && mapDepts[determinedDept] && mapDepts[determinedDept] !== key) {
              targetKey = mapDepts[determinedDept];
@@ -2786,7 +2697,7 @@
              t.timeline.push({
                  stage: t.stage,
                  time: new Date().toISOString(),
-                 notes: `Tarefa transferida de ${key.replace('Task','')} para ${determinedDept} (AtribuÃ­do a ${user.nome}).`,
+                 notes: `Tarefa transferida de ${key.replace('Task','')} para ${determinedDept} (Atribuído a ${user.nome}).`,
                  user: { id: window.currentUser ? window.currentUser.id : '', nome: currentUsername() }
              });
              
@@ -2823,7 +2734,7 @@
       }
       
       updateTicket(t);
-      showToast(`AtribuiÃ§Ã£o de ${targetKey.replace('Task','')} atualizada.`, 'success');
+      showToast(`Atribuição de ${targetKey.replace('Task','')} atualizada.`, 'success');
       
       if (newUsername && newUsername !== previousAssignee) {
         const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
@@ -2853,13 +2764,13 @@
         .then(() => {
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS excluÃ­da com sucesso.','warning');
+          showToast('OS excluída com sucesso.','warning');
           renderAll();
         })
         .catch(() => {
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
-          showToast('OS excluÃ­da (modo local).','warning');
+          showToast('OS excluída (modo local).','warning');
           renderAll();
         });
     },
@@ -2874,7 +2785,7 @@
     },
     removeOccurrence(idx) {
       const t = _selectedTicket;
-      if (!t || t.occurrences.length<=1) { showToast('MÃ­nimo de 1 ocorrÃªncia.','warning'); return; }
+      if (!t || t.occurrences.length<=1) { showToast('Mínimo de 1 ocorrência.','warning'); return; }
       t.occurrences.splice(idx,1);
       updateTicket(t);
     },
@@ -2883,8 +2794,8 @@
       if (!t) return;
       const sel = document.getElementById('modal-occ-select');
       const note = document.getElementById('modal-occ-note');
-      if (!sel||!sel.value) { showToast('Selecione uma ocorrÃªncia.','warning'); return; }
-      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('OcorrÃªncia jÃ¡ cadastrada.','warning'); return; }
+      if (!sel||!sel.value) { showToast('Selecione uma ocorrência.','warning'); return; }
+      if (t.occurrences.some(o=>o.name===sel.value)) { showToast('Ocorrência já cadastrada.','warning'); return; }
       t.occurrences.push({ name:sel.value, note:(note&&note.value)||'', images:[] });
       if (note) note.value='';
       updateTicket(t);
@@ -2903,7 +2814,7 @@
           if (resp.ok) {
               t = await resp.json();
           }
-      } catch (e) { console.error('Erro ao buscar versÃ£o mais recente do ticket', e); }
+      } catch (e) { console.error('Erro ao buscar versão mais recente do ticket', e); }
 
       const user = currentUsername();
       if (!t.comments) t.comments = [];
@@ -2935,16 +2846,16 @@
               showToast('Justificativa registrada com sucesso.', 'success');
               setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
-              // Apenas registra a justificativa na timeline e mantÃ©m o chamado em 'aguardando_setores'.
+              // Apenas registra a justificativa na timeline e mantém o chamado em 'aguardando_setores'.
               isHandled = true;
               t.aguardPendingJustification = false;
-              // CRÃTICO: remover localStorage ANTES de qualquer re-render para evitar loop infinito
+              // CRÍTICO: remover localStorage ANTES de qualquer re-render para evitar loop infinito
               localStorage.removeItem('sac_pending_popup_' + t.id);
               t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
-              // Fechar popup obrigatÃ³rio se ainda estiver na tela
+              // Fechar popup obrigatório se ainda estiver na tela
               const popupEl = document.getElementById('sac-mandatory-popup-' + t.id);
               if (popupEl) popupEl.remove();
-              // Salva ANTES de reabrir o modal para garantir persistÃªncia
+              // Salva ANTES de reabrir o modal para garantir persistência
               await updateTicket(t);
               if (textInput) textInput.value = '';
               showToast('Justificativa registrada com sucesso.', 'success');
@@ -2968,8 +2879,8 @@
          const currNomeWindow = (cu2 ? (cu2.nome || '') : '').toLowerCase();
          const effectiveNome = currNomeNow || currNomeWindow;
 
-         // Extrair o username real do usuÃ¡rio logado (ANTES do filtro de departamentos)
-         // currentUsername() retorna u.nome||u.username â€” pode ser o nome de exibiÃ§Ã£o.
+         // Extrair o username real do usuário logado (ANTES do filtro de departamentos)
+         // currentUsername() retorna u.nome||u.username — pode ser o nome de exibição.
          // O assignedTo guarda o login real (ex: beatriz.batista). Usar erp_user.username.
          let usernameActual = (user || '').toLowerCase().trim();
          try {
@@ -2988,9 +2899,9 @@
                     (effectiveNome && respNome && respNome.includes(effectiveNome) && effectiveNome.length > 5);
          }).map(d => (d.nome || '').trim());
 
-         const deptMapLocal = { 'LogÃ­stica': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
+         const deptMapLocal = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
 
-         // UsuÃ¡rio Ã© o atribuÃ­do diretamente?
+         // Usuário é o atribuído diretamente?
          const isAssigned = ['logisticsTask','commercialTask','financialTask'].some(k => {
              const task = t[k];
              if (!task || !task.assignedTo) return false;
@@ -2998,7 +2909,7 @@
              return a === usernameActual;
          });
 
-         // UsuÃ¡rio Ã© o gestor gravado no ticket quando foi atribuÃ­do?
+         // Usuário é o gestor gravado no ticket quando foi atribuído?
          const gs = t.gestorSetor;
          const isGestorByTicket = gs && (
              (cUserIdNow && gs.id && gs.id === cUserIdNow) ||
@@ -3018,7 +2929,7 @@
              return taskKey && t[taskKey] && !t[taskKey].isCompleted;
          });
 
-         // Gestor via permissÃ£o SAC restrita (mesma lÃ³gica do popup) â€” funciona mesmo quando
+         // Gestor via permissão SAC restrita (mesma lógica do popup) — funciona mesmo quando
          // _globalDepartamentos tem dados nulos no banco (caso do Comercial da Beatriz)
          const permsForComment = window.activeUserPerms || {};
          const isTopAdminForComment = window.isTopAdmin || false;
@@ -3029,8 +2940,8 @@
              isHandled = true;
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
-             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentÃ¡rio: "' + text + '"', user });
-             // ComentÃ¡rio inserido no bloco roxo, removemos a duplicaÃ§Ã£o no quadro branco
+             t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
+             // Comentário inserido no bloco roxo, removemos a duplicação no quadro branco
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
                  if (t[k] && !t[k].isCompleted) {
                      t[k].isCompleted = true;
@@ -3038,7 +2949,7 @@
                      t[k].history = [...(t[k].history||[]), { type:'resolution', time: nowTs, feedback: text, user }];
                  }
              });
-             // Salva ANTES de fechar o modal para garantir persistÃªncia
+             // Salva ANTES de fechar o modal para garantir persistência
              await updateTicket(t);
              if (textInput) textInput.value = '';
              showToast('OS ' + t.protocol + ' respondida e movida para Respondido!', 'success');
@@ -3054,7 +2965,7 @@
       updateTicket(t);
       if (textInput) textInput.value = '';
       
-      // Atualizar o modal para mostrar o novo comentÃ¡rio
+      // Atualizar o modal para mostrar o novo comentário
       if (!isHandled) {
           SAC.openDetail(t.id);
       }
@@ -3068,12 +2979,12 @@
       const isRedirect = t.stage === 'aguardando_setores';
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
-      const taskName = key === 'logisticsTask' ? 'LogÃ­stica' : key === 'commercialTask' ? 'Comercial' : 'Financeiro';
-      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`PendÃªncia ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user }); }
-      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`PendÃªncia ${taskName} resolvida: "${feedback}"`, user }); }
+      const taskName = key === 'logisticsTask' ? 'Logística' : key === 'commercialTask' ? 'Comercial' : 'Financeiro';
+      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user }); }
+      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
       if (isRedirect) { showToast(`OS ${t.protocol} respondida! Movida para Respondido.`,'warning'); }
-      else { showToast('PendÃªncia marcada como resolvida!','success'); }
+      else { showToast('Pendência marcada como resolvida!','success'); }
     },
     reopenTask(key) {
       const t = _selectedTicket;
@@ -3082,9 +2993,9 @@
       if (!reason||!reason.trim()) return;
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:false, feedback:'', history:[...(t[key].history||[]),{type:'reopen',time:new Date().toISOString(),feedback:reason,user}] };
-      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`PendÃªncia ${key.replace('Task','')} reaberta: "${reason}"`, user });
+      t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} reaberta: "${reason}"`, user });
       updateTicket(t);
-      showToast('PendÃªncia reaberta. AvanÃ§o bloqueado.','warning');
+      showToast('Pendência reaberta. Avanço bloqueado.','warning');
     },
     saveCostCenter() {
       const t = _selectedTicket;
@@ -3104,13 +3015,13 @@
           responsibleName = opt.getAttribute('data-name');
       }
 
-      if (isNaN(valor) || valor < 0) { showToast('Informe um valor vÃ¡lido (pode ser zero).','warning'); return false; }
+      if (isNaN(valor) || valor < 0) { showToast('Informe um valor válido (pode ser zero).','warning'); return false; }
       if (!motivo)  { showToast('Informe o motivo do custo.','warning'); return false; }
       const cc = { id:'cc-'+Date.now(), sector, lossValue:valor, reason:motivo, hasBilling:false, responsibleUser, responsibleName, responsiblePhoto };
       t.costCenters = [...(t.costCenters||[]), cc];
       
       updateTicket(t);
-      showToast('LanÃ§amento adicionado!','success');
+      showToast('Lançamento adicionado!','success');
       return true;
     },
     openEditContactsModal(ticketId) {
@@ -3118,7 +3029,7 @@
         if (!t) return;
         window._modalContactsTicketId = ticketId;
         // fallback
-        const initialContacts = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
+        const initialContacts = (t.contacts && t.contacts.length > 0) ? t.contacts : [{ id: Date.now(), type: 'Contato de Instalação', name: t.contactName, phone: t.contactPhone, email: t.contactEmail }];
         window._modalContacts = JSON.parse(JSON.stringify(initialContacts)); // deep copy
         
         let overlay = document.getElementById('sac-edit-contacts-overlay');
@@ -3165,7 +3076,7 @@
                                     <div class="sac-field" style="margin-bottom:0;">
                                         <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Tipo de Contato</label>
                                         <select onchange="SAC.updateContactInModal(${c.id}, 'type', this.value)" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
-                                            <option value="Contato de InstalaÃ§Ã£o" ${c.type==='Contato de InstalaÃ§Ã£o'?'selected':''}>Contato de InstalaÃ§Ã£o</option>
+                                            <option value="Contato de Instalação" ${c.type==='Contato de Instalação'?'selected':''}>Contato de Instalação</option>
                                             <option value="Contato Financeiro" ${c.type==='Contato Financeiro'?'selected':''}>Contato Financeiro</option>
                                             <option value="Contato de Contrato" ${c.type==='Contato de Contrato'?'selected':''}>Contato de Contrato</option>
                                         </select>
@@ -3193,14 +3104,14 @@
                 <!-- FOOTER -->
                 <div style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:16px 20px;display:flex;justify-content:flex-end;gap:12px;">
                     <button onclick="document.getElementById('sac-edit-contacts-overlay').remove()" class="sac-btn sac-btn-secondary" style="background:#fff;">Cancelar</button>
-                    <button onclick="SAC.saveContactsModal()" class="sac-btn sac-btn-primary"><i class="ph ph-check-circle"></i> Salvar AlteraÃ§Ãµes</button>
+                    <button onclick="SAC.saveContactsModal()" class="sac-btn sac-btn-primary"><i class="ph ph-check-circle"></i> Salvar Alterações</button>
                 </div>
             </div>
         `;
     },
     addContactToModal() {
         if (!window._modalContacts) return;
-        window._modalContacts.push({ id: Date.now(), type: 'Contato de InstalaÃ§Ã£o', name: '', phone: '', email: '' });
+        window._modalContacts.push({ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' });
         SAC._renderContactsModal();
     },
     removeContactFromModal(id) {
@@ -3252,11 +3163,11 @@
       if (!t) return;
       t.costCenters = (t.costCenters||[]).filter(c=>c.id!==ccId);
       updateTicket(t);
-      showToast('LanÃ§amento removido.','warning');
+      showToast('Lançamento removido.','warning');
     },
     async onCostCenterSectorChange() {
       const sector = document.getElementById('cc-sector')?.value || '';
-      const targetSectors = ['LogÃ­stica (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)'];
+      const targetSectors = ['Logística (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)'];
       const container = document.getElementById('cc-user-container');
       if (!container) return;
 
@@ -3393,7 +3304,7 @@
       updateTicket(t);
     },
 
-    // â”€â”€ filterTransUsers: busca colaboradores por departamento na tabela colaboradores (HR)
+    // ── filterTransUsers: busca colaboradores por departamento na tabela colaboradores (HR)
     // Inclui gestora, afastados e outros sem conta de sistema via endpoint dedicado.
     filterTransUsers(sector, preselectedUser = null) {
       const pt = _pendingTransition;
@@ -3414,11 +3325,11 @@
           if (photo) { photo.src = ''; photo.style.display = 'none'; }
           return;
         }
-        sel.innerHTML = '<option value="">Selecione um usuÃ¡rio...</option>' +
+        sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
           lista.map(u => {
             const val = u.username || normalizeId(u.nome);
             const badge = u.status && u.status.toLowerCase().includes('afastado') ? ' (Afastado)' :
-                          u.status && u.status.toLowerCase().includes('ferias') ? ' (FÃ©rias)' : '';
+                          u.status && u.status.toLowerCase().includes('ferias') ? ' (Férias)' : '';
             return `<option value="${val}" data-photo="${u.foto_colaborador||''}" data-id="${u.id || ''}" ${preselectedUser === val ? 'selected' : ''}>${u.nome}${badge}</option>`;
           }).join('');
         
@@ -3430,23 +3341,23 @@
         }
       })
       .catch(err => {
-        // Fallback local: usa lista de usuÃ¡rios carregada na inicializaÃ§Ã£o, filtragem bidirecional
+        // Fallback local: usa lista de usuários carregada na inicialização, filtragem bidirecional
         console.warn('[SAC] Erro ao buscar colaboradores por setor, usando fallback:', err);
         const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const deptKey = normalizeStr(sector);
         const allUsers = window._sacUsersList || pt.usersList || [];
-        // Filtragem bidirecional: departamento do usuÃ¡rio contÃ©m o setor OU setor contÃ©m o departamento
+        // Filtragem bidirecional: departamento do usuário contém o setor OU setor contém o departamento
         const filtered = allUsers.filter(u => {
           if (!u.ativo) return false;
           const uDept = normalizeStr(u.departamento || '');
           return uDept.includes(deptKey) || deptKey.includes(uDept);
         });
         if (filtered.length === 0) {
-          // NÃ£o retornar todos os usuÃ¡rios â€” exibir aviso em vez disso
+          // Não retornar todos os usuários — exibir aviso em vez disso
           sel.innerHTML = `<option value="">Nenhum colaborador encontrado para "${sector}"</option>`;
           if (photo) { photo.src = ''; photo.style.display = 'none'; }
         } else {
-          sel.innerHTML = '<option value="">Selecione um usuÃ¡rio...</option>' +
+          sel.innerHTML = '<option value="">Selecione um usuário...</option>' +
             filtered.map(u => `<option value="${u.username}" data-photo="${u.foto_colaborador||''}" data-id="${u.id}" ${preselectedUser === u.username ? 'selected' : ''}>${u.nome}</option>`).join('');
             
           if (sel.selectedIndex > 0 && photo) {
@@ -3473,10 +3384,10 @@
       let _idx = idx;
       const renderImg = () => {
         overlay.innerHTML = `
-          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">âœ•</button>
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">â®</button>`:''}
+          <button onclick="event.stopPropagation();document.getElementById('sac-img-viewer').remove()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.5rem;cursor:pointer;border-radius:8px;padding:2px 10px;z-index:1;">✕</button>
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">❮</button>`:''}
           <img src="${imgs[_idx].url}" style="max-width:90vw;max-height:88vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 48px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
-          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">â¯</button>`:''}
+          ${imgs.length>1?`<button onclick="event.stopPropagation();SAC._viewerNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:2rem;cursor:pointer;border-radius:8px;padding:4px 14px;z-index:1;">❯</button>`:''}
           <div style="position:absolute;bottom:16px;color:#94a3b8;font-size:0.78rem;">${_idx+1} / ${imgs.length}</div>`;
       };
       SAC._viewerNav = (dir) => { _idx = (_idx+dir+imgs.length)%imgs.length; renderImg(); };
@@ -3502,29 +3413,29 @@
 
       let nextSteps  = (document.getElementById('trans-next')?.value||'').trim();
       let obs        = (document.getElementById('trans-obs')?.value||'').trim();
-      let sector     = document.getElementById('trans-sector')?.value || 'LogÃ­stica';
-      let closeReason= document.getElementById('trans-closing-reason')?.value || 'ConcluÃ­do';
+      let sector     = document.getElementById('trans-sector')?.value || 'Logística';
+      let closeReason= document.getElementById('trans-closing-reason')?.value || 'Concluído';
       let clJust     = (document.getElementById('trans-cl-just')?.value||'').trim();
 
       if (pt.targetStageId === 'concluido') {
         const state = window._transOccsState || [];
         const missing = state.some(o => !o.name || !o.note || !o.note.trim());
         if (missing) {
-          showToast('Preencha a OcorrÃªncia e as InformaÃ§Ãµes de conclusÃ£o para todos os itens.', 'warning');
+          showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
           return;
         }
         nextSteps = state.map(o => `**${o.name}** - ${o.note.trim()}`).join('\n');
       }
 
       if (isClosing) {
-        if (!obs) { showToast('O resumo de encerramento Ã© obrigatÃ³rio.','warning'); return; }
-        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto Ã© obrigatÃ³ria.','warning'); return; }
-        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mÃ­n. 10 caracteres).','warning'); return; }
+        if (!obs) { showToast('O resumo de encerramento é obrigatório.','warning'); return; }
+        if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
+        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
       } else {
-        if (!nextSteps) { showToast('Os prÃ³ximos passos sÃ£o obrigatÃ³rios.','warning'); return; }
+        if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
 
-      // Build logNotes â€” for execucao (Acompanhamento), put SLA info before PrÃ³ximos passos
+      // Build logNotes — for execucao (Acompanhamento), put SLA info before Próximos passos
       const isExecucao = pt.targetStageId === 'execucao';
       let logNotes;
       if (isClosing) {
@@ -3533,12 +3444,12 @@
         // Will be completed after deadline is set below
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName;
       } else if (pt.targetStageId === 'concluido') {
-        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. InformaÃ§Ãµes de conclusÃ£o: \n' + nextSteps;
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Informações de conclusão: \n' + nextSteps;
       } else {
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Pr\u00f3ximos passos: "' + nextSteps + '"' + (obs ? ' | Obs: "' + obs + '"' : '');
       }
 
-      // â”€â”€ execucao: capturar data limite e congelar SLA â”€â”€
+      // ── execucao: capturar data limite e congelar SLA ──
       let followUpDeadlineVal = null;
       if (isExecucao) {
         followUpDeadlineVal = (document.getElementById('trans-followup-deadline')?.value || '').trim();
@@ -3586,12 +3497,12 @@
         const assignedUserNome = userSelect?.options[userSelect.selectedIndex]?.text || '';
         const assignedUserPhoto = userSelect?.options[userSelect.selectedIndex]?.dataset.photo || '';
         
-        if (!assignedUsername) { showToast('Selecione o usuÃ¡rio atribuÃ­do.', 'warning'); return; }
+        if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
-        ticket.logisticsTask  = sector==='LogÃ­stica'  ? { name:`Pendente: LogÃ­stica â€” aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial â€” aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro â€” aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        // Prazo de 2h Ãºteis (Seg-Sex 08h-17h) â€” congela fora do horÃ¡rio comercial e fins de semana
+        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
         ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 1000).toISOString();
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = true;
@@ -3627,7 +3538,7 @@
         const oldDesc = t.description || '';
         
         if (newDesc === oldDesc.trim()) {
-            showToast('Nenhuma alteraÃ§Ã£o na descriÃ§Ã£o.', 'info');
+            showToast('Nenhuma alteração na descrição.', 'info');
             return;
         }
 
@@ -3637,17 +3548,17 @@
         // Log the old text and who changed it
         t.comments.push({ 
             user: 'Sistema', 
-            text: 'ðŸ“ DescriÃ§Ã£o editada por ' + user + '. Texto anterior:\n"' + (oldDesc || '(vazio)') + '"', 
+            text: '📝 Descrição editada por ' + user + '. Texto anterior:\n"' + (oldDesc || '(vazio)') + '"', 
             time: new Date().toISOString() 
         });
 
         t.description = newDesc;
         updateTicket(t);
-        showToast('DescriÃ§Ã£o salva com sucesso!', 'success');
+        showToast('Descrição salva com sucesso!', 'success');
     },
     exportCSV() {
       const all = getFilteredTickets();
-      const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','OcorrÃªncias'];
+      const headers = ['Protocolo','OS Relacionada','Data Abertura','Cliente','CNPJ/CPF','Equipamento','Tipo','Etapa','SLA','Ocorrências'];
       const rows = all.map(t => {
         const sla = getSLADetails(t);
         return [
@@ -3743,35 +3654,35 @@
         let html = `
         <div class="sac-modal sac-animated" style="width:80vw;max-width:80vw;margin:20px auto;border-radius:12px;background:#fff;display:flex;flex-direction:column;position:relative;box-shadow:0 10px 25px rgba(0,0,0,0.1);padding:24px;" onclick="event.stopPropagation()">
             <div style="position:absolute;top:16px;right:16px;">
-                <button onclick="document.getElementById('sac-custos-overlay').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">âœ•</button>
+                <button onclick="document.getElementById('sac-custos-overlay').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
             </div>
             
             <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:16px;margin-bottom:20px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:12px;text-transform:uppercase;">LanÃ§ar Novo Custo</div>
+                <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:12px;text-transform:uppercase;">Lançar Novo Custo</div>
                 <div style="display:flex;gap:12px;margin-bottom:12px;">
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Setor / ResponsÃ¡vel</label>
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Setor / Responsável</label>
                         <select id="cc-sector" onchange="SAC.onCostCenterSectorChange()" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;">
                             <option value="Cliente (Cobrar do Cliente)">Cliente (Cobrar do Cliente)</option>
-                            <option value="Cliente (NÃ£o Cobrar do Cliente)">Cliente (NÃ£o Cobrar do Cliente)</option>
-                            <option value="Setor TÃ©cnico (Interno)">Setor TÃ©cnico (Interno)</option>
-                            <option value="LogÃ­stica (Interno)">LogÃ­stica (Interno)</option>
+                            <option value="Cliente (Não Cobrar do Cliente)">Cliente (Não Cobrar do Cliente)</option>
+                            <option value="Setor Técnico (Interno)">Setor Técnico (Interno)</option>
+                            <option value="Logística (Interno)">Logística (Interno)</option>
                             <option value="Comercial (Interno)">Comercial (Interno)</option>
                             <option value="Financeiro (Interno)">Financeiro (Interno)</option>
-                            <option value="PÃ¡tio (Interno)">PÃ¡tio (Interno)</option>
+                            <option value="Pátio (Interno)">Pátio (Interno)</option>
                             <option value="Motorista (Interno)">Motorista (Interno)</option>
-                            <option value="Outro ResponsÃ¡vel">Outro ResponsÃ¡vel</option>
+                            <option value="Outro Responsável">Outro Responsável</option>
                         </select>
                         <div id="cc-user-container" style="display:none;"></div>
                     </div>
                     <div style="width:140px;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Valor do PrejuÃ­zo (R$)</label>
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Valor do Prejuízo (R$)</label>
                         <input type="number" id="cc-valor" step="0.01" min="0" placeholder="Ex: 250" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;">
                     </div>
                 </div>
                 <div style="display:flex;gap:12px;align-items:flex-end;">
                     <div style="flex:1;">
-                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">DescriÃ§Ã£o do Motivo Financeiro</label>
+                        <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">Descrição do Motivo Financeiro</label>
                         <textarea id="cc-motivo" placeholder="Justificativa da avaria ou perda..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;min-height:50px;font-family:inherit;"></textarea>
                     </div>
                     <div style="padding-bottom:2px;">
@@ -3780,9 +3691,9 @@
                 </div>
             </div>
 
-            <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;">HistÃ³rico de Custos</div>
+            <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;">Histórico de Custos</div>
             <div style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1;">
-                ${(t.costCenters||[]).length===0 ? '<div style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:16px;">Nenhum custo lanÃ§ado.</div>' : 
+                ${(t.costCenters||[]).length===0 ? '<div style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:16px;">Nenhum custo lançado.</div>' : 
                 [...(t.costCenters||[])].reverse().map(c => {
                     const isPositive = c.sector === 'Cliente (Cobrar do Cliente)';
                     const color = isPositive ? '#16a34a' : '#dc2626';
@@ -3908,17 +3819,17 @@
             </div>
             
             <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:8px;" class="custom-scroll">
-                ${renderRatingQuestion('q1', '1. O tipo do chamado e ocorrÃªncia foram inseridas corretamente?', cl.q1)}
-                ${t.logisticsTask ? renderRatingQuestion('q2', '2. A solicitaÃ§Ã£o foi resolvida pela logÃ­stica dentro do SLA?', cl.q2) : ''}
-                ${t.financialTask ? renderRatingQuestion('q3', '3. A solicitaÃ§Ã£o foi resolvida pelo financeiro dentro do SLA?', cl.q3) : ''}
-                ${t.commercialTask ? renderRatingQuestion('q4', '4. A solicitaÃ§Ã£o foi resolvida pelo comercial dentro do SLA?', cl.q4) : ''}
-                ${renderRatingQuestion('q5', '5. AÃ§Ãµes e ocorrÃªncias foram preenchidas corretamente na OS?', cl.q5)}
+                ${renderRatingQuestion('q1', '1. O tipo do chamado e ocorrência foram inseridas corretamente?', cl.q1)}
+                ${t.logisticsTask ? renderRatingQuestion('q2', '2. A solicitação foi resolvida pela logística dentro do SLA?', cl.q2) : ''}
+                ${t.financialTask ? renderRatingQuestion('q3', '3. A solicitação foi resolvida pelo financeiro dentro do SLA?', cl.q3) : ''}
+                ${t.commercialTask ? renderRatingQuestion('q4', '4. A solicitação foi resolvida pelo comercial dentro do SLA?', cl.q4) : ''}
+                ${renderRatingQuestion('q5', '5. Ações e ocorrências foram preenchidas corretamente na OS?', cl.q5)}
                 
-                ${renderRatingQuestion('q9', '6. O laudo relata claramente a aÃ§Ã£o executada e soluÃ§Ã£o aplicada?', cl.q9)}
-                ${renderRatingQuestion('q10', '7. O cliente foi atendido de maneira satisfatÃ³ria?', cl.q10)}
+                ${renderRatingQuestion('q9', '6. O laudo relata claramente a ação executada e solução aplicada?', cl.q9)}
+                ${renderRatingQuestion('q10', '7. O cliente foi atendido de maneira satisfatória?', cl.q10)}
                 
-                ${renderCheckboxQuestion('q6', '8. As evidÃªncias obrigatÃ³rias (fotos, B.O., avaria) foram inseridas?', cl.q6)}
-                ${renderCheckboxQuestion('q7', '9. O cliente foi informado sobre todas as etapas atÃ© a conclusÃ£o?', cl.q7)}
+                ${renderCheckboxQuestion('q6', '8. As evidências obrigatórias (fotos, B.O., avaria) foram inseridas?', cl.q6)}
+                ${renderCheckboxQuestion('q7', '9. O cliente foi informado sobre todas as etapas até a conclusão?', cl.q7)}
                 ${renderCheckboxQuestion('q8', '10. Houve necessidade de escalonamento para Diretoria?', cl.q8)}
             </div>
             
@@ -3961,7 +3872,7 @@
         if (ov) ov.remove();
         showToast('Check-list salvo!','success');
     },
-    // drag handlers pÃºblicos
+    // drag handlers públicos
     onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop
   };
 
@@ -3980,7 +3891,7 @@
         console.error(`[SAC] Erro HTTP ${res.status} ao salvar OS ${t.protocol}:`, errText);
         throw new Error(`HTTP ${res.status}`);
       }
-      // Registrar timestamp do Ãºltimo save com sucesso (anti race-condition no auto-refresh)
+      // Registrar timestamp do último save com sucesso (anti race-condition no auto-refresh)
       window._sacLastSaveMs = Date.now();
     } catch(e) {
       if (_retries < 3) {
@@ -3989,10 +3900,10 @@
         setTimeout(() => updateTicket(t, _retries + 1), delay);
       } else {
         console.error(`[SAC] FALHA PERMANENTE ao salvar OS ${t.protocol}`, e);
-        // Mostrar erro visÃ­vel â€” dados NÃƒO foram salvos no servidor
+        // Mostrar erro visível — dados NÃO foram salvos no servidor
         const errEl = document.getElementById('sac-save-error-toast');
         if (errEl) {
-          errEl.textContent = `âš ï¸ ERRO: OS ${t.protocol} NÃƒO foi salva no servidor! Verifique a conexÃ£o e tente novamente sem recarregar a pÃ¡gina.`;
+          errEl.textContent = `⚠️ ERRO: OS ${t.protocol} NÃO foi salva no servidor! Verifique a conexão e tente novamente sem recarregar a página.`;
           errEl.style.display = 'flex';
           setTimeout(() => { errEl.style.display = 'none'; }, 15000);
         }
@@ -4012,26 +3923,26 @@
   }
 
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // POPUP OBRIGATÃ“RIO â€” nÃ£o pode ser fechado
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // UsuÃ¡rios que podem fechar o popup sem preencher (gestores/admins) jÃ¡ definidos no topo
+  // ══════════════════════════════════════════════════════
+  // POPUP OBRIGATÓRIO — não pode ser fechado
+  // ══════════════════════════════════════════════════════
+  // Usuários que podem fechar o popup sem preencher (gestores/admins) já definidos no topo
 
   function showMandatoryJustificationPopup(ticket, tipo) {
     const existingId = 'sac-mandatory-popup-' + ticket.id;
-    if (document.getElementById(existingId)) return; // jÃ¡ aberto
+    if (document.getElementById(existingId)) return; // já aberto
 
-    // Para aguard: popup aparece apenas para o gestor do departamento atribuÃ­do
+    // Para aguard: popup aparece apenas para o gestor do departamento atribuído
     const currentUser = currentUsername();
     if (tipo === 'aguard') {
-      // Descobrir o setor atribuÃ­do
-      const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'LogÃ­stica'
+      // Descobrir o setor atribuído
+      const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
                        : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
                        : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
                        : null;
       if (sectorName) {
-        // Verificar se o usuÃ¡rio atual Ã© o gestor do setor
-        // MÃ©todo 1: gestor gravado no ticket ao atribuir
+        // Verificar se o usuário atual é o gestor do setor
+        // Método 1: gestor gravado no ticket ao atribuir
         const gs = ticket.gestorSetor;
         let cUserId = null;
         let currNomeCompleto = '';
@@ -4049,7 +3960,7 @@
           })()
         );
 
-        // MÃ©todo 2: myManagedDepts (mesma lÃ³gica que jÃ¡ funciona para visibilidade dos cards)
+        // Método 2: myManagedDepts (mesma lógica que já funciona para visibilidade dos cards)
         const myDeptsPopup = _globalDepartamentos.filter(d => {
           const respId   = (d.responsavel_id || '').toString().trim();
           const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -4071,7 +3982,7 @@
           return nn.includes(sectorNorm) || sectorNorm.includes(nn);
         });
 
-        // MÃ©todo 0 (mais direto): usuÃ¡rio Ã© o assignedTo do ticket
+        // Método 0 (mais direto): usuário é o assignedTo do ticket
         let usernameFallbackPopup = currentUser.toLowerCase().trim();
         try {
           const uu = JSON.parse(localStorage.getItem('erp_user')||'{}');
@@ -4085,10 +3996,10 @@
           return a === currentUser.toLowerCase().trim() || a === usernameFallbackPopup;
         });
 
-        // MÃ©todo 3: POPUP_CLOSERS (admins)
+        // Método 3: POPUP_CLOSERS (admins)
         const isPopupCloser = POPUP_CLOSERS.some(u => currentUser === u || currentUser.toLowerCase() === u.toLowerCase());
 
-        // MÃ©todo 4: usuÃ¡rio tem permissÃ£o SAC restrita (gestor de setor via grupo de permissÃ£o)
+        // Método 4: usuário tem permissão SAC restrita (gestor de setor via grupo de permissão)
         const permsNow = window.activeUserPerms || {};
         const isTopAdminNow = window.isTopAdmin || false;
         const canSeeAllNow = isTopAdminNow || (permsNow['sac'] === true && permsNow['sac-atribuidos'] !== true);
@@ -4122,13 +4033,13 @@
     }
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // CHECK FOLLOW-UP ALERTS â€” roda a cada 1 minuto
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════
+  // CHECK FOLLOW-UP ALERTS — roda a cada 1 minuto
+  // ══════════════════════════════════════════════════════
   function checkFollowUpAlerts() {
     const now = Date.now();
     _tickets.forEach(ticket => {
-      // NÃ£o processar tickets jÃ¡ respondidos ou encerrados
+      // Não processar tickets já respondidos ou encerrados
       if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) {
         if (ticket.aguardPendingJustification === true) showMandatoryJustificationPopup(ticket, 'aguard');
         if (ticket.followUpPendingJustification === true) showMandatoryJustificationPopup(ticket, 'followup');
@@ -4140,10 +4051,10 @@
           if (prazo < now && !ticket.followUpNotified) {
             ticket.followUpNotified = true;
             if (!ticket.comments) ticket.comments = [];
-            ticket.comments.push({ user:'Sistema', text:'ðŸ”” Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsÃ¡vel.', time: new Date().toISOString() });
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
             updateTicket(ticket);
             const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-            // Notificar apenas usuÃ¡rios configurados em sac_sla_vencido (via API â€” sem enviar lista de envolvidos)
+            // Notificar apenas usuários configurados em sac_sla_vencido (via API — sem enviar lista de envolvidos)
             fetch('/api/sac/notificar-acompanhamento', {
               method:'POST',
               headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
@@ -4156,14 +4067,14 @@
         }
       }
 
-      // â”€â”€ Aguardando Setores (2h) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Aguardando Setores (2h) ────────────────────────────
       if (ticket.stage === 'aguardando_setores' && ticket.aguardDeadline) {
         const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
         if (!isNaN(aguardPrazo)) {
           if (aguardPrazo < now && !ticket.aguardNotified) {
             ticket.aguardNotified = true;
             if (!ticket.comments) ticket.comments = [];
-            ticket.comments.push({ user:'Sistema', text:'ðŸ”” Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsÃ¡vel.', time: new Date().toISOString() });
+            ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
             updateTicket(ticket);
             const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
             fetch('/api/sac/notificar-acompanhamento', {
@@ -4180,9 +4091,9 @@
     });
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // CHECK SLA OVERDUE â€” roda a cada 1 minuto
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════
+  // CHECK SLA OVERDUE — roda a cada 1 minuto
+  // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
       if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) {
@@ -4198,7 +4109,7 @@
       if (!ticket.isUrgent) {
         ticket.isUrgent = true;
         if (!ticket.comments) ticket.comments = [];
-        ticket.comments.push({ user:'Sistema', text:'ðŸš¨ Chamado marcado como URGENTE automaticamente â€” SLA vencido.', time: new Date().toISOString() });
+        ticket.comments.push({ user:'Sistema', text:'🚨 Chamado marcado como URGENTE automaticamente — SLA vencido.', time: new Date().toISOString() });
         changed = true;
       }
 
@@ -4216,7 +4127,7 @@
         }).catch(e => console.error('[SAC] notificar-sla-vencido:', e));
       }
 
-      // Popup obrigatÃ³rio SLA estourado
+      // Popup obrigatório SLA estourado
       if (ticket.slaOverduePendingJustification === true) {
         showMandatoryJustificationPopup(ticket, 'sla');
       }
@@ -4226,4 +4137,3 @@
   }
 
 })();
-
