@@ -1708,7 +1708,9 @@
         }
       } catch(e) {}
       if (isAdmin) return true;
-      if (ticket.timeline && ticket.timeline.length > 0 && ticket.timeline[0].user === cUser) return true;
+      // SAC (Ver todos) pode alterar atribuicao; sac-atribuidos NAO pode
+      const _pea = window.activeUserPerms || {};
+      if (window.isTopAdmin || (_pea["sac"] === true && _pea["sac-atribuidos"] !== true)) return true;
       const deptNorm = (taskLabel||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
       const deptObj = _globalDepartamentos.find(d => {
           const dNorm = (d.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -1956,8 +1958,8 @@
                     <button onclick="SAC.duplicateTicket('${t.id}')" style="font-size:0.72rem;font-weight:700;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:6px;padding:3px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;"><i class="ph ph-copy"></i> Duplicar</button>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openChecklistModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#0369a1;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-checks"></i> Check-list</button>` : ''}
-                    ${(window.isTopAdmin || (window.activeUserPerms||{})['sac'] === true) ? `<button onclick="SAC.openCustosModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#7e22ce;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-currency-dollar"></i> Centro de Custos</button>` : ''}
+                    ${(() => { const _p = window.activeUserPerms||{}; const _ca = window.isTopAdmin || (_p['sac']===true && _p['sac-atribuidos']!==true); return _ca; })() ? `<button onclick="SAC.openChecklistModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#0369a1;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-list-checks"></i> Check-list</button>` : ''}
+                    ${(() => { const _p = window.activeUserPerms||{}; const _ca = window.isTopAdmin || (_p['sac']===true && _p['sac-atribuidos']!==true); return _ca; })() ? `<button onclick="SAC.openCustosModal()" style="font-size:0.8rem;font-weight:700;color:#fff;background:#7e22ce;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-currency-dollar"></i> Centro de Custos</button>` : ''}
                     <label style="cursor:pointer;font-size:0.8rem;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;background:#fef2f2;padding:4px 8px;border-radius:6px;border:1px solid #fecaca;">
                         <input type="checkbox" ${t.isUrgent ? 'checked' : ''} onchange="SAC.toggleUrgent('${t.id}', this.checked)" style="accent-color:#dc2626;cursor:pointer;width:14px;height:14px;">
                         Chamado Urgente
@@ -2274,7 +2276,17 @@
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
     const canSeeAll = isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
-    return canSeeAll;
+    if (canSeeAll) return true;
+    // Gestores de qualquer departamento tambem podem mover chamados
+    let _mvUID = null;
+    try { const _mvu = JSON.parse(localStorage.getItem('erp_user')||'{}'); _mvUID = String(_mvu.id); } catch(e) {}
+    const _mvUser = currentUsername();
+    const _mvC = function(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,''); };
+    return (_globalDepartamentos||[]).some(function(d) {
+      var rId = (d.responsavel_usuario_id||'').toString().trim();
+      var rU = _mvC(d.responsavel_username); var rN = _mvC(d.responsavel_nome); var cU = _mvC(_mvUser);
+      return (_mvUID && rId && rId === _mvUID) || (cU && rU && rU === cU) || (cU && rN && rN === cU && cU.length > 3);
+    });
   }
 
   // ── FILTRAGEM ─────────────────────────────────────────────────
@@ -2369,13 +2381,16 @@
         const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower) ||
                            (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === actualUsernameLower) ||
                            (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === actualUsernameLower);
-        const isCreator = t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
+        // isCreator: so para SAC-atribuidos (nao gestores). Gestor NAO ganha visibilidade por ser criador.
+        const isCreator = !myManagedDepts.length && t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
         const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
                                 (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
-        const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(dept => {
-          const taskKey = deptMap[dept];
-          return taskKey && t[taskKey];
+        // Gestor ve apenas chamados onde a task do seu dept esta ATIVA (nao concluida/nula)
+        // Quando chamado e transferido para outro dept, task vira null e gestor original para de ver
+        const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(function(dept) {
+          var taskKey = deptMap[dept];
+          return taskKey && t[taskKey] && !t[taskKey].isCompleted;
         });
         matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket;
       }
