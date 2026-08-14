@@ -659,6 +659,7 @@ window.rrImportarPlanilha = async function(input) {
         if (!map[veiculo].motorista && motorista) map[veiculo].motorista = motorista;
         if (!map[veiculo].ajudante  && ajudante)  map[veiculo].ajudante  = ajudante;
 
+        const numero_os = (r[3] || '').toString().trim(); // Col 3 = Referência ID = numero_os no sistema
         const p = _rrParseNotas(notas);
         if (!p.servico && !p.produtos.length && !p.obs) return; // linha sem info relevante
         map[veiculo].os.push({
@@ -667,8 +668,9 @@ window.rrImportarPlanilha = async function(input) {
             servico:  p.servico,
             produto:  p.produto,
             produtos: p.produtos,
-            obs:      obsCol || p.obs,
+            obs:      obsCol || p.obs, // será sobrescrito pelo Obs. Motoristas da OS abaixo
             notas_raw: notas, // guarda notas brutas para detectar habilidades (ex: INFORMAÇÕES IMPORTANTES)
+            _numero_os: numero_os, // referência para buscar obs no banco
         });
     });
 
@@ -708,13 +710,15 @@ window.rrImportarPlanilha = async function(input) {
         _rrDataRota = hoje.toISOString().split('T')[0];
     }
 
-    // --- CARREGAR FOTOS E CAPACIDADES EM PARALELO ---
+    // --- CARREGAR FOTOS, CAPACIDADES E OBS MOTORISTAS EM PARALELO ---
     let frotaMap = {}; // placa_norm -> capacidade_carga
     let fotoMap  = {}; // nome_lower -> foto_base64
+    let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
     try {
-        const [resFrota, resColab] = await Promise.all([
+        const [resFrota, resColab, resOS] = await Promise.all([
             fetch('/api/frota/veiculos',      { headers: _rrAuthHeaders() }),
             fetch('/api/colaboradores/resumo', { headers: _rrAuthHeaders() }),
+            fetch('/api/logistica/os/buscar',  { headers: _rrAuthHeaders() }),
         ]);
         if (resFrota.ok) {
             const list = await resFrota.json();
@@ -728,9 +732,27 @@ window.rrImportarPlanilha = async function(input) {
             // Usa URL do endpoint de foto (suporta foto_base64 E foto_path)
             list.forEach(c => { fotoMap[(c.nome_completo || '').toLowerCase().trim()] = `/api/colaboradores/foto/${c.id}`; });
         }
+        if (resOS.ok) {
+            const list = await resOS.json();
+            // Mapa: numero_os -> observacoes (campo Obs. Motoristas da OS)
+            list.forEach(os => {
+                if (os.numero_os && os.observacoes) {
+                    osObsMap[String(os.numero_os).trim()] = os.observacoes.trim();
+                }
+            });
+        }
     } catch(e) {
         console.error('[RR] Erro ao buscar dados para insights', e);
     }
+
+    // Preencher obs de cada OS com o valor de Obs. Motoristas do banco
+    _rrVeiculos.forEach(v => {
+        v.os.forEach(os => {
+            if (os._numero_os && osObsMap[os._numero_os]) {
+                os.obs = osObsMap[os._numero_os];
+            }
+        });
+    });
 
     // Salvar foto e capacidade nos objetos de veículo
     _rrVeiculos.forEach(v => {
