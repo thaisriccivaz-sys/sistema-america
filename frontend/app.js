@@ -6956,6 +6956,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height:36px;">
                                 <i class="ph ph-eye"></i>
                             </button>
+                            ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 36px;"><i class="ph ph-trash"></i></button>` : ''}
                             <button type="button"
                                     onclick="window.enviarAtestadoContabilidade(${existingDoc.id}, 'contab-email-${existingDoc.id}', this)"
                                     style="height:36px; display:flex; align-items:center; justify-content:center; gap:6px; background:#0f4c81; color:#fff; border:none; border-radius:6px; padding:0 0.85rem; font-size:0.82rem; font-weight:600; cursor:pointer; white-space:nowrap; min-width:230px; max-width:250px;">
