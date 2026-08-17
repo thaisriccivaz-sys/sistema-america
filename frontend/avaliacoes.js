@@ -8,12 +8,39 @@ window.renderAvaliacaoTab = async function(container) {
     if (!viewedColaborador) return;
     const colabId = viewedColaborador.id;
     const dept = viewedColaborador.departamento || viewedColaborador.cargo || '';
+    const cargo = viewedColaborador.cargo || '';
+
+    // Carregar templates do banco e injetar no AVALIACAO_QUESTIONS antes de fazer o match
+    try {
+        const templatesDb = await apiGet('/avaliacao-templates').catch(() => []);
+        if (Array.isArray(templatesDb) && templatesDb.length > 0) {
+            for (const t of templatesDb) {
+                const tipo = (t.tipo || '').toLowerCase();
+                const chave = (t.grupo_key || '').trim();
+                if (!tipo || !chave) continue;
+                // Garante que a seção do tipo existe
+                if (!AVALIACAO_QUESTIONS[tipo]) AVALIACAO_QUESTIONS[tipo] = {};
+                // Só injeta se ainda não existir para não sobrescrever hardcoded com dado vazio
+                try {
+                    const cats = JSON.parse(t.categorias_json || '{}');
+                    if (cats && Object.keys(cats).length > 0) {
+                        // Registra uma entrada por cada chave separada por vírgula
+                        for (const k of chave.split(',').map(s => s.trim()).filter(Boolean)) {
+                            AVALIACAO_QUESTIONS[tipo][k] = cats;
+                        }
+                    }
+                } catch(e) { /* categorias_json malformed */ }
+            }
+        }
+    } catch(e) {
+        console.warn('[Avaliação] Não foi possível carregar templates do banco:', e);
+    }
 
     // Identificar qual grupo usar para satisfação e desempenho (auto-detectado pelo departamento)
     
-    let defaultSatisfacao = window.matchTemplateGroup('satisfacao', dept, '');
-    let defaultDesempenho = window.matchTemplateGroup('desempenho', dept, '');
-    let defaultExperiencia = window.matchTemplateGroup('experiencia', dept, '');
+    let defaultSatisfacao = window.matchTemplateGroup('satisfacao', dept, cargo);
+    let defaultDesempenho = window.matchTemplateGroup('desempenho', dept, cargo);
+    let defaultExperiencia = window.matchTemplateGroup('experiencia', dept, cargo);
 
     // Montar lista de grupos disponíveis por tipo
     const groupOptionsSatisfacao = Object.keys(AVALIACAO_QUESTIONS.satisfacao);
@@ -53,6 +80,7 @@ window.renderAvaliacaoTab = async function(container) {
 
     // Fetch avaliacoes
     const avaliacoes = await apiGet(`/colaboradores/${colabId}/avaliacoes`).catch(() => []);
+
     
     const renderDashboard = (year, tipo) => {
         if (!questions) {

@@ -382,23 +382,29 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
     const groups = Object.keys(window.AVALIACAO_QUESTIONS[tipo]);
     if (groups.length === 0) return null;
 
-    const d = (dept || '').trim().toLowerCase();
-    const c = (cargo || '').trim().toLowerCase();
+    // Normaliza removendo acentos para comparação robusta
+    const norm = s => (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const d = norm(dept);
+    const c = norm(cargo);
 
     // 1. Tentar match EXATO
-    if (d && groups.includes(d)) return d;
-    if (c && groups.includes(c)) return c;
+    for (const g of groups) {
+        const gNorm = norm(g);
+        if (d && d === gNorm) return g;
+        if (c && c === gNorm) return g;
+    }
 
     // 2. Tentar match PARCIAL nas chaves customizadas
     for (let g of groups) {
-        const gClean = g.replace(/_/g, ' ').toLowerCase();
+        const gClean = norm(g).replace(/_/g, ' ');
         if (d && (d.includes(gClean) || gClean.includes(d))) return g;
         if (c && (c.includes(gClean) || gClean.includes(c))) return g;
     }
 
     // 3. Fallbacks globais legados
     if (tipo === 'desempenho') {
-        if (groups.includes('lideranca') && (d.includes('lideran') || d.includes('líder') || d.includes('lider') || c.includes('lideran') || c.includes('líder') || c.includes('lider') || c.includes('supervis') || c.includes('gerent') || c.includes('direto'))) {
+        if (groups.includes('lideranca') && (d.includes('lideran') || d.includes('lider') || c.includes('lideran') || c.includes('lider') || c.includes('supervis') || c.includes('gerent') || c.includes('direto'))) {
             return 'lideranca';
         }
         if (groups.includes('geral')) return 'geral';
@@ -420,3 +426,4 @@ window.matchTemplateGroup = function(tipo, dept, cargo) {
     // Nenhum match encontrado
     return null;
 };
+
