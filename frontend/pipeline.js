@@ -739,9 +739,7 @@ async function pipelineExportarExcel(registrosOverride) {
         let baseMin = (ts.includes('manutencao') || ts.includes('manutenção')) ? 0 : 10;
         const totalItens = produtosArr.reduce((acc, p) => acc + (parseInt(p.qtd) || 0), 0);
         const totalMin = baseMin + (5 * totalItens);
-        const hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
-        const mm = String(totalMin % 60).padStart(2, '0');
-        const valTempoServico = `${hh}:${mm}`;
+        const valTempoServico = String(totalMin);
         // --- FIM: Cálculo Dinâmico de Cargas e Tempo de Serviço ---
 
         // B: Endereço completo
