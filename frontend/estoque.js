@@ -220,8 +220,8 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
             // ── Gerar linhas: uma por endereço (ou uma única se sem endereço) ──
             let linhasEndereco = saldos.length > 0 ? saldos : [null];
 
-            if (enderecoFiltro) {
-                linhasEndereco = linhasEndereco.filter(s => s && String(s.endereco_id) === String(enderecoFiltro));
+            if (selectedEnderecos && selectedEnderecos.length > 0) {
+                linhasEndereco = linhasEndereco.filter(s => s && selectedEnderecos.includes(String(s.endereco_id)));
             }
 
             // Se o filtro de tipo for "Pedido de Reposição", mostrar apenas endereços que precisam de reposição
