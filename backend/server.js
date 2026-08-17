@@ -3024,11 +3024,12 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        let modelName = "gemini-2.5-flash"; // fallback estável para 2026+
+        // Lista de modelos para tentar em ordem de preferência
+        // Começa pelos mais estáveis; se der 503, tenta o próximo
+        let candidatos = [];
         let listModelsError = null;
         let availableModels = [];
         try {
-            // Usa fetch nativo para listar os modelos reais vinculados a essa chave
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
             if (!response.ok) {
                 const text = await response.text();
@@ -3037,32 +3038,37 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
             const data = await response.json();
             if (data && data.models) {
                 availableModels = data.models.map(m => m.name);
-
-                // Prioriza modelos estáveis e mais recentes (evita "latest" que pode ter instabilidade)
-                const preferidos = [
-                    "models/gemini-3.7-flash",
-                    "models/gemini-3.6-flash",
-                    "models/gemini-3.5-flash",
-                    "models/gemini-2.5-flash",
-                    "models/gemini-flash-latest", // só usa se os estáveis não estiverem disponíveis
-                ];
-                const encontrado = preferidos.find(m => availableModels.includes(m));
-                if (encontrado) {
-                    modelName = encontrado.replace("models/", "");
-                } else {
-                    // Fallback: pega qualquer flash sem lite/preview/tts/image
-                    const textModels = availableModels.filter(name => name.includes("flash") && !name.includes("lite") && !name.includes("preview") && !name.includes("tts") && !name.includes("image"));
-                    if (textModels.length > 0) {
-                        modelName = textModels[textModels.length - 1].replace("models/", "");
-                    }
-                }
             }
         } catch (e) {
             console.warn("Aviso ao listar modelos do Gemini via REST:", e.message);
             listModelsError = e.message;
         }
 
-        const model = genAI.getGenerativeModel({ model: modelName });
+        // Ordem de tentativa: mais estáveis primeiro, aliases por último
+        const ordemPreferencia = [
+            "models/gemini-2.5-flash",
+            "models/gemini-3.5-flash",
+            "models/gemini-3.6-flash",
+            "models/gemini-3.7-flash",
+            "models/gemini-flash-latest",
+            "models/gemini-pro-latest",
+        ];
+
+        if (availableModels.length > 0) {
+            // Filtra apenas os disponíveis na chave, na ordem de preferência
+            candidatos = ordemPreferencia
+                .filter(m => availableModels.includes(m))
+                .map(m => m.replace("models/", ""));
+            // Se nenhum da lista preferida estiver disponível, usa qualquer flash disponível
+            if (candidatos.length === 0) {
+                const textModels = availableModels.filter(name =>
+                    name.includes("flash") && !name.includes("lite") && !name.includes("preview") &&
+                    !name.includes("tts") && !name.includes("image"));
+                candidatos = textModels.map(m => m.replace("models/", ""));
+            }
+        }
+        // Garantia: sempre ter pelo menos um candidato
+        if (candidatos.length === 0) candidatos = ["gemini-2.5-flash"];
 
         const prompt = `Você é um Consultor de Recursos Humanos sênior. Seu objetivo é analisar as notas (1 a 5) e as observações de uma avaliação de desempenho e escrever um relatório em tom estritamente humano, profissional, realista e objetivo. 
 Evite completamente o "tom de IA" (evite palavras rebuscadas como "verdadeiramente exemplar", "ímpar", "lucidez analítica", ou elogios exagerados e genéricos). Foque exatamente nos fatos reportados.
@@ -3088,21 +3094,32 @@ ${notas.map(n => `- ${n.pergunta}: Nota ${n.nota}/5`).join('\n')}
 Observações do Gestor (analise com muita atenção e incorpore no texto os detalhes informados aqui):
 ${observacoes && observacoes.length > 0 ? observacoes.map(o => `- Sobre "${o.pergunta}": ${o.texto}`).join('\n') : "Nenhuma observação extra fornecida."}`;
 
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
-            res.json({ texto: text.trim() });
-        } catch (genError) {
-            console.error("Erro no Gemini:", genError);
-            let errorMessage = genError.message;
-            if (listModelsError) {
-                errorMessage += ` | Obs: Falha prévia ao listar modelos: ${listModelsError}. Tentou usar o modelo: ${modelName}`;
-            } else if (availableModels.length > 0) {
-                errorMessage += ` | Modelos disponíveis na chave: ${availableModels.join(", ")}. Usou: ${modelName}`;
+        // Tenta cada candidato até um funcionar (pula 503 - alta demanda)
+        let lastError = null;
+        for (const modelName of candidatos) {
+            try {
+                console.log(`[Gemini] Tentando modelo: ${modelName}`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const text = response.text();
+                console.log(`[Gemini] Sucesso com modelo: ${modelName}`);
+                return res.json({ texto: text.trim() });
+            } catch (genError) {
+                const status = genError?.status || genError?.message || '';
+                const is503 = String(status).includes('503') || String(genError.message).includes('503') || String(genError.message).includes('high demand');
+                console.warn(`[Gemini] Falha com ${modelName}: ${genError.message.substring(0, 100)}`);
+                lastError = genError;
+                if (!is503) break; // Se não for 503, não adianta tentar outro modelo
             }
-            res.status(500).json({ error: "Erro ao gerar feedback via IA: " + errorMessage });
         }
+        // Todos os candidatos falharam
+        console.error("[Gemini] Todos os modelos falharam. Último erro:", lastError?.message);
+        let errorMessage = lastError?.message || "Erro desconhecido";
+        if (availableModels.length > 0) {
+            errorMessage += ` | Modelos disponíveis na chave: ${availableModels.join(", ")}`;
+        }
+        res.status(500).json({ error: "Erro ao gerar feedback via IA: " + errorMessage });
     } catch (error) {
         console.error("Erro no catch externo:", error);
         res.status(500).json({ error: "Erro interno: " + error.message });
