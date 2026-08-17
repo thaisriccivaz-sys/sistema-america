@@ -3024,7 +3024,7 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         
-        let modelName = "gemini-flash-latest"; // fallback para 2026+
+        let modelName = "gemini-2.5-flash"; // fallback estável para 2026+
         let listModelsError = null;
         let availableModels = [];
         try {
@@ -3037,18 +3037,24 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
             const data = await response.json();
             if (data && data.models) {
                 availableModels = data.models.map(m => m.name);
-                const textModels = availableModels.filter(name => name.includes("flash") && !name.includes("lite") && !name.includes("preview") && !name.includes("tts") && !name.includes("image"));
-                
-                // Prioriza os modelos mais recentes garantidos
-                if (availableModels.includes("models/gemini-flash-latest")) {
-                    modelName = "gemini-flash-latest";
-                } else if (availableModels.includes("models/gemini-3.6-flash")) {
-                    modelName = "gemini-3.6-flash";
-                } else if (availableModels.includes("models/gemini-3.5-flash")) {
-                    modelName = "gemini-3.5-flash";
-                } else if (textModels.length > 0) {
-                    // Pega o último da lista (geralmente os mais novos ficam no final ou têm número maior)
-                    modelName = textModels[textModels.length - 1].replace("models/", "");
+
+                // Prioriza modelos estáveis e mais recentes (evita "latest" que pode ter instabilidade)
+                const preferidos = [
+                    "models/gemini-3.7-flash",
+                    "models/gemini-3.6-flash",
+                    "models/gemini-3.5-flash",
+                    "models/gemini-2.5-flash",
+                    "models/gemini-flash-latest", // só usa se os estáveis não estiverem disponíveis
+                ];
+                const encontrado = preferidos.find(m => availableModels.includes(m));
+                if (encontrado) {
+                    modelName = encontrado.replace("models/", "");
+                } else {
+                    // Fallback: pega qualquer flash sem lite/preview/tts/image
+                    const textModels = availableModels.filter(name => name.includes("flash") && !name.includes("lite") && !name.includes("preview") && !name.includes("tts") && !name.includes("image"));
+                    if (textModels.length > 0) {
+                        modelName = textModels[textModels.length - 1].replace("models/", "");
+                    }
                 }
             }
         } catch (e) {
