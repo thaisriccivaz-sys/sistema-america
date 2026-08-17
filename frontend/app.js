@@ -16392,7 +16392,14 @@ window.abrirAssinaturaEpi = async function (fichaId) {
                 </div>
             </div>
 
-<div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
+<style>
+                @media (max-width: 1024px) {
+                    #epi-step-2 { grid-template-columns: 1fr !important; }
+                    #epi-assin-body { padding: 1rem !important; }
+                    #epi-assinatura-overlay > div:first-child { padding: 1rem !important; }
+                }
+            </style>
+            <div id="epi-step-2" style="display:none; grid-template-columns: 1fr 1fr; gap: 2rem;">
                 <div style="display:flex;flex-direction:column;min-width:0;">
                     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:0.85rem 1rem;margin-bottom:1rem;"><p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0 0 6px;">EPIs para entrega em <strong id="epi-data-display"></strong>:</p><ul id="epi-lista-selecionada" style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:#15803d;"></ul></div>
                     
