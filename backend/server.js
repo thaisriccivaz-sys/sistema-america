@@ -3044,13 +3044,13 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
             listModelsError = e.message;
         }
 
-        // Ordem de tentativa: mais estáveis primeiro, aliases por último
+        // Ordem de tentativa: gemini-3.6-flash recomendado pela API como substituto do 2.5
         const ordemPreferencia = [
-            "models/gemini-2.5-flash",
-            "models/gemini-3.5-flash",
             "models/gemini-3.6-flash",
+            "models/gemini-3.5-flash",
             "models/gemini-3.7-flash",
             "models/gemini-flash-latest",
+            "models/gemini-2.5-flash",
             "models/gemini-pro-latest",
         ];
 
@@ -3068,7 +3068,7 @@ app.post('/api/ai/gerar-feedback', authenticateToken, async (req, res) => {
             }
         }
         // Garantia: sempre ter pelo menos um candidato
-        if (candidatos.length === 0) candidatos = ["gemini-2.5-flash"];
+        if (candidatos.length === 0) candidatos = ["gemini-3.6-flash"];
 
         const prompt = `Você é um Consultor de Recursos Humanos sênior. Seu objetivo é analisar as notas (1 a 5) e as observações de uma avaliação de desempenho e escrever um relatório em tom estritamente humano, profissional, realista e objetivo. 
 Evite completamente o "tom de IA" (evite palavras rebuscadas como "verdadeiramente exemplar", "ímpar", "lucidez analítica", ou elogios exagerados e genéricos). Foque exatamente nos fatos reportados.
@@ -3106,11 +3106,11 @@ ${observacoes && observacoes.length > 0 ? observacoes.map(o => `- Sobre "${o.per
                 console.log(`[Gemini] Sucesso com modelo: ${modelName}`);
                 return res.json({ texto: text.trim() });
             } catch (genError) {
-                const status = genError?.status || genError?.message || '';
-                const is503 = String(status).includes('503') || String(genError.message).includes('503') || String(genError.message).includes('high demand');
-                console.warn(`[Gemini] Falha com ${modelName}: ${genError.message.substring(0, 100)}`);
+                const msg = String(genError.message || '');
+                const isRetryable = msg.includes('503') || msg.includes('high demand') || msg.includes('404') || msg.includes('no longer available');
+                console.warn(`[Gemini] Falha com ${modelName}: ${msg.substring(0, 120)}`);
                 lastError = genError;
-                if (!is503) break; // Se não for 503, não adianta tentar outro modelo
+                if (!isRetryable) break; // Erro inesperado (ex: API key inválida) - não adianta tentar outro
             }
         }
         // Todos os candidatos falharam
