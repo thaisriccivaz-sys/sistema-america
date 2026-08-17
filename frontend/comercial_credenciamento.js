@@ -455,10 +455,11 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         if (cred.status === 'solicitado') {
             acoes = `<button class="btn btn-warning btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalSolicitarCredenciamento('${cred.id}')" title="Editar Solicitação"><i class="ph ph-pencil-simple"></i></button>
                      <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px; color:#ef4444; border-color:#fca5a5;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'" onclick="window.excluirSolicitacaoCredenciamento('${cred.id}')" title="Excluir Solicitação"><i class="ph ph-trash"></i></button>`;
-        } else if (cred.tipo_envio === 'whatsapp') {
-            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosComercial('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i></button>`;
-        } else if (cred.token) {
-            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.reenviarEmailCredenciamento('${cred.id}', '${cred.cliente_email}')" title="Reenviar E-mail"><i class="ph ph-envelope-simple"></i></button>`;
+        } else if (cred.token || cred.status === 'enviado') {
+            acoes = `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.baixarZipCredenciamento('${cred.id}')" title="Baixar Documentos em ZIP"><i class="ph ph-download-simple"></i></button>`;
+            if (cred.tipo_envio === 'whatsapp') {
+                acoes += `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.copiarDadosComercial('${cred.id}')" title="Copiar Dados do WhatsApp"><i class="ph ph-copy"></i></button>`;
+            }
         }
         
         const dtLimite = cred.data_limite_envio ? new Date(cred.data_limite_envio).toLocaleDateString('pt-BR') : '-';
@@ -820,5 +821,35 @@ window.excluirSolicitacaoCredenciamento = async function(id) {
         window.carregarHistoricoComCred();
     } catch (e) {
         alert(e.message);
+    }
+};
+
+window.baixarZipCredenciamento = async function(id) {
+    try {
+        const res = await fetch(`/api/logistica/credenciamento/${id}/download-zip`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
+            }
+        });
+        if (!res.ok) throw new Error('Erro ao baixar ZIP dos documentos.');
+        const blob = await res.blob();
+        const urlBlob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = urlBlob;
+        
+        let filename = `Credenciamento_${id}.zip`;
+        const disposition = res.headers.get('Content-Disposition');
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+            filename = disposition.split('filename=')[1].replace(/["']/g, '');
+        }
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(urlBlob);
+        a.remove();
+    } catch (err) {
+        alert(err.message);
     }
 };
