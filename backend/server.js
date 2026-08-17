@@ -10679,7 +10679,7 @@ app.post('/api/faltas', authenticateToken, (req, res) => {
                             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
                         </div>
                         <div style="padding:24px;">
-                            <h2 style="color:#e67700;text-align:center;margin-top:0;">?????? Aviso de Falta Registrada</h2>
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Falta Registrada</h2>
                             <p>Uma falta foi registrada no sistema:</p>
                             <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
                                 <p style="margin:4px 0;"><strong>Colaborador:</strong> ${nomeColab}</p>
