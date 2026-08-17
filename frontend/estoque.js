@@ -38,6 +38,43 @@ async function _carregarEnderecos() {
 }
 
 // ── TABELA PRINCIPAL ──────────────────────────────────────────────────────────
+
+window.toggleTodosEnderecosFiltro = function(cbTodos) {
+    const checkboxes = document.querySelectorAll('.filtro-estoque-end-cb');
+    checkboxes.forEach(cb => cb.checked = false);
+    cbTodos.checked = true; // Força "Todos" a ficar marcado quando clicado sozinho
+    window.updateEnderecoFiltroText();
+    window.renderEstoqueTable();
+};
+
+window.updateEnderecoFiltroText = function() {
+    const checkboxes = document.querySelectorAll('.filtro-estoque-end-cb:checked');
+    const todosCb = document.querySelector('#filtro-estoque-endereco-dropdown input[value=""]');
+    const textEl = document.getElementById("filtro-estoque-endereco-text");
+    if (!textEl) return;
+    
+    if (checkboxes.length === 0) {
+        if(todosCb) todosCb.checked = true;
+        textEl.textContent = "Todos";
+    } else {
+        if(todosCb) todosCb.checked = false;
+        if (checkboxes.length === 1) {
+            textEl.textContent = checkboxes[0].parentNode.textContent.trim();
+        } else {
+            textEl.textContent = `${checkboxes.length} selecionados`;
+        }
+    }
+};
+
+document.addEventListener('click', (e) => {
+    const btn = document.getElementById("filtro-estoque-endereco-btn");
+    const dropdown = document.getElementById("filtro-estoque-endereco-dropdown");
+    if (btn && dropdown) {
+        if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
 window.renderEstoqueTable = async function(preserveScroll = false) {
     const table = document.getElementById("table-estoque");
     if (!table) return;
@@ -69,22 +106,31 @@ window.renderEstoqueTable = async function(preserveScroll = false) {
 
         if (window._estoqueEnderecos.length === 0) await _carregarEnderecos();
 
-        const endSelect = document.getElementById("filtro-estoque-endereco");
-        if (endSelect && endSelect.options.length <= 1 && window._estoqueEnderecos.length > 0) {
+        const endContainer = document.getElementById("filtro-estoque-endereco-dropdown");
+        if (endContainer && !endContainer.dataset.populated && window._estoqueEnderecos.length > 0) {
+            endContainer.dataset.populated = "true";
+            let html = `<label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <input type="checkbox" value="" checked onchange="window.toggleTodosEnderecosFiltro(this)"> Todos
+            </label>`;
             window._estoqueEnderecos.forEach(end => {
-                const opt = document.createElement('option');
-                opt.value = end.id;
-                opt.textContent = end.nome;
-                endSelect.appendChild(opt);
+                html += `<label style="display:flex; align-items:center; gap:8px; padding:6px; cursor:pointer; font-size:0.85rem; color:#334155; border-radius:4px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                    <input type="checkbox" value="${end.id}" class="filtro-estoque-end-cb" onchange="window.updateEnderecoFiltroText(); window.renderEstoqueTable()"> ${end.nome}
+                </label>`;
             });
+            endContainer.innerHTML = html;
         }
-        const enderecoFiltro = endSelect ? endSelect.value : "";
+
+        let selectedEnderecos = [];
+        if (endContainer) {
+            const checkboxes = endContainer.querySelectorAll('.filtro-estoque-end-cb:checked');
+            selectedEnderecos = Array.from(checkboxes).map(cb => cb.value);
+        }
 
         if (nome) data = data.filter(i => i.nome.toLowerCase().includes(nome));
-        if (enderecoFiltro) {
+        if (selectedEnderecos.length > 0) {
             data = data.filter(i => {
                 const saldos = saldosMap[i.id] || [];
-                return saldos.some(s => String(s.endereco_id) === String(enderecoFiltro));
+                return saldos.some(s => selectedEnderecos.includes(String(s.endereco_id)));
             });
         }
 
