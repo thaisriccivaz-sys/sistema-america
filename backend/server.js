@@ -15315,7 +15315,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 }
                             });
                             // E-mail para quem recebe formulario_experiencia
-                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
                             sendEmailParaNotificados('formulario_experiencia', {
                                 subject: `📋 Formulário de Experiência Finalizado - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -15357,7 +15357,7 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                 }
                             });
                             // E-mail para quem recebe formulario_experiencia
-                            const _resSit2 = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
+                            const _resSit2 = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
                             sendEmailParaNotificados('formulario_experiencia', {
                                 subject: `📋 Formulário de Experiência Finalizado - ${colab.nome_completo}`,
                                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -15565,7 +15565,7 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                                 });
                             }
                         });
-                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
                         sendEmailParaNotificados('formulario_experiencia', {
                             subject: `📋 Formulário de Experiência Finalizado - ${c.nome_completo}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
@@ -15630,7 +15630,7 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                                 });
                             }
                         });
-                        const _resSit = situacao_avaliacao === 'Aprovado' ? '??? Aprovado' : situacao_avaliacao === 'Reprovado' ? '??? Reprovado' : situacao_avaliacao || 'Aguardando';
+                        const _resSit = situacao_avaliacao === 'Aprovado' ? '✅ Aprovado' : situacao_avaliacao === 'Reprovado' ? '❌ Reprovado' : situacao_avaliacao || 'Aguardando';
                         sendEmailParaNotificados('formulario_experiencia', {
                             subject: `📋 Formulário de Experiência Finalizado - ${c.nome_completo}`,
                             html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
