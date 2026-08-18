@@ -75,7 +75,7 @@
         <div style="padding:16px 20px 0;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
                 <h2 style="margin:0;font-size:1.3rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">
-                    <i class="ph ph-clipboard-text" style="color:#7c3aed;font-size:1.5rem;"></i> Testes de Candidatos
+                    <i class="ph ph-clipboard-text" style="color:#7c3aed;font-size:1.5rem;"></i> Candidatos
                 </h2>
                 <span style="background:#f3f4f6;border-radius:99px;padding:2px 12px;font-size:0.8rem;color:#64748b;">${_candidatos.length} candidato(s)</span>
                 <button onclick="window._tcNovo()" style="margin-left:auto;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-plus"></i> Novo Candidato</button>
