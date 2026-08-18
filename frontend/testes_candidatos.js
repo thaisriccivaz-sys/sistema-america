@@ -692,9 +692,9 @@ window._tcCopyLinkAval = async function(id, label) {
         const d = await r.json();
         if (!r.ok) { Swal.fire({icon:'error',title:'Erro',text:d.error}); return; }
         var dId = label === '1º Dia' ? '1' : (label === '2º Dia' ? '2' : 'extra');
-        var base = (window.API_URL || window.location.origin).replace(/\/api\/?$/, '').replace(/\/$/, '');
-        var url = base + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + '&t=' + d.token;
-        navigator.clipboard.writeText(url).then(function() {
+        var url = window.location.origin + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + '&t=' + d.token;
+        var textToCopy = "Sua opinião é muito importante para continuarmos crescendo.\nE o link de opinião:\n" + url;
+        navigator.clipboard.writeText(textToCopy).then(function() {
             if(typeof Swal !== 'undefined') Swal.fire({icon:'success',title:'Link Copiado!',text:'O link de avaliação foi copiado para a área de transferência.',timer:1500,showConfirmButton:false});
         }).catch(function(err) {
             prompt("Copie o link abaixo:", url);
