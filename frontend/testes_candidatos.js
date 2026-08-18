@@ -300,7 +300,8 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
             <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? getMotoristaChipHtml(data) : ''}</div>
             <div style="display:flex;gap:4px;">
-                ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>` : ""}
+                ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Limpar Data"><i class="ph ph-trash"></i></button>` : ""}
+                ${(data && c.avaliacao_token) ? `<button onclick="window._tcCopyLinkAval(${c.id}, '${label}', '${c.avaliacao_token}')" style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;color:#7c3aed;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Copiar Link do Formulário (${label})"><i class="ph ph-link"></i></button>` : ""}
                 <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">${data ? 'Alterar Data' : 'Definir Data'}</button>
             </div>
         </div>`).join("");
@@ -356,7 +357,7 @@ const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status =
 
                 </div>
             </div>
-            <div style="display:flex;gap:8px;align-self:flex-start;">${c.status === 'Teste Finalizado' ? `<button onclick="window._tcLinksAvaliacao(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Links de Avaliação 📋"><i class="ph ph-link"></i></button>` : ''}
+            <div style="display:flex;gap:8px;align-self:flex-start;">${(c.status === 'Teste Finalizado' || c.status === 'Dias de Teste') ? `<button onclick="window._tcLinksAvaliacao(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Links de Avaliação 📋"><i class="ph ph-link"></i></button>` : ''}
                 
                 <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="display:${_podeExcluir ? 'inline-block' : 'none'};background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
