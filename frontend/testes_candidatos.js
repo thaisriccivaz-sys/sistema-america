@@ -122,7 +122,7 @@
                     <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.nome}">${c.nome.length > 15 ? c.nome.substring(0, 15) + "..." : c.nome}</div>
                     <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}</span>
                 </div>
-                <button onclick="event.stopPropagation(); window._tcExcluir(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;" title="Excluir Candidato"><i class="ph ph-trash"></i></button>
+                <button onclick="event.stopPropagation(); window._tcExcluir(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="display:none;background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px;cursor:pointer;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;" title="Excluir Candidato"><i class="ph ph-trash"></i></button>
             </div>
             ${getProxTesteHTML(c)}
 ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado' ? '#10b981' : '#ef4444'};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">${c.resultado_teste}</div>` : ""}
@@ -351,7 +351,7 @@ const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status =
             <div style="display:flex;gap:8px;align-self:flex-start;">${c.status === 'Teste Finalizado' ? `<button onclick="window._tcLinksAvaliacao(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Links de Avaliação 📋"><i class="ph ph-link"></i></button>` : ''}
                 
                 <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
-                <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
+                <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="display:none;background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
                 <button onclick="window._tcFecharModal()" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:1.1rem;" title="Fechar"><i class="ph ph-x"></i></button>
             </div>
         </div>
