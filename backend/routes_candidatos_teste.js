@@ -18,7 +18,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         status      TEXT    NOT NULL DEFAULT 'Entrevistas',
         foto_base64 TEXT,
         doc_url     TEXT,
-        doc_key     TEXT,
+        doc_r2_key     TEXT,
         doc_filename TEXT,
         doc_tipo    TEXT,
         data_teste  TEXT,
@@ -26,14 +26,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         data_teste_2 TEXT,
         data_teste_extra TEXT,
         rota_motorista TEXT,
-        criado_por  INTEGER,
+        criado_por_id INTEGER,
         created_at  DATETIME DEFAULT (datetime('now','localtime')),
         updated_at  DATETIME DEFAULT (datetime('now','localtime'))
     )`, (err) => {
         if (err && !err.message.includes("already exists")) console.error("[Candidatos] Tabela:", err.message);
     });
 
-    db.run(`CREATE TABLE IF NOT EXISTS candidatos_teste_log (
+    db.run(`CREATE TABLE IF NOT EXISTS candidatos_teste_comentarios (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         candidato_id INTEGER NOT NULL,
         tipo        TEXT    NOT NULL DEFAULT 'movimentacao',
@@ -46,6 +46,23 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     });
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
+    
+    const newCols = [
+        'data_teste_1 TEXT',
+        'data_teste_2 TEXT',
+        'data_teste_extra TEXT',
+        'rota_motorista TEXT',
+        'criado_por_id INTEGER',
+        'criado_por_nome TEXT',
+        'doc_r2_key TEXT' // Em caso de sistemas antigos que não tinham doc_r2_key, ou doc_key, let's just make sure
+    ];
+    newCols.forEach(colDef => {
+        const colName = colDef.split(' ')[0];
+        db.run(`ALTER TABLE candidatos_teste ADD COLUMN ${colDef}`, (err) => {
+            // Se der erro de duplicate column, é esperado. Ignora.
+        });
+    });
+
     function getUser(req) {
         return req.user || {};
     }
@@ -65,14 +82,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     function addLog(candidatoId, tipo, texto, req) {
         const u = getUser(req);
         db.run(
-            `INSERT INTO candidatos_teste_log (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?,?,?,?,?)`,
+            `INSERT INTO candidatos_teste_comentarios (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?,?,?,?,?)`,
             [candidatoId, tipo, texto, u.id || null, u.nome || u.username || "Sistema"]
         );
     }
 
     function contarComentarios(candidatoId, cb) {
         db.get(
-            `SELECT COUNT(*) as total FROM candidatos_teste_log WHERE candidato_id = ? AND tipo = 'comentario'`,
+            `SELECT COUNT(*) as total FROM candidatos_teste_comentarios WHERE candidato_id = ? AND tipo = 'comentario'`,
             [candidatoId],
             (err, row) => cb(err, row ? row.total : 0)
         );
@@ -87,10 +104,10 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     // ── LIST ──────────────────────────────────────────────────────────────────
     app.get("/api/candidatos-teste", authenticateToken, (req, res) => {
         db.all(`SELECT ct.*,
-                       (SELECT COUNT(*) FROM candidatos_teste_log l WHERE l.candidato_id = ct.id AND l.tipo = 'comentario') AS total_comentarios,
+                       (SELECT COUNT(*) FROM candidatos_teste_comentarios l WHERE l.candidato_id = ct.id AND l.tipo = 'comentario') AS total_comentarios,
                        u.nome AS criado_por_nome
                 FROM candidatos_teste ct
-                LEFT JOIN usuarios u ON u.id = ct.criado_por
+                LEFT JOIN usuarios u ON u.id = ct.criado_por_id
                 WHERE ct.status != 'ARQUIVADO'
                 ORDER BY ct.created_at DESC`,
             [], (err, rows) => {
@@ -105,7 +122,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         db.get(
             `SELECT ct.*, u.nome AS criado_por_nome
              FROM candidatos_teste ct
-             LEFT JOIN usuarios u ON u.id = ct.criado_por
+             LEFT JOIN usuarios u ON u.id = ct.criado_por_id
              WHERE ct.id = ?`,
             [req.params.id],
             (err, row) => {
@@ -125,7 +142,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                     (err2, rota) => {
                         // Buscar logs (comentarios + historico)
                         db.all(
-                            `SELECT * FROM candidatos_teste_log WHERE candidato_id = ? ORDER BY created_at DESC`,
+                            `SELECT * FROM candidatos_teste_comentarios WHERE candidato_id = ? ORDER BY created_at DESC`,
                             [row.id],
                             (err3, logs) => {
                                 res.json({ ...row, rota: rota || null, comentarios: logs || [] });
@@ -145,7 +162,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         const u = getUser(req);
 
         db.run(
-            `INSERT INTO candidatos_teste (nome, tipo, status, foto_base64, criado_por) VALUES (?,?,?,?,?)`,
+            `INSERT INTO candidatos_teste (nome, tipo, status, foto_base64, criado_por_id) VALUES (?,?,?,?,?)`,
             [nome.trim(), tipoValido, "Entrevistas", foto_base64 || null, u.id || null],
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -179,15 +196,15 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         try {
             // Remover documento do R2 se existir
             const row = await new Promise((resolve, reject) =>
-                db.get("SELECT doc_key FROM candidatos_teste WHERE id = ?", [req.params.id], (e, r) => e ? reject(e) : resolve(r))
+                db.get("SELECT doc_r2_key FROM candidatos_teste WHERE id = ?", [req.params.id], (e, r) => e ? reject(e) : resolve(r))
             );
-            if (row && row.doc_key && r2Module && typeof r2Module.deleteFromR2 === "function") {
-                await r2Module.deleteFromR2(row.doc_key).catch(() => {});
+            if (row && row.doc_r2_key && r2Module && typeof r2Module.deleteFromR2 === "function") {
+                await r2Module.deleteFromR2(row.doc_r2_key).catch(() => {});
             }
 
             db.run("DELETE FROM candidatos_teste WHERE id = ?", [req.params.id], (err) => {
                 if (err) return res.status(500).json({ error: err.message });
-                db.run("DELETE FROM candidatos_teste_log WHERE candidato_id = ?", [req.params.id]);
+                db.run("DELETE FROM candidatos_teste_comentarios WHERE candidato_id = ?", [req.params.id]);
                 res.json({ message: "Excluido." });
             });
         } catch(e) {
@@ -255,13 +272,13 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             const id = req.params.id;
 
             const row = await new Promise((resolve, reject) =>
-                db.get("SELECT id, nome, tipo, doc_key FROM candidatos_teste WHERE id = ?", [id], (e, r) => e ? reject(e) : resolve(r))
+                db.get("SELECT id, nome, tipo, doc_r2_key FROM candidatos_teste WHERE id = ?", [id], (e, r) => e ? reject(e) : resolve(r))
             );
             if (!row) return res.status(404).json({ error: "Candidato nao encontrado." });
 
             // Remover documento anterior do R2
-            if (row.doc_key && r2Module && typeof r2Module.deleteFromR2 === "function") {
-                await r2Module.deleteFromR2(row.doc_key).catch(() => {});
+            if (row.doc_r2_key && r2Module && typeof r2Module.deleteFromR2 === "function") {
+                await r2Module.deleteFromR2(row.doc_r2_key).catch(() => {});
             }
 
             const ts = Date.now();
@@ -274,7 +291,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             }
 
             db.run(
-                `UPDATE candidatos_teste SET doc_url = ?, doc_key = ?, doc_filename = ?, doc_tipo = ?, updated_at = datetime('now','localtime') WHERE id = ?`,
+                `UPDATE candidatos_teste SET doc_url = ?, doc_r2_key = ?, doc_filename = ?, doc_tipo = ?, updated_at = datetime('now','localtime') WHERE id = ?`,
                 [docUrl || null, r2Key, req.file.originalname || `${docTipo}.pdf`, docTipo, id],
                 (err) => {
                     if (err) return res.status(500).json({ error: err.message });
@@ -295,7 +312,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         if (!texto || !texto.trim()) return res.status(400).json({ error: "Comentario vazio." });
         const u = getUser(req);
         db.run(
-            `INSERT INTO candidatos_teste_log (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?,?,?,?,?)`,
+            `INSERT INTO candidatos_teste_comentarios (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?,?,?,?,?)`,
             [req.params.id, "comentario", texto.trim(), u.id || null, u.nome || u.username || "Sistema"],
             (err) => {
                 if (err) return res.status(500).json({ error: err.message });
