@@ -1067,13 +1067,7 @@ async function _rrRenderColabDisponiveis() {
     if (!painel) {
         painel = document.createElement('div');
         painel.id = 'rr-colab-disp-painel';
-        // Insert after the date banner (first child) or at beginning
-    const dateBanner = corpo.querySelector("[style*='#e0f2fe']") || corpo.firstChild;
-    if (dateBanner && dateBanner.nextSibling) {
-        corpo.insertBefore(painel, dateBanner.nextSibling);
-    } else {
-        corpo.insertBefore(painel, corpo.firstChild);
-    }
+        corpo.appendChild(painel);
     }
     painel.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0 8px;"
         ><i class="ph ph-users" style="font-size:1.4rem;color:#2d9e5f;"></i
