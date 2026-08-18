@@ -215,64 +215,64 @@
     function _renderDet(c) {
     const ct = c.tipo==="Motorista"?"#2563eb":"#d97706";
     const foto = c.foto_base64
-        ? \`<img src="\${c.foto_base64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid \${ct};">\`
-        : \`<div style="width:70px;height:70px;border-radius:50%;background:\${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:\${ct};">\${(c.nome||"?")[0].toUpperCase()}</div>\`;
+        ? `<img src="${c.foto_base64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};">`
+        : `<div style="width:70px;height:70px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:${ct};">${(c.nome||"?")[0].toUpperCase()}</div>`;
 
     const comHtml = (c.comentarios||[]).filter(x=>x.tipo==="comentario").reverse()
-        .map(x=>\`<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #7c3aed;">
-            <div style="font-size:0.75rem;font-weight:700;color:#334155;">\${x.usuario_nome||"Usuário"}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">\${fmtDTBR(x.created_at)}</div>
-            <div style="font-size:0.82rem;">\${x.texto}</div>
-        </div>\`).join("") || "<p style=\\"text-align:center;color:#94a3b8;font-size:0.82rem;\\">Sem comentários.</p>";
+        .map(x=>`<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #7c3aed;">
+            <div style="font-size:0.75rem;font-weight:700;color:#334155;">${x.usuario_nome||"Usuário"}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">${fmtDTBR(x.created_at)}</div>
+            <div style="font-size:0.82rem;">${x.texto}</div>
+        </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem comentários.</p>";
 
     const histHtml = (c.comentarios||[]).filter(x=>x.tipo==="movimentacao").reverse()
-        .map(x=>\`<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
-            <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;"></i><span>\${x.texto} <span style="color:#94a3b8;">- \${fmtDTBR(x.created_at)}</span></span>
-        </div>\`).join("") || "<p style=\\"text-align:center;color:#94a3b8;font-size:0.82rem;\\">Sem histórico.</p>";
+        .map(x=>`<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
+            <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;"></i><span>${x.texto} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
+        </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";
 
     const rotaHtml = c.rota
-        ? \`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:15px;">
-            <p style="margin:0 0 6px;"><b>Data:</b> \${fmtBR(c.rota.data_rota)}</p>
-            <p style="margin:0 0 6px;"><b>Motorista:</b> \${c.rota.motorista_nome||"-"}</p>
-            <p style="margin:0 0 6px;"><b>Veículo:</b> \${c.rota.veiculo_texto||c.rota.placa||"-"}</p>
-            <p style="margin:0;"><b>Etapa:</b> \${c.rota.etapa_teste||"-"}</p>
-            <button onclick="window._tcRemRota(\${c.id})" style="margin-top:10px;background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Remover Rota</button>
-        </div>\` : "";
+        ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:15px;">
+            <p style="margin:0 0 6px;"><b>Data:</b> ${fmtBR(c.rota.data_rota)}</p>
+            <p style="margin:0 0 6px;"><b>Motorista:</b> ${c.rota.motorista_nome||"-"}</p>
+            <p style="margin:0 0 6px;"><b>Veículo:</b> ${c.rota.veiculo_texto||c.rota.placa||"-"}</p>
+            <p style="margin:0;"><b>Etapa:</b> ${c.rota.etapa_teste||"-"}</p>
+            <button onclick="window._tcRemRota(${c.id})" style="margin-top:10px;background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Remover Rota</button>
+        </div>` : "";
 
-    const testesStr = [["1º Dia",c.data_teste_1,"Teste 1º Dia","#3b82f6"],["2º Dia",c.data_teste_2,"Teste 2º Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>\`
+    const testesStr = [["1º Dia",c.data_teste_1,"Teste 1º Dia","#3b82f6"],["2º Dia",c.data_teste_2,"Teste 2º Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>`
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
-            <div style="background:\${cor}22;color:\${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
-            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">\${label}</div><div style="font-size:0.75rem;color:#64748b;">\${data?fmtBR(data):"Pendente"}</div></div>
-            <button onclick="window._tcSetDTeste(\${c.id},'\${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">Definir Data</button>
-        </div>\`).join("");
+            <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
+            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div></div>
+            <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">Definir Data</button>
+        </div>`).join("");
 
-    const statusOptions = COLUNAS.map(col => \`<option value="\${col.id}" \${c.status === col.id ? 'selected' : ''}>\${col.id}</option>\`).join('');
+    const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status === col.id ? 'selected' : ''}>${col.id}</option>`).join('');
 
-    _modal(\`<div style="width:85vw;max-width:1200px;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+    _modal(`<div style="width:85vw;max-width:1200px;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:20px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0;">
-            \${foto}
+            ${foto}
             <div style="flex:1;min-width:0;">
-                <div style="font-size:1.4rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${c.nome}</div>
+                <div style="font-size:1.4rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.nome}</div>
                 <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center;">
                     <span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">\</span>
                     
                     <div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
                         <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Status:</span>
-                        <select onchange="window._tcChangeStatus(\${c.id}, this.value)" style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;cursor:pointer;">
-                            \${statusOptions}
+                        <select onchange="window._tcChangeStatus(${c.id}, this.value)" style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;cursor:pointer;">
+                            ${statusOptions}
                         </select>
                     </div>
 
                     <div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
                         <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Data de Agendamento:</span>
-                        <input type="date" value="\${c.data_teste || ''}" onchange="window._tcUpdateDataTeste(\${c.id}, this.value)" style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;cursor:pointer;padding:2px;">
+                        <input type="date" value="${c.data_teste || ''}" onchange="window._tcUpdateDataTeste(${c.id}, this.value)" style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;cursor:pointer;padding:2px;">
                     </div>
 
                 </div>
             </div>
             <div style="display:flex;gap:8px;align-self:flex-start;">
-                <button onclick="window._tcEditar(\${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
-                <button onclick="window._tcExcluir(\${c.id},'\${c.nome.replace(/'/g,"\\\\'")}')" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
+                <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
+                <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
                 <button onclick="window._tcFecharModal()" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:1.1rem;" title="Fechar"><i class="ph ph-x"></i></button>
             </div>
         </div>
@@ -284,32 +284,32 @@
                 <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #f1f5f9;">
                     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-user"></i> Informações</h3>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">
-                        <div><b style="color:#64748b;">Tipo:</b> \${c.tipo}</div>
-                        <div><b style="color:#64748b;">Status Atual:</b> \${c.status}</div>
-                        <div><b style="color:#64748b;">Data Agendada:</b> \${fmtBR(c.data_teste) || "Não definida"}</div>
-                        <div><b style="color:#64748b;">Criado por:</b> \${c.criado_por_nome||"-"}</div>
+                        <div><b style="color:#64748b;">Tipo:</b> ${c.tipo}</div>
+                        <div><b style="color:#64748b;">Status Atual:</b> ${c.status}</div>
+                        <div><b style="color:#64748b;">Data Agendada:</b> ${fmtBR(c.data_teste) || "Não definida"}</div>
+                        <div><b style="color:#64748b;">Criado por:</b> ${c.criado_por_nome||"-"}</div>
                     </div>
                 </div>
 
                 <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #f1f5f9;">
                     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-file-pdf"></i> Documento (\)</h3>
-                    \${c.doc_url?\`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+                    ${c.doc_url?`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
                         <i class="ph ph-file-pdf" style="color:#10b981;font-size:1.4rem;"></i>
-                        <div style="flex:1;min-width:0;overflow:hidden;"><div style="font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${c.doc_filename||"Documento"}</div>
-                        <div style="font-size:0.72rem;color:#10b981;">\${c.doc_tipo||""} anexado</div></div>
-                        <a href="\${c.doc_url}" target="_blank" style="background:#10b981;color:#fff;border-radius:6px;padding:5px 12px;text-decoration:none;font-size:0.8rem;font-weight:600;">Ver</a>
-                    </div>\`:\`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:12px;color:#ef4444;font-size:0.85rem;"><i class="ph ph-warning"></i> Nenhum documento anexado.</div>\`}
+                        <div style="flex:1;min-width:0;overflow:hidden;"><div style="font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.doc_filename||"Documento"}</div>
+                        <div style="font-size:0.72rem;color:#10b981;">${c.doc_tipo||""} anexado</div></div>
+                        <a href="${c.doc_url}" target="_blank" style="background:#10b981;color:#fff;border-radius:6px;padding:5px 12px;text-decoration:none;font-size:0.8rem;font-weight:600;">Ver</a>
+                    </div>`:`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:12px;color:#ef4444;font-size:0.85rem;"><i class="ph ph-warning"></i> Nenhum documento anexado.</div>`}
                     <div style="display:flex;gap:8px;align-items:center;">
-                        <input type="file" id="tc-doc-\${c.id}" accept=".pdf" style="font-size:0.85rem;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:6px 10px;flex:1;">
-                        <button onclick="window._tcUpDoc(\${c.id},'\')" style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload"></i> Enviar</button>
+                        <input type="file" id="tc-doc-${c.id}" accept=".pdf" style="font-size:0.85rem;border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:6px 10px;flex:1;">
+                        <button onclick="window._tcUpDoc(${c.id},'\')" style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:0.85rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload"></i> Enviar</button>
                     </div>
                 </div>
 
                 <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #f1f5f9;">
                     <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Testes</h3>
-                    \${rotaHtml}
+                    ${rotaHtml}
                     <div style="display:flex;flex-direction:column;gap:10px;">
-                        \${testesStr}
+                        ${testesStr}
                     </div>
                 </div>
             </div>
@@ -319,22 +319,22 @@
                 <div style="padding:16px;border-bottom:1px solid #e2e8f0;display:flex;flex-direction:column;gap:10px;background:#f8fafc;">
                     <h3 style="margin:0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-chat-circle"></i> Comentários</h3>
                     <div style="display:flex;gap:6px;">
-                        <input type="text" id="tc-novo-coment-\${c.id}" placeholder="Escrever comentário..." style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;font-size:0.85rem;outline:none;">
-                        <button onclick="window._tcAddComent(\${c.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:600;"><i class="ph ph-paper-plane-right"></i></button>
+                        <input type="text" id="tc-novo-coment-${c.id}" placeholder="Escrever comentário..." style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;font-size:0.85rem;outline:none;">
+                        <button onclick="window._tcAddComent(${c.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:600;"><i class="ph ph-paper-plane-right"></i></button>
                     </div>
                 </div>
                 <div style="flex:1;overflow-y:auto;padding:16px;background:#fff;">
                     <div style="margin-bottom:24px;">
-                        \${comHtml}
+                        ${comHtml}
                     </div>
                     <h3 style="margin:0 0 12px 0;font-size:0.8rem;color:#64748b;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-clock"></i> Histórico</h3>
                     <div>
-                        \${histHtml}
+                        ${histHtml}
                     </div>
                 </div>
             </div>
         </div>
-    </div>\`);
+    </div>`);
 }
 
     
