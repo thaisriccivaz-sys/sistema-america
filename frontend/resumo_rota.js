@@ -944,7 +944,7 @@ function _rrRenderCorpo() {
                 : '<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #7c3aed;">' + (c.nome&&c.nome.trim() ? c.nome.trim()[0].toUpperCase() : '?') + '</div>';
             return '<div style="display:flex;align-items:center;gap:6px;" title="Candidato em Teste">' + avatarCand + '<span style="font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.9);">' + c.nome + '<br><span style="font-size:0.68rem;color:rgba(255,255,255,0.65);">🧪 ' + tipoCand + '</span></span></div>';
         }).join('');
-        const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}${fotosCand}</div>`;
+        const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
 
         // Badge de capacidade
         let capacidadeBadge = '';
@@ -1362,6 +1362,8 @@ async function _rrRenderCandidatosTeste() {
 
     // Guardar todos os candidatos globalmente (incluindo rota_motorista) para uso no rodapé dos cards
     window._rrCandidatosTesteData = candidatos;
+    // Atualizar in-place os cards de veículo (textarea colB + avatar candidato no header)
+    _rrPatchVehicleCards();
     if (!candidatosVisiveis.length) return;
 
     const corpo = document.getElementById('rr-corpo');
@@ -1436,6 +1438,56 @@ async function _rrRenderCandidatosTeste() {
     // painel is already in the DOM as a placeholder, so innerHTML is enough
 }
 
+// Atualiza in-place textareas colB e avatares de candidato no cabeçalho de cada veículo
+function _rrPatchVehicleCards() {
+    if (!window._rrVeiculos) return;
+    window._rrVeiculos.forEach(function(v, i) {
+        // ── 1. Atualizar textarea (colB + sufixo motorista/ajudante/candidato) ──
+        const ta = document.querySelector('.rr-textarea-edit[data-index="' + i + '"]');
+        if (ta && !ta._rrUserEdited) {
+            const base = v.colBEditado || _rrMontarColB(v);
+            const parts = [];
+            parts.push('Motorista: ' + (v.motorista && v.motorista.trim() ? v.motorista.trim() : '—'));
+            parts.push('Ajudante: ' + (v.ajudante && v.ajudante.trim() ? v.ajudante.trim() : '—'));
+            (window._rrCandidatosTesteData || []).forEach(function(c) {
+                const motNorm = (c.rota_motorista || '').toLowerCase().trim();
+                const vMotNorm = (v.motorista || '').toLowerCase().trim();
+                if (motNorm && motNorm === vMotNorm) {
+                    const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+                    parts.push('Candidato: ' + c.nome + ' - ' + tipo);
+                }
+            });
+            ta.value = base + '\n' + parts.join('\n');
+        }
+
+        // ── 2. Atualizar header: adicionar avatar(s) de candidato ao fotosDiv ──
+        const ajuSpan = document.getElementById('rr-avatar-aju-' + i);
+        if (ajuSpan) {
+            // Remove candidato avatares anteriores (se houver) para evitar duplicatas
+            const parent = ajuSpan.parentElement; // o div display:flex que é fotosDiv
+            if (parent) {
+                Array.from(parent.querySelectorAll('.rr-cand-avatar-wrap')).forEach(function(el) { el.remove(); });
+                // Adicionar avatares dos candidatos deste motorista
+                (window._rrCandidatosTesteData || []).forEach(function(c) {
+                    const motNorm = (c.rota_motorista || '').toLowerCase().trim();
+                    const vMotNorm = (v.motorista || '').toLowerCase().trim();
+                    if (!motNorm || motNorm !== vMotNorm) return;
+                    const tipoCand = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+                    const wrap = document.createElement('div');
+                    wrap.className = 'rr-cand-avatar-wrap';
+                    wrap.style.cssText = 'display:flex;align-items:center;gap:6px;';
+                    wrap.title = 'Candidato em Teste';
+                    const avatarEl = c.foto_base64
+                        ? '<img src="' + c.foto_base64 + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed;box-shadow:0 0 0 1px #c4b5fd;">'
+                        : '<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #7c3aed;">' + ((c.nome||'?')[0].toUpperCase()) + '</div>';
+                    wrap.innerHTML = avatarEl + '<span style="font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.95);">' + c.nome + '<br><span style="font-size:0.68rem;color:rgba(255,255,255,0.65);">🧪 ' + tipoCand + '</span></span>';
+                    parent.appendChild(wrap);
+                });
+            }
+        }
+    });
+}
+
 window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
     if (veiculoIdx === '') return;
     const v = _rrVeiculos[parseInt(veiculoIdx)];
@@ -1450,13 +1502,17 @@ window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
         });
         if (r.ok) {
             if (typeof showToast === 'function') showToast('Candidato atribuído a ' + (motoristaNome || 'veículo') + '!', 'success');
-            // Atualizar dado local e re-renderizar rodapé
-            if (window._rrCandidatosTesteData) {
-                const c = window._rrCandidatosTesteData.find(function(x) { return x.id === candidatoId; });
-                if (c) c.rota_motorista = motoristaNome;
+            // Atualizar dado local
+            if (!window._rrCandidatosTesteData) window._rrCandidatosTesteData = [];
+            const cand = window._rrCandidatosTesteData.find(function(x) { return x.id === candidatoId; });
+            if (cand) {
+                cand.rota_motorista = motoristaNome;
+            } else {
+                // candidato não estava na lista global ainda — adicionar placeholder
+                window._rrCandidatosTesteData.push({ id: candidatoId, nome: '...', tipo: '', rota_motorista: motoristaNome });
             }
-            // Re-renderizar para atualizar rodapé dos cards
-            _rrRenderCorpo();
+            // Patch in-place: atualizar textareas e header avatares sem re-render completo
+            _rrPatchVehicleCards();
         }
     } catch(e) {
         console.error('[RR] Erro ao atribuir candidato:', e);
