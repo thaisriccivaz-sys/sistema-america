@@ -111,7 +111,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     }
 
     const ORDEM_VALIDA = [
-        "Entrevistas", "Aguardando Data", "Teste 1\u00ba Dia",
+        "Entrevistas", "Aguardando Data", "Respondido", "Dias de Teste", "Teste 1\u00ba Dia",
         "Teste 2\u00ba Dia", "Teste Extra", "Teste Finalizado",
         "Aprovado", "Reprovado"
     ];

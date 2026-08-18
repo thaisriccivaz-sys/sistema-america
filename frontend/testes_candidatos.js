@@ -231,7 +231,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
     function _renderDet(c) {
     const ct = (c.tipo||"").includes("Motorista")?"#2563eb":"#d97706";
     const foto = c.foto_base64
-        ? `<img src="${c.foto_base64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};">`
+        ? `<img src="${c.foto_base64}" onclick="Swal.fire({imageUrl: \`${c.foto_base64}\`, showConfirmButton: false})" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};cursor:pointer;" title="Ver foto">`
         : `<div style="width:70px;height:70px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:${ct};">${(c.nome||"?")[0].toUpperCase()}</div>`;
 
     const timelineHtml = (c.comentarios||[])
