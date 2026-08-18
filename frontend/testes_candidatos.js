@@ -122,7 +122,7 @@
                     <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.nome}">${c.nome.length > 15 ? c.nome.substring(0, 15) + "..." : c.nome}</div>
                     <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}</span>
                 </div>
-                <button onclick="event.stopPropagation(); window._tcExcluir(${c.id}, '${c.nome.replace(/'/g, \"\\'\")}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;" title="Excluir Candidato"><i class="ph ph-trash"></i></button>
+                <button onclick="event.stopPropagation(); window._tcExcluir(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;" title="Excluir Candidato"><i class="ph ph-trash"></i></button>
             </div>
             ${getProxTesteHTML(c)}
 ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado' ? '#10b981' : '#ef4444'};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">${c.resultado_teste}</div>` : ""}
