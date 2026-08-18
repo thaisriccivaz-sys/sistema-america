@@ -887,7 +887,7 @@ function _rrRenderCorpo() {
            </div>`
         : '';
 
-    corpo.innerHTML = dataRotaLabel + _rrVeiculos.map((v, i) => {
+    corpo.innerHTML = dataRotaLabel + '<div id="rr-candidatos-teste-painel"></div>' + _rrVeiculos.map((v, i) => {
         const colA   = `${v.veiculo} - Saída`;
         const colB   = v.colBEditado || _rrMontarColB(v);
         const total  = v.os.length;
@@ -1346,12 +1346,10 @@ async function _rrRenderCandidatosTeste() {
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
 
-    const elExistente = document.getElementById('rr-candidatos-teste-painel');
-    if (elExistente) elExistente.remove();
-
-    const painel = document.createElement('div');
-    painel.id = 'rr-candidatos-teste-painel';
-    painel.style.cssText = 'margin-top:20px;border-radius:14px;overflow:hidden;border:2px solid rgba(124,58,237,0.3);background:#fff;';
+    // Use the placeholder div injected in corpo.innerHTML
+    const painel = document.getElementById('rr-candidatos-teste-painel');
+    if (!painel) { console.warn('[RR] Placeholder rr-candidatos-teste-painel not found'); return; }
+    painel.style.cssText = 'margin-bottom:16px;border-radius:14px;overflow:hidden;border:2px solid rgba(124,58,237,0.3);background:#fff;';
 
     function avatarCandidato(c) {
         if (c.foto_base64) {
@@ -1414,7 +1412,7 @@ async function _rrRenderCandidatosTeste() {
     '</div>';
 
     painel.innerHTML = header + body;
-    var _db2 = corpo.firstChild; corpo.insertBefore(painel, _db2 ? _db2.nextSibling || _db2 : null);
+    // painel is already in the DOM as a placeholder, so innerHTML is enough
 }
 
 window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
