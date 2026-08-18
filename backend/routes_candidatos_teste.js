@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // ROTAS: TESTES DE CANDIDATOS
 // Arquivo: backend/routes_candidatos_teste.js
 // Importar no server.js:
@@ -48,6 +48,18 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     // ── HELPERS ───────────────────────────────────────────────────────────────
     function getUser(req) {
         return req.user || {};
+    }
+
+    function notificarTestesCandidatos(mensagem) {
+        const tipoNotif = 'testes_candidatos';
+        db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [tipoNotif], (err, rows) => {
+            if (!err && rows && rows.length > 0) {
+                rows.forEach(r => {
+                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                        [r.usuario_id, tipoNotif, mensagem, '{}']);
+                });
+            }
+        });
     }
 
     function addLog(candidatoId, tipo, texto, req) {
@@ -138,6 +150,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 addLog(this.lastID, "movimentacao", `Candidato criado na coluna Entrevistas por ${u.nome || u.username || "Sistema"}.`, req);
+                notificarTestesCandidatos(`Novo candidato de teste adicionado: ${nome.trim()} (${tipoValido})`);
                 res.status(201).json({ id: this.lastID, message: "Candidato criado." });
             }
         );
@@ -210,6 +223,11 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 if (err2) return res.status(500).json({ error: err2.message });
                 const log = `Movido de "${row.status}" para "${status}" por ${u.nome || u.username || "Sistema"}${data_teste ? ` (data: ${data_teste})` : ""}.`;
                 addLog(req.params.id, "movimentacao", log, req);
+                
+                db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [req.params.id], (e, cand) => {
+                    if (cand) notificarTestesCandidatos(`Candidato ${cand.nome} foi movido para a etapa: ${status}`);
+                });
+
                 res.json({ message: "Status atualizado.", status });
             });
         });

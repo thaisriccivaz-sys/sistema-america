@@ -14904,6 +14904,8 @@ async function checkUserNotificacoes() {
                     bg = '#fdf2f8'; color = '#ec4899'; icon = 'ph-clipboard-text'; titulo = 'Experiência'; navTarget = 'experiencia';
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
+                } else if (notif.tipo === 'testes_candidatos') {
+                    bg = '#e0f2fe'; color = '#0284c7'; icon = 'ph-clipboard-text'; titulo = 'Testes de Candidatos'; navTarget = 'testes-candidatos';
                 } else if (notif.tipo === 'estoque_minimo') {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-shopping-cart'; titulo = 'Compra'; navTarget = 'estoque';
                 } else if (notif.tipo === 'estoque_reposicao') {
