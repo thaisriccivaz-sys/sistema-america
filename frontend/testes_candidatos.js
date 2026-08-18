@@ -133,8 +133,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         if (!_dragId || novoStatus === _dragStatus) return;
         const cand = _candidatos.find(c => c.id === _dragId);
         if (!cand) return;
-        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é movimentada automaticamente pelo sistema ao preencher as datas."}); return; }
-        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é automática."}); window._tcDetalhes(id); return; }
+        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é automática."}); return; }
         if (novoStatus === "Dias de Teste") {
             if (!cand.doc_url && !cand.doc_filename) { Swal.fire({icon: "warning", title: "Atenção", text: "É obrigatório anexar um documento antes de mover para o Teste."}); return; }
             if (cand.retornou_teste_extra) {
@@ -144,7 +143,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             }
         }
         try {
-            const r = await fetch(API(`/api/candidatos-teste/${_dragId}/status`), { method:"PUT", headers:authH(), body:JSON.stringify({status:novoStatus,data_teste}) });
+            const r = await fetch(API(`/api/candidatos-teste/${_dragId}/status`), { method:"PUT", headers:authH(), body:JSON.stringify({status:novoStatus}) });
             const data = await r.json();
             if (!r.ok) { Swal.fire({icon:"error",title:"Não permitido",text:data.error||"Erro ao mover.",confirmButtonColor:"#7c3aed"}); return; }
             await _load(); _render();
@@ -373,33 +372,26 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
 
     
     window._tcChangeStatus = async function(id, novoStatus) {
-        const c = _candidatos.find(x => x.id === id);
-        if (!c || c.status === novoStatus) return;
-        
-        let dt = c.data_teste || null;
-        if (novoStatus === "Teste 1º Dia" && !dt) {
-            const res = await Swal.fire({ title:"Data do Teste", input:"date", showCancelButton:true, confirmButtonText:"Salvar" });
-            if (!res.value) {
-                window._tcDetalhes(id); // reset UI
-                return;
+        const cand = _candidatos.find(x => x.id === id);
+        if (!cand || cand.status === novoStatus) return;
+        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é automática."}); window._tcDetalhes(id); return; }
+        if (novoStatus === "Dias de Teste") {
+            if (!cand.doc_url && !cand.doc_filename) { Swal.fire({icon: "warning", title: "Atenção", text: "É obrigatório anexar um documento antes de mover para o Teste."}); window._tcDetalhes(id); return; }
+            if (cand.retornou_teste_extra) {
+                if (!cand.data_teste_extra) { Swal.fire({icon: "warning", title: "Atenção", text: "Este candidato já retornou de testes antes. Preencha a data do Teste Extra nos detalhes antes de mover."}); window._tcDetalhes(id); return; }
+            } else {
+                if (!cand.data_teste_1 || !cand.data_teste_2) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha as datas do 1º Dia e 2º Dia nos detalhes antes de mover para esta coluna."}); window._tcDetalhes(id); return; }
             }
-            dt = res.value;
         }
-
         try {
             const r = await fetch(API(`/api/candidatos-teste/${id}/status`), {
                 method: "PUT",
                 headers: authH(),
-                body: JSON.stringify({ status: novoStatus, data_teste: dt })
+                body: JSON.stringify({ status: novoStatus })
             });
             if (!r.ok) throw new Error(await r.text());
-            await _load();
-            _render();
-            window._tcDetalhes(id);
-        } catch (e) {
-            Swal.fire({ icon:"error", title:"Erro", text:e.message });
-            window._tcDetalhes(id);
-        }
+            await _load(); _render(); window._tcDetalhes(id);
+        } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
     };
 
     window._tcUpdateDataTeste = async function(id, novaData) {
