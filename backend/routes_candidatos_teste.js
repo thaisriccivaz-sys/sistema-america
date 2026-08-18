@@ -524,7 +524,9 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
             if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido ou expirado." });
-            res.json({
+            db.get("SELECT id FROM candidatos_teste_avaliacoes WHERE candidato_id = ? AND dia = ?", [id, dia], (errCheck, rowCheck) => {
+                if (rowCheck) return res.status(403).json({ error: "Esta avaliação já foi respondida e o link expirou." });
+                res.json({
                 id: row.id,
                 nome: row.nome,
                 tipo: row.tipo,
@@ -533,6 +535,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 data_teste_2: row.data_teste_2,
                 data_teste_extra: row.data_teste_extra,
             });
+            }); // close db.get check
         });
     });
 
@@ -544,7 +547,10 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
             if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido." });
             
-            let respostasObj = {};
+            db.get("SELECT id FROM candidatos_teste_avaliacoes WHERE candidato_id = ? AND dia = ?", [id, dia], async (errCheck, rowCheck) => {
+                if (rowCheck) return res.status(403).json({ error: "Esta avaliação já foi respondida e o link expirou." });
+                
+                let respostasObj = {};
             try { respostasObj = JSON.parse(respostas || '{}'); } catch(e) {}
             const notas = Object.values(respostasObj).map(v => parseFloat(v)).filter(v => !isNaN(v));
             const media = notas.length > 0 ? (notas.reduce((a, b) => a + b, 0) / notas.length) : null;
@@ -603,6 +609,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                     });
                 }
             );
+            }); // close db.get check
         });
     });
 
