@@ -96,7 +96,7 @@
                 ${fotoEl}
                 <div style="min-width:0;flex:1;">
                     <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nome}</div>
-                    <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;"></span>
+                    <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Motorista" ? "🚚 Motorista" : "🪣 Ajudante"}</span>
                 </div>
             </div>
             ${c.data_teste ? `<div style="font-size:0.7rem;color:#64748b;"><i class="ph ph-calendar"></i> ${fmtBR(c.data_teste)}</div>` : ""}
