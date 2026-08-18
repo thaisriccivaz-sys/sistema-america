@@ -120,6 +120,7 @@
                 </div>
             </div>
             ${getProxTesteHTML(c)}
+${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado' ? '#10b981' : '#ef4444'};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">${c.resultado_teste}</div>` : ""}
             <div style="display:flex;gap:4px;margin-top:4px;">
                 <span style="font-size:0.68rem;color:${c.doc_url?"#10b981":"#ef4444"};background:${c.doc_url?"#f0fdf4":"#fef2f2"};border-radius:4px;padding:1px 5px;"><i class="ph ph-file-pdf"></i></span>
                 ${(c.total_comentarios>0)?`<span style="font-size:0.68rem;color:#6366f1;background:#eef2ff;border-radius:4px;padding:1px 5px;"><i class="ph ph-chat-circle"></i> ${c.total_comentarios}</span>`:""}
@@ -135,6 +136,8 @@
         if (!_dragId || novoStatus === _dragStatus) return;
         const cand = _candidatos.find(c => c.id === _dragId);
         if (!cand) return;
+        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é movimentada automaticamente pelo sistema ao preencher as datas."}); return; }
+        if (novoStatus === "Respondido") { Swal.fire({icon: "warning", title: "Atenção", text: "A coluna Respondido é automática."}); window._tcDetalhes(id); return; }
         if (novoStatus === "Dias de Teste") {
             if (!cand.doc_url && !cand.doc_filename) { Swal.fire({icon: "warning", title: "Atenção", text: "É obrigatório anexar um documento antes de mover para o Teste."}); return; }
             if (cand.retornou_teste_extra) {
@@ -320,6 +323,12 @@
     return proxData ? fmtBR(proxData) : "Não definida";
 })()}</div>
                         <div><b style="color:#64748b;">Criado por:</b> ${c.criado_por_nome||"-"}</div>
+                    ${c.status === "Teste Finalizado" ? `
+                    <div style="margin-top:12px;display:flex;gap:8px;">
+                        <span style="font-size:0.8rem;font-weight:700;color:#475569;display:flex;align-items:center;">Resultado:</span>
+                        <button onclick="window._tcSetResultado(${c.id}, 'Aprovado')" style="padding:4px 10px;border:none;border-radius:4px;font-size:0.75rem;font-weight:700;cursor:pointer;background:${c.resultado_teste==='Aprovado'?'#10b981':'#f1f5f9'};color:${c.resultado_teste==='Aprovado'?'#fff':'#64748b'};">Aprovado</button>
+                        <button onclick="window._tcSetResultado(${c.id}, 'Reprovado')" style="padding:4px 10px;border:none;border-radius:4px;font-size:0.75rem;font-weight:700;cursor:pointer;background:${c.resultado_teste==='Reprovado'?'#ef4444':'#f1f5f9'};color:${c.resultado_teste==='Reprovado'?'#fff':'#64748b'};">Reprovado</button>
+                    </div>` : ""}
                     </div>
                 </div>
 
@@ -497,7 +506,25 @@
     };
 
 
-    window._tcSetDTeste = async function(id, status) {
+    
+    window._tcClearDTeste = async function(id, etapa) {
+        if (!await Swal.fire({title:"Excluir data?", text:"Deseja limpar esta data?", icon:"warning", showCancelButton:true, confirmButtonText:"Sim"}).then(r=>r.isConfirmed)) return;
+        try {
+            const r = await fetch(API('/api/candidatos-teste/' + id + '/data'), { method:"PUT", headers:authH(), body:JSON.stringify({etapa:etapa, data_teste:""}) });
+            if (!r.ok) throw new Error((await r.json()).error);
+            await _load(); _render(); window._tcDetalhes(id);
+        } catch(e) { Swal.fire({icon:"error", title:"Erro", text:e.message}); }
+    };
+
+    window._tcSetResultado = async function(id, res) {
+        try {
+            const r = await fetch(API('/api/candidatos-teste/' + id + '/resultado'), { method:"PUT", headers:authH(), body:JSON.stringify({resultado:res}) });
+            if (!r.ok) throw new Error((await r.json()).error);
+            await _load(); _render(); window._tcDetalhes(id);
+        } catch(e) { Swal.fire({icon:"error", title:"Erro", text:e.message}); }
+    };
+
+window._tcSetDTeste = async function(id, status) {
         const { value: dt } = await Swal.fire({
             title: "Data para " + status,
             html: '<input type="date" id="swal-dt" class="swal2-input">',

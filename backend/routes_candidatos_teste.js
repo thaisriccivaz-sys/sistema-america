@@ -55,7 +55,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         'criado_por_id INTEGER',
         'criado_por_nome TEXT',
         'doc_r2_key TEXT',
-        'retornou_teste_extra INTEGER DEFAULT 0'
+        'retornou_teste_extra INTEGER DEFAULT 0',
+        'resultado_teste TEXT'
     ];
     db.run("UPDATE candidatos_teste SET status = 'Dias de Teste' WHERE status IN ('Teste 1\u00ba Dia', 'Teste 2\u00ba Dia', 'Teste Extra')");
     newCols.forEach(colDef => {
@@ -274,18 +275,64 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             if (etapa === "Teste 2\u00ba Dia") col = "data_teste_2";
             if (etapa === "Teste Extra") col = "data_teste_extra";
 
-            db.run(`UPDATE candidatos_teste SET ${col} = ? WHERE id = ?`, [data_teste, req.params.id], (err2) => {
-                if (err2) return res.status(500).json({ error: err2.message });
-                const p = data_teste.split('-'); const dBR = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : data_teste;
-                addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
-                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`);
-                res.json({ message: "Data atualizada" });
+            const dataToSet = data_teste || null;
+            db.get(`SELECT status, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?`, [req.params.id], (errPrev, cPrev) => {
+                if (errPrev || !cPrev) return res.status(404).json({ error: "Candidato não encontrado" });
+                
+                db.run(`UPDATE candidatos_teste SET ${col} = ? WHERE id = ?`, [dataToSet, req.params.id], (err2) => {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    if (dataToSet) {
+                        const p = dataToSet.split('-'); const dBR = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : dataToSet;
+                        addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
+                        notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`);
+                    } else {
+                        addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} foi apagada por ${u.nome || u.username || "Sistema"}`, req);
+                    }
+                    
+                    if (cPrev.status === 'Aguardando Data' && dataToSet) {
+                        let moveToRespondido = false;
+                        
+                        // We check the new simulated state
+                        const new_1 = col === 'data_teste_1' ? dataToSet : cPrev.data_teste_1;
+                        const new_2 = col === 'data_teste_2' ? dataToSet : cPrev.data_teste_2;
+                        const new_extra = col === 'data_teste_extra' ? dataToSet : cPrev.data_teste_extra;
+                        
+                        if (col === 'data_teste_1' || col === 'data_teste_2') {
+                            // Only move if it was previously NOT both filled (meaning we just completed the pair)
+                            if (new_1 && new_2 && !(cPrev.data_teste_1 && cPrev.data_teste_2)) {
+                                moveToRespondido = true;
+                            }
+                        } else if (col === 'data_teste_extra') {
+                            // Only move if 1 and 2 are already filled, and extra was just completed
+                            if (new_1 && new_2 && new_extra && !cPrev.data_teste_extra) {
+                                moveToRespondido = true;
+                            }
+                        }
+                        
+                        if (moveToRespondido) {
+                            db.run(`UPDATE candidatos_teste SET status = 'Respondido', updated_at = datetime('now','localtime') WHERE id = ?`, [req.params.id]);
+                            addLog(req.params.id, "movimentacao", `Movido automaticamente para "Respondido" após preenchimento de datas.`, req);
+                        }
+                    }
+                    res.json({ message: "Data atualizada" });
+                });
             });
         });
     });
 
 
     // ── UPLOAD DOCUMENTO (PDF) ────────────────────────────────────────────────
+    
+    app.put('/api/candidatos-teste/:id/resultado', authenticateToken, (req, res) => {
+        const { resultado } = req.body;
+        const u = getUser(req);
+        db.run(`UPDATE candidatos_teste SET resultado_teste = ?, updated_at = datetime('now','localtime') WHERE id = ?`, [resultado, req.params.id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            addLog(req.params.id, "movimentacao", `Resultado definido como "${resultado}" por ${u.nome || u.username || "Sistema"}`, req);
+            res.json({ message: "Resultado atualizado" });
+        });
+    });
+
     const multerDoc = multerMemory.single("file");
 
     app.post("/api/candidatos-teste/:id/documento", authenticateToken, multerDoc, async (req, res) => {
