@@ -150,7 +150,6 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             function(err) {
                 if (err) return res.status(500).json({ error: err.message });
                 addLog(this.lastID, "movimentacao", `Candidato criado na coluna Entrevistas por ${u.nome || u.username || "Sistema"}.`, req);
-                notificarTestesCandidatos(`Novo candidato de teste adicionado: ${nome.trim()} (${tipoValido})`);
                 res.status(201).json({ id: this.lastID, message: "Candidato criado." });
             }
         );
@@ -223,15 +222,26 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 if (err2) return res.status(500).json({ error: err2.message });
                 const log = `Movido de "${row.status}" para "${status}" por ${u.nome || u.username || "Sistema"}${data_teste ? ` (data: ${data_teste})` : ""}.`;
                 addLog(req.params.id, "movimentacao", log, req);
-                
-                db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [req.params.id], (e, cand) => {
-                    if (cand) notificarTestesCandidatos(`Candidato ${cand.nome} foi movido para a etapa: ${status}`);
-                });
-
                 res.json({ message: "Status atualizado.", status });
             });
         });
     });
+
+    // Atualizar Data do Teste
+    app.put('/api/candidatos-teste/:id/data', (req, res) => {
+        const u = getUser(req);
+        const { data_teste } = req.body;
+        db.get("SELECT nome, status FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: "Nao encontrado" });
+            db.run("UPDATE candidatos_teste SET data_teste = ? WHERE id = ?", [data_teste, req.params.id], (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                addLog(req.params.id, "movimentacao", `Data de teste definida para ${data_teste} por ${u.nome || u.username || "Sistema"}`, req);
+                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${data_teste} na etapa ${row.status}`);
+                res.json({ message: "Data atualizada" });
+            });
+        });
+    });
+
 
     // ── UPLOAD DOCUMENTO (PDF) ────────────────────────────────────────────────
     const multerDoc = multerMemory.single("file");
