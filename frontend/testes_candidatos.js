@@ -313,7 +313,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         } else {
             rightSide = `
                 ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Limpar Data"><i class="ph ph-trash"></i></button>` : ""}
-                ${(data && c.avaliacao_token) ? `<button onclick="window._tcCopyLinkAval(${c.id}, '${label}', '${c.avaliacao_token}')" style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;color:#7c3aed;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Copiar Link do Formulário (${label})"><i class="ph ph-link"></i></button>` : ""}
+                ${data ? `<button onclick="window._tcCopyLinkAval(${c.id}, '${label}')" style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;color:#7c3aed;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Copiar Link do Formulário (${label})"><i class="ph ph-link"></i></button>` : ""}
                 <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">${data ? 'Alterar Data' : 'Definir Data'}</button>
             `;
         }
@@ -686,3 +686,21 @@ window._tcSetDTeste = async function(id, status) {
     };
 
 })();
+
+window._tcCopyLinkAval = async function(id, label) {
+    try {
+        const r = await fetch(API('/api/candidatos-teste/' + id + '/avaliacao-links'), { headers: { Authorization: 'Bearer ' + token() } });
+        const d = await r.json();
+        if (!r.ok) { Swal.fire({icon:'error',title:'Erro',text:d.error}); return; }
+        var dId = label === '1º Dia' ? '1' : (label === '2º Dia' ? '2' : 'extra');
+        var base = (window.API_URL || window.location.origin).replace(/\/api\/?$/, '').replace(/\/$/, '');
+        var url = base + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + '&t=' + d.token;
+        navigator.clipboard.writeText(url).then(function() {
+            if(typeof Swal !== 'undefined') Swal.fire({icon:'success',title:'Link Copiado!',text:'O link de avaliação foi copiado para a área de transferência.',timer:1500,showConfirmButton:false});
+        }).catch(function(err) {
+            prompt("Copie o link abaixo:", url);
+        });
+    } catch(e) {
+        Swal.fire({icon:'error',title:'Erro',text:e.message});
+    }
+};
