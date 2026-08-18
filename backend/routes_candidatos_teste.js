@@ -266,7 +266,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     // Atualizar Data do Teste
         app.put('/api/candidatos-teste/:id/data', authenticateToken, (req, res) => {
         const u = getUser(req);
-        const { data_teste, etapa } = req.body;
+        const { data_teste, etapa, motivo } = req.body;
         db.get("SELECT nome, status FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Nao encontrado" });
             
@@ -286,7 +286,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                         addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
                         notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`);
                     } else {
-                        addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} foi apagada por ${u.nome || u.username || "Sistema"}`, req);
+                        addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} foi apagada por ${u.nome || u.username || "Sistema"}. Motivo: ${motivo || 'Não informado'}`, req);
                     }
                     
                     if (cPrev.status === 'Aguardando Data' && dataToSet) {

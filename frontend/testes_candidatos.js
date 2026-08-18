@@ -262,7 +262,10 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
             <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
             <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div></div>
-            <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">Definir Data</button>
+            <div style="display:flex;gap:4px;">
+                ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>` : ""}
+                <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">${data ? 'Alterar Data' : 'Definir Data'}</button>
+            </div>
         </div>`).join("");
 
     const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status === col.id ? 'selected' : ''}>${col.id}</option>`).join('');
@@ -497,9 +500,28 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
 
     
     window._tcClearDTeste = async function(id, etapa) {
-        if (!await Swal.fire({title:"Excluir data?", text:"Deseja limpar esta data?", icon:"warning", showCancelButton:true, confirmButtonText:"Sim"}).then(r=>r.isConfirmed)) return;
+        const { value: motivo } = await Swal.fire({
+            title: "Excluir data?",
+            text: "Por favor, informe o motivo para limpar esta data:",
+            input: "text",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Excluir",
+            cancelButtonText: "Cancelar",
+            inputValidator: (value) => {
+                if (!value || value.trim().length === 0) {
+                    return "Você precisa informar o motivo!";
+                }
+            }
+        });
+        if (!motivo) return;
+
         try {
-            const r = await fetch(API('/api/candidatos-teste/' + id + '/data'), { method:"PUT", headers:authH(), body:JSON.stringify({etapa:etapa, data_teste:""}) });
+            const r = await fetch(API('/api/candidatos-teste/' + id + '/data'), { 
+                method:"PUT", 
+                headers:authH(), 
+                body:JSON.stringify({ etapa: etapa, data_teste: "", motivo: motivo }) 
+            });
             if (!r.ok) throw new Error((await r.json()).error);
             await _load(); _render(); window._tcDetalhes(id);
         } catch(e) { Swal.fire({icon:"error", title:"Erro", text:e.message}); }
