@@ -117,7 +117,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     app.get("/api/candidatos-teste", authenticateToken, (req, res) => {
         db.all(`SELECT ct.*,
                        (SELECT COUNT(*) FROM candidatos_teste_comentarios l WHERE l.candidato_id = ct.id AND l.tipo = 'comentario') AS total_comentarios,
-                       u.nome AS criado_por_nome
+                       COALESCE(NULLIF(u.nome, ''), u.username) AS criado_por_nome
                 FROM candidatos_teste ct
                 LEFT JOIN usuarios u ON u.id = ct.criado_por_id
                 WHERE ct.status != 'ARQUIVADO'
@@ -132,7 +132,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     // ── GET DETAIL ────────────────────────────────────────────────────────────
     app.get("/api/candidatos-teste/:id", authenticateToken, (req, res) => {
         db.get(
-            `SELECT ct.*, u.nome AS criado_por_nome
+            `SELECT ct.*, COALESCE(NULLIF(u.nome, ''), u.username) AS criado_por_nome
              FROM candidatos_teste ct
              LEFT JOIN usuarios u ON u.id = ct.criado_por_id
              WHERE ct.id = ?`,
@@ -273,7 +273,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 if (err2) return res.status(500).json({ error: err2.message });
                 const p = data_teste.split('-'); const dBR = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : data_teste;
                 addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
-                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${data_teste} (${etapa || 'Geral'})`);
+                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`);
                 res.json({ message: "Data atualizada" });
             });
         });
