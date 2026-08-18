@@ -1384,11 +1384,10 @@ async function _rrRenderCandidatosTeste() {
     }
 
     function diaInfo(c) {
-        const parts = [];
-        if (c.data_teste_1 === dataRota) parts.push('<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">1º DIA</span>');
-        if (c.data_teste_2 === dataRota) parts.push('<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">2º DIA</span>');
-        if (c.data_teste_extra === dataRota) parts.push('<span style="background:#fce7f3;color:#be185d;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">DIA EXTRA</span>');
-        return parts.join(' ');
+        if (c.data_teste_extra === dataRota) return '<span style="background:#fce7f3;color:#be185d;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">DIA EXTRA</span>';
+        if (c.data_teste_2 === dataRota) return '<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">2º DIA</span>';
+        if (c.data_teste_1 === dataRota) return '<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">1º DIA</span>';
+        return '';
     }
 
     function cardCandidato(c) {
