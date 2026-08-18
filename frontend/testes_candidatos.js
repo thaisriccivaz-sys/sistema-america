@@ -254,7 +254,7 @@
             <div style="flex:1;min-width:0;">
                 <div style="font-size:1.4rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.nome}</div>
                 <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center;">
-                    <span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">\</span>
+                    <span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">${c.tipo === "Motorista" ? "🚚 Motorista" : "🪣 Ajudante"}</span>
                     
                     <div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
                         <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Status:</span>
