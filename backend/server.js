@@ -16501,12 +16501,21 @@ cron.schedule('0 8 * * *', () => {
     verificarLicencasVencimentoCron();
 }, { timezone: 'America/Sao_Paulo' });
 
-// Roda à meia-noite (00:01) para retornar colaboradores de atestado vencido
-// Garante que o colaborador volta a Ativo logo na virada do dia
-cron.schedule('1 0 * * *', () => {
-    console.log('[CRON 00:01] Verificando atestados vencidos na virada do dia...');
+// Roda à 1:00 da manhã para ativar colaboradores com data de admissão
+cron.schedule('0 1 * * *', () => {
+    console.log('[CRON 01:00] Verificando admissões do dia...');
     ativarColaboradoresPorAdmissao();
+}, { timezone: 'America/Sao_Paulo' });
+
+// Roda às 2:00 da manhã para retornar colaboradores de atestado vencido
+cron.schedule('0 2 * * *', () => {
+    console.log('[CRON 02:00] Verificando atestados vencidos na virada do dia...');
     verificarAtestadosVencidos();
+}, { timezone: 'America/Sao_Paulo' });
+
+// Roda às 3:00 da manhã para verificar o período de férias
+cron.schedule('0 3 * * *', () => {
+    console.log('[CRON 03:00] Verificando ferias equipes...');
     verificarFeriasEquipes();
 }, { timezone: 'America/Sao_Paulo' });
 
