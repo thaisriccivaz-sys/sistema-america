@@ -263,10 +263,16 @@
                         </select>
                     </div>
 
-                    <div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
-                        <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Data de Agendamento:</span>
-                        <input type="date" value="${c.data_teste || ''}" onchange="window._tcUpdateDataTeste(${c.id}, this.value)" style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;cursor:pointer;padding:2px;">
-                    </div>
+                    ${(function(){
+    const datesArr = [c.data_teste_1, c.data_teste_2, c.data_teste_extra, c.data_teste].filter(d=>d).sort();
+    let todayStr;
+    try { todayStr = new Date().toLocaleString("en-CA", {timeZone: "America/Sao_Paulo"}).split(',')[0]; } catch(e) { todayStr = new Date().toISOString().split('T')[0]; }
+    const proxData = datesArr.find(d => d >= todayStr) || datesArr[datesArr.length - 1] || "";
+    return `<div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
+        <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Próx. Teste:</span>
+        <span style="border:none;background:transparent;font-size:0.8rem;font-weight:700;color:#334155;outline:none;padding:2px;">${proxData ? fmtBR(proxData) : '-'}</span>
+    </div>`;
+})()}
 
                 </div>
             </div>
@@ -286,7 +292,13 @@
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">
                         <div><b style="color:#64748b;">Tipo:</b> ${c.tipo}</div>
                         <div><b style="color:#64748b;">Status Atual:</b> ${c.status}</div>
-                        <div><b style="color:#64748b;">Data Agendada:</b> ${fmtBR(c.data_teste) || "Não definida"}</div>
+                        <div><b style="color:#64748b;">Próx. Teste:</b> ${(function(){
+    const datesArr = [c.data_teste_1, c.data_teste_2, c.data_teste_extra, c.data_teste].filter(d=>d).sort();
+    let todayStr;
+    try { todayStr = new Date().toLocaleString("en-CA", {timeZone: "America/Sao_Paulo"}).split(',')[0]; } catch(e) { todayStr = new Date().toISOString().split('T')[0]; }
+    const proxData = datesArr.find(d => d >= todayStr) || datesArr[datesArr.length - 1] || "";
+    return proxData ? fmtBR(proxData) : "Não definida";
+})()}</div>
                         <div><b style="color:#64748b;">Criado por:</b> ${c.criado_por_nome||"-"}</div>
                     </div>
                 </div>
@@ -392,7 +404,7 @@
         const r=await fetch(API(`/api/candidatos-teste/${id}/documento`),{method:"POST",headers:{Authorization:"Bearer "+token()},body:fd});
         const d=await r.json();
         if(!r.ok){ Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
-        window._tcFecharModal(); await _load(); _render();
+        await _load(); _render(); window._tcDetalhes(id);
         Swal.fire({icon:"success",title:"Documento enviado!",showConfirmButton:false,timer:1500});
     };
 
@@ -402,7 +414,7 @@
         const r=await fetch(API(`/api/candidatos-teste/${id}/comentario`),{method:"POST",headers:authH(),body:JSON.stringify({texto:ta.value.trim()})});
         const d=await r.json();
         if(!r.ok){ Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
-        window._tcFecharModal(); await _load(); _render(); window._tcDetalhes(id);
+        await _load(); _render(); window._tcDetalhes(id);
     };
 
     window._tcRemRota = async function(id) {
@@ -481,7 +493,7 @@
         });
         if (!dt) return;
         try {
-            const r = await fetch(API('/api/candidatos-teste/' + id + '/status'), { method:"PUT", headers:authH(), body:JSON.stringify({status:status,data_teste:dt}) });
+            const r = await fetch(API('/api/candidatos-teste/' + id + '/data'), { method:"PUT", headers:authH(), body:JSON.stringify({etapa:status,data_teste:dt}) });
             const data = await r.json();
             if (!r.ok) { Swal.fire({icon:"error",title:"Erro",text:data.error}); return; }
             await _load(); _render(); window._tcDetalhes(id);

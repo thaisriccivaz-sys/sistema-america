@@ -245,15 +245,21 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     });
 
     // Atualizar Data do Teste
-    app.put('/api/candidatos-teste/:id/data', authenticateToken, (req, res) => {
+        app.put('/api/candidatos-teste/:id/data', authenticateToken, (req, res) => {
         const u = getUser(req);
-        const { data_teste } = req.body;
+        const { data_teste, etapa } = req.body;
         db.get("SELECT nome, status FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Nao encontrado" });
-            db.run("UPDATE candidatos_teste SET data_teste = ? WHERE id = ?", [data_teste, req.params.id], (err2) => {
+            
+            let col = "data_teste";
+            if (etapa === "Teste 1\u00ba Dia") col = "data_teste_1";
+            if (etapa === "Teste 2\u00ba Dia") col = "data_teste_2";
+            if (etapa === "Teste Extra") col = "data_teste_extra";
+
+            db.run(`UPDATE candidatos_teste SET ${col} = ? WHERE id = ?`, [data_teste, req.params.id], (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                addLog(req.params.id, "movimentacao", `Data de teste definida para ${data_teste} por ${u.nome || u.username || "Sistema"}`, req);
-                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${data_teste} na etapa ${row.status}`);
+                addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${data_teste} por ${u.nome || u.username || "Sistema"}`, req);
+                notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${data_teste} (${etapa || 'Geral'})`);
                 res.json({ message: "Data atualizada" });
             });
         });
