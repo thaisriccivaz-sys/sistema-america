@@ -35,7 +35,6 @@
         let dStr = s.replace(' ', 'T');
         if (!dStr.endsWith('Z') && !dStr.includes('-03:00')) dStr += 'Z';
         return new Date(dStr).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    });
     }
 
     window.initTestesCandidatos = async function() {
@@ -118,16 +117,16 @@
         if (!_dragId || novoStatus === _dragStatus) return;
         const cand = _candidatos.find(c => c.id === _dragId);
         if (!cand) return;
-        const EXIGE_DATA = ["Teste 1\u00ba Dia","Teste 2\u00ba Dia","Teste Extra"];
         let data_teste = cand.data_teste || null;
-        if (EXIGE_DATA.includes(novoStatus)) {
-            const { value: dt } = await Swal.fire({
-                title: "Data do teste", html: `<input type="date" id="swal-dt" class="swal2-input" value="${cand.data_teste||""}">`,
-                confirmButtonText: "Confirmar", cancelButtonText: "Cancelar", showCancelButton: true, confirmButtonColor: "#7c3aed",
-                preConfirm: () => { const v=document.getElementById("swal-dt").value; if(!v){Swal.showValidationMessage("Informe a data.");return false;} return v; }
-            });
-            if (!dt) return;
-            data_teste = dt;
+        if (novoStatus === "Teste 1\u00ba Dia") {
+            if (!cand.data_teste_1) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do 1º Dia nos detalhes antes de mover para esta coluna."}); return; }
+            data_teste = cand.data_teste_1;
+        } else if (novoStatus === "Teste 2\u00ba Dia") {
+            if (!cand.data_teste_2) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do 2º Dia nos detalhes antes de mover para esta coluna."}); return; }
+            data_teste = cand.data_teste_2;
+        } else if (novoStatus === "Teste Extra") {
+            if (!cand.data_teste_extra) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do Teste Extra nos detalhes antes de mover para esta coluna."}); return; }
+            data_teste = cand.data_teste_extra;
         }
         try {
             const r = await fetch(API(`/api/candidatos-teste/${_dragId}/status`), { method:"PUT", headers:authH(), body:JSON.stringify({status:novoStatus,data_teste}) });
@@ -234,7 +233,9 @@
                     <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;margin-top:2px;"></i><span style="line-height:1.4;">${x.texto} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
                 </div>`;
             }
-        }).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";\n\n    const rotaHtml = c.rota
+        }).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";
+
+    const rotaHtml = c.rota
         ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:15px;">
             <p style="margin:0 0 6px;"><b>Data:</b> ${fmtBR(c.rota.data_rota)}</p>
             <p style="margin:0 0 6px;"><b>Motorista:</b> ${c.rota.motorista_nome||"-"}</p>
@@ -355,13 +356,15 @@
         if (!c || c.status === novoStatus) return;
         
         let dt = c.data_teste || null;
-        if (novoStatus === "Teste 1º Dia" && !dt) {
-            const res = await Swal.fire({ title:"Data do Teste", input:"date", showCancelButton:true, confirmButtonText:"Salvar" });
-            if (!res.value) {
-                window._tcDetalhes(id); // reset UI
-                return;
-            }
-            dt = res.value;
+        if (novoStatus === "Teste 1\u00ba Dia" || novoStatus === "Teste 1º Dia") {
+            if (!c.data_teste_1) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do 1º Dia nos detalhes antes de mover para esta coluna."}); window._tcDetalhes(id); return; }
+            dt = c.data_teste_1;
+        } else if (novoStatus === "Teste 2\u00ba Dia" || novoStatus === "Teste 2º Dia") {
+            if (!c.data_teste_2) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do 2º Dia nos detalhes antes de mover para esta coluna."}); window._tcDetalhes(id); return; }
+            dt = c.data_teste_2;
+        } else if (novoStatus === "Teste Extra") {
+            if (!c.data_teste_extra) { Swal.fire({icon: "warning", title: "Atenção", text: "Preencha a data do Teste Extra nos detalhes antes de mover para esta coluna."}); window._tcDetalhes(id); return; }
+            dt = c.data_teste_extra;
         }
 
         try {
