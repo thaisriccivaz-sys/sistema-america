@@ -133,6 +133,26 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     });
 
 
+
+    // ── PUT: salvar motorista atribuído ao candidato no dia de teste ─────────
+    app.put("/api/candidatos-teste/:id/rota-motorista", authenticateToken, (req, res) => {
+        const { rota_motorista } = req.body;
+        const u = getUser(req);
+        db.run(
+            `UPDATE candidatos_teste SET rota_motorista = ?, updated_at = datetime('now','localtime') WHERE id = ?`,
+            [rota_motorista || null, req.params.id],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                // Log no histórico
+                const texto = rota_motorista
+                    ? `Candidato atribuído ao motorista ${rota_motorista} pelo roteirizador ${u.nome || u.username || 'Sistema'}.`
+                    : `Atribuição de motorista removida por ${u.nome || u.username || 'Sistema'}.`;
+                addLog(req.params.id, 'movimentacao', texto, req);
+                res.json({ ok: true });
+            }
+        );
+    });
+
     // ── GET candidatos em "Dias de Teste" para uma data específica ─────────────
     app.get("/api/candidatos-teste/por-data", authenticateToken, (req, res) => {
         const { data } = req.query; // YYYY-MM-DD

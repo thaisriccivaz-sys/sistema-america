@@ -992,7 +992,7 @@ function _rrRenderCorpo() {
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px;overflow:hidden;border:1px solid #e2e8f0;">
             ${manutAviso}
-            <div style="background:#2d9e5f;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="background:${v._em_manutencao ? '#dc2626' : '#2d9e5f'};padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <i class="ph ph-truck" style="color:rgba(255,255,255,0.7);font-size:0.9rem;"></i>
@@ -1014,6 +1014,21 @@ function _rrRenderCorpo() {
             ${badgeAlerta}
             ${badgeDisp}
             ${badgeAviso}
+            ${(() => {
+                // Rodapé: Motorista / Ajudante / Candidato
+                const linhas = [];
+                if (v.motorista && v.motorista.trim()) linhas.push('<span style="margin-right:18px;"><b style="color:#1d4ed8;">🚚 Motorista:</b> ' + v.motorista + '</span>');
+                else linhas.push('<span style="margin-right:18px;color:#94a3b8;"><b style="color:#1d4ed8;">🚚 Motorista:</b> <i>não atribuído</i></span>');
+                if (v.ajudante && v.ajudante.trim()) linhas.push('<span style="margin-right:18px;"><b style="color:#d97706;">🪣 Ajudante:</b> ' + v.ajudante + '</span>');
+                else linhas.push('<span style="margin-right:18px;color:#94a3b8;"><b style="color:#d97706;">🪣 Ajudante:</b> <i>não atribuído</i></span>');
+                // Candidatos atribuídos a este veículo
+                const candidatosDeste = (window._rrCandidatosTesteData || []).filter(c => c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim());
+                candidatosDeste.forEach(c => {
+                    const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+                    linhas.push('<span style="margin-right:18px;"><b style="color:#7c3aed;">🧪 Candidato:</b> ' + c.nome + ' — <i>' + tipo + '</i></span>');
+                });
+                return linhas.length ? '<div style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:8px 18px;font-size:0.8rem;color:#374151;display:flex;flex-wrap:wrap;gap:4px 0;align-items:center;">' + linhas.join('') + '</div>' : '';
+            })()}
             <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
                 <div style="flex:1 1 40%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo da Rota</div>
@@ -1335,6 +1350,8 @@ async function _rrRenderCandidatosTeste() {
         return e2 || eExtra;
     });
 
+    // Guardar todos os candidatos globalmente (incluindo rota_motorista) para uso no rodapé dos cards
+    window._rrCandidatosTesteData = candidatos;
     if (!candidatosVisiveis.length) return;
 
     const corpo = document.getElementById('rr-corpo');
@@ -1417,11 +1434,20 @@ window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
     try {
-        const r = await fetch('/api/candidatos-teste/' + candidatoId + '/status', {
+        const r = await fetch('/api/candidatos-teste/' + candidatoId + '/rota-motorista', {
             method: 'PUT', headers,
-            body: JSON.stringify({ status: 'Dias de Teste', rota_motorista: motoristaNome })
+            body: JSON.stringify({ rota_motorista: motoristaNome })
         });
-        if (r.ok && typeof showToast === 'function') showToast('Candidato atribuído a ' + (motoristaNome || 'veículo') + '!', 'success');
+        if (r.ok) {
+            if (typeof showToast === 'function') showToast('Candidato atribuído a ' + (motoristaNome || 'veículo') + '!', 'success');
+            // Atualizar dado local e re-renderizar rodapé
+            if (window._rrCandidatosTesteData) {
+                const c = window._rrCandidatosTesteData.find(function(x) { return x.id === candidatoId; });
+                if (c) c.rota_motorista = motoristaNome;
+            }
+            // Re-renderizar para atualizar rodapé dos cards
+            _rrRenderCorpo();
+        }
     } catch(e) {
         console.error('[RR] Erro ao atribuir candidato:', e);
     }

@@ -258,10 +258,22 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             <button onclick="window._tcRemRota(${c.id})" style="margin-top:10px;background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Remover Rota</button>
         </div>` : "";
 
+    
+    // Chip de motorista atribuído para exibir na linha de data do teste
+    const motoristaChipHtml = c.rota_motorista ? (function(){
+        const fotoMap = window._rrColabFotoMap || {};
+        const nomeKey = Object.keys(fotoMap).find(function(k){ return k.toLowerCase() === (c.rota_motorista||'').toLowerCase().trim(); });
+        const fotoB64 = nomeKey ? fotoMap[nomeKey] : null;
+        const avatar = fotoB64
+            ? '<img src="' + fotoB64 + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:2px solid #7c3aed;vertical-align:middle;">'
+            : '<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:#7c3aed22;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:#7c3aed;border:2px solid #7c3aed;vertical-align:middle;">' + (c.rota_motorista[0]||'?').toUpperCase() + '</span>';
+        return '<div style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;border-radius:99px;padding:2px 9px;font-size:0.7rem;font-weight:700;color:#7c3aed;margin-top:5px;">' + avatar + ' 🚚 ' + c.rota_motorista + '</div>';
+    })() : '';
+
     const testesStr = [["1º Dia",c.data_teste_1,"Teste 1º Dia","#3b82f6"],["2º Dia",c.data_teste_2,"Teste 2º Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>`
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
             <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
-            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div></div>
+            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? motoristaChipHtml : ''}</div>
             <div style="display:flex;gap:4px;">
                 ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>` : ""}
                 <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">${data ? 'Alterar Data' : 'Definir Data'}</button>
