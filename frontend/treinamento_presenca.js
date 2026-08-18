@@ -217,6 +217,9 @@
                             <div style="font-size:0.82rem;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.nome}">${t.nome}</div>
                             <div style="font-size:0.72rem;color:#3b82f6;">Optou não em ${fmtData(t.data_conclusao)}</div>
                         </div>
+                        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;min-width:38px;">
+                            <button onclick="window._excluirAssinaturaTreinamento(${c.id}, ${t.id}, '${(c.nome_completo||'').replace(/'/g,"\\'")}', '${t.nome.replace(/'/g,"\\'")}')" title="Excluir 'Optou não'" style="background:#fee2e2;color:#ef4444;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;align-items:center;justify-content:center;width:100%;"><i class="ph ph-trash"></i></button>
+                        </div>
                     </div>`;
                 }
                 const valStr = '';
@@ -238,7 +241,7 @@
                     <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;min-width:38px;">
                         <button onclick="window._verDocTreinamento(${c.id},${t.id},'${(c.nome_completo||'').replace(/'/g,"\\'")}')" title="Ver documento assinado" style="background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:3px;width:100%;"><i class="ph ph-eye"></i></button>
                         ${btnPesquisa}
-                        <button onclick="window._excluirAssinaturaTreinamento(${c.id}, ${t.id})" title="Excluir presença" style="display:none;background:#fee2e2;color:#ef4444;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;align-items:center;justify-content:center;width:100%;"><i class="ph ph-trash"></i></button>
+                        <button onclick="window._excluirAssinaturaTreinamento(${c.id}, ${t.id}, '${(c.nome_completo||'').replace(/'/g,"\\'")}', '${t.nome.replace(/'/g,"\\'")}')" title="Excluir presença" style="display:none;background:#fee2e2;color:#ef4444;border:1.5px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;font-weight:600;cursor:pointer;align-items:center;justify-content:center;width:100%;"><i class="ph ph-trash"></i></button>
                     </div>
                 </div>`;
             } else if (t.vencido) {
