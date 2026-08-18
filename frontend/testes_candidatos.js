@@ -244,7 +244,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                 </div>`;
             } else {
                 return `<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
-                    <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;margin-top:2px;"></i><span style="line-height:1.4;">${x.texto} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
+                    <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;margin-top:2px;"></i><span style="line-height:1.4;">${x.texto.replace(/Motivo:\s*(.*)/g, 'Motivo: <b>$1</b>')} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
                 </div>`;
             }
         }).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";
