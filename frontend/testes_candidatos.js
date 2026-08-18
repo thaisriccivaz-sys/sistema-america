@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // TESTES DE CANDIDATOS — Kanban RH
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -20,7 +20,7 @@
     let _dragId = null;
     let _dragStatus = null;
 
-    const API = (path) => (window.API_URL || "") + path;
+    const API = (path) => (window.API_URL || "/api").replace(/\/$/, '') + path.replace(/^\/api/, '');
     const token = () => localStorage.getItem("erp_token") || "";
     const authH = () => ({ "Authorization": "Bearer " + token(), "Content-Type": "application/json" });
 
