@@ -136,21 +136,43 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
 
     // ── PUT: salvar motorista atribuído ao candidato no dia de teste ─────────
     app.put("/api/candidatos-teste/:id/rota-motorista", authenticateToken, (req, res) => {
-        const { rota_motorista } = req.body;
+        const { motorista, data_rota } = req.body;
         const u = getUser(req);
-        db.run(
-            `UPDATE candidatos_teste SET rota_motorista = ?, updated_at = datetime('now','localtime') WHERE id = ?`,
-            [rota_motorista || null, req.params.id],
-            (err) => {
-                if (err) return res.status(500).json({ error: err.message });
-                // Log no histórico
-                const texto = rota_motorista
-                    ? `Candidato atribuído ao motorista ${rota_motorista} pelo roteirizador ${u.nome || u.username || 'Sistema'}.`
-                    : `Atribuição de motorista removida por ${u.nome || u.username || 'Sistema'}.`;
-                addLog(req.params.id, 'movimentacao', texto, req);
-                res.json({ ok: true });
+
+        db.get(`SELECT rota_motorista FROM candidatos_teste WHERE id = ?`, [req.params.id], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: "Candidato não encontrado." });
+
+            let assignments = {};
+            try {
+                if (row.rota_motorista && row.rota_motorista.trim().startsWith('{')) {
+                    assignments = JSON.parse(row.rota_motorista);
+                }
+            } catch(e) {}
+
+            if (data_rota) {
+                if (motorista) {
+                    assignments[data_rota] = motorista;
+                } else {
+                    delete assignments[data_rota];
+                }
             }
-        );
+
+            const newValue = Object.keys(assignments).length > 0 ? JSON.stringify(assignments) : null;
+
+            db.run(
+                `UPDATE candidatos_teste SET rota_motorista = ?, updated_at = datetime('now','localtime') WHERE id = ?`,
+                [newValue, req.params.id],
+                (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    const texto = motorista
+                        ? `Candidato atribuído ao motorista ${motorista} para o dia ${data_rota} pelo roteirizador ${u.nome || u.username || 'Sistema'}.`
+                        : `Atribuição do dia ${data_rota} removida por ${u.nome || u.username || 'Sistema'}.`;
+                    addLog(req.params.id, 'movimentacao', texto, req);
+                    res.json({ ok: true, rota_motorista: newValue });
+                }
+            );
+        });
     });
 
     // ── GET candidatos em "Dias de Teste" para uma data específica ─────────────

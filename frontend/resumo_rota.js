@@ -1392,10 +1392,13 @@ async function _rrRenderCandidatosTeste() {
 
     function cardCandidato(c) {
         const isMot = (c.tipo||'').toLowerCase().includes('motorista');
+        let assignedMot = c.rota_motorista || '';
+        if (assignedMot.startsWith('{')) { try { assignedMot = JSON.parse(assignedMot)[dataRota] || ''; } catch(e){} }
+
         const tipoLabel = isMot ? '🚚 Motorista' : '🪣 Ajudante';
         const tipoCor = isMot ? '#2563eb' : '#d97706';
         const opts = (_rrVeiculos || []).map(function(v, idx) {
-            const sel = c.rota_motorista && c.rota_motorista === v.motorista ? ' selected' : '';
+            const sel = assignedMot && assignedMot === v.motorista ? ' selected' : '';
             return '<option value="' + idx + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (idx+1))) + '</option>';
         }).join('');
         return '<div style="background:#fff;border-radius:12px;border:2px solid rgba(124,58,237,0.2);padding:16px;min-width:280px;max-width:320px;display:flex;flex-direction:column;gap:12px;">' +
@@ -1441,6 +1444,8 @@ async function _rrRenderCandidatosTeste() {
 function _rrPatchVehicleCards() {
     if (!_rrVeiculos || !_rrVeiculos.length) return;
     const cands = window._rrCandidatosTesteData || [];
+    const dataRotaInp = document.getElementById('rr-data');
+    const dataRota = dataRotaInp ? dataRotaInp.value : '';
 
     _rrVeiculos.forEach(function(v, i) {
         const vMotNorm = (v.motorista || '').toLowerCase().trim();
@@ -1459,7 +1464,9 @@ function _rrPatchVehicleCards() {
             parts.push('Ajudante: ' + (v.ajudante && v.ajudante.trim() ? v.ajudante.trim() : '—'));
 
             cands.forEach(function(c) {
-                const motNorm = (c.rota_motorista || '').toLowerCase().trim();
+                let cMot = c.rota_motorista || '';
+                if (cMot.startsWith('{')) { try { cMot = JSON.parse(cMot)[dataRota] || ''; } catch(e){} }
+                const motNorm = cMot.toLowerCase().trim();
                 if (motNorm && vMotNorm && motNorm === vMotNorm) {
                     const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
                     parts.push('Candidato: ' + c.nome + ' - ' + tipo);
@@ -1480,7 +1487,9 @@ function _rrPatchVehicleCards() {
 
                 // Adicionar avatares dos candidatos deste motorista
                 cands.forEach(function(c) {
-                    const motNorm = (c.rota_motorista || '').toLowerCase().trim();
+                    let cMot = c.rota_motorista || '';
+                if (cMot.startsWith('{')) { try { cMot = JSON.parse(cMot)[dataRota] || ''; } catch(e){} }
+                const motNorm = cMot.toLowerCase().trim();
                     if (!motNorm || !vMotNorm || motNorm !== vMotNorm) return;
                     const tipoCand = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
                     const wrap = document.createElement('div');
@@ -1500,29 +1509,32 @@ function _rrPatchVehicleCards() {
 
 window._rrAtribuirCandidato
 window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
-    if (veiculoIdx === '') return;
-    const v = _rrVeiculos[parseInt(veiculoIdx)];
-    if (!v) return;
-    const motoristaNome = v.motorista || '';
+    let motoristaNome = '';
+    if (veiculoIdx !== '') {
+        const v = _rrVeiculos[parseInt(veiculoIdx)];
+        if (!v) return;
+        motoristaNome = v.motorista || '';
+    }
+    const dataRotaInp = document.getElementById('rr-data');
+    const dataRota = dataRotaInp ? dataRotaInp.value : '';
+    if (!dataRota) return showToast('Data da rota inválida.', 'error');
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
     try {
         const r = await fetch('/api/candidatos-teste/' + candidatoId + '/rota-motorista', {
             method: 'PUT', headers,
-            body: JSON.stringify({ rota_motorista: motoristaNome })
+            body: JSON.stringify({ data_rota: dataRota, motorista: motoristaNome })
         });
         if (r.ok) {
-            if (typeof showToast === 'function') showToast('Candidato atribuído a ' + (motoristaNome || 'veículo') + '!', 'success');
-            // Atualizar dado local
+            const resData = await r.json();
+            if (typeof showToast === 'function') showToast(motoristaNome ? 'Candidato atribuído a ' + motoristaNome + '!' : 'Atribuição removida!', 'success');
             if (!window._rrCandidatosTesteData) window._rrCandidatosTesteData = [];
             const cand = window._rrCandidatosTesteData.find(function(x) { return String(x.id) === String(candidatoId); });
             if (cand) {
-                cand.rota_motorista = motoristaNome;
+                cand.rota_motorista = resData.rota_motorista;
             } else {
-                // candidato não estava na lista global ainda — adicionar placeholder
-                window._rrCandidatosTesteData.push({ id: candidatoId, nome: '...', tipo: '', rota_motorista: motoristaNome });
+                window._rrCandidatosTesteData.push({ id: candidatoId, nome: '...', tipo: '', rota_motorista: resData.rota_motorista });
             }
-            // Patch in-place: atualizar textareas e header avatares sem re-render completo
             _rrPatchVehicleCards();
         }
     } catch(e) {

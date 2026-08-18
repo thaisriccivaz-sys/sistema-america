@@ -121,7 +121,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             <div style="display:flex;gap:4px;margin-top:4px;">
                 <span style="font-size:0.68rem;color:${c.doc_url?"#10b981":"#ef4444"};background:${c.doc_url?"#f0fdf4":"#fef2f2"};border-radius:4px;padding:1px 5px;"><i class="ph ph-file-pdf"></i></span>
                 ${(c.total_comentarios>0)?`<span style="font-size:0.68rem;color:#6366f1;background:#eef2ff;border-radius:4px;padding:1px 5px;"><i class="ph ph-chat-circle"></i> ${c.total_comentarios}</span>`:""}
-                ${c.rota_motorista?`<span style="font-size:0.68rem;color:#f59e0b;background:#fffbeb;border-radius:4px;padding:1px 5px;"><i class="ph ph-truck"></i></span>`:""}
+                ${(c.rota_motorista && c.rota_motorista !== "{}" && c.rota_motorista !== "null") ? `<span style="font-size:0.68rem;color:#f59e0b;background:#fffbeb;border-radius:4px;padding:1px 5px;"><i class="ph ph-truck"></i></span>`:""}
             </div>
         </div>`;
     }
@@ -259,16 +259,23 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         </div>` : "";
 
     
-    // Chip de motorista atribuído para exibir na linha de data do teste
-    const motoristaChipHtml = c.rota_motorista ? (function(){
+    // Função para gerar o chip de motorista para uma data específica
+    const getMotoristaChipHtml = function(dataTeste) {
+        if (!c.rota_motorista || !dataTeste) return '';
+        let assignedMot = c.rota_motorista;
+        if (assignedMot.startsWith('{')) {
+            try { assignedMot = JSON.parse(assignedMot)[dataTeste] || ''; } catch(e){}
+        }
+        if (!assignedMot || typeof assignedMot !== 'string' || assignedMot.startsWith('{')) return '';
+        
         const fotoMap = window._rrColabFotoMap || {};
-        const nomeKey = Object.keys(fotoMap).find(function(k){ return k.toLowerCase() === (c.rota_motorista||'').toLowerCase().trim(); });
+        const nomeKey = Object.keys(fotoMap).find(function(k){ return k.toLowerCase() === assignedMot.toLowerCase().trim(); });
         const fotoB64 = nomeKey ? fotoMap[nomeKey] : null;
         const avatar = fotoB64
             ? '<img src="' + fotoB64 + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:2px solid #7c3aed;vertical-align:middle;">'
-            : '<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:#7c3aed22;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:#7c3aed;border:2px solid #7c3aed;vertical-align:middle;">' + (c.rota_motorista[0]||'?').toUpperCase() + '</span>';
-        return '<div style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;border-radius:99px;padding:2px 9px;font-size:0.7rem;font-weight:700;color:#7c3aed;margin-top:5px;">' + avatar + ' 🚚 ' + c.rota_motorista + '</div>';
-    })() : '';
+            : '<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:#7c3aed22;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:#7c3aed;border:2px solid #7c3aed;vertical-align:middle;">' + (assignedMot[0]||'?').toUpperCase() + '</span>';
+        return '<div style="display:inline-flex;align-items:center;gap:5px;background:#ede9fe;border-radius:99px;padding:2px 9px;font-size:0.7rem;font-weight:700;color:#7c3aed;margin-top:5px;">' + avatar + ' 🚚 ' + assignedMot + '</div>';
+    };
 
     const testesStr = [["1º Dia",c.data_teste_1,"Teste 1º Dia","#3b82f6"],["2º Dia",c.data_teste_2,"Teste 2º Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>`
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
