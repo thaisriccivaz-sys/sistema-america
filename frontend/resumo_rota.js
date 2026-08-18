@@ -1047,8 +1047,10 @@ function _rrRenderCorpo() {
         `;
     }).join('');
 
+    // Mostrar candidatos em teste NO TOPO (antes dos colaboradores)
+    _rrRenderCandidatosTeste();
     // Append painel de colaboradores disponíveis
-    _rrRenderColabDisponiveis().then(function() { _rrRenderCandidatosTeste(); });
+    _rrRenderColabDisponiveis();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1065,7 +1067,13 @@ async function _rrRenderColabDisponiveis() {
     if (!painel) {
         painel = document.createElement('div');
         painel.id = 'rr-colab-disp-painel';
-        corpo.appendChild(painel);
+        // Insert after the date banner (first child) or at beginning
+    const dateBanner = corpo.querySelector("[style*='#e0f2fe']") || corpo.firstChild;
+    if (dateBanner && dateBanner.nextSibling) {
+        corpo.insertBefore(painel, dateBanner.nextSibling);
+    } else {
+        corpo.insertBefore(painel, corpo.firstChild);
+    }
     }
     painel.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:16px 0 8px;"
         ><i class="ph ph-users" style="font-size:1.4rem;color:#2d9e5f;"></i
@@ -1406,7 +1414,7 @@ async function _rrRenderCandidatosTeste() {
     '</div>';
 
     painel.innerHTML = header + body;
-    corpo.appendChild(painel);
+    var _db2 = corpo.firstChild; corpo.insertBefore(painel, _db2 ? _db2.nextSibling || _db2 : null);
 }
 
 window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
