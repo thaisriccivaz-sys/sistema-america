@@ -8,12 +8,9 @@
     const COLUNAS = [
         { id: "Entrevistas",       cor: "#6366f1", icone: "ph-users" },
         { id: "Aguardando Data",   cor: "#f59e0b", icone: "ph-calendar-blank" },
-        { id: "Teste 1\u00ba Dia", cor: "#3b82f6", icone: "ph-file-text" },
-        { id: "Teste 2\u00ba Dia", cor: "#8b5cf6", icone: "ph-file-text" },
-        { id: "Teste Extra",       cor: "#ec4899", icone: "ph-plus-circle" },
-        { id: "Teste Finalizado",  cor: "#14b8a6", icone: "ph-flag-checkered" },
-        { id: "Aprovado",          cor: "#10b981", icone: "ph-check-circle" },
-        { id: "Reprovado",         cor: "#ef4444", icone: "ph-x-circle" },
+        { id: "Respondido",        cor: "#8b5cf6", icone: "ph-check-square-offset" },
+        { id: "Dias de Teste",     cor: "#3b82f6", icone: "ph-calendar-check" },
+        { id: "Teste Finalizado",  cor: "#14b8a6", icone: "ph-flag-checkered" }
     ];
 
     let _candidatos = [];
