@@ -25685,7 +25685,7 @@ async function _notificarTestesCandidatos(mensagem, dadosExtra) {
 
 try {
     const multerMemoryCandidatos = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
-    require('./routes_candidatos_teste')(app, db, authenticateToken, r2, multerMemoryCandidatos);
+    require('./routes_candidatos_teste')(app, db, authenticateToken, r2, multerMemoryCandidatos, sendEmailParaNotificados);
 } catch (eCand) {
     console.error('[Candidatos] Falha ao registrar rotas:', eCand.message);
 }

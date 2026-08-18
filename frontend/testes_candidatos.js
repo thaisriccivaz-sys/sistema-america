@@ -31,8 +31,11 @@
     }
 
     function fmtDTBR(s) {
-        if (!s) return "—";
-        return new Date(s).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+        if (!s) return "";
+        let dStr = s.replace(' ', 'T');
+        if (!dStr.endsWith('Z') && !dStr.includes('-03:00')) dStr += 'Z';
+        return new Date(dStr).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    });
     }
 
     window.initTestesCandidatos = async function() {
@@ -146,7 +149,7 @@
                 <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo *</label>
                 <div style="display:flex;gap:10px;">
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Ajudante" checked> Ajudante</label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista B"> Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista D"> Motorista D</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista"> Motorista</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista B"> 🛻 Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista D"> 🚚 Motorista D</label>
                 </div>
             </div>
             <div style="margin-bottom:18px;">
@@ -218,19 +221,20 @@
         ? `<img src="${c.foto_base64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};">`
         : `<div style="width:70px;height:70px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:${ct};">${(c.nome||"?")[0].toUpperCase()}</div>`;
 
-    const comHtml = (c.comentarios||[]).filter(x=>x.tipo==="comentario").reverse()
-        .map(x=>`<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #7c3aed;">
-            <div style="font-size:0.75rem;font-weight:700;color:#334155;">${x.usuario_nome||"Usuário"}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">${fmtDTBR(x.created_at)}</div>
-            <div style="font-size:0.82rem;">${x.texto}</div>
-        </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem comentários.</p>";
-
-    const histHtml = (c.comentarios||[]).filter(x=>x.tipo==="movimentacao").reverse()
-        .map(x=>`<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
-            <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;"></i><span>${x.texto} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
-        </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";
-
-    const rotaHtml = c.rota
+    const timelineHtml = (c.comentarios||[])
+        .map(x => {
+            if (x.tipo === "comentario") {
+                return `<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #7c3aed;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#334155;">${x.usuario_nome||"Usuário"}</div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">${fmtDTBR(x.created_at)}</div>
+                    <div style="font-size:0.82rem;">${x.texto}</div>
+                </div>`;
+            } else {
+                return `<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
+                    <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;margin-top:2px;"></i><span style="line-height:1.4;">${x.texto} <span style="color:#94a3b8;">- ${fmtDTBR(x.created_at)}</span></span>
+                </div>`;
+            }
+        }).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";\n\n    const rotaHtml = c.rota
         ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;margin-bottom:15px;">
             <p style="margin:0 0 6px;"><b>Data:</b> ${fmtBR(c.rota.data_rota)}</p>
             <p style="margin:0 0 6px;"><b>Motorista:</b> ${c.rota.motorista_nome||"-"}</p>
@@ -337,11 +341,7 @@
                 </div>
                 <div style="flex:1;overflow-y:auto;padding:16px;background:#fff;">
                     <div style="margin-bottom:24px;">
-                        ${comHtml}
-                    </div>
-                    <h3 style="margin:0 0 12px 0;font-size:0.8rem;color:#64748b;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-clock"></i> Histórico</h3>
-                    <div>
-                        ${histHtml}
+                        ${timelineHtml}
                     </div>
                 </div>
             </div>
@@ -442,7 +442,7 @@
             <div style="margin-bottom:12px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo</label>
             <div style="display:flex;gap:10px;">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Ajudante" ${cand.tipo==="Ajudante"?"checked":""}> Ajudante</label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista B" ${cand.tipo==="Motorista B"?"checked":""}> Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista D" ${cand.tipo==="Motorista D"?"checked":""}> Motorista D</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista" ${cand.tipo==="Motorista"?"checked":""}> Motorista</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista B" ${cand.tipo==="Motorista B"?"checked":""}> Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista D" ${cand.tipo==="Motorista D"?"checked":""}> Motorista D</label>
             </div></div>
             <div style="margin-bottom:16px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Foto <span style="font-weight:400;color:#94a3b8;">(ou Ctrl+V)</span></label>
             <div id="tc-e-fprev" style="width:70px;height:70px;border-radius:50%;background:#f1f5f9;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:1.8rem;cursor:pointer;overflow:hidden;margin-bottom:6px;" onclick="document.getElementById('tc-e-finput').click()">

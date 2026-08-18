@@ -8,7 +8,7 @@
 "use strict";
 const path = require("path");
 
-module.exports = function registerCandidatosTesteRoutes(app, db, authenticateToken, r2Module, multerMemory) {
+module.exports = function registerCandidatosTesteRoutes(app, db, authenticateToken, r2Module, multerMemory, sendEmailParaNotificados) {
 
     // ── MIGRACOES ─────────────────────────────────────────────────────────────
     db.run(`CREATE TABLE IF NOT EXISTS candidatos_teste (
@@ -77,6 +77,18 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 });
             }
         });
+        if (typeof sendEmailParaNotificados === 'function') {
+            sendEmailParaNotificados(tipoNotif, {
+                subject: `[Testes de Candidatos] ${mensagem}`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+                          <div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="America Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
+                          <div style="padding:1.5rem 2rem;"><h2 style="color:#7c3aed;margin-top:0;text-align:center;">Atualizacao - Teste de Candidato</h2><p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p></div>
+                          <hr style="border:none;border-top:1px solid #eee;margin:0;">
+                          <div style="padding:1rem 2rem;background:#f8fafc;"><p style="color:#999;font-size:11px;text-align:center;margin:0;">Este e um e-mail automatico, por favor nao responda.</p></div>
+                       </div>`,
+                attachments: [{ filename: 'logo-header.png', path: require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png'), cid: 'empresa-logo' }]
+            });
+        }
     }
 
     function addLog(candidatoId, tipo, texto, req) {
@@ -237,7 +249,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
 
             db.run(`UPDATE candidatos_teste SET ${sets.join(",")} WHERE id = ?`, vals, (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                const log = `Movido de "${row.status}" para "${status}" por ${u.nome || u.username || "Sistema"}${data_teste ? ` (data: ${data_teste})` : ""}.`;
+                const dBR2 = data_teste ? (data_teste.split('-').length === 3 ? data_teste.split('-').reverse().join('/') : data_teste) : "";
+                const log = `Movido de "${row.status}" para "${status}" por ${u.nome || u.username || "Sistema"}${dBR2 ? ` (data: ${dBR2})` : ""}.`;
                 addLog(req.params.id, "movimentacao", log, req);
                 res.json({ message: "Status atualizado.", status });
             });
@@ -258,7 +271,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
 
             db.run(`UPDATE candidatos_teste SET ${col} = ? WHERE id = ?`, [data_teste, req.params.id], (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
-                addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${data_teste} por ${u.nome || u.username || "Sistema"}`, req);
+                const p = data_teste.split('-'); const dBR = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : data_teste;
+                addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
                 notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${data_teste} (${etapa || 'Geral'})`);
                 res.json({ message: "Data atualizada" });
             });
