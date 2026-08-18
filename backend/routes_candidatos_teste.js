@@ -54,8 +54,10 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         'rota_motorista TEXT',
         'criado_por_id INTEGER',
         'criado_por_nome TEXT',
-        'doc_r2_key TEXT' // Em caso de sistemas antigos que não tinham doc_r2_key, ou doc_key, let's just make sure
+        'doc_r2_key TEXT',
+        'retornou_teste_extra INTEGER DEFAULT 0'
     ];
+    db.run("UPDATE candidatos_teste SET status = 'Dias de Teste' WHERE status IN ('Teste 1\u00ba Dia', 'Teste 2\u00ba Dia', 'Teste Extra')");
     newCols.forEach(colDef => {
         const colName = colDef.split(' ')[0];
         db.run(`ALTER TABLE candidatos_teste ADD COLUMN ${colDef}`, (err) => {
@@ -236,6 +238,9 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             if (!row) return res.status(404).json({ error: "Candidato nao encontrado." });
 
             const sets = ["status = ?", "updated_at = datetime('now','localtime')"];
+            if (row.status === 'Dias de Teste' && status === 'Aguardando Data') {
+                sets.push("retornou_teste_extra = 1");
+            }
             const vals = [status];
 
             // Salvar data conforme a etapa
