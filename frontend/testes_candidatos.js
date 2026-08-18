@@ -543,7 +543,23 @@ window._tcSetDTeste = async function(id, status) {
             confirmButtonText: "Salvar",
             showCancelButton: true,
             cancelButtonText: "Cancelar",
-            preConfirm: () => document.getElementById("swal-dt").value
+            preConfirm: () => {
+                const val = document.getElementById("swal-dt").value;
+                if (!val) {
+                    Swal.showValidationMessage("Por favor, selecione uma data.");
+                    return false;
+                }
+                if (status === "Teste 1º Dia") {
+                    const parts = val.split('-');
+                    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                    const day = d.getDay(); // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
+                    if (day === 0 || day === 1 || day === 5 || day === 6) {
+                        Swal.showValidationMessage("O 1º Dia só pode ser agendado de Terça a Quinta-feira.");
+                        return false;
+                    }
+                }
+                return val;
+            }
         });
         if (!dt) return;
         try {
