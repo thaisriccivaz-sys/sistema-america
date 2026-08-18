@@ -158,7 +158,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     app.post("/api/candidatos-teste", authenticateToken, (req, res) => {
         const { nome, tipo, foto_base64 } = req.body;
         if (!nome || !nome.trim()) return res.status(400).json({ error: "Nome obrigatorio." });
-        const tipoValido = ["Motorista", "Ajudante"].includes(tipo) ? tipo : "Ajudante";
+        const tipoValido = ["Motorista", "Motorista B", "Motorista D", "Ajudante"].includes(tipo) ? tipo : "Ajudante";
         const u = getUser(req);
 
         db.run(
@@ -179,7 +179,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         const vals = [];
 
         if (nome) { sets.push("nome = ?"); vals.push(nome.trim()); }
-        if (tipo && ["Motorista","Ajudante"].includes(tipo)) { sets.push("tipo = ?"); vals.push(tipo); }
+        if (tipo && ["Motorista", "Motorista B", "Motorista D", "Ajudante"].includes(tipo)) { sets.push("tipo = ?"); vals.push(tipo); }
         if (foto_base64 !== undefined) { sets.push("foto_base64 = ?"); vals.push(foto_base64 || null); }
         if (!sets.length) return res.status(400).json({ error: "Nenhum campo para atualizar." });
         sets.push("updated_at = datetime('now','localtime')");
@@ -245,7 +245,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     });
 
     // Atualizar Data do Teste
-    app.put('/api/candidatos-teste/:id/data', (req, res) => {
+    app.put('/api/candidatos-teste/:id/data', authenticateToken, (req, res) => {
         const u = getUser(req);
         const { data_teste } = req.body;
         db.get("SELECT nome, status FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {

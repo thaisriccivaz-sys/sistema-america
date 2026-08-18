@@ -8,8 +8,8 @@
     const COLUNAS = [
         { id: "Entrevistas",       cor: "#6366f1", icone: "ph-users" },
         { id: "Aguardando Data",   cor: "#f59e0b", icone: "ph-calendar-blank" },
-        { id: "Teste 1\u00ba Dia", cor: "#3b82f6", icone: "ph-number-one" },
-        { id: "Teste 2\u00ba Dia", cor: "#8b5cf6", icone: "ph-number-two" },
+        { id: "Teste 1\u00ba Dia", cor: "#3b82f6", icone: "ph-file-text" },
+        { id: "Teste 2\u00ba Dia", cor: "#8b5cf6", icone: "ph-file-text" },
         { id: "Teste Extra",       cor: "#ec4899", icone: "ph-plus-circle" },
         { id: "Teste Finalizado",  cor: "#14b8a6", icone: "ph-flag-checkered" },
         { id: "Aprovado",          cor: "#10b981", icone: "ph-check-circle" },
@@ -86,7 +86,7 @@
     }
 
     function _renderCard(c) {
-        const ct = c.tipo === "Motorista" ? "#2563eb" : "#d97706";
+        const ct = (c.tipo||"").includes("Motorista") ? "#2563eb" : "#d97706";
         const fotoEl = c.foto_base64
             ? `<img src="${c.foto_base64}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid ${ct};flex-shrink:0;">`
             : `<div style="width:38px;height:38px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:${ct};flex-shrink:0;">${(c.nome||"?")[0].toUpperCase()}</div>`;
@@ -96,7 +96,7 @@
                 ${fotoEl}
                 <div style="min-width:0;flex:1;">
                     <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nome}</div>
-                    <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Motorista" ? "🚚 Motorista" : "🪣 Ajudante"}</span>
+                    <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}</span>
                 </div>
             </div>
             ${c.data_teste ? `<div style="font-size:0.7rem;color:#64748b;"><i class="ph ph-calendar"></i> ${fmtBR(c.data_teste)}</div>` : ""}
@@ -146,7 +146,7 @@
                 <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo *</label>
                 <div style="display:flex;gap:10px;">
                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Ajudante" checked> Ajudante</label>
-                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista"> Motorista</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista B"> Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista D"> Motorista D</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista"> Motorista</label>
                 </div>
             </div>
             <div style="margin-bottom:18px;">
@@ -213,7 +213,7 @@
     };
 
     function _renderDet(c) {
-    const ct = c.tipo==="Motorista"?"#2563eb":"#d97706";
+    const ct = (c.tipo||"").includes("Motorista")?"#2563eb":"#d97706";
     const foto = c.foto_base64
         ? `<img src="${c.foto_base64}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};">`
         : `<div style="width:70px;height:70px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:${ct};">${(c.nome||"?")[0].toUpperCase()}</div>`;
@@ -254,7 +254,7 @@
             <div style="flex:1;min-width:0;">
                 <div style="font-size:1.4rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.nome}</div>
                 <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center;">
-                    <span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">${c.tipo === "Motorista" ? "🚚 Motorista" : "🪣 Ajudante"}</span>
+                    <span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}</span>
                     
                     <div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:3px 8px;">
                         <span style="font-size:0.75rem;font-weight:700;color:#7c3aed;">Status:</span>
@@ -292,7 +292,7 @@
                 </div>
 
                 <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border:1px solid #f1f5f9;">
-                    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-file-pdf"></i> Documento (\)</h3>
+                    <h3 style="margin:0 0 12px 0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-file-pdf"></i> Documento</h3>
                     ${c.doc_url?`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
                         <i class="ph ph-file-pdf" style="color:#10b981;font-size:1.4rem;"></i>
                         <div style="flex:1;min-width:0;overflow:hidden;"><div style="font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.doc_filename||"Documento"}</div>
@@ -320,7 +320,7 @@
                     <h3 style="margin:0;font-size:0.95rem;color:#334155;display:flex;align-items:center;gap:6px;"><i class="ph ph-chat-circle"></i> Comentários</h3>
                     <div style="display:flex;gap:6px;">
                         <input type="text" id="tc-novo-coment-${c.id}" placeholder="Escrever comentário..." style="flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;font-size:0.85rem;outline:none;">
-                        <button onclick="window._tcAddComent(${c.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:600;"><i class="ph ph-paper-plane-right"></i></button>
+                        <button onclick="window._tcEnvCom(${c.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:0 14px;cursor:pointer;font-weight:600;"><i class="ph ph-paper-plane-right"></i></button>
                     </div>
                 </div>
                 <div style="flex:1;overflow-y:auto;padding:16px;background:#fff;">
@@ -397,7 +397,7 @@
     };
 
     window._tcEnvCom = async function(id) {
-        const ta=document.getElementById(`tc-com-${id}`);
+        const ta=document.getElementById(`tc-novo-coment-${id}`);
         if(!ta||!ta.value.trim()){ Swal.fire({icon:"warning",title:"Atenção",text:"Comentário vazio."}); return; }
         const r=await fetch(API(`/api/candidatos-teste/${id}/comentario`),{method:"POST",headers:authH(),body:JSON.stringify({texto:ta.value.trim()})});
         const d=await r.json();
@@ -430,7 +430,7 @@
             <div style="margin-bottom:12px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo</label>
             <div style="display:flex;gap:10px;">
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Ajudante" ${cand.tipo==="Ajudante"?"checked":""}> Ajudante</label>
-                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista" ${cand.tipo==="Motorista"?"checked":""}> Motorista</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista B" ${cand.tipo==="Motorista B"?"checked":""}> Motorista B</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista D" ${cand.tipo==="Motorista D"?"checked":""}> Motorista D</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista" ${cand.tipo==="Motorista"?"checked":""}> Motorista</label>
             </div></div>
             <div style="margin-bottom:16px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Foto <span style="font-weight:400;color:#94a3b8;">(ou Ctrl+V)</span></label>
             <div id="tc-e-fprev" style="width:70px;height:70px;border-radius:50%;background:#f1f5f9;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:1.8rem;cursor:pointer;overflow:hidden;margin-bottom:6px;" onclick="document.getElementById('tc-e-finput').click()">
@@ -466,6 +466,26 @@
         const ov=document.getElementById("tc-modal-overlay");
         if(ov) ov.style.display="none";
         window._tcModalFoto=null;
+    };
+
+
+    window._tcSetDTeste = async function(id, status) {
+        const { value: dt } = await Swal.fire({
+            title: "Data para " + status,
+            html: '<input type="date" id="swal-dt" class="swal2-input">',
+            confirmButtonColor: "#7c3aed",
+            confirmButtonText: "Salvar",
+            showCancelButton: true,
+            cancelButtonText: "Cancelar",
+            preConfirm: () => document.getElementById("swal-dt").value
+        });
+        if (!dt) return;
+        try {
+            const r = await fetch(API('/api/candidatos-teste/' + id + '/status'), { method:"PUT", headers:authH(), body:JSON.stringify({status:status,data_teste:dt}) });
+            const data = await r.json();
+            if (!r.ok) { Swal.fire({icon:"error",title:"Erro",text:data.error}); return; }
+            await _load(); _render(); window._tcDetalhes(id);
+        } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
     };
 
 })();
