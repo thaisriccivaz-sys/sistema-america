@@ -685,7 +685,6 @@ window._tcSetDTeste = async function(id, status) {
         } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
     };
 
-})();
 
 window._tcCopyLinkAval = async function(id, label) {
     try {
@@ -704,3 +703,5 @@ window._tcCopyLinkAval = async function(id, label) {
         Swal.fire({icon:'error',title:'Erro',text:e.message});
     }
 };
+
+})();
