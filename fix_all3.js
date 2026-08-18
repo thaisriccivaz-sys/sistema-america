@@ -1,115 +1,31 @@
-const fs = require('fs');
+﻿const fs = require('fs');
+const file = 'frontend/testes_candidatos.js';
+let content = fs.readFileSync(file, 'utf8');
 
-// ===================================================
-// FIX 1: Upload do contrato – campo 'file', rota /api/documentos
-// ===================================================
-let app = fs.readFileSync('frontend/app.js', 'utf8');
+// 1. _tcUpDoc
+content = content.replace('window._tcFecharModal(); await _load(); _render();\n        Swal.fire({icon:"success",title:"Documento enviado!"', 'await _load(); _render(); window._tcDetalhes(id);\n        Swal.fire({icon:"success",title:"Documento enviado!"');
 
-app = app.replace(
-    `                    const formData = new FormData();\n                    formData.append('documento', file);\n                    formData.append('tab_name', 'CONTRATOS');\n                    formData.append('document_type', data.gerador_nome);\n                    \n                    const uploadRes = await fetch(\`\${API_URL}/colaboradores/\${viewedColaborador.id}/documentos\``,
-    `                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('colaborador_id', viewedColaborador.id);
-                    formData.append('tab_name', 'CONTRATOS');
-                    formData.append('document_type', data.gerador_nome);
-                    
-                    const uploadRes = await fetch(\`\${API_URL}/documentos\``
-);
+// 2. _tcEnvCom 
+content = content.replace(/tc-com-\$\{id\}/g, 'tc-novo-coment-${id}');
+content = content.replace(/window\._tcAddComent\(/g, 'window._tcEnvCom(');
+content = content.replace('window._tcFecharModal(); await _load(); _render(); window._tcDetalhes(id);\n    };', 'await _load(); _render(); window._tcDetalhes(id);\n    };');
 
-// ===================================================
-// FIX 2: Upload externo – mesmo problema
-// ===================================================
-app = app.replace(
-    `        fd.append('documento', f);\n        fd.append('tab_name', 'CONTRATOS');`,
-    `        fd.append('file', f);\n        fd.append('colaborador_id', viewedColaborador.id);\n        fd.append('tab_name', 'CONTRATOS');`
-);
-// Also fix if URL is wrong for external upload
-app = app.replace(
-    `await fetch(\`\${API_URL}/colaboradores/\${viewedColaborador.id}/documentos\`, { method: 'POST', headers: {'Authorization'`,
-    `await fetch(\`\${API_URL}/documentos\`, { method: 'POST', headers: {'Authorization'`
-);
+// 3. Badges function
+const newBadgeStr = '${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}';
+content = content.replace(/<span style="font-size:0\.68rem;font-weight:700;color:\$\{ct\};background:\$\{ct\}18;border-radius:99px;padding:1px 6px;">.*?<\/span>/g, '<span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">' + newBadgeStr + '</span>');
+content = content.replace(/<span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0\.75rem;font-weight:700;">.*?<\/span>/g, '<span style="background:#fff3;color:#fff;border-radius:99px;padding:3px 12px;font-size:0.75rem;font-weight:700;">' + newBadgeStr + '</span>');
 
-// ===================================================
-// FIX 3: Multa – iframe srcdoc encoding
-// Replace the iframe with a blob URL approach to avoid quote escaping issues
-// ===================================================
-app = app.replace(
-    `        <iframe style="flex:1;border:none;" srcdoc="\${html.replace(/"/g, '&quot;')}"></iframe>`,
-    `        <iframe id="multa-preview-iframe" style="flex:1;border:none;"></iframe>`
-);
+// 4. Columns
+content = content.replace(/icone: "ph-number-one"/g, 'icone: "ph-file-text"');
+content = content.replace(/icone: "ph-number-two"/g, 'icone: "ph-file-text"');
 
-// Add the blob URL setting right after appendChild
-app = app.replace(
-    `    document.body.appendChild(modal);\n};\n\nwindow.solicitarAssinaturaMulta`,
-    `    document.body.appendChild(modal);
-    // Use blob URL to safely load HTML without quote escaping issues
-    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
-    const blobUrl = URL.createObjectURL(blob);
-    document.getElementById('multa-preview-iframe').src = blobUrl;
-};\n\nwindow.solicitarAssinaturaMulta`
-);
+// 5. Documento
+content = content.replace('Documento (\\)', 'Documento');
+content = content.replace('Documento ()', 'Documento');
 
-// ===================================================
-// FIX 4: Ficha Santander – alert verde + mostrar documento
-// ===================================================
+// 6. ct colors
+content = content.replace(/const ct = c\.tipo==="Motorista"\?"#2563eb":"#d97706";/g, 'const ct = (c.tipo||"").includes("Motorista")?"#2563eb":"#d97706";');
+content = content.replace(/const ct = c\.tipo === "Motorista" \? "#2563eb" : "#d97706";/g, 'const ct = (c.tipo||"").includes("Motorista") ? "#2563eb" : "#d97706";');
 
-// Fix the color of the status log from red to green
-app = app.replace(
-    `if (log) log.style.display = 'block';\n        if (logText) logText.textContent = \`Ficha gerada em \${new Date().toLocaleString('pt-BR')}\`;\n    }\n};\n\nwindow.gerarFichaSantander`,
-    `if (log) log.style.display = 'block';
-        if (logText) logText.textContent = \`Ficha gerada em \${new Date().toLocaleString('pt-BR')}\`;
-    }
-};
-
-window.gerarFichaSantander`
-);
-
-// Fix the "Ficha gerada" notification: after generating, mark step 100% and show toast
-const OLD_AFTER_GENERATE = `    // Registrar que foi gerado
-    if (colab) {
-        colab.santander_ficha_data = new Date().toISOString();
-        const log = document.getElementById('santander-status-log');
-        const logText = document.getElementById('santander-status-text');
-        if (log) log.style.display = 'block';
-        if (logText) logText.textContent = \`Ficha gerada em \${new Date().toLocaleString('pt-BR')}\`;
-    }
-};`;
-
-const NEW_AFTER_GENERATE = `    // Registrar que foi gerado
-    if (colab) {
-        colab.santander_ficha_data = new Date().toISOString();
-        const log = document.getElementById('santander-status-log');
-        const logText = document.getElementById('santander-status-text');
-        if (log) log.style.display = 'block';
-        if (logText) logText.textContent = \`Ficha gerada em \${new Date().toLocaleString('pt-BR')}\`;
-
-        // Marcar passo 2 como 100% completo no backend
-        try {
-            await fetch(\`\${API_URL}/colaboradores/\${colab.id}/admissao-step\`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': \`Bearer \${currentToken}\` },
-                body: JSON.stringify({ step: 2, status: 100 })
-            });
-        } catch(e) {}
-
-        // Atualizar UI do step
-        const stepBadge = document.querySelector('[data-admissao-step="2"] .step-pct');
-        if (stepBadge) { stepBadge.textContent = '100%'; stepBadge.style.background = '#dcfce7'; stepBadge.style.color = '#166534'; }
-    }
-};`;
-
-if (app.includes(OLD_AFTER_GENERATE)) {
-    app = app.replace(OLD_AFTER_GENERATE, NEW_AFTER_GENERATE);
-    console.log('Fix 4 (Ficha Santander): OK');
-} else {
-    console.log('Fix 4: pattern not found exactly, skipping');
-}
-
-fs.writeFileSync('frontend/app.js', app);
-
-// Verify
-const v = fs.readFileSync('frontend/app.js', 'utf8');
-console.log('Fix 1 (file field):', v.includes("formData.append('file', file)"));
-console.log('Fix 1 (/documentos url):', v.includes("fetch(`${API_URL}/documentos`"));
-console.log('Fix 3 (blob iframe):', v.includes('multa-preview-iframe'));
-console.log('Done.');
+fs.writeFileSync(file, content, 'utf8');
+console.log('Fixed all remaining issues');

@@ -1412,7 +1412,7 @@ async function _rrRenderCandidatosTeste() {
             '</div>' +
             '<div>' +
                 '<div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Atribuir ao motorista</div>' +
-                '<select onchange="window._rrAtribuirCandidato(' + c.id + ', this.value)" style="width:100%;border:1px solid #c4b5fd;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#1e293b;background:#faf5ff;outline:none;cursor:pointer;">' +
+                '<select onchange="window._rrAtribuirCandidato(' + c.id + ', this.value, \'' + dataRota + '\')" style="width:100%;border:1px solid #c4b5fd;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#1e293b;background:#faf5ff;outline:none;cursor:pointer;">' +
                     '<option value="">— Selecionar motorista —</option>' +
                     opts +
                 '</select>' +
@@ -1444,8 +1444,7 @@ async function _rrRenderCandidatosTeste() {
 function _rrPatchVehicleCards() {
     if (!_rrVeiculos || !_rrVeiculos.length) return;
     const cands = window._rrCandidatosTesteData || [];
-    const dataRotaInp = document.getElementById('rr-data');
-    const dataRota = dataRotaInp ? dataRotaInp.value : '';
+    const dataRota = window._rrDataRotaAtual || '';
 
     _rrVeiculos.forEach(function(v, i) {
         const vMotNorm = (v.motorista || '').toLowerCase().trim();
@@ -1508,16 +1507,14 @@ function _rrPatchVehicleCards() {
 }
 
 window._rrAtribuirCandidato
-window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
+window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx, dataRotaParam) {
     let motoristaNome = '';
     if (veiculoIdx !== '') {
         const v = _rrVeiculos[parseInt(veiculoIdx)];
-        if (!v) return;
-        motoristaNome = v.motorista || '';
+        if (v) motoristaNome = v.motorista || '';
     }
-    const dataRotaInp = document.getElementById('rr-data');
-    const dataRota = dataRotaInp ? dataRotaInp.value : '';
-    if (!dataRota) return showToast('Data da rota inválida.', 'error');
+    const dataRota = dataRotaParam || window._rrDataRotaAtual || '';
+    if (!dataRota) return (typeof showToast === 'function' ? showToast('Data da rota inválida.', 'error') : alert('Data da rota inválida.'));
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
     const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
     try {

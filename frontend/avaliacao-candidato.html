@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliacao de Candidato - America Rental</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;min-height:100vh;}
+.header-img{width:100%;display:block;max-height:220px;object-fit:cover;}
+.container{max-width:620px;margin:0 auto;padding:0 0 60px;}
+.ccard{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);display:flex;align-items:center;gap:16px;padding:20px 24px;color:#fff;}
+.ccard img,.av{width:72px;height:72px;border-radius:50%;flex-shrink:0;border:3px solid rgba(255,255,255,.5);}
+.ccard img{object-fit:cover;}
+.av{background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:#fff;}
+.cname{font-size:1.2rem;font-weight:700;}
+.crole{font-size:.82rem;opacity:.85;margin-top:4px;}
+.cday{font-size:.78rem;opacity:.7;margin-top:2px;}
+.sec{background:#fff;margin:16px 12px 0;border-radius:12px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.sec h2{font-size:1rem;color:#1e3a8a;margin-bottom:14px;}
+.qb{margin-bottom:20px;border-bottom:1px solid #f1f5f9;padding-bottom:18px;}
+.qb:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.qt{font-size:.88rem;font-weight:600;color:#334155;margin-bottom:10px;line-height:1.4;}
+.sr{display:flex;gap:6px;}
+.sb{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;padding:8px 2px;background:#f8fafc;transition:all .15s;user-select:none;}
+.sb .num{font-size:1.1rem;font-weight:700;line-height:1;}
+.sb .lbl{font-size:.55rem;text-align:center;line-height:1.2;color:#94a3b8;margin-top:2px;}
+.sb[data-v="1"]{--c:#ef4444;}.sb[data-v="2"]{--c:#f97316;}.sb[data-v="3"]{--c:#eab308;}.sb[data-v="4"]{--c:#22c55e;}.sb[data-v="5"]{--c:#10b981;}
+.sb.sel{border-color:var(--c);background:var(--c);}
+.sb.sel .num{color:#fff;}.sb.sel .lbl{color:rgba(255,255,255,.85);}
+.sb:not(.sel) .num{color:var(--c);}
+.inr{margin-bottom:14px;}
+.inr label{font-size:.85rem;font-weight:600;color:#334155;display:block;margin-bottom:5px;}
+.inr input{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:.88rem;color:#1e293b;}
+.inr input:focus{outline:none;border-color:#1d4ed8;}
+#rec-btn{background:#ef4444;color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:.88rem;font-weight:700;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
+#rec-btn.rec{animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.7;}}
+#rst{font-size:.78rem;color:#64748b;margin-top:6px;text-align:center;min-height:18px;}
+#aprev{width:100%;margin-top:10px;display:none;}
+.sbtn2{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);color:#fff;border:none;border-radius:12px;padding:16px;font-size:1rem;font-weight:700;cursor:pointer;width:calc(100% - 24px);margin:20px 12px 0;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sbtn2:disabled{opacity:.6;cursor:not-allowed;}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.suc{text-align:center;padding:40px 24px;background:#fff;margin:16px 12px 0;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.err{text-align:center;padding:60px 24px;}
+.ldg{text-align:center;padding:60px 24px;}
+.ldg .wheel{display:inline-block;width:36px;height:36px;border:4px solid #e2e8f0;border-top-color:#1d4ed8;border-radius:50%;animation:sp .7s linear infinite;}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+<div class="ldg"><div class="wheel"></div><p style="margin-top:14px;color:#64748b;font-size:.9rem;">Carregando...</p></div>
+</div>
+<script>
+const Q=new URLSearchParams(location.search);
+const cId=Q.get('id'),dia=Q.get('dia'),tok=Q.get('t'),BASE='/api';
+const SL={1:'Pessimo',2:'Ruim',3:'Regular',4:'Bom',5:'Otimo'};
+const PQ={
+A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
+};
+function getPQ(t,d){if(t&&t.toLowerCase().includes('motorista'))return PQ.M;return d==='1'?PQ.A1:PQ.A2;}
+function dN(d){return d==='1'?'1o Dia de Teste':d==='2'?'2o Dia de Teste':'Dia Extra de Teste';}
+let cand=null,resp={},aBlob=null,mRec=null,aCh=[],isRec=false;
+async function load(){
+try{
+const r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia+'?t='+encodeURIComponent(tok));
+const d=await r.json();
+if(!r.ok)throw new Error(d.error||'Link invalido.');
+cand=d;renderPage();
+}catch(e){
+document.getElementById('app').innerHTML='<div class="err"><div style="font-size:3rem;">X</div><h2 style="color:#ef4444;margin:12px 0 8px;">Link invalido</h2><p style="color:#64748b;">'+e.message+'</p></div>';
+}
+}
+function renderPage(){
+const ps=getPQ(cand.tipo,dia);
+const isMot=cand.tipo&&cand.tipo.toLowerCase().includes('motorista');
+const tl=isMot?'Motorista - '+cand.tipo:'Ajudante';
+const fto=cand.foto_base64?'<img src="'+cand.foto_base64+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.5);flex-shrink:0;">':'<div class="av">'+(cand.nome||'?')[0].toUpperCase()+'</div>';
+const qs=ps.map(function(q,i){
+return '<div class="qb" id="qb'+i+'"><div class="qt">'+(i+1)+'. '+q+'</div><div class="sr">'
++[1,2,3,4,5].map(function(v){return '<div class="sb" data-v="'+v+'" onclick="sel('+i+','+v+')"><span class="num">'+v+'</span><span class="lbl">'+SL[v]+'</span></div>';}).join('')
++'</div></div>';}).join('');
+document.getElementById('app').innerHTML=
+'<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display='none'">'
++'<div class="ccard">'+fto+'<div><div class="cname">'+cand.nome+'</div><div class="crole">'+tl+'</div><div class="cday">'+dN(dia)+'</div></div></div>'
++'<div class="sec"><div class="inr"><label for="an">Seu nome (avaliador) *</label><input type="text" id="an" placeholder="Nome de quem esta avaliando" autocomplete="name"></div>'
++'<h2>Perguntas de Avaliacao</h2>'
++'<p style="font-size:.78rem;color:#64748b;margin-bottom:14px;">Avalie cada item de 1 (Pessimo) a 5 (Otimo).</p>'
++qs+'</div>'
++'<div class="sec"><h2>Audio - Observacoes</h2><p style="font-size:.78rem;color:#64748b;margin-bottom:10px;">Opcional: grave um comentario de voz sobre o desempenho.</p><button id="rec-btn" onclick="tgRec()">Gravar Audio</button><div id="rst"></div><audio id="aprev" controls></audio></div>'
++'<button class="sbtn2" id="sub" onclick="enviar()">Enviar Avaliacao</button>';
+}
+function sel(i,v){
+resp[i]=v;
+var qb=document.getElementById('qb'+i);if(!qb)return;
+qb.querySelectorAll('.sb').forEach(function(b){b.classList.toggle('sel',parseInt(b.getAttribute('data-v'))===v);});
+}
+async function tgRec(){
+if(isRec){mRec.stop();isRec=false;var b=document.getElementById('rec-btn');if(b){b.textContent='Gravar Audio';b.classList.remove('rec');}return;}
+try{
+var st=await navigator.mediaDevices.getUserMedia({audio:true});
+aCh=[];mRec=new MediaRecorder(st);
+mRec.ondataavailable=function(e){if(e.data.size>0)aCh.push(e.data);};
+mRec.onstop=function(){
+aBlob=new Blob(aCh,{type:'audio/webm'});
+var u=URL.createObjectURL(aBlob);
+var p=document.getElementById('aprev');if(p){p.src=u;p.style.display='block';}
+var s=document.getElementById('rst');if(s)s.textContent='Audio gravado. Pode regravar se quiser.';
+st.getTracks().forEach(function(t){t.stop();});
+};
+mRec.start();isRec=true;
+var b=document.getElementById('rec-btn');if(b){b.textContent='Parar Gravacao';b.classList.add('rec');}
+var s=document.getElementById('rst');if(s)s.textContent='Gravando... Clique em Parar quando terminar.';
+}catch(e){alert('Nao foi possivel acessar o microfone.');}
+}
+async function enviar(){
+var nome=(document.getElementById('an')||{}).value||'';
+if(!nome.trim()){alert('Por favor, informe o seu nome antes de enviar.');return;}
+var ps=getPQ(cand.tipo,dia);
+var miss=ps.map(function(_,i){return resp[i];}).filter(function(v){return v==null;});
+if(miss.length>0){alert('Por favor, avalie todas as '+ps.length+' perguntas antes de enviar.');return;}
+var btn=document.getElementById('sub');
+if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Enviando...';}
+try{
+var fd=new FormData();
+fd.append('t',tok);fd.append('avaliador_nome',nome.trim());
+var ro={};ps.forEach(function(_,i){ro[i]=resp[i];});fd.append('respostas',JSON.stringify(ro));
+if(aBlob)fd.append('audio',aBlob,'audio.webm');
+var r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia,{method:'POST',body:fd});
+var data=await r.json();
+if(!r.ok)throw new Error(data.error||'Erro ao enviar.');
+document.getElementById('app').innerHTML='<img src="/assets/avaliacao-header.png" class="header-img" onerror="this.style.display='none'"><div class="suc"><div style="font-size:3rem;">OK</div><h2 style="color:#10b981;margin:12px 0 8px;">Avaliacao Enviada!</h2><p style="color:#64748b;">Obrigado, <strong>'+nome+'</strong>! Sua avaliacao foi registrada com sucesso.<br><br><em style="font-size:.82rem;color:#94a3b8;">Juntos, construimos uma America Rental ainda mais forte!</em></p></div>';
+}catch(e){if(btn){btn.disabled=false;btn.innerHTML='Enviar Avaliacao';}alert('Erro ao enviar: '+e.message);}
+}
+load();
+</script>
+</body>
+</html>

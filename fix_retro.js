@@ -1,12 +1,9 @@
 ﻿const fs = require('fs');
-const path = require('path');
-const sqlite3 = require('sqlite3');
-const db = new sqlite3.Database('backend/data/hr_system_v2.sqlite');
-const signPdfPfx = require('./backend/sign_pdf_pfx');
+let c = fs.readFileSync('frontend/testes_candidatos.js', 'utf8');
 
-db.all("SELECT id, signed_file_path FROM documentos WHERE assinafy_status = 'Assinado' AND signed_file_path IS NOT NULL ORDER BY id DESC LIMIT 50", async (err, rows) => {
-    if(err) return console.log(err);
-    if(!signPdfPfx.verificarDisponibilidade().disponivel) return console.log("PFX indisponível localmente");
-    
-    // Como o ambiente PFX na Render é diferete, vou injetar uma rota pra forçar a re-assinatura de tudo que estiver sem assinatura.
-});
+const targetStr = '<span style="line-height:1.4;">\ <span style="color:#94a3b8;">- \</span></span>';
+const newStr = '<span style="line-height:1.4;">\ <span style="color:#94a3b8;">- \</span></span>';
+
+c = c.replace(targetStr, newStr);
+fs.writeFileSync('frontend/testes_candidatos.js', c, 'utf8');
+console.log('Fixed frontend log rendering');

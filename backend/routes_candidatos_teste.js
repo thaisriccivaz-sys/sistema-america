@@ -56,7 +56,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         'criado_por_nome TEXT',
         'doc_r2_key TEXT',
         'retornou_teste_extra INTEGER DEFAULT 0',
-        'resultado_teste TEXT'
+        'resultado_teste TEXT',
+        'avaliacao_token TEXT'
     ];
     db.run("UPDATE candidatos_teste SET status = 'Dias de Teste' WHERE status IN ('Teste 1\u00ba Dia', 'Teste 2\u00ba Dia', 'Teste Extra')");
     newCols.forEach(colDef => {
@@ -65,6 +66,19 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             // Se der erro de duplicate column, é esperado. Ignora.
         });
     });
+    // Tabela de avaliações de candidatos
+    db.run(`CREATE TABLE IF NOT EXISTS candidatos_teste_avaliacoes (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidato_id   INTEGER NOT NULL,
+        dia            TEXT NOT NULL,
+        avaliador_nome TEXT,
+        respostas_json TEXT,
+        media_notas    REAL,
+        audio_url      TEXT,
+        audio_key      TEXT,
+        created_at     TEXT DEFAULT (datetime('now','localtime')),
+        FOREIGN KEY(candidato_id) REFERENCES candidatos_teste(id) ON DELETE CASCADE
+    )`);
 
     function getUser(req) {
         return req.user || {};
@@ -220,7 +234,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                             `SELECT * FROM candidatos_teste_comentarios WHERE candidato_id = ? ORDER BY created_at DESC`,
                             [row.id],
                             (err3, logs) => {
-                                res.json({ ...row, rota: rota || null, comentarios: logs || [] });
+                                // Buscar avaliações recebidas
+                                db.all(
+                                    "SELECT id, dia, avaliador_nome, respostas_json, media_notas, audio_url, created_at FROM candidatos_teste_avaliacoes WHERE candidato_id = ? ORDER BY created_at ASC",
+                                    [row.id],
+                                    (err4, avs) => {
+                                        res.json({ ...row, rota: rota || null, comentarios: logs || [], avaliacoes: avs || [] });
+                                    }
+                                );
                             }
                         );
                     }
@@ -318,6 +339,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 const dBR2 = data_teste ? (data_teste.split('-').length === 3 ? data_teste.split('-').reverse().join('/') : data_teste) : "";
                 const log = `Movido de "${row.status}" para "${status}" por ${u.nome || u.username || "Sistema"}${dBR2 ? ` (data: ${dBR2})` : ""}.`;
                 addLog(req.params.id, "movimentacao", log, req);
+                // Notificacao quando movido para "Aguardando Data"
+                if (status === "Aguardando Data") {
+                    db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [req.params.id], function(errN, rowN) {
+                        if (!errN && rowN) {
+                            notificarTestesCandidatos(`Candidato ${rowN.nome} aguardando marcação de data para teste!`);
+                        }
+                    });
+                }
                 res.json({ message: "Status atualizado.", status });
             });
         });
@@ -466,6 +495,115 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 res.json({ message: "Rota desvinculada." });
             }
         );
+    });
+
+
+    // ── LINKS DE AVALIAÇÃO ─────────────────────────────────────────────────────
+    app.get("/api/candidatos-teste/:id/avaliacao-links", authenticateToken, (req, res) => {
+        db.get("SELECT id, nome, data_teste_1, data_teste_2, data_teste_extra, avaliacao_token FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: "Não encontrado" });
+            // Generate or reuse token
+            let tok = row.avaliacao_token;
+            if (!tok) {
+                tok = require('crypto').randomBytes(20).toString('hex');
+                db.run("UPDATE candidatos_teste SET avaliacao_token = ? WHERE id = ?", [tok, row.id]);
+            }
+            res.json({
+                token: tok,
+                data_teste_1: row.data_teste_1,
+                data_teste_2: row.data_teste_2,
+                data_teste_extra: row.data_teste_extra,
+            });
+        });
+    });
+
+    // ── PUBLIC: BUSCAR DADOS DO CANDIDATO PARA AVALIAÇÃO ──────────────────────
+    app.get("/api/public/avaliacao-candidato/:id/:dia", (req, res) => {
+        const { id, dia } = req.params;
+        const { t } = req.query;
+        db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
+            if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
+            if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido ou expirado." });
+            res.json({
+                id: row.id,
+                nome: row.nome,
+                tipo: row.tipo,
+                foto_base64: row.foto_base64,
+                data_teste_1: row.data_teste_1,
+                data_teste_2: row.data_teste_2,
+                data_teste_extra: row.data_teste_extra,
+            });
+        });
+    });
+
+    // ── PUBLIC: SUBMETER AVALIAÇÃO ─────────────────────────────────────────────
+    app.post("/api/public/avaliacao-candidato/:id/:dia", multerMemory.single('audio'), async (req, res) => {
+        const { id, dia } = req.params;
+        const { t, avaliador_nome, respostas } = req.body;
+        db.get("SELECT avaliacao_token FROM candidatos_teste WHERE id = ?", [id], async (err, row) => {
+            if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
+            if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido." });
+            
+            let respostasObj = {};
+            try { respostasObj = JSON.parse(respostas || '{}'); } catch(e) {}
+            const notas = Object.values(respostasObj).map(v => parseFloat(v)).filter(v => !isNaN(v));
+            const media = notas.length > 0 ? (notas.reduce((a, b) => a + b, 0) / notas.length) : null;
+
+            let audioUrl = null;
+            let audioKey = null;
+            if (req.file && r2Module && typeof r2Module.uploadToR2 === 'function') {
+                try {
+                    audioKey = 'candidatos-avaliacoes/' + id + '/' + dia + '-' + Date.now() + '.webm';
+                    audioUrl = await r2Module.uploadToR2(audioKey, req.file.buffer, req.file.mimetype || 'audio/webm');
+                } catch(e2) { console.error('[Avaliacao] Audio upload error:', e2.message); }
+            }
+
+            db.run(
+                "INSERT INTO candidatos_teste_avaliacoes (candidato_id, dia, avaliador_nome, respostas_json, media_notas, audio_url, audio_key) VALUES (?,?,?,?,?,?,?)",
+                [id, dia, avaliador_nome || null, JSON.stringify(respostasObj), media, audioUrl, audioKey],
+                function(err2) {
+                    if (err2) return res.status(500).json({ error: err2.message });
+                    res.json({ message: "Avaliação recebida com sucesso!", id: this.lastID });
+
+                    // -- NOTIFICAÇÃO RH --
+                    db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [id], (errCand, rowCand) => {
+                        if (!errCand && rowCand) {
+                            const msg = `Avaliação recebida para o candidato ${rowCand.nome} (${dia}º Dia) respondida por ${avaliador_nome || 'Avaliador'}.`;
+                            const tipoNotif = 'testes_candidatos';
+                            
+                            // Buscar usuários que estão no RH e ativaram a notificação 'testes_candidatos'
+                            db.all(`SELECT u.id, u.email 
+                                    FROM usuarios u 
+                                    JOIN config_notificacoes cn ON u.id = cn.usuario_id 
+                                    WHERE u.departamento = 'RH' AND u.ativo = 1 AND cn.tipo = ?`, [tipoNotif], (errUsers, rowsUsers) => {
+                                if (!errUsers && rowsUsers && rowsUsers.length > 0) {
+                                    rowsUsers.forEach(u => {
+                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                                            [u.id, tipoNotif, msg, '{}']);
+                                    });
+                                    // Disparar e-mail se a função global existir
+                                    if (typeof global.sendEmail === 'function') {
+                                        const rhEmails = rowsUsers.map(u => u.email).filter(e => e);
+                                        if (rhEmails.length > 0) {
+                                            const htmlStr = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+                                                <div style="background:#7c3aed;padding:20px;text-align:center;">
+                                                    <h2 style="color:#fff;margin:0;font-size:20px;">Avaliação de Teste Prático</h2>
+                                                </div>
+                                                <div style="padding:20px;background:#f9fafb;">
+                                                    <p style="font-size:16px;line-height:1.5;">${msg}</p>
+                                                    <p style="font-size:14px;color:#6b7280;margin-top:20px;">Acesse o sistema para ver os detalhes da avaliação e ouvir o áudio (se houver).</p>
+                                                </div>
+                                            </div>`;
+                                            global.sendEmail(rhEmails.join(','), `[Avaliação] Candidato ${rowCand.nome}`, msg, htmlStr);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            );
+        });
     });
 
 ;

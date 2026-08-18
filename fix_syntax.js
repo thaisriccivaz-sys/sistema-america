@@ -1,34 +1,5 @@
-const fs = require('fs');
-const path = 'backend/database.js';
-let content = fs.readFileSync(path, 'utf8');
-
-const badChunk = `                    db.get("SELECT id FROM geradores WHERE nome = 'Autorização de Desconto em Folha'", [], (e, row) => {
-                        if (!row) {
-                            db.get("SELECT nome FROM geradores_excluidos WHERE nome = 'Autorização de Desconto em Folha'", [], (e2, deleted) => {
-                                if (!deleted) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('Autorização de Desconto em Folha', ?, '[]')", autorizacaoHTML);
-                            });
-                        }
-                    });
-                    
-                        }
-                    });
-                });
-            });`;
-
-const goodChunk = `                    db.get("SELECT id FROM geradores WHERE nome = 'Autorização de Desconto em Folha'", [], (e, row) => {
-                        if (!row) {
-                            db.get("SELECT nome FROM geradores_excluidos WHERE nome = 'Autorização de Desconto em Folha'", [], (e2, deleted) => {
-                                if (!deleted) db.run("INSERT INTO geradores (nome, conteudo, variaveis) VALUES ('Autorização de Desconto em Folha', ?, '[]')", autorizacaoHTML);
-                            });
-                        }
-                    });
-                });
-            });`;
-
-if (content.includes(badChunk)) {
-    content = content.replace(badChunk, goodChunk);
-    fs.writeFileSync(path, content, 'utf8');
-    console.log("Fixed!");
-} else {
-    console.log("Chunk not found");
-}
+﻿const fs = require('fs');
+let c = fs.readFileSync('frontend/testes_candidatos.js', 'utf8');
+c = c.replace("    });\r\n    }", "    }");
+c = c.replace("    });\n    }", "    }");
+fs.writeFileSync('frontend/testes_candidatos.js', c, 'utf8');

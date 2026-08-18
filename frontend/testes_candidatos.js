@@ -52,6 +52,13 @@
         return new Date(dStr).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     }
 
+    /* inject spinner css */
+    if (!document.getElementById('_tc-spin-style')) {
+        const _st = document.createElement('style');
+        _st.id = '_tc-spin-style';
+        _st.textContent = '@keyframes _tcSpin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(_st);
+    }
     window.initTestesCandidatos = async function() {
         const c = document.getElementById("view-testes-candidatos");
         if (!c) return;
@@ -115,6 +122,7 @@
                     <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.nome}">${c.nome.length > 15 ? c.nome.substring(0, 15) + "..." : c.nome}</div>
                     <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Ajudante" ? "🪣 Ajudante" : (c.tipo === "Motorista B" ? "🛻 Motorista B" : (c.tipo === "Motorista D" ? "🚚 Motorista D" : "🚚 Motorista"))}</span>
                 </div>
+                <button onclick="event.stopPropagation(); window._tcExcluir(${c.id}, '${c.nome.replace(/'/g, \"\\'\")}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:4px;flex-shrink:0;" title="Excluir Candidato"><i class="ph ph-trash"></i></button>
             </div>
             ${getProxTesteHTML(c)}
 ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado' ? '#10b981' : '#ef4444'};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px;">${c.resultado_teste}</div>` : ""}
@@ -173,7 +181,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button onclick="window._tcFecharModal()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:0.85rem;color:#64748b;">Cancelar</button>
-                <button onclick="window._tcSalvNovo()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;font-weight:600;cursor:pointer;">Salvar</button>
+                <button id="tc-n-salvar-btn" onclick="window._tcSalvNovo()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;min-width:90px;justify-content:center;">Salvar</button>
             </div>
         </div>`);
     };
@@ -212,13 +220,15 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         const nome = (document.getElementById("tc-n-nome")||{}).value||"";
         const tipo = document.querySelector("input[name=\"tc-n-tipo\"]:checked");
         if (!nome.trim()) { Swal.fire({icon:"warning",title:"Atenção",text:"Informe o nome."}); return; }
+                const _salvarBtn = document.getElementById('tc-n-salvar-btn');
+        if (_salvarBtn) { _salvarBtn.disabled = true; _salvarBtn.innerHTML = '<span style="width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;display:inline-block;animation:_tcSpin 0.7s linear infinite;vertical-align:middle;"></span>&nbsp;Salvando...'; }
         try {
             const r = await fetch(API("/api/candidatos-teste"), { method:"POST", headers:authH(), body:JSON.stringify({nome:nome.trim(),tipo:tipo?tipo.value:"Ajudante",foto_base64:window._tcModalFoto||null}) });
             const d = await r.json();
             if (!r.ok) { Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
             window._tcFecharModal(); await _load(); _render();
             Swal.fire({icon:"success",title:"Candidato criado!",showConfirmButton:false,timer:1500});
-        } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
+        } catch(e) { if(_salvarBtn){_salvarBtn.disabled=false;_salvarBtn.innerHTML="Salvar";} Swal.fire({icon:"error",title:"Erro",text:e.message}); }
     };
 
     window._tcDetalhes = async function(id) {
@@ -280,14 +290,35 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
     const testesStr = [["1º Dia",c.data_teste_1,"Teste 1º Dia","#3b82f6"],["2º Dia",c.data_teste_2,"Teste 2º Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>`
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
             <div style="background:${cor}22;color:${cor};border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="ph ph-check"></i></div>
-            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? motoristaChipHtml : ''}</div>
+            <div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;color:#334155;">${label}</div><div style="font-size:0.75rem;color:#64748b;">${data?fmtBR(data):"Pendente"}</div>${data && c.rota_motorista ? getMotoristaChipHtml(data) : ''}</div>
             <div style="display:flex;gap:4px;">
                 ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;"><i class="ph ph-trash"></i></button>` : ""}
                 <button onclick="window._tcSetDTeste(${c.id},'${status}')" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#475569;font-weight:600;">${data ? 'Alterar Data' : 'Definir Data'}</button>
             </div>
         </div>`).join("");
 
-    const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status === col.id ? 'selected' : ''}>${col.id}</option>`).join('');
+    
+    const avaliacoesList = (c.avaliacoes || []);
+    const avaliacoesHtml = avaliacoesList.length > 0
+        ? avaliacoesList.map(function(av) {
+            const diaNome = av.dia === '1' ? '1º Dia' : (av.dia === '2' ? '2º Dia' : 'Extra');
+            const media = av.media_notas != null ? parseFloat(av.media_notas).toFixed(1) : '—';
+            const mediaColor = parseFloat(av.media_notas) >= 4 ? '#10b981' : (parseFloat(av.media_notas) >= 3 ? '#f59e0b' : '#ef4444');
+            return '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid '+mediaColor+';">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                  '<b style="font-size:0.82rem;color:#334155;">📅 '+diaNome+'</b>' +
+                  '<span style="background:'+mediaColor+';color:#fff;border-radius:99px;padding:2px 10px;font-size:0.78rem;font-weight:700;">Média: '+media+'</span>' +
+                '</div>' +
+                '<div style="font-size:0.73rem;color:#64748b;">Por: '+(av.avaliador_nome||'—')+'</div>' +
+                (av.audio_url ? '<audio controls src="'+av.audio_url+'" style="width:100%;height:34px;margin-top:6px;"></audio>' : '') +
+            '</div>';
+        }).join('')
+        : '<p style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0;">Nenhuma avaliação recebida ainda.</p>';
+
+    const avaliacoesSection = avaliacoesList.length > 0
+        ? `<div style="padding:16px 20px 0;"><div style="font-weight:700;font-size:0.88rem;color:#334155;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="ph ph-star" style="color:#f59e0b;"></i> Avaliações Recebidas</div>${avaliacoesHtml}</div>`
+        : '';
+const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status === col.id ? 'selected' : ''}>${col.id}</option>`).join('');
 
     _modal(`<div style="width:85vw;max-width:1200px;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:20px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0;">
@@ -317,7 +348,8 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
 
                 </div>
             </div>
-            <div style="display:flex;gap:8px;align-self:flex-start;">
+            <div style="display:flex;gap:8px;align-self:flex-start;">${c.status === 'Teste Finalizado' ? `<button onclick="window._tcLinksAvaliacao(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Links de Avaliação 📋"><i class="ph ph-link"></i></button>` : ''}
+                
                 <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
                 <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
                 <button onclick="window._tcFecharModal()" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:1.1rem;" title="Fechar"><i class="ph ph-x"></i></button>
@@ -369,6 +401,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                     ${rotaHtml}
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         ${testesStr}
+                ${avaliacoesSection}
                     </div>
                 </div>
             </div>
@@ -493,7 +526,39 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
         </div>`);
     };
 
-    window._tcSalvEdit = async function(id) {
+    
+    window._tcLinksAvaliacao = async function(id) {
+        try {
+            const r = await fetch(API('/api/candidatos-teste/'+id+'/avaliacao-links'), { headers: { Authorization: 'Bearer '+token() } });
+            const data = await r.json();
+            if (!r.ok) { Swal.fire({icon:'error',title:'Erro',text:data.error||'Erro ao gerar links.'}); return; }
+            let base = (window.API_URL || window.location.origin).replace(/\/api\/?$/, '').replace(/\/$/, '');
+            let html = '<div style="font-family:Arial,sans-serif;text-align:left;max-height:60vh;overflow-y:auto;">';
+            html += '<p style="font-size:0.82rem;color:#64748b;margin-top:0;">Envie o link ao avaliador (motorista) para cada dia de teste:</p>';
+            const dias = [
+                { dia: '1', label: '1º Dia', data: data.data_teste_1, color: '#3b82f6' },
+                { dia: '2', label: '2º Dia', data: data.data_teste_2, color: '#8b5cf6' },
+                { dia: 'extra', label: 'Extra', data: data.data_teste_extra, color: '#ec4899' },
+            ];
+            let hasDia = false;
+            dias.forEach(function(d) {
+                if (!d.data) return;
+                hasDia = true;
+                const url = base + '/avaliacao-candidato.html?id=' + id + '&dia=' + d.dia + '&t=' + data.token;
+                html += '<div style="margin-bottom:14px;background:#f8fafc;border-radius:8px;padding:12px;border-left:4px solid '+d.color+';">';
+                html += '<div style="font-weight:700;font-size:0.82rem;color:'+d.color+';margin-bottom:6px;">📅 '+d.label+' — '+d.data.split('-').reverse().join('/')+'</div>';
+                html += '<div style="display:flex;align-items:center;gap:6px;">';
+                html += '<input id="rr-lnk-'+d.dia+'" type="text" value="'+url+'" readonly style="flex:1;font-size:0.7rem;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;color:#475569;background:#fff;">';
+                html += '<button onclick="navigator.clipboard.writeText(document.getElementById(\'rr-lnk-'+d.dia+'\').value).then(()=>{this.textContent=\'✔ Copiado!\';setTimeout(()=>{this.textContent=\'Copiar\';},2000);})" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0;">Copiar</button>';
+                html += '</div></div>';
+            });
+            if (!hasDia) html += '<p style="color:#94a3b8;font-size:0.83rem;text-align:center;">Nenhuma data de teste definida ainda.</p>';
+            html += '</div>';
+            Swal.fire({ title: '🔗 Links de Avaliação', html: html, width: 560, showConfirmButton: false, showCloseButton: true });
+        } catch(e) { Swal.fire({icon:'error',title:'Erro',text:e.message}); }
+    };
+
+window._tcSalvEdit = async function(id) {
         const nome=(document.getElementById("tc-e-nome")||{}).value||"";
         const tipo=document.querySelector("input[name=\"tc-e-tipo\"]:checked");
         const body={nome:nome.trim(),tipo:tipo?tipo.value:undefined};
