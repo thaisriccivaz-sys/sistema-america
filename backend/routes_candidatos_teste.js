@@ -408,5 +408,23 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         );
     });
 
+
+    // ── GET candidatos em "Dias de Teste" para uma data específica ─────────────
+    app.get("/api/candidatos-teste/por-data", authenticateToken, (req, res) => {
+        const { data } = req.query; // YYYY-MM-DD
+        if (!data) return res.status(400).json({ error: "Parâmetro 'data' obrigatório." });
+        db.all(
+            `SELECT id, nome, tipo, status, foto_base64, data_teste_1, data_teste_2, data_teste_extra, rota_motorista, retornou_teste_extra
+             FROM candidatos_teste
+             WHERE status = 'Dias de Teste'
+               AND (data_teste_1 = ? OR data_teste_2 = ? OR data_teste_extra = ?)`,
+            [data, data, data],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+    });
+
     console.log("[Candidatos] Rotas de Testes de Candidatos registradas.");
 };

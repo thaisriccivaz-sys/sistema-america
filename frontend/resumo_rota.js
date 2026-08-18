@@ -1048,7 +1048,7 @@ function _rrRenderCorpo() {
     }).join('');
 
     // Append painel de colaboradores disponíveis
-    _rrRenderColabDisponiveis();
+    _rrRenderColabDisponiveis().then(function() { _rrRenderCandidatosTeste(); });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1300,6 +1300,133 @@ async function _rrRenderColabDisponiveis() {
         </div>`}
     </div>`;
 }
+
+// ══════════════════════════════════════════════════════════════
+//  CANDIDATOS EM TESTE — seção no Resumo de Rota
+// ══════════════════════════════════════════════════════════════
+async function _rrRenderCandidatosTeste() {
+    const dataRota = window._rrDataRotaAtual;
+    if (!dataRota) return;
+
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const headers = { 'Authorization': 'Bearer ' + token };
+
+    let candidatos = [];
+    try {
+        const res = await fetch('/api/candidatos-teste/por-data?data=' + dataRota, { headers });
+        if (res.ok) candidatos = await res.json();
+    } catch(e) {
+        console.error('[RR] Erro ao carregar candidatos em teste:', e);
+        return;
+    }
+
+    if (!candidatos.length) return;
+
+    const candidatosVisiveis = candidatos.filter(function(c) {
+        const tipo = (c.tipo || '').toLowerCase();
+        const isMot = tipo.includes('motorista');
+        const e1 = c.data_teste_1 === dataRota;
+        const e2 = c.data_teste_2 === dataRota;
+        const eExtra = c.data_teste_extra === dataRota;
+        if (isMot) return e1 || e2 || eExtra;
+        // Ajudante: só aparece no 2º dia ou extra, não no 1º
+        return e2 || eExtra;
+    });
+
+    if (!candidatosVisiveis.length) return;
+
+    const corpo = document.getElementById('rr-corpo');
+    if (!corpo) return;
+
+    const elExistente = document.getElementById('rr-candidatos-teste-painel');
+    if (elExistente) elExistente.remove();
+
+    const painel = document.createElement('div');
+    painel.id = 'rr-candidatos-teste-painel';
+    painel.style.cssText = 'margin-top:20px;border-radius:14px;overflow:hidden;border:2px solid rgba(124,58,237,0.3);background:#fff;';
+
+    function avatarCandidato(c) {
+        if (c.foto_base64) {
+            return '<img src="' + c.foto_base64 + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed;flex-shrink:0;">';
+        }
+        const cor = (c.tipo||'').toLowerCase().includes('motorista') ? '#2563eb' : '#d97706';
+        const ini = (c.nome||'?')[0].toUpperCase();
+        return '<div style="width:48px;height:48px;border-radius:50%;background:' + cor + '22;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:' + cor + ';border:3px solid ' + cor + ';flex-shrink:0;">' + ini + '</div>';
+    }
+
+    function diaInfo(c) {
+        const parts = [];
+        if (c.data_teste_1 === dataRota) parts.push('<span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">1º DIA</span>');
+        if (c.data_teste_2 === dataRota) parts.push('<span style="background:#ede9fe;color:#7c3aed;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">2º DIA</span>');
+        if (c.data_teste_extra === dataRota) parts.push('<span style="background:#fce7f3;color:#be185d;border-radius:4px;padding:2px 8px;font-size:0.65rem;font-weight:700;">DIA EXTRA</span>');
+        return parts.join(' ');
+    }
+
+    function cardCandidato(c) {
+        const isMot = (c.tipo||'').toLowerCase().includes('motorista');
+        const tipoLabel = isMot ? '🚚 Motorista' : '🪣 Ajudante';
+        const tipoCor = isMot ? '#2563eb' : '#d97706';
+        const opts = (_rrVeiculos || []).map(function(v, idx) {
+            const sel = c.rota_motorista && c.rota_motorista === v.motorista ? ' selected' : '';
+            return '<option value="' + idx + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (idx+1))) + '</option>';
+        }).join('');
+        return '<div style="background:#fff;border-radius:12px;border:2px solid rgba(124,58,237,0.2);padding:16px;min-width:280px;max-width:320px;display:flex;flex-direction:column;gap:12px;">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+                avatarCandidato(c) +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.9rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + c.nome + '</div>' +
+                    '<div style="font-size:0.72rem;font-weight:700;color:' + tipoCor + ';margin-top:2px;">' + tipoLabel + '</div>' +
+                    '<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">' + diaInfo(c) + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div>' +
+                '<div style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Atribuir ao motorista</div>' +
+                '<select onchange="window._rrAtribuirCandidato(' + c.id + ', this.value)" style="width:100%;border:1px solid #c4b5fd;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#1e293b;background:#faf5ff;outline:none;cursor:pointer;">' +
+                    '<option value="">— Selecionar motorista —</option>' +
+                    opts +
+                '</select>' +
+            '</div>' +
+        '</div>';
+    }
+
+    const header = '<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:14px 20px;display:flex;align-items:center;gap:14px;">' +
+        '<i class="ph ph-clipboard-text" style="font-size:1.5rem;color:rgba(255,255,255,0.9);"></i>' +
+        '<div>' +
+            '<div style="color:#fff;font-weight:800;font-size:1rem;">Candidatos em Dia de Teste</div>' +
+            '<div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;">Atribua cada candidato a um motorista da rota de hoje</div>' +
+        '</div>' +
+        '<div style="margin-left:auto;background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;text-align:center;">' +
+            '<div style="color:#fff;font-size:1.2rem;font-weight:800;">' + candidatosVisiveis.length + '</div>' +
+            '<div style="color:rgba(255,255,255,0.75);font-size:0.7rem;">em teste hoje</div>' +
+        '</div>' +
+    '</div>';
+
+    const body = '<div style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:14px;">' +
+        candidatosVisiveis.map(cardCandidato).join('') +
+    '</div>';
+
+    painel.innerHTML = header + body;
+    corpo.appendChild(painel);
+}
+
+window._rrAtribuirCandidato = async function(candidatoId, veiculoIdx) {
+    if (veiculoIdx === '') return;
+    const v = _rrVeiculos[parseInt(veiculoIdx)];
+    if (!v) return;
+    const motoristaNome = v.motorista || '';
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    try {
+        const r = await fetch('/api/candidatos-teste/' + candidatoId + '/status', {
+            method: 'PUT', headers,
+            body: JSON.stringify({ status: 'Dias de Teste', rota_motorista: motoristaNome })
+        });
+        if (r.ok && typeof showToast === 'function') showToast('Candidato atribuído a ' + (motoristaNome || 'veículo') + '!', 'success');
+    } catch(e) {
+        console.error('[RR] Erro ao atribuir candidato:', e);
+    }
+};
+
 
 window._rrSalvarColabObs = function(colabId, field, value) {
     if (!window._rrColabDisponiveisObs[colabId]) window._rrColabDisponiveisObs[colabId] = {};

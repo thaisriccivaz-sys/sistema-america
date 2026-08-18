@@ -21294,13 +21294,13 @@ app.get('/api/logistica/disponibilidade-rota', authenticateToken, (req, res) => 
                     // Agenda logàstica - respeita o tipo do card (falta, afastado, ferias ou terapia)
                     if (agendaMap.has(c.id)) {
                         const tipoAgenda = agendaMap.get(c.id);
-                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lanºada na Agenda'; }
-                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lanºada na Agenda'; }
+                        if (tipoAgenda === 'falta') { status = 'falta'; motivo = 'Ausência lançada na Agenda'; }
+                        else if (tipoAgenda === 'afastado') { status = 'afastado'; motivo = 'Ausência lançada na Agenda'; }
                         else if (tipoAgenda === 'ferias' && status === 'disponivel') { status = 'ferias'; motivo = 'Férias lançadas na Agenda Logística'; }
                         else if (tipoAgenda === 'terapia' && status === 'disponivel') { status = 'terapia'; motivo = 'Terapia agendada para hoje'; }
                     }
 
-                    // Folga da escala (s?? se ainda disponºvel)
+                    // Folga da escala (só se ainda disponível)
                     if (status === 'disponivel') {
                         if (calcFolga(c, data)) { status = 'folga'; motivo = 'Dia de folga (escala)'; }
                     }
