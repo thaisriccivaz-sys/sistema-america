@@ -25652,7 +25652,355 @@ app.get('/api/admin/fix-cargos-e-deps', (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ██████  TESTES DE CANDIDATOS  ██████████████████████████████████████████████
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper: dispara popup + e-mail para usuários configurados no tipo 'testes_candidatos'
+async function _notificarTestesCandidatos(mensagem, dadosExtra) {
+    const tipo = 'testes_candidatos';
+    const dadosStr = JSON.stringify(dadosExtra || {});
+    db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [tipo], async (err, rows) => {
+        if (err || !rows || rows.length === 0) return;
+        rows.forEach(r => {
+            db.run(
+                "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                [r.usuario_id, tipo, mensagem, dadosStr]
+            );
+        });
+    });
+    sendEmailParaNotificados(tipo, {
+        subject: `[Testes de Candidatos] ${mensagem}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+<div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
+<div style="padding:1.5rem 2rem;">
+<h2 style="color:#7c3aed;margin-top:0;text-align:center;">Testes de Candidatos</h2>
+<p style="font-size:1rem;">${mensagem}</p>
+</div>
+<hr style="border:none;border-top:1px solid #eee;margin:0;">
+<div style="padding:1rem 2rem;background:#f8fafc;"><p style="color:#999;font-size:11px;text-align:center;margin:0;">Este é um e-mail automático, por favor não responda.</p></div>
+</div>`
+    });
+}
+
+// Helper: registra histórico de movimentação
+function _registrarHistorico(candidatoId, texto, usuarioId, usuarioNome) {
+    db.run(
+        "INSERT INTO candidatos_teste_comentarios (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?, 'movimentacao', ?, ?, ?)",
+        [candidatoId, texto, usuarioId || null, usuarioNome || 'Sistema']
+    );
+}
+
+// Helper: validar tipo de veículo pelo texto do SimpliRoute
+function _veiculoPermiteCandidato(veiculoTexto) {
+    const t = (veiculoTexto || '').toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return t.includes('CAMINHAO') || t.includes('CAMINHONE');
+}
+
+// GET /api/candidatos-teste — lista todos com comentários e atribuição
+app.get('/api/candidatos-teste', authenticateToken, (req, res) => {
+    db.all(`
+        SELECT ct.*,
+               ctr.motorista_nome as rota_motorista, ctr.placa as rota_placa,
+               ctr.data_rota, ctr.etapa_teste as rota_etapa, ctr.veiculo_texto as rota_veiculo_texto,
+               (SELECT COUNT(*) FROM candidatos_teste_comentarios WHERE candidato_id = ct.id AND tipo = 'comentario') as total_comentarios
+        FROM candidatos_teste ct
+        LEFT JOIN candidatos_teste_rota ctr ON ct.id = ctr.candidato_id
+        ORDER BY ct.created_at DESC
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// GET /api/candidatos-teste/:id — detalhe completo
+app.get('/api/candidatos-teste/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    db.get('SELECT * FROM candidatos_teste WHERE id = ?', [id], (err, cand) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!cand) return res.status(404).json({ error: 'Candidato não encontrado' });
+        db.all('SELECT * FROM candidatos_teste_comentarios WHERE candidato_id = ? ORDER BY created_at ASC', [id], (err2, coments) => {
+            db.get('SELECT * FROM candidatos_teste_rota WHERE candidato_id = ?', [id], (err3, rota) => {
+                res.json({ ...cand, comentarios: coments || [], rota: rota || null });
+            });
+        });
+    });
+});
+
+// POST /api/candidatos-teste — criar candidato
+app.post('/api/candidatos-teste', authenticateToken, (req, res) => {
+    const { nome, tipo, foto_base64 } = req.body;
+    if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome é obrigatório.' });
+    if (!['Ajudante', 'Motorista'].includes(tipo)) return res.status(400).json({ error: 'Tipo deve ser Ajudante ou Motorista.' });
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+    const usuarioId = req.user ? req.user.id : null;
+    db.run(
+        `INSERT INTO candidatos_teste (nome, tipo, foto_base64, criado_por_id, criado_por_nome) VALUES (?, ?, ?, ?, ?)`,
+        [nome.trim(), tipo, foto_base64 || null, usuarioId, usuarioNome],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            const newId = this.lastID;
+            _registrarHistorico(newId, `Candidato criado por ${usuarioNome}`, usuarioId, usuarioNome);
+            res.json({ ok: true, id: newId });
+        }
+    );
+});
+
+// PUT /api/candidatos-teste/:id — editar dados básicos (nome, tipo, foto)
+app.put('/api/candidatos-teste/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { nome, tipo, foto_base64 } = req.body;
+    db.run(
+        `UPDATE candidatos_teste SET nome = COALESCE(?, nome), tipo = COALESCE(?, tipo),
+         foto_base64 = COALESCE(?, foto_base64), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [nome || null, tipo || null, foto_base64 !== undefined ? (foto_base64 || null) : undefined, id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// PUT /api/candidatos-teste/:id/status — mover de coluna com validações
+app.put('/api/candidatos-teste/:id/status', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { status, data_teste } = req.body;
+    const COLUNAS_VALIDAS = ['Entrevistas', 'Aguardando Data', 'Teste 1º Dia', 'Teste 2º Dia', 'Teste Extra', 'Teste Finalizado', 'Aprovado', 'Reprovado'];
+    if (!COLUNAS_VALIDAS.includes(status)) return res.status(400).json({ error: 'Status inválido.' });
+
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+    const usuarioId = req.user ? req.user.id : null;
+
+    db.get('SELECT * FROM candidatos_teste WHERE id = ?', [id], (err, cand) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!cand) return res.status(404).json({ error: 'Candidato não encontrado' });
+
+        // Validação: Aguardando Data exige data_teste
+        if (status === 'Aguardando Data' && !data_teste) {
+            return res.status(400).json({ error: 'É obrigatório informar a data do teste ao mover para "Aguardando Data".' });
+        }
+
+        // Validação: colunas de teste exigem foto e documento
+        const EXIGE_DOC = ['Teste 1º Dia', 'Teste 2º Dia', 'Teste Extra'];
+        if (EXIGE_DOC.includes(status)) {
+            if (!cand.foto_base64) {
+                const docTipo = cand.tipo === 'Motorista' ? 'CNH' : 'RG';
+                return res.status(400).json({
+                    error: `Não é possível iniciar o teste. O candidato precisa possuir foto e ${docTipo} anexados.`
+                });
+            }
+            if (!cand.doc_url) {
+                const docTipo = cand.tipo === 'Motorista' ? 'CNH' : 'RG';
+                return res.status(400).json({
+                    error: `Não é possível iniciar o teste. O candidato precisa possuir foto e ${docTipo} anexados.`
+                });
+            }
+            if (!data_teste) {
+                return res.status(400).json({ error: 'É obrigatório informar a data do teste.' });
+            }
+        }
+
+        // Monta campos de data por etapa
+        let campoData = {};
+        if (status === 'Aguardando Data' && data_teste) campoData.data_teste = data_teste;
+        if (status === 'Teste 1º Dia' && data_teste) campoData.data_teste_1 = data_teste;
+        if (status === 'Teste 2º Dia' && data_teste) campoData.data_teste_2 = data_teste;
+        if (status === 'Teste Extra' && data_teste) campoData.data_teste_extra = data_teste;
+
+        const setCampos = Object.keys(campoData).map(k => `${k} = ?`).join(', ');
+        const valoresCampos = Object.values(campoData);
+
+        const sqlUpdate = setCampos
+            ? `UPDATE candidatos_teste SET status = ?, ${setCampos}, data_teste = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+            : `UPDATE candidatos_teste SET status = ?, data_teste = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+
+        const paramsUpdate = setCampos
+            ? [status, ...valoresCampos, data_teste || cand.data_teste, id]
+            : [status, data_teste || cand.data_teste, id];
+
+        db.run(sqlUpdate, paramsUpdate, function(errUp) {
+            if (errUp) return res.status(500).json({ error: errUp.message });
+
+            // Histórico de movimentação
+            const textoHist = `${usuarioNome} movimentou de "${cand.status}" para "${status}"${data_teste ? ` (data: ${data_teste})` : ''}`;
+            _registrarHistorico(id, textoHist, usuarioId, usuarioNome);
+
+            // Notificações para colunas relevantes
+            const NOTIF_COLUNAS = ['Aguardando Data', 'Teste 1º Dia', 'Teste 2º Dia', 'Teste Extra'];
+            if (NOTIF_COLUNAS.includes(status)) {
+                const msgs = {
+                    'Aguardando Data': `Novo candidato aguardando data de teste: ${cand.nome}`,
+                    'Teste 1º Dia': `Novo candidato no Teste 1º Dia: ${cand.nome}`,
+                    'Teste 2º Dia': `Novo candidato no Teste 2º Dia: ${cand.nome}`,
+                    'Teste Extra': `Novo candidato no Teste Extra: ${cand.nome}`,
+                };
+                _notificarTestesCandidatos(msgs[status], { candidato_id: id, status });
+            }
+
+            res.json({ ok: true });
+        });
+    });
+});
+
+// POST /api/candidatos-teste/:id/documento — upload PDF para R2
+app.post('/api/candidatos-teste/:id/documento', authenticateToken, uploadMemoriaDoc.single('file'), async (req, res) => {
+    const { id } = req.params;
+    const { doc_tipo } = req.body; // 'CNH' ou 'RG'
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Apenas PDF é aceito.' });
+
+    try {
+        const ext = 'pdf';
+        const safe = (s) => (s || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const r2Key = `CandidatosTeste/${safe(id)}_${doc_tipo || 'DOC'}_${Date.now()}.${ext}`;
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+
+        db.run(
+            `UPDATE candidatos_teste SET doc_url = ?, doc_r2_key = ?, doc_filename = ?, doc_tipo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [publicUrl, r2Key, req.file.originalname, doc_tipo || null, id],
+            function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+                const usuarioId = req.user ? req.user.id : null;
+                _registrarHistorico(id, `Documento ${doc_tipo || ''} anexado por ${usuarioNome}`, usuarioId, usuarioNome);
+                res.json({ ok: true, doc_url: publicUrl });
+            }
+        );
+    } catch (e) {
+        console.error('[CANDIDATOS TESTE] Erro upload R2:', e.message);
+        res.status(500).json({ error: 'Erro ao enviar documento para o armazenamento.' });
+    }
+});
+
+// POST /api/candidatos-teste/:id/comentario — adicionar comentário + notificar
+app.post('/api/candidatos-teste/:id/comentario', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { texto } = req.body;
+    if (!texto || !texto.trim()) return res.status(400).json({ error: 'Comentário não pode ser vazio.' });
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+    const usuarioId = req.user ? req.user.id : null;
+
+    db.get('SELECT nome FROM candidatos_teste WHERE id = ?', [id], (err, cand) => {
+        if (err || !cand) return res.status(404).json({ error: 'Candidato não encontrado.' });
+
+        db.run(
+            `INSERT INTO candidatos_teste_comentarios (candidato_id, tipo, texto, usuario_id, usuario_nome) VALUES (?, 'comentario', ?, ?, ?)`,
+            [id, texto.trim(), usuarioId, usuarioNome],
+            function(errIns) {
+                if (errIns) return res.status(500).json({ error: errIns.message });
+                const newId = this.lastID;
+                _notificarTestesCandidatos(
+                    `Novo comentário no teste de ${cand.nome} — por ${usuarioNome}`,
+                    { candidato_id: id, comentario_id: newId }
+                );
+                res.json({ ok: true, id: newId });
+            }
+        );
+    });
+});
+
+// DELETE /api/candidatos-teste/:id — excluir candidato
+app.delete('/api/candidatos-teste/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    db.get('SELECT doc_r2_key FROM candidatos_teste WHERE id = ?', [id], async (err, cand) => {
+        if (err) return res.status(500).json({ error: err.message });
+        // Tenta remover do R2 se existir
+        if (cand && cand.doc_r2_key && r2 && typeof r2.deleteFromR2 === 'function') {
+            try { await r2.deleteFromR2(cand.doc_r2_key); } catch(e) { /* ignora erro R2 */ }
+        }
+        db.run('DELETE FROM candidatos_teste WHERE id = ?', [id], function(errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+            res.json({ ok: true });
+        });
+    });
+});
+
+// GET /api/candidatos-teste/rota/:data — candidatos elegíveis para a data
+app.get('/api/candidatos-teste/rota/:data', authenticateToken, (req, res) => {
+    const { data } = req.params; // formato YYYY-MM-DD
+    db.all(`
+        SELECT ct.*, ctr.motorista_nome as rota_motorista, ctr.placa as rota_placa, ctr.veiculo_texto as rota_veiculo
+        FROM candidatos_teste ct
+        LEFT JOIN candidatos_teste_rota ctr ON ct.id = ctr.candidato_id AND ctr.data_rota = ?
+        WHERE ct.status IN ('Teste 1º Dia', 'Teste 2º Dia', 'Teste Extra')
+        AND (
+            (ct.tipo = 'Ajudante' AND ct.status IN ('Teste 2º Dia', 'Teste Extra')
+             AND (ct.data_teste_2 = ? OR ct.data_teste_extra = ?))
+            OR
+            (ct.tipo = 'Motorista'
+             AND (ct.data_teste_1 = ? OR ct.data_teste_2 = ? OR ct.data_teste_extra = ?))
+        )
+    `, [data, data, data, data, data, data], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// POST /api/candidatos-teste/:id/atribuir-rota — atribuir candidato a motorista/veículo
+app.post('/api/candidatos-teste/:id/atribuir-rota', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { motorista_nome, ajudante_nome, placa, veiculo_texto, data_rota } = req.body;
+    if (!data_rota) return res.status(400).json({ error: 'data_rota é obrigatória.' });
+
+    // Validar tipo de veículo pelo texto do SimpliRoute
+    if (!_veiculoPermiteCandidato(veiculo_texto)) {
+        return res.status(400).json({
+            error: 'Este motorista não pode receber um candidato para teste porque o veículo associado é do tipo Utilitário. O teste deve ser realizado em Caminhão ou Caminhonete.'
+        });
+    }
+
+    // Verificar duplicidade: candidato já atribuído a outra rota nesta data
+    db.get('SELECT id FROM candidatos_teste_rota WHERE candidato_id = ? AND data_rota = ?', [id, data_rota], (err, existente) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (existente) return res.status(409).json({ error: 'Este candidato já está atribuído a uma rota nesta data.' });
+
+        const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+        const usuarioId = req.user ? req.user.id : null;
+
+        db.get('SELECT nome, status FROM candidatos_teste WHERE id = ?', [id], (err2, cand) => {
+            if (err2 || !cand) return res.status(404).json({ error: 'Candidato não encontrado.' });
+
+            db.run(
+                `INSERT OR REPLACE INTO candidatos_teste_rota (candidato_id, data_rota, motorista_nome, ajudante_nome, placa, veiculo_texto, etapa_teste, atribuido_por_id, atribuido_por_nome)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id, data_rota, motorista_nome || null, ajudante_nome || null, placa || null, veiculo_texto || null, cand.status, usuarioId, usuarioNome],
+                function(errIns) {
+                    if (errIns) return res.status(500).json({ error: errIns.message });
+                    _registrarHistorico(id, `Atribuído à rota de ${data_rota} (motorista: ${motorista_nome || '—'}, veículo: ${placa || '—'}) por ${usuarioNome}`, usuarioId, usuarioNome);
+                    res.json({ ok: true });
+                }
+            );
+        });
+    });
+});
+
+// DELETE /api/candidatos-teste/:id/atribuir-rota — remover atribuição de rota
+app.delete('/api/candidatos-teste/:id/atribuir-rota', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const usuarioNome = req.user ? (req.user.nome || req.user.username || '') : '';
+    const usuarioId = req.user ? req.user.id : null;
+    db.run('DELETE FROM candidatos_teste_rota WHERE candidato_id = ?', [id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        _registrarHistorico(id, `Atribuição de rota removida por ${usuarioNome}`, usuarioId, usuarioNome);
+        res.json({ ok: true });
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── TESTES DE CANDIDATOS ─────────────────────────────────────────────────────
+try {
+    const multerMemoryCandidatos = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+    require('./routes_candidatos_teste')(app, db, authenticateToken, r2, multerMemoryCandidatos);
+} catch (eCand) {
+    console.error('[Candidatos] Falha ao registrar rotas:', eCand.message);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+
 app.listen(PORT, () => {
+
 
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log('Versão do Servidor: V31_OS_LOGISTICA_MODULE');

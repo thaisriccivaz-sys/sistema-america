@@ -1,0 +1,403 @@
+﻿// ═══════════════════════════════════════════════════════════════════════════════
+// TESTES DE CANDIDATOS — Kanban RH
+// ═══════════════════════════════════════════════════════════════════════════════
+
+(function() {
+    "use strict";
+
+    const COLUNAS = [
+        { id: "Entrevistas",       cor: "#6366f1", icone: "ph-users" },
+        { id: "Aguardando Data",   cor: "#f59e0b", icone: "ph-calendar-blank" },
+        { id: "Teste 1\u00ba Dia", cor: "#3b82f6", icone: "ph-number-one" },
+        { id: "Teste 2\u00ba Dia", cor: "#8b5cf6", icone: "ph-number-two" },
+        { id: "Teste Extra",       cor: "#ec4899", icone: "ph-plus-circle" },
+        { id: "Teste Finalizado",  cor: "#14b8a6", icone: "ph-flag-checkered" },
+        { id: "Aprovado",          cor: "#10b981", icone: "ph-check-circle" },
+        { id: "Reprovado",         cor: "#ef4444", icone: "ph-x-circle" },
+    ];
+
+    let _candidatos = [];
+    let _dragId = null;
+    let _dragStatus = null;
+
+    const API = (path) => (window.API_URL || "") + path;
+    const token = () => localStorage.getItem("erp_token") || "";
+    const authH = () => ({ "Authorization": "Bearer " + token(), "Content-Type": "application/json" });
+
+    function fmtBR(s) {
+        if (!s) return "—";
+        const d = new Date(s + (s.includes("T") ? "" : "T12:00:00-03:00"));
+        return d.toLocaleDateString("pt-BR");
+    }
+
+    function fmtDTBR(s) {
+        if (!s) return "—";
+        return new Date(s).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    window.initTestesCandidatos = async function() {
+        const c = document.getElementById("view-testes-candidatos");
+        if (!c) return;
+        document.removeEventListener("paste", _onPasteGlobal);
+        document.addEventListener("paste", _onPasteGlobal);
+        await _load();
+        _render();
+    };
+
+    async function _load() {
+        try {
+            const r = await fetch(API("/api/candidatos-teste"), { headers: { Authorization: "Bearer " + token() } });
+            _candidatos = r.ok ? await r.json() : [];
+        } catch(e) { _candidatos = []; }
+    }
+
+    function _render() {
+        const el = document.getElementById("view-testes-candidatos");
+        if (!el) return;
+        el.innerHTML = `
+        <div style="padding:16px 20px 0;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                <h2 style="margin:0;font-size:1.3rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-clipboard-text" style="color:#7c3aed;font-size:1.5rem;"></i> Testes de Candidatos
+                </h2>
+                <span style="background:#f3f4f6;border-radius:99px;padding:2px 12px;font-size:0.8rem;color:#64748b;">${_candidatos.length} candidato(s)</span>
+                <button onclick="window._tcNovo()" style="margin-left:auto;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-plus"></i> Novo Candidato</button>
+                <button onclick="window.initTestesCandidatos()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;cursor:pointer;color:#64748b;"><i class="ph ph-arrows-clockwise"></i></button>
+            </div>
+        </div>
+        <div style="display:flex;gap:14px;overflow-x:auto;padding:0 20px 24px;min-height:calc(100vh - 180px);align-items:flex-start;">
+            ${COLUNAS.map(col => _renderCol(col)).join("")}
+        </div>`;
+    }
+
+    function _renderCol(col) {
+        const cards = _candidatos.filter(c => c.status === col.id);
+        return `<div style="flex-shrink:0;width:230px;background:#f8fafc;border-radius:12px;border:2px solid ${col.cor}22;display:flex;flex-direction:column;"
+             ondragover="event.preventDefault()" ondrop="window._tcDrop(event,'${col.id}')">
+            <div style="padding:10px 12px;background:${col.cor}11;border-radius:10px 10px 0 0;border-bottom:2px solid ${col.cor}33;display:flex;align-items:center;gap:6px;">
+                <i class="ph ${col.icone}" style="color:${col.cor};font-size:1rem;"></i>
+                <span style="font-size:0.8rem;font-weight:700;color:${col.cor};">${col.id}</span>
+                <span style="margin-left:auto;background:${col.cor};color:#fff;border-radius:99px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;">${cards.length}</span>
+            </div>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:8px;min-height:60px;flex:1;">
+                ${cards.map(c => _renderCard(c)).join("")}
+            </div>
+        </div>`;
+    }
+
+    function _renderCard(c) {
+        const ct = c.tipo === "Motorista" ? "#2563eb" : "#d97706";
+        const fotoEl = c.foto_base64
+            ? `<img src="${c.foto_base64}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid ${ct};flex-shrink:0;">`
+            : `<div style="width:38px;height:38px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:${ct};flex-shrink:0;">${(c.nome||"?")[0].toUpperCase()}</div>`;
+        return `<div draggable="true" ondragstart="window._tcDragStart(event,${c.id},'${c.status}')" onclick="window._tcDetalhes(${c.id})"
+             style="background:#fff;border-radius:8px;padding:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:grab;border:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                ${fotoEl}
+                <div style="min-width:0;flex:1;">
+                    <div style="font-size:0.8rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.nome}</div>
+                    <span style="font-size:0.68rem;font-weight:700;color:${ct};background:${ct}18;border-radius:99px;padding:1px 6px;">${c.tipo === "Motorista" ? "🚛 Motorista" : "🔧 Ajudante"}</span>
+                </div>
+            </div>
+            ${c.data_teste ? `<div style="font-size:0.7rem;color:#64748b;"><i class="ph ph-calendar"></i> ${fmtBR(c.data_teste)}</div>` : ""}
+            <div style="display:flex;gap:4px;margin-top:4px;">
+                <span style="font-size:0.68rem;color:${c.doc_url?"#10b981":"#ef4444"};background:${c.doc_url?"#f0fdf4":"#fef2f2"};border-radius:4px;padding:1px 5px;"><i class="ph ph-file-pdf"></i></span>
+                ${(c.total_comentarios>0)?`<span style="font-size:0.68rem;color:#6366f1;background:#eef2ff;border-radius:4px;padding:1px 5px;"><i class="ph ph-chat-circle"></i> ${c.total_comentarios}</span>`:""}
+                ${c.rota_motorista?`<span style="font-size:0.68rem;color:#f59e0b;background:#fffbeb;border-radius:4px;padding:1px 5px;"><i class="ph ph-truck"></i></span>`:""}
+            </div>
+        </div>`;
+    }
+
+    window._tcDragStart = function(e, id, status) { _dragId=id; _dragStatus=status; e.dataTransfer.effectAllowed="move"; };
+
+    window._tcDrop = async function(e, novoStatus) {
+        e.preventDefault();
+        if (!_dragId || novoStatus === _dragStatus) return;
+        const cand = _candidatos.find(c => c.id === _dragId);
+        if (!cand) return;
+        const EXIGE_DATA = ["Aguardando Data","Teste 1\u00ba Dia","Teste 2\u00ba Dia","Teste Extra"];
+        let data_teste = cand.data_teste || null;
+        if (EXIGE_DATA.includes(novoStatus)) {
+            const { value: dt } = await Swal.fire({
+                title: "Data do teste", html: `<input type="date" id="swal-dt" class="swal2-input" value="${cand.data_teste||""}">`,
+                confirmButtonText: "Confirmar", cancelButtonText: "Cancelar", showCancelButton: true, confirmButtonColor: "#7c3aed",
+                preConfirm: () => { const v=document.getElementById("swal-dt").value; if(!v){Swal.showValidationMessage("Informe a data.");return false;} return v; }
+            });
+            if (!dt) return;
+            data_teste = dt;
+        }
+        try {
+            const r = await fetch(API(`/api/candidatos-teste/${_dragId}/status`), { method:"PUT", headers:authH(), body:JSON.stringify({status:novoStatus,data_teste}) });
+            const data = await r.json();
+            if (!r.ok) { Swal.fire({icon:"error",title:"Não permitido",text:data.error||"Erro ao mover.",confirmButtonColor:"#7c3aed"}); return; }
+            await _load(); _render();
+        } catch(err) { Swal.fire({icon:"error",title:"Erro",text:err.message}); }
+    };
+    window._tcNovo = function() {
+        window._tcModalFoto = null;
+        _modal(`<div style="max-width:460px;width:100%;background:#fff;border-radius:16px;padding:28px;position:relative;">
+            <button onclick="window._tcFecharModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+            <h3 style="margin:0 0 20px;color:#1e293b;font-size:1.1rem;display:flex;align-items:center;gap:8px;"><i class="ph ph-user-plus" style="color:#7c3aed;"></i> Novo Candidato</h3>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nome completo *</label>
+                <input id="tc-n-nome" type="text" placeholder="Nome do candidato" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo *</label>
+                <div style="display:flex;gap:10px;">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Ajudante" checked> Ajudante</label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-n-tipo" value="Motorista"> Motorista</label>
+                </div>
+            </div>
+            <div style="margin-bottom:18px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Foto <span style="font-weight:400;color:#94a3b8;">(arquivo ou Ctrl+V)</span></label>
+                <div id="tc-n-fprev" style="width:80px;height:80px;border-radius:50%;background:#f1f5f9;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:2rem;cursor:pointer;overflow:hidden;margin-bottom:8px;" onclick="document.getElementById('tc-n-finput').click()"><i class="ph ph-camera"></i></div>
+                <input id="tc-n-finput" type="file" accept="image/*" style="display:none;" onchange="window._tcFoto(this,'tc-n-fprev')">
+                <button onclick="document.getElementById('tc-n-finput').click()" style="font-size:0.78rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;color:#64748b;">Escolher arquivo</button>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="window._tcFecharModal()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:0.85rem;color:#64748b;">Cancelar</button>
+                <button onclick="window._tcSalvNovo()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;font-weight:600;cursor:pointer;">Salvar</button>
+            </div>
+        </div>`);
+    };
+
+    window._tcFoto = function(input, prevId) {
+        if (!input.files || !input.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            window._tcModalFoto = e.target.result;
+            const p = document.getElementById(prevId);
+            if (p) p.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    };
+
+    function _onPasteGlobal(e) {
+        const ov = document.getElementById("tc-modal-overlay");
+        if (!ov || ov.style.display==="none") return;
+        const items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (let i=0; i<items.length; i++) {
+            if (items[i].type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    window._tcModalFoto = ev.target.result;
+                    const p = document.getElementById("tc-n-fprev") || document.getElementById("tc-e-fprev");
+                    if (p) p.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+                };
+                reader.readAsDataURL(items[i].getAsFile());
+                break;
+            }
+        }
+    }
+
+    window._tcSalvNovo = async function() {
+        const nome = (document.getElementById("tc-n-nome")||{}).value||"";
+        const tipo = document.querySelector("input[name=\"tc-n-tipo\"]:checked");
+        if (!nome.trim()) { Swal.fire({icon:"warning",title:"Atenção",text:"Informe o nome."}); return; }
+        try {
+            const r = await fetch(API("/api/candidatos-teste"), { method:"POST", headers:authH(), body:JSON.stringify({nome:nome.trim(),tipo:tipo?tipo.value:"Ajudante",foto_base64:window._tcModalFoto||null}) });
+            const d = await r.json();
+            if (!r.ok) { Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
+            window._tcFecharModal(); await _load(); _render();
+            Swal.fire({icon:"success",title:"Candidato criado!",showConfirmButton:false,timer:1500});
+        } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
+    };
+
+    window._tcDetalhes = async function(id) {
+        try {
+            const r = await fetch(API(`/api/candidatos-teste/${id}`), { headers:{Authorization:"Bearer "+token()} });
+            _renderDet(await r.json());
+        } catch(e) { Swal.fire({icon:"error",title:"Erro",text:e.message}); }
+    };
+
+    function _renderDet(c) {
+        const ct = c.tipo==="Motorista"?"#2563eb":"#d97706";
+        const foto = c.foto_base64
+            ? `<img src="${c.foto_base64}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${ct};">`
+            : `<div style="width:80px;height:80px;border-radius:50%;background:${ct}22;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:${ct};">${(c.nome||"?")[0].toUpperCase()}</div>`;
+
+        const comHtml = (c.comentarios||[]).filter(x=>x.tipo==="comentario").reverse()
+            .map(x=>`<div style="background:#f8fafc;border-radius:8px;padding:10px;margin-bottom:8px;border-left:3px solid #7c3aed;">
+                <div style="font-size:0.75rem;font-weight:700;color:#334155;">${x.usuario_nome||"Usuário"}</div>
+                <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:4px;">${fmtDTBR(x.created_at)}</div>
+                <div style="font-size:0.82rem;">${x.texto}</div>
+            </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem comentários.</p>";
+
+        const histHtml = (c.comentarios||[]).filter(x=>x.tipo==="movimentacao").reverse()
+            .map(x=>`<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.78rem;color:#475569;display:flex;gap:6px;">
+                <i class="ph ph-arrow-right" style="color:#7c3aed;flex-shrink:0;"></i><span>${x.texto} <span style="color:#94a3b8;">— ${fmtDTBR(x.created_at)}</span></span>
+            </div>`).join("") || "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Sem histórico.</p>";
+
+        const rotaHtml = c.rota
+            ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;">
+                <p style="margin:0 0 6px;"><b>Data:</b> ${fmtBR(c.rota.data_rota)}</p>
+                <p style="margin:0 0 6px;"><b>Motorista:</b> ${c.rota.motorista_nome||"—"}</p>
+                <p style="margin:0 0 6px;"><b>Veículo:</b> ${c.rota.veiculo_texto||c.rota.placa||"—"}</p>
+                <p style="margin:0;"><b>Etapa:</b> ${c.rota.etapa_teste||"—"}</p>
+                <button onclick="window._tcRemRota(${c.id})" style="margin-top:10px;background:#fee2e2;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:5px 12px;font-size:0.78rem;cursor:pointer;font-weight:600;"><i class="ph ph-trash"></i> Remover</button>
+            </div>`
+            : "<p style=\"text-align:center;color:#94a3b8;font-size:0.82rem;\">Não atribuído a nenhuma rota.</p>";
+
+        _modal(`<div style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+            <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:20px 24px;display:flex;align-items:center;gap:14px;">
+                ${foto}
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:1.1rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.nome}</div>
+                    <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+                        <span style="background:#fff3;color:#fff;border-radius:99px;padding:2px 10px;font-size:0.72rem;font-weight:700;">${c.tipo==="Motorista"?"🚛 Motorista":"🔧 Ajudante"}</span>
+                        <span style="background:#fff3;color:#fff;border-radius:99px;padding:2px 10px;font-size:0.72rem;font-weight:700;">${c.status}</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;"><i class="ph ph-pencil"></i></button>
+                    <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\'")}')" style="background:#fff3;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;"><i class="ph ph-trash"></i></button>
+                    <button onclick="window._tcFecharModal()" style="background:#fff3;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:1rem;"><i class="ph ph-x"></i></button>
+                </div>
+            </div>
+            <div style="display:flex;border-bottom:1px solid #e5e7eb;overflow-x:auto;">
+                <button onclick="window._tcAba('dados')" id="tc-aba-dados" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid #7c3aed;background:none;cursor:pointer;color:#7c3aed;white-space:nowrap;"><i class="ph ph-user"></i> Dados</button>
+                <button onclick="window._tcAba('docs')" id="tc-aba-docs" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#94a3b8;white-space:nowrap;"><i class="ph ph-file-pdf"></i> Docs</button>
+                <button onclick="window._tcAba('testes')" id="tc-aba-testes" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#94a3b8;white-space:nowrap;"><i class="ph ph-calendar"></i> Testes</button>
+                <button onclick="window._tcAba('coments')" id="tc-aba-coments" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#94a3b8;white-space:nowrap;"><i class="ph ph-chat-circle"></i> Comentários</button>
+                <button onclick="window._tcAba('hist')" id="tc-aba-hist" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#94a3b8;white-space:nowrap;"><i class="ph ph-clock"></i> Histórico</button>
+                ${c.rota?`<button onclick="window._tcAba('rota')" id="tc-aba-rota" style="padding:10px 14px;font-size:0.78rem;font-weight:600;border:none;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#94a3b8;white-space:nowrap;"><i class="ph ph-truck"></i> Rota</button>`:""}
+            </div>
+            <div style="overflow-y:auto;flex:1;padding:18px 20px;">
+                <div id="tc-t-dados">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">
+                        <div><b>Tipo:</b> ${c.tipo}</div><div><b>Status:</b> ${c.status}</div>
+                        <div><b>Data teste:</b> ${fmtBR(c.data_teste)}</div><div><b>Criado por:</b> ${c.criado_por_nome||"—"}</div>
+                    </div>
+                </div>
+                <div id="tc-t-docs" style="display:none;">
+                    <p style="font-size:0.85rem;color:#475569;margin-bottom:10px;">Documento: <b>${c.tipo==="Motorista"?"CNH (PDF)":"RG (PDF)"}</b></p>
+                    ${c.doc_url?`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+                        <i class="ph ph-file-pdf" style="color:#10b981;font-size:1.4rem;"></i>
+                        <div style="flex:1;min-width:0;overflow:hidden;"><div style="font-size:0.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.doc_filename||"Documento"}</div>
+                        <div style="font-size:0.72rem;color:#10b981;">${c.doc_tipo||""} anexado</div></div>
+                        <a href="${c.doc_url}" target="_blank" style="background:#10b981;color:#fff;border-radius:6px;padding:5px 10px;text-decoration:none;font-size:0.75rem;font-weight:600;">Ver</a>
+                    </div>`:`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:12px;color:#ef4444;font-size:0.82rem;"><i class="ph ph-warning"></i> Nenhum documento anexado.</div>`}
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Anexar ${c.tipo==="Motorista"?"CNH":"RG"} (PDF):</label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="file" id="tc-doc-${c.id}" accept=".pdf" style="font-size:0.8rem;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;flex:1;">
+                        <button onclick="window._tcUpDoc(${c.id},'${c.tipo==="Motorista"?"CNH":"RG"}')" style="background:#6366f1;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;"><i class="ph ph-upload"></i> Enviar</button>
+                    </div>
+                </div>
+                <div id="tc-t-testes" style="display:none;">
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        ${[["1\u00ba Dia",c.data_teste_1,"Teste 1\u00ba Dia","#3b82f6"],["2\u00ba Dia",c.data_teste_2,"Teste 2\u00ba Dia","#8b5cf6"],["Extra",c.data_teste_extra,"Teste Extra","#ec4899"]].map(([label,data,status,cor])=>`
+                        <div style="background:${data?cor+"11":"#f8fafc"};border:1.5px solid ${data?cor+"44":"#e2e8f0"};border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;">
+                            <i class="ph ph-calendar-check" style="color:${data?cor:"#94a3b8"};font-size:1.2rem;"></i>
+                            <div><div style="font-size:0.82rem;font-weight:700;color:${data?cor:"#94a3b8"};">Teste ${label}</div>
+                            <div style="font-size:0.78rem;color:#64748b;">${data?fmtBR(data):"Não realizado"}</div></div>
+                            ${c.status===status?"<span style=\"margin-left:auto;background:#fef9c3;color:#ca8a04;border-radius:99px;padding:2px 8px;font-size:0.7rem;font-weight:700;\">Atual</span>":""}
+                        </div>`).join("")}
+                    </div>
+                </div>
+                <div id="tc-t-coments" style="display:none;">
+                    <textarea id="tc-com-${c.id}" placeholder="Escreva um comentário..." style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;resize:vertical;min-height:70px;box-sizing:border-box;font-family:inherit;"></textarea>
+                    <div style="text-align:right;margin:6px 0 12px;">
+                        <button onclick="window._tcEnvCom(${c.id})" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:0.82rem;font-weight:600;"><i class="ph ph-paper-plane-tilt"></i> Enviar</button>
+                    </div>
+                    ${comHtml}
+                </div>
+                <div id="tc-t-hist" style="display:none;">${histHtml}</div>
+                <div id="tc-t-rota" style="display:none;">${rotaHtml}</div>
+            </div>
+        </div>`);
+    }
+
+    window._tcAba = function(id) {
+        ["dados","docs","testes","coments","hist","rota"].forEach(a => {
+            const t=document.getElementById(`tc-t-${a}`); const b=document.getElementById(`tc-aba-${a}`);
+            if(t) t.style.display=a===id?"":"none";
+            if(b){ b.style.borderBottomColor=a===id?"#7c3aed":"transparent"; b.style.color=a===id?"#7c3aed":"#94a3b8"; }
+        });
+    };
+
+    window._tcUpDoc = async function(id, tipo) {
+        const inp=document.getElementById(`tc-doc-${id}`);
+        if(!inp||!inp.files||!inp.files[0]){ Swal.fire({icon:"warning",title:"Atenção",text:"Selecione um PDF."}); return; }
+        const fd=new FormData(); fd.append("file",inp.files[0]); fd.append("doc_tipo",tipo);
+        const r=await fetch(API(`/api/candidatos-teste/${id}/documento`),{method:"POST",headers:{Authorization:"Bearer "+token()},body:fd});
+        const d=await r.json();
+        if(!r.ok){ Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
+        window._tcFecharModal(); await _load(); _render();
+        Swal.fire({icon:"success",title:"Documento enviado!",showConfirmButton:false,timer:1500});
+    };
+
+    window._tcEnvCom = async function(id) {
+        const ta=document.getElementById(`tc-com-${id}`);
+        if(!ta||!ta.value.trim()){ Swal.fire({icon:"warning",title:"Atenção",text:"Comentário vazio."}); return; }
+        const r=await fetch(API(`/api/candidatos-teste/${id}/comentario`),{method:"POST",headers:authH(),body:JSON.stringify({texto:ta.value.trim()})});
+        const d=await r.json();
+        if(!r.ok){ Swal.fire({icon:"error",title:"Erro",text:d.error}); return; }
+        window._tcFecharModal(); await _load(); _render(); window._tcDetalhes(id);
+    };
+
+    window._tcRemRota = async function(id) {
+        const c=await Swal.fire({title:"Remover atribuição?",text:"O candidato será desvinculado da rota.",icon:"warning",showCancelButton:true,confirmButtonColor:"#ef4444",confirmButtonText:"Sim",cancelButtonText:"Cancelar"});
+        if(!c.isConfirmed) return;
+        const r=await fetch(API(`/api/candidatos-teste/${id}/atribuir-rota`),{method:"DELETE",headers:authH()});
+        if(r.ok){ window._tcFecharModal(); await _load(); _render(); Swal.fire({icon:"success",title:"Removido!",showConfirmButton:false,timer:1200}); }
+    };
+
+    window._tcExcluir = async function(id, nome) {
+        const c=await Swal.fire({title:`Excluir ${nome}?`,text:"Esta ação não pode ser desfeita.",icon:"warning",showCancelButton:true,confirmButtonColor:"#ef4444",confirmButtonText:"Sim",cancelButtonText:"Cancelar"});
+        if(!c.isConfirmed) return;
+        const r=await fetch(API(`/api/candidatos-teste/${id}`),{method:"DELETE",headers:authH()});
+        if(r.ok){ window._tcFecharModal(); await _load(); _render(); Swal.fire({icon:"success",title:"Excluído!",showConfirmButton:false,timer:1200}); }
+    };
+
+    window._tcEditar = async function(id) {
+        const cand=_candidatos.find(c=>c.id===id); if(!cand) return;
+        window._tcModalFoto=null;
+        _modal(`<div style="max-width:420px;width:100%;background:#fff;border-radius:16px;padding:24px;position:relative;">
+            <button onclick="window._tcFecharModal()" style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;"><i class="ph ph-x"></i></button>
+            <h3 style="margin:0 0 18px;color:#1e293b;font-size:1rem;">Editar Candidato</h3>
+            <div style="margin-bottom:12px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Nome</label>
+            <input id="tc-e-nome" type="text" value="${cand.nome.replace(/"/g,"&quot;")}" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;"></div>
+            <div style="margin-bottom:12px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Tipo</label>
+            <div style="display:flex;gap:10px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Ajudante" ${cand.tipo==="Ajudante"?"checked":""}> Ajudante</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="tc-e-tipo" value="Motorista" ${cand.tipo==="Motorista"?"checked":""}> Motorista</label>
+            </div></div>
+            <div style="margin-bottom:16px;"><label style="font-size:0.82rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Foto <span style="font-weight:400;color:#94a3b8;">(ou Ctrl+V)</span></label>
+            <div id="tc-e-fprev" style="width:70px;height:70px;border-radius:50%;background:#f1f5f9;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:1.8rem;cursor:pointer;overflow:hidden;margin-bottom:6px;" onclick="document.getElementById('tc-e-finput').click()">
+                ${cand.foto_base64?`<img src="${cand.foto_base64}" style="width:100%;height:100%;object-fit:cover;">`:"<i class=\"ph ph-camera\"></i>"}
+            </div>
+            <input id="tc-e-finput" type="file" accept="image/*" style="display:none;" onchange="window._tcFoto(this,'tc-e-fprev')">
+            <button onclick="document.getElementById('tc-e-finput').click()" style="font-size:0.78rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;color:#64748b;">Trocar foto</button></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="window._tcFecharModal()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.83rem;color:#64748b;">Cancelar</button>
+                <button onclick="window._tcSalvEdit(${id})" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:0.83rem;font-weight:600;cursor:pointer;">Salvar</button>
+            </div>
+        </div>`);
+    };
+
+    window._tcSalvEdit = async function(id) {
+        const nome=(document.getElementById("tc-e-nome")||{}).value||"";
+        const tipo=document.querySelector("input[name=\"tc-e-tipo\"]:checked");
+        const body={nome:nome.trim(),tipo:tipo?tipo.value:undefined};
+        if(window._tcModalFoto) body.foto_base64=window._tcModalFoto;
+        const r=await fetch(API(`/api/candidatos-teste/${id}`),{method:"PUT",headers:authH(),body:JSON.stringify(body)});
+        if(r.ok){ window._tcFecharModal(); await _load(); _render(); Swal.fire({icon:"success",title:"Salvo!",showConfirmButton:false,timer:1200}); }
+    };
+
+    function _modal(html) {
+        let ov=document.getElementById("tc-modal-overlay");
+        if(!ov){ ov=document.createElement("div"); ov.id="tc-modal-overlay"; document.body.appendChild(ov); }
+        ov.style.cssText="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;";
+        ov.innerHTML=html;
+        ov.addEventListener("click",e=>{ if(e.target===ov) window._tcFecharModal(); },{once:true});
+    }
+
+    window._tcFecharModal = function() {
+        const ov=document.getElementById("tc-modal-overlay");
+        if(ov) ov.style.display="none";
+        window._tcModalFoto=null;
+    };
+
+})();

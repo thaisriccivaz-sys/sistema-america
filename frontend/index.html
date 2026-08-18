@@ -191,6 +191,9 @@
                             <a href="#" class="nav-item nav-item-sub" data-target="rh-logistica-multas"
                                onclick="navigateTo('rh-logistica-multas'); return false;">
                                <i class="ph ph-receipt"></i> Multas</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="testes-candidatos"
+                               onclick="navigateTo('testes-candidatos'); return false;">
+                               <i class="ph ph-clipboard-text"></i> Testes de Candidatos</a>
                         </div>
                     </div>
                 </div>
@@ -4193,6 +4196,10 @@
                     <div id="rh-multas-logistica-container"></div>
                 </section>
 
+                <!-- VIEW: TESTES DE CANDIDATOS -->
+                <section id="view-testes-candidatos" class="content-view" style="padding:0;background:#f8fafc;overflow-y:auto;">
+                </section>
+
                 <section id="view-pagamentos-massa" class="content-view" style="padding:0;background:#f8fafc;">
                     <div id="main-content" style="height:100%;display:flex;flex-direction:column;"></div>
                 </section>
@@ -6109,6 +6116,7 @@
     <script src="rota_redonda.js?v=1782835731066"></script>
     <script src="app.js?v=20260805v5"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
+    <script src="testes_candidatos.js?v=1"></script>
     <!-- Global Scroll-to-Top Button -->
     <button id="global-scroll-top" onclick="window.scrollTo({top:0, behavior:'smooth'})"
         style="position:fixed; bottom:30px; right:30px; width:45px; height:45px; border-radius:50%; background:var(--primary-color, #0f172a); color:#fff; border:none; box-shadow:0 4px 10px rgba(0,0,0,0.3); justify-content:center; align-items:center; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index:9000; display:none; opacity:0; cursor:pointer;"

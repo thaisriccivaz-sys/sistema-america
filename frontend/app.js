@@ -1478,6 +1478,8 @@ function navigateTo(target) {
         if (typeof window.whkCarregarTodos === 'function') setTimeout(() => window.whkCarregarTodos(), 80);
     } else if (target === 'sac') {
         if (typeof window.initSAC === 'function') setTimeout(() => window.initSAC(), 80);
+    } else if (target === 'testes-candidatos') {
+        if (typeof window.initTestesCandidatos === 'function') setTimeout(() => window.initTestesCandidatos(), 80);
     }
 }
 

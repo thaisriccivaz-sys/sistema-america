@@ -1551,6 +1551,63 @@ db.run("PRAGMA foreign_keys = ON;");
             db.run(`ALTER TABLE sac_tickets ADD COLUMN is_urgent INTEGER DEFAULT 0`, () => {});
             db.run(`ALTER TABLE sac_tickets ADD COLUMN comments TEXT`, () => {});
 
+            // ── Testes de Candidatos ─────────────────────────────────────────────────
+            db.run(`
+                CREATE TABLE IF NOT EXISTS candidatos_teste (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    tipo TEXT NOT NULL DEFAULT 'Ajudante',
+                    status TEXT NOT NULL DEFAULT 'Entrevistas',
+                    foto_base64 TEXT,
+                    doc_url TEXT,
+                    doc_r2_key TEXT,
+                    doc_filename TEXT,
+                    doc_tipo TEXT,
+                    data_teste TEXT,
+                    data_teste_1 TEXT,
+                    data_teste_2 TEXT,
+                    data_teste_extra TEXT,
+                    criado_por_id INTEGER REFERENCES usuarios(id),
+                    criado_por_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            `, (err) => { if (!err) console.log('[DB] Tabela candidatos_teste OK.'); });
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS candidatos_teste_comentarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    candidato_id INTEGER NOT NULL,
+                    tipo TEXT DEFAULT 'comentario',
+                    texto TEXT NOT NULL,
+                    usuario_id INTEGER,
+                    usuario_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(candidato_id) REFERENCES candidatos_teste(id) ON DELETE CASCADE,
+                    FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+                )
+            `, (err) => { if (!err) console.log('[DB] Tabela candidatos_teste_comentarios OK.'); });
+
+            db.run(`
+                CREATE TABLE IF NOT EXISTS candidatos_teste_rota (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    candidato_id INTEGER NOT NULL,
+                    data_rota TEXT NOT NULL,
+                    motorista_nome TEXT,
+                    ajudante_nome TEXT,
+                    placa TEXT,
+                    veiculo_texto TEXT,
+                    etapa_teste TEXT,
+                    atribuido_por_id INTEGER,
+                    atribuido_por_nome TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(candidato_id) REFERENCES candidatos_teste(id) ON DELETE CASCADE
+                )
+            `, (err) => { if (!err) console.log('[DB] Tabela candidatos_teste_rota OK.'); });
+            // ─────────────────────────────────────────────────────────────────────────
+
+
+
 
             // ── Auto-fix: corrigir cargos com nomes corrompidos (encoding Latin1→UTF8) ──────────────────────────────
             // Cargos criados via import com encoding errado ficam com "????" no lugar de caracteres especiais.
