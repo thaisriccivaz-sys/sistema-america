@@ -889,7 +889,22 @@ function _rrRenderCorpo() {
 
     corpo.innerHTML = dataRotaLabel + '<div id="rr-candidatos-teste-painel"></div>' + _rrVeiculos.map((v, i) => {
         const colA   = `${v.veiculo} - Saída`;
-        const colB   = v.colBEditado || _rrMontarColB(v);
+        const _colBBase = v.colBEditado || _rrMontarColB(v);
+        // Append motorista / ajudante / candidato to colB for export
+        const _colBSuffix = (function() {
+            const parts = [];
+            parts.push('Motorista: ' + (v.motorista && v.motorista.trim() ? v.motorista.trim() : '—'));
+            parts.push('Ajudante: ' + (v.ajudante && v.ajudante.trim() ? v.ajudante.trim() : '—'));
+            const cands = (window._rrCandidatosTesteData || []).filter(function(c) {
+                return c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim();
+            });
+            cands.forEach(function(c) {
+                const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+                parts.push('Candidato: ' + c.nome + ' - ' + tipo);
+            });
+            return '\n' + parts.join('\n');
+        })();
+        const colB = _colBBase + _colBSuffix;
         const total  = v.os.length;
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
@@ -919,7 +934,17 @@ function _rrRenderCorpo() {
         const fotosAju = `<div style="display:flex;align-items:center;gap:6px;" title="Ajudante">
             <span id="rr-avatar-aju-${i}">${_avatarAju(v._fotoAjudante, v.ajudante)}</span>
             ${_inp('ajudante', v.ajudante, 'Ajudante...')}</div>`;
-        const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}</div>`;
+        const _candidatosDeste = (window._rrCandidatosTesteData || []).filter(function(c) {
+            return c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim();
+        });
+        const fotosCand = _candidatosDeste.map(function(c) {
+            const tipoCand = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+            const avatarCand = c.foto_base64
+                ? '<img src="' + c.foto_base64 + '" title="' + c.nome + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed;box-shadow:0 0 0 1px #c4b5fd;">'
+                : '<div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#fff;border:3px solid #7c3aed;">' + (c.nome&&c.nome.trim() ? c.nome.trim()[0].toUpperCase() : '?') + '</div>';
+            return '<div style="display:flex;align-items:center;gap:6px;" title="Candidato em Teste">' + avatarCand + '<span style="font-size:0.78rem;font-weight:600;color:rgba(255,255,255,0.9);">' + c.nome + '<br><span style="font-size:0.68rem;color:rgba(255,255,255,0.65);">🧪 ' + tipoCand + '</span></span></div>';
+        }).join('');
+        const fotosDiv = `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">${fotosMot}${fotosAju}${fotosCand}</div>`;
 
         // Badge de capacidade
         let capacidadeBadge = '';
@@ -1014,21 +1039,6 @@ function _rrRenderCorpo() {
             ${badgeAlerta}
             ${badgeDisp}
             ${badgeAviso}
-            ${(() => {
-                // Rodapé: Motorista / Ajudante / Candidato
-                const linhas = [];
-                if (v.motorista && v.motorista.trim()) linhas.push('<span style="margin-right:18px;"><b style="color:#1d4ed8;">🚚 Motorista:</b> ' + v.motorista + '</span>');
-                else linhas.push('<span style="margin-right:18px;color:#94a3b8;"><b style="color:#1d4ed8;">🚚 Motorista:</b> <i>não atribuído</i></span>');
-                if (v.ajudante && v.ajudante.trim()) linhas.push('<span style="margin-right:18px;"><b style="color:#d97706;">🪣 Ajudante:</b> ' + v.ajudante + '</span>');
-                else linhas.push('<span style="margin-right:18px;color:#94a3b8;"><b style="color:#d97706;">🪣 Ajudante:</b> <i>não atribuído</i></span>');
-                // Candidatos atribuídos a este veículo
-                const candidatosDeste = (window._rrCandidatosTesteData || []).filter(c => c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim());
-                candidatosDeste.forEach(c => {
-                    const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
-                    linhas.push('<span style="margin-right:18px;"><b style="color:#7c3aed;">🧪 Candidato:</b> ' + c.nome + ' — <i>' + tipo + '</i></span>');
-                });
-                return linhas.length ? '<div style="background:#f1f5f9;border-top:1px solid #e2e8f0;padding:8px 18px;font-size:0.8rem;color:#374151;display:flex;flex-wrap:wrap;gap:4px 0;align-items:center;">' + linhas.join('') + '</div>' : '';
-            })()}
             <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
                 <div style="flex:1 1 40%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo da Rota</div>
