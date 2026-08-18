@@ -239,6 +239,14 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
     };
 
     function _renderDet(c) {
+    let _podeExcluir = false;
+    try {
+        const uStr = localStorage.getItem('erp_user');
+        if (uStr) {
+            const u = JSON.parse(uStr);
+            if (u.departamento === 'RH' || u.username === 'Thais.Ricci') _podeExcluir = true;
+        }
+    } catch(e) {}
     const ct = (c.tipo||"").includes("Motorista")?"#2563eb":"#d97706";
     const foto = c.foto_base64
         ? `<img src="${c.foto_base64}" onclick="Swal.fire({imageUrl: \`${c.foto_base64}\`, showConfirmButton: false})" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:3px solid ${ct};cursor:pointer;" title="Ver foto">`
@@ -351,7 +359,7 @@ const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status =
             <div style="display:flex;gap:8px;align-self:flex-start;">${c.status === 'Teste Finalizado' ? `<button onclick="window._tcLinksAvaliacao(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Links de Avaliação 📋"><i class="ph ph-link"></i></button>` : ''}
                 
                 <button onclick="window._tcEditar(${c.id})" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Editar"><i class="ph ph-pencil"></i></button>
-                <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="display:none;background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
+                <button onclick="window._tcExcluir(${c.id},'${c.nome.replace(/'/g,"\\\\'")}')" style="display:${_podeExcluir ? 'inline-block' : 'none'};background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" title="Excluir"><i class="ph ph-trash"></i></button>
                 <button onclick="window._tcFecharModal()" style="background:#fff3;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:1.1rem;" title="Fechar"><i class="ph ph-x"></i></button>
             </div>
         </div>

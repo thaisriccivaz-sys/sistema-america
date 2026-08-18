@@ -575,7 +575,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                             db.all(`SELECT u.id, u.email 
                                     FROM usuarios u 
                                     JOIN config_notificacoes cn ON u.id = cn.usuario_id 
-                                    WHERE u.departamento = 'RH' AND u.ativo = 1 AND cn.tipo = ?`, [tipoNotif], (errUsers, rowsUsers) => {
+                                    WHERE (u.departamento = 'RH' OR u.username = 'Thais.Ricci') AND u.ativo = 1 AND cn.tipo = ?`, [tipoNotif], (errUsers, rowsUsers) => {
                                 if (!errUsers && rowsUsers && rowsUsers.length > 0) {
                                     rowsUsers.forEach(u => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
