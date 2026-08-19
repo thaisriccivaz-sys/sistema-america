@@ -197,55 +197,59 @@ window.renderAvaliacaoTab = async function(container) {
 
                 // -----------------------------------------------------------------------
                 // CÁLCULO DE % CORRETO:
-                // Usa o template do __grupo__ SALVO no JSON da avaliação, não o template
-                // do departamento atual. Isso garante que mudanças no template ou no
-                // mapeamento dept→grupo não derrubem o % de avaliações já preenchidas.
+                // 1. Prioridade: template do __grupo__ salvo no JSON
+                // 2. Fallback: __categorias_snapshot__ salvo no JSON (para avaliações sem __grupo__)
+                // 3. Último fallback: conta diretamente o que foi salvo (com mapeamento por posição)
                 // -----------------------------------------------------------------------
                 const grupoParaPerc = savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]
-                    ? savedGrupo   // template usado na época do preenchimento
+                    ? savedGrupo
                     : null;
 
-                const questionsParaPerc = grupoParaPerc
+                let questionsParaPerc = grupoParaPerc
                     ? AVALIACAO_QUESTIONS[tipo][grupoParaPerc]
                     : null;
 
+                // Fallback 1: usa o snapshot salvo no próprio JSON
+                if (!questionsParaPerc && res.__categorias_snapshot__) {
+                    try {
+                        const snap = JSON.parse(res.__categorias_snapshot__);
+                        if (snap && Object.keys(snap).length > 0) questionsParaPerc = snap;
+                    } catch(e) {}
+                }
+
+                // Fallback 2: tenta o template atual mapeado por posição
+                if (!questionsParaPerc) {
+                    // Usa as perguntas do template atual do colaborador
+                    questionsParaPerc = questions; // template current (já detectado por dept)
+                }
+
                 if (questionsParaPerc) {
-                    // Caso ideal: temos o template exato que foi usado no preenchimento
-                    Object.keys(questionsParaPerc).forEach(cat => {
+                    const templateCats = Object.keys(questionsParaPerc);
+                    // Coleta as categorias com notas salvas (exclui campos de sistema)
+                    const savedScoreCats = Object.keys(res).filter(k =>
+                        k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+                    );
+                    // Para cada categoria do template, tenta encontrar notas salvas
+                    // primeiro pelo nome exato, depois pela posição (mapeamento)
+                    templateCats.forEach((cat, idx) => {
                         (questionsParaPerc[cat] || []).forEach((q, i) => {
                             if (q && q.trim()) {
                                 totalQ++;
-                                if (res[cat] && res[cat][i]) ansQ++;
+                                // Tenta pelo nome exato
+                                if (res[cat] && res[cat][i]) {
+                                    ansQ++;
+                                } else {
+                                    // Tenta pelo mesmo índice de posição entre categorias salvas
+                                    const altCat = savedScoreCats[idx];
+                                    if (altCat && altCat !== cat && res[altCat] && res[altCat][i]) {
+                                        ansQ++;
+                                    }
+                                }
                             }
                         });
                     });
-                } else {
-                    // Fallback: __grupo__ não existe ou template sumiu do banco.
-                    // Conta diretamente pelas categorias do respostas_json — o que foi salvo.
-                    const resCats = Object.keys(res).filter(k =>
-                        k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
-                    );
-                    if (resCats.length > 0) {
-                        for (const cat of resCats) {
-                            if (res[cat] && typeof res[cat] === 'object') {
-                                // Conta chaves numéricas (índices de perguntas) que têm valor
-                                const keys = Object.keys(res[cat]);
-                                totalQ += keys.length;
-                                ansQ += keys.filter(k => res[cat][k]).length;
-                            }
-                        }
-                    } else {
-                        // Último fallback: usa o template atual do departamento
-                        Object.keys(questions).forEach(cat => {
-                            (questions[cat] || []).forEach((q, i) => {
-                                if (q && q.trim()) {
-                                    totalQ++;
-                                    if (res[cat] && res[cat][i]) ansQ++;
-                                }
-                            });
-                        });
-                    }
                 }
+
                 perc = totalQ > 0 ? Math.round((ansQ / totalQ) * 100) : 0;
             }
             
@@ -793,6 +797,25 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     // Isso garante que, mesmo que o template seja editado ou removido no futuro,
     // o formulário possa ser reaberto mostrando as perguntas e respostas originais.
     respostas.__categorias_snapshot__ = JSON.stringify(activeQuestions);
+
+    // NORMALIZAÇÃO: remove categorias ANTIGAS do JSON que não fazem mais parte do
+    // template atual. Isso garante que o banco fique limpo e o % no dashboard
+    // não regride após deploys que resetem o banco (SQLite efêmero no Render).
+    const currentCatSet = new Set(categories);
+    const systemKeys = new Set(['__obs__', '__status__', '__grupo__', '__categorias_snapshot__']);
+    Object.keys(respostas).forEach(k => {
+        if (!systemKeys.has(k) && !currentCatSet.has(k)) {
+            delete respostas[k];
+        }
+    });
+    // Mesma limpeza nas observações
+    if (respostas.__obs__) {
+        Object.keys(respostas.__obs__).forEach(k => {
+            if (!currentCatSet.has(k)) {
+                delete respostas.__obs__[k];
+            }
+        });
+    }
 
     const is100Percent = (totalQ > 0 && ansQ === totalQ);
 
