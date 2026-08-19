@@ -512,7 +512,56 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         return;
     }
 
-    let questions = AVALIACAO_QUESTIONS[tipo][groupKey];
+    let questions = null;
+
+    // -----------------------------------------------------------------------
+    // SOLUÇÃO DO SUMIÇO DE RESPOSTAS:
+    // Se o template for editado lá no "Gerenciar Avaliações" (ex: mudar o nome
+    // de uma categoria), o form tentaria abrir usando as novas categorias, mas 
+    // os dados foram salvos com as categorias antigas. Isso fazia as respostas
+    // aparecerem em branco e se perderem ao salvar.
+    // O __categorias_snapshot__ guarda o template EXATO usado na época.
+    // -----------------------------------------------------------------------
+    if (existing && savedAnswers) {
+        if (savedAnswers.__categorias_snapshot__) {
+            try {
+                const snap = JSON.parse(savedAnswers.__categorias_snapshot__);
+                if (snap && Object.keys(snap).length > 0) {
+                    questions = snap;
+                }
+            } catch(e) {}
+        }
+        
+        // Fallback se não tiver snapshot: constrói um básico pelas respostas
+        if (!questions) {
+            const savedCats = Object.keys(savedAnswers).filter(k => 
+                k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+            );
+            const currentTemplate = AVALIACAO_QUESTIONS[tipo][groupKey];
+            const currentCats = currentTemplate ? Object.keys(currentTemplate) : [];
+            
+            // Se as categorias salvas não baterem com o template atual, reconstrói
+            if (savedCats.length > 0 && (!currentTemplate || !savedCats.every(sc => currentCats.includes(sc)))) {
+                const rebuilt = {};
+                for (const sc of savedCats) {
+                    const ans = savedAnswers[sc];
+                    if (ans && typeof ans === 'object') {
+                        const maxIdx = Math.max(...Object.keys(ans).map(Number));
+                        // Tenta usar as perguntas do template atual se a categoria existir, senao gera placeholder
+                        rebuilt[sc] = currentTemplate && currentTemplate[sc] 
+                            ? currentTemplate[sc] 
+                            : Array.from({ length: maxIdx + 1 }, (_, i) => `Pergunta ${i + 1} (${sc})`);
+                    }
+                }
+                if (Object.keys(rebuilt).length > 0) questions = rebuilt;
+            }
+        }
+    }
+
+    if (!questions) {
+        questions = AVALIACAO_QUESTIONS[tipo][groupKey];
+    }
+
 
     const categories = Object.keys(questions);
     
