@@ -185,7 +185,6 @@ window.renderAvaliacaoTab = async function(container) {
                 // que o formulário abra com o mesmo template, mesmo que auto-detect falhe
                 const savedGrupo = res.__grupo__;
                 if (savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]) {
-                    // Substitui o safeGroupKey local apenas para este card
                     av.__resolvedGroupKey__ = savedGrupo;
                 }
 
@@ -193,18 +192,60 @@ window.renderAvaliacaoTab = async function(container) {
                     const corStatus = res.__status__ === 'Aprovado' ? '#16a34a' : (res.__status__ === 'Reprovado' ? '#ef4444' : '#f59e0b');
                     avStatusHtml = `<span style="display:inline-block; border-radius:999px; background:${corStatus}22; color:${corStatus}; border:1px solid ${corStatus}; padding:2px 8px; font-size:0.7rem; font-weight:700; margin-bottom:0.5rem; text-transform:uppercase;">${res.__status__}</span>`;
                 }
+
                 let totalQ = 0, ansQ = 0;
-                // Calcula porcentagem sempre contra o template atual do banco.
-                // Categorias não salvas ou com nome diferente aparecem como 0% e devem ser
-                // repreenchidas pelo usuário — isso é o comportamento correto e honesto.
-                Object.keys(questions).forEach(cat => {
-                    (questions[cat] || []).forEach((q, i) => {
-                        if (q && q.trim()) {
-                            totalQ++;
-                            if (res[cat] && res[cat][i]) ansQ++;
-                        }
+
+                // -----------------------------------------------------------------------
+                // CÁLCULO DE % CORRETO:
+                // Usa o template do __grupo__ SALVO no JSON da avaliação, não o template
+                // do departamento atual. Isso garante que mudanças no template ou no
+                // mapeamento dept→grupo não derrubem o % de avaliações já preenchidas.
+                // -----------------------------------------------------------------------
+                const grupoParaPerc = savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]
+                    ? savedGrupo   // template usado na época do preenchimento
+                    : null;
+
+                const questionsParaPerc = grupoParaPerc
+                    ? AVALIACAO_QUESTIONS[tipo][grupoParaPerc]
+                    : null;
+
+                if (questionsParaPerc) {
+                    // Caso ideal: temos o template exato que foi usado no preenchimento
+                    Object.keys(questionsParaPerc).forEach(cat => {
+                        (questionsParaPerc[cat] || []).forEach((q, i) => {
+                            if (q && q.trim()) {
+                                totalQ++;
+                                if (res[cat] && res[cat][i]) ansQ++;
+                            }
+                        });
                     });
-                });
+                } else {
+                    // Fallback: __grupo__ não existe ou template sumiu do banco.
+                    // Conta diretamente pelas categorias do respostas_json — o que foi salvo.
+                    const resCats = Object.keys(res).filter(k =>
+                        k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+                    );
+                    if (resCats.length > 0) {
+                        for (const cat of resCats) {
+                            if (res[cat] && typeof res[cat] === 'object') {
+                                // Conta chaves numéricas (índices de perguntas) que têm valor
+                                const keys = Object.keys(res[cat]);
+                                totalQ += keys.length;
+                                ansQ += keys.filter(k => res[cat][k]).length;
+                            }
+                        }
+                    } else {
+                        // Último fallback: usa o template atual do departamento
+                        Object.keys(questions).forEach(cat => {
+                            (questions[cat] || []).forEach((q, i) => {
+                                if (q && q.trim()) {
+                                    totalQ++;
+                                    if (res[cat] && res[cat][i]) ansQ++;
+                                }
+                            });
+                        });
+                    }
+                }
                 perc = totalQ > 0 ? Math.round((ansQ / totalQ) * 100) : 0;
             }
             

@@ -457,9 +457,11 @@ window.gaSalvarTemplate = async function () {
     blocks.forEach(block => {
         const catNome = block.querySelector('.ga-cat-nome')?.value.trim();
         if (!catNome) { hasError = true; return; }
-        const perguntas = Array.from(block.querySelectorAll('.ga-pergunta')).map(inp => inp.value.trim());
-        if (perguntas.filter(p => p).length < 1) { hasError = true; return; }
-        categorias[catNome] = perguntas;
+        const perguntasRaw = Array.from(block.querySelectorAll('.ga-pergunta')).map(inp => inp.value.trim());
+        // Remove strings vazias do final do array (campos ocultos do tipo satisfacao)
+        while (perguntasRaw.length > 0 && !perguntasRaw[perguntasRaw.length - 1]) perguntasRaw.pop();
+        if (perguntasRaw.filter(p => p).length < 1) { hasError = true; return; }
+        categorias[catNome] = perguntasRaw;
     });
 
     if (hasError) {
