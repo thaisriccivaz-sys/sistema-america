@@ -122,7 +122,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             } else if (extraData.isAvaliacao) {
                 bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3>
                 <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
-                <p style="margin:10px 0 0 0;color:#3b82f6;font-weight:bold;text-align:center;">${extraData.diaAvaliado}º Dia ${extraData.dataRealizada}</p>`;
+                <p style="margin:10px 0 0 0;color:#3b82f6;font-weight:bold;text-align:center;">${extraData.diaAvaliado.toString().toLowerCase() === 'extra' ? 'Teste Extra:' : extraData.diaAvaliado + 'º Dia'} ${extraData.dataRealizada}</p>`;
             } else {
                 bodyContent = `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
             }
@@ -409,7 +409,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         app.put('/api/candidatos-teste/:id/data', authenticateToken, (req, res) => {
         const u = getUser(req);
         const { data_teste, etapa, motivo } = req.body;
-        db.get("SELECT nome, status FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
+        db.get("SELECT nome, status, tipo FROM candidatos_teste WHERE id = ?", [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Nao encontrado" });
             
             let col = "data_teste";

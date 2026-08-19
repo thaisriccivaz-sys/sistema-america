@@ -15129,7 +15129,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">${dados.tipoCandidato}</div>
                         ${dados.dataAgendadaHtml ? `<div style="color:#10b981;font-weight:bold;font-size:0.9rem;">Data agendada:<br>${dados.dataAgendadaHtml}</div>` : ''}
                         ${dados.dataAgendada && !dados.dataAgendadaHtml ? `<div style="color:#10b981;font-weight:bold;font-size:0.9rem;">Data agendada: ${dados.dataAgendada}</div>` : ''}
-                        ${dados.isAvaliacao ? `<div style="color:#3b82f6;font-weight:bold;font-size:0.9rem;">${dados.diaAvaliado}º Dia ${dados.dataRealizada}</div>` : ''}
+                        ${dados.isAvaliacao ? `<div style="color:#3b82f6;font-weight:bold;font-size:0.9rem;">${dados.diaAvaliado.toString().toLowerCase() === 'extra' ? 'Teste Extra:' : dados.diaAvaliado + 'º Dia'} ${dados.dataRealizada}</div>` : ''}
                     `;
                 } else {
                     contentHTML = `

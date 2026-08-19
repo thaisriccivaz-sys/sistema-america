@@ -135,7 +135,7 @@ if(aBlob)fd.append('audio',aBlob,'audio.webm');
 var r=await fetch(BASE+'/public/avaliacao-candidato/'+cId+'/'+dia,{method:'POST',body:fd});
 var data=await r.json();
 if(!r.ok)throw new Error(data.error||'Erro ao enviar.');
-document.getElementById('app').innerHTML='<img src="/assets/avaliacao-header.png" class="header-img" onerror="this.style.display=\'none\'"><div class="suc"><div style="font-size:3rem;">OK</div><h2 style="color:#10b981;margin:12px 0 8px;">Avaliacao Enviada!</h2><p style="color:#64748b;">Obrigado, <strong>'+nome+'</strong>! Sua avaliacao foi registrada com sucesso.<br><br><em style="font-size:.82rem;color:#94a3b8;">Juntos, construimos uma America Rental ainda mais forte!</em></p></div>';
+document.getElementById('app').innerHTML='<img src="/assets/avaliacao-header.png" class="header-img" onerror="this.style.display=\'none\'"><div class="suc"><div style="font-size:3rem;">OK</div><h2 style="color:#10b981;margin:12px 0 8px;">Avaliacao Enviada!</h2><p style="color:#64748b;">Muito obrigado pelas informações fornecidas.<br>Vamos avaliar o candidato com base em todas as etapas do processo seletivo para uma avaliação justa!</p></div>';
 }catch(e){if(btn){btn.disabled=false;btn.innerHTML='Enviar Avaliacao';}alert('Erro ao enviar: '+e.message);}
 }
 load();
