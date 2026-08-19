@@ -127,8 +127,8 @@
             return d;
         };
 
-                // SLA: 2 horas de horário útil (seg-sex 08h-17h)
-        const LIMIT_MS = 7200000;
+        // SLA: 2 minutos para testes (mudar para 7200000 quando for produção real)
+        const LIMIT_MS = 120000;
 
         const startMs = new Date(normDate(startField)).getTime();
         if (isNaN(startMs)) return '';
@@ -166,17 +166,18 @@
         const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < WS || now.getHours() >= WE);
         const isOverdue = elapsed > LIMIT_MS;
 
-        // Formata hh:mm (SLA = 2 horas úteis)
-        const fmtHM = (ms) => {
-            const totalMin = Math.floor(Math.abs(ms) / 60000);
-            const hh = Math.floor(totalMin / 60);
-            const mm = totalMin % 60;
-            return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+        // Formata mm:ss (SLA de teste = 2 minutos)
+        const fmtMS = (ms) => {
+            const totalSec = Math.floor(Math.abs(ms) / 1000);
+            const mm = Math.floor(totalSec / 60);
+            const ss = totalSec % 60;
+            return String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
         };
+
 
         const remainMs = LIMIT_MS - elapsed;
         const displayMs = isOverdue ? (elapsed - LIMIT_MS) : remainMs;
-        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtHM(displayMs);
+        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtMS(displayMs);
 
         // % preenchido (quanto do SLA foi consumido) — igual ao SAC (consumedPct)
         const consumedPct = Math.min(100, Math.max(0, (elapsed / LIMIT_MS) * 100));
@@ -189,10 +190,10 @@
         else                   { barColor = '#d97706'; labelColor = '#d97706'; }
 
         const label = isOverdue
-            ? `-${fmtHM(displayMs)} em atraso`
+            ? `-${fmtMS(displayMs)} em atraso`
             : isFrozen
-                ? `❄️ ${fmtHM(remainMs)} restantes`
-                : `${fmtHM(remainMs)} restantes`;
+                ? `❄️ ${fmtMS(remainMs)} restantes`
+                : `${fmtMS(remainMs)} restantes`;
 
         return `<div style="margin-top:8px;">
             <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">

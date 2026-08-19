@@ -1374,6 +1374,13 @@ async function _rrRenderCandidatosTeste() {
     _rrPatchVehicleCards();
     if (!candidatosVisiveis.length) return;
 
+    // Só exibe o painel quando houver MAIS de 6 rotas — usa variável local _rrVeiculos
+    if (_rrVeiculos.length <= 6) {
+        const p = document.getElementById('rr-candidatos-teste-painel');
+        if (p) p.style.cssText = 'display:none;';
+        return;
+    }
+
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
 
