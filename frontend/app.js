@@ -14907,8 +14907,14 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'novo_sinistro') {
                     bg = '#dcfce7'; color = '#059669'; icon = 'ph-warning'; titulo = 'Novo Sinistro (Logística)'; navTarget = 'colaboradores';
                 } else if (notif.tipo === 'testes_candidatos') {
-                    bg = '#e0f2fe'; color = '#0284c7'; icon = 'ph-clipboard-text'; titulo = 'Candidatos'; navTarget = 'testes-candidatos';
-                } else if (notif.tipo === 'estoque_minimo') {
+    bg = '#e0f2fe'; color = '#0284c7'; icon = 'ph-clipboard-text'; 
+    if (dados && dados.isAguardandoData) {
+        titulo = 'Candidato Aguardando Data';
+    } else {
+        titulo = 'Candidatos';
+    }
+    navTarget = 'testes-candidatos';
+} else if (notif.tipo === 'estoque_minimo') {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-shopping-cart'; titulo = 'Compra'; navTarget = 'estoque';
                 } else if (notif.tipo === 'estoque_reposicao') {
                     bg = '#fff7ed'; color = '#ea580c'; icon = 'ph-arrows-clockwise'; titulo = 'Reposição'; navTarget = 'estoque';
@@ -15108,7 +15114,15 @@ async function checkUserNotificacoes() {
                         ${notif.tipo === 'sac_atribuicao_gestor' ? `<div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Colaborador: <b>${dados.assignedTo || '---'}</b></div>` : ''}
                         <div style="color:#64748b;font-size:0.85rem;">Nº ${dados.protocol || dados.protocolo || '---'}</div>
                     `;
-                } else {
+                } else if (notif.tipo === 'testes_candidatos' && dados && dados.isAguardandoData) {
+    contentHTML = `
+        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+            <i class="ph ${icon}"></i> ${titulo}
+        </div>
+        <div style="color:#0f172a;font-weight:700;font-size:1.1rem;margin-bottom:2px;">${dados.nome}</div>
+        <div style="color:#64748b;font-size:0.85rem;">${dados.tipoCandidato}</div>
+    `;
+} else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
@@ -15166,8 +15180,10 @@ async function checkUserNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && !notif.tipo.includes('sac')) {
-                    setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
-                }
+    if (!(notif.tipo === 'testes_candidatos' && dados && dados.isAguardandoData)) {
+        setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
+    }
+}
             } catch (parseErr) { }
         }
     } catch (e) { }

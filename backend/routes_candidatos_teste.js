@@ -84,22 +84,27 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         return req.user || {};
     }
 
-    function notificarTestesCandidatos(mensagem) {
+    function notificarTestesCandidatos(mensagem, extraData = {}) {
         const tipoNotif = 'testes_candidatos';
         db.all('SELECT usuario_id FROM config_notificacoes WHERE tipo = ?', [tipoNotif], (err, rows) => {
             if (!err && rows && rows.length > 0) {
                 rows.forEach(r => {
                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                        [r.usuario_id, tipoNotif, mensagem, '{}']);
+                        [r.usuario_id, tipoNotif, mensagem, JSON.stringify(extraData)]);
                 });
             }
         });
         if (typeof sendEmailParaNotificados === 'function') {
+            const emailTitle = extraData.isAguardandoData ? "Candidato Aguardando Data" : "Atualizacao - Teste de Candidato";
+            const bodyContent = extraData.isAguardandoData ? 
+                `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3><p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>` 
+                : `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
+
             sendEmailParaNotificados(tipoNotif, {
                 subject: `[Testes de Candidatos] ${mensagem}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                           <div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="America Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
-                          <div style="padding:1.5rem 2rem;"><h2 style="color:#7c3aed;margin-top:0;text-align:center;">Atualizacao - Teste de Candidato</h2><p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p></div>
+                          <div style="padding:1.5rem 2rem;"><h2 style="color:#7c3aed;margin-top:0;text-align:center;">${emailTitle}</h2>${bodyContent}</div>
                           <hr style="border:none;border-top:1px solid #eee;margin:0;">
                           <div style="padding:1rem 2rem;background:#f8fafc;"><p style="color:#999;font-size:11px;text-align:center;margin:0;">Este e um e-mail automatico, por favor nao responda.</p></div>
                        </div>`,
@@ -341,9 +346,13 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 addLog(req.params.id, "movimentacao", log, req);
                 // Notificacao quando movido para "Aguardando Data"
                 if (status === "Aguardando Data") {
-                    db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [req.params.id], function(errN, rowN) {
+                    db.get("SELECT nome, tipo FROM candidatos_teste WHERE id = ?", [req.params.id], function(errN, rowN) {
                         if (!errN && rowN) {
-                            notificarTestesCandidatos(`Candidato ${rowN.nome} aguardando marcação de data para teste!`);
+                            notificarTestesCandidatos(`Candidato ${rowN.nome} aguardando marcação de data para teste!`, {
+                                isAguardandoData: true,
+                                nome: rowN.nome,
+                                tipoCandidato: rowN.tipo
+                            });
                         }
                     });
                 }
