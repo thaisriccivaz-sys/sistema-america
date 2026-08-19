@@ -306,7 +306,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
             let nBg = n >= 4 ? '#f0fdf4' : (n >= 3 ? '#fefce8' : '#fef2f2');
             rightSide = `
                 ${data ? `<button onclick="window._tcClearDTeste(${c.id}, '${status}')" style="background:none;border:1px solid #fee2e2;border-radius:6px;color:#ef4444;cursor:pointer;padding:4px 8px;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Limpar Data"><i class="ph ph-trash"></i></button>` : ""}
-                <div style="background:${nBg};color:${nColor};border:1px solid ${nColor}44;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:700;display:flex;align-items:center;gap:4px;" title="Respondido por ${aval.avaliador_nome || 'Avaliador'}">
+                <div onclick="window._tcVerAvaliacao(${c.id}, '${dId}')" style="cursor:pointer;background:${nBg};color:${nColor};border:1px solid ${nColor}44;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:700;display:flex;align-items:center;gap:4px;transition:0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1" title="Respondido por ${aval.avaliador_nome || 'Avaliador'}. Clique para ver.">
                     <i class="ph ph-star-fill"></i> Nota: ${n.toFixed(1)}
                 </div>
             `;
@@ -708,6 +708,51 @@ window._tcCopyLinkAval = async function(id, label) {
     } catch(e) {
         Swal.fire({icon:'error',title:'Erro',text:e.message});
     }
+};
+
+
+window._tcVerAvaliacao = function(cId, dia) {
+    const c = _candidatos.find(x => x.id === cId);
+    if (!c) return;
+    const aval = (c.avaliacoes || []).find(a => String(a.dia) === String(dia));
+    if (!aval) return;
+
+    let resps = {};
+    try { resps = JSON.parse(aval.respostas_json || '{}'); } catch(e){}
+
+    const isMot = c.tipo && c.tipo.toLowerCase().includes('motorista');
+    const pqLists = {
+        A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+        A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+        M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
+    };
+    const ps = isMot ? pqLists.M : (String(dia)==='1' ? pqLists.A1 : pqLists.A2);
+
+    let html = '<div style="text-align:left;font-size:0.85rem;font-family:sans-serif;">';
+    html += '<p><b>Avaliador:</b> ' + (aval.avaliador_nome||'N/A') + '<br><b>Média Final:</b> ' + Number(aval.media_notas||0).toFixed(1) + '</p>';
+    if (aval.audio_url) {
+        html += '<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px;border-radius:8px;margin-bottom:15px;">';
+        html += '<p style="margin:0 0 8px 0;font-weight:bold;color:#475569;">Áudio do Avaliador</p>';
+        html += '<audio controls src="'+aval.audio_url+'" style="width:100%;height:35px;"></audio>';
+        html += '</div>';
+    }
+    html += '<h4 style="margin:10px 0 5px 0;color:#334155;border-bottom:1px solid #e2e8f0;padding-bottom:5px;">Respostas</h4>';
+    html += '<ul style="padding-left:15px;margin-top:10px;color:#475569;">';
+    ps.forEach((q, i) => {
+        let nota = resps[i] || '-';
+        let cor = nota >= 4 ? '#10b981' : (nota >= 3 ? '#eab308' : '#ef4444');
+        if(nota==='-') cor='#64748b';
+        html += '<li style="margin-bottom:12px;">' + q + '<br><strong style="color:'+cor+';font-size:0.9rem;">Nota: '+nota+'</strong></li>';
+    });
+    html += '</ul></div>';
+
+    Swal.fire({
+        title: 'Detalhes da Avaliação',
+        html: html,
+        width: 500,
+        showCloseButton: true,
+        showConfirmButton: false
+    });
 };
 
 })();

@@ -521,21 +521,40 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     app.get("/api/public/avaliacao-candidato/:id/:dia", (req, res) => {
         const { id, dia } = req.params;
         const { t } = req.query;
-        db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
+        db.get("SELECT id, nome, tipo, foto_base64, avaliacao_token, data_teste_1, data_teste_2, data_teste_extra, rota_motorista FROM candidatos_teste WHERE id = ?", [id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Candidato não encontrado." });
             if (!row.avaliacao_token || row.avaliacao_token !== t) return res.status(403).json({ error: "Link inválido ou expirado." });
             db.get("SELECT id FROM candidatos_teste_avaliacoes WHERE candidato_id = ? AND dia = ?", [id, dia], (errCheck, rowCheck) => {
                 if (rowCheck) return res.status(403).json({ error: "Esta avaliação já foi respondida e o link expirou." });
-                res.json({
-                id: row.id,
-                nome: row.nome,
-                tipo: row.tipo,
-                foto_base64: row.foto_base64,
-                data_teste_1: row.data_teste_1,
-                data_teste_2: row.data_teste_2,
-                data_teste_extra: row.data_teste_extra,
+                
+                let dataTesteStr = dia === '1' ? row.data_teste_1 : (dia === '2' ? row.data_teste_2 : row.data_teste_extra);
+                let motorista = "";
+                if (row.rota_motorista) {
+                    if (row.rota_motorista.startsWith('{')) {
+                        try {
+                            let parsed = JSON.parse(row.rota_motorista);
+                            motorista = parsed[dataTesteStr] || "";
+                        } catch(e) {}
+                    } else {
+                        motorista = row.rota_motorista;
+                    }
+                }
+                
+                // Fetch driver photo
+                db.get("SELECT foto_base64 FROM colaboradores WHERE nome LIKE ?", ['%' + motorista.trim() + '%'], (errColab, rowColab) => {
+                    res.json({
+                        id: row.id,
+                        nome: row.nome,
+                        tipo: row.tipo,
+                        foto_base64: row.foto_base64,
+                        data_teste_1: row.data_teste_1,
+                        data_teste_2: row.data_teste_2,
+                        data_teste_extra: row.data_teste_extra,
+                        avaliador_nome: motorista,
+                        avaliador_foto: rowColab ? rowColab.foto_base64 : null
+                    });
+                });
             });
-            }); // close db.get check
         });
     });
 
