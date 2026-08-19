@@ -1372,15 +1372,7 @@ async function _rrRenderCandidatosTeste() {
     window._rrCandidatosTesteData = candidatos;
     // Atualizar in-place os cards de veículo (textarea colB + avatar candidato no header)
     _rrPatchVehicleCards();
-
-    // Só exibe o painel de candidatos quando houver mais de 6 rotas na tela
     if (!candidatosVisiveis.length) return;
-    if ((window._rrVeiculos || []).length <= 6) {
-        // Esconde o painel caso tenha ficado de uma renderização anterior
-        const p = document.getElementById('rr-candidatos-teste-painel');
-        if (p) p.style.cssText = 'display:none;';
-        return;
-    }
 
     const corpo = document.getElementById('rr-corpo');
     if (!corpo) return;
