@@ -858,30 +858,30 @@
         const currentYear = refAno || new Date().getFullYear();
         const currentQ = refTrim || Math.floor(new Date().getMonth() / 3) + 1;
         
-        // build respostas_json — salva como arrays para compatibilidade com backend
+        // build respostas_json — salva como OBJETO {0: val, 1: val} para compatibilidade
+        // com o prontuário (avaliacoes.js), que também usa o mesmo formato
         const respostas = { __obs__: {} };
         const perguntasGroup = window.AVALIACAO_QUESTIONS.satisfacao[grupo];
         const categories = Object.keys(perguntasGroup);
         let missingRequired = [];
         
         categories.forEach((cat, catIdx) => {
-            respostas[cat] = [];
-            respostas.__obs__[cat] = [];
+            respostas[cat] = {};
+            respostas.__obs__[cat] = {};
             perguntasGroup[cat].forEach((q, i) => {
-                if (!q || !q.trim()) { respostas[cat].push(null); respostas.__obs__[cat].push(''); return; }
+                if (!q || !q.trim()) return; // pular perguntas em branco
                 const rads = form.elements[`av_${catIdx}_${i}`];
                 const selected = rads && rads.length ? Array.from(rads).find(r => r.checked) : null;
                 if (selected) {
-                    respostas[cat].push(parseInt(selected.value, 10));
+                    respostas[cat][i] = parseInt(selected.value, 10);
                 } else {
-                    respostas[cat].push(null);
                     missingRequired.push(`${cat} — Pergunta ${i+1}`);
                 }
                 const obs = form.elements[`av_obs_${catIdx}_${i}`];
-                respostas.__obs__[cat].push((obs && obs.value.trim()) ? obs.value.trim() : '');
+                if (obs && obs.value.trim()) respostas.__obs__[cat][i] = obs.value.trim();
             });
-            // limpar array de obs vazio ao final
-            if (respostas.__obs__[cat].every(v => v === '')) delete respostas.__obs__[cat];
+            // remover __obs__[cat] se vazio
+            if (Object.keys(respostas.__obs__[cat]).length === 0) delete respostas.__obs__[cat];
         });
         
         // Permitir salvamento parcial (não bloqueia mais por missingRequired)
