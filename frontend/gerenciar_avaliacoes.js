@@ -360,21 +360,15 @@ async function renderGaForm(template) {
 
         const containerDept = document.getElementById('ga-dept-container');
         if (containerDept && Array.isArray(depts)) {
-            const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase());
-            
-            // Caso seja edição de padrão, forçar marcação baseado na chave existente
-            const chavesPadroesMulti = keysChecked.filter(k => k && !depts.find(d => (d.nome || '').toLowerCase().includes(k)));
-            
+            // Usa somente o match EXATO do norm do departamento contra as chaves salvas.
+            // Impede que "Ajudante Geral" fique marcado só porque o key contém "ajudante".
+            const keysChecked = (template.grupo_key || '').split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+
             containerDept.innerHTML = depts.map(d => {
                 const norm = (d.nome || '').toLowerCase().replace(/\s+/g, '_');
-                const isSelected = keysChecked.includes(norm) || (keysChecked.includes('motorista') && norm.includes('motorista')) || (keysChecked.includes('ajudante') && norm.includes('ajudante'));
+                const isSelected = keysChecked.includes(norm);
                 return `<label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="${norm}" class="ga-dept-check" ${isSelected ? 'checked' : ''}> ${d.nome || 'Sem nome'}</label>`;
             }).join('');
-            
-            // Se tiver chaves manuais (ex: motorista, pátio) que não estão na BD, adicionar fake checkboxes ocultos pra não perdê-las se não recadastrar
-            chavesPadroesMulti.forEach(cp => {
-                if (cp) containerDept.innerHTML += `<input type="checkbox" style="display:none;" value="${cp}" class="ga-dept-check" checked>`;
-            });
         }
     } catch(e) { 
         console.warn('Erro ao carregar depts form', e);
@@ -440,9 +434,9 @@ window.gaSalvarTemplate = async function () {
     const nome = document.getElementById('ga-nome')?.value.trim();
     const tipo = document.getElementById('ga-tipo')?.value;
     
-    // Obter os departamentos selecionados
+    // Obter os departamentos selecionados — sem duplicatas
     const checks = document.querySelectorAll('.ga-dept-check:checked');
-    const checkedValues = Array.from(checks).map(c => c.value);
+    const checkedValues = [...new Set(Array.from(checks).map(c => c.value).filter(Boolean))];
     const grupo_key = checkedValues.join(',');
 
     if (!nome || !tipo || !grupo_key) {
