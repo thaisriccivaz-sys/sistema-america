@@ -484,7 +484,9 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const existing = avaliacoes.find(a => Number(a.ano) === Number(ano) && Number(a.trimestre) === Number(trimestre) && a.tipo === tipo);
     let savedAnswers = {};
     let savedObs = {};
+    window._existingAvaliacaoJson = null; // limpa antes de definir
     if (existing) {
+        window._existingAvaliacaoJson = existing.respostas_json || null;
         savedAnswers = JSON.parse(existing.respostas_json || '{}');
         if (savedAnswers.__obs__) {
             savedObs = savedAnswers.__obs__;
@@ -562,8 +564,38 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         questions = AVALIACAO_QUESTIONS[tipo][groupKey];
     }
 
-
+    // -----------------------------------------------------------------------
+    // MAPEAMENTO DE NOTAS POR POSIÇÃO:
+    // As notas podem estar salvas sob nomes de categorias ANTIGOS (ex: "Organização
+    // e Rotina de Trabalho") enquanto o snapshot/template atual usa nomes NOVOS
+    // (ex: "Rotina e Carga de Trabalho"). Para não perder essas notas, mapeamos
+    // as categorias por POSIÇÃO quando o nome exato não bate.
+    // -----------------------------------------------------------------------
     const categories = Object.keys(questions);
+    if (savedAnswers && Object.keys(savedAnswers).length > 0) {
+        // Pega as categorias com NOTAS salvas (exclui campos de sistema)
+        const savedScoreCats = Object.keys(savedAnswers).filter(k =>
+            k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+        );
+        // Para cada categoria do template atual, verifica se existe no savedAnswers
+        // Se não existir pelo nome, tenta pegar pela POSIÇÃO da categoria antiga
+        categories.forEach((newCat, idx) => {
+            if (!savedAnswers[newCat] && savedScoreCats[idx]) {
+                // Nome não bate, mas existe uma categoria na mesma posição → mapeia
+                savedAnswers[newCat] = savedAnswers[savedScoreCats[idx]];
+            }
+        });
+        // Faz o mesmo para as observações
+        if (savedAnswers.__obs__) {
+            const savedObsCats = Object.keys(savedAnswers.__obs__);
+            categories.forEach((newCat, idx) => {
+                if (!savedAnswers.__obs__[newCat] && savedObsCats[idx]) {
+                    savedAnswers.__obs__[newCat] = savedAnswers.__obs__[savedObsCats[idx]];
+                }
+            });
+            savedObs = savedAnswers.__obs__;
+        }
+    }
     
     const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Setembro (4º Trim.)'};
 
@@ -725,8 +757,17 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const categories = Object.keys(activeQuestions);
 
     const form = document.getElementById('form-avaliacao-perguntas');
-    const respostas = { __obs__: {} };
+    // CRÍTICO: começar do JSON existente no banco, não do zero.
+    // Se começarmos do zero, as notas salvas em categorias antigas (com nomes diferentes)
+    // são perdidas na sobrescrita. Carregamos o JSON atual e só atualizamos as
+    // categorias do template ativo, preservando o resto.
+    let respostas = {};
+    if (window._existingAvaliacaoJson) {
+        try { respostas = JSON.parse(window._existingAvaliacaoJson); } catch(e) {}
+    }
+    respostas.__obs__ = respostas.__obs__ || {};
     const errSpan = document.getElementById('form-av-error');
+
 
     let totalQ = 0;
     let ansQ = 0;
