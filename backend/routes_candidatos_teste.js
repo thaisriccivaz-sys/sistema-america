@@ -129,7 +129,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             } else if (extraData.isSla) {
                 bodyContent = `<h3 style="margin:0 0 5px 0;color:#dc2626;text-align:center;">${extraData.nome}</h3>
                 <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
-                <p style="margin:10px 0 0 0;color:#dc2626;font-weight:bold;text-align:center;">O candidato está na coluna "Aguardando Data" há mais de 2 minutos úteis.</p>`;
+                <p style="margin:10px 0 0 0;color:#dc2626;font-weight:bold;text-align:center;">O candidato está na coluna "Aguardando Data" há mais de 2 horas úteis sem marcação de data.</p>`;
             } else {
                 bodyContent = `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
             }
@@ -682,54 +682,78 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         });
     });
 
-;
 
-    console.log("[Candidatos] Rotas de Testes de Candidatos registradas.");
-};
+    // ── SLA ALERTAS: rota para o frontend verificar SLAs estourados ───────────
+    app.get("/api/candidatos-teste/sla-alertas", authenticateToken, (req, res) => {
+        db.all(
+            "SELECT id, nome, tipo, aguardando_data_em FROM candidatos_teste WHERE status = 'Aguardando Data' AND sla_notificado = 1",
+            [],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+    });
 
-    // CHECK SLA OVERDUE - roda a cada 1 minuto
-    function getBusinessMs(startMs, endMs) {
+    // ── SLA CHECK: roda a cada 1 minuto ──────────────────────────────────────
+    // Calcula tempo útil (seg-sex 08h-17h) entre dois timestamps em ms
+    function _getBusinessMs(startMs, endMs) {
         let currentMs = startMs;
         let businessMs = 0;
-        while (currentMs < endMs) {
-            let d = new Date(currentMs);
-            let day = d.getDay();
-            let h = d.getHours();
-            if (day === 6) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2); currentMs = next.getTime(); continue; }
-            if (day === 0) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); currentMs = next.getTime(); continue; }
-            if (h < 8) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8); currentMs = next.getTime(); continue; }
+        let guard = 0;
+        while (currentMs < endMs && ++guard < 50000) {
+            const d = new Date(currentMs);
+            const day = d.getDay();
+            const h = d.getHours();
+            if (day === 6) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2, 8).getTime(); continue; }
+            if (day === 0) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 8).getTime(); continue; }
+            if (h < 8) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).getTime(); continue; }
             if (h >= 17) {
-                let addDays = day === 5 ? 3 : 1;
-                let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8);
-                currentMs = next.getTime();
+                const addDays = day === 5 ? 3 : 1;
+                currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8).getTime();
                 continue;
             }
-            let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
-            let target = Math.min(endMs, limit);
+            const eod = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
+            const target = Math.min(endMs, eod);
             businessMs += (target - currentMs);
-            currentMs = target;
+            currentMs = eod;
         }
         return businessMs;
     }
 
+    // normaliza "YYYY-MM-DD HH:MM:SS" (localtime SQLite) para Date JS corretamente
+    function _normSQLiteDate(s) {
+        if (!s) return null;
+        // SQLite salva localtime Brasil (-03:00). Ao parsear, forçamos o fuso.
+        const d = s.replace(' ', 'T');
+        if (d.length === 19) return new Date(d + '-03:00');
+        return new Date(d);
+    }
+
     setInterval(() => {
-        db.all("SELECT id, nome, tipo, aguardando_data_em FROM candidatos_teste WHERE status = 'Aguardando Data' AND aguardando_data_em IS NOT NULL AND sla_notificado = 0", [], (err, rows) => {
-            if (err || !rows) return;
-            rows.forEach(row => {
-                let startMs = new Date(row.aguardando_data_em).getTime();
-                let endMs = Date.now();
-                if (getBusinessMs(startMs, endMs) > 120000) {
-                    db.run("UPDATE candidatos_teste SET sla_notificado = 1 WHERE id = ?", [row.id], (errU) => {
-                        if (!errU) {
-                            notificarTestesCandidatos(`O candidato ${row.nome} ultrapassou o tempo limite de marcação de data!`, {
-                                isSla: true,
-                                nome: row.nome,
-                                tipoCandidato: row.tipo
-                            });
-                        }
-                    });
-                }
-            });
-        });
+        db.all(
+            "SELECT id, nome, tipo, aguardando_data_em FROM candidatos_teste WHERE status = 'Aguardando Data' AND aguardando_data_em IS NOT NULL AND sla_notificado = 0",
+            [],
+            (err, rows) => {
+                if (err || !rows) return;
+                rows.forEach(row => {
+                    const startDate = _normSQLiteDate(row.aguardando_data_em);
+                    if (!startDate || isNaN(startDate.getTime())) return;
+                    const businessMs = _getBusinessMs(startDate.getTime(), Date.now());
+                    if (businessMs > 7200000) {
+                        db.run("UPDATE candidatos_teste SET sla_notificado = 1 WHERE id = ?", [row.id], (errU) => {
+                            if (!errU) {
+                                notificarTestesCandidatos(
+                                    `O candidato ${row.nome} ultrapassou o tempo limite de marcação de data!`,
+                                    { isSla: true, nome: row.nome, tipoCandidato: row.tipo }
+                                );
+                            }
+                        });
+                    }
+                });
+            }
+        );
     }, 60000);
 
+    console.log("[Candidatos] Rotas de Testes de Candidatos registradas.");
+};

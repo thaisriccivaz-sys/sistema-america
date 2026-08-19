@@ -112,22 +112,22 @@
 
     function _getSLAHTML(c) {
         if (c.status !== 'Aguardando Data') return '';
-        // Usa aguardando_data_em se disponível, caso contrário usa updated_at como fallback
-        const startField = c.aguardando_data_em || c.updated_at;
+        // Só mostra barra se tivermos aguardando_data_em (gravado no momento do arraste)
+        const startField = c.aguardando_data_em;
+        if (!startField) return '';
         if (!startField) return '';
 
         // Normaliza formato SQLite "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
         // (mesmo padrão que _normDate do SAC)
+        // SQLite salva localtime Brasil. Forçamos -03:00 para parse correto.
         const normDate = (s) => {
             if (!s || typeof s !== 'string') return s;
             let d = s.replace(' ', 'T');
-            // Como o SQLite salva em localtime, forçamos o fuso do Brasil (-03:00) 
-            // para que a contagem comece de zero, e não 3 horas no futuro.
-            if (d.length === 19 && !d.endsWith('Z') && !d.includes('-03:00')) d += '-03:00';
+            if (d.length === 19 && !d.endsWith('Z') && !d.includes('+') && !d.includes('-', 10)) d += '-03:00';
             return d;
         };
 
-        // SLA: 2 horas (7200000 ms)
+                // SLA: 2 horas de horário útil (seg-sex 08h-17h)
         const LIMIT_MS = 7200000;
 
         const startMs = new Date(normDate(startField)).getTime();
@@ -166,17 +166,17 @@
         const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < WS || now.getHours() >= WE);
         const isOverdue = elapsed > LIMIT_MS;
 
-        // Formata mm:ss (SLA é curto — 2 min para testes, 2h no futuro será formatado em hh:mm)
-        const fmtMS = (ms) => {
-            const totalSec = Math.floor(Math.abs(ms) / 1000);
-            const mm = Math.floor(totalSec / 60);
-            const ss = totalSec % 60;
-            return String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+        // Formata hh:mm (SLA = 2 horas úteis)
+        const fmtHM = (ms) => {
+            const totalMin = Math.floor(Math.abs(ms) / 60000);
+            const hh = Math.floor(totalMin / 60);
+            const mm = totalMin % 60;
+            return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
         };
 
         const remainMs = LIMIT_MS - elapsed;
         const displayMs = isOverdue ? (elapsed - LIMIT_MS) : remainMs;
-        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtMS(displayMs);
+        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtHM(displayMs);
 
         // % preenchido (quanto do SLA foi consumido) — igual ao SAC (consumedPct)
         const consumedPct = Math.min(100, Math.max(0, (elapsed / LIMIT_MS) * 100));
@@ -189,10 +189,10 @@
         else                   { barColor = '#d97706'; labelColor = '#d97706'; }
 
         const label = isOverdue
-            ? `-${fmtMS(displayMs)} em atraso`
+            ? `-${fmtHM(displayMs)} em atraso`
             : isFrozen
-                ? `❄️ ${fmtMS(remainMs)} restantes`
-                : `${fmtMS(remainMs)} restantes`;
+                ? `❄️ ${fmtHM(remainMs)} restantes`
+                : `${fmtHM(remainMs)} restantes`;
 
         return `<div style="margin-top:8px;">
             <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">
@@ -890,5 +890,41 @@ window._tcVerAvaliacao = function(cId, dia) {
             }
         }
     }, 1000);
+
+    // ── Polling SLA Alertas: verifica a cada 30s se algum candidato estourou o SLA ──
+    if (!window._tcSlaAlertasVisto) window._tcSlaAlertasVisto = new Set();
+
+    async function _checkSlaAlertas() {
+        // Só verifica se a aba de candidatos estiver ativa
+        const t = window.appOpenTabs ? window.appOpenTabs.find(x => x.active) : null;
+        if (!t || t.target !== 'testes-candidatos') return;
+        try {
+            const r = await fetch(API('/api/candidatos-teste/sla-alertas'), { headers: { Authorization: 'Bearer ' + token() } });
+            if (!r.ok) return;
+            const alertas = await r.json();
+            for (const a of alertas) {
+                const key = 'sla_' + a.id;
+                if (window._tcSlaAlertasVisto.has(key)) continue;
+                window._tcSlaAlertasVisto.add(key);
+                Swal.fire({
+                    icon: 'warning',
+                    title: '⏰ SLA Estourado!',
+                    html: `<div style="text-align:center;">
+                        <p style="font-size:1rem;font-weight:700;color:#dc2626;margin:8px 0;">${a.nome}</p>
+                        <p style="font-size:0.88rem;color:#666;margin:0;">${a.tipo}</p>
+                        <p style="font-size:0.85rem;color:#dc2626;margin-top:10px;">Este candidato está em <strong>"Aguardando Data"</strong> há mais de 2 horas úteis sem marcação de data de teste.</p>
+                    </div>`,
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#dc2626',
+                    showClass: { popup: 'animate__animated animate__shakeX' }
+                });
+            }
+        } catch(e) { /* silencioso */ }
+    }
+
+    // Roda imediatamente e depois a cada 30 segundos
+    _checkSlaAlertas();
+    if (window._tcSlaPollingInt) clearInterval(window._tcSlaPollingInt);
+    window._tcSlaPollingInt = setInterval(_checkSlaAlertas, 30000);
 
 })();
