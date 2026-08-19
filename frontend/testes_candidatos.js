@@ -342,6 +342,28 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                 '</div>' +
                 '<div style="font-size:0.73rem;color:#64748b;">Por: '+(av.avaliador_nome||'—')+'</div>' +
                 (av.audio_url ? '<audio controls src="'+av.audio_url+'" style="width:100%;height:34px;margin-top:6px;"></audio>' : '') +
+            (function(){
+                let resps = {};
+                try { resps = JSON.parse(av.respostas_json || '{}'); } catch(e){}
+                const isMot = c.tipo && c.tipo.toLowerCase().includes('motorista');
+                const pqLists = {
+                    A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+                    A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
+                    M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
+                };
+                const ps = isMot ? pqLists.M : (String(av.dia)==='1' ? pqLists.A1 : pqLists.A2);
+                let qHtml = '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">' + 
+                            '<div style="font-weight:700;font-size:0.75rem;color:#334155;margin-bottom:6px;">Respostas detalhadas:</div>' + 
+                            '<ul style="padding-left:15px;margin:0;font-size:0.75rem;color:#475569;">';
+                ps.forEach((q, i) => {
+                    let nota = resps[i] || '-';
+                    let cor = nota >= 4 ? '#10b981' : (nota >= 3 ? '#eab308' : '#ef4444');
+                    if(nota==='-') cor='#64748b';
+                    qHtml += '<li style="margin-bottom:4px;">' + q + ' <strong style="color:'+cor+';">('+nota+')</strong></li>';
+                });
+                qHtml += '</ul></div>';
+                return qHtml;
+            })() +
             '</div>';
         }).join('')
         : '<p style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0;">Nenhuma avaliação recebida ainda.</p>';
