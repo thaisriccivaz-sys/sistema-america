@@ -4302,12 +4302,6 @@ window.resetFormColaborador = function () {
     if (radA) radA.checked = true;
     if (typeof window.toggleAlergias === 'function') window.toggleAlergias('Não');
 
-    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
-    if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
-
-    const radioMotAvalNao = document.querySelector('input[name="motorista_avaliador"][value="Não"]');
-    if (radioMotAvalNao) radioMotAvalNao.checked = true;
-    window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();
 
     if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
     const radAdt = document.querySelector('input[name="adiantamento_check"][value="Não"]');
@@ -4343,12 +4337,6 @@ window.resetFormColaborador = function () {
 
     document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
 
-    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
-    if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
-
-    const radioMotAvalNao = document.querySelector('input[name="motorista_avaliador"][value="Não"]');
-    if (radioMotAvalNao) radioMotAvalNao.checked = true;
-    window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();
 
     if (document.getElementById('colab-cnh-documento')) document.getElementById('colab-cnh-documento').value = '';
     if (document.getElementById('colab-cnh-doc-id')) document.getElementById('colab-cnh-doc-id').value = '';
