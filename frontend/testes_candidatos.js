@@ -914,7 +914,7 @@ window._tcVerAvaliacao = function(cId, dia) {
                     html: `<div style="text-align:center;">
                         <p style="font-size:1rem;font-weight:700;color:#dc2626;margin:8px 0;">${a.nome}</p>
                         <p style="font-size:0.88rem;color:#666;margin:0;">${a.tipo}</p>
-                        <p style="font-size:0.85rem;color:#dc2626;margin-top:10px;">Este candidato está em <strong>"Aguardando Data"</strong> há mais de 2 horas úteis sem marcação de data de teste.</p>
+                        <p style="font-size:0.85rem;color:#dc2626;margin-top:10px;">Este candidato está em <strong>"Aguardando Data"</strong> há mais de 2 minutos úteis sem marcação de data de teste.</p>
                     </div>`,
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#dc2626',

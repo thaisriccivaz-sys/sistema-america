@@ -696,27 +696,32 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
     });
 
     // ── SLA CHECK: roda a cada 1 minuto ──────────────────────────────────────
-    // Calcula tempo útil (seg-sex 08h-17h) entre dois timestamps em ms
+    // Calcula tempo útil (seg-sex 08h-17h BRT) entre dois timestamps em ms
     function _getBusinessMs(startMs, endMs) {
         let currentMs = startMs;
         let businessMs = 0;
         let guard = 0;
+        const OFFSET = 3 * 3600 * 1000; // BRT é UTC-3
         while (currentMs < endMs && ++guard < 50000) {
-            const d = new Date(currentMs);
-            const day = d.getDay();
-            const h = d.getHours();
-            if (day === 6) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2, 8).getTime(); continue; }
-            if (day === 0) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 8).getTime(); continue; }
-            if (h < 8) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).getTime(); continue; }
+            const spMs = currentMs - OFFSET;
+            const spDate = new Date(spMs);
+            const day = spDate.getUTCDay();
+            const h = spDate.getUTCHours();
+            
+            if (day === 6) { currentMs = Date.UTC(spDate.getUTCFullYear(), spDate.getUTCMonth(), spDate.getUTCDate() + 2, 8) + OFFSET; continue; }
+            if (day === 0) { currentMs = Date.UTC(spDate.getUTCFullYear(), spDate.getUTCMonth(), spDate.getUTCDate() + 1, 8) + OFFSET; continue; }
+            if (h < 8) { currentMs = Date.UTC(spDate.getUTCFullYear(), spDate.getUTCMonth(), spDate.getUTCDate(), 8) + OFFSET; continue; }
             if (h >= 17) {
                 const addDays = day === 5 ? 3 : 1;
-                currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8).getTime();
+                currentMs = Date.UTC(spDate.getUTCFullYear(), spDate.getUTCMonth(), spDate.getUTCDate() + addDays, 8) + OFFSET;
                 continue;
             }
-            const eod = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
-            const target = Math.min(endMs, eod);
+            const eodSp = Date.UTC(spDate.getUTCFullYear(), spDate.getUTCMonth(), spDate.getUTCDate(), 17);
+            const eodMs = eodSp + OFFSET;
+            
+            const target = Math.min(endMs, eodMs);
             businessMs += (target - currentMs);
-            currentMs = eod;
+            currentMs = eodMs;
         }
         return businessMs;
     }
