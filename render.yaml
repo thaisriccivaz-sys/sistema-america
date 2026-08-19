@@ -1,0 +1,19 @@
+﻿services:
+  - type: web
+    name: sistema-america
+    runtime: node
+    region: oregon
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /data/hr_system_v2.sqlite
+    disk:
+      name: sistema-america-db
+      mountPath: /data
+      sizeGB: 1
