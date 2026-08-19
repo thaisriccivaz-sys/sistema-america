@@ -171,7 +171,7 @@
             const totalSec = Math.floor(Math.abs(ms) / 1000);
             const mm = Math.floor(totalSec / 60);
             const ss = totalSec % 60;
-            return String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+            return String(mm).padStart(2, '0') + 'm ' + String(ss).padStart(2, '0') + 's';
         };
 
 
