@@ -555,6 +555,10 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const globalColor_init = globalPerc_init === 100 ? '#16a34a' : 'rgba(255,255,255,0.2)';
     const titleStr = tipo === 'experiencia' ? 'Avaliação de Experiência' : ((tipo === 'desempenho' ? 'Avaliação de Desempenho' : 'Avaliação de Satisfação') + ' - ' + trimestreToMonth[trimestre] + ' / ' + ano);
 
+    // Guarda o template ATIVO (que pode ter sido reconstruído do snapshot) para que
+    // saveAvaliacao use exatamente o mesmo objeto ao salvar — evita descasamento de índices.
+    window._activeAvaliacaoQuestions = questions;
+
     let html = `
         <div style="background:#fff; border-radius:0; width:100%; height:100%; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
             <div style="padding:1.5rem; background:#0f4c81; color:#fff; display:flex; justify-content:space-between; align-items:center;">
@@ -686,36 +690,17 @@ window.updateAvaliacaoProgress = function(catIdx, totalQ) {
 }
 
 window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
-    const categories = Object.keys(AVALIACAO_QUESTIONS[tipo][groupKey]);
+    // Usa o template ATIVO que foi usado para renderizar o form (guardado em window._activeAvaliacaoQuestions).
+    // Isso garante que os índices av_0_0, av_1_0, etc. sejam lidos com as mesmas categorias
+    // que foram usadas ao montar o HTML — mesmo que o template tenha sido reconstruído do snapshot.
+    const activeQuestions = window._activeAvaliacaoQuestions
+        || (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][groupKey])
+        || {};
+    const categories = Object.keys(activeQuestions);
+
     const form = document.getElementById('form-avaliacao-perguntas');
     const respostas = { __obs__: {} };
     const errSpan = document.getElementById('form-av-error');
-
-    // Obtém o template ativo (pode ter sido reconstruído a partir dos dados salvos)
-    // O formulário renderiza usando 'questions' que está em escopo no form HTML
-    // mas saveAvaliacao recebe groupKey — precisamos do template que foi usado
-    // Para isso, sempre usamos AVALIACAO_QUESTIONS[tipo][groupKey] se existir,
-    // e fazemos o mesmo fallback de reconstrução a partir de savedAnswers.
-    let activeQuestions = (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][groupKey])
-        ? AVALIACAO_QUESTIONS[tipo][groupKey]
-        : null;
-
-    // Se o template não bate (mesmo cenário do openFormAvaliacao), reconstruir
-    if (!activeQuestions) {
-        activeQuestions = {};
-        for (let ci = 0; ci < categories.length; ci++) {
-            const cat = categories[ci];
-            const catAnswers = {};
-            let qi = 0;
-            while (form.elements[`av_${ci}_${qi}`]) {
-                const rads = form.elements[`av_${ci}_${qi}`];
-                const selected = Array.from(rads).find(r => r.checked);
-                catAnswers[qi] = selected ? selected.value : null;
-                qi++;
-            }
-            activeQuestions[cat] = Array.from({ length: qi }, (_, i) => `Pergunta ${i + 1} (${cat})`);
-        }
-    }
 
     let totalQ = 0;
     let ansQ = 0;
