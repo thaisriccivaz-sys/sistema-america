@@ -2737,6 +2737,20 @@ async function loadSelects() {
     loadFaculdadeCursosDropdown();
 }
 
+window._tcAtualizarMotoristaAvaliador = function() {
+    const depto = (document.getElementById('colab-departamento') || {}).value || '';
+    const el = document.getElementById('opcional-motorista-avaliador');
+    if (!el) return;
+    if (depto.toLowerCase().includes('motorista')) {
+        el.style.display = '';
+    } else {
+        el.style.display = 'none';
+        // Reseta para Nao quando oculto
+        const radioNao = document.querySelector('input[name="motorista_avaliador"][value="Não"]');
+        if (radioNao) radioNao.checked = true;
+    }
+};
+
 window.autoFillDepartamento = function () {
     const selectCargo = document.getElementById('colab-cargo');
     const inputDepto = document.getElementById('colab-departamento');
@@ -2749,6 +2763,7 @@ window.autoFillDepartamento = function () {
     } else {
         inputDepto.value = '';
     }
+    window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();
 }
 
 window.updateVacationInfo = function (admissaoStr) {
@@ -4287,9 +4302,16 @@ window.resetFormColaborador = function () {
     if (radA) radA.checked = true;
     if (typeof window.toggleAlergias === 'function') window.toggleAlergias('Não');
 
+    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
+    if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
+
+    const radioMotAvalNao = document.querySelector('input[name="motorista_avaliador"][value="Não"]');
+    if (radioMotAvalNao) radioMotAvalNao.checked = true;
+    window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();
+
+    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
     const radAdt = document.querySelector('input[name="adiantamento_check"][value="Não"]');
     if (radAdt) radAdt.checked = true;
-    if (typeof window.toggleAdiantamento === 'function') window.toggleAdiantamento('Não');
     if (document.getElementById('colab-adiantamento-valor')) document.getElementById('colab-adiantamento-valor').value = '';
 
     const radioInN = document.querySelector('input[name="insalubridade_check"][value="Não"]');
@@ -4320,6 +4342,13 @@ window.resetFormColaborador = function () {
     }
 
     document.querySelectorAll('.cb-folga-colab').forEach(cb => cb.checked = false);
+
+    const radioHabDNao = document.querySelector('input[name="habilitacao_d"][value="Não"]');
+    if (radioHabDNao) { radioHabDNao.checked = true; toggleHabilitacaoD('Não'); }
+
+    const radioMotAvalNao = document.querySelector('input[name="motorista_avaliador"][value="Não"]');
+    if (radioMotAvalNao) radioMotAvalNao.checked = true;
+    window._tcAtualizarMotoristaAvaliador && window._tcAtualizarMotoristaAvaliador();
 
     if (document.getElementById('colab-cnh-documento')) document.getElementById('colab-cnh-documento').value = '';
     if (document.getElementById('colab-cnh-doc-id')) document.getElementById('colab-cnh-doc-id').value = '';
@@ -4678,6 +4707,14 @@ window.editColaborador = async function (id) {
         toggleHabilitacaoD(habD);
         if (document.getElementById('colab-habilitacao-d-data')) document.getElementById('colab-habilitacao-d-data').value = c.habilitacao_d_data || '';
 
+
+
+        // Motorista Avaliador
+        const motAval = c.motorista_avaliador || 'Não';
+        const radioMotAval = document.querySelector(`input[name="motorista_avaliador"][value="${motAval}"]`);
+        if (radioMotAval) radioMotAval.checked = true;
+        // Mostra/oculta o bloco conforme o departamento
+        window._tcAtualizarMotoristaAvaliador();
         if (document.getElementById('colab-telefone-corporativo')) document.getElementById('colab-telefone-corporativo').value = c.telefone_corporativo || '';
 
         // Chaves
@@ -4990,6 +5027,7 @@ if (formColab) {
             habilitacao_b_data: document.getElementById('colab-habilitacao-b-data') ? document.getElementById('colab-habilitacao-b-data').value : null,
             habilitacao_d: document.querySelector('input[name="habilitacao_d"]:checked')?.value || 'Não',
             habilitacao_d_data: document.getElementById('colab-habilitacao-d-data') ? document.getElementById('colab-habilitacao-d-data').value : null,
+            motorista_avaliador: document.querySelector('input[name="motorista_avaliador"]:checked')?.value || 'Não',
             chaves_participa: document.querySelector('input[name="chaves_participa"]:checked')?.value || 'Não',
             chaves_lista: Array.from(document.querySelectorAll('.chave-entry-row')).map(row => ({
                 chave_id: row.querySelector('.colab-chave-select').value,

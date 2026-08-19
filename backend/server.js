@@ -3871,7 +3871,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 // GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
 // IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para nao ser capturada como id='resumo'
 app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome_completo FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+    db.all("SELECT id, nome_completo, departamento, motorista_avaliador FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -3955,7 +3955,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'santander_ficha_data',
         'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
-        'brigadista_participa', 'brigadista_validade'
+        'brigadista_participa', 'brigadista_validade',
+        'motorista_avaliador'
     ];
 
     const values = colunas.map(col => {
@@ -4541,7 +4542,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'santander_ficha_data',
         'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
-        'brigadista_participa', 'brigadista_validade'
+        'brigadista_participa', 'brigadista_validade',
+        'motorista_avaliador'
     ];
 
     const allowedColunas = colunas;

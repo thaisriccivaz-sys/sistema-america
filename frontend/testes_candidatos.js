@@ -116,58 +116,89 @@
         const startField = c.aguardando_data_em || c.updated_at;
         if (!startField) return '';
 
-        // SLA de 2 minutos = 120000 ms
+        // Normaliza formato SQLite "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
+        // (mesmo padrão que _normDate do SAC)
+        const normDate = (s) => {
+            if (!s || typeof s !== 'string') return s;
+            let d = s.replace(' ', 'T');
+            if (d.length === 19 && !d.endsWith('Z')) d += 'Z';
+            return d;
+        };
+
+        // SLA: 2 minutos para testes (futuro: mudar para 2 horas = 7200000)
         const LIMIT_MS = 120000;
 
-        let startMs = new Date(startField).getTime();
+        const startMs = new Date(normDate(startField)).getTime();
         if (isNaN(startMs)) return '';
-        let endMs = Date.now();
+        const endMs = Date.now();
 
-        let currentMs = startMs;
-        let businessMs = 0;
-        while (currentMs < endMs) {
-            let d = new Date(currentMs);
-            let day = d.getDay();
-            let h = d.getHours();
-
-            if (day === 6) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2).getTime(); continue; }
-            if (day === 0) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); continue; }
-            if (h < 8) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).getTime(); continue; }
-            if (h >= 17) {
-                let addDays = day === 5 ? 3 : 1;
-                currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8).getTime();
-                continue;
+        // Calcula tempo decorrido em horário comercial (seg-sex 08h-17h),
+        // ignorando fins de semana (sex 17h → seg 08h)
+        let elapsed = 0;
+        let cur = startMs;
+        const WS = 8, WE = 17;
+        let guard = 0;
+        while (cur < endMs && ++guard < 5000) {
+            const d = new Date(cur);
+            const dow = d.getDay();
+            const h = d.getHours();
+            if (dow === 0 || dow === 6) {
+                // fim de semana: pula para próxima segunda 08h
+                const skip = new Date(d);
+                skip.setDate(skip.getDate() + (dow === 6 ? 2 : 1));
+                skip.setHours(WS, 0, 0, 0);
+                cur = skip.getTime(); continue;
             }
-            let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
-            let target = Math.min(endMs, limit);
-            businessMs += (target - currentMs);
-            currentMs = target;
+            if (h < WS) { const t = new Date(d); t.setHours(WS, 0, 0, 0); cur = t.getTime(); continue; }
+            if (h >= WE) {
+                const t = new Date(d); t.setDate(t.getDate() + (dow === 5 ? 3 : 1)); t.setHours(WS, 0, 0, 0);
+                cur = t.getTime(); continue;
+            }
+            const eod = new Date(d); eod.setHours(WE, 0, 0, 0);
+            const chunk = Math.min(endMs, eod.getTime()) - cur;
+            elapsed += chunk;
+            cur = eod.getTime();
         }
 
         const now = new Date();
-        const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < 8 || now.getHours() >= 17);
+        const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < WS || now.getHours() >= WE);
+        const isOverdue = elapsed > LIMIT_MS;
 
-        const isOverdue = businessMs > LIMIT_MS;
+        // Formata mm:ss (SLA é curto — 2 min para testes, 2h no futuro será formatado em hh:mm)
+        const fmtMS = (ms) => {
+            const totalSec = Math.floor(Math.abs(ms) / 1000);
+            const mm = Math.floor(totalSec / 60);
+            const ss = totalSec % 60;
+            return String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+        };
 
-        let displayMs = isOverdue ? (businessMs - LIMIT_MS) : (LIMIT_MS - businessMs);
-        let totalSecs = Math.floor(displayMs / 1000);
-        let mm = Math.floor(totalSecs / 60);
-        let ss = totalSecs % 60;
-        let timeStr = (isOverdue ? '-' : '') + (mm < 10 ? '0'+mm : mm) + ':' + (ss < 10 ? '0'+ss : ss);
+        const remainMs = LIMIT_MS - elapsed;
+        const displayMs = isOverdue ? (elapsed - LIMIT_MS) : remainMs;
+        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtMS(displayMs);
 
-        const barPct = Math.min(100, (businessMs / LIMIT_MS) * 100);
-        const color = isOverdue ? '#dc2626' : '#15803d';
-        const bgBadge = isOverdue ? '#fee2e2' : '#dcfce7';
+        // % preenchido (quanto do SLA foi consumido) — igual ao SAC (consumedPct)
+        const consumedPct = Math.min(100, Math.max(0, (elapsed / LIMIT_MS) * 100));
+
+        // Cor progressiva: verde → azul → amarelo → vermelho (igual ao SAC)
+        let barColor, labelColor;
+        if (isOverdue)         { barColor = '#dc2626'; labelColor = '#dc2626'; }
+        else if (consumedPct <= 40) { barColor = '#15803d'; labelColor = '#15803d'; }
+        else if (consumedPct <= 70) { barColor = '#2563eb'; labelColor = '#2563eb'; }
+        else                   { barColor = '#d97706'; labelColor = '#d97706'; }
+
+        const label = isOverdue
+            ? `-${fmtMS(displayMs)} em atraso`
+            : isFrozen
+                ? `❄️ ${fmtMS(remainMs)} restantes`
+                : `${fmtMS(remainMs)} restantes`;
 
         return `<div style="margin-top:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-                <span style="font-size:0.65rem;font-weight:700;color:${color};background:${bgBadge};padding:2px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;">
-                    <i class="ph ph-clock"></i> ${isFrozen ? '❄️ ' : ''}${timeStr}
-                </span>
-                <span style="font-size:0.6rem;color:#94a3b8;">SLA Agendamento</span>
+            <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">
+                <div style="width:${consumedPct.toFixed(1)}%;background:${barColor};height:100%;border-radius:2px;transition:width 0.9s linear;"></div>
             </div>
-            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
-                <div style="width:${barPct}%;background:${color};height:100%;transition:width 1s linear;"></div>
+            <div style="font-size:0.68rem;margin-top:3px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:#94a3b8;">SLA Agendamento</span>
+                <span style="color:${labelColor};font-weight:700;">${label}</span>
             </div>
         </div>`;
     }

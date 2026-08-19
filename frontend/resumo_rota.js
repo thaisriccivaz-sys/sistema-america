@@ -730,7 +730,15 @@ window.rrImportarPlanilha = async function(input) {
         if (resColab.ok) {
             const list = await resColab.json();
             // Usa URL do endpoint de foto (suporta foto_base64 E foto_path)
-            list.forEach(c => { fotoMap[(c.nome_completo || '').toLowerCase().trim()] = `/api/colaboradores/foto/${c.id}`; });
+            list.forEach(c => {
+                const nomeKey = (c.nome_completo || '').toLowerCase().trim();
+                fotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
+                // Mapa de avaliadores: nome_lower → true/false (para filtrar dropdown de candidatos)
+                if ((c.departamento || '').toLowerCase().includes('motorista')) {
+                    window._rrColabAvaliadorMap = window._rrColabAvaliadorMap || {};
+                    window._rrColabAvaliadorMap[nomeKey] = (c.motorista_avaliador || 'Não') === 'Sim';
+                }
+            });
         }
         if (resOS.ok) {
             const list = await resOS.json();
@@ -1397,9 +1405,16 @@ async function _rrRenderCandidatosTeste() {
 
         const tipoLabel = isMot ? '🚚 Motorista' : '🪣 Ajudante';
         const tipoCor = isMot ? '#2563eb' : '#d97706';
-        const opts = (_rrVeiculos || []).map(function(v, idx) {
+        const avaliadorMap = window._rrColabAvaliadorMap || {};
+        const hasAvaliadorData = Object.keys(avaliadorMap).length > 0;
+        const opts = (_rrVeiculos || []).filter(function(v) {
+            // Se ainda não carregou o mapa, mostra todos. Caso contrário, só avaliadores.
+            if (!hasAvaliadorData) return true;
+            const nomeKey = (v.motorista || '').toLowerCase().trim();
+            return avaliadorMap[nomeKey] === true;
+        }).map(function(v, _i, arr) {
             const sel = assignedMot && assignedMot === v.motorista ? ' selected' : '';
-            return '<option value="' + idx + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (idx+1))) + '</option>';
+            return '<option value="' + _rrVeiculos.indexOf(v) + '"' + sel + '>' + (v.motorista || v.veiculo || ('Veículo ' + (_rrVeiculos.indexOf(v)+1))) + '</option>';
         }).join('');
         return '<div style="background:#fff;border-radius:12px;border:2px solid rgba(124,58,237,0.2);padding:16px;min-width:280px;max-width:320px;display:flex;flex-direction:column;gap:12px;">' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
@@ -1599,11 +1614,17 @@ window._rrCarregarDicionarioColaboradores = async function() {
         const list = await res.json();
         window._rrColabNomes = [];
         window._rrColabFotoMap = {};
+        window._rrColabAvaliadorMap = {};
         list.forEach(c => {
             const nome = (c.nome_completo || '').trim();
             if (nome) {
                 window._rrColabNomes.push(nome);
-                window._rrColabFotoMap[nome.toLowerCase()] = `/api/colaboradores/foto/${c.id}`;
+                const nomeKey = nome.toLowerCase();
+                window._rrColabFotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
+                // Registra motoristas avaliadores para filtro do dropdown de candidatos
+                if ((c.departamento || '').toLowerCase().includes('motorista')) {
+                    window._rrColabAvaliadorMap[nomeKey] = (c.motorista_avaliador || 'Não') === 'Sim';
+                }
             }
         });
         window._rrAtualizarDatalistColabs();

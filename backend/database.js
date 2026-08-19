@@ -695,6 +695,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                         if (!cols.includes('escala_ciclo_inicio')) db.run("ALTER TABLE colaboradores ADD COLUMN escala_ciclo_inicio TEXT", (err) => {}); // Data de referência para ciclo Domingo de Lei
                         if (!cols.includes('faz_apontamento')) db.run("ALTER TABLE colaboradores ADD COLUMN faz_apontamento INTEGER DEFAULT 0", (err) => {}); // Supervisão que faz apontamento de ponto
                         if (!cols.includes('destaque_equipe')) db.run("ALTER TABLE colaboradores ADD COLUMN destaque_equipe INTEGER DEFAULT 0", (err) => {});
+                        if (!cols.includes('motorista_avaliador')) db.run("ALTER TABLE colaboradores ADD COLUMN motorista_avaliador TEXT DEFAULT 'Não'", (err) => {});
                     });
                 });
 
