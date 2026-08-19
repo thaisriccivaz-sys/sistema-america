@@ -14910,6 +14910,10 @@ async function checkUserNotificacoes() {
     bg = '#e0f2fe'; color = '#0284c7'; icon = 'ph-clipboard-text'; 
     if (dados && dados.isAguardandoData) {
         titulo = 'Candidato Aguardando Data';
+    } else if (dados && dados.isDataInformada) {
+        titulo = 'Data de Teste Informada';
+    } else if (dados && dados.isTesteAgendado) {
+        titulo = 'Teste Agendado';
     } else {
         titulo = 'Candidatos';
     }
@@ -15114,15 +15118,16 @@ async function checkUserNotificacoes() {
                         ${notif.tipo === 'sac_atribuicao_gestor' ? `<div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Colaborador: <b>${dados.assignedTo || '---'}</b></div>` : ''}
                         <div style="color:#64748b;font-size:0.85rem;">Nº ${dados.protocol || dados.protocolo || '---'}</div>
                     `;
-                } else if (notif.tipo === 'testes_candidatos' && dados && dados.isAguardandoData) {
-    contentHTML = `
-        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
-            <i class="ph ${icon}"></i> ${titulo}
-        </div>
-        <div style="color:#0f172a;font-weight:700;font-size:1.1rem;margin-bottom:2px;">${dados.nome}</div>
-        <div style="color:#64748b;font-size:0.85rem;">${dados.tipoCandidato}</div>
-    `;
-} else {
+                } else if (notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado)) {
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:700;font-size:1.1rem;margin-bottom:2px;">${dados.nome}</div>
+                        <div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">${dados.tipoCandidato}</div>
+                        ${dados.dataAgendada ? `<div style="color:#10b981;font-weight:bold;font-size:0.9rem;">Data agendada: ${dados.dataAgendada}</div>` : ''}
+                    `;
+                } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
@@ -15180,7 +15185,7 @@ async function checkUserNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && !notif.tipo.includes('sac')) {
-    if (!(notif.tipo === 'testes_candidatos' && dados && dados.isAguardandoData)) {
+    if (!(notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado))) {
         setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
     }
 }

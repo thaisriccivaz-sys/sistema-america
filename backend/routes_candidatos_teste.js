@@ -95,10 +95,21 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             }
         });
         if (typeof sendEmailParaNotificados === 'function') {
-            const emailTitle = extraData.isAguardandoData ? "Candidato Aguardando Data" : "Atualizacao - Teste de Candidato";
-            const bodyContent = extraData.isAguardandoData ? 
-                `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3><p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>` 
-                : `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
+            const emailTitle = extraData.isAguardandoData ? "Candidato Aguardando Data" 
+                : extraData.isDataInformada ? "Data de Teste Informada"
+                : extraData.isTesteAgendado ? "Teste Agendado"
+                : "Atualizacao - Teste de Candidato";
+                
+            let bodyContent = "";
+            if (extraData.isAguardandoData) {
+                bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3><p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>`;
+            } else if (extraData.isDataInformada || extraData.isTesteAgendado) {
+                bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3>
+                <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
+                <p style="margin:10px 0 0 0;color:#10b981;font-weight:bold;text-align:center;">Data agendada: ${extraData.dataAgendada}</p>`;
+            } else {
+                bodyContent = `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
+            }
 
             sendEmailParaNotificados(tipoNotif, {
                 subject: `[Testes de Candidatos] ${mensagem}`,
@@ -355,6 +366,19 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                             });
                         }
                     });
+                } else if (status === "Dias de Teste") {
+                    db.get("SELECT nome, tipo, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?", [req.params.id], function(errN, rowN) {
+                        if (!errN && rowN) {
+                            let dts = [rowN.data_teste_1, rowN.data_teste_2, rowN.data_teste_extra].filter(Boolean);
+                            let dataAgendada = dts.length > 0 ? dts.map(d => d.split('-').reverse().join('/')).join(', ') : 'Não informada';
+                            notificarTestesCandidatos(`Candidato ${rowN.nome} movido para Dias de Teste`, {
+                                isTesteAgendado: true,
+                                nome: rowN.nome,
+                                tipoCandidato: rowN.tipo,
+                                dataAgendada: dataAgendada
+                            });
+                        }
+                    });
                 }
                 res.json({ message: "Status atualizado.", status });
             });
@@ -382,7 +406,12 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                     if (dataToSet) {
                         const p = dataToSet.split('-'); const dBR = p.length === 3 ? p[2]+'/'+p[1]+'/'+p[0] : dataToSet;
                         addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} definida para ${dBR} por ${u.nome || u.username || "Sistema"}`, req);
-                        notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`);
+                        notificarTestesCandidatos(`Candidato ${row.nome} agendado para o dia ${dBR} (${etapa || 'Geral'})`, {
+                            isDataInformada: true,
+                            nome: row.nome,
+                            tipoCandidato: row.tipo,
+                            dataAgendada: dBR
+                        });
                     } else {
                         addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} foi apagada por ${u.nome || u.username || "Sistema"}. Motivo: ${motivo || 'Não informado'}`, req);
                     }
