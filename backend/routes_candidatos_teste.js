@@ -740,7 +740,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                     const startDate = _normSQLiteDate(row.aguardando_data_em);
                     if (!startDate || isNaN(startDate.getTime())) return;
                     const businessMs = _getBusinessMs(startDate.getTime(), Date.now());
-                    if (businessMs > 120000) // 2 min para testes {
+                    if (businessMs > 120000) { // 2 min para testes
                         db.run("UPDATE candidatos_teste SET sla_notificado = 1 WHERE id = ?", [row.id], (errU) => {
                             if (!errU) {
                                 notificarTestesCandidatos(
