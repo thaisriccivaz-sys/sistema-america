@@ -86,15 +86,8 @@ return '<div class="qb" id="qb'+i+'"><div class="qt">'+(i+1)+'. '+q+'</div><div 
 document.getElementById('app').innerHTML=
 '<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display=\'none\'">'
 +(function(){
-const drvFto = cand.avaliador_foto ? '<img src="'+cand.avaliador_foto+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.5);">' : '<div class="av" style="width:48px;height:48px;font-size:1.2rem;border:2px solid rgba(255,255,255,.5);">'+(cand.avaliador_nome||'A')[0].toUpperCase()+'</div>';
-const drvNm = cand.avaliador_nome || 'Avaliador';
 return '<div class="ccard" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;">'
 + '<div style="display:flex;align-items:center;gap:15px;">' + fto + '<div><div class="cname">'+cand.nome+'</div><div class="crole">'+tl+'</div><div class="cday">'+dN(dia)+'</div></div></div>'
-+ '<div style="display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.1);padding:10px 15px;border-radius:10px;min-width:110px;">'
-+ '<div style="font-size:0.65rem;color:#bfdbfe;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700;">Avaliador(a)</div>'
-+ drvFto
-+ '<div style="font-size:0.75rem;color:#fff;font-weight:700;margin-top:6px;text-align:center;max-width:100px;line-height:1.2;">'+drvNm+'</div>'
-+ '</div>'
 + '</div>';
 })()
 +'<div class="sec">'

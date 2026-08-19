@@ -95,10 +95,22 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             }
         });
         if (typeof sendEmailParaNotificados === 'function') {
-            const emailTitle = extraData.isAguardandoData ? "Candidato Aguardando Data" 
-                : extraData.isDataInformada ? "Data de Teste Informada"
-                : extraData.isTesteAgendado ? "Teste Agendado"
-                : "Atualizacao - Teste de Candidato";
+            let emailTitle = "Atualizacao - Teste de Candidato";
+            let emailSubject = mensagem;
+            
+            if (extraData.isAguardandoData) {
+                emailTitle = "Candidato Aguardando Marcação de Data para Teste";
+                emailSubject = "Candidato Aguardando Marcação de Data para Teste";
+            } else if (extraData.isDataInformada) {
+                emailTitle = `Data de ${extraData.etapa || 'Teste'} de Candidato Informada`;
+                emailSubject = emailTitle;
+            } else if (extraData.isTesteAgendado) {
+                emailTitle = "Candidato Movido para Dias de Teste";
+                emailSubject = "Candidato Movido para Dias de Teste";
+            } else if (extraData.isAvaliacao) {
+                emailTitle = "Avaliação de Candidato Respondida";
+                emailSubject = "Avaliação de Candidato Respondida";
+            }
                 
             let bodyContent = "";
             if (extraData.isAguardandoData) {
@@ -106,13 +118,17 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             } else if (extraData.isDataInformada || extraData.isTesteAgendado) {
                 bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3>
                 <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
-                <p style="margin:10px 0 0 0;color:#10b981;font-weight:bold;text-align:center;">Data agendada: ${extraData.dataAgendada}</p>`;
+                <p style="margin:10px 0 0 0;color:#10b981;font-weight:bold;text-align:center;">Data agendada:<br>${extraData.dataAgendadaHtml || extraData.dataAgendada}</p>`;
+            } else if (extraData.isAvaliacao) {
+                bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3>
+                <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
+                <p style="margin:10px 0 0 0;color:#3b82f6;font-weight:bold;text-align:center;">${extraData.diaAvaliado}º Dia ${extraData.dataRealizada}</p>`;
             } else {
                 bodyContent = `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
             }
 
             sendEmailParaNotificados(tipoNotif, {
-                subject: mensagem,
+                subject: emailSubject,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                           <div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="America Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
                           <div style="padding:1.5rem 2rem;"><h2 style="color:#7c3aed;margin-top:0;text-align:center;">${emailTitle}</h2>${bodyContent}</div>
@@ -369,13 +385,17 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 } else if (status === "Dias de Teste") {
                     db.get("SELECT nome, tipo, data_teste_1, data_teste_2, data_teste_extra FROM candidatos_teste WHERE id = ?", [req.params.id], function(errN, rowN) {
                         if (!errN && rowN) {
-                            let dts = [rowN.data_teste_1, rowN.data_teste_2, rowN.data_teste_extra].filter(Boolean);
-                            let dataAgendada = dts.length > 0 ? dts.map(d => d.split('-').reverse().join('/')).join(', ') : 'Não informada';
-                            notificarTestesCandidatos(`Candidato ${rowN.nome} movido para Dias de Teste`, {
+                            let dts = [];
+                            if (rowN.data_teste_1) dts.push(`1º Dia: ${rowN.data_teste_1.split('-').reverse().join('/')}`);
+                            if (rowN.data_teste_2) dts.push(`2º Dia: ${rowN.data_teste_2.split('-').reverse().join('/')}`);
+                            if (rowN.data_teste_extra) dts.push(`Extra: ${rowN.data_teste_extra.split('-').reverse().join('/')}`);
+                            let dataAgendadaHtml = dts.length > 0 ? dts.join('<br>') : 'Não informada';
+                            
+                            notificarTestesCandidatos(`Candidato movido para Dias de Teste`, {
                                 isTesteAgendado: true,
                                 nome: rowN.nome,
                                 tipoCandidato: rowN.tipo,
-                                dataAgendada: dataAgendada
+                                dataAgendadaHtml: dataAgendadaHtml
                             });
                         }
                     });
@@ -410,7 +430,8 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                             isDataInformada: true,
                             nome: row.nome,
                             tipoCandidato: row.tipo,
-                            dataAgendada: dBR
+                            etapa: etapa,
+                            dataAgendadaHtml: `${etapa || 'Data'}: ${dBR}`
                         });
                     } else {
                         addLog(req.params.id, "movimentacao", `Data de ${etapa || 'teste'} foi apagada por ${u.nome || u.username || "Sistema"}. Motivo: ${motivo || 'Não informado'}`, req);
@@ -629,38 +650,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                     res.json({ message: "Avaliação recebida com sucesso!", id: this.lastID });
 
                     // -- NOTIFICAÇÃO RH --
-                    db.get("SELECT nome FROM candidatos_teste WHERE id = ?", [id], (errCand, rowCand) => {
+                    db.get("SELECT nome, tipo FROM candidatos_teste WHERE id = ?", [id], (errCand, rowCand) => {
                         if (!errCand && rowCand) {
-                            const msg = `Avaliação recebida para o candidato ${rowCand.nome} (${dia}º Dia) respondida por ${avaliador_nome || 'Avaliador'}.`;
-                            const tipoNotif = 'testes_candidatos';
-                            
-                            // Buscar usuários que estão no RH e ativaram a notificação 'testes_candidatos'
-                            db.all(`SELECT u.id, u.email 
-                                    FROM usuarios u 
-                                    JOIN config_notificacoes cn ON u.id = cn.usuario_id 
-                                    WHERE (u.departamento = 'RH' OR u.username = 'Thais.Ricci') AND u.ativo = 1 AND cn.tipo = ?`, [tipoNotif], (errUsers, rowsUsers) => {
-                                if (!errUsers && rowsUsers && rowsUsers.length > 0) {
-                                    rowsUsers.forEach(u => {
-                                        db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                                            [u.id, tipoNotif, msg, '{}']);
-                                    });
-                                    // Disparar e-mail se a função global existir
-                                    if (typeof global.sendEmail === 'function') {
-                                        const rhEmails = rowsUsers.map(u => u.email).filter(e => e);
-                                        if (rhEmails.length > 0) {
-                                            const htmlStr = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-                                                <div style="background:#7c3aed;padding:20px;text-align:center;">
-                                                    <h2 style="color:#fff;margin:0;font-size:20px;">Avaliação de Teste Prático</h2>
-                                                </div>
-                                                <div style="padding:20px;background:#f9fafb;">
-                                                    <p style="font-size:16px;line-height:1.5;">${msg}</p>
-                                                    <p style="font-size:14px;color:#6b7280;margin-top:20px;">Acesse o sistema para ver os detalhes da avaliação e ouvir o áudio (se houver).</p>
-                                                </div>
-                                            </div>`;
-                                            global.sendEmail(rhEmails.join(','), `[Avaliação] Candidato ${rowCand.nome}`, msg, htmlStr);
-                                        }
-                                    }
-                                }
+                            notificarTestesCandidatos(`Avaliação recebida para o candidato ${rowCand.nome}`, {
+                                isAvaliacao: true,
+                                nome: rowCand.nome,
+                                tipoCandidato: rowCand.tipo,
+                                diaAvaliado: dia,
+                                dataRealizada: new Date().toLocaleDateString('pt-BR')
                             });
                         }
                     });
