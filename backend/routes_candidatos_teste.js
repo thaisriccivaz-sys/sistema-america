@@ -112,7 +112,7 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             }
 
             sendEmailParaNotificados(tipoNotif, {
-                subject: `[Testes de Candidatos] ${mensagem}`,
+                subject: mensagem,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                           <div style="background:#fff;padding:0;"><img src="cid:empresa-logo" alt="America Rental" style="width:100%;display:block;max-height:120px;object-fit:cover;"></div>
                           <div style="padding:1.5rem 2rem;"><h2 style="color:#7c3aed;margin-top:0;text-align:center;">${emailTitle}</h2>${bodyContent}</div>
