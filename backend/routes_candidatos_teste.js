@@ -721,12 +721,12 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
         return businessMs;
     }
 
-    // normaliza "YYYY-MM-DD HH:MM:SS" (localtime SQLite) para Date JS corretamente
+    // normaliza "YYYY-MM-DD HH:MM:SS" para Date JS corretamente
     function _normSQLiteDate(s) {
         if (!s) return null;
-        // SQLite salva localtime Brasil (-03:00). Ao parsear, forçamos o fuso.
+        // Render servers usam UTC no SQLite
         const d = s.replace(' ', 'T');
-        if (d.length === 19) return new Date(d + '-03:00');
+        if (d.length === 19) return new Date(d + 'Z');
         return new Date(d);
     }
 

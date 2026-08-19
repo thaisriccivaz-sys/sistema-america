@@ -119,11 +119,12 @@
 
         // Normaliza formato SQLite "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
         // (mesmo padrão que _normDate do SAC)
-        // SQLite salva localtime Brasil. Forçamos -03:00 para parse correto.
+        // Render servers usam UTC para o SQLite. 
+        // Forçamos o 'Z' para o JS entender corretamente que é UTC.
         const normDate = (s) => {
             if (!s || typeof s !== 'string') return s;
             let d = s.replace(' ', 'T');
-            if (d.length === 19 && !d.endsWith('Z') && !d.includes('+') && !d.includes('-', 10)) d += '-03:00';
+            if (d.length === 19 && !d.endsWith('Z') && !d.includes('+') && !d.includes('-', 10)) d += 'Z';
             return d;
         };
 
