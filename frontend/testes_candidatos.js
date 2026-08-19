@@ -109,82 +109,69 @@
         </div>`;
     }
 
-    
-function _getSLAHTML(c) {
-    if (c.status !== 'Aguardando Data' || !c.aguardando_data_em) return '';
-    
-    // SLA de 2 minutos = 120000 ms
-    const LIMIT_MS = 120000;
-    
-    let startMs = new Date(c.aguardando_data_em).getTime();
-    let endMs = Date.now();
-    
-    let currentMs = startMs;
-    let businessMs = 0;
-    while (currentMs < endMs) {
-        let d = new Date(currentMs);
-        let day = d.getDay();
-        let h = d.getHours();
-        
-        if (day === 6) {
-            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2);
-            currentMs = next.getTime();
-            continue;
+
+    function _getSLAHTML(c) {
+        if (c.status !== 'Aguardando Data') return '';
+        // Usa aguardando_data_em se disponível, caso contrário usa updated_at como fallback
+        const startField = c.aguardando_data_em || c.updated_at;
+        if (!startField) return '';
+
+        // SLA de 2 minutos = 120000 ms
+        const LIMIT_MS = 120000;
+
+        let startMs = new Date(startField).getTime();
+        if (isNaN(startMs)) return '';
+        let endMs = Date.now();
+
+        let currentMs = startMs;
+        let businessMs = 0;
+        while (currentMs < endMs) {
+            let d = new Date(currentMs);
+            let day = d.getDay();
+            let h = d.getHours();
+
+            if (day === 6) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2).getTime(); continue; }
+            if (day === 0) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); continue; }
+            if (h < 8) { currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8).getTime(); continue; }
+            if (h >= 17) {
+                let addDays = day === 5 ? 3 : 1;
+                currentMs = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8).getTime();
+                continue;
+            }
+            let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
+            let target = Math.min(endMs, limit);
+            businessMs += (target - currentMs);
+            currentMs = target;
         }
-        if (day === 0) {
-            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-            currentMs = next.getTime();
-            continue;
-        }
-        if (h < 8) {
-            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8);
-            currentMs = next.getTime();
-            continue;
-        }
-        if (h >= 17) {
-            let addDays = day === 5 ? 3 : 1;
-            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8);
-            currentMs = next.getTime();
-            continue;
-        }
-        
-        let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
-        let target = Math.min(endMs, limit);
-        businessMs += (target - currentMs);
-        currentMs = target;
-    }
-    
-    const d = new Date();
-    const isFrozen = (d.getDay() === 0 || d.getDay() === 6 || d.getHours() < 8 || d.getHours() >= 17);
-    
-    const isOverdue = businessMs > LIMIT_MS;
-    
-    // Format mm:ss
-    let displayMs = isOverdue ? (businessMs - LIMIT_MS) : (LIMIT_MS - businessMs);
-    let totalSecs = Math.floor(displayMs / 1000);
-    let m = Math.floor(totalSecs / 60);
-    let s = totalSecs % 60;
-    let timeStr = (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s);
-    
-    if (isOverdue) timeStr = '-' + timeStr;
-    
-    const barPct = Math.min(100, (businessMs / LIMIT_MS) * 100);
-    const color = isOverdue ? '#dc2626' : '#15803d'; // Vermelho se estourou, senao verde
-    const bgBadge = isOverdue ? '#fee2e2' : '#dcfce7';
-    
-    return `
-        <div style="margin-top:8px;">
+
+        const now = new Date();
+        const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < 8 || now.getHours() >= 17);
+
+        const isOverdue = businessMs > LIMIT_MS;
+
+        let displayMs = isOverdue ? (businessMs - LIMIT_MS) : (LIMIT_MS - businessMs);
+        let totalSecs = Math.floor(displayMs / 1000);
+        let mm = Math.floor(totalSecs / 60);
+        let ss = totalSecs % 60;
+        let timeStr = (isOverdue ? '-' : '') + (mm < 10 ? '0'+mm : mm) + ':' + (ss < 10 ? '0'+ss : ss);
+
+        const barPct = Math.min(100, (businessMs / LIMIT_MS) * 100);
+        const color = isOverdue ? '#dc2626' : '#15803d';
+        const bgBadge = isOverdue ? '#fee2e2' : '#dcfce7';
+
+        return `<div style="margin-top:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
                 <span style="font-size:0.65rem;font-weight:700;color:${color};background:${bgBadge};padding:2px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;">
                     <i class="ph ph-clock"></i> ${isFrozen ? '❄️ ' : ''}${timeStr}
                 </span>
+                <span style="font-size:0.6rem;color:#94a3b8;">SLA Agendamento</span>
             </div>
-            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;position:relative;">
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
                 <div style="width:${barPct}%;background:${color};height:100%;transition:width 1s linear;"></div>
             </div>
-        </div>
-    `;
-}
+        </div>`;
+    }
+
 
     function _renderCard(c) {
         const ct = (c.tipo||"").includes("Motorista") ? "#2563eb" : "#d97706";
@@ -208,6 +195,7 @@ ${c.resultado_teste ? `<div style="background:${c.resultado_teste === 'Aprovado'
                 ${(c.total_comentarios>0)?`<span style="font-size:0.68rem;color:#6366f1;background:#eef2ff;border-radius:4px;padding:1px 5px;"><i class="ph ph-chat-circle"></i> ${c.total_comentarios}</span>`:""}
                 ${(c.rota_motorista && c.rota_motorista !== "{}" && c.rota_motorista !== "null") ? `<span style="font-size:0.68rem;color:#f59e0b;background:#fffbeb;border-radius:4px;padding:1px 5px;"><i class="ph ph-truck"></i></span>`:""}
             </div>
+            ${_getSLAHTML(c)}
         </div>`;
     }
 
@@ -509,6 +497,11 @@ const statusOptions = COLUNAS.map(col => `<option value="${col.id}" ${c.status =
                         <button onclick="window._tcSetResultado(${c.id}, 'Aprovado')" style="padding:4px 10px;border:none;border-radius:4px;font-size:0.75rem;font-weight:700;cursor:pointer;background:${c.resultado_teste==='Aprovado'?'#10b981':'#f1f5f9'};color:${c.resultado_teste==='Aprovado'?'#fff':'#64748b'};">Aprovado</button>
                         <button onclick="window._tcSetResultado(${c.id}, 'Reprovado')" style="padding:4px 10px;border:none;border-radius:4px;font-size:0.75rem;font-weight:700;cursor:pointer;background:${c.resultado_teste==='Reprovado'?'#ef4444':'#f1f5f9'};color:${c.resultado_teste==='Reprovado'?'#fff':'#64748b'};">Reprovado</button>
                     </div>` : ""}
+                    ${c.status === 'Aguardando Data' ? `
+                    <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px;display:flex;align-items:center;gap:5px;"><i class="ph ph-clock"></i> SLA de Agendamento</div>
+                        ${_getSLAHTML(c)}
+                    </div>` : ''}
                     </div>
                 </div>
 
@@ -854,12 +847,15 @@ window._tcVerAvaliacao = function(cId, dia) {
     });
 };
 
-})();
+    // ── Timer SLA: re-renderiza a cada 1s quando há candidatos "Aguardando Data" ──
+    if (window._tcSlaInt) clearInterval(window._tcSlaInt);
+    window._tcSlaInt = setInterval(() => {
+        const t = window.appOpenTabs ? window.appOpenTabs.find(x => x.active) : null;
+        if (t && t.target === 'testes-candidatos') {
+            if (_candidatos && _candidatos.some(c => c.status === 'Aguardando Data')) {
+                _render();
+            }
+        }
+    }, 1000);
 
-if(window._tcSlaInt) clearInterval(window._tcSlaInt);
-window._tcSlaInt = setInterval(() => {
-    const t = window.appOpenTabs ? window.appOpenTabs.find(x=>x.active) : null;
-    if(t && t.target==='testes-candidatos') {
-        if(typeof cards !== 'undefined' && cards.some(c=>c.status==='Aguardando Data')) _render();
-    }
-}, 1000);
+})();
