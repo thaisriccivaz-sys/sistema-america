@@ -109,6 +109,83 @@
         </div>`;
     }
 
+    
+function _getSLAHTML(c) {
+    if (c.status !== 'Aguardando Data' || !c.aguardando_data_em) return '';
+    
+    // SLA de 2 minutos = 120000 ms
+    const LIMIT_MS = 120000;
+    
+    let startMs = new Date(c.aguardando_data_em).getTime();
+    let endMs = Date.now();
+    
+    let currentMs = startMs;
+    let businessMs = 0;
+    while (currentMs < endMs) {
+        let d = new Date(currentMs);
+        let day = d.getDay();
+        let h = d.getHours();
+        
+        if (day === 6) {
+            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2);
+            currentMs = next.getTime();
+            continue;
+        }
+        if (day === 0) {
+            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+            currentMs = next.getTime();
+            continue;
+        }
+        if (h < 8) {
+            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8);
+            currentMs = next.getTime();
+            continue;
+        }
+        if (h >= 17) {
+            let addDays = day === 5 ? 3 : 1;
+            let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8);
+            currentMs = next.getTime();
+            continue;
+        }
+        
+        let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
+        let target = Math.min(endMs, limit);
+        businessMs += (target - currentMs);
+        currentMs = target;
+    }
+    
+    const d = new Date();
+    const isFrozen = (d.getDay() === 0 || d.getDay() === 6 || d.getHours() < 8 || d.getHours() >= 17);
+    
+    const isOverdue = businessMs > LIMIT_MS;
+    
+    // Format mm:ss
+    let displayMs = isOverdue ? (businessMs - LIMIT_MS) : (LIMIT_MS - businessMs);
+    let totalSecs = Math.floor(displayMs / 1000);
+    let m = Math.floor(totalSecs / 60);
+    let s = totalSecs % 60;
+    let timeStr = (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s);
+    
+    if (isOverdue) timeStr = '-' + timeStr;
+    
+    const barPct = Math.min(100, (businessMs / LIMIT_MS) * 100);
+    const color = isOverdue ? '#dc2626' : '#15803d'; // Vermelho se estourou, senao verde
+    const bgBadge = isOverdue ? '#fee2e2' : '#dcfce7';
+    
+    return `
+        <div style="margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                <span style="font-size:0.65rem;font-weight:700;color:${color};background:${bgBadge};padding:2px 6px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;">
+                    <i class="ph ph-clock"></i> ${isFrozen ? '❄️ ' : ''}${timeStr}
+                </span>
+            </div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;position:relative;">
+                <div style="width:${barPct}%;background:${color};height:100%;transition:width 1s linear;"></div>
+            </div>
+        </div>
+    `;
+}
+
     function _renderCard(c) {
         const ct = (c.tipo||"").includes("Motorista") ? "#2563eb" : "#d97706";
         const fotoEl = c.foto_base64
@@ -778,3 +855,11 @@ window._tcVerAvaliacao = function(cId, dia) {
 };
 
 })();
+
+if(window._tcSlaInt) clearInterval(window._tcSlaInt);
+window._tcSlaInt = setInterval(() => {
+    const t = window.appOpenTabs ? window.appOpenTabs.find(x=>x.active) : null;
+    if(t && t.target==='testes-candidatos') {
+        if(typeof cards !== 'undefined' && cards.some(c=>c.status==='Aguardando Data')) _render();
+    }
+}, 1000);

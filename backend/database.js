@@ -1570,9 +1570,17 @@ db.run("PRAGMA foreign_keys = ON;");
                     criado_por_id INTEGER REFERENCES usuarios(id),
                     criado_por_nome TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    aguardando_data_em DATETIME,
+                    sla_notificado INTEGER DEFAULT 0
                 )
-            `, (err) => { if (!err) console.log('[DB] Tabela candidatos_teste OK.'); });
+            `, (err) => { 
+                if (!err) {
+                    console.log('[DB] Tabela candidatos_teste OK.');
+                    db.run('ALTER TABLE candidatos_teste ADD COLUMN aguardando_data_em DATETIME', (e)=>{});
+                    db.run('ALTER TABLE candidatos_teste ADD COLUMN sla_notificado INTEGER DEFAULT 0', (e)=>{});
+                }
+            });
 
             db.run(`
                 CREATE TABLE IF NOT EXISTS candidatos_teste_comentarios (

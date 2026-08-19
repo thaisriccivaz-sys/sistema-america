@@ -14916,6 +14916,10 @@ async function checkUserNotificacoes() {
         titulo = 'Teste Agendado';
     } else if (dados && dados.isAvaliacao) {
         titulo = 'Avaliação de Candidato Respondida';
+    } else if (dados && dados.isSla) {
+        titulo = '🚨 Tempo de Marcação Esgotado!';
+        color = '#dc2626';
+        icon = 'ph-warning-circle';
     } else {
         titulo = 'Candidatos';
     }
@@ -15120,7 +15124,7 @@ async function checkUserNotificacoes() {
                         ${notif.tipo === 'sac_atribuicao_gestor' ? `<div style="color:#64748b;font-size:0.85rem;margin-bottom:4px;">Colaborador: <b>${dados.assignedTo || '---'}</b></div>` : ''}
                         <div style="color:#64748b;font-size:0.85rem;">Nº ${dados.protocol || dados.protocolo || '---'}</div>
                     `;
-                } else if (notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado || dados.isAvaliacao)) {
+                } else if (notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado || dados.isAvaliacao || dados.isSla)) {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> ${titulo}
@@ -15130,6 +15134,7 @@ async function checkUserNotificacoes() {
                         ${dados.dataAgendadaHtml ? `<div style="color:#10b981;font-weight:bold;font-size:0.9rem;">Data agendada:<br>${dados.dataAgendadaHtml}</div>` : ''}
                         ${dados.dataAgendada && !dados.dataAgendadaHtml ? `<div style="color:#10b981;font-weight:bold;font-size:0.9rem;">Data agendada: ${dados.dataAgendada}</div>` : ''}
                         ${dados.isAvaliacao ? `<div style="color:#3b82f6;font-weight:bold;font-size:0.9rem;">${dados.diaAvaliado.toString().toLowerCase() === 'extra' ? 'Teste Extra:' : dados.diaAvaliado + 'º Dia'} ${dados.dataRealizada}</div>` : ''}
+                        ${dados.isSla ? `<div style="color:#dc2626;font-weight:bold;font-size:0.9rem;">O candidato está na coluna "Aguardando Data" há mais de 2 minutos úteis.</div>` : ''}
                     `;
                 } else {
                     contentHTML = `
@@ -15189,7 +15194,7 @@ async function checkUserNotificacoes() {
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
                 if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && !notif.tipo.includes('sac')) {
-    if (!(notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado || dados.isAvaliacao))) {
+    if (!(notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado || dados.isAvaliacao || dados.isSla))) {
         setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
     }
 }

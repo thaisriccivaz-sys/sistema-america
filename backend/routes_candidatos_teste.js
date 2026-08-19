@@ -110,6 +110,9 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             } else if (extraData.isAvaliacao) {
                 emailTitle = "Avaliação de Candidato Respondida";
                 emailSubject = "Avaliação de Candidato Respondida";
+            } else if (extraData.isSla) {
+                emailTitle = "🚨 Tempo de Marcação Esgotado!";
+                emailSubject = "SLA Estourado - Aguardando Marcação de Data";
             }
                 
             let bodyContent = "";
@@ -123,6 +126,10 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
                 bodyContent = `<h3 style="margin:0 0 5px 0;color:#333;text-align:center;">${extraData.nome}</h3>
                 <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
                 <p style="margin:10px 0 0 0;color:#3b82f6;font-weight:bold;text-align:center;">${extraData.diaAvaliado.toString().toLowerCase() === 'extra' ? 'Teste Extra:' : extraData.diaAvaliado + 'º Dia'} ${extraData.dataRealizada}</p>`;
+            } else if (extraData.isSla) {
+                bodyContent = `<h3 style="margin:0 0 5px 0;color:#dc2626;text-align:center;">${extraData.nome}</h3>
+                <p style="margin:0;color:#666;text-align:center;">${extraData.tipoCandidato}</p>
+                <p style="margin:10px 0 0 0;color:#dc2626;font-weight:bold;text-align:center;">O candidato está na coluna "Aguardando Data" há mais de 2 minutos úteis.</p>`;
             } else {
                 bodyContent = `<p style="font-size:15px;line-height:1.6;margin:0;">${mensagem}</p>`;
             }
@@ -354,6 +361,14 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
             const sets = ["status = ?", "updated_at = datetime('now','localtime')"];
             if (row.status === 'Dias de Teste' && status === 'Aguardando Data') {
                 sets.push("retornou_teste_extra = 1");
+            }
+            
+            if (status === 'Aguardando Data') {
+                sets.push("aguardando_data_em = datetime('now', 'localtime')");
+                sets.push("sla_notificado = 0");
+            } else {
+                sets.push("aguardando_data_em = NULL");
+                sets.push("sla_notificado = 0");
             }
             const vals = [status];
 
@@ -671,3 +686,50 @@ module.exports = function registerCandidatosTesteRoutes(app, db, authenticateTok
 
     console.log("[Candidatos] Rotas de Testes de Candidatos registradas.");
 };
+
+    // CHECK SLA OVERDUE - roda a cada 1 minuto
+    function getBusinessMs(startMs, endMs) {
+        let currentMs = startMs;
+        let businessMs = 0;
+        while (currentMs < endMs) {
+            let d = new Date(currentMs);
+            let day = d.getDay();
+            let h = d.getHours();
+            if (day === 6) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 2); currentMs = next.getTime(); continue; }
+            if (day === 0) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); currentMs = next.getTime(); continue; }
+            if (h < 8) { let next = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8); currentMs = next.getTime(); continue; }
+            if (h >= 17) {
+                let addDays = day === 5 ? 3 : 1;
+                let next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8);
+                currentMs = next.getTime();
+                continue;
+            }
+            let limit = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17).getTime();
+            let target = Math.min(endMs, limit);
+            businessMs += (target - currentMs);
+            currentMs = target;
+        }
+        return businessMs;
+    }
+
+    setInterval(() => {
+        db.all("SELECT id, nome, tipo, aguardando_data_em FROM candidatos_teste WHERE status = 'Aguardando Data' AND aguardando_data_em IS NOT NULL AND sla_notificado = 0", [], (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(row => {
+                let startMs = new Date(row.aguardando_data_em).getTime();
+                let endMs = Date.now();
+                if (getBusinessMs(startMs, endMs) > 120000) {
+                    db.run("UPDATE candidatos_teste SET sla_notificado = 1 WHERE id = ?", [row.id], (errU) => {
+                        if (!errU) {
+                            notificarTestesCandidatos(`O candidato ${row.nome} ultrapassou o tempo limite de marcação de data!`, {
+                                isSla: true,
+                                nome: row.nome,
+                                tipoCandidato: row.tipo
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    }, 60000);
+
