@@ -533,32 +533,12 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                 }
             } catch(e) {}
         }
-        
-        // Fallback se não tiver snapshot: constrói um básico pelas respostas
-        if (!questions) {
-            const savedCats = Object.keys(savedAnswers).filter(k => 
-                k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
-            );
-            const currentTemplate = AVALIACAO_QUESTIONS[tipo][groupKey];
-            const currentCats = currentTemplate ? Object.keys(currentTemplate) : [];
-            
-            // Se as categorias salvas não baterem com o template atual, reconstrói
-            if (savedCats.length > 0 && (!currentTemplate || !savedCats.every(sc => currentCats.includes(sc)))) {
-                const rebuilt = {};
-                for (const sc of savedCats) {
-                    const ans = savedAnswers[sc];
-                    if (ans && typeof ans === 'object') {
-                        const maxIdx = Math.max(...Object.keys(ans).map(Number));
-                        // Tenta usar as perguntas do template atual se a categoria existir, senao gera placeholder
-                        rebuilt[sc] = currentTemplate && currentTemplate[sc] 
-                            ? currentTemplate[sc] 
-                            : Array.from({ length: maxIdx + 1 }, (_, i) => `Pergunta ${i + 1} (${sc})`);
-                    }
-                }
-                if (Object.keys(rebuilt).length > 0) questions = rebuilt;
-            }
-        }
+        // Se não tiver snapshot: NÃO tentar reconstruir pelas categorias antigas.
+        // Isso causava o form mostrar nomes/perguntas desatualizadas.
+        // O mapeamento por posição (abaixo) cuida de aproveitar as notas antigas
+        // mesmo quando os nomes das categorias mudaram no template atual.
     }
+
 
     if (!questions) {
         questions = AVALIACAO_QUESTIONS[tipo][groupKey];
@@ -616,6 +596,9 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     // Guarda o template ATIVO (que pode ter sido reconstruído do snapshot) para que
     // saveAvaliacao use exatamente o mesmo objeto ao salvar — evita descasamento de índices.
     window._activeAvaliacaoQuestions = questions;
+    // Também embute no formulário como JSON para não depender da variável global
+    // (que pode ser sobrescrita se outro formulário for aberto enquanto este estiver aberto)
+    const questionsJson = JSON.stringify(questions).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
 
     let html = `
         <div style="background:#fff; border-radius:0; width:100%; height:100%; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
@@ -631,6 +614,7 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
                     Avalie cada critério (1 Muito ruim - 2 Ruim - 3 Médio - 4 Bom - 5 Muito bom) e adicione uma observação caso aplicável.
                 </p>
                 <form id="form-avaliacao-perguntas">
+                <script id="form-av-questions-data" type="application/json">${questionsJson}</script>
     `;
 
     categories.forEach((cat, catIdx) => {
@@ -748,10 +732,13 @@ window.updateAvaliacaoProgress = function(catIdx, totalQ) {
 }
 
 window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
-    // Usa o template ATIVO que foi usado para renderizar o form (guardado em window._activeAvaliacaoQuestions).
-    // Isso garante que os índices av_0_0, av_1_0, etc. sejam lidos com as mesmas categorias
-    // que foram usadas ao montar o HTML — mesmo que o template tenha sido reconstruído do snapshot.
-    const activeQuestions = window._activeAvaliacaoQuestions
+    // Usa o template ATIVO embutido no próprio formulário (não a variável global,
+    // que pode ter sido sobrescrita por outro formulário aberto depois).
+    // Garante que os índices av_0_0, av_1_0, etc. sejam lidos com as mesmas
+    // categorias que foram usadas ao montar o HTML.
+    const formQData = document.getElementById('form-av-questions-data');
+    const activeQuestions = (formQData ? JSON.parse(formQData.textContent || '{}') : null)
+        || window._activeAvaliacaoQuestions
         || (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][groupKey])
         || {};
     const categories = Object.keys(activeQuestions);
