@@ -471,7 +471,13 @@
             Colaboradores — histórico individual
         </div>
         <div class="sat-search-bar">
-            <input class="sat-search-input" id="sat-colab-search" placeholder="Filtrar por nome, departamento ou cargo…" oninput="window._desGestorFilterColabs()" />
+            <input class="sat-search-input" id="sat-colab-search"
+                placeholder="Filtrar por nome, departamento ou cargo…"
+                value="${(_searchText || '').replace(/"/g, '&quot;')}"
+                autocomplete="off"
+                oninput="window._desGestorFilterColabs()"
+                onkeyup="window._desGestorFilterColabs()"
+                onchange="window._desGestorFilterColabs()" />
         </div>
         <div class="sat-legend" style="margin-bottom:.75rem;">
             <div class="sat-legend-item"><div class="sat-legend-dot" style="background:#e2e8f0;"></div>Não estava admitido na época</div>
@@ -799,9 +805,20 @@
     }
 
     window._desGestorFilterColabs = function () {
-        _searchText = document.getElementById('sat-colab-search')?.value || '';
+        const inp = document.getElementById('sat-colab-search');
+        _searchText = inp ? inp.value : '';
         const wrap = document.getElementById('sat-colab-table-wrap');
-        if (wrap) wrap.innerHTML = renderColabTable();
+        if (wrap) {
+            const scrollY = wrap.scrollTop;
+            wrap.innerHTML = renderColabTable();
+            wrap.scrollTop = scrollY;
+        }
+        // Devolver o foco ao campo para que o usuário possa continuar digitando
+        if (inp) {
+            const pos = inp.selectionEnd;
+            inp.focus();
+            try { inp.setSelectionRange(pos, pos); } catch(e) {}
+        }
     };
 
     window._desGestorSortColabs = function (col) {
