@@ -174,12 +174,12 @@
         const isFrozen = (nowDow === 0 || nowDow === 6 || nowH < WS || nowH >= WE);
         const isOverdue = elapsed > LIMIT_MS;
 
-        // Formata hh:mm — exibição minuto a minuto
+        // Formata HH:MM — exibição minuto a minuto
         const fmtHM = (ms) => {
             const totalMin = Math.floor(Math.abs(ms) / 60000);
             const hh = Math.floor(totalMin / 60);
             const mm = totalMin % 60;
-            return String(hh).padStart(2, '0') + 'h ' + String(mm).padStart(2, '0') + 'm';
+            return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
         };
 
         const remainMs = LIMIT_MS - elapsed;
