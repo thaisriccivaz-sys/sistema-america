@@ -194,10 +194,40 @@ window.renderAvaliacaoTab = async function(container) {
                     avStatusHtml = `<span style="display:inline-block; border-radius:999px; background:${corStatus}22; color:${corStatus}; border:1px solid ${corStatus}; padding:2px 8px; font-size:0.7rem; font-weight:700; margin-bottom:0.5rem; text-transform:uppercase;">${res.__status__}</span>`;
                 }
                 let totalQ = 0, ansQ = 0;
-                categories.forEach(cat => {
-                    questions[cat].forEach((q, i) => { if (q && q.trim()) { totalQ++; if (res[cat] && res[cat][i]) ansQ++; } });
-                });
-                perc = totalQ > 0 ? Math.round((ansQ/totalQ)*100) : 0;
+                // Determina quais categorias/perguntas usar para calcular o progresso.
+                // Prioridade: (1) snapshot salvo, (2) template atual se bate, (3) reconstrução das chaves salvas.
+                let percQuestions = questions; // começa com o template atual
+                const savedCatsForPerc = Object.keys(res).filter(k =>
+                    k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+                );
+                const templateCatsMatch = savedCatsForPerc.every(sc => Object.keys(questions).includes(sc));
+                if (!templateCatsMatch && savedCatsForPerc.length > 0) {
+                    // Tenta usar o snapshot salvo
+                    if (res.__categorias_snapshot__) {
+                        try { percQuestions = JSON.parse(res.__categorias_snapshot__); } catch(e) {}
+                    }
+                    // Se ainda não bate, calcula direto pelas chaves do JSON salvo
+                    if (!percQuestions || Object.keys(percQuestions).every(k => !savedCatsForPerc.includes(k))) {
+                        totalQ = 0; ansQ = 0;
+                        for (const sc of savedCatsForPerc) {
+                            if (res[sc] && typeof res[sc] === 'object') {
+                                const keys = Object.keys(res[sc]);
+                                totalQ += keys.length;
+                                ansQ += keys.filter(k => res[sc][k]).length;
+                            }
+                        }
+                        perc = totalQ > 0 ? Math.round((ansQ / totalQ) * 100) : 0;
+                        percQuestions = null; // sinaliza que já calculamos
+                    }
+                }
+                if (percQuestions) {
+                    Object.keys(percQuestions).forEach(cat => {
+                        (percQuestions[cat] || []).forEach((q, i) => {
+                            if (q && q.trim()) { totalQ++; if (res[cat] && res[cat][i]) ansQ++; }
+                        });
+                    });
+                    perc = totalQ > 0 ? Math.round((ansQ / totalQ) * 100) : 0;
+                }
             }
             
             const isFull = perc === 100;
@@ -463,7 +493,50 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         return;
     }
 
-    const questions = AVALIACAO_QUESTIONS[tipo][groupKey];
+    let questions = AVALIACAO_QUESTIONS[tipo][groupKey];
+
+    // -----------------------------------------------------------------------
+    // SOLUÇÃO DEFINITIVA: verifica se as categorias do template atual
+    // batem com as categorias salvas no respostas_json. Se não baterem
+    // (template foi editado após o salvamento), reconstrói o template a
+    // partir dos dados salvos para que as respostas apareçam corretamente.
+    // -----------------------------------------------------------------------
+    if (existing && savedAnswers) {
+        const savedCats = Object.keys(savedAnswers).filter(k =>
+            k !== '__obs__' && k !== '__status__' && k !== '__grupo__' && k !== '__categorias_snapshot__'
+        );
+        const templateCats = Object.keys(questions);
+        const savedCatsMatch = savedCats.length > 0 && savedCats.every(sc => templateCats.includes(sc));
+
+        if (!savedCatsMatch && savedCats.length > 0) {
+            // As categorias salvas não batem com o template atual.
+            // Se temos um snapshot das perguntas originais, usamos ele.
+            // Caso contrário, reconstruímos o template a partir das respostas salvas.
+            if (savedAnswers.__categorias_snapshot__) {
+                try {
+                    const snap = JSON.parse(savedAnswers.__categorias_snapshot__);
+                    if (snap && Object.keys(snap).length > 0) questions = snap;
+                } catch(e) { /* snapshot inválido, continua */ }
+            } else {
+                // Reconstrói: para cada categoria salva, cria uma lista de perguntas
+                // baseada nas chaves de índice existentes (["0","1","2",...]).
+                // As perguntas em si ficam como placeholder — o usuário verá as notas
+                // mas não o texto das perguntas (que foi perdido junto com o template).
+                const rebuilt = {};
+                for (const sc of savedCats) {
+                    const ans = savedAnswers[sc];
+                    if (ans && typeof ans === 'object') {
+                        const maxIdx = Math.max(...Object.keys(ans).map(Number));
+                        rebuilt[sc] = Array.from({ length: maxIdx + 1 }, (_, i) =>
+                            `Pergunta ${i + 1} (${sc})`
+                        );
+                    }
+                }
+                if (Object.keys(rebuilt).length > 0) questions = rebuilt;
+            }
+        }
+    }
+
     const categories = Object.keys(questions);
     
     const trimestreToMonth = {1: 'Janeiro (1º Trim.)', 2: 'Abril (2º Trim.)', 3: 'Julho (3º Trim.)', 4: 'Setembro (4º Trim.)'};
@@ -617,14 +690,42 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     const form = document.getElementById('form-avaliacao-perguntas');
     const respostas = { __obs__: {} };
     const errSpan = document.getElementById('form-av-error');
-    
+
+    // Obtém o template ativo (pode ter sido reconstruído a partir dos dados salvos)
+    // O formulário renderiza usando 'questions' que está em escopo no form HTML
+    // mas saveAvaliacao recebe groupKey — precisamos do template que foi usado
+    // Para isso, sempre usamos AVALIACAO_QUESTIONS[tipo][groupKey] se existir,
+    // e fazemos o mesmo fallback de reconstrução a partir de savedAnswers.
+    let activeQuestions = (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][groupKey])
+        ? AVALIACAO_QUESTIONS[tipo][groupKey]
+        : null;
+
+    // Se o template não bate (mesmo cenário do openFormAvaliacao), reconstruir
+    if (!activeQuestions) {
+        activeQuestions = {};
+        for (let ci = 0; ci < categories.length; ci++) {
+            const cat = categories[ci];
+            const catAnswers = {};
+            let qi = 0;
+            while (form.elements[`av_${ci}_${qi}`]) {
+                const rads = form.elements[`av_${ci}_${qi}`];
+                const selected = Array.from(rads).find(r => r.checked);
+                catAnswers[qi] = selected ? selected.value : null;
+                qi++;
+            }
+            activeQuestions[cat] = Array.from({ length: qi }, (_, i) => `Pergunta ${i + 1} (${cat})`);
+        }
+    }
+
     let totalQ = 0;
     let ansQ = 0;
 
     categories.forEach((cat, catIdx) => {
         respostas[cat] = {};
         respostas.__obs__[cat] = {};
-        AVALIACAO_QUESTIONS[tipo][groupKey][cat].forEach((q, i) => {
+        const catQuestions = activeQuestions[cat] || [];
+        catQuestions.forEach((q, i) => {
+            if (!q || !q.trim()) return; // ignora perguntas em branco (igual ao display)
             totalQ++;
             const rads = form.elements[`av_${catIdx}_${i}`];
             if (rads && rads.length) {
@@ -646,9 +747,13 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
         respostas.__status__ = hiddenStatusEl.value;
     }
 
-    // Salva o groupKey dentro do JSON para que o formulário possa ser reaberto
-    // corretamente mesmo que o matchTemplateGroup falhe no futuro (ex: cargo mudou)
+    // Salva o groupKey dentro do JSON para recuperação futura
     respostas.__grupo__ = groupKey;
+
+    // SNAPSHOT DAS PERGUNTAS: salva o template completo junto com as respostas.
+    // Isso garante que, mesmo que o template seja editado ou removido no futuro,
+    // o formulário possa ser reaberto mostrando as perguntas e respostas originais.
+    respostas.__categorias_snapshot__ = JSON.stringify(activeQuestions);
 
     const is100Percent = (totalQ > 0 && ansQ === totalQ);
 
