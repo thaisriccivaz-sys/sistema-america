@@ -128,62 +128,68 @@
             return d;
         };
 
-        // SLA: 2 minutos para testes (mudar para 7200000 quando for produção real)
-        const LIMIT_MS = 120000;
+        // SLA: 2 horas úteis (seg-sex 08h-17h BRT)
+        const LIMIT_MS = 7200000; // 2h = 7.200.000 ms
 
         const startMs = new Date(normDate(startField)).getTime();
         if (isNaN(startMs)) return '';
         const endMs = Date.now();
 
-        // Calcula tempo decorrido em horário comercial (seg-sex 08h-17h),
-        // ignorando fins de semana (sex 17h → seg 08h)
+        // Calcula tempo decorrido em horário comercial (seg-sex 08h-17h BRT),
+        // ignorando fins de semana e horários fora do expediente
         let elapsed = 0;
         let cur = startMs;
         const WS = 8, WE = 17;
+        const BRT_OFFSET = 3 * 3600 * 1000; // BRT = UTC-3
         let guard = 0;
         while (cur < endMs && ++guard < 5000) {
-            const d = new Date(cur);
-            const dow = d.getDay();
-            const h = d.getHours();
+            const spMs = cur - BRT_OFFSET;
+            const d = new Date(spMs);
+            const dow = d.getUTCDay();
+            const h = d.getUTCHours();
             if (dow === 0 || dow === 6) {
-                // fim de semana: pula para próxima segunda 08h
-                const skip = new Date(d);
-                skip.setDate(skip.getDate() + (dow === 6 ? 2 : 1));
-                skip.setHours(WS, 0, 0, 0);
-                cur = skip.getTime(); continue;
+                // fim de semana: pula para próxima segunda 08h BRT
+                const addDays = dow === 6 ? 2 : 1;
+                cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + addDays, WS) + BRT_OFFSET;
+                continue;
             }
-            if (h < WS) { const t = new Date(d); t.setHours(WS, 0, 0, 0); cur = t.getTime(); continue; }
+            if (h < WS) { cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), WS) + BRT_OFFSET; continue; }
             if (h >= WE) {
-                const t = new Date(d); t.setDate(t.getDate() + (dow === 5 ? 3 : 1)); t.setHours(WS, 0, 0, 0);
-                cur = t.getTime(); continue;
+                const addDays = dow === 5 ? 3 : 1;
+                cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + addDays, WS) + BRT_OFFSET;
+                continue;
             }
-            const eod = new Date(d); eod.setHours(WE, 0, 0, 0);
-            const chunk = Math.min(endMs, eod.getTime()) - cur;
+            const eodSp = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), WE);
+            const eodMs = eodSp + BRT_OFFSET;
+            const chunk = Math.min(endMs, eodMs) - cur;
             elapsed += chunk;
-            cur = eod.getTime();
+            cur = eodMs;
         }
 
-        const now = new Date();
-        const isFrozen = (now.getDay() === 0 || now.getDay() === 6 || now.getHours() < WS || now.getHours() >= WE);
+        // Detecta se estamos fora do horário comercial BRT agora
+        const nowSpMs = Date.now() - BRT_OFFSET;
+        const nowSp = new Date(nowSpMs);
+        const nowDow = nowSp.getUTCDay();
+        const nowH = nowSp.getUTCHours();
+        const isFrozen = (nowDow === 0 || nowDow === 6 || nowH < WS || nowH >= WE);
         const isOverdue = elapsed > LIMIT_MS;
 
-        // Formata mm:ss (SLA de teste = 2 minutos)
-        const fmtMS = (ms) => {
-            const totalSec = Math.floor(Math.abs(ms) / 1000);
-            const mm = Math.floor(totalSec / 60);
-            const ss = totalSec % 60;
-            return String(mm).padStart(2, '0') + 'm ' + String(ss).padStart(2, '0') + 's';
+        // Formata hh:mm — exibição minuto a minuto
+        const fmtHM = (ms) => {
+            const totalMin = Math.floor(Math.abs(ms) / 60000);
+            const hh = Math.floor(totalMin / 60);
+            const mm = totalMin % 60;
+            return String(hh).padStart(2, '0') + 'h ' + String(mm).padStart(2, '0') + 'm';
         };
-
 
         const remainMs = LIMIT_MS - elapsed;
         const displayMs = isOverdue ? (elapsed - LIMIT_MS) : remainMs;
-        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtMS(displayMs);
+        const timeStr = (isOverdue ? '-' : '') + (isFrozen ? '❄️ ' : '') + fmtHM(displayMs);
 
-        // % preenchido (quanto do SLA foi consumido) — igual ao SAC (consumedPct)
+        // % preenchido (quanto do SLA foi consumido)
         const consumedPct = Math.min(100, Math.max(0, (elapsed / LIMIT_MS) * 100));
 
-        // Cor progressiva: verde → azul → amarelo → vermelho (igual ao SAC)
+        // Cor progressiva: verde → azul → amarelo → vermelho
         let barColor, labelColor;
         if (isOverdue)         { barColor = '#dc2626'; labelColor = '#dc2626'; }
         else if (consumedPct <= 40) { barColor = '#15803d'; labelColor = '#15803d'; }
@@ -191,10 +197,10 @@
         else                   { barColor = '#d97706'; labelColor = '#d97706'; }
 
         const label = isOverdue
-            ? `-${fmtMS(displayMs)} em atraso`
+            ? `-${fmtHM(displayMs)} em atraso`
             : isFrozen
-                ? `❄️ ${fmtMS(remainMs)} restantes`
-                : `${fmtMS(remainMs)} restantes`;
+                ? `❄️ ${fmtHM(remainMs)} restantes`
+                : `${fmtHM(remainMs)} restantes`;
 
         return `<div style="margin-top:8px;">
             <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">
@@ -882,7 +888,7 @@ window._tcVerAvaliacao = function(cId, dia) {
     });
 };
 
-    // ── Timer SLA: re-renderiza a cada 1s quando há candidatos "Aguardando Data" ──
+    // ── Timer SLA: re-renderiza a cada 60s (minuto a minuto) quando há candidatos "Aguardando Data" ──
     if (window._tcSlaInt) clearInterval(window._tcSlaInt);
     window._tcSlaInt = setInterval(() => {
         const t = window.appOpenTabs ? window.appOpenTabs.find(x => x.active) : null;
@@ -891,7 +897,7 @@ window._tcVerAvaliacao = function(cId, dia) {
                 _render();
             }
         }
-    }, 1000);
+    }, 60000);
 
     // ── Polling SLA Alertas: verifica a cada 30s se algum candidato estourou o SLA ──
     if (!window._tcSlaAlertasVisto) window._tcSlaAlertasVisto = new Set();
@@ -914,7 +920,7 @@ window._tcVerAvaliacao = function(cId, dia) {
                     html: `<div style="text-align:center;">
                         <p style="font-size:1rem;font-weight:700;color:#dc2626;margin:8px 0;">${a.nome}</p>
                         <p style="font-size:0.88rem;color:#666;margin:0;">${a.tipo}</p>
-                        <p style="font-size:0.85rem;color:#dc2626;margin-top:10px;">Este candidato está em <strong>"Aguardando Data"</strong> há mais de 2 minutos úteis sem marcação de data de teste.</p>
+                        <p style="font-size:0.85rem;color:#dc2626;margin-top:10px;">Este candidato está em <strong>"Aguardando Data"</strong> há mais de 2 horas úteis sem marcação de data de teste.</p>
                     </div>`,
                     confirmButtonText: 'Entendido',
                     confirmButtonColor: '#dc2626',
