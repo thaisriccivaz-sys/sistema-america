@@ -121,12 +121,14 @@
         const normDate = (s) => {
             if (!s || typeof s !== 'string') return s;
             let d = s.replace(' ', 'T');
-            if (d.length === 19 && !d.endsWith('Z')) d += 'Z';
+            // Como o SQLite salva em localtime, forçamos o fuso do Brasil (-03:00) 
+            // para que a contagem comece de zero, e não 3 horas no futuro.
+            if (d.length === 19 && !d.endsWith('Z') && !d.includes('-03:00')) d += '-03:00';
             return d;
         };
 
-        // SLA: 2 minutos para testes (futuro: mudar para 2 horas = 7200000)
-        const LIMIT_MS = 120000;
+        // SLA: 2 horas (7200000 ms)
+        const LIMIT_MS = 7200000;
 
         const startMs = new Date(normDate(startField)).getTime();
         if (isNaN(startMs)) return '';
