@@ -225,7 +225,7 @@ window.renderAvaliacaoTab = async function(container) {
                         ${(() => {
                             const av = hasData ? avYear.find(a=>a.trimestre===t) : null;
                             const effectiveGroupKey = (av && av.__resolvedGroupKey__) ? av.__resolvedGroupKey__ : safeGroupKey;
-                            return `<button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
+                            return `<button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:${isFull?'#083566':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
                                 <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
                             </button>
                             ${isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
