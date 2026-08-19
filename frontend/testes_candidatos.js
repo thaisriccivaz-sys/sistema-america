@@ -693,7 +693,13 @@ window._tcCopyLinkAval = async function(id, label) {
         if (!r.ok) { Swal.fire({icon:'error',title:'Erro',text:d.error}); return; }
         var dId = label === '1º Dia' ? '1' : (label === '2º Dia' ? '2' : 'extra');
         var url = window.location.origin + '/avaliacao-candidato.html?id=' + id + '&dia=' + dId + '&t=' + d.token;
-        var textToCopy = "Sua opinião é muito importante para continuarmos crescendo.\nE o link de opinião:\n" + url;
+        var dataOriginal = dId === '1' ? d.data_teste_1 : (dId === '2' ? d.data_teste_2 : d.data_teste_extra);
+        var dataFmt = "DD/MM/AAAA";
+        if (dataOriginal && dataOriginal.includes('-')) {
+            var pts = dataOriginal.split('-');
+            dataFmt = pts[2] + '/' + pts[1] + '/' + pts[0];
+        }
+        var textToCopy = "*América Rental*\nA sua opinião é muito importante para continuarmos crescendo.\n\n" + url + "\n\nDeixe sua opinião sobre o teste do dia *" + dataFmt + "*";
         navigator.clipboard.writeText(textToCopy).then(function() {
             if(typeof Swal !== 'undefined') Swal.fire({icon:'success',title:'Link Copiado!',text:'O link de avaliação foi copiado para a área de transferência.',timer:1500,showConfirmButton:false});
         }).catch(function(err) {

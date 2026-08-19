@@ -84,7 +84,7 @@ return '<div class="qb" id="qb'+i+'"><div class="qt">'+(i+1)+'. '+q+'</div><div 
 +[1,2,3,4,5].map(function(v){return '<div class="sb" data-v="'+v+'" onclick="sel('+i+','+v+')"><span class="num">'+v+'</span><span class="lbl">'+SL[v]+'</span></div>';}).join('')
 +'</div></div>';}).join('');
 document.getElementById('app').innerHTML=
-'<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display='none'">'
+'<img src="/assets/avaliacao-header.png" class="header-img" alt="America Rental" onerror="this.style.display=\'none\'">'
 +'<div class="ccard">'+fto+'<div><div class="cname">'+cand.nome+'</div><div class="crole">'+tl+'</div><div class="cday">'+dN(dia)+'</div></div></div>'
 +'<div class="sec"><div class="inr"><label for="an">Seu nome (avaliador) *</label><input type="text" id="an" placeholder="Nome de quem esta avaliando" autocomplete="name"></div>'
 +'<h2>Perguntas de Avaliacao</h2>'
