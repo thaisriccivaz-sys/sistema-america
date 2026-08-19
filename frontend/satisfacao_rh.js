@@ -892,7 +892,10 @@
         
         const infoAdicional = form.elements['info_adicional']?.value;
         if (infoAdicional) { respostas.__obs__.info_adicional = infoAdicional.trim(); respostas.__obs_gerais__ = infoAdicional.trim(); }
-        
+
+        // Salva o grupo utilizado para que o prontuário possa reabrir com o template correto
+        respostas.__grupo__ = grupo;
+
         try {
             submitBtn.innerHTML = '<div class="spinner-sm" style="border-color:#c4b5fd;border-top-color:#fff;"></div> Salvando...';
             submitBtn.disabled = true;

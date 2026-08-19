@@ -181,6 +181,14 @@ window.renderAvaliacaoTab = async function(container) {
                 avUrl = av.pdf_url;
                 avId = av.id;
                 const res = JSON.parse(av.respostas_json);
+                // Recupera o groupKey salvo dentro do JSON (campo __grupo__) para garantir
+                // que o formulário abra com o mesmo template, mesmo que auto-detect falhe
+                const savedGrupo = res.__grupo__;
+                if (savedGrupo && AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedGrupo]) {
+                    // Substitui o safeGroupKey local apenas para este card
+                    av.__resolvedGroupKey__ = savedGrupo;
+                }
+
                 if (tipo === 'experiencia' && res.__status__) {
                     const corStatus = res.__status__ === 'Aprovado' ? '#16a34a' : (res.__status__ === 'Reprovado' ? '#ef4444' : '#f59e0b');
                     avStatusHtml = `<span style="display:inline-block; border-radius:999px; background:${corStatus}22; color:${corStatus}; border:1px solid ${corStatus}; padding:2px 8px; font-size:0.7rem; font-weight:700; margin-bottom:0.5rem; text-transform:uppercase;">${res.__status__}</span>`;
@@ -214,20 +222,24 @@ window.renderAvaliacaoTab = async function(container) {
                     ` : ''}
 
                     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-                        <button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${safeGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
-                            <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
-                        </button>
-                        ${isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
-                        <button onclick="window.open('${avUrl}', '_blank')" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar PDF Assinado">
-                            <i class="ph ph-eye"></i>
-                        </button>
-                        ` : `
-                        <button onclick="viewAvaliacaoPDF('${tipo}', ${year}, ${t}, '${groupKey}')" style="background:#10b981; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar Avaliação em PDF">
-                            <i class="ph ph-eye"></i>
-                        </button>`) : ''}
-                        ${hasData ? `<button onclick="deleteAvaliacao(${avId})" style="background:#ef4444; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Excluir Avaliação Definitivamente">
-                            <i class="ph ph-trash"></i>
-                        </button>` : ''}
+                        ${(() => {
+                            const av = hasData ? avYear.find(a=>a.trimestre===t) : null;
+                            const effectiveGroupKey = (av && av.__resolvedGroupKey__) ? av.__resolvedGroupKey__ : safeGroupKey;
+                            return `<button onclick="openFormAvaliacao('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:${isFull?'#0f4c81':'#0ea5e9'}; color:#fff; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem; flex:1;">
+                                <i class="ph ph-note-pencil"></i> ${hasData ? (isFull ? 'Editar' : 'Continuar') : 'Preencher'}
+                            </button>
+                            ${isFull ? (tipo === 'desempenho' && avUrl && avUrl !== 'null' && avUrl !== 'undefined' ? `
+                            <button onclick="window.open('${avUrl}', '_blank')" style="background:#0f4c81; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar PDF Assinado">
+                                <i class="ph ph-eye"></i>
+                            </button>
+                            ` : `
+                            <button onclick="viewAvaliacaoPDF('${tipo}', ${year}, ${t}, '${effectiveGroupKey}')" style="background:#10b981; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Visualizar Avaliação em PDF">
+                                <i class="ph ph-eye"></i>
+                            </button>`) : ''}
+                            ${hasData ? `<button onclick="deleteAvaliacao(${avId})" style="background:#ef4444; color:#fff; border:none; padding:0.4rem 0.6rem; border-radius:4px; cursor:pointer; font-size:0.9rem; display:flex; align-items:center;" title="Excluir Avaliação Definitivamente">
+                                <i class="ph ph-trash"></i>
+                            </button>` : ''}`;
+                        })()}
                     </div>
                 </div>
             `;
@@ -424,10 +436,31 @@ window.openFormAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     let savedAnswers = {};
     let savedObs = {};
     if (existing) {
-        savedAnswers = JSON.parse(existing.respostas_json);
+        savedAnswers = JSON.parse(existing.respostas_json || '{}');
         if (savedAnswers.__obs__) {
             savedObs = savedAnswers.__obs__;
         }
+        // Se o groupKey passado for inválido (null, "null", sem template carregado),
+        // tenta recuperar o __grupo__ salvo dentro do próprio respostas_json
+        const passedKeyInvalid = !groupKey || groupKey === 'null' || groupKey === 'undefined'
+            || !AVALIACAO_QUESTIONS[tipo] || !AVALIACAO_QUESTIONS[tipo][groupKey];
+        if (passedKeyInvalid && savedAnswers.__grupo__) {
+            const savedKey = savedAnswers.__grupo__;
+            if (AVALIACAO_QUESTIONS[tipo] && AVALIACAO_QUESTIONS[tipo][savedKey]) {
+                groupKey = savedKey;
+            }
+        }
+    }
+
+    // Verificação final: se groupKey ainda for inválido, mostrar erro amigável
+    if (!groupKey || groupKey === 'null' || !AVALIACAO_QUESTIONS[tipo] || !AVALIACAO_QUESTIONS[tipo][groupKey]) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Template não encontrado',
+            html: `Não foi possível identificar o template de avaliação para este colaborador.<br><br>Acesse <b>RH → Avaliações → Templates</b> e cadastre um template para o cargo/departamento deste colaborador.`,
+            confirmButtonText: 'Entendido'
+        });
+        return;
     }
 
     const questions = AVALIACAO_QUESTIONS[tipo][groupKey];
@@ -612,6 +645,10 @@ window.saveAvaliacao = async function(tipo, ano, trimestre, groupKey) {
     if (hiddenStatusEl && hiddenStatusEl.value) {
         respostas.__status__ = hiddenStatusEl.value;
     }
+
+    // Salva o groupKey dentro do JSON para que o formulário possa ser reaberto
+    // corretamente mesmo que o matchTemplateGroup falhe no futuro (ex: cargo mudou)
+    respostas.__grupo__ = groupKey;
 
     const is100Percent = (totalQ > 0 && ansQ === totalQ);
 
