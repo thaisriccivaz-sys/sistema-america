@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -577,6 +577,10 @@ const REGRAS_VISIBILIDADE = [
     { nome: 'Aceite de Recebimento por E-mail', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: null } },
     // NR1: apenas para colaboradores de departamento TIPO Operacional
     { nome: 'NR1', regra: { dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null, tipos_departamento: ['Operacional'] } },
+    // Transporte: cada documento aparece apenas quando o meio de transporte correspondente está selecionado
+    { nome: 'Solicitação de VT', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null, tipos_departamento: null } },
+    { nome: 'Acordo de Auxílio-Combustível', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vc', departamentos: null, tipos_departamento: null } },
+    { nome: 'Desistência de Vale-Transporte', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros', departamentos: null, tipos_departamento: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
@@ -1346,6 +1350,62 @@ GERADORES_PERFIL.forEach(nome => {
     );
 })();
 
+// MIGRATION: Seed do gerador "Desistência de Vale-Transporte"
+(function seedDesistenciaVT() {
+    const nomeGerador = 'Desistência de Vale-Transporte';
+    const conteudoHTML = `<div style="font-family:Arial,sans-serif;font-size:11px;color:#000;max-width:720px;margin:0 auto;padding:10px;">
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;margin-bottom:0;">
+    <tr><td colspan="3" style="text-align:center;font-weight:bold;font-size:14px;border:1px solid #000;padding:6px 0;">DESISTÊNCIA DE VALE-TRANSPORTE</td></tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Nome:</b> \${NOME_COMPLETO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;white-space:nowrap;"><b>CPF:</b> \${CPF}</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Função:</b> \${CARGO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Departamento:</b> \${DEPARTAMENTO}</td>
+      <td style="border:1px solid #000;padding:5px 8px;"><b>Admissão:</b> \${DATA_ADMISSAO}</td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;margin-bottom:0;">
+    <tr>
+      <td style="padding:16px 12px;font-size:11px;line-height:1.8;" colspan="3">
+        <p style="margin:0 0 12px 0;">Pelo presente venho desistir da utilização de Vale-Transporte previsto na Lei no. 7.418, de 16/12/1985, com advento da Lei no. 7.619, de 30/09/1987 e a Nova Regulamentação pelo Decreto no. 95.247, de 17/11/1987.</p>
+        <p style="margin:0;">Esta decisão é valida enquanto não necessitar deste recurso legal por tempo indeterminado de acordo com a minha livre e espontânea vontade.</p>
+      </td>
+    </tr>
+  </table>
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;border-top:none;">
+    <tr>
+      <td style="border:1px solid #000;padding:20px 10px 8px 10px;width:50%;font-size:11px;text-align:center;">
+        <div style="border-top:1px solid #000;margin-top:24px;padding-top:6px;">\${NOME_COMPLETO}</div>
+        <div style="font-size:10px;color:#444;">Assinatura do Colaborador</div>
+      </td>
+      <td style="border:1px solid #000;padding:20px 10px 8px 10px;width:50%;font-size:11px;text-align:center;">
+        <div style="border-top:1px solid #000;margin-top:24px;padding-top:6px;">Guarulhos, \${DATA_ATUAL}</div>
+        <div style="font-size:10px;color:#444;">Data</div>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+
+    db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
+        if (excluido) return;
+        db.get("SELECT id FROM geradores WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [nomeGerador], (err, existing) => {
+            if (!existing) {
+                db.run("INSERT INTO geradores (nome, conteudo, tipo) VALUES (?, ?, 'html')", [nomeGerador, conteudoHTML],
+                    (err) => { if (err && !err.message.includes('UNIQUE')) console.error(`Erro ao criar gerador "${nomeGerador}":`, err); else console.log(`[SEED] Gerador "${nomeGerador}" criado com sucesso.`); }
+                );
+            }
+        });
+    });
+
+    // Visível apenas para colaboradores com "Outros" como meio de transporte
+    db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros', departamentos: null }), nomeGerador]
+    );
+})();
 
 
 // MIGRATION: Inserir ou atualizar relação exata de Cargos x Departamentos solicitada

@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -6322,7 +6322,9 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Aceite de Recebimento por E-mail', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
-                { nome: 'Solicitação de VT', cond: true },
+                { nome: 'Solicitação de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Acordo de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
+                { nome: 'Desistência de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') },
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
@@ -11111,7 +11113,9 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Aceite de Recebimento por E-mail', cond: true },
                 { nome: 'Regras Sorteio Final de Ano', cond: true },
                 { nome: 'Termo de Confidencialidade', cond: true },
-                                    { nome: 'Solicita\u00E7\u00E3o de VT', cond: true },
+                                    { nome: 'Solicita\u00E7\u00E3o de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Acordo de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
+                { nome: 'Desist\u00EAncia de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') },
 
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 // Responsabilidade Equipamento: somente tipo Administrativo
@@ -13319,7 +13323,9 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Recebimento de Regimento Interno', cond: true },
                     { nome: 'Regras Sorteio Final de Ano', cond: true },
                     { nome: 'Termo de Confidencialidade', cond: true },
-                                        { nome: 'Solicita\u00E7\u00E3o de VT', cond: true },
+                                        { nome: 'Solicita\u00E7\u00E3o de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
+                { nome: 'Acordo de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
+                { nome: 'Desist\u00EAncia de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') },
 
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                     // Responsabilidade Equipamento: somente tipo Administrativo
