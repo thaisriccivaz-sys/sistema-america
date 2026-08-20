@@ -1,4 +1,4 @@
-// ── EQUIPES MODULE ────────────────────────────────────────────────────────────
+﻿// ── EQUIPES MODULE ────────────────────────────────────────────────────────────
 (function () {
 'use strict';
 
@@ -30,15 +30,24 @@ async function _eq_post(path, body) {
   const r = await fetch(_eq_apiBase() + path, { method: 'POST', headers: _eq_headers(), body: JSON.stringify(body) });
   return r.json();
 }
-async function _eq_patch(path, body) {
-  const r = await fetch(_eq_apiBase() + path, { method: 'PATCH', headers: _eq_headers(), body: JSON.stringify(body) });
-  return r.json();
-}
-async function _eq_del(path) {
-  const r = await fetch(_eq_apiBase() + path, { method: 'DELETE', headers: _eq_headers() });
-  return r.json();
-}
-
+  async function _eq_patch(path, body) {
+    const r = await fetch(_eq_apiBase() + path, { method: 'PATCH', headers: _eq_headers(), body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Erro no PATCH');
+    return j;
+  }
+  async function _eq_del(path) {
+    const r = await fetch(_eq_apiBase() + path, { method: 'DELETE', headers: _eq_headers() });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Erro no DELETE');
+    return j;
+  }
+  async function _eq_post(path, body) {
+    const r = await fetch(_eq_apiBase() + path, { method: 'POST', headers: _eq_headers(), body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Erro no POST');
+    return j;
+  }
 function _eq_fotoSrc(m) {
   if (m.colaborador_id || m.id) return _eq_apiBase() + `/colaboradores/foto/${m.colaborador_id || m.id}`;
   return null;
@@ -53,7 +62,7 @@ window.initEquipes = async function (showSkeleton = true) {
   }
   try {
     // Dispara verificacao de ferias para mover colaboradores automaticamente
-    fetch(_eq_apiBase() + '/equipes/verificar-ferias', { method: 'POST', headers: _eq_headers() }).catch(()=>{});
+      if (showSkeleton) fetch(_eq_apiBase() + '/equipes/verificar-ferias', { method: 'POST', headers: _eq_headers() }).catch(()=>{});
     [_equipes, _semEquipe] = await Promise.all([
       _eq_get('/equipes'),
       _eq_get('/equipes/colaboradores-sem-equipe')
