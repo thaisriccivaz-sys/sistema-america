@@ -3118,13 +3118,25 @@
     reopenTask(key) {
       const t = _selectedTicket;
       if (!t||!t[key]) return;
-      const reason = prompt('Motivo da reabertura:');
+      const reason = prompt('Motivo da reabertura (nova pergunta):');
       if (!reason||!reason.trim()) return;
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:false, feedback:'', history:[...(t[key].history||[]),{type:'reopen',time:new Date().toISOString(),feedback:reason,user}] };
       t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${key.replace('Task','')} reaberta: "${reason}"`, user });
+      
+      // Mover de volta para Aguardando Setores e reiniciar SLA
+      t.stage = 'aguardando_setores';
+      t.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString(); // Reinicia 2h
+      t.aguardNotified = false;
+      t.aguardPendingJustification = true;
+      t.timeline.push({ stage:'aguardando_setores', time:new Date().toISOString(), notes:`OS devolvida automaticamente para Aguardando Setores após nova pergunta/reabertura.`, user });
+      
       updateTicket(t);
-      showToast('Pendência reaberta. Avanço bloqueado.','warning');
+      showToast('Nova pergunta enviada! OS movida para Aguardando Setores e SLA reiniciado.','warning');
+      
+      // Fechar modal atual e re-renderizar para atualizar UI e timer
+      SAC.closeModal();
+      renderAll();
     },
     saveCostCenter() {
       const t = _selectedTicket;
@@ -3628,9 +3640,14 @@
         
         if (!assignedUsername) { showToast('Selecione o usuário atribuído.', 'warning'); return; }
 
-        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
-        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history:[], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        const oldLog = ticket.logisticsTask || {};
+        const oldCom = ticket.commercialTask || {};
+        const oldFin = ticket.financialTask || {};
+
+        ticket.logisticsTask  = sector==='Logística'  ? { name:`Pendente: Logística — aguardando resposta.`, isCompleted:false, feedback:'', history: oldLog.history || [], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.commercialTask = sector==='Comercial'  ? { name:`Pendente: Comercial — aguardando resposta.`, isCompleted:false, feedback:'', history: oldCom.history || [], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        ticket.financialTask  = sector==='Financeiro' ? { name:`Pendente: Financeiro — aguardando resposta.`, isCompleted:false, feedback:'', history: oldFin.history || [], assignedTo: assignedUsername, assignedToName: assignedUserNome, assignedToPhoto: assignedUserPhoto } : null;
+        
         // Prazo de 2h úteis (Seg-Sex 08h-17h) — congela fora do horário comercial e fins de semana
         ticket.aguardDeadline = addBusinessHours(new Date(), 2 * 60 * 60 * 1000).toISOString(); // 2 horas
         ticket.aguardNotified = false;
