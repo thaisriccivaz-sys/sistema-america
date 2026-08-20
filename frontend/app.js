@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -8233,25 +8233,55 @@ window.renderPagamentosCompetencia = function () {
                 </label>
             </div>
         </div>
-        <div id="ferias-slots-${y}" style="display:flex; flex-wrap:wrap; gap:0.75rem;">
             ${feriasDoAno.length === 0
                 ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento de férias cadastrado para ${y}. Clique em "Adicionar Férias" para inserir.</p>`
-                : feriasDoAno.map(d => `
+                : feriasDoAno.map(d => {
+                    const st = d.assinafy_status || 'PENDENTE';
+                    const isAssinado = (st === 'Assinado' || st.includes('Testemunhas'));
+                    const showAssinafy = st !== 'NAO_EXIGE' && st !== 'Nenhum';
+                    let assInfo = '';
+                    if (showAssinafy) {
+                        const sentDateStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        const signedDateStr = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        if (isAssinado) {
+                            assInfo = `
+                                <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
+                                    <span>Env: ${sentDateStr || '-'}</span>
+                                    <span style="color:#15803d; font-weight:700;">Ass: ${signedDateStr || '-'}</span>
+                                </div>
+                                <button onclick="window.openSignedDocPopupDocumento(${d.id}, 'Férias')" title="Ver Assinado" style="height:34px; background:#2f9e44; color:#fff; border:none; border-radius:6px; padding:0 8px; cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                                    <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Assinado
+                                </button>
+                            `;
+                        } else {
+                            assInfo = `
+                                <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
+                                    <span>Env: ${sentDateStr || '-'}</span>
+                                </div>
+                                <button onclick="window.iniciarAssinafy(${d.id}, this)" title="Solicitar Assinatura" style="height:34px; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:0 8px; cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                                    <i class="ph ph-pen-nib" style="font-size:1.1rem;"></i> Solicitar
+                                </button>
+                            `;
+                        }
+                    }
+                    return `
                     <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
                         <i class="ph ph-file-pdf" style="color:#1e40af; font-size:1.4rem;"></i>
                         <div style="flex:1; min-width:0;">
                             <div style="font-weight:600; font-size:0.85rem; color:#1e3a8a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Férias'}">Férias ${y}</div>
                             <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
                         </div>
-                        <div style="display:flex; gap:4px;">
-                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="background:#dbeafe; color:#1e40af; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
-                                <i class="ph ph-eye"></i>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            ${assInfo}
+                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="height:34px; background:#dbeafe; color:#1e40af; border:none; border-radius:6px; padding:0 8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-eye" style="font-size:1.1rem;"></i>
                             </button>
-                            <button onclick="deleteDoc(${d.id})" title="Excluir" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
-                                <i class="ph ph-trash"></i>
-                            </button>
+                            ${!isAssinado ? `<button onclick="deleteDoc(${d.id})" title="Excluir" style="height:34px; background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:0 8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-trash" style="font-size:1.1rem;"></i>
+                            </button>` : ''}
                         </div>
-                    </div>`).join('')
+                    </div>`;
+                }).join('')
             }
         </div>
     `;
@@ -8289,22 +8319,55 @@ window.renderPagamentosCompetencia = function () {
         <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
             ${outrosDocs.length === 0
                 ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento avulso para este mês.</p>`
-                : outrosDocs.map(d => `
+                : outrosDocs.map(d => {
+                    const st = d.assinafy_status || 'PENDENTE';
+                    const isAssinado = (st === 'Assinado' || st.includes('Testemunhas'));
+                    const showAssinafy = st !== 'NAO_EXIGE' && st !== 'Nenhum';
+                    let assInfo = '';
+                    if (showAssinafy) {
+                        const sentDateStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        const signedDateStr = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        if (isAssinado) {
+                            assInfo = `
+                                <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
+                                    <span>Env: ${sentDateStr || '-'}</span>
+                                    <span style="color:#15803d; font-weight:700;">Ass: ${signedDateStr || '-'}</span>
+                                </div>
+                                <button onclick="window.openSignedDocPopupDocumento(${d.id}, 'Outros')" title="Ver Assinado" style="height:34px; background:#2f9e44; color:#fff; border:none; border-radius:6px; padding:0 8px; cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                                    <i class="ph ph-file-pdf" style="font-size:1.1rem;"></i> Assinado
+                                </button>
+                            `;
+                        } else {
+                            assInfo = `
+                                <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
+                                    <span>Env: ${sentDateStr || '-'}</span>
+                                </div>
+                                <button onclick="window.iniciarAssinafy(${d.id}, this)" title="Solicitar Assinatura" style="height:34px; background:#2563eb; color:#fff; border:none; border-radius:6px; padding:0 8px; cursor:pointer; font-size:0.8rem; font-weight:600; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                                    <i class="ph ph-pen-nib" style="font-size:1.1rem;"></i> Solicitar
+                                </button>
+                            `;
+                        }
+                    }
+                    return `
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
                         <i class="ph ph-file-text" style="color:#64748b; font-size:1.4rem;"></i>
                         <div style="flex:1; min-width:0;">
                             <div style="font-weight:600; font-size:0.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Outros'}">Outros</div>
                             <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
                         </div>
-                        <div style="display:flex; gap:4px;">
-                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="background:#e2e8f0; color:#475569; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
-                                <i class="ph ph-eye"></i>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            ${assInfo}
+                            <button onclick="viewDoc(${d.id})" title="Visualizar" style="height:34px; background:#e2e8f0; color:#475569; border:none; border-radius:6px; padding:0 8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-eye" style="font-size:1.1rem;"></i>
                             </button>
-                            <button onclick="deleteDoc(${d.id})" title="Excluir" style="background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">
-                                <i class="ph ph-trash"></i>
-                            </button>
+                            ${!isAssinado ? `
+                            <button onclick="deleteDoc(${d.id})" title="Excluir" style="height:34px; background:#fee2e2; color:#dc2626; border:none; border-radius:6px; padding:0 8px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-trash" style="font-size:1.1rem;"></i>
+                            </button>` : ''}
                         </div>
-                    </div>`).join('')
+                    </div>`;
+                }).join('')
+            }
             }
         </div>
     `;
