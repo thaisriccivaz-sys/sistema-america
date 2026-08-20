@@ -50,9 +50,9 @@ async function copyAndUpload(dbPath, dbName, resolve, reject) {
         const dateStr = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
         const r2Key = `Backups/${dateStr}_${dbName}`;
 
-        const fileBuffer = fs.readFileSync(dbPath);
-        await r2.uploadToR2(r2Key, fileBuffer, 'application/x-sqlite3');
-        console.log(`✅ Backup salvo no R2: ${r2Key} (${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
+        const stats = fs.statSync(dbPath);
+        await r2.uploadToR2(r2Key, dbPath, 'application/x-sqlite3');
+        console.log(`✅ Backup salvo no R2: ${r2Key} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
         resolve();
     } catch (err) {
         console.error(`❌ Erro ao fazer backup de ${dbName}:`, err.message);

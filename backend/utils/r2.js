@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { Upload } = require("@aws-sdk/lib-storage");
 const fs = require('fs');
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
@@ -35,20 +36,23 @@ async function uploadToR2(destinationKey, fileData, contentType) {
     
     let bodyData;
     if (typeof fileData === 'string') {
-        bodyData = fs.readFileSync(fileData);
+        bodyData = fs.createReadStream(fileData);
     } else {
         bodyData = fileData;
     }
 
-    const command = new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: destinationKey,
-        Body: bodyData,
-        ContentType: contentType,
+    const upload = new Upload({
+        client: s3Client,
+        params: {
+            Bucket: R2_BUCKET_NAME,
+            Key: destinationKey,
+            Body: bodyData,
+            ContentType: contentType,
+        },
     });
 
     try {
-        await s3Client.send(command);
+        await upload.done();
         console.log(`[R2 Storage] Upload concluído: ${destinationKey}`);
         
         if (R2_PUBLIC_URL) {
