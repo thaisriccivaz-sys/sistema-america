@@ -199,15 +199,15 @@
         const label = isOverdue
             ? `-${fmtHM(displayMs)} em atraso`
             : isFrozen
-                ? `❄️ ${fmtHM(remainMs)} restantes`
-                : `${fmtHM(remainMs)} restantes`;
+                ? `❄️ ${fmtHM(remainMs)}`
+                : `${fmtHM(remainMs)}`;
 
         return `<div style="margin-top:8px;">
             <div style="height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;">
                 <div style="width:${consumedPct.toFixed(1)}%;background:${barColor};height:100%;border-radius:2px;transition:width 0.9s linear;"></div>
             </div>
             <div style="font-size:0.68rem;margin-top:3px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="color:#94a3b8;">SLA Agendamento</span>
+                <span style="color:#94a3b8;">SLA</span>
                 <span style="color:${labelColor};font-weight:700;">${label}</span>
             </div>
         </div>`;

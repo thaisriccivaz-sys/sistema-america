@@ -577,7 +577,7 @@ const MENU_HIERARQUIA = [
                 telas: [
                     'dashboard', 'colaboradores-total', 'colaboradores-parcial', 'assinaturas-digitais', 'ferias', 'experiencia',
                     'admissao', 'integracao', 'faculdade', 'rh-agenda', 'recibos', 'pagamentos-massa',
-                    'rh-logistica-sinistros', 'rh-logistica-multas'
+                    'rh-logistica-sinistros', 'rh-logistica-multas', 'testes-candidatos'
                 ]
             },
             {
