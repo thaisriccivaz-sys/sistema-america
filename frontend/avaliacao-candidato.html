@@ -57,9 +57,41 @@ const Q=new URLSearchParams(location.search);
 const cId=Q.get('id'),dia=Q.get('dia'),tok=Q.get('t'),BASE='/api';
 const SL={1:'Pessimo',2:'Ruim',3:'Regular',4:'Bom',5:'Otimo'};
 const PQ={
-A1:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Aprendeu a lavar banheiros e esta apto ao teste na rota?','Precisou ser advertido sobre seguranca ou uso dos EPIs?','Foi proativo demonstrando iniciativa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-A2:['Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?'],
-M:['Sabe verificar condicoes basicas do veiculo antes de sair?','Aprendeu a manusear o motor de succao corretamente?','Dirige com atencao e cuidado?','Respeita as leis de transito?','Demonstrou disposicao para trabalhar?','Demonstrou respeito e educacao?','Conseguiu auxiliar no carregamento/descarregamento?','Precisou ser advertido sobre seguranca?','Foi educado com os clientes representando bem a imagem da empresa?','Aprende rapidamente?','Trabalha com agilidade e foco?','Demonstrou nojo ou repulsa com os dejetos?']
+A1:[
+  'Demonstrou disposição e vontade de trabalhar?',
+  'Demonstrou respeito, educação e bom comportamento com a equipe?',
+  'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+  'Demonstrou capacidade de aprender a lavar os banheiros e executar a atividade corretamente, estando apto para acompanhar uma rota?',
+  'Demonstrou atenção às normas de segurança e ao uso correto dos EPIs, sem precisar de advertências?',
+  'Demonstrou iniciativa e procurou ajudar sem precisar ser constantemente orientado?',
+  'Demonstrou facilidade e rapidez para aprender as atividades?',
+  'Trabalhou com agilidade, atenção e foco nas atividades?',
+  'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+],
+A2:[
+  'Demonstrou disposição e vontade de trabalhar?',
+  'Demonstrou respeito, educação e bom comportamento com a equipe?',
+  'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+  'Demonstrou atenção às normas de segurança, sem precisar de advertências?',
+  'Demonstrou educação e postura adequada ao representar a imagem da empresa perante os clientes?',
+  'Demonstrou facilidade e rapidez para aprender as atividades?',
+  'Trabalhou com agilidade, atenção e foco nas atividades?',
+  'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+],
+M:[
+  'Demonstrou capacidade de verificar as condições básicas do veículo antes de sair?',
+  'Demonstrou habilidade no manuseio correto do motor de sucção?',
+  'Dirigiu com atenção, segurança e cuidado?',
+  'Respeitou as leis e regras de trânsito durante o teste?',
+  'Demonstrou disposição e vontade de trabalhar?',
+  'Demonstrou respeito, educação e bom comportamento com a equipe?',
+  'Demonstrou capacidade e disposição para auxiliar no carregamento e descarregamento?',
+  'Demonstrou atenção às normas de segurança, sem precisar de advertências?',
+  'Demonstrou educação e postura adequada ao representar a imagem da empresa perante os clientes?',
+  'Demonstrou facilidade e rapidez para aprender as atividades?',
+  'Trabalhou com agilidade, atenção e foco nas atividades?',
+  'Demonstrou tranquilidade e profissionalismo ao lidar com dejetos, sem demonstrar nojo ou repulsa?'
+]
 };
 function getPQ(t,d){if(t&&t.toLowerCase().includes('motorista'))return PQ.M;return d==='1'?PQ.A1:PQ.A2;}
 function dN(d){return d==='1'?'1o Dia de Teste':d==='2'?'2o Dia de Teste':'Dia Extra de Teste';}
