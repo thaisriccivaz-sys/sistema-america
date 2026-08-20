@@ -1249,7 +1249,7 @@ GERADORES_PERFIL.forEach(nome => {
 
     // Regra de visibilidade: aparece no dropdown para todos, e à vis??vel automaticamente na aba contratos
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: "meio_transporte~vt", departamentos: null }), nomeGerador]
     );
 })();
 
@@ -1344,9 +1344,9 @@ GERADORES_PERFIL.forEach(nome => {
         });
     });
 
-    // Vis??vel para todos os colaboradores automaticamente na aba Contratos
+    // Visivel apenas para colaboradores com Vale Transporte (VT)
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: "meio_transporte~vt", departamentos: null }), nomeGerador]
     );
 })();
 
