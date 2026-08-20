@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -3596,6 +3596,7 @@ app.get('/api/equipes', authenticateToken, (req, res) => {
                 FROM equipes_membros em
                 JOIN colaboradores c ON c.id = em.colaborador_id
                 WHERE em.equipe_id = ? AND LOWER(c.status) NOT LIKE '%desligado%' AND LOWER(c.status) NOT LIKE '%iniciado%'
+                AND LOWER(c.nome_completo) NOT LIKE '%thais ricci vaz%'
                 ORDER BY em.funcao ASC, em.ordem ASC`, [eq.id], (err2, membros) => {
                 eq.membros = membros || [];
                 resolve(eq);
@@ -3783,6 +3784,7 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
         AND (d.tipo = 'Operacional' OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'P??TIO', 'MOTORISTA FREE')))
         AND (c.departamento IS NULL OR LOWER(c.departamento) NOT LIKE '%manuten%')
         AND (c.cargo IS NULL OR LOWER(c.cargo) NOT LIKE '%manuten%')
+        AND LOWER(c.nome_completo) NOT LIKE '%thais ricci vaz%'
         GROUP BY c.id
         ORDER BY c.nome_completo ASC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
