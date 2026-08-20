@@ -21540,12 +21540,11 @@ async function dispararAcoesAgenda(card) {
     let referente_ids = [];
     try { referente_ids = JSON.parse(card.referente_ids || '[]'); } catch (e) { }
 
-    // Notificação de Aviso de Falta (para o RH) - Regra Absoluta da Tela de Notificações e Inserção no Prontuário
+    // Inserção no Prontuário apenas se for falta (para o RH)
     if (card.tipo === 'falta' && referente_ids.length > 0) {
-        // 1. Inserir a falta no prontuário do RH (apenas se ainda não existir para a mesma data)
         referente_ids.forEach(colab_id => {
             db.get('SELECT id FROM faltas WHERE colaborador_id = ? AND data_falta = ?', [colab_id, card.data], (errChk, existente) => {
-                if (errChk || existente) return; // já existe, não duplicar
+                if (errChk || existente) return;
                 const obsBase = card.descricao || 'Falta registrada via Agenda da Logística';
                 const obsFinal = obsBase + (card.criado_por ? ' (Criado por: ' + card.criado_por + ')' : '');
                 db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
@@ -21556,45 +21555,59 @@ async function dispararAcoesAgenda(card) {
                 );
             });
         });
+    }
 
-        // 2. Disparar notificação para quem deve receber "aviso_faltas"
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
-            if (!errConfig && rowsConfig && rowsConfig.length > 0) {
+    // SEMPRE dispara notificação de Ocorrência quando há inserção pela agenda (aviso_faltas = Aviso de Ocorrências)
+    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'aviso_faltas'", [], (errConfig, rowsConfig) => {
+        if (!errConfig && rowsConfig && rowsConfig.length > 0) {
+            const doNotify = (nomesStr) => {
+                const tipoFormatado = card.tipo.charAt(0).toUpperCase() + card.tipo.slice(1);
+                let tituloMsg = card.titulo ? ` "${card.titulo}"` : '';
+                const msg = `Nova ocorrência na agenda (${tipoFormatado}${tituloMsg}) no dia ${card.data.split('-').reverse().join('/')}. ${nomesStr ? 'Colaboradores: ' + nomesStr : ''}`.trim();
+                const dados = JSON.stringify({ origem: 'agenda', data_falta: card.data, id: card.id, nome_colab: nomesStr || '---' });
+                
+                rowsConfig.forEach(cfg => {
+                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                        [cfg.usuario_id, 'aviso_faltas', msg, dados]);
+                });
+                
+                sendEmailParaNotificados('aviso_faltas', {
+                    subject: `⚠️ Aviso de Ocorrência (${tipoFormatado}) - Agenda`,
+                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                        </div>
+                        <div style="padding:24px;">
+                            <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Ocorrência (Agenda)</h2>
+                            <p>Um registro foi incluído via Agenda:</p>
+                            <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
+                                <p style="margin:4px 0;"><strong>Tipo:</strong> ${tipoFormatado}</p>
+                                ${card.titulo ? `<p style="margin:4px 0;"><strong>Título:</strong> ${card.titulo}</p>` : ''}
+                                ${nomesStr ? `<p style="margin:4px 0;"><strong>Colaborador(es):</strong> ${nomesStr}</p>` : ''}
+                                <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '---'}</p>
+                                ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
+                                ${card.criado_por ? `<p style="margin:4px 0;"><strong>Registrado por:</strong> ${card.criado_por}</p>` : ''}
+                            </div>
+                            <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
+                        </div>
+                    </div>`
+                });
+            };
+
+            if (referente_ids && referente_ids.length > 0) {
                 const placeholders = referente_ids.map(() => '?').join(',');
                 db.all(`SELECT id, nome_completo FROM colaboradores WHERE id IN (${placeholders})`, referente_ids, (errColabs, colabs) => {
+                    let nomesStr = '';
                     if (!errColabs && colabs && colabs.length > 0) {
-                        const nomes = colabs.map(c => c.nome_completo.split(' ').slice(0, 2).join(' ')).join(', ');
-                        const msg = `O(s) colaborador(es) ${nomes} teve/tiveram uma falta (Agenda) no dia ${card.data.split('-').reverse().join('/')}.`;
-                        const dados = JSON.stringify({ origem: 'agenda', data_falta: card.data, id: card.id, nome_colab: nomes });
-                        rowsConfig.forEach(cfg => {
-                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                                [cfg.usuario_id, 'aviso_faltas', msg, dados]);
-                        });
-                        // E-mail para aviso_faltas da agenda
-                        sendEmailParaNotificados('aviso_faltas', {
-                            subject: `⚠️ Aviso de Falta (Agenda) - ${nomes}`,
-                            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                                <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                    <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                                </div>
-                                <div style="padding:24px;">
-                                    <h2 style="color:#e67700;text-align:center;margin-top:0;">⚠️ Aviso de Falta (Agenda Logística)</h2>
-                                    <p>Uma falta foi registrada via Agenda da Logística:</p>
-                                    <div style="background:#fffbeb;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #f59e0b;">
-                                        <p style="margin:4px 0;"><strong>Colaborador(es):</strong> ${nomes}</p>
-                                        <p style="margin:4px 0;"><strong>Data:</strong> ${card.data ? card.data.split('-').reverse().join('/') : '---'}</p>
-                                        ${card.descricao ? `<p style="margin:4px 0;"><strong>Descrição:</strong> ${card.descricao}</p>` : ''}
-                                        ${card.criado_por ? `<p style="margin:4px 0;"><strong>Registrado por:</strong> ${card.criado_por}</p>` : ''}
-                                    </div>
-                                    <p style="font-size:12px;color:#999;text-align:center;"><i>Esta notificação foi gerada automaticamente pelo Sistema América Rental.</i></p>
-                                </div>
-                            </div>`
-                        });
+                        nomesStr = colabs.map(c => c.nome_completo.split(' ').slice(0, 2).join(' ')).join(', ');
                     }
+                    doNotify(nomesStr);
                 });
+            } else {
+                doNotify('');
             }
-        });
-    }
+        }
+    });
 
     if (!acoes.includes('enviar_email')) return;
 
