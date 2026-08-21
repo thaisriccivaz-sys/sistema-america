@@ -779,12 +779,25 @@ window.rrImportarPlanilha = async function(input) {
                     osObsMap[key] = os.observacoes.trim();
                 }
                 if (os.numero_os) {
-                    const habs = os.habilidades
-                        ? (typeof os.habilidades === 'string' ? JSON.parse(os.habilidades || '[]') : os.habilidades)
-                        : [];
-                    const vars = os.variaveis
-                        ? (typeof os.variaveis === 'string' ? JSON.parse(os.variaveis || '[]') : os.variaveis)
-                        : [];
+                    let habs = [];
+                    if (os.habilidades) {
+                        try {
+                            habs = typeof os.habilidades === 'string' ? JSON.parse(os.habilidades) : os.habilidades;
+                        } catch (e) {
+                            habs = [os.habilidades];
+                        }
+                    }
+                    if (!Array.isArray(habs)) habs = [habs];
+                    
+                    let vars = [];
+                    if (os.variaveis) {
+                        try {
+                            vars = typeof os.variaveis === 'string' ? JSON.parse(os.variaveis) : os.variaveis;
+                        } catch (e) {
+                            vars = [os.variaveis];
+                        }
+                    }
+                    if (!Array.isArray(vars)) vars = [vars];
                     if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
                     if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
                 }
