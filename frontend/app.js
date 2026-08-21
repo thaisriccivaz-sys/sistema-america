@@ -6324,7 +6324,8 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Termo de Confidencialidade', cond: true },
                 { nome: 'Solicitação de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Acordo de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
-                { nome: 'Desistência de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') },
+                { nome: 'Desistência de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc') },
+                { nome: 'Desistência de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
@@ -10924,7 +10925,9 @@ window._avaliarRegraGerador = function (g, colab, deptNome, deptObj) {
         const valorEsperado = (valor || '').toLowerCase().trim();
 
         if (operador === 'contains') {
-            if (!valorColab.includes(valorEsperado)) return false;
+            const expectedTokens = valorEsperado.split('|').map(v => v.trim());
+            const hasMatch = expectedTokens.some(v => valorColab.includes(v));
+            if (!hasMatch) return false;
         } else {
             // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
             const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
