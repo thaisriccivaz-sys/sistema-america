@@ -2774,10 +2774,6 @@
             showToast('Preencha a justificativa obrigatória antes de fechar.', 'warning');
             return;
           } else {
-            _selectedTicket.slaOverduePendingJustification = false;
-            if (pendingTipo === 'aguard') _selectedTicket.aguardPendingJustification = false;
-            if (pendingTipo === 'followup') _selectedTicket.followUpPendingJustification = false;
-            updateTicket(_selectedTicket);
             localStorage.removeItem('sac_popup_gestor_required_' + _selectedTicket.id);
             localStorage.removeItem('sac_pending_popup_' + _selectedTicket.id);
           }
@@ -3651,7 +3647,6 @@
         }
         ticket.slaFrozenAt = null;
         ticket.followUpDeadline = null;
-        ticket.followUpPendingJustification = false;
       }
       ticket.timeline.push({ stage:pt.targetStageId, time:new Date().toISOString(), notes:logNotes, user });
       if (!ticket.comments) ticket.comments = [];
@@ -4217,39 +4212,33 @@
   function checkFollowUpAlerts() {
     const now = Date.now();
     _tickets.forEach(ticket => {
-      // Não processar tickets já respondidos ou encerrados
-      if (['concluido','encerrado','respondido','acompanhamento'].includes(ticket.stage)) {
-        if (ticket.aguardPendingJustification === true) showMandatoryJustificationPopup(ticket, 'aguard');
-        if (ticket.followUpPendingJustification === true) showMandatoryJustificationPopup(ticket, 'followup');
-        return;
-      }
-      if (ticket.stage === 'execucao' && ticket.followUpDeadline) {
+      // 1. Verificar se Acompanhamento estourou (notificação e popup) independente do estágio
+      if (ticket.followUpDeadline) {
         const prazo = new Date(ticket.followUpDeadline).getTime();
-        if (!isNaN(prazo)) {
-          if (prazo < now && !ticket.followUpNotified) {
+        if (!isNaN(prazo) && prazo < now) {
+          if (!ticket.followUpNotified && ticket.stage === 'execucao') {
             ticket.followUpNotified = true;
             if (!ticket.comments) ticket.comments = [];
             ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
             updateTicket(ticket);
             const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
-            // Notificar apenas usuários configurados em sac_sla_vencido (via API — sem enviar lista de envolvidos)
             fetch('/api/sac/notificar-acompanhamento', {
               method:'POST',
               headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
             }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
           }
-          if (prazo < now && ticket.followUpPendingJustification === true) {
+          if (ticket.followUpPendingJustification === true) {
             showMandatoryJustificationPopup(ticket, 'followup');
           }
         }
       }
 
-      // ── Aguardando Setores (2h) ────────────────────────────
-      if (ticket.stage === 'aguardando_setores' && ticket.aguardDeadline) {
+      // 2. Verificar se Aguardando Setores estourou (notificação e popup) independente do estágio
+      if (ticket.aguardDeadline) {
         const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
-        if (!isNaN(aguardPrazo)) {
-          if (aguardPrazo < now && !ticket.aguardNotified) {
+        if (!isNaN(aguardPrazo) && aguardPrazo < now) {
+          if (!ticket.aguardNotified && ticket.stage === 'aguardando_setores') {
             ticket.aguardNotified = true;
             if (!ticket.comments) ticket.comments = [];
             ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
@@ -4261,7 +4250,7 @@
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
             }).catch(e => console.error('[SAC] notificar-aguard:', e));
           }
-          if (aguardPrazo < now && ticket.aguardPendingJustification === true) {
+          if (ticket.aguardPendingJustification === true) {
             showMandatoryJustificationPopup(ticket, 'aguard');
           }
         }
@@ -4274,10 +4263,16 @@
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
+      // Forçar popup se estiver pendente, independente do status atual da OS
+      if (ticket.slaOverduePendingJustification === true) {
+        showMandatoryJustificationPopup(ticket, 'sla');
+      }
+
+      // Evita recalcular SLA/notificar se já está em colunas finais ou se já foi notificado
       if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) {
-        if (ticket.slaOverduePendingJustification === true) showMandatoryJustificationPopup(ticket, 'sla');
         return;
       }
+      
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
 
@@ -4303,10 +4298,8 @@
           headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
           body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, openDate:ticket.openDate, typeKey:ticket.typeKey })
         }).catch(e => console.error('[SAC] notificar-sla-vencido:', e));
-      }
-
-      // Popup obrigatório SLA estourado
-      if (ticket.slaOverduePendingJustification === true) {
+        
+        // Acabou de vencer, forçar popup agora
         showMandatoryJustificationPopup(ticket, 'sla');
       }
 
