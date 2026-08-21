@@ -80,11 +80,11 @@ const RR_VAR_ICONS = {
     'AVULSO':                  '❗',
     '❗':                      '❗',
     // Habilidades de veículo
-    'UTILITARIO':              '🚛',
-    'UTILITÁRIO':              '🚛',
-    '🚛':                      '🚛',
-    'BANHEIRO ITINERANTE':     '🚐',
-    '🚐':                      '🚐',
+    'UTILITARIO':              '🛻',
+    'UTILITÁRIO':              '🛻',
+    '🛻':                      '🛻',
+    'BANHEIRO ITINERANTE':     '🔛',
+    '🔛':                      '🔛',
 };
 
 function _rrObsIcon(t) {
