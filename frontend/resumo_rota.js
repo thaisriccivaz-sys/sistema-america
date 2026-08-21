@@ -756,7 +756,7 @@ window.rrImportarPlanilha = async function(input) {
         }
         if (resOS.ok) {
             const list = await resOS.json();
-                        const cleanTs = (str) => {
+                        window._rrCleanTs = (str) => {
                 let s = (str || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '');
                 s = s.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '');
@@ -765,7 +765,7 @@ window.rrImportarPlanilha = async function(input) {
             
             list.forEach(os => {
                 if (os.numero_os && os.observacoes) {
-                    const ts = cleanTs(os.tipo_servico);
+                    const ts = window._rrCleanTs(os.tipo_servico);
                     const key = String(os.numero_os).trim() + '___' + ts;
                     
                     if (!osObsMap[key]) {
@@ -787,7 +787,7 @@ window.rrImportarPlanilha = async function(input) {
     _rrVeiculos.forEach(v => {
         v.os.forEach(os => {
             if (os._numero_os) {
-                const ts = cleanTs(os.servico);
+                const ts = window._rrCleanTs(os.servico);
                 const key = String(os._numero_os).trim() + '___' + ts;
                 
                 if (osObsMap[key]) {
