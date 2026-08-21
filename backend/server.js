@@ -17173,15 +17173,29 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
     }
 
     if (numero_os) {
+        const _nums = numero_os.split(',').map(n => n.trim()).filter(Boolean);
+        if (_nums.length > 1) {
+            // Busca em lote para o Resumo de Rota (sem LIMIT, apenas as OS da planilha)
+            const _ph = _nums.map(() => '?').join(',');
+            db.all(
+                `SELECT * FROM os_logistica WHERE numero_os IN (${_ph}) AND status = 'ativo'`,
+                _nums,
+                (err, rows) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json(rows || []);
+                }
+            );
+        } else {
         db.all(
             `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [numero_os.trim()],
+            [_nums[0]],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS não encontrada.' });
                 res.json(rows);
             }
         );
+        }
     } else if (cliente) {
         db.all(
             `SELECT * FROM os_logistica WHERE status = 'ativo' ORDER BY criado_em DESC`,

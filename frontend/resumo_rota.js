@@ -739,10 +739,19 @@ window.rrImportarPlanilha = async function(input) {
     let osVarsMap = {}; // chave -> variaveis[]
     window._rrObsMetaMap = {}; // obs_text -> {habs, vars} (mapa secundário)
     try {
+        // Busca cirúrgica: coleta numero_os únicos da planilha para não depender de LIMIT
+        const _numerosOsRota = [...new Set(
+            _rrVeiculos.flatMap(v => v.os.map(o => o._numero_os).filter(Boolean))
+        )];
+        const _osQuery = _numerosOsRota.length
+            ? '?numero_os=' + _numerosOsRota.join(',')
+            : '';
+        console.log('[RR-DEBUG] Buscando', _numerosOsRota.length, 'OS específicas (busca cirúrgica):', _numerosOsRota.slice(0,5));
+
         const [resFrota, resColab, resOS] = await Promise.all([
             fetch('/api/frota/veiculos',      { headers: _rrAuthHeaders() }),
             fetch('/api/colaboradores/resumo', { headers: _rrAuthHeaders() }),
-            fetch('/api/logistica/os/buscar',  { headers: _rrAuthHeaders() }),
+            fetch('/api/logistica/os/buscar' + _osQuery, { headers: _rrAuthHeaders() }),
         ]);
         if (resFrota.ok) {
             const list = await resFrota.json();
