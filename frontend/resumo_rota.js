@@ -49,6 +49,23 @@ const RR_EQ = {
     'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
     'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
     'CARRINHO':       { nome: 'CARRINHO',        icon: '🛞' },
+    // Aliases de nome longo (SimpliRoute exporta nome completo na coluna Notas)
+    'STD OBRA':    { nome: 'STD OBRA',    icon: '💙' },
+    'STD EVENTO':  { nome: 'STD EVENTO',  icon: '💜' },
+    'LX OBRA':     { nome: 'LX OBRA',     icon: '🟦' },
+    'LX EVENTO':   { nome: 'LX EVENTO',   icon: '🟪' },
+    'ELX OBRA':    { nome: 'ELX OBRA',    icon: '🔵' },
+    'ELX EVENTO':  { nome: 'ELX EVENTO',  icon: '🟣' },
+    'PCD OBRA':    { nome: 'PCD OBRA',    icon: '♿' },
+    'PCD EVENTO':  { nome: 'PCD EVENTO',  icon: '🧑🏾‍🦽' },
+    'PBII OBRA':   { nome: 'PBII OBRA',   icon: '🧼' },
+    'PBII EVENTO': { nome: 'PBII EVENTO', icon: '🧼' },
+    'PBIII OBRA':  { nome: 'PBIII OBRA',  icon: '🧼' },
+    'PBIII EVENTO':{ nome: 'PBIII EVENTO',icon: '🧼' },
+    'CHUVEIRO OBRA':  { nome: 'CHUVEIRO OBRA',  icon: '🚿' },
+    'CHUVEIRO EVENTO':{ nome: 'CHUVEIRO EVENTO', icon: '🚿' },
+    'MICTORIO OBRA':  { nome: 'MICTÓRIO OBRA',  icon: '💦' },
+    'MICTORIO EVENTO':{ nome: 'MICTÓRIO EVENTO', icon: '💦' },
 };
 
 const RR_VAR_ICONS = {
