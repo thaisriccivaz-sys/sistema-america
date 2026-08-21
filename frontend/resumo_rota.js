@@ -737,6 +737,7 @@ window.rrImportarPlanilha = async function(input) {
     let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
     let osHabsMap = {}; // chave -> habilidades[]
     let osVarsMap = {}; // chave -> variaveis[]
+    let osListByNum = {}; // numero_os -> [ db_record, ... ] (FALLBACK INTELIGENTE)
     window._rrObsMetaMap = {}; // obs_text -> {habs, vars} (mapa secundário)
     try {
         // Busca cirúrgica: coleta numero_os únicos da planilha para não depender de LIMIT
@@ -788,6 +789,11 @@ window.rrImportarPlanilha = async function(input) {
                                     list.forEach(os => {
                 const ts = window._rrCleanTs(os.tipo_servico);
                 const key = String(os.numero_os || '').trim() + '___' + ts;
+                const numKey = String(os.numero_os || '').trim();
+                if (numKey) {
+                    if (!osListByNum[numKey]) osListByNum[numKey] = [];
+                    osListByNum[numKey].push(os);
+                }
                 if (os.numero_os && os.observacoes && !osObsMap[key]) {
                     osObsMap[key] = os.observacoes.trim();
                 }
@@ -835,16 +841,37 @@ window.rrImportarPlanilha = async function(input) {
             if (os._numero_os) {
                 const ts = window._rrCleanTs(os.servico);
                 const key = String(os._numero_os).trim() + '___' + ts;
-                if (osObsMap[key]) {
-                    os.obs = osObsMap[key];
+                let matchedKey = key;
+
+                if (!osObsMap[key] && !osHabsMap[key] && !osVarsMap[key] && osListByNum[String(os._numero_os).trim()]) {
+                    // Fallback Inteligente
+                    const numKey = String(os._numero_os).trim();
+                    const dbList = osListByNum[numKey];
+                    let chosenDbOs = null;
+                    const osTipoBase = os.tipo || '';
+                    chosenDbOs = dbList.find(r => {
+                         const rTs = window._rrCleanTs(r.tipo_servico);
+                         if (osTipoBase === 'MANUTENCAO' && rTs.includes('MANUTEN')) return true;
+                         if (osTipoBase === 'ENTREGA' && rTs.includes('ENTREGA')) return true;
+                         if (osTipoBase === 'RETIRADA' && rTs.includes('RETIRADA')) return true;
+                         return false;
+                    });
+                    if (!chosenDbOs && dbList.length === 1) {
+                        chosenDbOs = dbList[0];
+                    }
+                    if (chosenDbOs) {
+                        matchedKey = numKey + '___' + window._rrCleanTs(chosenDbOs.tipo_servico);
+                    }
                 }
-                // Aplica habilidades do banco (para ícones como 🛻 UTILITÁRIO)
-                if (osHabsMap[key] && (!os.habilidades || !os.habilidades.length)) {
-                    os.habilidades = osHabsMap[key];
+
+                if (osObsMap[matchedKey]) {
+                    os.obs = osObsMap[matchedKey];
                 }
-                // Aplica variaveis do banco (para ícones como 🚨 INFORMAÇÕES IMPORTANTES)
-                if (osVarsMap[key] && (!os.variaveis || !os.variaveis.length)) {
-                    os.variaveis = osVarsMap[key];
+                if (osHabsMap[matchedKey] && (!os.habilidades || !os.habilidades.length)) {
+                    os.habilidades = osHabsMap[matchedKey];
+                }
+                if (osVarsMap[matchedKey] && (!os.variaveis || !os.variaveis.length)) {
+                    os.variaveis = osVarsMap[matchedKey];
                 }
             }
             // Fallback secundário: busca por texto da obs
