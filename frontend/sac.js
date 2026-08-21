@@ -2192,7 +2192,18 @@
     let usersList = window._sacUsersList || [];
     let lastSector = 'Logística';
     let lastUser = '';
-    
+
+    if (src && src.id === 'concluido' && targetStageId !== 'concluido') {
+        const pass = prompt('Por segurança, insira a senha para remover o card da coluna "Concluído":');
+        if (pass !== 'abc') {
+            if (pass !== null) alert('Senha incorreta.');
+            try { _draggedId = null; } catch(e){}
+            document.querySelectorAll('.sac-col').forEach(c => c.classList.remove('drag-over'));
+            renderAll();
+            return;
+        }
+    }
+
     if (targetStageId === 'aguardando_setores') {
       try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
