@@ -230,7 +230,10 @@ function _rrMontarColB(v) {
             nome = nome.substring(0, 20).trim();
         }
 
-        let obsLimpa = (os.obs || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim().toUpperCase();
+        let obsLimpa = (os.obs || '');
+        obsLimpa = obsLimpa.replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '');
+        obsLimpa = obsLimpa.replace(/^[,\s]+|[,\s]+$/g, '').trim();
+        obsLimpa = obsLimpa.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim().toUpperCase();
 
         if (obsLimpa) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
