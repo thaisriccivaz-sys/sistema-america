@@ -79,6 +79,12 @@ const RR_VAR_ICONS = {
     '💧':                      '💧',
     'AVULSO':                  '❗',
     '❗':                      '❗',
+    // Habilidades de veículo
+    'UTILITARIO':              '🚛',
+    'UTILITÁRIO':              '🚛',
+    '🚛':                      '🚛',
+    'BANHEIRO ITINERANTE':     '🚐',
+    '🚐':                      '🚐',
 };
 
 function _rrObsIcon(t) {
@@ -207,7 +213,8 @@ function _rrMontarColB(v) {
     v.os.forEach(os => {
         // Determina ícone: checa cliente, obs, notas_raw, e habilidades
         let habs = Array.isArray(os.habilidades) ? os.habilidades.join(' ') : (os.habilidades || '');
-        const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
+        let vars = Array.isArray(os.variaveis) ? os.variaveis.join(' ') : (os.variaveis || '');
+        const textoParaIcone = [os.cliente, os.obs, os.notas_raw, habs, vars].filter(Boolean).join(' ');
         let icon = _rrObsIcon(textoParaIcone);
 
         const temInfoImportante = textoParaIcone.toUpperCase().includes('INFORMA') && textoParaIcone.toUpperCase().includes('IMPORTANTE');
@@ -240,7 +247,7 @@ function _rrMontarColB(v) {
             if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
         } else if (icon) {
             // Só mostra linha de obs se o ícone veio de texto nas obs/notas (não do nome do cliente)
-            const textoSemCliente = [os.obs, os.notas_raw, habs].filter(Boolean).join(' ');
+            const textoSemCliente = [os.obs, os.notas_raw, habs, vars].filter(Boolean).join(' ');
             const iconSemCliente = _rrObsIcon(textoSemCliente);
             if (iconSemCliente) {
                 const fallbackTxt = iconSemCliente.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
@@ -763,13 +770,23 @@ window.rrImportarPlanilha = async function(input) {
                 return s.trim();
             };
             
+            const osHabsMap = {}; // chave -> habilidades[]
+            const osVarsMap = {}; // chave -> variaveis[]
             list.forEach(os => {
-                if (os.numero_os && os.observacoes) {
-                    const ts = window._rrCleanTs(os.tipo_servico);
-                    const key = String(os.numero_os).trim() + '___' + ts;
-                    if (!osObsMap[key]) {
-                        osObsMap[key] = os.observacoes.trim();
-                    }
+                const ts = window._rrCleanTs(os.tipo_servico);
+                const key = String(os.numero_os || '').trim() + '___' + ts;
+                if (os.numero_os && os.observacoes && !osObsMap[key]) {
+                    osObsMap[key] = os.observacoes.trim();
+                }
+                if (os.numero_os) {
+                    const habs = os.habilidades
+                        ? (typeof os.habilidades === 'string' ? JSON.parse(os.habilidades || '[]') : os.habilidades)
+                        : [];
+                    const vars = os.variaveis
+                        ? (typeof os.variaveis === 'string' ? JSON.parse(os.variaveis || '[]') : os.variaveis)
+                        : [];
+                    if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
+                    if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
                 }
             });
         }
@@ -777,7 +794,7 @@ window.rrImportarPlanilha = async function(input) {
         console.error('[RR] Erro ao buscar dados para insights', e);
     }
 
-    // Preencher obs de cada OS com o valor de Obs. Motoristas do banco
+    // Preencher obs, habilidades e variaveis de cada OS com valores do banco
     // Usa chave numero_os + tipo_servico para evitar que obs de um serviço diferente
     // (ex: Manutenção Avulsa) vaze para outro tipo (ex: Manutenção Obra) com mesmo número.
     _rrVeiculos.forEach(v => {
@@ -787,6 +804,14 @@ window.rrImportarPlanilha = async function(input) {
                 const key = String(os._numero_os).trim() + '___' + ts;
                 if (osObsMap[key]) {
                     os.obs = osObsMap[key];
+                }
+                // Aplica habilidades do banco (para ícones como 🛻 UTILITÁRIO)
+                if (osHabsMap[key] && (!os.habilidades || !os.habilidades.length)) {
+                    os.habilidades = osHabsMap[key];
+                }
+                // Aplica variaveis do banco (para ícones como 🚨 INFORMAÇÕES IMPORTANTES)
+                if (osVarsMap[key] && (!os.variaveis || !os.variaveis.length)) {
+                    os.variaveis = osVarsMap[key];
                 }
             }
         });
