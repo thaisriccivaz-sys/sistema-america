@@ -680,7 +680,7 @@ window.rrImportarPlanilha = async function(input) {
         if (!map[veiculo].motorista && motorista) map[veiculo].motorista = motorista;
         if (!map[veiculo].ajudante  && ajudante)  map[veiculo].ajudante  = ajudante;
 
-        const numero_os = (r[11] || '').toString().trim(); // Col 11 = K = "Identificação de referência" = numero_os no sistema
+        const numero_os = (r[3] || '').toString().trim(); // Col 3 = Referência ID = numero_os no sistema
         const p = _rrParseNotas(notas);
         if (!p.servico && !p.produtos.length && !p.obs) return; // linha sem info relevante
         map[veiculo].os.push({
