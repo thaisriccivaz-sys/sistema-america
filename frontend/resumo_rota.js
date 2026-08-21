@@ -1016,20 +1016,36 @@ function _rrRenderCorpo() {
         const colA   = `${v.veiculo} - Saída`;
         const _colBBase = window._rrObterColBBaseLimpa(v);
         // Append motorista / ajudante / candidato to colB for export
-        const _colBSuffix = (function() {
+        let _colBSuffix = '';
+        let hasCandidate = false;
+        (function() {
             const parts = [];
             parts.push('Motorista: ' + (v.motorista && v.motorista.trim() ? v.motorista.trim() : '—'));
             parts.push('Ajudante: ' + (v.ajudante && v.ajudante.trim() ? v.ajudante.trim() : '—'));
             const cands = (window._rrCandidatosTesteData || []).filter(function(c) {
-                return c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim();
+                let cMot = c.rota_motorista || '';
+                if (cMot.startsWith('{')) { try { cMot = JSON.parse(cMot)[dataRota] || ''; } catch(e){} }
+                return cMot && v.motorista && cMot.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim();
             });
             cands.forEach(function(c) {
                 const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
                 parts.push('Candidato: ' + c.nome + ' - ' + tipo);
+                hasCandidate = true;
             });
-            return '\n' + parts.join('\n');
+            _colBSuffix = '\n' + parts.join('\n');
         })();
-        const colB = _colBBase + _colBSuffix;
+        
+        let colB = _colBBase;
+        if (hasCandidate && !colB.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE')) {
+            colB = '⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n' + colB.replace(/^\s+/, '');
+        } else if (!hasCandidate) {
+            if (colB.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n')) {
+                colB = colB.substring('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n'.length);
+            } else if (colB.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE')) {
+                colB = colB.substring('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE'.length).replace(/^\s+/, '');
+            }
+        }
+        colB = colB + _colBSuffix;
         const total  = v.os.length;
         const nLines = (colB.match(/\n/g) || []).length + 2;
         const h      = Math.max(120, nLines * 20);
@@ -1601,6 +1617,7 @@ function _rrPatchVehicleCards() {
             parts.push('Motorista: ' + (v.motorista && v.motorista.trim() ? v.motorista.trim() : '—'));
             parts.push('Ajudante: ' + (v.ajudante && v.ajudante.trim() ? v.ajudante.trim() : '—'));
 
+            let hasCandidate = false;
             cands.forEach(function(c) {
                 let cMot = c.rota_motorista || '';
                 if (cMot.startsWith('{')) { try { cMot = JSON.parse(cMot)[dataRota] || ''; } catch(e){} }
@@ -1608,10 +1625,24 @@ function _rrPatchVehicleCards() {
                 if (motNorm && vMotNorm && motNorm === vMotNorm) {
                     const tipo = (c.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
                     parts.push('Candidato: ' + c.nome + ' - ' + tipo);
+                    hasCandidate = true;
                 }
             });
 
-            ta.value = base + '\n' + parts.join('\n');
+            let finalBase = base;
+            if (hasCandidate) {
+                if (!finalBase.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE')) {
+                    finalBase = '⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n' + finalBase.replace(/^\s+/, '');
+                }
+            } else {
+                if (finalBase.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n')) {
+                    finalBase = finalBase.substring('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE\n\n'.length);
+                } else if (finalBase.startsWith('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE')) {
+                    finalBase = finalBase.substring('⚠️ ATENÇÃO: LEVAR CANDIDATO DE TESTE'.length).replace(/^\s+/, '');
+                }
+            }
+
+            ta.value = finalBase + '\n' + parts.join('\n');
         }
 
         // ── 2. Atualizar header: adicionar avatar(s) de candidato ao fotosDiv ──
