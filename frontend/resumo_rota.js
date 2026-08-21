@@ -809,11 +809,10 @@ window.rrImportarPlanilha = async function(input) {
                         const _ok = os.observacoes.trim().toUpperCase().substring(0, 80);
                         if (_ok && !window._rrObsMetaMap[_ok]) window._rrObsMetaMap[_ok] = { habs, vars };
                     }
+                }
             });
             console.log('[RR-DEBUG] osVarsMap chaves:', Object.keys(osVarsMap).length, Object.keys(osVarsMap).slice(0,5));
             console.log('[RR-DEBUG] _rrObsMetaMap chaves:', Object.keys(window._rrObsMetaMap).length, Object.keys(window._rrObsMetaMap).slice(0,3));
-                }
-            });
         }
     } catch(e) {
         console.error('[RR] Erro ao buscar dados para insights', e);
