@@ -2848,10 +2848,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
                 return;
             }
-            // Variáveis que exigem obs do motorista (excluindo 'LEVAR CARRINHO' que é automático por produto)
-            const VARS_EXIGEM_OBS = new Set(['ATENÇÃO AO HORÁRIO', 'INFORMAÇÕES IMPORTANTES', 'LEVAR EPI', 'LEVAR EXTENSORA', 'APOIO DE SUCÇÃO', 'INTEGRAÇÃO', 'BANHEIRO ITINERANTE']);
-            const temVarManual = payload.variaveis.some(v => VARS_EXIGEM_OBS.has(v));
-            if (temVarManual && !payload.observacoes) {
+            // Qualquer variável selecionada exige observação do motorista
+            if (payload.variaveis && payload.variaveis.length > 0 && !payload.observacoes) {
                 mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando uma Variável estiver selecionada.');
                 return;
             }
