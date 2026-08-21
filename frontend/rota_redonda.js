@@ -3405,6 +3405,15 @@ window.onChangeTipoServico = function() {
     if (val === 'RETIRADA EVENTO PARCIAL' || val === 'RETIRADA EVENTO TOTAL') {
         osState.acoes.add('LEVAR EXTENSORA');
     }
+
+    if (val === 'MANUTENCAO AVULSA OBRA' || val === 'MANUTENCAO AVULSA EVENTO') {
+        const obsEl = document.getElementById('rr-input-obs');
+        if (obsEl && !obsEl.value.trim()) {
+            obsEl.value = 'Manutenção Avulsa';
+            obsEl.style.background = '#f0fdf4';
+            setTimeout(() => { if(obsEl) obsEl.style.background = '#f8fafc'; }, 1000);
+        }
+    }
     // Aplica habilidades automáticas do serviço. Como mudou o serviço, desabilita as que não fazem parte (wipeManuals=true)
     aplicarHabilidadesDoServico(true);
     atualizarUI();
