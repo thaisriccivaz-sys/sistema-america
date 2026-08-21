@@ -144,15 +144,29 @@ function _rrParseNotas(notas) {
     let obs      = '';
     const prodParts = [];
 
-    for (const linha of linhas) {
-        const upLinha = linha.toUpperCase();
+    // Tipos de serviço válidos — a linha precisa SER um tipo de serviço (ou iniciar com emoji + tipo).
+    // Uma linha de OBS que apenas MENCIONA a palavra (ex: "FAZER SUCÇÃO, NAS CABINES...")
+    // não é um tipo de serviço.
+    const _ehTipoServico = (upLinha) => {
+        // Remove emojis e espaços do início para checar o núcleo da linha
+        const nucleo = upLinha.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]+/gu, '').trim();
+        // Tipos explícitos (linha começa com a palavra-chave do tipo, sem vírgula/texto adicional)
+        if (/^ENTREGA\b/.test(nucleo))   return true;
+        if (/^RETIRADA\b/.test(nucleo))  return true;
+        if (/^MANUTEN[CÇ]/.test(nucleo)) return true;
+        if (/^COMPRAS\b/.test(nucleo))   return true;
+        if (/^VISITA\b/.test(nucleo))    return true;
+        if (/^LIMPA FOSSA\b/.test(nucleo)) return true;
+        // SUCCAO/SUCÇÃO: só é tipo de serviço se a linha é basicamente só isso (sem vírgula nem texto longo)
+        if (/^SUCC?[AÃ]O\b/.test(nucleo) && !nucleo.includes(',') && nucleo.length < 20) return true;
+        return false;
+    };
 
-        // Linha de tipo de serviço
-        if (upLinha.includes('ENTREGA')  || upLinha.includes('RETIRADA') ||
-            upLinha.includes('MANUTENCAO') || upLinha.includes('MANUTENÇÃO') ||
-            upLinha.includes('COMPRAS')  ||
-            upLinha.includes('VISITA')   || upLinha.includes('LIMPA FOSSA') ||
-            upLinha.includes('SUCCAO')   || upLinha.includes('SUCÇÃO')) {
+    for (const linha of linhas) {
+        const upLinha = linha.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        // Linha de tipo de serviço (regra mais precisa)
+        if (_ehTipoServico(upLinha)) {
             if (!servico) servico = linha;
             continue;
         }
@@ -250,7 +264,21 @@ function _rrMontarColB(v) {
             const textoSemCliente = [os.obs, os.notas_raw, habs, vars].filter(Boolean).join(' ');
             const iconSemCliente = _rrObsIcon(textoSemCliente);
             if (iconSemCliente) {
-                const fallbackTxt = iconSemCliente.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!';
+                // Tentar extrair texto de obs das notas brutas (primeira linha não-serviço, não-produto)
+                // para não usar o genérico "AVISO IMPORTANTE!" quando há info real
+                let obsDoNotasRaw = '';
+                if (os.notas_raw) {
+                    const notasNorm = os.notas_raw.replace(/\r\r\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                    for (const ln of notasNorm.split('\n').map(l => l.trim()).filter(Boolean)) {
+                        const lnUp = ln.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                        const lnNucleo = lnUp.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]+/gu, '').trim();
+                        if (/^ENTREGA\b|^RETIRADA\b|^MANUTEN|^COMPRAS\b|^VISITA\b|^LIMPA FOSSA\b/.test(lnNucleo)) continue;
+                        if (/^\d+\s+\S/.test(ln) || /^\d+X\s*-/.test(lnUp)) continue;
+                        const lnLimpa = ln.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🔗❗🌀🚨]+/gu, '').trim().toUpperCase();
+                        if (lnLimpa) { obsDoNotasRaw = lnLimpa; break; }
+                    }
+                }
+                const fallbackTxt = obsDoNotasRaw || (iconSemCliente.includes('🚨') ? 'AVISO IMPORTANTE!' : 'VERIFICAR DETALHES!');
                 const linhaObs = `${iconSemCliente} ${nome}: ${fallbackTxt}`;
                 if (!obsLinhasSet.has(linhaObs)) { obsLinhasSet.add(linhaObs); obsLinhas.push(linhaObs); }
             }
@@ -605,6 +633,18 @@ window.rrImportarPlanilha = async function(input) {
     }
     if (!rows.length) { showToast('Planilha vazia.', 'error'); return; }
 
+    // ── Helper: ExcelJS retorna células com quebra de linha como objeto {richText:[...]}
+    // em vez de string simples. Essa função extrai o texto de qualquer formato.
+    function _rrCellStr(val) {
+        if (!val && val !== 0) return '';
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') return String(val);
+        if (val && Array.isArray(val.richText)) return val.richText.map(function(rt) { return rt.text || ''; }).join('');
+        if (val && typeof val.text === 'string') return val.text;
+        if (val && val.result !== undefined) return String(val.result);
+        return String(val);
+    }
+
     const map = {};
     rows.forEach(r => {
         // ExcelJS row.values é 1-based
@@ -618,13 +658,13 @@ window.rrImportarPlanilha = async function(input) {
         // Col 24 = Load 2
         // Col 25 = Load 3
         // Col 26 = Load 4
-        const veiculo   = (r[7]  || '').toString().trim();
+        const veiculo   = _rrCellStr(r[7]).trim();
         if (!veiculo) return;
-        const motorista = (r[5]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
-        const ajudante  = (r[6]  || '').toString().replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
-        const cliente   = (r[8]  || '').toString().trim();
-        const obsCol    = (r[29] || '').toString().trim();
-        let notas       = (r[36] || '').toString().trim();
+        const motorista = _rrCellStr(r[5]).replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
+        const ajudante  = _rrCellStr(r[6]).replace(/^[\p{Emoji}\u{1F300}-\u{1FFFF}\u2600-\u26FF\u2700-\u27BF\s]+/u, '').trim();
+        const cliente   = _rrCellStr(r[8]).trim();
+        const obsCol    = _rrCellStr(r[29]).trim();
+        let notas       = _rrCellStr(r[36]).trim();
 
         // ── FALLBACK: quando SimpliRoute não exporta a col Notas ──────────────
         // Reconstruir notas a partir do Título (emojis) + colunas Load
