@@ -2843,9 +2843,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Validação estrita de preenchimento
-            if (payload.habilidades.includes('CARRETINHA') && !payload.observacoes) {
-                mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando a habilidade CARRETINHA estiver selecionada.');
+            // Validação estrita de preenchimento para Habilidades específicas
+            const HABS_EXIGEM_OBS = ['CARRETINHA', 'VAC', 'UTILITARIO'];
+            const temHabManual = payload.habilidades.some(h => HABS_EXIGEM_OBS.includes(h));
+            if (temHabManual && !payload.observacoes) {
+                mostrarToastAviso('É obrigatório preencher a Observação do Motorista quando as habilidades VAC, UTILITÁRIO ou CARRETINHA estiverem selecionadas.');
                 return;
             }
             // Qualquer variável selecionada exige observação do motorista
