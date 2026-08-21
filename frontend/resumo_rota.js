@@ -1,3 +1,14 @@
+
+// Helper para garantir que não haja duplicação de Motorista/Ajudante
+window._rrObterColBBaseLimpa = function(v) {
+    let base = v.colBEditado || window._rrMontarColB(v);
+    const suffixMark = '\nMotorista:';
+    const suffIdx = base.indexOf(suffixMark);
+    if (suffIdx !== -1) {
+        base = base.substring(0, suffIdx);
+    }
+    return base;
+};
 // ══════════════════════════════════════════════════════════════
 //  RESUMO DE ROTA  –  Logística América Rental
 // ══════════════════════════════════════════════════════════════
@@ -897,7 +908,7 @@ function _rrRenderCorpo() {
 
     corpo.innerHTML = dataRotaLabel + '<div id="rr-candidatos-teste-painel"></div>' + _rrVeiculos.map((v, i) => {
         const colA   = `${v.veiculo} - Saída`;
-        const _colBBase = v.colBEditado || _rrMontarColB(v);
+        const _colBBase = window._rrObterColBBaseLimpa(v);
         // Append motorista / ajudante / candidato to colB for export
         const _colBSuffix = (function() {
             const parts = [];
@@ -1475,7 +1486,7 @@ function _rrPatchVehicleCards() {
         const ta = document.querySelector('.rr-textarea-edit[data-index="' + i + '"]');
         if (ta) {
             // Pegar o texto base (remover sufixo anterior se existir)
-            let base = v.colBEditado || _rrMontarColB(v);
+            let base = window._rrObterColBBaseLimpa(v);
             const suffixMark = '\nMotorista:';
             const suffIdx = base.indexOf(suffixMark);
             if (suffIdx !== -1) base = base.substring(0, suffIdx);
@@ -1950,7 +1961,7 @@ async function _rrGerarImagensRota() {
 
     // ── Estimativa de altura do card ─────────────────────────────
     function cardH(v) {
-        const colB = v.colBEditado || _rrMontarColB(v);
+        const colB = window._rrObterColBBaseLimpa(v);
         let sh = BODY_PAD_V;
         colB.split('\n').forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
         sh += BODY_PAD_V;
@@ -2056,7 +2067,7 @@ async function _rrGerarImagensRota() {
         let cy = HDR_H + PAD;
 
         for (const v of pages[pi]) {
-            const colB = v.colBEditado || _rrMontarColB(v);
+            const colB = window._rrObterColBBaseLimpa(v);
             const lines = colB.split('\n');
 
             let sh = BODY_PAD_V;
@@ -2246,7 +2257,7 @@ async function _rrGerarExcel() {
     const veiculosOrdenados = [..._rrVeiculos].sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
 
     veiculosOrdenados.forEach((v, i) => {
-        let colB = v.colBEditado || _rrMontarColB(v);
+        let colB = window._rrObterColBBaseLimpa(v);
         
         let equipeText = [];
         if (v.motorista && v.motorista.trim()) equipeText.push(`MOTORISTA: ${v.motorista.trim().toUpperCase()}`);
