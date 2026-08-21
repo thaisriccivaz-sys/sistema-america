@@ -1807,13 +1807,16 @@
                 <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${(t.nextSteps||'Nenhum próximo passo registrado.').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
             </div>
 
-            <div style="margin-top:24px;">
-                <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Descrição</div>
-                <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" oninput="this.style.borderColor='#3b82f6'">${t.description||''}</textarea>
-                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-                    <button class="sac-btn sac-btn-secondary" style="padding:6px 12px;font-size:0.8rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;cursor:pointer;font-weight:700;color:#2563eb;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
-                </div>
-            </div>
+            ${(() => {
+                const canEdit = canEditDescription(t);
+                return `<div style="margin-top:24px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Descrição</div>
+                    <textarea id="modal-desc-edit-${t.id}" style="width:100%;min-height:120px;background:${canEdit ? '#f8fafc' : '#f1f5f9'};border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;font-family:inherit;resize:vertical;" ${canEdit ? "oninput=\"this.style.borderColor='#3b82f6'\"" : "disabled readonly"} title="${canEdit ? '' : 'Apenas o criador do chamado ou administradores podem editar a descrição'}">${t.description||''}</textarea>
+                    ${canEdit ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                        <button class="sac-btn sac-btn-secondary" style="padding:6px 12px;font-size:0.8rem;border-radius:6px;background:#eff6ff;border:1px solid #bfdbfe;cursor:pointer;font-weight:700;color:#2563eb;" onclick="SAC.saveDescription('${t.id}')">Salvar Descrição</button>
+                    </div>` : ''}
+                </div>`;
+            })()}
 
             ${allTasks.length ? `
             <div style="margin-top:24px;">
@@ -2283,6 +2286,8 @@
   }
 
   // ── PERMISSIONS ───────────────────────────────────────────────
+  function canEditDescription(t) { const perms = window.activeUserPerms || {}; const canSeeAll = window.isTopAdmin || (perms['sac'] === true && perms['sac-atribuidos'] !== true); if (canSeeAll) return true; const cu = (window.currentUsername ? window.currentUsername() : '').toLowerCase().trim(); const cn = (t.creatorName||t.creator||'').toLowerCase().trim(); return cu && cn && cu === cn; }
+
   function canMoveTicket(t) {
     const perms = window.activeUserPerms || {};
     const isTopAdmin = window.isTopAdmin || false;
