@@ -852,6 +852,7 @@ window.rrImportarPlanilha = async function(input) {
                     chosenDbOs = dbList.find(r => {
                          const rTs = window._rrCleanTs(r.tipo_servico);
                          if (osTipoBase === 'MANUTENCAO' && rTs.includes('MANUTEN')) return true;
+                         if (osTipoBase === 'AVULSA' && rTs.includes('MANUTEN')) return true;
                          if (osTipoBase === 'ENTREGA' && rTs.includes('ENTREGA')) return true;
                          if (osTipoBase === 'RETIRADA' && rTs.includes('RETIRADA')) return true;
                          return false;
@@ -874,17 +875,7 @@ window.rrImportarPlanilha = async function(input) {
                     os.variaveis = osVarsMap[matchedKey];
                 }
             }
-            // Fallback secundário: busca por texto da obs
-            const _omm = window._rrObsMetaMap || {};
-            const _ok = (os.obs || '').trim().toUpperCase().substring(0, 80);
-            if (os.cliente && (os.cliente.toUpperCase().includes('BRAZILIAN COLOR') || os.cliente.toUpperCase().includes('CSN CIMENTO'))) {
-                console.log('[RR-DEBUG] ' + os.cliente.substring(0,30) + ' | _numero_os:', os._numero_os, '| obs:', (os.obs||'').substring(0,40), '| _ok:', _ok.substring(0,40), '| in _omm:', !!_omm[_ok], '| variaveis:', os.variaveis, '| habilidades:', os.habilidades);
-            }
-            if (_ok && _omm[_ok]) {
-                if ((!os.variaveis || !os.variaveis.length) && _omm[_ok].vars.length) os.variaveis = _omm[_ok].vars;
-                if ((!os.habilidades || !os.habilidades.length) && _omm[_ok].habs.length) os.habilidades = _omm[_ok].habs;
-                if (os.cliente && (os.cliente.toUpperCase().includes('BRAZILIAN COLOR') || os.cliente.toUpperCase().includes('CSN CIMENTO'))) console.log('[RR-DEBUG] FALLBACK APLICADO para', os.cliente.substring(0,30), '-> vars:', os.variaveis, 'habs:', os.habilidades);
-            }
+
         });
     });
 
