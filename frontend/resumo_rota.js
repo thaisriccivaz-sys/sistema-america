@@ -766,6 +766,9 @@ window.rrImportarPlanilha = async function(input) {
         }
         if (resOS.ok) {
             const list = await resOS.json();
+            console.log('[RR-DEBUG] API /os/buscar retornou', list.length, 'registros');
+            // Log a amostra das 3 primeiras com obs+vars para inspeção
+            list.slice(0,3).forEach(o => console.log('[RR-DEBUG] amostra:', o.numero_os, '| obs:', o.observacoes && o.observacoes.substring(0,40), '| vars:', o.variaveis, '| habs:', o.habilidades));
                         window._rrCleanTs = (str) => {
                 let s = (str || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '');
@@ -806,6 +809,9 @@ window.rrImportarPlanilha = async function(input) {
                         const _ok = os.observacoes.trim().toUpperCase().substring(0, 80);
                         if (_ok && !window._rrObsMetaMap[_ok]) window._rrObsMetaMap[_ok] = { habs, vars };
                     }
+            });
+            console.log('[RR-DEBUG] osVarsMap chaves:', Object.keys(osVarsMap).length, Object.keys(osVarsMap).slice(0,5));
+            console.log('[RR-DEBUG] _rrObsMetaMap chaves:', Object.keys(window._rrObsMetaMap).length, Object.keys(window._rrObsMetaMap).slice(0,3));
                 }
             });
         }
@@ -836,9 +842,13 @@ window.rrImportarPlanilha = async function(input) {
             // Fallback secundário: busca por texto da obs
             const _omm = window._rrObsMetaMap || {};
             const _ok = (os.obs || '').trim().toUpperCase().substring(0, 80);
+            if (os.cliente && (os.cliente.toUpperCase().includes('BRAZILIAN COLOR') || os.cliente.toUpperCase().includes('CSN CIMENTO'))) {
+                console.log('[RR-DEBUG] ' + os.cliente.substring(0,30) + ' | _numero_os:', os._numero_os, '| obs:', (os.obs||'').substring(0,40), '| _ok:', _ok.substring(0,40), '| in _omm:', !!_omm[_ok], '| variaveis:', os.variaveis, '| habilidades:', os.habilidades);
+            }
             if (_ok && _omm[_ok]) {
                 if ((!os.variaveis || !os.variaveis.length) && _omm[_ok].vars.length) os.variaveis = _omm[_ok].vars;
                 if ((!os.habilidades || !os.habilidades.length) && _omm[_ok].habs.length) os.habilidades = _omm[_ok].habs;
+                if (os.cliente && (os.cliente.toUpperCase().includes('BRAZILIAN COLOR') || os.cliente.toUpperCase().includes('CSN CIMENTO'))) console.log('[RR-DEBUG] FALLBACK APLICADO para', os.cliente.substring(0,30), '-> vars:', os.variaveis, 'habs:', os.habilidades);
             }
         });
     });
