@@ -756,10 +756,26 @@ window.rrImportarPlanilha = async function(input) {
         }
         if (resOS.ok) {
             const list = await resOS.json();
-            // Mapa: numero_os -> observacoes (campo Obs. Motoristas da OS)
+                        const cleanTs = (str) => {
+                let s = (str || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                s = s.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '');
+                s = s.replace(/^[\ud83c\udf00-\ud83e\uddff\u2600-\u27bf\u{1F000}-\u{1FFFF}\u2b00-\u2bff\uFE0F\s]+/gu, '');
+                return s.trim();
+            };
+            
             list.forEach(os => {
                 if (os.numero_os && os.observacoes) {
-                    osObsMap[String(os.numero_os).trim()] = os.observacoes.trim();
+                    const ts = cleanTs(os.tipo_servico);
+                    const key = String(os.numero_os).trim() + '___' + ts;
+                    
+                    if (!osObsMap[key]) {
+                        osObsMap[key] = os.observacoes.trim();
+                    }
+                    
+                    const fbKey = String(os.numero_os).trim();
+                    if (!osObsMap[fbKey]) {
+                        osObsMap[fbKey] = os.observacoes.trim();
+                    }
                 }
             });
         }
@@ -770,8 +786,15 @@ window.rrImportarPlanilha = async function(input) {
     // Preencher obs de cada OS com o valor de Obs. Motoristas do banco
     _rrVeiculos.forEach(v => {
         v.os.forEach(os => {
-            if (os._numero_os && osObsMap[os._numero_os]) {
-                os.obs = osObsMap[os._numero_os];
+            if (os._numero_os) {
+                const ts = cleanTs(os.servico);
+                const key = String(os._numero_os).trim() + '___' + ts;
+                
+                if (osObsMap[key]) {
+                    os.obs = osObsMap[key];
+                } else if (osObsMap[String(os._numero_os).trim()]) {
+                    os.obs = osObsMap[String(os._numero_os).trim()];
+                }
             }
         });
     });
