@@ -735,6 +735,8 @@ window.rrImportarPlanilha = async function(input) {
     let frotaMap = {}; // placa_norm -> capacidade_carga
     let fotoMap  = {}; // nome_lower -> foto_base64
     let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
+    let osHabsMap = {}; // chave -> habilidades[]
+    let osVarsMap = {}; // chave -> variaveis[]
     try {
         const [resFrota, resColab, resOS] = await Promise.all([
             fetch('/api/frota/veiculos',      { headers: _rrAuthHeaders() }),
@@ -770,9 +772,7 @@ window.rrImportarPlanilha = async function(input) {
                 return s.trim();
             };
             
-            const osHabsMap = {}; // chave -> habilidades[]
-            const osVarsMap = {}; // chave -> variaveis[]
-            list.forEach(os => {
+                                    list.forEach(os => {
                 const ts = window._rrCleanTs(os.tipo_servico);
                 const key = String(os.numero_os || '').trim() + '___' + ts;
                 if (os.numero_os && os.observacoes && !osObsMap[key]) {
