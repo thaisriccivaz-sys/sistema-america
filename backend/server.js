@@ -17178,7 +17178,7 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
             // Busca em lote para o Resumo de Rota (sem LIMIT, apenas as OS da planilha)
             const _ph = _nums.map(() => '?').join(',');
             db.all(
-                `SELECT * FROM os_logistica WHERE numero_os IN (${_ph}) AND status = 'ativo'`,
+                `SELECT * FROM os_logistica WHERE numero_os IN (${_ph}) AND status = 'ativo' ORDER BY id DESC`,
                 _nums,
                 (err, rows) => {
                     if (err) return res.status(500).json({ error: err.message });
