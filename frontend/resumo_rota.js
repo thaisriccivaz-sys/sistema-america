@@ -271,7 +271,19 @@ function _rrMontarColB(v) {
         let obsLimpa = (os.obs || '');
         obsLimpa = obsLimpa.replace(/(?:📸\s*)?V[íi]deo:\s*https?:\/\/[^\s]+/gi, '');
         obsLimpa = obsLimpa.replace(/^[,\s]+|[,\s]+$/g, '').trim();
-        obsLimpa = obsLimpa.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊]+/gu, '').trim().toUpperCase();
+        obsLimpa = obsLimpa.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s\u26BD\u23D5\u25C6\u267B\u267F\u26AA\u26AB\u26FC🏗🎉⭕🔶💧💦⚙️📋🛒♦️♻️🔗❗⏰📞🌀🚨🦺👷🔛🌘💙💜🟦🟣🔵♿🚿🚽🧼⬜⚪🛤🧊🧑🏾‍🦽]+/gu, '').trim().toUpperCase();
+
+        // Não exibir a obs se ela é apenas o nome do tipo de serviço (ex: banco retornou '🧑🏾‍🦽 ENTREGA EVENTO'
+        // como obs_motoristas mas o tipo real é ENTREGA — não é uma obs de motorista)
+        const _servicoLimpo = (os.servico || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s🧑🏾‍🦽❗⭕🔗🌀🚨]+/gu, '').trim().toUpperCase();
+        if (obsLimpa && _servicoLimpo && obsLimpa === _servicoLimpo) {
+            obsLimpa = ''; // obs é redundante com o tipo de serviço — ignorar
+        }
+        // Também suprimir se obsLimpa contém apenas palavras de tipo de serviço (ENTREGA/RETIRADA/etc.)
+        if (obsLimpa && /^(ENTREGA|RETIRADA|MANUTENCAO|MANUTENÇÃO|COMPRAS|VISITA|LIMPA FOSSA)\b/.test(obsLimpa.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) {
+            obsLimpa = '';
+        }
+
 
         if (obsLimpa) {
             const linhaObs = `${icon ? icon + ' ' : ''}${nome}: ${obsLimpa}`;
@@ -786,6 +798,42 @@ window.rrImportarPlanilha = async function(input) {
     if (!_rrDataRota) {
         const hoje = new Date();
         _rrDataRota = hoje.toISOString().split('T')[0];
+    }
+
+    // --- AUTO-DETECTAR TURNO (NOTURNO/DIURNO) pela coluna AD = Janela de horário Inicial 1 ---
+    // ExcelJS r[30] = fração decimal do dia (0..1). Ex: 20:00 = 0.8333...
+    // Noturno: >= 18h (0.75) OU <= 3h (0.125)
+    // Diurno:  >= 5h (0.2083) E <= 16h (0.6667)
+    // Regra de maioria: se > 50% das linhas com horário válido forem de um turno, usar esse turno.
+    {
+        let qtdNoturno = 0, qtdDiurno = 0, qtdIgnorado = 0;
+        for (const r of rows) {
+            const janelaVal = r[30]; // ExcelJS 1-based → col AD
+            if (!janelaVal && janelaVal !== 0) { qtdIgnorado++; continue; }
+            let fracDia = null;
+            if (typeof janelaVal === 'number' && janelaVal >= 0 && janelaVal <= 1) {
+                fracDia = janelaVal;
+            } else if (typeof janelaVal === 'string' && /^\d{1,2}:\d{2}/.test(janelaVal.trim())) {
+                const [hh, mm] = janelaVal.trim().split(':').map(Number);
+                fracDia = (hh * 60 + (mm || 0)) / (24 * 60);
+            }
+            if (fracDia === null) { qtdIgnorado++; continue; }
+            // Noturno: 18:00 (0.75) a 23:59 ou 00:00 a 03:00 (0.125)
+            if (fracDia >= 0.75 || fracDia <= 0.125) {
+                qtdNoturno++;
+            // Diurno: 05:00 (0.2083) a 16:00 (0.6667)
+            } else if (fracDia >= (5/24) && fracDia <= (16/24)) {
+                qtdDiurno++;
+            } else {
+                qtdIgnorado++;
+            }
+        }
+        const totalValido = qtdNoturno + qtdDiurno;
+        if (totalValido > 0) {
+            const periodoDetectado = qtdNoturno >= qtdDiurno ? 'noturno' : 'diurno';
+            window._rrPeriodoSelecionado = periodoDetectado;
+            console.log('[RR] Turno auto-detectado:', periodoDetectado, '| Noturno:', qtdNoturno, '| Diurno:', qtdDiurno);
+        }
     }
 
     // --- CARREGAR FOTOS, CAPACIDADES E OBS MOTORISTAS EM PARALELO ---
@@ -1376,9 +1424,12 @@ async function _rrRenderColabDisponiveis() {
         if (v.ajudante && v.ajudante.trim()) nomesNaRota.add(v.ajudante.trim().toLowerCase());
     });
 
-    // Filtrar: remover folga, férias, afastados e intermitentes
+    // Filtrar: remover folga, férias, afastados, intermitentes e limpeza
     let disponiveis = colabs.filter(c => {
         if ((c.tipo_contrato || '').toLowerCase().includes('intermitente')) return false;
+        // Limpeza não opera na rota
+        const depto = (c.departamento || c.equipe_nome || '').toLowerCase();
+        if (depto.includes('limpeza')) return false;
         const indisponivel = _rrIsFeriasAfastado(c, dataRota);
         if (indisponivel) return false;
         if (_rrIsFolga(c, dataRota)) return false;
