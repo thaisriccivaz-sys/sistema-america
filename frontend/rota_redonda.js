@@ -26,6 +26,8 @@ const EQUIPAMENTOS_DICT = {
     'LX EVENTO':              { icone: '🟣', codigo: 'LX E' },
     'EXL OBRA':               { icone: '🔵', codigo: 'EXL O' },
     'EXL EVENTO':             { icone: '🟣', codigo: 'EXL E' },
+    'ELX OBRA':               { icone: '🔵', codigo: 'EXL O' },
+    'ELX EVENTO':             { icone: '🟣', codigo: 'EXL E' },
     'PCD OBRA':               { icone: '♿',  codigo: 'PCD O' },
     'PCD EVENTO':             { icone: '♿', codigo: 'PCD E' },
     'CHUVEIRO OBRA':          { icone: '🚿', codigo: 'CHUVEIRO O' },
@@ -3448,6 +3450,8 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
         'CHUVEIRO EVENTO':    'LEVAR CARRINHO',
         'EXL OBRA':           'LEVAR CARRINHO',
         'EXL EVENTO':         'LEVAR CARRINHO',
+        'ELX OBRA':           'LEVAR CARRINHO',
+        'ELX EVENTO':         'LEVAR CARRINHO',
     };
 
     // 1) Habilidades base do serviço
@@ -3505,8 +3509,12 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
     // 4) Reconstrói o conjunto final
     osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais]);
     
-    // 5) Mescla Ações Automáticas
-    acoesProdutos.forEach(acao => osState.acoes.add(acao));
+    // 5) Reconstrói Ações (Variáveis) limpando as manuais se wipeManuals for true
+    let acoesManuais = new Set();
+    if (!wipeManuals) {
+        acoesManuais = new Set([...osState.acoes].filter(a => !acoesProdutos.has(a)));
+    }
+    osState.acoes = new Set([...acoesProdutos, ...acoesManuais]);
 
     console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico], '| wipeManuals:', wipeManuals);
 }
