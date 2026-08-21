@@ -737,6 +737,7 @@ window.rrImportarPlanilha = async function(input) {
     let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
     let osHabsMap = {}; // chave -> habilidades[]
     let osVarsMap = {}; // chave -> variaveis[]
+    window._rrObsMetaMap = {}; // obs_text -> {habs, vars} (mapa secundário)
     try {
         const [resFrota, resColab, resOS] = await Promise.all([
             fetch('/api/frota/veiculos',      { headers: _rrAuthHeaders() }),
@@ -800,6 +801,11 @@ window.rrImportarPlanilha = async function(input) {
                     if (!Array.isArray(vars)) vars = [vars];
                     if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
                     if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
+                    // Fallback por obs: guarda {habs,vars} keyed pelo texto da obs
+                    if (os.observacoes && (habs.length || vars.length)) {
+                        const _ok = os.observacoes.trim().toUpperCase().substring(0, 80);
+                        if (_ok && !window._rrObsMetaMap[_ok]) window._rrObsMetaMap[_ok] = { habs, vars };
+                    }
                 }
             });
         }
@@ -826,6 +832,13 @@ window.rrImportarPlanilha = async function(input) {
                 if (osVarsMap[key] && (!os.variaveis || !os.variaveis.length)) {
                     os.variaveis = osVarsMap[key];
                 }
+            }
+            // Fallback secundário: busca por texto da obs
+            const _omm = window._rrObsMetaMap || {};
+            const _ok = (os.obs || '').trim().toUpperCase().substring(0, 80);
+            if (_ok && _omm[_ok]) {
+                if ((!os.variaveis || !os.variaveis.length) && _omm[_ok].vars.length) os.variaveis = _omm[_ok].vars;
+                if ((!os.habilidades || !os.habilidades.length) && _omm[_ok].habs.length) os.habilidades = _omm[_ok].habs;
             }
         });
     });
