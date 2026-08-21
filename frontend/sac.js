@@ -2388,10 +2388,26 @@
                                 (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
         // Gestor ve apenas chamados onde a task do seu dept esta ATIVA (nao concluida/nula)
         // Quando chamado e transferido para outro dept, task vira null e gestor original para de ver
-        const isManagerOfTicket = myManagedDepts.length > 0 && myManagedDepts.some(function(dept) {
-          var taskKey = deptMap[dept];
-          return taskKey && t[taskKey] && !t[taskKey].isCompleted;
-        });
+        let isManagerOfTicket = false;
+        if (myManagedDepts.length > 0) {
+            isManagerOfTicket = myManagedDepts.some(function(dept) {
+                var taskKey = deptMap[dept];
+                return taskKey && t[taskKey] != null;
+            });
+            if (!isManagerOfTicket && window._sacUsersList) {
+                const myDeptsNames = myManagedDepts.map(d => d.toLowerCase());
+                const myDeptUsernames = window._sacUsersList.filter(u => myDeptsNames.includes((u.departamento||'').toLowerCase())).map(u => (u.username || u.login || u.email || (u.nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.')).toLowerCase());
+                const checkAnyAssigned = (task) => {
+                    if (!task) return false;
+                    if (task.assignedTo && myDeptUsernames.includes(task.assignedTo.toLowerCase())) return true;
+                    if (task.history && task.history.some(h => h.assignedTo && myDeptUsernames.includes(h.assignedTo.toLowerCase()))) return true;
+                    return false;
+                };
+                if (checkAnyAssigned(t.logisticsTask) || checkAnyAssigned(t.commercialTask) || checkAnyAssigned(t.financialTask)) {
+                    isManagerOfTicket = true;
+                }
+            }
+        }
         matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket;
       }
 
