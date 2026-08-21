@@ -737,8 +737,6 @@ window.rrImportarPlanilha = async function(input) {
     let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
     let osHabsMap = {}; // chave -> habilidades[]
     let osVarsMap = {}; // chave -> variaveis[]
-    let osVarsByNumMap = {}; // numero_os -> variaveis[] (FALLBACK SEGURO)
-    let osHabsByNumMap = {}; // numero_os -> habilidades[] (FALLBACK SEGURO)
     window._rrObsMetaMap = {}; // obs_text -> {habs, vars} (mapa secundário)
     try {
         // Busca cirúrgica: coleta numero_os únicos da planilha para não depender de LIMIT
@@ -815,12 +813,6 @@ window.rrImportarPlanilha = async function(input) {
                     if (!Array.isArray(vars)) vars = [vars];
                     if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
                     if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
-                    
-                    // Popula fallback pelo numero_os (caso o tipo_servico nao de match exato)
-                    const numKey = String(os.numero_os || '').trim();
-                    if (numKey && !osHabsByNumMap[numKey] && habs.length) osHabsByNumMap[numKey] = habs;
-                    if (numKey && !osVarsByNumMap[numKey] && vars.length) osVarsByNumMap[numKey] = vars;
-                    
                     // Fallback por obs: guarda {habs,vars} keyed pelo texto da obs
                     if (os.observacoes && (habs.length || vars.length)) {
                         const _ok = os.observacoes.trim().toUpperCase().substring(0, 80);
@@ -849,15 +841,10 @@ window.rrImportarPlanilha = async function(input) {
                 // Aplica habilidades do banco (para ícones como 🛻 UTILITÁRIO)
                 if (osHabsMap[key] && (!os.habilidades || !os.habilidades.length)) {
                     os.habilidades = osHabsMap[key];
-                } else if (osHabsByNumMap[String(os._numero_os).trim()] && (!os.habilidades || !os.habilidades.length)) {
-                    os.habilidades = osHabsByNumMap[String(os._numero_os).trim()];
                 }
-                
                 // Aplica variaveis do banco (para ícones como 🚨 INFORMAÇÕES IMPORTANTES)
                 if (osVarsMap[key] && (!os.variaveis || !os.variaveis.length)) {
                     os.variaveis = osVarsMap[key];
-                } else if (osVarsByNumMap[String(os._numero_os).trim()] && (!os.variaveis || !os.variaveis.length)) {
-                    os.variaveis = osVarsByNumMap[String(os._numero_os).trim()];
                 }
             }
             // Fallback secundário: busca por texto da obs
