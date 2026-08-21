@@ -767,14 +767,8 @@ window.rrImportarPlanilha = async function(input) {
                 if (os.numero_os && os.observacoes) {
                     const ts = window._rrCleanTs(os.tipo_servico);
                     const key = String(os.numero_os).trim() + '___' + ts;
-                    
                     if (!osObsMap[key]) {
                         osObsMap[key] = os.observacoes.trim();
-                    }
-                    
-                    const fbKey = String(os.numero_os).trim();
-                    if (!osObsMap[fbKey]) {
-                        osObsMap[fbKey] = os.observacoes.trim();
                     }
                 }
             });
@@ -784,16 +778,15 @@ window.rrImportarPlanilha = async function(input) {
     }
 
     // Preencher obs de cada OS com o valor de Obs. Motoristas do banco
+    // Usa chave numero_os + tipo_servico para evitar que obs de um serviço diferente
+    // (ex: Manutenção Avulsa) vaze para outro tipo (ex: Manutenção Obra) com mesmo número.
     _rrVeiculos.forEach(v => {
         v.os.forEach(os => {
             if (os._numero_os) {
                 const ts = window._rrCleanTs(os.servico);
                 const key = String(os._numero_os).trim() + '___' + ts;
-                
                 if (osObsMap[key]) {
                     os.obs = osObsMap[key];
-                } else if (osObsMap[String(os._numero_os).trim()]) {
-                    os.obs = osObsMap[String(os._numero_os).trim()];
                 }
             }
         });
