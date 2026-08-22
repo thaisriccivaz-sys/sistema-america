@@ -319,9 +319,11 @@ function _rrMontarColB(v) {
     const entregas = v.os.filter(o => o.tipo === 'ENTREGA');
     if (entregas.length) {
         const ag = _rrAgruparProdutos(entregas);
-        lines.push('ENTREGA:');
+        // Usar nome do serviço real (ex: ENTREGA EVENTO) como título da seção
+        const _entregaServico = entregas.map(o => (o.servico || '').replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\s\u{1F9BC}❗⭕🔗🌀🚨]+/gu, '').trim().toUpperCase()).find(s => s) || 'ENTREGA';
+        lines.push(_entregaServico + ':');
         for (const [nome, { qtd, icon }] of Object.entries(ag))
-            lines.push(`   ${icon}${qtd} ${nome}`);
+            lines.push(`   ${icon ? icon + ' ' : ''}${qtd} × ${nome}`);
         lines.push('');
     }
 
