@@ -753,6 +753,18 @@ window.rrImportarPlanilha = async function(input) {
 
         const numero_os = (r[3] || '').toString().trim(); // Col 3 = Referência ID = numero_os no sistema
         const p = _rrParseNotas(notas);
+
+        // ── DIAGNÓSTICO: logar cada linha processada ────────────────────────────
+        const _clienteCurto = (cliente || '').substring(0, 25);
+        if (notas) {
+            console.log('[RR-DIAG] cliente="' + _clienteCurto + '" | notas_raw="' + notas.replace(/\r\r\n|\r\n|\r|\n/g, '↵').substring(0, 60) + '"');
+            console.log('          → servico="' + p.servico + '" | tipo=' + _rrTipoServico(p.servico) + ' | produtos=' + JSON.stringify(p.produtos) + ' | obs="' + p.obs + '"');
+            if (!p.servico && !p.produtos.length && !p.obs) {
+                console.warn('          ⚠️ DESCARTADA (sem servico, produto ou obs)!');
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────────
+
         if (!p.servico && !p.produtos.length && !p.obs) return; // linha sem info relevante
         map[veiculo].os.push({
             cliente,
@@ -768,6 +780,16 @@ window.rrImportarPlanilha = async function(input) {
 
     _rrVeiculos  = Object.values(map).sort((a, b) => (a.veiculo || '').localeCompare(b.veiculo || '', 'pt-BR', { sensitivity: 'base' }));
     _rrCurrentId = null;
+
+    // ── DIAGNÓSTICO FINAL: resumo de _rrVeiculos ────────────────────────────────
+    console.log('[RR-DIAG] ── RESUMO _rrVeiculos (' + _rrVeiculos.length + ' veículos) ──');
+    _rrVeiculos.forEach(v => {
+        const resumoOS = v.os.map(o => o.tipo + '(' + o.produtos.length + 'prod)').join(', ');
+        console.log('[RR-DIAG] ' + v.veiculo.substring(0,20) + ': ' + v.os.length + ' OS → [' + resumoOS + ']');
+    });
+    const totalEntregas = _rrVeiculos.reduce((acc, v) => acc + v.os.filter(o => o.tipo === 'ENTREGA').length, 0);
+    console.log('[RR-DIAG] Total OS tipo=ENTREGA em todos veículos:', totalEntregas, totalEntregas > 0 ? '✅' : '❌ NENHUMA!');
+    // ────────────────────────────────────────────────────────────────────────────
 
     // --- DETECTAR DATA DA ROTA (col 4 = Coluna D, ou col 25 = "Data agendada") ---
     let _rrDataRota = null;
