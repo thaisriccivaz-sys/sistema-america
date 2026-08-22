@@ -165,8 +165,10 @@ function _rrParseNotas(notas) {
     // Uma linha de OBS que apenas MENCIONA a palavra (ex: "FAZER SUCÇÃO, NAS CABINES...")
     // não é um tipo de serviço.
     const _ehTipoServico = (upLinha) => {
-        // Remove emojis e espaços do início para checar o núcleo da linha
-        const nucleo = upLinha.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\s❗⭕🔗🌀🚨]+/gu, '').trim();
+        // Remove emojis, ZWJ (U+200D), variações e espaços do início para checar o núcleo da linha.
+        // IMPORTANTE: incluir \u{200D} (ZWJ), \u{FE0F}, \u{200C} pois podem residir após
+        // desmontar sequências emoji compostas (ex: 🧑🏾‍🦽 sem ZWJ via ExcelJS richText).
+        const nucleo = upLinha.replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u{200D}\u{200C}\u{200B}\u{FEFF}\s❗⭕🔗🌀🚨]+/gu, '').trim();
         // Tipos explícitos (linha começa com a palavra-chave do tipo, sem vírgula/texto adicional)
         if (/^ENTREGA\b/.test(nucleo))   return true;
         if (/^RETIRADA\b/.test(nucleo))  return true;
