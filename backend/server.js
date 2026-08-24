@@ -2330,10 +2330,18 @@ app.get('/api/check-pfx', authenticateToken, (req, res) => {
 const signPdfPfx = require('./sign_pdf_pfx');
 // -----------------------------------------------------------------------------
 
+// Variável global para circuit breaker em caso de erro 401 (evita memory leak no Render)
+let _assinafyPoll401BlockUntil = 0;
+
 // --- POLLING AUTOMÁTICO: Atualizar status de documentos de admissão -----------
 // Roda a cada 2 min e verifica se documentos pendentes foram assinados no Assinafy
 async function pollAdmissaoAssinaturas() {
     try {
+        if (Date.now() < _assinafyPoll401BlockUntil) {
+            console.warn(`[POLL-ADMISSAO] Polling pausado devido a API Key Assinafy inválida (401). Aguarde ou reinicie o servidor após atualizar.`);
+            return;
+        }
+
         const pendentesAdmissao = await new Promise((res, rej) =>
             db.all(`SELECT id, colaborador_id, assinafy_id, nome_documento, 'admissao' as source 
                     FROM admissao_assinaturas WHERE (assinafy_status = 'Pendente' OR (assinafy_status = 'Assinado' AND signed_file_path IS NULL)) AND assinafy_id IS NOT NULL`, [], (err, rows) => err ? rej(err) : res(rows))
