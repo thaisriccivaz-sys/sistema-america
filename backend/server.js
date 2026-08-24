@@ -2404,6 +2404,13 @@ async function pollAdmissaoAssinaturas() {
                 const docData = docInfo.data || docInfo;
                 const statusRaw = String(docData?.status || docData?.status_id || '').toLowerCase();
 
+                // CIRCUIT BREAKER: Se a chave for inválida (401), para o job atual
+                if (statusRaw === '401' || (docData && docData.message && docData.message.includes('Credenciais'))) {
+                    console.error('[POLL-ADMISSAO] FATAL: Credencial Assinafy invalida (401). Pausando polling por 15 minutos.');
+                    _assinafyPoll401BlockUntil = Date.now() + 15 * 60 * 1000;
+                    break;
+                }
+
                 // Tentar extrair o PDF assinado
                 const extractSignedUrl = (dt) => {
                     let u = dt.certificated_file_url || dt.report_url || dt.bundle_url || dt.signature_report_url || dt.artifacts?.certificated || dt.artifacts?.bundle || dt.artifacts?.signed_file || dt.signed_file_url;
