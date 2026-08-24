@@ -348,13 +348,6 @@ db.run("UPDATE os_logistica SET data_os = date('now') WHERE data_os IS NULL", er
 db.run("UPDATE os_logistica SET cliente = '???????? ATTEND AMBIENTAL' WHERE numero_os IN ('2','02') AND cliente LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
 db.run("UPDATE logistica_resumo_rota SET dados = REPLACE(dados, 'BRK AMBIENTAL', '???????? ATTEND AMBIENTAL') WHERE dados LIKE '%BRK AMBIENTAL%'", err => { if(err) console.error(err); });
 
-// Excluir Contrato Academia de teste do Abner Abrah??o
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Academia' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Abner Abrah??o%')", err => { });
-// Excluir Contrato Faculdade de teste da Debora
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Débora%')", err => { });
-// Excluir Contrato Faculdade de teste da Eduarda
-db.run("DELETE FROM documentos WHERE document_type = 'Contrato Faculdade' AND colaborador_id IN (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Eduarda%')", err => { });
-
 db.run("DELETE FROM geradores WHERE nome = 'AUTORIZAÇÃO DE DESCONTO EM FOLHA DE PAGAMENTO'");
 db.run("DELETE FROM geradores WHERE nome = 'Termo de Responsabilidade de Chaves'");
 // Renomear Autorização de Desconto em Folha
