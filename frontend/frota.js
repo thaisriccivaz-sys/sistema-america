@@ -1090,7 +1090,7 @@ window.confirmarAtualizarCRLV=async function(id){
   if(!novoExercicio){alert('Informe o ano de exercício do novo CRLV');return;}
   if(!window._frotaB64){alert('Selecione o PDF do novo CRLV');return;}
   try{
-    const res=await fetch('/api/frota/veiculos/'+id,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify({exercicio:novoExercicio,crlv_base64:window._frotaB64,crlv_filename:window._frotaFN})});
+    const res=await fetch('/api/frota/veiculos/'+id+'/crlv',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify({exercicio:novoExercicio,crlv_base64:window._frotaB64,crlv_filename:window._frotaFN})});
     const data=await res.json();
     if(!res.ok)throw new Error(data.error||'Erro ao atualizar');
     document.getElementById('modal-upd-crlv').remove();

@@ -18080,6 +18080,50 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
     });
 });
 
+
+// PUT - atualizar apenas CRLV do veículo
+app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
+    const { exercicio, crlv_base64, crlv_filename } = req.body;
+    if (!exercicio) return res.status(400).json({ error: 'Exercício é obrigatório' });
+    if (!crlv_base64) return res.status(400).json({ error: 'PDF do CRLV é obrigatório' });
+
+    db.get('SELECT placa, marca_modelo_versao FROM frota_veiculos WHERE id = ?', [req.params.id], async (err, veiculo) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!veiculo) return res.status(404).json({ error: 'Veículo não encontrado' });
+
+        const r2 = require('./utils/r2');
+        let crlv_url = null;
+        
+        const safePut = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').slice(0, 40);
+        const frotaPastaPut = `Frota/${safePut(veiculo.placa)}_${safePut(veiculo.marca_modelo_versao)}`;
+        const frotaHashPut = Date.now().toString(36);
+
+        if (r2.isReady()) {
+            try {
+                if (crlv_base64.startsWith('data:')) {
+                    const bData = crlv_base64.split(',')[1];
+                    const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veiculo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(bData, 'base64'), mime);
+                } else if (!crlv_base64.startsWith('http')) {
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veiculo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+                }
+            } catch(e) {
+                console.error('[FROTA] Erro upload R2 CRLV update:', e.message);
+            }
+        }
+
+        const b64_to_store = crlv_base64.startsWith('http') ? crlv_base64 : crlv_base64;
+        
+        db.run(`UPDATE frota_veiculos SET exercicio=?, crlv_base64=?, crlv_filename=?, crlv_url=?, crlv_alerta_enviado=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`, 
+            [exercicio, b64_to_store, crlv_filename || null, crlv_url, req.params.id], 
+            function (err2) {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ message: 'CRLV atualizado com sucesso' });
+            });
+    });
+});
+
 // PUT - alternar status de manutenção
 app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, res) => {
     const { status } = req.body;
