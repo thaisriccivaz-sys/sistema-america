@@ -574,7 +574,7 @@ const REGRAS_VISIBILIDADE = [
     { nome: 'Solicitação de VT', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vt', departamentos: null, tipos_departamento: null } },
     { nome: 'Acordo de Auxílio-Combustível', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~vc', departamentos: null, tipos_departamento: null } },
     { nome: 'Desistência de Vale-Transporte', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros|vc', departamentos: null, tipos_departamento: null } },
-    { nome: 'Desistência de Auxílio-Combustível', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros|vt', departamentos: null, tipos_departamento: null } },
+    { nome: 'Desistência de Auxílio-Combustível', regra: { dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros|vt&&historico~vc', departamentos: null, tipos_departamento: null } },
 ];
 REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",

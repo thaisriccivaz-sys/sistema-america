@@ -10915,23 +10915,35 @@ window._avaliarRegraGerador = function (g, colab, deptNome, deptObj) {
 
     // Verificar condição de campo do colaborador
     if (regra.condicao) {
-        const [campo, ...resto] = regra.condicao.split('~').length > 1
-            ? regra.condicao.split('~') : regra.condicao.split('=');
-        const valor = regra.condicao.split('~').length > 1
-            ? regra.condicao.split('~')[1] : resto.join('=');
-        const operador = regra.condicao.includes('~') ? 'contains' : 'equals';
+        const condicoes = regra.condicao.split('&&').map(c => c.trim());
+        for (const cond of condicoes) {
+            const [campo, ...resto] = cond.split('~').length > 1
+                ? cond.split('~') : cond.split('=');
+            const valor = cond.split('~').length > 1
+                ? cond.split('~')[1] : resto.join('=');
+            const operador = cond.includes('~') ? 'contains' : 'equals';
 
-        const valorColab = (colab[campo.trim()] || '').toString().toLowerCase().trim();
-        const valorEsperado = (valor || '').toLowerCase().trim();
+            if (campo === 'historico') {
+                if (!window.currentDocs) return false;
+                const expectedType = valor.toLowerCase().trim() === 'vc' ? 'Acordo de Auxílio-Combustível' : (valor.toLowerCase().trim() === 'vt' ? 'Solicitação de VT' : '');
+                const _norm2 = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                const hasDoc = window.currentDocs.some(d => (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && _norm2(d.document_type) === _norm2(expectedType));
+                if (!hasDoc) return false;
+                continue;
+            }
 
-        if (operador === 'contains') {
-            const expectedTokens = valorEsperado.split('|').map(v => v.trim());
-            const hasMatch = expectedTokens.some(v => valorColab.includes(v));
-            if (!hasMatch) return false;
-        } else {
-            // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
-            const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-            if (normalize(valorColab) !== normalize(valorEsperado)) return false;
+            const valorColab = (colab[campo.trim()] || '').toString().toLowerCase().trim();
+            const valorEsperado = (valor || '').toLowerCase().trim();
+
+            if (operador === 'contains') {
+                const expectedTokens = valorEsperado.split('|').map(v => v.trim());
+                const hasMatch = expectedTokens.some(v => valorColab.includes(v));
+                if (!hasMatch) return false;
+            } else {
+                // Aceitar variações "Sim"/"sim", "Nao"/"Não"/"não", "Intermitente" etc.
+                const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+                if (normalize(valorColab) !== normalize(valorEsperado)) return false;
+            }
         }
     }
 
