@@ -6324,7 +6324,7 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Termo de Confidencialidade', cond: true },
                 { nome: 'Solicitação de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Acordo de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
-                { nome: 'Desistência de Vale-Transporte', cond: ((c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc')) && currentDocs.some(d => (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && deNorm(d.document_type) === deNorm('Solicitação de VT')) },
+                { nome: 'Desistência de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc') },
                 { nome: 'Desistência de Auxílio-Combustível', cond: ((c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vt')) && currentDocs.some(d => (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && deNorm(d.document_type) === deNorm('Acordo de Auxílio-Combustível')) },
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
