@@ -2030,7 +2030,7 @@
                 <div style="border-top:1px solid #e2e8f0;padding:8px;background:#fff;border-radius:0 0 8px 8px;display:flex;gap:6px;flex-direction:column;">
                     ${pendingPopupType ? `<div style="font-size:0.8rem;color:${pendingPopupType === 'sla' ? '#dc2626' : '#d97706'};font-weight:700;margin-bottom:4px;">Informe o motivo deste chamado não ter sido concluído conforme programado:</div>` : ''}
                     <div style="display:flex;gap:6px;">
-                        <textarea id="new-comment-text" rows="${pendingPopupType ? 3 : 1}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:6px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:4px;font-size:0.8rem;resize:none;outline:none;font-family:inherit;"></textarea>
+                        <textarea id="new-comment-text" rows="${pendingPopupType ? 4 : 3}" placeholder="${pendingPopupType ? 'Digite a justificativa obrigatória aqui...' : 'Escreva um recado...'}" style="flex:1;padding:8px 10px;border:1px solid ${pendingPopupType === 'sla' ? '#fca5a5' : pendingPopupType ? '#fde68a' : '#e2e8f0'};border-radius:6px;font-size:0.85rem;resize:vertical;min-height:80px;max-height:400px;outline:none;font-family:inherit;line-height:1.4;box-shadow:inset 0 1px 2px rgba(0,0,0,0.02);"></textarea>
                         <button class="sac-btn sac-btn-primary" style="padding:0 10px;${pendingPopupType === 'sla' ? 'background:#dc2626' : pendingPopupType ? 'background:#d97706' : ''}" onclick="SAC.addComment('${t.id}')"><i class="ph ph-paper-plane-right"></i></button>
                     </div>
                 </div>
