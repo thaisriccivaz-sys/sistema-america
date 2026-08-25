@@ -11104,6 +11104,8 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         const geradoresElegiveis = geradores.filter(g => !isExcluido(g));
 
         // Determinar quais aparecem automaticamente pelo perfil (usa regras do banco)
+        // Expor docs em window.currentDocs para que _avaliarRegraGerador possa verificar historico~vc
+        window.currentDocs = docs;
         let autoGeradores = geradoresElegiveis.filter(g =>
             window._avaliarRegraGerador(g, c, deptNome, deptObj)
         );

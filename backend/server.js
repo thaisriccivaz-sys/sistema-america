@@ -581,9 +581,15 @@ REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
         [JSON.stringify(regra), nome]);
 });
 
-// MIGRATION CORRETIVA: Garantir que a "Desistência de Auxílio-Combustível" no banco de produção
-// tenha a regra CORRETA (com &&historico~vc), independente de encoding ou variação de nome.
-// O UPDATE acima pode não bater quando o nome tem encoding UTF-8 diferente na coluna do banco.
+// ============================================================
+// MIGRATIONS CORRETIVAS — Regras de transporte
+// Garante que as regras no banco de produção estejam corretas,
+// independente de encoding do nome ou de como foram criadas.
+// ============================================================
+
+// FIX 1: Desistência de Auxílio-Combustível
+// Regra CORRETA: aparece apenas para quem tinha VC no histórico (&&historico~vc)
+// Regra ERRADA que estava no banco: "meio_transporte~outros|vt" (sem &&historico~vc)
 (function fixDesistenciaCombustivelRegra() {
     const regraCorreta = JSON.stringify({
         dropdown_todos: true,
@@ -592,21 +598,53 @@ REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
         departamentos: null,
         tipos_departamento: null
     });
-    // Atualiza por LIKE para resistir a variações de encoding no nome
+    // Estratégia A: pelo nome (resistente a encoding pois "Combust" é ASCII puro)
     db.run(
-        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Desist%Combust%' OR nome LIKE '%Desist%ncia de Aux%lio%'",
+        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Combust%' AND nome LIKE '%Desist%'",
         [regraCorreta],
         function(err) {
-            if (err) console.error('[MIGRATION] Erro ao corrigir regra Desistência Combustível:', err.message);
-            else if (this.changes > 0) console.log('[MIGRATION] Regra de Desistência de Auxílio-Combustível corrigida em', this.changes, 'gerador(es).');
+            if (err) console.error('[MIGRATION-FIX1A] Erro:', err.message);
+            else if (this.changes > 0) console.log('[MIGRATION-FIX1A] Desistência Combustível corrigida em', this.changes, 'registro(s).');
         }
     );
-    // Também corrige por condição errada para garantir mesmo que o nome bate mas a regra está errada
+    // Estratégia B: pela condição errada (sem "historico") — pega qualquer gerador com regra incompleta
     db.run(
-        "UPDATE geradores SET visibilidade_regra = ? WHERE (nome LIKE '%Desist%Combust%') AND visibilidade_regra LIKE '%outros|vt%' AND visibilidade_regra NOT LIKE '%historico%'",
+        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Desist%' AND visibilidade_regra LIKE '%outros|vt%' AND visibilidade_regra NOT LIKE '%historico%'",
         [regraCorreta],
         function(err) {
-            if (err) console.error('[MIGRATION] Erro ao corrigir regra por condicao:', err.message);
+            if (err) console.error('[MIGRATION-FIX1B] Erro:', err.message);
+            else if (this.changes > 0) console.log('[MIGRATION-FIX1B] Desistência Combustível corrigida pela condição em', this.changes, 'registro(s).');
+        }
+    );
+})();
+
+// FIX 2: Desistência de Vale-Transporte
+// Regra CORRETA: aparece para "outros" OU "vc" (quem usa VC também não usa VT)
+// Regra ERRADA que estava no banco: "meio_transporte~outros" (sem |vc)
+(function fixDesistenciaVTRegra() {
+    const regraCorreta = JSON.stringify({
+        dropdown_todos: true,
+        visivel_automatico: true,
+        condicao: 'meio_transporte~outros|vc',
+        departamentos: null,
+        tipos_departamento: null
+    });
+    // Estratégia A: pelo nome ("Vale" é ASCII puro, bate independente de encoding do "Desistência")
+    db.run(
+        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Vale%' AND nome LIKE '%Desist%'",
+        [regraCorreta],
+        function(err) {
+            if (err) console.error('[MIGRATION-FIX2A] Erro:', err.message);
+            else if (this.changes > 0) console.log('[MIGRATION-FIX2A] Desistência VT corrigida em', this.changes, 'registro(s).');
+        }
+    );
+    // Estratégia B: pela condição incompleta (apenas "outros" sem "|vc")
+    db.run(
+        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Vale%' AND nome LIKE '%Desist%' AND visibilidade_regra LIKE '%\"outros\"%' AND visibilidade_regra NOT LIKE '%|vc%'",
+        [regraCorreta],
+        function(err) {
+            if (err) console.error('[MIGRATION-FIX2B] Erro:', err.message);
+            else if (this.changes > 0) console.log('[MIGRATION-FIX2B] Desistência VT corrigida pela condição em', this.changes, 'registro(s).');
         }
     );
 })();
