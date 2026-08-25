@@ -2317,7 +2317,12 @@
     const currUsername = currentUsername();
     const currNome = (cu ? (cu.nome || '') : '').toLowerCase();
     let currUserId = null;
-    try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); currUserId = String(u.id); } catch(e){}
+    let myDept = null;
+    try { 
+        const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); 
+        currUserId = String(u.id); 
+        myDept = (u.departamento || '').toLowerCase().trim();
+    } catch(e){}
     const deptMap = { 'Logística': 'logisticsTask', 'Comercial': 'commercialTask', 'Financeiro': 'financialTask' };
     const myManagedDepts = _globalDepartamentos
       .filter(d => {
@@ -2424,7 +2429,20 @@
                 }
             }
         }
-        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket;
+        let isMyDepartmentTicket = false;
+        if (myDept) {
+            const clean = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const myDeptClean = clean(myDept);
+            const taskKey = Object.keys(deptMap).find(k => clean(k) === myDeptClean);
+            if (taskKey) {
+                const taskProp = deptMap[taskKey];
+                if (t[taskProp] != null) {
+                    isMyDepartmentTicket = true;
+                }
+            }
+        }
+        
+        matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket || isMyDepartmentTicket;
       }
 
       return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchPermission;
