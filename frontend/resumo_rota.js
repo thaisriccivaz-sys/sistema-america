@@ -542,7 +542,14 @@ window.rrCarregarHistorico = async function(id) {
         }
 
         // Limpa disponibilidade antiga (pode estar desatualizada se o resumo é de outro dia)
-        _rrVeiculos.forEach(v => { v._dispMotorista = null; v._dispAjudante = null; });
+        // Re-aplica fotos pois sao campos transientes (nao salvos no JSON do banco)
+        _rrVeiculos.forEach(v => {
+            v._dispMotorista = null;
+            v._dispAjudante = null;
+            const fMap = window._rrColabFotoMap || {};
+            v._fotoMotorista = fMap[(v.motorista || "").toLowerCase().trim()] || null;
+            v._fotoAjudante  = fMap[(v.ajudante  || "").toLowerCase().trim()] || null;
+        });
 
         // Tenta extrair a data do nome (formato "DD-MM-YYYY ...") para re-consultar disponibilidade
         const nomeResumo = data.nome || '';
@@ -2185,6 +2192,14 @@ async function _rrGerarImagensRota() {
     const CARD_GAP = 10;
 
     // ── Pre-carregar fotos via fetch + auth ─────────────────────
+    // Re-aplica mapa de fotos antes de gerar (garante fotos carregadas do historico)
+    {
+        const fMap = window._rrColabFotoMap || {};
+        _rrVeiculos.forEach(v => {
+            if (!v._fotoMotorista) v._fotoMotorista = fMap[(v.motorista || '').toLowerCase().trim()] || null;
+            if (!v._fotoAjudante)  v._fotoAjudante  = fMap[(v.ajudante  || '').toLowerCase().trim()] || null;
+        });
+    }
     const cache = {};
     const toLoad = new Set();
     _rrVeiculos.forEach(v => {
