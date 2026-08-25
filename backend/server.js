@@ -581,6 +581,36 @@ REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
         [JSON.stringify(regra), nome]);
 });
 
+// MIGRATION CORRETIVA: Garantir que a "Desistência de Auxílio-Combustível" no banco de produção
+// tenha a regra CORRETA (com &&historico~vc), independente de encoding ou variação de nome.
+// O UPDATE acima pode não bater quando o nome tem encoding UTF-8 diferente na coluna do banco.
+(function fixDesistenciaCombustivelRegra() {
+    const regraCorreta = JSON.stringify({
+        dropdown_todos: true,
+        visivel_automatico: true,
+        condicao: 'meio_transporte~outros|vt&&historico~vc',
+        departamentos: null,
+        tipos_departamento: null
+    });
+    // Atualiza por LIKE para resistir a variações de encoding no nome
+    db.run(
+        "UPDATE geradores SET visibilidade_regra = ? WHERE nome LIKE '%Desist%Combust%' OR nome LIKE '%Desist%ncia de Aux%lio%'",
+        [regraCorreta],
+        function(err) {
+            if (err) console.error('[MIGRATION] Erro ao corrigir regra Desistência Combustível:', err.message);
+            else if (this.changes > 0) console.log('[MIGRATION] Regra de Desistência de Auxílio-Combustível corrigida em', this.changes, 'gerador(es).');
+        }
+    );
+    // Também corrige por condição errada para garantir mesmo que o nome bate mas a regra está errada
+    db.run(
+        "UPDATE geradores SET visibilidade_regra = ? WHERE (nome LIKE '%Desist%Combust%') AND visibilidade_regra LIKE '%outros|vt%' AND visibilidade_regra NOT LIKE '%historico%'",
+        [regraCorreta],
+        function(err) {
+            if (err) console.error('[MIGRATION] Erro ao corrigir regra por condicao:', err.message);
+        }
+    );
+})();
+
 // MIGRATION: Corrigir nomes de geradores com encoding quebrado (??nico, Autoriza????o, etc.)
 const ENCODING_FIXES = [
     { de: 'Responsabilidade Bilhete ??nico',   para: 'Responsabilidade Bilhete \u00danico' },
