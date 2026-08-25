@@ -10530,6 +10530,19 @@ app.post('/api/geradores', authenticateToken, (req, res) => {
         });
 });
 
+// PATCH - atualizar apenas visibilidade_regra de um gerador por ID
+app.patch('/api/geradores/:id/regra', authenticateToken, (req, res) => {
+    const { visibilidade_regra } = req.body;
+    if (visibilidade_regra === undefined) return res.status(400).json({ error: 'visibilidade_regra obrigatorio' });
+    const regraStr = typeof visibilidade_regra === 'string' ? visibilidade_regra : JSON.stringify(visibilidade_regra);
+    db.run('UPDATE geradores SET visibilidade_regra = ? WHERE id = ?', [regraStr, req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Gerador nao encontrado' });
+        console.log('[PATCH REGRA] Gerador id=' + req.params.id + ' atualizado');
+        res.json({ ok: true, message: 'Regra atualizada', changes: this.changes });
+    });
+});
+
 app.put('/api/geradores/:id', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
