@@ -5296,7 +5296,23 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
         }
 
         if (row.foto_path.startsWith('http://') || row.foto_path.startsWith('https://')) {
-            return res.redirect(row.foto_path);
+            // PROXY: ao inves de redirecionar (causaria bloqueio de CORS no canvas do PDF),
+            // buscamos a imagem do R2 no servidor e a devolvemos diretamente ao cliente.
+            const https = require('https');
+            const http  = require('http');
+            const lib = row.foto_path.startsWith('https://') ? https : http;
+            lib.get(row.foto_path, (imgRes) => {
+                if (imgRes.statusCode !== 200) {
+                    return res.status(404).json({ error: 'Foto R2 nao encontrada' });
+                }
+                res.set('Content-Type', imgRes.headers['content-type'] || 'image/jpeg');
+                res.set('Cache-Control', 'public, max-age=86400');
+                res.set('Access-Control-Allow-Origin', '*');
+                imgRes.pipe(res);
+            }).on('error', () => {
+                res.status(502).json({ error: 'Erro ao buscar foto do R2' });
+            });
+            return;
         }
 
         let file_path = row.foto_path;
