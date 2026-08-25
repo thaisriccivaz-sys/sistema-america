@@ -2172,7 +2172,16 @@ async function _rrGerarImagensRota() {
     const RIGHT_W = W - RIGHT_X - PAD;
     const SRV_LH = 30;         // line-height dos serviços
     const BODY_PAD_V = 18;     // padding vertical interno do card
-    const CREW_H = BODY_PAD_V + CREW_ROW_H * 2 + 8 + BODY_PAD_V;
+    // Helper para calcular altura da equipe
+    function getCrewCount(v) {
+        let count = 2; // motorista + ajudante
+        const cands = (window._rrCandidatosTesteData || []).filter(c => c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim());
+        return count + cands.length;
+    }
+    function getCrewH(v) {
+        const c = getCrewCount(v);
+        return BODY_PAD_V + CREW_ROW_H * c + 8 * (c - 1) + BODY_PAD_V;
+    }
     const CARD_GAP = 10;
 
     // ── Pre-carregar fotos via fetch + auth ─────────────────────
@@ -2182,9 +2191,14 @@ async function _rrGerarImagensRota() {
         if (v._fotoMotorista) toLoad.add(v._fotoMotorista);
         if (v._fotoAjudante)  toLoad.add(v._fotoAjudante);
     });
+    const base64ToLoad = new Set();
+    (window._rrCandidatosTesteData || []).forEach(c => {
+        if (c.foto_base64) base64ToLoad.add(c.foto_base64);
+    });
     await Promise.allSettled([...toLoad].map(async url => {
         try {
-            const r = await fetch(url, { headers: _rrAuthHeaders() });
+            // Não envia cabeçalho Authorization para não gerar erro de CORS no redirecionamento do R2
+            const r = await fetch(url);
             if (!r.ok) throw 0;
             const b = await r.blob();
             const bu = URL.createObjectURL(b);
@@ -2195,6 +2209,16 @@ async function _rrGerarImagensRota() {
                 im.src = bu;
             });
         } catch { cache[url] = null; }
+    }));
+    await Promise.allSettled([...base64ToLoad].map(async b64 => {
+        try {
+            await new Promise((ok) => {
+                const im = new Image();
+                im.onload = () => { cache[b64] = im; ok(); };
+                im.onerror = () => { cache[b64] = null; ok(); };
+                im.src = b64;
+            });
+        } catch { cache[b64] = null; }
     }));
 
     function lineStyle(line) {
@@ -2236,7 +2260,7 @@ async function _rrGerarImagensRota() {
         let sh = BODY_PAD_V;
         colB.split('\n').forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
         sh += BODY_PAD_V;
-        return V_HDR_H + 1 + Math.max(CREW_H, sh) + 2 + CARD_GAP;
+        return V_HDR_H + 1 + Math.max(getCrewH(v), sh) + 2 + CARD_GAP;
     }
 
     // ── Paginação ─────────────────────────────────────────────────
@@ -2344,7 +2368,7 @@ async function _rrGerarImagensRota() {
             let sh = BODY_PAD_V;
             lines.forEach(l => { sh += l.trim() ? SRV_LH + 3 : 8; });
             sh += BODY_PAD_V;
-            const bodyH = Math.max(CREW_H, sh);
+            const bodyH = Math.max(getCrewH(v), sh);
             const totalH = V_HDR_H + 1 + bodyH;
 
             // Sombra suave + fundo branco do card
@@ -2430,6 +2454,20 @@ async function _rrGerarImagensRota() {
             ctx.stroke();
 
             drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#d97706'); // amarelo
+            
+            // Desenhar candidatos em teste
+            const cands = (window._rrCandidatosTesteData || []).filter(c => c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim());
+            cands.forEach(cand => {
+                ctx.strokeStyle = '#e9eef3';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(PAD + 8, crY - 4);
+                ctx.lineTo(PAD + LEFT_W - 8, crY - 4);
+                ctx.stroke();
+                
+                const tipoCand = (cand.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
+                drawMember(cand.nome, 'Candidato - ' + tipoCand, cand.foto_base64, '#7c3aed'); // roxo
+            });
 
             // ── Direita: Serviços (word-wrap, sem compressão) ──
             let sy = bodyY + BODY_PAD_V;
