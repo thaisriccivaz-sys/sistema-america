@@ -1163,7 +1163,7 @@
 
   // ── WIZARD ABERTURA ───────────────────────────────────────────
   function openWizard() {
-    _wiz = { step:1, protocol: nextProtocol(), osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contacts:[{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }], channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[] };
+    _wiz = { step:1, protocol: '', osNumber:'', _protocolLocked:false, _osLinked:false, clientName:'', cnpjCpf:'', equipment:'', address:'', contacts:[{ id: Date.now(), type: 'Contato de Instalação', name: '', phone: '', email: '' }], channel:'WhatsApp', typeKey:'manutencao', occList:[], currentOcc: (OCCURRENCES_BY_TYPE.manutencao||[])[0]||'', currentOccNote:'', description:'', attachments:[], osDate:'' };
     renderWizard();
   }
 
@@ -1792,7 +1792,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;align-items:flex-end;">
             <div class="sac-field" style="margin-bottom:0;">
               <label>Nº Chamado</label>
-              <input type="text" autocomplete="off" value="${_wiz.protocol}" id="wiz-protocol" ${_wiz._protocolLocked ? 'readonly style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"' : 'oninput="_sacWiz(\'protocol\',this.value)"'}>
+              <input type="text" autocomplete="off" value="${_wiz.protocol || ''}" id="wiz-protocol" readonly style="background:#f1f5f9;color:#94a3b8;cursor:default;" placeholder="Gerado automaticamente">
             </div>
             <div class="sac-field" style="margin-bottom:0;position:relative;">
               <label>Nº OS</label>
@@ -3009,18 +3009,11 @@
       try {
         let finalAttachments = _wiz.attachments || [];
 
-        const proto = _wiz.protocol.trim() || nextProtocol();
-        const dupl = _tickets.find(t => t.protocol === proto);
-        if (dupl && !confirm(`Já existe a OS ${proto} (${dupl.clientName}). Criar mesmo assim?`)) {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Criar Chamado'; }
-            return;
-        }
-
         const user = currentUsername();
         const now = new Date().toISOString();
         const newTicket = {
           id: 'sac-'+Date.now(),
-          protocol: proto,
+          protocol: '',            // será preenchido com o valor retornado pelo backend
           osNumber: _wiz.osNumber.trim(),
           openDate: now,
           clientName: _wiz.clientName.trim(),
@@ -3059,6 +3052,11 @@
         });
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
+        // O protocolo é gerado pelo backend para evitar conflitos
+        const savedData = await res.json();
+        const proto = savedData.protocol || String(_tickets.length + 1).padStart(4,'0');
+        newTicket.protocol = proto;
+
         fetch('/api/sac/notificar-novo-chamado', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
@@ -3067,7 +3065,7 @@
 
         _tickets.unshift(newTicket);
         SAC.closeWizard();
-        showToast(`Chamado ${proto} criado com sucesso!`,'success');
+        showToast(`Chamado Nº ${proto} criado com sucesso!`,'success');
         renderAll();
       } catch (err) {
         console.error(err);

@@ -29714,6 +29714,18 @@ app.delete('/api/sac/ocorrencias/:id', authenticateToken, (req, res) => {
 
 app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     const t = req.body;
+
+    // Geração atômica do protocolo no backend para evitar race condition
+    // db.serialize garante que o SELECT e o INSERT ocorrem sequencialmente
+    db.serialize(() => {
+        db.get(
+            `SELECT COALESCE(MAX(CAST(REPLACE(protocol, ' ', '') AS INTEGER)), 0) AS max_num FROM sac_tickets WHERE CAST(REPLACE(protocol, ' ', '') AS INTEGER) > 0`,
+            [],
+            (errMax, row) => {
+                if (errMax) return res.status(500).json({ error: errMax.message });
+                const nextNum  = (row ? row.max_num : 0) + 1;
+                const protocol = String(nextNum).padStart(4, '0');
+
     db.run(`INSERT INTO sac_tickets (
         id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
@@ -29725,7 +29737,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         os_date, opened_by_from_os
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
-        t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
+        t.id, protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
         t.description, t.stage, t.nextSteps, JSON.stringify(t.timeline||[]), JSON.stringify(t.costCenters||[]),
         JSON.stringify(t.attachments||[]), JSON.stringify(t.checklist||[]), JSON.stringify(t.logisticsTask||null),
@@ -29749,7 +29761,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
             if (!errQ && users && users.length > 0) {
                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
                 const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${t.id}`;
-                const subject = `📢 Novo SAC Registrado: Chamado Nº ${t.protocol}`;
+                const subject = `📢 Novo SAC Registrado: Chamado Nº ${protocol}`;
                 
                 const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
                     <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div>
@@ -29757,7 +29769,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
                         <h2 style="color:#0ea5e9;text-align:center;margin-top:0;">Novo Chamado SAC</h2>
                         <p style="font-size:1rem;color:#1e293b;">Um novo chamado de SAC foi aberto no sistema.</p>
                         <div style="background:#f0f9ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #0ea5e9;">
-                            <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${t.protocol}</p>
+                            <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
                             <p style="margin:4px 0;"><strong>Cliente:</strong> ${t.clientName || 'Não informado'}</p>
                             <p style="margin:4px 0;"><strong>Contato:</strong> ${t.contactName || 'Não informado'} ${t.contactPhone ? `(${t.contactPhone})` : ''}</p>
                             <p style="margin:4px 0;"><strong>Canal:</strong> ${t.channel || 'Não informado'}</p>
@@ -29769,8 +29781,8 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
                 </div>`;
 
                 for (const u of users) {
-                    const msg = `Novo chamado SAC registrado: Nº ${t.protocol}`;
-                    const dadosStr = JSON.stringify({ protocolo: t.protocol, id: t.id, clientName: t.clientName });
+                    const msg = `Novo chamado SAC registrado: Nº ${protocol}`;
+                    const dadosStr = JSON.stringify({ protocolo: protocol, id: t.id, clientName: t.clientName });
                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [u.usuario_id, 'novo_sac', msg, dadosStr]);
 
                     if (!u.dest_email || !u.dest_email.includes('@')) continue;
@@ -29788,9 +29800,14 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
             }
         });
 
-        res.json({ success: true, id: t.id });
-    });
-});
+        // Retornar o protocolo gerado para que o frontend use o valor correto
+        res.json({ success: true, id: t.id, protocol });
+    }); // fim db.run INSERT
+            } // fim callback db.get MAX
+        ); // fim db.get
+    }); // fim db.serialize
+}); // fim app.post /api/sac/tickets
+
 
 
 app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
