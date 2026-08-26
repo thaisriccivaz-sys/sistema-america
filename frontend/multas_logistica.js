@@ -269,9 +269,14 @@ function _buildMultaRow(m) {
         ? `<button onclick="visualizarDocExtra(${m.id}, 1)" style="background:transparent; border:none; cursor:pointer; color:#8b5cf6; margin-right:6px;" title="Termo Assinado"><i class="ph ph-signature" style="font-size:1.2rem;"></i></button>`
         : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Termo Assinado (não anexado)"><i class="ph ph-signature" style="font-size:1.2rem;"></i></button>`;
 
-    // Documento de Notificação (documento principal da mônaco)
-    const btnDoc = (m.documento_base64 || m.documento_path)
-        ? `<button onclick="visualizarDocumentoMulta(${m.id})" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:6px;" title="Documento de Notificação"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
+    // Documento de Notificação: pode estar no campo principal (documento_base64/documento_path)
+    // OU no slot 2 de documentos_extras (quando substituído via modal de edição)
+    const temDocNotif = !!(m.documento_base64 || m.documento_path || m.documento_url || docsExtrasList[2]);
+    const btnDocOnClick = docsExtrasList[2]
+        ? `visualizarDocExtra(${m.id}, 2)`
+        : `visualizarDocumentoMulta(${m.id})`;
+    const btnDoc = temDocNotif
+        ? `<button onclick="${btnDocOnClick}" style="background:transparent; border:none; cursor:pointer; color:#10b981; margin-right:6px;" title="Documento de Notificação"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`
         : `<button disabled style="background:transparent; border:none; cursor:default; color:#cbd5e1; margin-right:6px; opacity:0.5;" title="Documento de Notificação (não anexado)"><i class="ph ph-file-pdf" style="font-size:1.2rem;"></i></button>`;
 
     // Link formulário: cinza sem cursor se finalizado
