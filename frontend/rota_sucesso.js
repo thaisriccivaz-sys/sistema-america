@@ -156,9 +156,6 @@
 
     // ── init genérico ──────────────────────────────────────────────────────
     async function initView(tipo, sectionId, tableId, searchId) {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-
         const tableEl = document.getElementById(tableId);
         if (tableEl) tableEl.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;">
             <div style="font-size:2rem;animation:spin 1s linear infinite;">⏳</div>
