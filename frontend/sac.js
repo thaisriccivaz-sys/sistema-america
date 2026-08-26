@@ -835,9 +835,18 @@
   // ── PIPELINE KANBAN ──────────────────────────────────────────
   function renderPipeline(container) {
     const filtered = getFilteredTickets();
+    const numStages = PIPELINE_STAGES.filter(s => s.id !== 'encerrado').length;
+    const boardMinWidth = numStages * 280; // ~280px por coluna
+
     container.innerHTML = `
-    <div style="display:flex;gap:0;overflow-x:auto;height:100%;padding:12px;box-sizing:border-box;">
-      ${PIPELINE_STAGES.filter(s => s.id !== 'encerrado').map(stage => {
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
+      <!-- Barra de scroll espelhada no TOPO do kanban -->
+      <div id="sac-pipe-topscroll" style="overflow-x:scroll;overflow-y:hidden;height:14px;flex-shrink:0;background:#f1f5f9;border-bottom:1px solid #e2e8f0;">
+        <div id="sac-pipe-topscroll-inner" style="height:1px;min-width:${boardMinWidth}px;width:${boardMinWidth}px;"></div>
+      </div>
+      <!-- Board do kanban -->
+      <div id="sac-pipe-board" style="display:flex;gap:0;overflow-x:auto;flex:1;padding:12px;box-sizing:border-box;">
+        ${PIPELINE_STAGES.filter(s => s.id !== 'encerrado').map(stage => {
         const allCards = filtered.filter(t => t.stage === stage.id);
 
         // Na coluna concluido: separar conferidos dos não-conferidos
@@ -882,7 +891,32 @@
           </div>
         </div>`;
       }).join('')}
+      </div>
     </div>`;
+
+    // Sincronizar scroll bidirecional: barra do topo ↔ board kanban
+    requestAnimationFrame(() => {
+      const board     = document.getElementById('sac-pipe-board');
+      const topScroll = document.getElementById('sac-pipe-topscroll');
+      const topInner  = document.getElementById('sac-pipe-topscroll-inner');
+      if (!board || !topScroll || !topInner) return;
+
+      // Ajustar largura do inner para refletir largura real do board
+      const realWidth = board.scrollWidth;
+      topInner.style.width = Math.max(realWidth, boardMinWidth) + 'px';
+
+      let _syncing = false;
+      topScroll.addEventListener('scroll', () => {
+        if (_syncing) return; _syncing = true;
+        board.scrollLeft = topScroll.scrollLeft;
+        requestAnimationFrame(() => { _syncing = false; });
+      });
+      board.addEventListener('scroll', () => {
+        if (_syncing) return; _syncing = true;
+        topScroll.scrollLeft = board.scrollLeft;
+        requestAnimationFrame(() => { _syncing = false; });
+      });
+    });
   }
 
   function renderCard(ticket, stage, isConferido = false) {
