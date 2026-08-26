@@ -106,7 +106,8 @@
   let _filterDateEnd = '';
   let _filterUrgent = false;
   let _filterAssigned = '';
-  let _filterFollowUpDate = '';  // filtro Acomp. ate
+  let _filterFollowUpDateStart = ''; // filtro Acomp. De
+  let _filterFollowUpDateEnd   = ''; // filtro Acomp. Ate
   let _selectedTicket = null;
   let _modalTab = 'geral'; // 'geral' | 'historico' | 'custo' | 'anexos' | 'checklist'
   let _pendingTransition = null;
@@ -598,9 +599,10 @@
         
         <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:5px 10px;">
           <i class="ph ph-calendar-check" style="color:#2563eb;font-size:1rem;"></i>
-          <span style="font-weight:600;color:#1d4ed8;">Acomp. ate:</span>
-          <input type="date" id="sac-filter-followup-date" style="padding:4px 8px;border:1px solid #bfdbfe;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;" onchange="SAC.onFilterFollowUpDate(this.value)" title="Filtrar chamados em Acompanhamento com prazo ate esta data">
-          <button onclick="document.getElementById('sac-filter-followup-date').value='';SAC.onFilterFollowUpDate('')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;padding:0;" title="Limpar">&#x2715;</button>
+          <span style="font-weight:600;color:#1d4ed8;">Acomp.:</span>
+          De: <input type="date" id="sac-filter-followup-start" style="padding:4px 8px;border:1px solid #bfdbfe;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;" onchange="SAC.onFilterFollowUpDate(this.value, document.getElementById('sac-filter-followup-end').value)" title="Prazo de acompanhamento a partir de">
+          At&#233;: <input type="date" id="sac-filter-followup-end" style="padding:4px 8px;border:1px solid #bfdbfe;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;" onchange="SAC.onFilterFollowUpDate(document.getElementById('sac-filter-followup-start').value, this.value)" title="Prazo de acompanhamento ate">
+          <button onclick="document.getElementById('sac-filter-followup-start').value='';document.getElementById('sac-filter-followup-end').value='';SAC.onFilterFollowUpDate('','')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;padding:0;" title="Limpar">&#x2715;</button>
         </div>
 
         <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;margin-left:auto;"></span>
@@ -2395,16 +2397,25 @@
         }
       }
 
-      // Filtro por data de acompanhamento (followUpDeadline)
+      // Filtro por data de acompanhamento (followUpDeadline) - De/Ate
       let matchFollowUpDate = true;
-      if (_filterFollowUpDate) {
-        // Mostra apenas tickets em acompanhamento com followUpDeadline <= data escolhida (23:59:59)
-        const followUpMaxMs = new Date(_filterFollowUpDate + 'T23:59:59').getTime();
-        if (t.followUpDeadline && t.stage === 'execucao') {
+      if (_filterFollowUpDateStart || _filterFollowUpDateEnd) {
+        if (t.followUpDeadline) {
           const followUpMs = new Date(t.followUpDeadline).getTime();
-          if (isNaN(followUpMs) || followUpMs > followUpMaxMs) matchFollowUpDate = false;
+          if (!isNaN(followUpMs)) {
+            if (_filterFollowUpDateStart) {
+              const startMs = new Date(_filterFollowUpDateStart + 'T00:00:00').getTime();
+              if (followUpMs < startMs) matchFollowUpDate = false;
+            }
+            if (_filterFollowUpDateEnd && matchFollowUpDate) {
+              const endMs = new Date(_filterFollowUpDateEnd + 'T23:59:59').getTime();
+              if (followUpMs > endMs) matchFollowUpDate = false;
+            }
+          } else {
+            matchFollowUpDate = false;
+          }
         } else {
-          // Se nao tem followUpDeadline ou nao esta em acompanhamento, nao passa no filtro
+          // Ticket sem prazo de acompanhamento nao aparece quando filtro esta ativo
           matchFollowUpDate = false;
         }
       }
@@ -2693,7 +2704,7 @@
     onFilterDateType(v){ _filterDateType = v; renderAll(); },
     onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
     onFilterUrgent(checked){ _filterUrgent = checked; renderAll(); },
-    onFilterFollowUpDate(v){ _filterFollowUpDate = v; renderAll(); },
+    onFilterFollowUpDate(start, end){ _filterFollowUpDateStart = start||''; _filterFollowUpDateEnd = end||''; renderAll(); },
     onFilterAssigned(v) {
       _filterAssigned = v;
       const clearBtn = document.getElementById('sac-filter-assigned-clear');
