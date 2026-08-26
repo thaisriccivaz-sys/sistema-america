@@ -1,200 +1,202 @@
-// frontend/rota_sucesso.js - v3
+// frontend/rota_sucesso.js - v5
 (function () {
-    'use strict';
+    "use strict";
 
-    const API = (window.API_URL || '').replace(/\/api\/?$/, '');
+    const API = (window.API_URL || "").replace(/\/api\/?$/, "");
     function headers() {
-        const t = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        return { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' };
+        const t = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
+        return { "Authorization": "Bearer " + t, "Content-Type": "application/json" };
+    }
+
+    function truncate(str, max) {
+        str = str || "";
+        return str.length > max ? str.substring(0, max) + "\u2026" : str;
     }
 
     function avatarHtml(url, nome) {
-        const ini = (nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-        return `<div style="width:40px;height:40px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid #15803d;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-weight:700;color:#15803d;font-size:0.9rem;">
-            <img src="${url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='${ini}'" alt="">
-        </div>`;
+        const ini = (nome || "?").split(" ").filter(Boolean).slice(0, 2).map(function(p){ return p[0]; }).join("").toUpperCase();
+        return "<div style=\"width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid #1d4ed8;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1d4ed8;font-size:0.85rem;\">" +
+            "<img src=\"" + url + "\" style=\"width:100%;height:100%;object-fit:cover;\" onerror=\"this.parentElement.innerHTML='" + ini + "'\" alt=\"\">" +
+            "</div>";
     }
 
     function badgeMeses(meses, ok) {
-        const s = ok ? 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;' : 'background:#fef2f2;color:#dc2626;border:1px solid #fecaca;';
-        return `<span style="${s}padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;white-space:nowrap;">${meses}m</span>`;
+        const s = ok ? "background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;" : "background:#fef2f2;color:#dc2626;border:1px solid #fecaca;";
+        return "<span style=\"" + s + "padding:2px 7px;border-radius:12px;font-size:0.72rem;font-weight:600;white-space:nowrap;\">" + meses + "m</span>";
     }
 
     function badgeBool(val) {
-        if (val) return `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">⚠ Sim</span>`;
-        return `<span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">✓ OK</span>`;
+        if (val) return "<span style=\"background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:2px 7px;border-radius:12px;font-size:0.72rem;font-weight:600;\">\u26a0 Sim</span>";
+        return "<span style=\"background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:2px 7px;border-radius:12px;font-size:0.72rem;font-weight:600;\">\u2713 OK</span>";
     }
 
     function aptoBadge(apto) {
-        if (apto) return `<span style="display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#15803d;border:1px solid #15803d;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;white-space:nowrap;">✅ Apto</span>`;
-        return `<span style="display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;white-space:nowrap;">❌ Inapto</span>`;
+        if (apto) return "<span style=\"display:inline-flex;align-items:center;gap:3px;background:#dbeafe;color:#1d4ed8;border:1px solid #1d4ed8;padding:3px 9px;border-radius:12px;font-size:0.78rem;font-weight:700;white-space:nowrap;\">\u2705 Apto</span>";
+        return "<span style=\"display:inline-flex;align-items:center;gap:3px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:3px 9px;border-radius:12px;font-size:0.78rem;font-weight:700;white-space:nowrap;\">\u274c Inapto</span>";
     }
 
-    // Ícones para cada tipo de formulário
     const TIPO_ICONS = {
-        'hab_b':     { icon: '🚗', label: 'Hab. B',      short: 'B' },
-        'motorista1':{ icon: '🚚', label: 'Mot. I',      short: 'M1' },
-        'hab_d':     { icon: '🚛', label: 'Hab. D',      short: 'D' },
-        'motorista2':{ icon: '🚛', label: 'Mot. II',     short: 'M2' }
+        "hab_b":      { label: "Hab. B",  short: "\uD83D\uDE97 Hab.B"  },
+        "motorista1": { label: "Mot. I",  short: "\uD83D\uDE9A Mot.I"  },
+        "hab_d":      { label: "Hab. D",  short: "\uD83D\uDE9B Hab.D"  },
+        "motorista2": { label: "Mot. II", short: "\uD83D\uDE9B Mot.II" }
     };
 
-    // Todos os tipos possíveis (para criar colunas fixas)
-    const TIPOS_AJUDANTES  = ['hab_b', 'motorista1'];
-    const TIPOS_MOTORISTAS = ['hab_d', 'motorista2'];
+    const TIPOS_AJUDANTES  = ["hab_b", "motorista1"];
+    const TIPOS_MOTORISTAS = ["hab_d", "motorista2"];
 
     async function copiarLink(colaborador_id, tipo, btnEl) {
         try {
             btnEl.disabled = true;
-            btnEl.title = 'Gerando link...';
-            const resp = await fetch(`${API}/api/rota-sucesso/gerar-token`, {
-                method: 'POST', headers: headers(),
-                body: JSON.stringify({ colaborador_id, tipo })
+            const resp = await fetch(API + "/api/rota-sucesso/gerar-token", {
+                method: "POST", headers: headers(),
+                body: JSON.stringify({ colaborador_id: colaborador_id, tipo: tipo })
             });
             const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error || 'Erro');
+            if (!resp.ok) throw new Error(data.error || "Erro");
             await navigator.clipboard.writeText(data.url);
-            btnEl.style.background = '#15803d';
-            btnEl.style.color = 'white';
-            btnEl.style.borderColor = '#15803d';
-            btnEl.title = '✅ Link copiado!';
-            setTimeout(() => {
-                btnEl.style.background = '';
-                btnEl.style.color = '';
-                btnEl.style.borderColor = '';
-                btnEl.title = TIPO_ICONS[tipo]?.label || tipo;
+            btnEl.innerHTML = "\u2705";
+            btnEl.style.background = "#dbeafe";
+            btnEl.style.color = "#1d4ed8";
+            btnEl.style.borderColor = "#1d4ed8";
+            setTimeout(function() {
+                btnEl.innerHTML = "\uD83D\uDCCB";
+                btnEl.style.background = "";
+                btnEl.style.color = "";
+                btnEl.style.borderColor = "";
                 btnEl.disabled = false;
             }, 2500);
-            // Atualizar botão Ver se agora foi respondido
-            if (data.status === 'respondido') {
-                const verBtn = document.getElementById(`ver-${colaborador_id}-${tipo}`);
-                if (verBtn) verBtn.style.display = '';
+            // Mostrar botao olho se respondido
+            const verBtn = document.getElementById("ver-" + colaborador_id + "-" + tipo);
+            if (verBtn && data.id) {
+                verBtn.setAttribute("data-id", data.id);
+                if (data.status === "respondido") {
+                    verBtn.style.display = "flex";
+                }
             }
         } catch (e) {
-            btnEl.title = TIPO_ICONS[tipo]?.label || tipo;
             btnEl.disabled = false;
-            alert('Erro: ' + e.message);
+            alert("Erro: " + e.message);
         }
     }
 
-    function verRespostas(id_resposta) {
-        if (!id_resposta || id_resposta === 'undefined') { alert('ID da resposta inválido.'); return; }
-        window.open(`${API}/api/rota-sucesso/respostas/ver/${id_resposta}/pdf`, '_blank');
+    function verRespostas(idResposta) {
+        if (!idResposta || idResposta === "undefined" || idResposta === "null") {
+            alert("ID da resposta invalido."); return;
+        }
+        window.open(API + "/api/rota-sucesso/respostas/ver/" + idResposta + "/pdf", "_blank");
     }
-
 
     function renderTabela(colabs, containerId, tiposColuna) {
         const container = document.getElementById(containerId);
         if (!container) return;
-
         if (!colabs || colabs.length === 0) {
-            container.innerHTML = `<div style="text-align:center;padding:48px;color:#94a3b8;"><div style="font-size:2.5rem;margin-bottom:12px;">👤</div><p>Nenhum colaborador encontrado.</p></div>`;
+            container.innerHTML = "<div style=\"text-align:center;padding:48px;color:#94a3b8;\"><div style=\"font-size:2.5rem;margin-bottom:12px;\">\uD83D\uDC64</div><p>Nenhum colaborador encontrado.</p></div>";
             return;
         }
 
-        // Cabeçalho com colunas fixas por tipo
-        const tipoHeaders = tiposColuna.map(t => {
+        const tipoHeaders = tiposColuna.map(function(t) {
             const ti = TIPO_ICONS[t] || {};
-            return `<th style="padding:8px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;min-width:72px;">${ti.icon || ''} ${ti.short || t}</th>`;
-        }).join('');
+            return "<th style=\"padding:8px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;min-width:82px;\">" + (ti.short || t) + "</th>";
+        }).join("");
 
-        const rows = colabs.map(c => {
-            // Mapear formulários do colaborador por tipo
+        const rows = colabs.map(function(c) {
             const formsByTipo = {};
-            (c.formularios || []).forEach(f => { formsByTipo[f.tipo] = f; });
+            (c.formularios || []).forEach(function(f) { formsByTipo[f.tipo] = f; });
 
-            // Criar célula para cada tipo de coluna
-            const tipoCells = tiposColuna.map(tipo => {
+            const tipoCells = tiposColuna.map(function(tipo) {
                 const f = formsByTipo[tipo];
                 if (!f) {
-                    // Tipo não disponível para este colaborador
-                    return `<td style="padding:8px 12px;text-align:center;"><span style="color:#d1d5db;font-size:1.1rem;">—</span></td>`;
+                    return "<td style=\"padding:8px 6px;text-align:center;\"><span style=\"color:#d1d5db;\">&mdash;</span></td>";
                 }
                 const idResp = f.id_resposta;
-                const verDisplay = (f.respondido && idResp) ? '' : 'display:none;';
-                return `<td style="padding:8px 12px;text-align:center;">
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-                        <button onclick="window._rrsCopiarLink(${c.id},'${tipo}',this)"
-                            title="${TIPO_ICONS[tipo]?.label || tipo}"
-                            style="width:36px;height:36px;border-radius:8px;border:1.5px solid #15803d;background:#f0fdf4;color:#15803d;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">
-                            📋
-                        </button>
-                        <button id="ver-${c.id}-${tipo}" onclick="window._rrsVerRespostas(${idResp})"
-                            style="${verDisplay}width:36px;height:36px;border-radius:8px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;"
-                            title="Ver respostas">
-                            👁
-                        </button>
-                    </div>
-                </td>`;
-            }).join('');
+                const respondido = f.respondido && idResp;
+                const verDisplay = respondido ? "flex" : "none";
+                return "<td style=\"padding:8px 6px;text-align:center;\">" +
+                    "<div style=\"display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;\">" +
+                    "<button onclick=\"window._rrsCopiarLink(" + c.id + ",'" + tipo + "',this)\" title=\"Copiar link\" " +
+                    "style=\"width:30px;height:30px;border-radius:7px;border:1.5px solid #1d4ed8;background:#f0f4ff;color:#1d4ed8;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;\">\uD83D\uDCCB</button>" +
+                    "<button id=\"ver-" + c.id + "-" + tipo + "\" onclick=\"window._rrsVerRespostas(this.getAttribute('data-id'))\" data-id=\"" + idResp + "\" title=\"Ver respostas\" " +
+                    "style=\"width:30px;height:30px;border-radius:7px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-size:0.9rem;cursor:pointer;display:" + verDisplay + ";align-items:center;justify-content:center;flex-shrink:0;\">\uD83D\uDC41</button>" +
+                    "</div></td>";
+            }).join("");
 
-            return `<tr style="border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                <td style="padding:10px 16px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        ${avatarHtml(c.foto_url, c.nome_completo)}
-                        <div>
-                            <div style="font-weight:700;color:#1e293b;font-size:0.9rem;">${c.nome_completo}</div>
-                            <div style="font-size:0.75rem;color:#64748b;">${c.cargo || c.departamento || '-'}</div>
-                        </div>
-                    </div>
-                </td>
-                <td style="padding:10px 12px;text-align:center;font-size:0.85rem;font-weight:600;color:#475569;">${c.cnh_categoria || '—'}</td>
-                <td style="padding:10px 12px;text-align:center;">${badgeMeses(c.mesesEmpresa, c.tempoOk)}</td>
-                <td style="padding:10px 12px;text-align:center;">${badgeBool(c.temAdvEscrita)}</td>
-                <td style="padding:10px 12px;text-align:center;">${badgeBool(c.temSuspensao)}</td>
-                <td style="padding:10px 12px;text-align:center;">${badgeBool(c.temFaltaSemAtestado)}</td>
-                <td style="padding:10px 12px;text-align:center;">${aptoBadge(c.apto)}</td>
-                ${tipoCells}
-            </tr>`;
-        }).join('');
+            const nomeDisplay = truncate(c.nome_completo, 20);
+            const nomeTitle = c.nome_completo && c.nome_completo.length > 20 ? " title=\"" + c.nome_completo + "\"" : "";
 
-        container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-family:inherit;">
-            <thead><tr style="background:#f8fafc;">
-                <th style="padding:10px 16px;text-align:left;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Colaborador</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">CNH</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Tempo</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Adv.</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Susp.</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Falta</th>
-                <th style="padding:10px 12px;text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Status</th>
-                ${tipoHeaders}
-            </tr></thead>
-            <tbody>${rows}</tbody>
-        </table>`;
+            return "<tr style=\"border-bottom:1px solid #f1f5f9;\" onmouseover=\"this.style.background='#f8fafc'\" onmouseout=\"this.style.background=''\">" +
+                "<td style=\"padding:8px 12px;\">" +
+                    "<div style=\"display:flex;align-items:center;gap:8px;\">" +
+                        avatarHtml(c.foto_url, c.nome_completo) +
+                        "<div>" +
+                            "<div" + nomeTitle + " style=\"font-weight:700;color:#1e293b;font-size:0.84rem;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">" + nomeDisplay + "</div>" +
+                            "<div style=\"font-size:0.69rem;color:#64748b;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">" + truncate(c.cargo || c.departamento || "-", 22) + "</div>" +
+                        "</div>" +
+                    "</div>" +
+                "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;font-size:0.82rem;font-weight:600;color:#475569;\">" + (c.cnh_categoria || "\u2014") + "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;\">" + badgeMeses(c.mesesEmpresa, c.tempoOk) + "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;\">" + badgeBool(c.temAdvEscrita) + "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;\">" + badgeBool(c.temSuspensao) + "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;\">" + badgeBool(c.temFaltaSemAtestado) + "</td>" +
+                "<td style=\"padding:8px 6px;text-align:center;\">" + aptoBadge(c.apto) + "</td>" +
+                tipoCells +
+                "</tr>";
+        }).join("");
+
+        const colWidths = tiposColuna.map(function() { return "<col style=\"width:82px;\">"; }).join("");
+
+        container.innerHTML = "<table style=\"width:100%;border-collapse:collapse;font-family:inherit;table-layout:fixed;\">" +
+            "<colgroup><col style=\"width:185px;\"><col style=\"width:48px;\"><col style=\"width:56px;\"><col style=\"width:52px;\"><col style=\"width:52px;\"><col style=\"width:52px;\"><col style=\"width:78px;\">" + colWidths + "</colgroup>" +
+            "<thead><tr style=\"background:#f8fafc;\">" +
+                "<th style=\"padding:10px 12px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Colaborador</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">CNH</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Tempo</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Adv.</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Susp.</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Falta</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Status</th>" +
+                tipoHeaders +
+            "</tr></thead>" +
+            "<tbody>" + rows + "</tbody></table>";
     }
 
     async function initView(tipo, tableId, searchId, tiposColuna) {
         const tableEl = document.getElementById(tableId);
-        if (tableEl) tableEl.innerHTML = `<div style="text-align:center;padding:40px;color:#94a3b8;"><p>⏳ Carregando...</p></div>`;
+        if (tableEl) tableEl.innerHTML = "<div style=\"text-align:center;padding:40px;color:#94a3b8;\"><p>\u23f3 Carregando...</p></div>";
 
         let allData = [];
         try {
-            const resp = await fetch(`${API}/api/rota-sucesso/elegibilidade?tipo=${tipo}`, { headers: headers() });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const resp = await fetch(API + "/api/rota-sucesso/elegibilidade?tipo=" + tipo, { headers: headers() });
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
             allData = await resp.json();
         } catch (e) {
-            if (tableEl) tableEl.innerHTML = `<div style="text-align:center;padding:40px;color:#dc2626;"><p>Erro ao carregar: ${e.message}</p></div>`;
+            if (tableEl) tableEl.innerHTML = "<div style=\"text-align:center;padding:40px;color:#dc2626;\"><p>Erro ao carregar: " + e.message + "</p></div>";
             return;
         }
 
+        const aptosCheckId = tableId + "-aptos";
+
         function filtrar() {
-            const q = (document.getElementById(searchId)?.value || '').toLowerCase();
-            const somenteAptos = document.getElementById(`${tipo === 'ajudantes' ? 'rota-sucesso-ajudantes' : 'rota-sucesso-motoristas'}-aptos`)?.checked || false;
+            const q = (document.getElementById(searchId) ? document.getElementById(searchId).value : "").toLowerCase();
+            const somenteAptos = document.getElementById(aptosCheckId) ? document.getElementById(aptosCheckId).checked : false;
             let filtrado = allData;
-            if (q) filtrado = filtrado.filter(c => c.nome_completo.toLowerCase().includes(q) || (c.cargo || '').toLowerCase().includes(q));
-            if (somenteAptos) filtrado = filtrado.filter(c => c.apto);
+            if (q) filtrado = filtrado.filter(function(c) { return c.nome_completo.toLowerCase().includes(q) || (c.cargo || "").toLowerCase().includes(q); });
+            if (somenteAptos) filtrado = filtrado.filter(function(c) { return c.apto; });
             renderTabela(filtrado, tableId, tiposColuna);
         }
 
-        document.getElementById(searchId)?.addEventListener('input', filtrar);
-        const aptosId = `${tipo === 'ajudantes' ? 'rota-sucesso-ajudantes' : 'rota-sucesso-motoristas'}-aptos`;
-        document.getElementById(aptosId)?.addEventListener('change', filtrar);
+        const searchEl = document.getElementById(searchId);
+        if (searchEl) searchEl.addEventListener("input", filtrar);
+        const aptosEl = document.getElementById(aptosCheckId);
+        if (aptosEl) aptosEl.addEventListener("change", filtrar);
 
         renderTabela(allData, tableId, tiposColuna);
     }
 
-    window._rrsCopiarLink  = copiarLink;
+    window._rrsCopiarLink   = copiarLink;
     window._rrsVerRespostas = verRespostas;
-    window.initRotaSucessoAjudantes  = function () { initView('ajudantes',  'rrs-table-ajudantes',  'rrs-search-ajudantes',  TIPOS_AJUDANTES);  };
-    window.initRotaSucessoMotoristas = function () { initView('motoristas', 'rrs-table-motoristas', 'rrs-search-motoristas', TIPOS_MOTORISTAS); };
+    window.initRotaSucessoAjudantes  = function () { initView("ajudantes",  "rrs-table-ajudantes",  "rrs-search-ajudantes",  TIPOS_AJUDANTES);  };
+    window.initRotaSucessoMotoristas = function () { initView("motoristas", "rrs-table-motoristas", "rrs-search-motoristas", TIPOS_MOTORISTAS); };
 
 })();

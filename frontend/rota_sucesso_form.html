@@ -6,8 +6,8 @@
 <title>Rota de Sucesso — Formulário</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); min-height: 100vh; }
-  .header { background: linear-gradient(135deg, #15803d, #166534); padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%); min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1d4ed8, #1e3a8a); padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
   .logo-circle { width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; color: white; flex-shrink: 0; }
   .logo-text { color: white; }
   .logo-text .name { font-size: 1.1rem; font-weight: 700; }
@@ -15,7 +15,7 @@
   .badge-prog { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; color: rgba(255,255,255,0.95); margin-left: auto; white-space: nowrap; }
   .container { max-width: 640px; margin: 32px auto; padding: 0 16px 48px; }
   .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
-  .card-header { background: linear-gradient(135deg, #15803d, #166534); padding: 24px 28px; color: white; }
+  .card-header { background: linear-gradient(135deg, #1d4ed8, #1e3a8a); padding: 24px 28px; color: white; }
   .tipo-badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; display: inline-block; margin-bottom: 10px; }
   .card-header h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
   .card-header p { font-size: 0.88rem; opacity: 0.85; line-height: 1.5; }
@@ -31,21 +31,21 @@
     width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.95rem;
     color: #1f2937; outline: none; transition: border 0.2s; background: #f9fafb; font-family: inherit;
   }
-  input[type="text"]:focus, textarea:focus, select:focus { border-color: #15803d; background: #fff; box-shadow: 0 0 0 3px rgba(21,128,61,0.1); }
+  input[type="text"]:focus, textarea:focus, select:focus { border-color: #1d4ed8; background: #fff; box-shadow: 0 0 0 3px rgba(29,78,216,0.1); }
   textarea { min-height: 96px; resize: vertical; }
   .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
   .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; background: #f3f4f6; border: 1.5px solid #d1d5db; border-radius: 8px; padding: 8px 16px; transition: all 0.2s; font-size: 0.9rem; }
-  .radio-opt:hover { border-color: #15803d; background: #f0fdf4; }
-  .radio-opt input[type="radio"] { accent-color: #15803d; width: 16px; height: 16px; }
-  .radio-opt.selected { border-color: #15803d; background: #dcfce7; color: #15803d; font-weight: 600; }
+  .radio-opt:hover { border-color: #1d4ed8; background: #eff6ff; }
+  .radio-opt input[type="radio"] { accent-color: #1d4ed8; width: 16px; height: 16px; }
+  .radio-opt.selected { border-color: #1d4ed8; background: #dbeafe; color: #1d4ed8; font-weight: 600; }
   .select-group { display: flex; flex-direction: column; gap: 8px; }
   .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
-  .btn-submit { width: 100%; padding: 13px; background: linear-gradient(135deg, #15803d, #166534); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-submit { width: 100%; padding: 13px; background: linear-gradient(135deg, #1d4ed8, #1e3a8a); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .btn-submit:hover { opacity: 0.92; }
   .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
   .success-card { text-align: center; padding: 48px 28px; }
   .success-icon { font-size: 3.5rem; margin-bottom: 16px; }
-  .success-card h2 { font-size: 1.3rem; font-weight: 700; color: #15803d; margin-bottom: 10px; }
+  .success-card h2 { font-size: 1.3rem; font-weight: 700; color: #1d4ed8; margin-bottom: 10px; }
   .success-card p { color: #6b7280; font-size: 0.95rem; line-height: 1.6; }
   .already-card { text-align: center; padding: 48px 28px; }
   .already-icon { font-size: 3rem; margin-bottom: 16px; }
@@ -58,7 +58,7 @@
 <body>
 
 <div class="header">
-  <div class="logo-circle">A</div>
+  <img src="/logo.png" alt="América Rental" style="height:44px;width:44px;object-fit:contain;border-radius:8px;background:#fff;padding:2px;" onerror="this.outerHTML='<div class=logo-circle>A</div>'">
   <div class="logo-text">
     <div class="name">América Rental</div>
     <div class="sub">Equipamentos Ltda.</div>
@@ -157,7 +157,7 @@ function showError(msg) {
 function showAlready() {
   document.getElementById("main-card").innerHTML = `<div class="already-card">
     <div class="already-icon">✅</div>
-    <h2 style="margin-bottom:10px;color:#15803d;">Formulário já enviado!</h2>
+    <h2 style="margin-bottom:10px;color:#1d4ed8;">Formulário já enviado!</h2>
     <p style="color:#6b7280;">Você já respondeu a este formulário. Aguarde o retorno da equipe de RH da América Rental.<br><br>Obrigado pela sua participação! 🚀</p>
   </div>`;
 }
