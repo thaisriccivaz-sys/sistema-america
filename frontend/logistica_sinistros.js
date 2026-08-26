@@ -1072,8 +1072,8 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
                     <!-- Tipo de Sinistro + Situação -->
-                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
-                        <div style="flex:1; min-width:160px;">
+                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; gap:0.75rem; align-items:flex-start;">
+                        <div style="flex:1; min-width:0;">
                             <label style="color:#c2410c; font-weight:700; display:block; margin-bottom:4px;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
                             <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
                                 <option value="">-- Selecione o tipo --</option>
@@ -1083,7 +1083,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                                 <option value="Outros Danos" ${sinistro.tipo_sinistro === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
                             </select>
                         </div>
-                        <div style="flex:1; min-width:140px;">
+                        <div style="flex:1; min-width:0;">
                             <label style="font-weight:700; display:block; margin-bottom:4px; color:#6d28d9;"><i class="ph ph-flag"></i> Situação</label>
                             <select id="edit-sin-situacao" class="form-control" style="font-size:0.9rem; border-color:#c4b5fd;">
                                 <option value="Novo" ${(!sinistro.situacao_sinistro || sinistro.situacao_sinistro === 'Novo') ? 'selected' : ''}>🆕 Novo</option>
