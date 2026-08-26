@@ -21,7 +21,9 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
     { modulo: 'RH', pagina_id: 'rh-logistica-sinistros', pagina_nome: 'Sinistros (RH)', icone: 'ph-warning-circle' },
     { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
-    { modulo: 'RH', pagina_id: 'testes-candidatos',      pagina_nome: 'Candidatos (RH)', icone: 'ph-clipboard-text' },
+    { modulo: 'RH', pagina_id: 'testes-candidatos',        pagina_nome: 'Candidatos (RH)', icone: 'ph-clipboard-text' },
+    { modulo: 'RH', pagina_id: 'rota-sucesso-ajudantes',   pagina_nome: 'RS - Ajudantes',  icone: 'ph-rocket' },
+    { modulo: 'RH', pagina_id: 'rota-sucesso-motoristas',  pagina_nome: 'RS - Motoristas', icone: 'ph-rocket' },
     // Prontuário Digital Abas
     { modulo: 'RH', pagina_id: 'prontuario-checklist', pagina_nome: '00. CheckList', icone: 'ph-list-checks' },
     { modulo: 'RH', pagina_id: 'prontuario-ficha', pagina_nome: 'Ficha Cadastral', icone: 'ph-file-text' },
@@ -577,7 +579,8 @@ const MENU_HIERARQUIA = [
                 telas: [
                     'dashboard', 'colaboradores-total', 'colaboradores-parcial', 'assinaturas-digitais', 'ferias', 'experiencia',
                     'admissao', 'integracao', 'faculdade', 'rh-agenda', 'recibos', 'pagamentos-massa',
-                    'rh-logistica-sinistros', 'rh-logistica-multas', 'testes-candidatos'
+                    'rh-logistica-sinistros', 'rh-logistica-multas', 'testes-candidatos',
+                    'rota-sucesso-ajudantes', 'rota-sucesso-motoristas'
                 ]
             },
             {
