@@ -202,11 +202,13 @@ window._logSinRenderCardGeral = function(s, container) {
                 ${(() => {
                     const sit = s.situacao_sinistro || 'Novo';
                     const styles = {
-                        'Novo':           'background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd;',
-                        'Em averiguação': 'background:#fef3c7; color:#92400e; border:1px solid #fcd34d;',
-                        'Finalizado':     'background:#d1fae5; color:#065f46; border:1px solid #6ee7b7;'
+                        'Novo':                       'background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd;',
+                        'Em averiguação':             'background:#fef3c7; color:#92400e; border:1px solid #fcd34d;',
+                        'Finalizado (Interno)':       'background:#f3e8ff; color:#6d28d9; border:1px solid #c4b5fd;',
+                        'Finalizado - Passar para RH':'background:#d1fae5; color:#065f46; border:1px solid #6ee7b7;',
+                        'Finalizado':                 'background:#d1fae5; color:#065f46; border:1px solid #6ee7b7;'
                     };
-                    const icons = { 'Novo': '🆕', 'Em averiguação': '🔍', 'Finalizado': '✅' };
+                    const icons = { 'Novo': '🆕', 'Em averiguação': '🔍', 'Finalizado (Interno)': '🔒', 'Finalizado - Passar para RH': '✅', 'Finalizado': '✅' };
                     return `<span style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; ${styles[sit] || styles['Novo']}">${icons[sit] || '📋'} ${sit}</span>`;
                 })()}
             </div>
@@ -1086,7 +1088,8 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                             <select id="edit-sin-situacao" class="form-control" style="font-size:0.9rem; border-color:#c4b5fd;">
                                 <option value="Novo" ${(!sinistro.situacao_sinistro || sinistro.situacao_sinistro === 'Novo') ? 'selected' : ''}>🆕 Novo</option>
                                 <option value="Em averiguação" ${sinistro.situacao_sinistro === 'Em averiguação' ? 'selected' : ''}>🔍 Em averiguação</option>
-                                <option value="Finalizado" ${sinistro.situacao_sinistro === 'Finalizado' ? 'selected' : ''}>✅ Finalizado</option>
+                                <option value="Finalizado (Interno)" ${sinistro.situacao_sinistro === 'Finalizado (Interno)' ? 'selected' : ''}>🔒 Finalizado (Interno)</option>
+                                <option value="Finalizado - Passar para RH" ${(sinistro.situacao_sinistro === 'Finalizado' || sinistro.situacao_sinistro === 'Finalizado - Passar para RH') ? 'selected' : ''}>✅ Finalizado - Passar para RH</option>
                             </select>
                         </div>
                     </div>

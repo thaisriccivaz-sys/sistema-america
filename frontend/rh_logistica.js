@@ -89,8 +89,10 @@ window.rhSinFiltrarLista = function() {
     var termo = inp ? inp.value.toLowerCase().trim() : '';
     var statusFiltro = selSt ? selSt.value : '';
     var lista = _rhSinListaTodos.filter(function(s) {
-        // RH só vê sinistros Finalizados
-        if ((s.situacao_sinistro || 'Novo') !== 'Finalizado') return false;
+        // RH só vê sinistros com situação "Finalizado - Passar para RH"
+        // (compatibilidade: valor antigo 'Finalizado' também aparece)
+        const sit = s.situacao_sinistro || 'Novo';
+        if (sit !== 'Finalizado - Passar para RH' && sit !== 'Finalizado') return false;
         if (termo) {
             var n = (s.colaborador_nome || s.nome_completo || '').toLowerCase();
             var b = (s.numero_boletim || '').toLowerCase();
