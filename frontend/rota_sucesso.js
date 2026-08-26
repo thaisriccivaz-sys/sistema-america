@@ -171,7 +171,7 @@
             "<tbody>" + rows + "</tbody></table></div>";
     }
 
-    async function initView(tipo, tableId, searchId, tiposColuna, aptosCheckId) {
+    async function initView(tipo, tableId, searchId, tiposColuna, aptosCheckId, inaptosCheckId) {
         const tableEl = document.getElementById(tableId);
         if (tableEl) tableEl.innerHTML = "<div style=\"text-align:center;padding:40px;color:#94a3b8;\"><p>\u23f3 Carregando...</p></div>";
 
@@ -187,25 +187,40 @@
 
         function filtrar() {
             const q = (document.getElementById(searchId) ? document.getElementById(searchId).value : "").toLowerCase();
-            const aptosEl = document.getElementById(aptosCheckId);
-            const somenteAptos = aptosEl ? aptosEl.checked : false;
+            const aptosEl   = document.getElementById(aptosCheckId);
+            const inaptosEl = document.getElementById(inaptosCheckId);
+            const somenteAptos   = aptosEl   ? aptosEl.checked   : false;
+            const somenteInaptos = inaptosEl ? inaptosEl.checked : false;
+
+            // Aptos e Inaptos são mutuamente exclusivos — o último marcado prevalece
             let filtrado = allData;
             if (q) filtrado = filtrado.filter(function(c) { return c.nome_completo.toLowerCase().includes(q) || (c.cargo || "").toLowerCase().includes(q); });
-            if (somenteAptos) filtrado = filtrado.filter(function(c) { return c.apto; });
+            if (somenteAptos)   filtrado = filtrado.filter(function(c) { return  c.apto; });
+            if (somenteInaptos) filtrado = filtrado.filter(function(c) { return !c.apto; });
             renderTabela(filtrado, tableId, tiposColuna);
         }
 
+        // Quando marcar Aptos, desmarcar Inaptos (e vice-versa)
+        const aptosEl   = document.getElementById(aptosCheckId);
+        const inaptosEl = document.getElementById(inaptosCheckId);
+        if (aptosEl) aptosEl.addEventListener("change", function() {
+            if (this.checked && inaptosEl) inaptosEl.checked = false;
+            filtrar();
+        });
+        if (inaptosEl) inaptosEl.addEventListener("change", function() {
+            if (this.checked && aptosEl) aptosEl.checked = false;
+            filtrar();
+        });
+
         const searchEl = document.getElementById(searchId);
         if (searchEl) searchEl.addEventListener("input", filtrar);
-        const aptosEl = document.getElementById(aptosCheckId);
-        if (aptosEl) aptosEl.addEventListener("change", filtrar);
 
         renderTabela(allData, tableId, tiposColuna);
     }
 
     window._rrsCopiarLink   = copiarLink;
     window._rrsVerRespostas = verRespostas;
-    window.initRotaSucessoAjudantes  = function () { initView("ajudantes",  "rrs-table-ajudantes",  "rrs-search-ajudantes",  TIPOS_AJUDANTES,  "rota-sucesso-ajudantes-aptos");  };
-    window.initRotaSucessoMotoristas = function () { initView("motoristas", "rrs-table-motoristas", "rrs-search-motoristas", TIPOS_MOTORISTAS, "rota-sucesso-motoristas-aptos"); };
+    window.initRotaSucessoAjudantes  = function () { initView("ajudantes",  "rrs-table-ajudantes",  "rrs-search-ajudantes",  TIPOS_AJUDANTES,  "rota-sucesso-ajudantes-aptos",  "rota-sucesso-ajudantes-inaptos");  };
+    window.initRotaSucessoMotoristas = function () { initView("motoristas", "rrs-table-motoristas", "rrs-search-motoristas", TIPOS_MOTORISTAS, "rota-sucesso-motoristas-aptos", "rota-sucesso-motoristas-inaptos"); };
 
 })();
