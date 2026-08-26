@@ -334,7 +334,14 @@
     'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
     'GUARITA DUPLA OBRA': '⚪',    'GUARITA DUPLA EVENTO': '⚪',
     'LIMPA FOSSA OBRA': '💧',      'LIMPA FOSSA EVENTO': '💧',
-    'CARRINHO': '🛤',   'CAIXA DAGUA': '🧊'
+    'CARRINHO': '🛤',   'CAIXA DAGUA': '🧊',
+    // Aliases sem sufixo OBRA/EVENTO (banco pode salvar apenas a sigla)
+    'STD': '💙', 'LX': '🟦', 'EXL': '🔵', 'ELX': '🔵', 'SLX': '🔵',
+    'PCD': '♿', 'PBII': '🧼', 'PBIII': '🧼',
+    'CHUVEIRO': '🚿', 'HIDRÁULICO': '🚽', 'HIDRAULICO': '🚽',
+    'MICTÓRIO': '💦', 'MICTORIO': '💦',
+    'GUARITA INDIVIDUAL': '⬜', 'GUARITA DUPLA': '⚪', 'GUARITA': '⬜',
+    'LIMPA FOSSA': '💧',
   };
 
   /**

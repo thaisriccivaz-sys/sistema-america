@@ -17817,7 +17817,12 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
         const email = r['Correio eletr??nico de contato'] || r['Correio eletronico de contato'] || '';
         const tipo_serv = r['Tipo de visita'] || '';
 
-        // Produtos ??? agrega todas as linhas do mesmo ID
+        // Produtos — agrega todas as linhas do mesmo ID
+        // Determinar sufixo baseado no tipo de serviço (OBRA ou EVENTO)
+        const tipoServUp = (tipo_serv || '').toUpperCase();
+        const sufixoProd = tipoServUp.includes('EVENTO') ? ' EVENTO' : ' OBRA';
+        // Produtos que NÃO levam sufixo OBRA/EVENTO
+        const semSufixo = new Set(['CHUVEIRO', 'MICTORIO', 'MICTÓRIO', 'HIDRAULICO', 'HIDRÁULICO', 'GUARITA', 'LIMPA FOSSA', 'CARRINHO', 'CAIXA DAGUA']);
         const prodMap = {};
         rows.forEach(row => {
             const anot = row['Anotações2'] || row['Anotacoes2'] || '';
@@ -17826,6 +17831,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
                 let desc = m[2].toUpperCase();
                 if (desc === 'SLX') desc = 'EXL';
                 if (desc === 'PIA') desc = 'PBII';
+                if (!semSufixo.has(desc)) desc = desc + sufixoProd;
                 if (!prodMap[desc]) prodMap[desc] = 0;
                 prodMap[desc] += parseInt(m[1]);
             });
