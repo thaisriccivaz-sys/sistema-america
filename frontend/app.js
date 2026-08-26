@@ -1482,6 +1482,10 @@ function navigateTo(target) {
         if (typeof window.initSAC === 'function') setTimeout(() => window.initSAC(), 80);
     } else if (target === 'testes-candidatos') {
         if (typeof window.initTestesCandidatos === 'function') setTimeout(() => window.initTestesCandidatos(), 80);
+    } else if (target === 'rota-sucesso-ajudantes') {
+        if (typeof window.initRotaSucessoAjudantes === 'function') setTimeout(() => window.initRotaSucessoAjudantes(), 80);
+    } else if (target === 'rota-sucesso-motoristas') {
+        if (typeof window.initRotaSucessoMotoristas === 'function') setTimeout(() => window.initRotaSucessoMotoristas(), 80);
     }
 }
 
