@@ -197,9 +197,18 @@ window._logSinRenderCardGeral = function(s, container) {
         </div>
         
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
-            <div style="font-size:0.8rem; color:#475569;">
-
+            <div style="font-size:0.8rem; color:#475569; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
+                ${(() => {
+                    const sit = s.situacao_sinistro || 'Novo';
+                    const styles = {
+                        'Novo':           'background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd;',
+                        'Em averiguação': 'background:#fef3c7; color:#92400e; border:1px solid #fcd34d;',
+                        'Finalizado':     'background:#d1fae5; color:#065f46; border:1px solid #6ee7b7;'
+                    };
+                    const icons = { 'Novo': '🆕', 'Em averiguação': '🔍', 'Finalizado': '✅' };
+                    return `<span style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; ${styles[sit] || styles['Novo']}">${icons[sit] || '📋'} ${sit}</span>`;
+                })()}
             </div>
             ${(s.status === 'pendente' || s.status === 'iniciado') ? `
             <div style="display:flex; gap:8px;">
@@ -1060,16 +1069,26 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
                 <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
-                    <!-- Tipo de Sinistro -->
-                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem;">
-                        <label style="color:#c2410c; font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
-                        <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
-                            <option value="">-- Selecione o tipo --</option>
-                            <option value="Danos em Terceiros e Nosso" ${sinistro.tipo_sinistro === 'Danos em Terceiros e Nosso' ? 'selected' : ''}>Danos em Terceiros e Nosso</option>
-                            <option value="Danos em Terceiros" ${sinistro.tipo_sinistro === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
-                            <option value="Danos no Nosso Veículo" ${sinistro.tipo_sinistro === 'Danos no Nosso Veículo' ? 'selected' : ''}>Danos no Nosso Veículo</option>
-                            <option value="Outros Danos" ${sinistro.tipo_sinistro === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
-                        </select>
+                    <!-- Tipo de Sinistro + Situação -->
+                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+                        <div style="flex:1; min-width:160px;">
+                            <label style="color:#c2410c; font-weight:700; display:block; margin-bottom:4px;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
+                            <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
+                                <option value="">-- Selecione o tipo --</option>
+                                <option value="Danos em Terceiros e Nosso" ${sinistro.tipo_sinistro === 'Danos em Terceiros e Nosso' ? 'selected' : ''}>Danos em Terceiros e Nosso</option>
+                                <option value="Danos em Terceiros" ${sinistro.tipo_sinistro === 'Danos em Terceiros' ? 'selected' : ''}>Danos em Terceiros</option>
+                                <option value="Danos no Nosso Veículo" ${sinistro.tipo_sinistro === 'Danos no Nosso Veículo' ? 'selected' : ''}>Danos no Nosso Veículo</option>
+                                <option value="Outros Danos" ${sinistro.tipo_sinistro === 'Outros Danos' ? 'selected' : ''}>Outros Danos</option>
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:140px;">
+                            <label style="font-weight:700; display:block; margin-bottom:4px; color:#6d28d9;"><i class="ph ph-flag"></i> Situação</label>
+                            <select id="edit-sin-situacao" class="form-control" style="font-size:0.9rem; border-color:#c4b5fd;">
+                                <option value="Novo" ${(!sinistro.situacao_sinistro || sinistro.situacao_sinistro === 'Novo') ? 'selected' : ''}>🆕 Novo</option>
+                                <option value="Em averiguação" ${sinistro.situacao_sinistro === 'Em averiguação' ? 'selected' : ''}>🔍 Em averiguação</option>
+                                <option value="Finalizado" ${sinistro.situacao_sinistro === 'Finalizado' ? 'selected' : ''}>✅ Finalizado</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Histórico de Observações -->
@@ -1404,6 +1423,7 @@ window.logSinSalvarEdicao = async function() {
         if (document.getElementById('edit-sin-veiculo')) formData.append('veiculo', document.getElementById('edit-sin-veiculo').value);
         if (document.getElementById('edit-sin-placa')) formData.append('placa', document.getElementById('edit-sin-placa').value);
         var fTipo = document.getElementById('edit-sin-tipo'); if (fTipo && fTipo.value) formData.append('tipo_sinistro', fTipo.value);
+        var fSituacao = document.getElementById('edit-sin-situacao'); if (fSituacao) formData.append('situacao_sinistro', fSituacao.value || 'Novo');
         var fNovaObs = document.getElementById('edit-sin-nova-obs');
         if (fNovaObs && fNovaObs.value.trim()) {
             formData.append('nova_observacao', fNovaObs.value.trim());

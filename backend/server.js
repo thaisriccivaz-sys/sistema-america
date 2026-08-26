@@ -931,6 +931,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN valor_total TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes_historico TEXT', (e) => { });
+        db.run("ALTER TABLE sinistros ADD COLUMN situacao_sinistro TEXT DEFAULT 'Novo'", (e) => { });
     }
 });
 
@@ -5686,8 +5687,8 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes, situacao_sinistro)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
@@ -5696,7 +5697,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null, 'Novo'],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
@@ -5877,6 +5878,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     veiculo          = COALESCE(?, veiculo),
                     placa            = COALESCE(?, placa),
                     tipo_sinistro    = COALESCE(?, tipo_sinistro),
+                    situacao_sinistro = COALESCE(?, situacao_sinistro),
                     desconto         = COALESCE(?, desconto),
                     parcelas         = COALESCE(?, parcelas),
                     valor_parcela    = COALESCE(?, valor_parcela),
@@ -5893,6 +5895,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.veiculo        || null,
                     body.placa          || null,
                     body.tipo_sinistro  || null,
+                    body.situacao_sinistro || null,
                     body.desconto       || null,
                     body.parcelas       || null,
                     body.valor_parcela  || null,

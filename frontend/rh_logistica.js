@@ -89,6 +89,8 @@ window.rhSinFiltrarLista = function() {
     var termo = inp ? inp.value.toLowerCase().trim() : '';
     var statusFiltro = selSt ? selSt.value : '';
     var lista = _rhSinListaTodos.filter(function(s) {
+        // RH só vê sinistros Finalizados
+        if ((s.situacao_sinistro || 'Novo') !== 'Finalizado') return false;
         if (termo) {
             var n = (s.colaborador_nome || s.nome_completo || '').toLowerCase();
             var b = (s.numero_boletim || '').toLowerCase();
@@ -109,7 +111,7 @@ window.rhSinFiltrarLista = function() {
     var area = document.getElementById('rh-sin-lista-area');
     if (!area) return;
     if (lista.length === 0) {
-        area.innerHTML = '<div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;"><i class="ph ph-warning" style="font-size:3rem; color:#cbd5e1; display:block; margin-bottom:1rem;"></i><h5 style="color:#475569; font-weight:600;">Nenhum sinistro encontrado</h5><p style="color:#94a3b8; font-size:0.9rem; margin:0;">Ajuste os filtros ou cadastre um novo sinistro.</p></div>';
+        area.innerHTML = '<div style="text-align:center; padding:3rem; background:#f8fafc; border-radius:12px; border:2px dashed #e2e8f0;"><i class="ph ph-warning" style="font-size:3rem; color:#cbd5e1; display:block; margin-bottom:1rem;"></i><h5 style="color:#475569; font-weight:600;">Nenhum sinistro finalizado</h5><p style="color:#94a3b8; font-size:0.9rem; margin:0;">Apenas sinistros com situação <strong>Finalizado</strong> aparecem aqui. Ajuste os filtros ou finalize um sinistro na Logística.</p></div>';
         return;
     }
     area.innerHTML = '<div id="rh-sin-cards" style="display:flex; flex-direction:column; gap:1rem;"></div>';
