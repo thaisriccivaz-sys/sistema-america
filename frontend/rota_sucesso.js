@@ -97,7 +97,7 @@
 
         const tipoHeaders = tiposColuna.map(function(t) {
             const ti = TIPO_ICONS[t] || {};
-            return "<th style=\"padding:8px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;min-width:82px;\">" + (ti.short || t) + "</th>";
+            return "<th style=\"padding:8px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;min-width:82px;background:#f8fafc;\">" + (ti.short || t) + "</th>";
         }).join("");
 
         const rows = colabs.map(function(c) {
@@ -146,22 +146,23 @@
 
         const colWidths = tiposColuna.map(function() { return "<col style=\"width:82px;\">"; }).join("");
 
-        container.innerHTML = "<table style=\"width:100%;border-collapse:collapse;font-family:inherit;table-layout:fixed;\">" +
+        container.innerHTML = "<div style=\"overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 260px);\">" +
+            "<table style=\"width:100%;border-collapse:collapse;font-family:inherit;table-layout:fixed;\">" +
             "<colgroup><col style=\"width:185px;\"><col style=\"width:48px;\"><col style=\"width:56px;\"><col style=\"width:52px;\"><col style=\"width:52px;\"><col style=\"width:52px;\"><col style=\"width:78px;\">" + colWidths + "</colgroup>" +
-            "<thead><tr style=\"background:#f8fafc;\">" +
-                "<th style=\"padding:10px 12px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Colaborador</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">CNH</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Tempo</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Adv.</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Susp.</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Falta</th>" +
-                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;\">Status</th>" +
+            "<thead style=\"position:sticky;top:0;z-index:5;\"><tr style=\"background:#f8fafc;box-shadow:0 1px 3px rgba(0,0,0,0.08);\">" +
+                "<th style=\"padding:10px 12px;text-align:left;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Colaborador</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">CNH</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Tempo</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Adv.</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Susp.</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Falta</th>" +
+                "<th style=\"padding:10px 6px;text-align:center;font-size:0.68rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0;background:#f8fafc;\">Status</th>" +
                 tipoHeaders +
             "</tr></thead>" +
-            "<tbody>" + rows + "</tbody></table>";
+            "<tbody>" + rows + "</tbody></table></div>";
     }
 
-    async function initView(tipo, tableId, searchId, tiposColuna) {
+    async function initView(tipo, tableId, searchId, tiposColuna, aptosCheckId) {
         const tableEl = document.getElementById(tableId);
         if (tableEl) tableEl.innerHTML = "<div style=\"text-align:center;padding:40px;color:#94a3b8;\"><p>\u23f3 Carregando...</p></div>";
 
@@ -175,11 +176,10 @@
             return;
         }
 
-        const aptosCheckId = tableId + "-aptos";
-
         function filtrar() {
             const q = (document.getElementById(searchId) ? document.getElementById(searchId).value : "").toLowerCase();
-            const somenteAptos = document.getElementById(aptosCheckId) ? document.getElementById(aptosCheckId).checked : false;
+            const aptosEl = document.getElementById(aptosCheckId);
+            const somenteAptos = aptosEl ? aptosEl.checked : false;
             let filtrado = allData;
             if (q) filtrado = filtrado.filter(function(c) { return c.nome_completo.toLowerCase().includes(q) || (c.cargo || "").toLowerCase().includes(q); });
             if (somenteAptos) filtrado = filtrado.filter(function(c) { return c.apto; });
@@ -196,7 +196,7 @@
 
     window._rrsCopiarLink   = copiarLink;
     window._rrsVerRespostas = verRespostas;
-    window.initRotaSucessoAjudantes  = function () { initView("ajudantes",  "rrs-table-ajudantes",  "rrs-search-ajudantes",  TIPOS_AJUDANTES);  };
-    window.initRotaSucessoMotoristas = function () { initView("motoristas", "rrs-table-motoristas", "rrs-search-motoristas", TIPOS_MOTORISTAS); };
+    window.initRotaSucessoAjudantes  = function () { initView("ajudantes",  "rrs-table-ajudantes",  "rrs-search-ajudantes",  TIPOS_AJUDANTES,  "rota-sucesso-ajudantes-aptos");  };
+    window.initRotaSucessoMotoristas = function () { initView("motoristas", "rrs-table-motoristas", "rrs-search-motoristas", TIPOS_MOTORISTAS, "rota-sucesso-motoristas-aptos"); };
 
 })();

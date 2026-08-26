@@ -1166,8 +1166,8 @@ const TAB_META = {
     'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
     'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
-    'rota-sucesso-ajudantes':  { color: '#1d4ed8', icon: 'ph-rocket', title: 'RS - Ajudantes' },
-    'rota-sucesso-motoristas': { color: '#1d4ed8', icon: 'ph-rocket', title: 'RS - Motoristas' },
+    'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'RS - Ajudantes' },
+    'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'RS - Motoristas' },
 };
 
 
