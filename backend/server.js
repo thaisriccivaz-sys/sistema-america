@@ -5741,85 +5741,6 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
                     } catch (e) { console.error('Erro OneDrive:', e); }
                 }
 
-                // Notificar usuarios configurados e enviar e-mail
-                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_sinistro'", [], (errC, rowsC) => {
-                    if (!errC && rowsC && rowsC.length > 0) {
-                        const msg = `Novo sinistro registrado para ${colab.nome_completo || 'Colaborador'}`;
-                        const dadosStr = JSON.stringify({ sinistro_id: sinId, colaborador_id: id });
-                        
-                        const idsArr = rowsC.map(c => c.usuario_id);
-                        rowsC.forEach(c => {
-                            db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'novo_sinistro', msg, dadosStr]);
-                        });
-
-                        const placeholders = idsArr.map(() => '?').join(',');
-                        db.all(`SELECT id, username, nome, email as u_email FROM usuarios WHERE id IN (${placeholders})`, idsArr, async (errE, userRows) => {
-                            if (!errE && userRows && userRows.length > 0) {
-                                db.all(`SELECT nome_completo, cpf, email_corporativo, email FROM colaboradores WHERE email_corporativo IS NOT NULL OR email IS NOT NULL`, [], async (errCol, allColabs) => {
-                                    const norm = (s) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
-                                    const emails = new Set();
-                                    const colabsArr = allColabs || [];
-
-                                    for (const u of userRows) {
-                                        const uNome = norm(u.nome);
-                                        const uUser = norm(u.username);
-                                        
-                                        let c = colabsArr.find(col => norm(col.nome_completo) === uNome || norm(col.cpf) === uUser);
-                                        if (!c) {
-                                            c = colabsArr.find(col => {
-                                                const cNome = norm(col.nome_completo);
-                                                return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
-                                            });
-                                        }
-
-                                        if (c && c.email_corporativo) emails.add(c.email_corporativo.trim());
-                                        else if (c && c.email) emails.add(c.email.trim());
-                                        else if (u.u_email) emails.add(u.u_email.trim());
-                                    }
-
-                                    const emailsArr = [...emails].filter(e => e !== '');
-
-                                    if (emailsArr.length > 0) {
-                                        const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                                        const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
-                                            <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
-                                                <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
-                                            </div>
-                                            <div style="padding:24px;">
-                                                <h2 style="color:#059669;margin-top:0;">?????? Novo Sinistro Registrado</h2>
-                                                <p>Olá!</p>
-                                                <p>Um novo boletim de ocorrência de sinistro foi registrado para o colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
-                                                <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
-                                                    <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
-                                                    <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
-                                                    <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
-                                                    <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
-                                                </div>
-                                                <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
-                                                <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
-                                            </div>
-                                        </div>`;
-                                        
-                                        for (const eAddr of emailsArr) {
-                                            try {
-                                                await sendMailHelper({
-                                                    from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                                                    to: eAddr,
-                                                    subject: `[Sinistro] Novo registro para ${colab.nome_completo || 'Colaborador'}`,
-                                                    html,
-                                                    attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
-                                                });
-                                                console.log(`E-mail de novo sinistro enviado para ${eAddr}`);
-                                            } catch(mailErr) {
-                                                console.error('Erro ao enviar e-mail de novo sinistro:', mailErr.message);
-                                            }
-                                        }
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
 
                 res.json({ sucesso: true, id: sinId, targetDir });
             });
@@ -5952,6 +5873,93 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     });
                 });
             } catch (e) { console.error('[PATCH sinistro] erro orçamentos:', e); }
+        }
+
+
+        // Se a situação foi alterada para "Finalizado - Passar para RH" e não era isso antes
+        if (body.situacao_sinistro === 'Finalizado - Passar para RH' && sinistro.situacao_sinistro !== 'Finalizado - Passar para RH') {
+            db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (errC, colab) => {
+                if (!errC && colab) {
+                    db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_sinistro'", [], (errConfig, rowsC) => {
+                        if (!errConfig && rowsC && rowsC.length > 0) {
+                            const msg = `Novo sinistro registrado e finalizado para RH para ${colab.nome_completo || 'Colaborador'}`;
+                            const dadosStr = JSON.stringify({ sinistro_id: sinistroId, colaborador_id: colabId });
+                            
+                            const idsArr = rowsC.map(c => c.usuario_id);
+                            rowsC.forEach(c => {
+                                db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'novo_sinistro', msg, dadosStr]);
+                            });
+
+                            const placeholders = idsArr.map(() => '?').join(',');
+                            db.all(`SELECT id, username, nome, email as u_email FROM usuarios WHERE id IN (${placeholders})`, idsArr, async (errE, userRows) => {
+                                if (!errE && userRows && userRows.length > 0) {
+                                    db.all(`SELECT nome_completo, cpf, email_corporativo, email FROM colaboradores WHERE email_corporativo IS NOT NULL OR email IS NOT NULL`, [], async (errCol, allColabs) => {
+                                        const norm = (s) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
+                                        const emails = new Set();
+                                        const colabsArr = allColabs || [];
+
+                                        for (const u of userRows) {
+                                            const uNome = norm(u.nome);
+                                            const uUser = norm(u.username);
+                                            
+                                            let c = colabsArr.find(cItem => norm(cItem.nome_completo) === uNome || norm(cItem.cpf) === uUser);
+                                            if (!c) {
+                                                c = colabsArr.find(cItem => {
+                                                    const cNome = norm(cItem.nome_completo);
+                                                    return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
+                                                });
+                                            }
+
+                                            if (c && c.email_corporativo) emails.add(c.email_corporativo.trim());
+                                            else if (c && c.email) emails.add(c.email.trim());
+                                            else if (u.u_email) emails.add(u.u_email.trim());
+                                        }
+
+                                        const emailsArr = [...emails].filter(e => e !== '');
+
+                                        if (emailsArr.length > 0) {
+                                            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
+                                                <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
+                                                    <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
+                                                </div>
+                                                <div style="padding:24px;">
+                                                    <h2 style="color:#059669;margin-top:0;">📋 Sinistro Finalizado para RH</h2>
+                                                    <p>Olá!</p>
+                                                    <p>Um boletim de ocorrência de sinistro foi registrado e liberado para o RH do colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
+                                                    <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
+                                                        <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
+                                                        <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
+                                                        <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
+                                                        <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
+                                                    </div>
+                                                    <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
+                                                    <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
+                                                </div>
+                                            </div>`;
+                                            
+                                            for (const eAddr of emailsArr) {
+                                                try {
+                                                    await sendMailHelper({
+                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                                                        to: eAddr,
+                                                        subject: `[Sinistro] Novo registro liberado para o RH: ${colab.nome_completo || 'Colaborador'}`,
+                                                        html,
+                                                        attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
+                                                    });
+                                                    console.log(`E-mail de sinistro no RH enviado para ${eAddr}`);
+                                                } catch(mailErr) {
+                                                    console.error('Erro ao enviar e-mail de sinistro no RH:', mailErr.message);
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
         }
 
         res.json({ sucesso: true });

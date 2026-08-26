@@ -120,12 +120,28 @@ window._logSinRenderCardGeral = function(s, container) {
     const card = document.createElement('div');
     card.style.cssText = 'background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:1rem; transition: all 0.2s;';
 
-    const statusMap = {
-        'pendente': { text: 'Aguardando Assinaturas (RH)', color: '#f59e0b', bg: '#fef3c7' },
-        'assinado': { text: 'Finalizado e Assinado',  color: '#10b981', bg: '#d1fae5' },
-        'iniciado': { text: 'Iniciado', color: '#b45309', bg: '#fef08a' }
-    };
-    const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
+    let statusText = 'Em Preenchimento (Logística)';
+    let statusColor = '#475569';
+    let statusBg = '#f1f5f9';
+
+    if (s.status === 'assinado') {
+        statusText = 'Finalizado e Assinado';
+        statusColor = '#10b981';
+        statusBg = '#d1fae5';
+    } else if (s.situacao_sinistro === 'Finalizado - Passar para RH' || s.situacao_sinistro === 'Finalizado') {
+        statusText = 'Aguardando Assinaturas (RH)';
+        statusColor = '#f59e0b';
+        statusBg = '#fef3c7';
+    } else if (s.status === 'iniciado') {
+        statusText = 'Iniciado';
+        statusColor = '#b45309';
+        statusBg = '#fef08a';
+    } else if (s.status === 'pendente') {
+        statusText = 'Pendente (Logística)';
+        statusColor = '#b45309';
+        statusBg = '#fef08a';
+    }
+    const st = { text: statusText, color: statusColor, bg: statusBg };
 
     let orcamentosLinks = '';
     if (s.orcamentos_paths) {
