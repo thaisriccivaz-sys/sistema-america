@@ -594,7 +594,7 @@ REGRAS_VISIBILIDADE.forEach(({ nome, regra }) => {
     const regraCorreta = JSON.stringify({
         dropdown_todos: true,
         visivel_automatico: true,
-        condicao: 'meio_transporte~outros|vt&&historico~vc',
+        condicao: 'meio_transporte~outros&&historico~vc',
         departamentos: null,
         tipos_departamento: null
     });
@@ -1526,7 +1526,7 @@ GERADORES_PERFIL.forEach(nome => {
     });
 
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros|vt', departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros&&historico~vc', departamentos: null }), nomeGerador]
     );
 })();
 
