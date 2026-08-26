@@ -39,7 +39,7 @@
         try {
             btnEl.disabled = true;
             btnEl.textContent = '⏳';
-            const resp = await fetch(`${API}/api/rota-sucesso/gerar-token`, {
+            const resp = await fetch(`${API}/rota-sucesso/gerar-token`, {
                 method: 'POST',
                 headers: headers(),
                 body: JSON.stringify({ colaborador_id, tipo })
@@ -68,7 +68,7 @@
 
     // ── ver respostas ──────────────────────────────────────────────────────
     async function verRespostas(id_resposta) {
-        window.open(`${API}/api/rota-sucesso/respostas/ver/${id_resposta}/pdf`, '_blank');
+        window.open(`${API}/rota-sucesso/respostas/ver/${id_resposta}/pdf`, '_blank');
     }
 
     // ── render tabela ──────────────────────────────────────────────────────
@@ -164,7 +164,7 @@
 
         let allData = [];
         try {
-            const resp = await fetch(`${API}/api/rota-sucesso/elegibilidade?tipo=${tipo}`, { headers: headers() });
+            const resp = await fetch(`${API}/rota-sucesso/elegibilidade?tipo=${tipo}`, { headers: headers() });
             if (!resp.ok) throw new Error('Erro ao carregar dados');
             allData = await resp.json();
         } catch (e) {
