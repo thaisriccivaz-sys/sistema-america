@@ -1028,21 +1028,21 @@
         <button class="sac-btn sac-btn-primary" onclick="SAC.exportCSV()" style="margin-left:auto;"><i class="ph ph-download-simple"></i> Exportar CSV</button>
       </div>
       <!-- scroll espelhado no TOPO da tabela -->
-      <div id="sac-table-topscroll" style="overflow-x:auto;overflow-y:hidden;height:14px;border-radius:6px 6px 0 0;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;">
+      <div id="sac-table-topscroll" style="overflow-x:scroll;overflow-y:hidden;height:14px;border-radius:6px 6px 0 0;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;">
         <div id="sac-table-topscroll-inner" style="height:1px;"></div>
       </div>
       <div id="sac-table-wrapper" style="flex:1;overflow:auto;background:#fff;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
-        <table id="sac-main-table" style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+        <table id="sac-main-table" style="width:max-content;min-width:100%;border-collapse:collapse;font-size:0.83rem;">
           <thead>
             <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
               <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('protocol')">Nº ${sortIcon('protocol')}</th>
-              <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('openDate')">Data Abertura ${sortIcon('openDate')}</th>
-              <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('clientName')">Cliente ${sortIcon('clientName')}</th>
-              <th style="padding:10px 12px;text-align:left;">Equipamento</th>
-              <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('typeKey')">Tipo ${sortIcon('typeKey')}</th>
-              <th style="padding:10px 12px;text-align:left;cursor:pointer;" onclick="SAC.sortTable('stage')">Etapa ${sortIcon('stage')}</th>
-              <th style="padding:10px 12px;text-align:left;">SLA</th>
-              <th style="padding:10px 12px;text-align:right;">Ações</th>
+              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('openDate')">Data Abertura ${sortIcon('openDate')}</th>
+              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('clientName')">Cliente ${sortIcon('clientName')}</th>
+              <th style="padding:10px 12px;text-align:left;white-space:nowrap;">Equipamento</th>
+              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('typeKey')">Tipo ${sortIcon('typeKey')}</th>
+              <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('stage')">Etapa ${sortIcon('stage')}</th>
+              <th style="padding:10px 12px;text-align:left;white-space:nowrap;">SLA</th>
+              <th style="padding:10px 12px;text-align:right;white-space:nowrap;">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -1081,15 +1081,13 @@
     </div>`;
 
     // Sincronizar scroll espelhado do topo com o wrapper da tabela
-    requestAnimationFrame(() => {
+    // Double-RAF: primeiro frame aplica layout, segundo lê medidas corretas
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const wrapper   = document.getElementById('sac-table-wrapper');
       const topScroll = document.getElementById('sac-table-topscroll');
       const topInner  = document.getElementById('sac-table-topscroll-inner');
       const table     = document.getElementById('sac-main-table');
       if (!wrapper || !topScroll || !topInner || !table) return;
-
-      // Garantir que a tabela não encolha além do conteúdo
-      table.style.minWidth = 'max-content';
 
       function syncWidth() {
         topInner.style.width = table.scrollWidth + 'px';
@@ -1114,7 +1112,7 @@
         topScroll.scrollLeft = wrapper.scrollLeft;
         requestAnimationFrame(() => { _syncing = false; });
       });
-    });
+    }));
   }
 
   // ── CONFIG ───────────────────────────────────────────────────
