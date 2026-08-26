@@ -8095,36 +8095,56 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     });
 });
 
-// GET /api/colaboradores/:id/arquivo/cnh ??? serve o arquivo de CNH do colaborador
+// GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador (suporta R2, base64 e disco)
 app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
-    // Primeiro busca dados bàsicos (sempre existem)
-    db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT id, nome_completo, cnh_numero, cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
-        // Tenta buscar o arquivo de CNH (coluna pode não existir em inst??ncias antigas)
-        db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
-            const cnh = rowCnh && rowCnh.cnh_arquivo;
-            if (!cnh) {
-                // Tenta buscar na tabela de documentos (upload via Ficha Cadastral)
-                db.get("SELECT file_path, file_name FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1", [req.params.id], (err3, rowDoc) => {
-                    if (!err3 && rowDoc && rowDoc.file_path && fs.existsSync(rowDoc.file_path)) {
-                        return res.download(rowDoc.file_path, rowDoc.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
-                    } else {
-                        return res.status(404).json({
-                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital ??? Ficha Cadastral para fazer o upload da CNH.`
-                        });
-                    }
-                });
-                return;
-            }
+        // 1. Se tem base64 legado direto no colaborador — servir direto
+        if (row.cnh_arquivo) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
-            return res.end(Buffer.from(cnh, 'base64'));
-        });
+            return res.end(Buffer.from(row.cnh_arquivo, 'base64'));
+        }
+
+        // 2. Buscar na tabela documentos (upload via Ficha Cadastral)
+        db.get(
+            "SELECT id, file_path, file_name, r2_key FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1",
+            [req.params.id],
+            async (err2, docRow) => {
+                if (err2 || !docRow) {
+                    return res.status(404).json({
+                        error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                    });
+                }
+
+                // 2a. Tem r2_key → buscar no R2 (caso padrão após migração)
+                if (docRow.r2_key) {
+                    try {
+                        const r2 = require('./utils/r2');
+                        if (r2.isReady()) {
+                            const signedUrl = await r2.getSignedUrl(docRow.r2_key, 300);
+                            return res.redirect(signedUrl);
+                        }
+                    } catch (r2Err) {
+                        console.error('[CNH-DOWNLOAD] Erro ao gerar URL R2:', r2Err.message);
+                    }
+                }
+
+                // 2b. Fallback: arquivo ainda existe no disco local
+                if (docRow.file_path && fs.existsSync(docRow.file_path)) {
+                    return res.download(docRow.file_path, docRow.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
+                }
+
+                return res.status(404).json({
+                    error: `Arquivo de CNH registrado mas não encontrado no armazenamento. Faça um novo upload da CNH de ${row.nome_completo || 'este colaborador'}.`
+                });
+            }
+        );
     });
 });
 
