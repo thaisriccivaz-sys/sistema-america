@@ -114,18 +114,20 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
                 db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph})`, ids, (errF, faltasRows) => {
                     if (errF) faltasRows = [];
 
-                    // Pega apenas o token mais recente por (colaborador_id, tipo)
-                    db.all(`SELECT id, colaborador_id, tipo, token, status FROM rota_sucesso_respostas
+                    db.all(`SELECT id, colaborador_id, tipo, token, status, respondido_em FROM rota_sucesso_respostas
                         WHERE colaborador_id IN (${ph})
                         ORDER BY id DESC`, ids, (errT, allTokens) => {
                         if (errT) allTokens = [];
 
-                        // Deduplica: manter apenas o mais recente por (colaborador_id, tipo)
-                        const tokens = [];
-                        const seen = new Set();
+                        // Deduplica: token ativo (mais recente por tipo) e último respondido (para botão de olho)
+                        const tokensAtivos = [];
+                        const ultimosRespondidos = [];
+                        const seenAtivo = new Set();
+                        const seenResp = new Set();
                         for (const t of allTokens) {
                             const k = `${t.colaborador_id}:${t.tipo}`;
-                            if (!seen.has(k)) { seen.add(k); tokens.push(t); }
+                            if (!seenAtivo.has(k)) { seenAtivo.add(k); tokensAtivos.push(t); }
+                            if (!seenResp.has(k) && t.status === "respondido") { seenResp.add(k); ultimosRespondidos.push(t); }
                         }
 
                         const result = colabs.map(colab => {
@@ -134,10 +136,18 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
                                 docs.filter(d => d.colaborador_id === colab.id),
                                 faltasRows.filter(f => f.colaborador_id === colab.id)
                             );
-                            const colabTokens = tokens.filter(t => t.colaborador_id === colab.id);
+                            const colabAtivos     = tokensAtivos.filter(t => t.colaborador_id === colab.id);
+                            const colabRespondidos = ultimosRespondidos.filter(t => t.colaborador_id === colab.id);
                             eleg.formularios = eleg.formularios.map(f => {
-                                const ex = colabTokens.find(t => t.tipo === f.tipo);
-                                return { ...f, token: ex ? ex.token : null, respondido: ex ? ex.status === "respondido" : false, id_resposta: ex ? ex.id : null };
+                                const ativo = colabAtivos.find(t => t.tipo === f.tipo);
+                                const resp  = colabRespondidos.find(t => t.tipo === f.tipo);
+                                return {
+                                    ...f,
+                                    token:        ativo ? ativo.token : null,
+                                    respondido:   !!resp,
+                                    id_resposta:  resp  ? resp.id  : null,
+                                    respondido_em: resp ? resp.respondido_em : null
+                                };
                             });
                             return { ...colab, foto_url: `/api/colaboradores/foto/${colab.id}`, ...eleg };
                         });
@@ -241,42 +251,87 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
         });
     });
 
-    // GET PDF/impressão de resposta - sem auth (token de sessão passado via query)
+    // GET PDF/impressão de resposta - sem auth
     app.get("/api/rota-sucesso/respostas/ver/:id/pdf", (req, res) => {
-        db.get(`SELECT r.*, c.nome_completo, c.cargo, c.departamento FROM rota_sucesso_respostas r JOIN colaboradores c ON c.id=r.colaborador_id WHERE r.id=?`, [req.params.id], (err, row) => {
+        db.get(`SELECT r.*, c.nome_completo, c.cargo, c.departamento, c.id as colab_id FROM rota_sucesso_respostas r JOIN colaboradores c ON c.id=r.colaborador_id WHERE r.id=?`, [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Não encontrado" });
             if (!row.respostas_json) return res.status(400).json({ error: "Sem respostas" });
             let respostas = {};
             try { respostas = JSON.parse(row.respostas_json); } catch(e) {}
             const labels = { hab_b: "Solicitação de Habilitação B", motorista1: "Solicitação para Motorista I", hab_d: "Solicitação de Mudança de Categoria (B → D)", motorista2: "Solicitação para Motorista II" };
             const tipoLabel = labels[row.tipo] || row.tipo;
-            const dataResp = row.respondido_em ? new Date(row.respondido_em).toLocaleDateString("pt-BR") : "-";
+
+            // Data e hora formatadas
+            let dataResp = "-";
+            if (row.respondido_em) {
+                const d = new Date(row.respondido_em);
+                dataResp = d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            }
+
             const qaHtml = Object.entries(respostas).map(([p, r]) =>
                 `<div style="margin-bottom:16px;padding:14px 18px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;">
                     <div style="font-size:0.85rem;font-weight:700;color:#334155;margin-bottom:8px;">${p}</div>
-                    <div style="font-size:0.95rem;color:#1e293b;background:#f8fafc;border-radius:6px;padding:10px 14px;border-left:3px solid #15803d;">${r || "-"}</div>
+                    <div style="font-size:0.95rem;color:#1e293b;background:#f0f4ff;border-radius:6px;padding:10px 14px;border-left:3px solid #1d4ed8;">${r || "-"}</div>
                 </div>`).join("");
+
+            const fotoUrl = `${process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com"}/api/colaboradores/foto/${row.colab_id}`;
+            const logoUrl = `${process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com"}/assets/logo-header.png`;
+            const ini = (row.nome_completo || "?").split(" ").filter(Boolean).slice(0,2).map(p => p[0]).join("").toUpperCase();
+
             const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${tipoLabel} — ${row.nome_completo}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#1e293b;background:#fff;}
-.hdr{background:linear-gradient(135deg,#15803d,#166534);color:white;padding:24px 32px;display:flex;align-items:center;justify-content:space-between;}
-.logo{display:flex;align-items:center;gap:14px;}.circle{width:52px;height:52px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;}
-.co{font-size:1.2rem;font-weight:700;}.co-sub{font-size:.75rem;opacity:.8;}.badge{background:rgba(255,255,255,.2);border-radius:20px;padding:4px 14px;font-size:.8rem;}
-.body{padding:32px;}.card{background:#f8fafc;border-radius:12px;padding:20px 24px;margin-bottom:24px;border:1px solid #e2e8f0;}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;}.lbl{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700;display:block;margin-bottom:3px;}
-.val{font-size:.95rem;font-weight:600;}.sec{font-size:.75rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #dcfce7;}
-.ftr{margin-top:32px;padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:.72rem;color:#94a3b8;}
-@media print{@page{margin:1cm}}</style></head><body>
-<div class="hdr"><div class="logo"><div class="circle">A</div><div><div class="co">América Rental</div><div class="co-sub">Equipamentos Ltda.</div></div></div>
-<div style="text-align:right"><div style="font-size:1rem;font-weight:700;">${tipoLabel}</div><span class="badge">🚀 Programa Rota de Sucesso</span></div></div>
-<div class="body"><div class="card"><div class="sec">Dados do Colaborador</div><div class="grid">
-<div><span class="lbl">Nome</span><span class="val">${row.nome_completo}</span></div>
-<div><span class="lbl">Cargo</span><span class="val">${row.cargo || "-"}</span></div>
-<div><span class="lbl">Formulário</span><span class="val">${tipoLabel}</span></div>
-<div><span class="lbl">Data da Resposta</span><span class="val">${dataResp}</span></div>
-</div></div>
-<div class="sec">Respostas do Formulário</div>${qaHtml || "<p style='color:#94a3b8;'>Nenhuma resposta.</p>"}</div>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Arial,sans-serif;color:#1e293b;background:#fff;}
+.hdr{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:white;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;}
+.logo-wrap{display:flex;align-items:center;gap:14px;}
+.logo-img{width:48px;height:48px;border-radius:8px;object-fit:contain;background:#fff;padding:2px;}
+.logo-circle{width:48px;height:48px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;}
+.co{font-size:1.1rem;font-weight:700;}.co-sub{font-size:.72rem;opacity:.8;}
+.badge{background:rgba(255,255,255,.18);border-radius:20px;padding:4px 14px;font-size:.8rem;}
+.dl-btn{display:flex;align-items:center;gap:8px;background:white;color:#1d4ed8;border:none;border-radius:8px;padding:8px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:0;}
+.dl-btn:hover{background:#dbeafe;}
+.body{padding:28px 32px;}
+.card{background:#f8fafc;border-radius:12px;padding:20px 24px;margin-bottom:20px;border:1px solid #e2e8f0;}
+.colab-row{display:flex;align-items:center;gap:16px;margin-bottom:16px;}
+.avatar{width:56px;height:56px;border-radius:50%;border:2px solid #1d4ed8;object-fit:cover;background:#dbeafe;flex-shrink:0;}
+.avatar-ini{width:56px;height:56px;border-radius:50%;border:2px solid #1d4ed8;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-weight:700;color:#1d4ed8;font-size:1.2rem;flex-shrink:0;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;}
+.lbl{font-size:.68rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700;display:block;margin-bottom:2px;}
+.val{font-size:.92rem;font-weight:600;}
+.sec{font-size:.72rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;padding-bottom:7px;border-bottom:2px solid #dbeafe;}
+.ftr{margin-top:28px;padding:14px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;font-size:.7rem;color:#94a3b8;}
+@media print{.dl-btn{display:none!important;}@page{margin:1cm}}
+</style></head><body>
+<div class="hdr">
+  <div class="logo-wrap">
+    <img src="${logoUrl}" class="logo-img" onerror="this.outerHTML='<div class=logo-circle>A</div>'">
+    <div><div class="co">América Rental</div><div class="co-sub">Equipamentos Ltda.</div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+    <button class="dl-btn" onclick="window.print()">⬇ Baixar PDF</button>
+    <span class="badge">🚀 Programa Rota de Sucesso</span>
+  </div>
+</div>
+<div class="body">
+  <div class="card">
+    <div class="sec">Dados do Colaborador</div>
+    <div class="colab-row">
+      <img src="${fotoUrl}" class="avatar" onerror="this.outerHTML='<div class=avatar-ini>${ini}</div>'">
+      <div>
+        <div style="font-size:1.05rem;font-weight:700;color:#1e293b;">${row.nome_completo}</div>
+        <div style="font-size:0.82rem;color:#64748b;margin-top:2px;">${row.cargo || row.departamento || "-"}</div>
+      </div>
+    </div>
+    <div class="grid">
+      <div><span class="lbl">Formulário</span><span class="val">${tipoLabel}</span></div>
+      <div><span class="lbl">Preenchido em</span><span class="val">${dataResp}</span></div>
+    </div>
+  </div>
+  <div class="sec">Respostas do Formulário</div>
+  ${qaHtml || "<p style='color:#94a3b8;'>Nenhuma resposta.</p>"}
+</div>
 <div class="ftr"><span>América Rental Equipamentos — Rota de Sucesso</span><span>Gerado em ${new Date().toLocaleDateString("pt-BR")}</span></div>
-<script>window.onload=()=>window.print();</script></body></html>`;
+</body></html>`;
             res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.send(html);
         });

@@ -66,11 +66,12 @@
                 btnEl.style.borderColor = "";
                 btnEl.disabled = false;
             }, 2500);
-            // Mostrar botao olho se respondido
-            const verBtn = document.getElementById("ver-" + colaborador_id + "-" + tipo);
-            if (verBtn && data.id) {
-                verBtn.setAttribute("data-id", data.id);
-                if (data.status === "respondido") {
+            // Só atualiza o botão de olho se o formulário já foi respondido
+            // (novo token aguardando não altera o olho — ele fica mostrando a última resposta)
+            if (data.status === "respondido" && data.id) {
+                const verBtn = document.getElementById("ver-" + colaborador_id + "-" + tipo);
+                if (verBtn) {
+                    verBtn.setAttribute("data-id", String(data.id));
                     verBtn.style.display = "flex";
                 }
             }
@@ -112,11 +113,19 @@
                 const idResp = f.id_resposta;
                 const respondido = f.respondido && idResp;
                 const verDisplay = respondido ? "flex" : "none";
+                // Formatar data/hora do preenchimento para tooltip
+                let verTitle = "Ver respostas";
+                if (respondido && f.respondido_em) {
+                    try {
+                        const d = new Date(f.respondido_em);
+                        verTitle = "Preenchido em " + d.toLocaleDateString("pt-BR") + " \u00e0s " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                    } catch(e) { /* mantém padrão */ }
+                }
                 return "<td style=\"padding:8px 6px;text-align:center;\">" +
                     "<div style=\"display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;\">" +
                     "<button onclick=\"window._rrsCopiarLink(" + c.id + ",'" + tipo + "',this)\" title=\"Copiar link\" " +
                     "style=\"width:30px;height:30px;border-radius:7px;border:1.5px solid #1d4ed8;background:#f0f4ff;color:#1d4ed8;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;\">\uD83D\uDCCB</button>" +
-                    "<button id=\"ver-" + c.id + "-" + tipo + "\" onclick=\"window._rrsVerRespostas(this.getAttribute('data-id'))\" data-id=\"" + idResp + "\" title=\"Ver respostas\" " +
+                    "<button id=\"ver-" + c.id + "-" + tipo + "\" onclick=\"window._rrsVerRespostas(this.getAttribute('data-id'))\" data-id=\"" + idResp + "\" title=\"" + verTitle + "\" " +
                     "style=\"width:30px;height:30px;border-radius:7px;border:1.5px solid #7c3aed;background:#faf5ff;color:#7c3aed;font-size:0.9rem;cursor:pointer;display:" + verDisplay + ";align-items:center;justify-content:center;flex-shrink:0;\">\uD83D\uDC41</button>" +
                     "</div></td>";
             }).join("");
