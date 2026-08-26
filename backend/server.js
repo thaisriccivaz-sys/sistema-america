@@ -29560,6 +29560,9 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
             osDate: r.os_date || null,
             openedByFromOS: r.opened_by_from_os || null,
+            conferido: r.conferido === 1,
+            conferidoPor: r.conferido_por || null,
+            conferidoAt: r.conferido_at || null,
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
         res.json(parsed);
@@ -29629,6 +29632,9 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN sac_checklist TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN os_date TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN opened_by_from_os TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN conferido INTEGER DEFAULT 0`,
+  `ALTER TABLE sac_tickets ADD COLUMN conferido_por TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN conferido_at TEXT`,
 ];
 db.serialize(() => {
   sacMigrations.forEach(sql => {
@@ -29809,6 +29815,27 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
 }); // fim app.post /api/sac/tickets
 
 
+
+// ── PATCH: marcar/desmarcar "Conferido" (apenas Thais.Ricci e renata.comercial) ──
+app.patch('/api/sac/tickets/:id/conferido', authenticateToken, (req, res) => {
+    const ALLOWED = ['Thais.Ricci', 'renata.comercial'];
+    const user = req.user?.username || req.user?.nome || '';
+    if (!ALLOWED.includes(user)) {
+        return res.status(403).json({ error: 'Sem permissão para conferir chamados.' });
+    }
+    const { conferido } = req.body;
+    const conferidoPor = conferido ? user : null;
+    const conferidoAt  = conferido ? new Date().toISOString() : null;
+    db.run(
+        `UPDATE sac_tickets SET conferido = ?, conferido_por = ?, conferido_at = ? WHERE id = ?`,
+        [conferido ? 1 : 0, conferidoPor, conferidoAt, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Chamado não encontrado.' });
+            res.json({ success: true, conferido: !!conferido, conferidoPor, conferidoAt });
+        }
+    );
+});
 
 app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;

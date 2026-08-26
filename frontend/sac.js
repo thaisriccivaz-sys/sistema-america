@@ -832,7 +832,28 @@
     container.innerHTML = `
     <div style="display:flex;gap:0;overflow-x:auto;height:100%;padding:12px;box-sizing:border-box;">
       ${PIPELINE_STAGES.filter(s => s.id !== 'encerrado').map(stage => {
-        const cards = filtered.filter(t => t.stage === stage.id);
+        const allCards = filtered.filter(t => t.stage === stage.id);
+
+        // Na coluna concluido: separar conferidos dos não-conferidos
+        const isConcluido = stage.id === 'concluido';
+        const cards         = isConcluido ? allCards.filter(t => !t.conferido) : allCards;
+        const conferidos    = isConcluido ? allCards.filter(t => t.conferido)  : [];
+        const totalColuna   = allCards.length;
+
+        const conferidosHtml = conferidos.length === 0 ? '' : `
+          <div id="sac-conferidos-section-${stage.id}" style="border-top:1px solid #e2e8f0;margin-top:8px;padding-top:4px;">
+            <button
+              onclick="SAC.toggleConferidosSection('${stage.id}')"
+              style="display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;cursor:pointer;padding:8px 4px;font-size:0.78rem;font-weight:700;color:#64748b;text-align:left;">
+              <i class="ph ph-caret-down" id="sac-conferidos-caret-${stage.id}" style="transition:transform 0.2s;transform:rotate(-90deg);"></i>
+              Conferidos
+              <span style="background:#64748b;color:#fff;border-radius:20px;padding:1px 7px;font-size:0.72rem;font-weight:700;margin-left:2px;">${conferidos.length}</span>
+            </button>
+            <div id="sac-conferidos-list-${stage.id}" style="display:none;">
+              ${conferidos.map(t => renderCard(t, stage, true)).join('')}
+            </div>
+          </div>`;
+
         return `
         <div class="sac-col" id="sac-col-${stage.id}" data-stage="${stage.id}"
           style="min-width:260px;max-width:300px;flex:1;display:flex;flex-direction:column;background:${stage.bg};border-radius:12px;margin:0 5px;border:1.5px solid rgba(0,0,0,0.07);"
@@ -844,20 +865,21 @@
               <span style="width:10px;height:10px;border-radius:50%;background:${stage.color};display:inline-block;flex-shrink:0;"></span>
               <span style="font-weight:700;font-size:0.82rem;color:${stage.color};text-transform:uppercase;letter-spacing:0.04em;">${stage.name}</span>
             </div>
-            <span style="background:${stage.color};color:#fff;border-radius:20px;padding:1px 8px;font-size:0.75rem;font-weight:700;">${cards.length}</span>
+            <span style="background:${stage.color};color:#fff;border-radius:20px;padding:1px 8px;font-size:0.75rem;font-weight:700;">${totalColuna}</span>
           </div>
           <div style="flex:1;overflow-y:auto;padding:10px 8px;">
-            ${cards.length === 0
+            ${cards.length === 0 && conferidos.length === 0
               ? `<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:20px 0;">Sem ocorrências</div>`
               : cards.map(t => renderCard(t, stage)).join('')
             }
+            ${conferidosHtml}
           </div>
         </div>`;
       }).join('')}
     </div>`;
   }
 
-  function renderCard(ticket, stage) {
+  function renderCard(ticket, stage, isConferido = false) {
     const type = TICKET_TYPES[ticket.typeKey] || { name: ticket.typeKey, icon: '❓', sla: 48 };
     const sla = getSLADetails(ticket);
     const slaColor = sla.labelColor || (sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d');
@@ -905,7 +927,8 @@
     <div class="sac-card" id="card-${ticket.id}" draggable="true"
       ondragstart="SAC.onDragStart(event,'${ticket.id}')"
       ondragend="SAC.onDragEnd(event,'${ticket.id}')"
-      onclick="SAC.openDetail('${ticket.id}')">
+      onclick="SAC.openDetail('${ticket.id}')"
+      style="${isConferido ? 'opacity:0.62;border-left:3px solid #16a34a;' : ''}">
       ${coverHtml}
       <div style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -2120,6 +2143,32 @@
                 </div>`;
             })()}
 
+            ${(() => {
+                const SAC_CONFERIDO_USERS = ['Thais.Ricci', 'renata.comercial'];
+                const _cu = currentUsername();
+                if (!SAC_CONFERIDO_USERS.includes(_cu) || t.stage !== 'concluido') return '';
+                const _checked = t.conferido ? 'checked' : '';
+                const _checkedStyle = t.conferido
+                    ? 'background:#16a34a;border-color:#16a34a;'
+                    : 'background:#fff;border-color:#d1d5db;';
+                const _labelColor = t.conferido ? '#16a34a' : '#64748b';
+                const _conferidoInfo = t.conferido && t.conferidoPor
+                    ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:4px;">Conferido por ${t.conferidoPor}${t.conferidoAt ? ' em ' + new Date(t.conferidoAt).toLocaleString('pt-BR') : ''}</div>`
+                    : '';
+                return `
+                <div style="margin-top:16px;padding:12px 14px;border-radius:10px;border:1.5px solid ${t.conferido ? '#bbf7d0' : '#e2e8f0'};background:${t.conferido ? '#f0fdf4' : '#f8fafc'};transition:all 0.2s;">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;" onclick="SAC.toggleConferido('${t.id}')">
+                        <div style="width:20px;height:20px;border-radius:5px;border:2px solid;${_checkedStyle}display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;">
+                            ${t.conferido ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="1.5,6 4.5,9 10.5,3" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+                        </div>
+                        <span style="font-size:0.85rem;font-weight:700;color:${_labelColor};">
+                            ${t.conferido ? '✓ Conferido' : 'Marcar como Conferido'}
+                        </span>
+                    </label>
+                    ${_conferidoInfo}
+                </div>`;
+            })()}
+
             <div style="display:none;margin-top:24px;">
                 <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px;">Próximos Passos</div>
                 <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:0.85rem;color:#475569;border:1px solid #e2e8f0;white-space:pre-wrap;">${(t.nextSteps||'Nenhum próximo passo registrado.').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
@@ -2949,6 +2998,43 @@
       renderAll();
       showToast('Dados atualizados', 'success');
       if (btn) btn.innerHTML = '<i class="ph ph-arrows-clockwise"></i>';
+    },
+    async toggleConferido(id) {
+      const t = _tickets.find(x => x.id === id);
+      if (!t) return;
+      const novoValor = !t.conferido;
+      try {
+        const token = localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
+        const r = await fetch(`/api/sac/tickets/${id}/conferido`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ conferido: novoValor })
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          showToast(err.error || 'Erro ao salvar', 'error');
+          return;
+        }
+        const data = await r.json();
+        // Atualiza o ticket local
+        t.conferido   = data.conferido;
+        t.conferidoPor = data.conferidoPor;
+        t.conferidoAt  = data.conferidoAt;
+        // Re-renderiza: modal e kanban
+        if (_selectedTicket && _selectedTicket.id === id) renderDetailModal();
+        renderAll();
+        showToast(novoValor ? 'Chamado marcado como Conferido ✓' : 'Conferência removida', 'success');
+      } catch(e) {
+        showToast('Erro de conexão', 'error');
+      }
+    },
+    toggleConferidosSection(stageId) {
+      const list  = document.getElementById(`sac-conferidos-list-${stageId}`);
+      const caret = document.getElementById(`sac-conferidos-caret-${stageId}`);
+      if (!list) return;
+      const isOpen = list.style.display !== 'none';
+      list.style.display  = isOpen ? 'none' : 'block';
+      if (caret) caret.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
     },
     async duplicateTicket(id) {
       const t = _tickets.find(x => x.id === id);
