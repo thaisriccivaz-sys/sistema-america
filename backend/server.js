@@ -13483,6 +13483,46 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
     });
 });
 
+// Rota batch: salva todos os tipos de notificacao de uma so vez em transacao unica
+app.post('/api/config-notificacoes/batch', authenticateToken, (req, res) => {
+    const { configuracoes } = req.body;
+    if (!Array.isArray(configuracoes) || configuracoes.length === 0) {
+        return res.status(400).json({ error: 'configuracoes deve ser array nao vazio' });
+    }
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION', (errBegin) => {
+            if (errBegin) return res.status(500).json({ error: errBegin.message });
+            let idx2 = 0;
+            const processNext = () => {
+                if (idx2 >= configuracoes.length) {
+                    db.run('COMMIT', (errCommit) => {
+                        if (errCommit) return res.status(500).json({ error: errCommit.message });
+                        res.json({ message: 'Configuracoes salvas com sucesso' });
+                    });
+                    return;
+                }
+                const { tipo, usuarios } = configuracoes[idx2++];
+                if (!tipo || !Array.isArray(usuarios)) { processNext(); return; }
+                db.run('DELETE FROM config_notificacoes WHERE tipo = ?', [tipo], (errDel) => {
+                    if (errDel) { db.run('ROLLBACK'); return res.status(500).json({ error: errDel.message }); }
+                    if (usuarios.length === 0) { processNext(); return; }
+                    const phs = usuarios.map(() => '(?, ?, ?)').join(',');
+                    const vals = [];
+                    usuarios.forEach(u => {
+                        const uid = (typeof u === 'object') ? u.usuario_id : u;
+                        const ov = (typeof u === 'object' && u.email_override) ? u.email_override : null;
+                        vals.push(tipo, uid, ov);
+                    });
+                    db.run('INSERT INTO config_notificacoes (tipo, usuario_id, email_override) VALUES ' + phs, vals, (errIns) => {
+                        if (errIns) { db.run('ROLLBACK'); return res.status(500).json({ error: errIns.message }); }
+                        processNext();
+                    });
+                });
+            };
+            processNext();
+        });
+    });
+});
 // Endpoint interno: forçar disparo de notificação de teste (requer secret no header)
 app.post('/api/internal/trigger-notif-test', (req, res) => {
     const secret = req.headers['x-internal-secret'] || req.body.secret;

@@ -172,22 +172,25 @@ window.salvarConfigNotificacoes = async function() {
         const btnOriginal = btn ? btn.innerHTML : '';
         if (btn) { btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; btn.disabled = true; }
         
-        // Salvar cada tipo
-        const promises = Object.keys(selectedByTipo).map(tipo => {
-            return fetch(`${API_URL}/config-notificacoes`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ tipo, usuarios: selectedByTipo[tipo] })
-            });
+        // Salvar todos os tipos em um único request batch (evita race condition SQLite)
+        const configuracoes = Object.keys(selectedByTipo).map(tipo => ({
+            tipo,
+            usuarios: selectedByTipo[tipo]
+        }));
+
+        const resp = await fetch(`${API_URL}/config-notificacoes/batch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ configuracoes })
         });
-        
-        const results = await Promise.all(promises);
-        const hasError = results.some(r => !r.ok);
-        
-        if (hasError) throw new Error('Algumas configurações não puderam ser salvas.');
+
+        if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || `Erro ${resp.status} ao salvar configurações`);
+        }
         
         Swal.fire({
             icon: 'success',
