@@ -26739,14 +26739,28 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             for (let arq of arquivosArr) {
                 const nomeArq = arq.Nome || arq.nome || '';
                 const nomeUpper = nomeArq.toUpperCase();
-                // 2. Tentar buscar no array de arquivos (caso enviem como um anexo normal)
-                if (nomeUpper.includes('DECLARA????O') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO')) {
+
+                // Monaco: 'N AMR [PLACA] [AIT] E.pdf' = Extrato (Doc. Notificacao correto)
+                //         'N AMR [PLACA] [AIT] F.pdf' = Formulario de Indicacao (ignorar como doc)
+                const isExtrato    = / E\.PDF$/.test(nomeUpper) || /_E\.PDF$/.test(nomeUpper) || nomeUpper.includes('EXTRATO');
+                const isFormulario = / F\.PDF$/.test(nomeUpper) || /_F\.PDF$/.test(nomeUpper) || nomeUpper.includes('FORMULARIO');
+                const isTermo      = nomeUpper.includes('DECLARAC') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO');
+
+                console.log('[MONACO SYNC] Arquivo: ' + nomeArq + ' => extrato=' + isExtrato + ' formulario=' + isFormulario + ' termo=' + isTermo);
+
+                if (isTermo) {
                     termoBase64 = arq.base64;
                     termoNome = nomeArq || 'termo_desconto.pdf';
-                } else if (!docBase64 && arq.base64) {
-                    // Pega o primeiro arquivo que NÃO seja o termo como notificação padrão
+                } else if (isExtrato && arq.base64) {
+                    // Extrato tem prioridade maxima como Doc. Notificacao
+                    docBase64 = arq.base64;
+                    docNome = nomeArq || 'extrato_monaco.pdf';
+                } else if (!isFormulario && !docBase64 && arq.base64) {
+                    // Fallback: qualquer outro que nao seja formulario
                     docBase64 = arq.base64;
                     docNome = nomeArq || 'anexo_monaco.pdf';
+                } else if (isFormulario) {
+                    console.log('[MONACO SYNC] Formulario de Indicacao ignorado como doc: ' + nomeArq);
                 }
             }
         }
@@ -26832,35 +26846,21 @@ function syncToLogistica(uuid, tipoEvento, payload) {
             if (docBase64 && !row.documento_base64 && !row.documento_path) {
                 updateSql += `, documento_base64 = ?, documento_nome = ?`;
                 params.push(docBase64, docNome);
-        if (arquivosArr.length > 0) {
-            for (let arq of arquivosArr) {
-                const nomeArq = arq.Nome || arq.nome || '';
-                const nomeUpper = nomeArq.toUpperCase();
-
-                // Monaco nomenclatura: 'N AMR [PLACA] [AIT] E.pdf' = Extrato (Doc. Notificacao correto)
-                //                      'N AMR [PLACA] [AIT] F.pdf' = Formulario de Indicacao (link em PDF, nao o doc)
-                const isExtrato    = / E\.PDF$/.test(nomeUpper) || /_E\.PDF$/.test(nomeUpper) || nomeUpper.includes('EXTRATO');
-                const isFormulario = / F\.PDF$/.test(nomeUpper) || /_F\.PDF$/.test(nomeUpper) || nomeUpper.includes('FORMULARIO');
-                const isTermo      = nomeUpper.includes('DECLARAC') || nomeUpper.includes('DECLARACAO') || nomeUpper.includes('TERMO') || nomeUpper.includes('DESCONTO');
-
-                console.log(`[MONACO SYNC] Arquivo: "${nomeArq}" => extrato=${isExtrato} formulario=${isFormulario} termo=${isTermo}`);
-
-                if (isTermo) {
-                    termoBase64 = arq.base64;
-                    termoNome = nomeArq || 'termo_desconto.pdf';
-                } else if (isExtrato && arq.base64) {
-                    // Extrato tem prioridade maxima como Doc. Notificacao
-                    docBase64 = arq.base64;
-                    docNome = nomeArq || 'extrato_monaco.pdf';
-                } else if (!isFormulario && !docBase64 && arq.base64) {
-                    // Fallback: qualquer outro que nao seja formulario
-                    docBase64 = arq.base64;
-                    docNome = nomeArq || 'anexo_monaco.pdf';
-                } else if (isFormulario) {
-                    console.log(`[MONACO SYNC] Formulario de Indicacao ignorado como doc: "${nomeArq}"`);
-                }
             }
-        }
+            
+            if (termoBase64 || termoUrl) {
+                updateSql += `, termo_desconto_base64 = ?, termo_desconto_nome = ?, termo_desconto_url = ?`;
+                params.push(termoBase64, termoNome, termoUrl);
+            }
+
+            updateSql += ` WHERE id = ?`;
+            params.push(row.id);
+
+            db.run(updateSql, params, (errUpdate) => {
+                if (errUpdate) console.error('[MONACO SYNC] Erro update:', errUpdate);
+                else console.log(`[MONACO SYNC] Multa logistica ID=${row.id} atualizada.`);
+            });
+        } else {
             // Inserir nova multa
             db.run(`INSERT INTO multas_logistica (
                 monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
