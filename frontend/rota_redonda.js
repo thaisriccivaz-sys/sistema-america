@@ -2986,18 +2986,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                     if (_ts.includes('visita')) {
                         const _p0 = payloadsParaEnviar[0];
-                        const _prods = Array.isArray(_p0.produtos) ? _p0.produtos.map(p => [p.qtd, p.desc].filter(Boolean).join('x ')) : [];
+                        let _openedBy2 = '';
+                        try { const _u2 = JSON.parse(localStorage.getItem('erp_user') || '{}'); _openedBy2 = _u2.nome || _u2.username || ''; } catch(e) {}
                         const _osData = {
-                            number: _p0.numero_os || String(firstId || ''),
-                            client: _p0.cliente || '',
-                            equipment: _prods.join(', '),
-                            address: [_p0.endereco, _p0.complemento].filter(Boolean).join(', ')
+                            number:      _p0.numero_os || String(firstId || ''),
+                            client:      _p0.cliente || '',
+                            address:     [_p0.endereco, _p0.complemento].filter(Boolean).join(', '),
+                            contrato:    _p0.contrato || '',
+                            responsavel: _p0.responsavel || '',
+                            telefone:    _p0.telefone || '',
+                            produtos:    Array.isArray(_p0.produtos) ? _p0.produtos : [],
+                            openedBy:    _openedBy2
                         };
                         if (typeof window.createSACTicketFromOS === 'function') {
                             setTimeout(() => {
-                                if (confirm('🔧 OS de Visita Técnica salva!\n\nDeseja abrir automaticamente um chamado no SAC para esta visita?')) {
-                                    window.createSACTicketFromOS(_osData);
-                                }
+                                window.createSACTicketFromOS(_osData);
                             }, 800);
                         }
                     }

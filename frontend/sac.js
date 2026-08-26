@@ -474,6 +474,18 @@
     if (!c) return;
     c.innerHTML = buildSACShell();
     _view = 'pipeline';
+
+    // Resetar todos os filtros ao abrir/fechar a página
+    _searchTerm = '';
+    _filterType = 'all';
+    _filterDateType = 'abertura';
+    _filterDateStart = '';
+    _filterDateEnd = '';
+    _filterUrgent = false;
+    _filterAssigned = '';
+    _filterFollowUpDateStart = '';
+    _filterFollowUpDateEnd = '';
+
     bindGlobalEvents();
     // Carrega os dados da API antes de renderizar
     await loadTickets();
@@ -1093,19 +1105,180 @@
   }
 
   window.createSACTicketFromOS = function(osData) {
-    openWizard();
-    _wiz.protocol = nextProtocol();
-    _wiz.osNumber = String(osData.number || '');
-    _wiz.clientName = osData.client || '';
-    _wiz.equipment = osData.equipment || '';
-    _wiz.address = osData.address || '';
-    _wiz.typeKey = 'visita_tecnica';
-    _wiz._protocolLocked = true;
-    _wiz._osLinked = true;
-    renderWizard();
-    const ov = document.getElementById('sac-wizard-overlay');
-    if (ov) ov.style.display = 'flex';
-    if (typeof navigateTo === 'function') navigateTo('sac');
+    // osData: { number, client, address, contrato, responsavel, telefone, produtos: [{qtd, desc}], openedBy }
+    const produtos = Array.isArray(osData.produtos) ? osData.produtos.filter(p => p.desc) : [];
+    const hasMultiProd = produtos.length > 1 || (produtos.length === 1 && produtos[0].qtd > 1);
+
+    // Remover modal anterior se existir
+    const oldModal = document.getElementById('sac-from-os-modal');
+    if (oldModal) oldModal.remove();
+
+    // Montar lista de produtos para checkboxes
+    let prodHtml = '';
+    if (produtos.length === 0) {
+        prodHtml = '<p style="color:#94a3b8;font-size:0.82rem;margin:0;">Nenhum produto cadastrado na OS.</p>';
+    } else if (produtos.length === 1 && produtos[0].qtd <= 1) {
+        // Só 1 produto com qtd 1 — sem pergunta, vai direto
+        prodHtml = `<p style="color:#64748b;font-size:0.85rem;margin:0;"><i class="ph ph-check-circle" style="color:#10b981;"></i> Produto: <strong>${produtos[0].qtd}x ${produtos[0].desc}</strong></p>`;
+    } else {
+        prodHtml = '<div style="display:flex;flex-direction:column;gap:6px;">';
+        produtos.forEach((p, i) => {
+            const maxQtd = parseInt(p.qtd) || 1;
+            prodHtml += `
+            <label style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;cursor:pointer;">
+                <input type="checkbox" id="sac-os-prod-${i}" checked style="accent-color:#f97316;width:15px;height:15px;">
+                <span style="flex:1;font-size:0.85rem;color:#1e293b;">${p.desc}</span>
+                <span style="font-size:0.78rem;color:#64748b;">Qtd:</span>
+                <input type="number" id="sac-os-prod-qtd-${i}" value="${maxQtd}" min="1" max="${maxQtd}" style="width:50px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:0.82rem;text-align:center;">
+            </label>`;
+        });
+        prodHtml += '</div>';
+    }
+
+    const modalHtml = `
+    <div id="sac-from-os-modal" style="position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+        <div style="background:#fff;border-radius:16px;padding:0;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="background:linear-gradient(135deg,#f97316,#ea580c);padding:20px 24px;border-radius:16px 16px 0 0;">
+                <h3 style="margin:0;color:#fff;font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-wrench"></i> Abrir Chamado SAC — Visita Técnica
+                </h3>
+                <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:0.82rem;">OS #${osData.number || '—'} · ${osData.client || ''}</p>
+            </div>
+            <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+
+                <!-- Cliente -->
+                <div>
+                    <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Cliente</label>
+                    <input id="sac-os-cliente" type="text" value="${(osData.client || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                </div>
+
+                <!-- Contrato + OS -->
+                <div style="display:flex;gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Nº OS</label>
+                        <input id="sac-os-numero" type="text" value="${(osData.number || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Nº Contrato</label>
+                        <input id="sac-os-contrato" type="text" value="${(osData.contrato || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <!-- Contato + Telefone -->
+                <div style="display:flex;gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Contato de Instalação</label>
+                        <input id="sac-os-contato" type="text" value="${(osData.responsavel || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Telefone</label>
+                        <input id="sac-os-telefone" type="text" value="${(osData.telefone || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <!-- Endereço -->
+                <div>
+                    <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Endereço</label>
+                    <input id="sac-os-endereco" type="text" value="${(osData.address || '').replace(/"/g,'&quot;')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;box-sizing:border-box;">
+                </div>
+
+                <!-- Produtos -->
+                <div>
+                    <label style="font-weight:700;font-size:0.78rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Produtos / Equipamentos</label>
+                    <div style="margin-top:6px;">${prodHtml}</div>
+                </div>
+
+                <!-- Descrição (obrigatória) -->
+                <div>
+                    <label style="font-weight:700;font-size:0.78rem;color:#dc2626;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:4px;">
+                        <i class="ph ph-text-align-left"></i> Descrição <span style="color:#dc2626;">*</span>
+                    </label>
+                    <textarea id="sac-os-descricao" rows="3" placeholder="Descreva o motivo da visita técnica... (obrigatório)" style="width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #fca5a5;border-radius:8px;font-size:0.9rem;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+                    <p id="sac-os-descricao-erro" style="color:#dc2626;font-size:0.78rem;margin:4px 0 0;display:none;"><i class="ph ph-warning"></i> A descrição é obrigatória.</p>
+                </div>
+
+                <!-- Info do usuário -->
+                <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#0369a1;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-user-circle"></i>
+                    Aberto por: <strong>${osData.openedBy || 'Usuário atual'}</strong>
+                </div>
+
+            </div>
+            <div style="padding:16px 24px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end;">
+                <button onclick="document.getElementById('sac-from-os-modal').remove()" style="padding:9px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-weight:600;cursor:pointer;font-size:0.9rem;">Cancelar</button>
+                <button onclick="window._confirmarCriarSACFromOS(${produtos.length})" style="padding:9px 24px;border:none;border-radius:8px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
+                    <i class="ph ph-check-circle"></i> Criar Chamado SAC
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    window._confirmarCriarSACFromOS = function(totalProds) {
+        const desc = (document.getElementById('sac-os-descricao')?.value || '').trim();
+        const erroEl = document.getElementById('sac-os-descricao-erro');
+        if (!desc) {
+            if (erroEl) erroEl.style.display = 'flex';
+            document.getElementById('sac-os-descricao')?.focus();
+            return;
+        }
+        if (erroEl) erroEl.style.display = 'none';
+
+        // Coletar produtos selecionados
+        let prodsSelecionados = [];
+        if (totalProds === 0) {
+            prodsSelecionados = [];
+        } else if (totalProds === 1 && produtos.length === 1 && parseInt(produtos[0].qtd) <= 1) {
+            prodsSelecionados = [`${produtos[0].qtd}x ${produtos[0].desc}`];
+        } else {
+            for (let i = 0; i < totalProds; i++) {
+                const chk = document.getElementById(`sac-os-prod-${i}`);
+                const qtdEl = document.getElementById(`sac-os-prod-qtd-${i}`);
+                if (chk && chk.checked) {
+                    const qtd = qtdEl ? parseInt(qtdEl.value) || 1 : 1;
+                    prodsSelecionados.push(`${qtd}x ${produtos[i].desc}`);
+                }
+            }
+        }
+
+        const cliente    = document.getElementById('sac-os-cliente')?.value?.trim() || '';
+        const numero     = document.getElementById('sac-os-numero')?.value?.trim() || '';
+        const contrato   = document.getElementById('sac-os-contrato')?.value?.trim() || '';
+        const contato    = document.getElementById('sac-os-contato')?.value?.trim() || '';
+        const telefone   = document.getElementById('sac-os-telefone')?.value?.trim() || '';
+        const endereco   = document.getElementById('sac-os-endereco')?.value?.trim() || '';
+
+        // Remover modal
+        document.getElementById('sac-from-os-modal')?.remove();
+
+        // Abrir wizard com dados pré-preenchidos
+        openWizard();
+        _wiz.protocol        = nextProtocol();
+        _wiz.osNumber        = numero;
+        _wiz.clientName      = cliente;
+        _wiz.cnpjCpf         = contrato;
+        _wiz.equipment       = prodsSelecionados.join(', ');
+        _wiz.address         = endereco;
+        _wiz.typeKey         = 'visita_tecnica';
+        _wiz.currentOcc      = (OCCURRENCES_BY_TYPE.visita_tecnica || [])[0] || '';
+        _wiz.description     = desc;
+        _wiz._protocolLocked = true;
+        _wiz._osLinked       = true;
+        _wiz._openedBy       = osData.openedBy || '';
+        _wiz._stage          = 'abertura'; // força coluna de abertura
+        _wiz.contacts        = [{
+            id: Date.now(),
+            type: 'Contato de Instalação',
+            name: contato,
+            phone: telefone,
+            email: ''
+        }];
+
+        renderWizard();
+        const ov = document.getElementById('sac-wizard-overlay');
+        if (ov) ov.style.display = 'flex';
+        if (typeof navigateTo === 'function') navigateTo('sac');
+    };
   };
 
   // OS lookup: quando o usuario digita o numero da OS no wizard, busca dados na logistica
