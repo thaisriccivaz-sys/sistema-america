@@ -106,6 +106,7 @@
   let _filterDateEnd = '';
   let _filterUrgent = false;
   let _filterAssigned = '';
+  let _filterFollowUpDate = '';  // filtro Acomp. ate
   let _selectedTicket = null;
   let _modalTab = 'geral'; // 'geral' | 'historico' | 'custo' | 'anexos' | 'checklist'
   let _pendingTransition = null;
@@ -595,6 +596,13 @@
           <button id="sac-filter-assigned-clear" onclick="document.getElementById('sac-filter-assigned').value='';SAC.onFilterAssigned('')" style="position:absolute;right:4px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;display:none;" title="Limpar">&#x2715;</button>
         </div>
         
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#64748b;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:5px 10px;">
+          <i class="ph ph-calendar-check" style="color:#2563eb;font-size:1rem;"></i>
+          <span style="font-weight:600;color:#1d4ed8;">Acomp. ate:</span>
+          <input type="date" id="sac-filter-followup-date" style="padding:4px 8px;border:1px solid #bfdbfe;border-radius:6px;font-size:0.8rem;outline:none;background:#fff;" onchange="SAC.onFilterFollowUpDate(this.value)" title="Filtrar chamados em Acompanhamento com prazo ate esta data">
+          <button onclick="document.getElementById('sac-filter-followup-date').value='';SAC.onFilterFollowUpDate('')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:0.9rem;padding:0;" title="Limpar">&#x2715;</button>
+        </div>
+
         <span id="sac-count-badge" style="font-size:0.8rem;color:#64748b;white-space:nowrap;margin-left:auto;"></span>
       </div>
 
@@ -2387,6 +2395,20 @@
         }
       }
 
+      // Filtro por data de acompanhamento (followUpDeadline)
+      let matchFollowUpDate = true;
+      if (_filterFollowUpDate) {
+        // Mostra apenas tickets em acompanhamento com followUpDeadline <= data escolhida (23:59:59)
+        const followUpMaxMs = new Date(_filterFollowUpDate + 'T23:59:59').getTime();
+        if (t.followUpDeadline && t.stage === 'execucao') {
+          const followUpMs = new Date(t.followUpDeadline).getTime();
+          if (isNaN(followUpMs) || followUpMs > followUpMaxMs) matchFollowUpDate = false;
+        } else {
+          // Se nao tem followUpDeadline ou nao esta em acompanhamento, nao passa no filtro
+          matchFollowUpDate = false;
+        }
+      }
+
       let matchPermission = canSeeAll;
       if (!canSeeAll) {
         const cuLower = (currUsername || '').toLowerCase();
@@ -2445,7 +2467,7 @@
         matchPermission = isAssigned || wasEverAssigned || isCreator || isManagerOfTicket || isMyDepartmentTicket;
       }
 
-      return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchPermission;
+      return matchSearch && matchType && matchUrgent && matchDate && matchAssigned && matchFollowUpDate && matchPermission;
     });
   }
 
@@ -2671,6 +2693,7 @@
     onFilterDateType(v){ _filterDateType = v; renderAll(); },
     onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
     onFilterUrgent(checked){ _filterUrgent = checked; renderAll(); },
+    onFilterFollowUpDate(v){ _filterFollowUpDate = v; renderAll(); },
     onFilterAssigned(v) {
       _filterAssigned = v;
       const clearBtn = document.getElementById('sac-filter-assigned-clear');
