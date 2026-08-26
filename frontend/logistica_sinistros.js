@@ -1072,7 +1072,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
                     <!-- Tipo de Sinistro + Situação -->
-                    <div class="input-group" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; gap:0.75rem; align-items:flex-start;">
+                    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; flex-direction:row; gap:0.75rem; align-items:flex-start; width:100%; box-sizing:border-box;">
                         <div style="flex:1; min-width:0;">
                             <label style="color:#c2410c; font-weight:700; display:block; margin-bottom:4px;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
                             <select id="edit-sin-tipo" class="form-control" style="font-size:0.9rem;">
