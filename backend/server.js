@@ -8095,64 +8095,44 @@ app.get('/api/logistica/multas/:id/documento-extra/:idx', (req, res) => {
     });
 });
 
-// GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador (suporta R2, base64 e disco)
+// GET /api/colaboradores/:id/arquivo/cnh — serve o arquivo de CNH do colaborador
+// Redireciona para /api/documentos/download/:id que já tem lógica completa de R2, fallback, etc.
 app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] || '').replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
-    // 1. Buscar dados básicos do colaborador (colunas que sempre existem)
+    // 1. Buscar dados básicos do colaborador
     db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
-        // 2. Tentar buscar cnh_arquivo legado (coluna pode não existir — query separada para não quebrar)
+        // 2. Tentar cnh_arquivo legado (base64 direto na tabela — coluna pode não existir)
         db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
             const cnhBase64 = rowCnh && rowCnh.cnh_arquivo;
-
             if (cnhBase64) {
-                // Caso legado: base64 direto na tabela colaboradores
                 res.setHeader('Content-Type', 'application/pdf');
                 res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
                 return res.end(Buffer.from(cnhBase64, 'base64'));
             }
 
-            // 3. Buscar na tabela documentos (upload via Ficha Cadastral) — inclui r2_key para R2
+            // 3. Buscar id do documento CNH na tabela documentos
             db.get(
-                "SELECT id, file_path, file_name, r2_key FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1",
+                "SELECT id FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1",
                 [req.params.id],
-                async (err3, docRow) => {
+                (err3, docRow) => {
                     if (err3 || !docRow) {
                         return res.status(404).json({
                             error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
                         });
                     }
-
-                    // 3a. Tem r2_key → redirecionar para URL assinada do R2 (caso padrão após migração)
-                    if (docRow.r2_key) {
-                        try {
-                            const r2 = require('./utils/r2');
-                            if (r2.isReady()) {
-                                const signedUrl = await r2.getSignedUrl(docRow.r2_key, 300);
-                                return res.redirect(signedUrl);
-                            }
-                        } catch (r2Err) {
-                            console.error('[CNH-DOWNLOAD] Erro ao gerar URL R2:', r2Err.message);
-                        }
-                    }
-
-                    // 3b. Fallback: arquivo ainda existe no disco local
-                    if (docRow.file_path && fs.existsSync(docRow.file_path)) {
-                        return res.download(docRow.file_path, docRow.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
-                    }
-
-                    return res.status(404).json({
-                        error: `Arquivo de CNH registrado mas não encontrado no armazenamento. Faça um novo upload da CNH de ${row.nome_completo || 'este colaborador'}.`
-                    });
+                    // Redirecionar para o endpoint de download que já tem lógica completa (R2, signed, disco, etc.)
+                    return res.redirect(`/api/documentos/download/${docRow.id}?token=${encodeURIComponent(token)}`);
                 }
             );
         });
     });
 });
+
 
 // GET /api/colaboradores/:id/arquivo/cpf_rg ??? serve o arquivo de CPF ou RG do colaborador
 app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
