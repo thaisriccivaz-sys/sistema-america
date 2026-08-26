@@ -25983,6 +25983,13 @@ async function _notificarTestesCandidatos(mensagem, dadosExtra) {
     });
 }
 
+// Rota de Sucesso
+try {
+    require('./rota_sucesso_routes')(app, db, authenticateToken, sendEmailParaNotificados);
+} catch (eRS) {
+    console.error('[RotaSucesso] Falha ao registrar rotas:', eRS.message);
+}
+
 try {
     const multerMemoryCandidatos = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
     require('./routes_candidatos_teste')(app, db, authenticateToken, r2, multerMemoryCandidatos, sendEmailParaNotificados);

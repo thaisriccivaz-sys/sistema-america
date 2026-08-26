@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rota de Sucesso — Formulário</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #15803d, #166534); padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+  .logo-circle { width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; color: white; flex-shrink: 0; }
+  .logo-text { color: white; }
+  .logo-text .name { font-size: 1.1rem; font-weight: 700; }
+  .logo-text .sub { font-size: 0.75rem; opacity: 0.8; }
+  .badge-prog { background: rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; color: rgba(255,255,255,0.95); margin-left: auto; white-space: nowrap; }
+  .container { max-width: 640px; margin: 32px auto; padding: 0 16px 48px; }
+  .card { background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+  .card-header { background: linear-gradient(135deg, #15803d, #166534); padding: 24px 28px; color: white; }
+  .tipo-badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; display: inline-block; margin-bottom: 10px; }
+  .card-header h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
+  .card-header p { font-size: 0.88rem; opacity: 0.85; line-height: 1.5; }
+  .colaborador-chip { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.15); border-radius: 10px; padding: 10px 14px; margin-top: 16px; }
+  .colab-avatar { width: 38px; height: 38px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; }
+  .colab-info .nome { font-weight: 700; font-size: 0.95rem; }
+  .colab-info .cargo { font-size: 0.8rem; opacity: 0.8; }
+  .card-body { padding: 28px; }
+  .field-group { margin-bottom: 20px; }
+  label { display: block; font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 8px; }
+  .required { color: #dc2626; }
+  input[type="text"], textarea, select {
+    width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.95rem;
+    color: #1f2937; outline: none; transition: border 0.2s; background: #f9fafb; font-family: inherit;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus { border-color: #15803d; background: #fff; box-shadow: 0 0 0 3px rgba(21,128,61,0.1); }
+  textarea { min-height: 96px; resize: vertical; }
+  .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+  .radio-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; background: #f3f4f6; border: 1.5px solid #d1d5db; border-radius: 8px; padding: 8px 16px; transition: all 0.2s; font-size: 0.9rem; }
+  .radio-opt:hover { border-color: #15803d; background: #f0fdf4; }
+  .radio-opt input[type="radio"] { accent-color: #15803d; width: 16px; height: 16px; }
+  .radio-opt.selected { border-color: #15803d; background: #dcfce7; color: #15803d; font-weight: 600; }
+  .select-group { display: flex; flex-direction: column; gap: 8px; }
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+  .btn-submit { width: 100%; padding: 13px; background: linear-gradient(135deg, #15803d, #166534); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-submit:hover { opacity: 0.92; }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .success-card { text-align: center; padding: 48px 28px; }
+  .success-icon { font-size: 3.5rem; margin-bottom: 16px; }
+  .success-card h2 { font-size: 1.3rem; font-weight: 700; color: #15803d; margin-bottom: 10px; }
+  .success-card p { color: #6b7280; font-size: 0.95rem; line-height: 1.6; }
+  .already-card { text-align: center; padding: 48px 28px; }
+  .already-icon { font-size: 3rem; margin-bottom: 16px; }
+  .loading { text-align: center; padding: 48px 28px; color: #6b7280; }
+  .error-card { text-align: center; padding: 48px 28px; color: #dc2626; }
+  .hint { font-size: 0.78rem; color: #6b7280; margin-top: 5px; }
+  @media (max-width: 480px) { .radio-group { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-circle">A</div>
+  <div class="logo-text">
+    <div class="name">América Rental</div>
+    <div class="sub">Equipamentos Ltda.</div>
+  </div>
+  <div class="badge-prog">🚀 Rota de Sucesso</div>
+</div>
+
+<div class="container">
+  <div class="card" id="main-card">
+    <div id="loading-view" class="loading">
+      <div style="font-size:2rem;">⏳</div>
+      <p style="margin-top:12px;">Carregando formulário...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = location.pathname.split("/").pop();
+let formData = null;
+
+const PERGUNTAS = {
+  motorista2: {
+    titulo: "Solicitação para Motorista II",
+    icone: "🚛",
+    subtitulo: "Este formulário é destinado aos colaboradores que já possuem CNH Categoria D e desejam participar do processo para o cargo de Motorista II.",
+    campos: [
+      { id: "tempo_cnh_d", label: "Há quanto tempo possui a CNH Categoria D?", tipo: "texto" },
+      { id: "conduziu_pesados", label: "Você já conduziu caminhões pesados?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "conduziu_carreta", label: "Você já conduziu caminhões com carreta?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "nivel_experiencia", label: "Como você avalia sua experiência na condução de veículos pesados?", tipo: "radio", opcoes: ["Iniciante", "Intermediária", "Avançada"] },
+      { id: "motivo_motorista2", label: "Por que você deseja se tornar Motorista II?", tipo: "textarea" },
+      { id: "desenvolvimento_profissional", label: "O que essa oportunidade representa para o seu desenvolvimento profissional na América Rental?", tipo: "textarea" }
+    ]
+  },
+  motorista1: {
+    titulo: "Solicitação para Motorista I",
+    icone: "🚚",
+    subtitulo: "Este formulário é destinado aos Ajudantes que desejam participar do processo de desenvolvimento para o cargo de Motorista I.",
+    campos: [
+      { id: "possui_cnh", label: "Você possui CNH?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "categoria_cnh", label: "Se sim, qual categoria?", tipo: "texto", hint: "Deixe em branco se não possuir CNH" },
+      { id: "dirige_frequencia", label: "Você dirige veículos com frequência?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "conduziu_grande_porte", label: "Já conduziu caminhões ou veículos de grande porte?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "conduziu_utilitarios", label: "Já conduziu utilitários?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "motivo_motorista1", label: "Por que deseja se tornar Motorista I?", tipo: "textarea" },
+      { id: "desenvolvimento_profissional", label: "O que essa oportunidade representa para o seu desenvolvimento profissional na América Rental?", tipo: "textarea" }
+    ]
+  },
+  hab_d: {
+    titulo: "Solicitação de Mudança de Categoria (B → D)",
+    icone: "🚛",
+    subtitulo: "Este formulário é destinado aos Motoristas I interessados em realizar a mudança da Categoria B para a Categoria D, conforme os critérios do Programa Rota do Sucesso.",
+    campos: [
+      { id: "tempo_cnh_b", label: "Há quanto tempo possui a CNH Categoria B?", tipo: "texto" },
+      { id: "continuar_carreira", label: "Você pretende continuar construindo sua carreira na América Rental?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "dirigiu_caminhonete", label: "Você já dirigiu caminhonete na empresa?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "caminhonete_carretinha", label: "Você dirige caminhonete com carretinha na empresa?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "preparado_pesados", label: "Você se sente preparado para conduzir veículos pesados?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "motivo_hab_d", label: "Por que deseja mudar para a Categoria D?", tipo: "textarea" },
+      { id: "desenvolvimento_profissional", label: "O que essa oportunidade representa para o seu desenvolvimento profissional na América Rental?", tipo: "textarea" }
+    ]
+  },
+  hab_b: {
+    titulo: "Solicitação de Habilitação B",
+    icone: "🚗",
+    subtitulo: "Este formulário é destinado aos colaboradores que desejam obter a primeira Carteira Nacional de Habilitação (Categoria B) por meio do Programa Rota de Sucesso.",
+    campos: [
+      { id: "continuar_carreira", label: "Você pretende continuar construindo sua carreira na América Rental?", tipo: "radio", opcoes: ["Sim", "Não"] },
+      { id: "motivo_hab_b", label: "Por que deseja tirar sua primeira habilitação?", tipo: "textarea" },
+      { id: "experiencia_conducao", label: "Você já teve alguma experiência com condução de veículos?", tipo: "texto" },
+      { id: "desenvolvimento_profissional", label: "O que essa oportunidade representa para o seu desenvolvimento profissional na América Rental?", tipo: "textarea" }
+    ]
+  }
+};
+
+async function init() {
+  try {
+    const resp = await fetch(`/api/rota-sucesso/formulario/${token}`);
+    formData = await resp.json();
+    if (!resp.ok) { showError(formData.error); return; }
+    if (formData.status === "respondido") { showAlready(); return; }
+    renderForm();
+  } catch(e) {
+    showError("Não foi possível carregar o formulário. Verifique o link.");
+  }
+}
+
+function showError(msg) {
+  document.getElementById("main-card").innerHTML = `<div class="error-card">
+    <div style="font-size:2.5rem;">❌</div>
+    <h2 style="margin:12px 0 8px;color:#dc2626;">Link inválido</h2>
+    <p style="color:#6b7280;">${msg || "Este link não é válido ou expirou."}</p>
+  </div>`;
+}
+
+function showAlready() {
+  document.getElementById("main-card").innerHTML = `<div class="already-card">
+    <div class="already-icon">✅</div>
+    <h2 style="margin-bottom:10px;color:#15803d;">Formulário já enviado!</h2>
+    <p style="color:#6b7280;">Você já respondeu a este formulário. Aguarde o retorno da equipe de RH da América Rental.<br><br>Obrigado pela sua participação! 🚀</p>
+  </div>`;
+}
+
+function renderForm() {
+  const perguntas = PERGUNTAS[formData.tipo];
+  if (!perguntas) { showError("Tipo de formulário desconhecido."); return; }
+  const colab = formData.colaborador || {};
+  const ini = (colab.nome || "?").split(" ").filter(Boolean).slice(0,2).map(p => p[0]).join("").toUpperCase();
+
+  const camposHtml = perguntas.campos.map(c => {
+    if (c.tipo === "texto") {
+      return `<div class="field-group">
+        <label>${c.label} <span class="required">*</span></label>
+        ${c.hint ? `<div class="hint">${c.hint}</div>` : ""}
+        <input type="text" id="${c.id}" placeholder="Digite sua resposta...">
+      </div>`;
+    } else if (c.tipo === "textarea") {
+      return `<div class="field-group">
+        <label>${c.label} <span class="required">*</span></label>
+        <textarea id="${c.id}" placeholder="Digite sua resposta..."></textarea>
+      </div>`;
+    } else if (c.tipo === "radio") {
+      const opts = c.opcoes.map(op => `<label class="radio-opt" onclick="selectRadio(this,'${c.id}')"><input type="radio" name="${c.id}" value="${op}"> ${op}</label>`).join("");
+      return `<div class="field-group">
+        <label>${c.label} <span class="required">*</span></label>
+        <div class="radio-group">${opts}</div>
+      </div>`;
+    }
+    return "";
+  }).join('<hr class="divider">');
+
+  document.getElementById("main-card").innerHTML = `
+    <div class="card-header">
+      <span class="tipo-badge">${perguntas.icone} ${formData.tipo.toUpperCase().replace("_", " ")}</span>
+      <h1>${perguntas.titulo}</h1>
+      <p>${perguntas.subtitulo}</p>
+      <div class="colaborador-chip">
+        <div class="colab-avatar">${ini}</div>
+        <div class="colab-info">
+          <div class="nome">${colab.nome || "-"}</div>
+          <div class="cargo">${colab.cargo || colab.departamento || ""}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="campos-form">${camposHtml}</div>
+      <hr class="divider">
+      <button class="btn-submit" onclick="submitForm()" id="btn-enviar">
+        <span>✅</span> Enviar Formulário
+      </button>
+    </div>`;
+}
+
+function selectRadio(el, name) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.closest(".radio-opt").classList.remove("selected"));
+  el.classList.add("selected");
+  el.querySelector("input").checked = true;
+}
+
+async function submitForm() {
+  const perguntas = PERGUNTAS[formData.tipo];
+  const respostas = {};
+  let ok = true;
+
+  perguntas.campos.forEach(c => {
+    if (c.tipo === "texto" || c.tipo === "textarea") {
+      const el = document.getElementById(c.id);
+      const val = el ? el.value.trim() : "";
+      respostas[c.label] = val;
+      if (!val) { ok = false; if(el) el.style.borderColor = "#dc2626"; }
+      else if(el) el.style.borderColor = "#d1d5db";
+    } else if (c.tipo === "radio") {
+      const checked = document.querySelector(`input[name="${c.id}"]:checked`);
+      respostas[c.label] = checked ? checked.value : "";
+      if (!checked) ok = false;
+    }
+  });
+
+  if (!ok) { alert("Por favor, preencha todos os campos obrigatórios."); return; }
+
+  const btn = document.getElementById("btn-enviar");
+  btn.disabled = true;
+  btn.innerHTML = "<span>⏳</span> Enviando...";
+
+  try {
+    const resp = await fetch(`/api/rota-sucesso/formulario/${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respostas })
+    });
+    const data = await resp.json();
+    if (resp.ok && data.success) {
+      document.getElementById("main-card").innerHTML = `<div class="success-card">
+        <div class="success-icon">🎉</div>
+        <h2>Formulário enviado com sucesso!</h2>
+        <p>Sua solicitação foi recebida pela equipe de RH da <strong>América Rental</strong>.<br><br>
+        Em breve você será contato sobre os próximos passos do <strong>Programa Rota de Sucesso</strong>.<br><br>
+        Muito obrigado pela sua participação! 🚀</p>
+      </div>`;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = "<span>✅</span> Enviar Formulário";
+      alert(data.error || "Erro ao enviar. Tente novamente.");
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = "<span>✅</span> Enviar Formulário";
+    alert("Erro de conexão. Verifique sua internet e tente novamente.");
+  }
+}
+
+init();
+</script>
+</body>
+</html>

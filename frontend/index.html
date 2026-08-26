@@ -27,6 +27,7 @@
     <script src="mtr.js" defer></script>
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20260818v12" defer></script>
+    <script src="rota_sucesso.js?v=20260825v1" defer></script>
     <script src="estoque.js?v=20260805v1" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
@@ -177,6 +178,25 @@
                         </div>
                     </div>
                     <!-- ▸ Grupo: Logística RH (acordeão) -->
+                    <!-- Rota de Sucesso (acordeao) -->
+                    <div class="nav-group" id="nav-group-rota-sucesso">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-rota-sucesso')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-rocket"></i>
+                                Rota de Sucesso
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-rota-sucesso">
+                            <a href="#" class="nav-item nav-item-sub" data-target="rota-sucesso-ajudantes"
+                               onclick="navigateTo('rota-sucesso-ajudantes'); window.initRotaSucessoAjudantes && window.initRotaSucessoAjudantes(); return false;">
+                               <i class="ph ph-user"></i> Ajudantes</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="rota-sucesso-motoristas"
+                               onclick="navigateTo('rota-sucesso-motoristas'); window.initRotaSucessoMotoristas && window.initRotaSucessoMotoristas(); return false;">
+                               <i class="ph ph-truck"></i> Motoristas</a>
+                        </div>
+                    </div>
                     <div class="nav-group" id="nav-group-rh-logistica">
                         <button class="nav-group-label nav-group-toggle"
                                 onclick="toggleNavGroup('nav-group-rh-logistica')">
@@ -4200,6 +4220,69 @@
                 </section>
 
                 <!-- VIEW: PAGAMENTOS EM MASSA -->
+                <!-- VIEW: ROTA DE SUCESSO - AJUDANTES -->
+                <section id="view-rota-sucesso-ajudantes" class="content-view" style="background:#f8fafc;padding:0;">
+                    <div style="padding:24px 32px 0;">
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#15803d,#166534);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                                <i class="ph ph-user" style="font-size:1.5rem;color:white;"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:#1e293b;">Rota de Sucesso — Ajudantes</h2>
+                                <p style="margin:0;color:#64748b;font-size:0.88rem;">Confira a elegibilidade dos ajudantes e envie o link do formulário.</p>
+                            </div>
+                            <div style="margin-left:auto;">
+                                <button onclick="window.initRotaSucessoAjudantes()" style="display:flex;align-items:center;gap:6px;padding:8px 18px;background:#15803d;color:white;border:none;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer;">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px 18px;background:white;border-radius:10px;border:1px solid #e2e8f0;">
+                            <i class="ph ph-magnifying-glass" style="color:#94a3b8;font-size:1.1rem;flex-shrink:0;"></i>
+                            <input id="rrs-search-ajudantes" type="text" placeholder="Buscar por nome ou cargo..." style="border:none;outline:none;flex:1;font-size:0.9rem;background:transparent;color:#1e293b;">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#64748b;cursor:pointer;white-space:nowrap;">
+                                <input type="checkbox" id="rota-sucesso-ajudantes-aptos"> Somente Aptos
+                            </label>
+                        </div>
+                    </div>
+                    <div style="padding:0 32px 32px;overflow-x:auto;">
+                        <div id="rrs-table-ajudantes" style="background:white;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+                            <div style="text-align:center;padding:40px;color:#94a3b8;">Selecione esta tela para carregar.</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW: ROTA DE SUCESSO - MOTORISTAS -->
+                <section id="view-rota-sucesso-motoristas" class="content-view" style="background:#f8fafc;padding:0;">
+                    <div style="padding:24px 32px 0;">
+                        <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#15803d,#166534);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                                <i class="ph ph-truck" style="font-size:1.5rem;color:white;"></i>
+                            </div>
+                            <div>
+                                <h2 style="margin:0;font-size:1.4rem;font-weight:800;color:#1e293b;">Rota de Sucesso — Motoristas</h2>
+                                <p style="margin:0;color:#64748b;font-size:0.88rem;">Confira a elegibilidade dos motoristas e envie o link do formulário.</p>
+                            </div>
+                            <div style="margin-left:auto;">
+                                <button onclick="window.initRotaSucessoMotoristas()" style="display:flex;align-items:center;gap:6px;padding:8px 18px;background:#15803d;color:white;border:none;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer;">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px 18px;background:white;border-radius:10px;border:1px solid #e2e8f0;">
+                            <i class="ph ph-magnifying-glass" style="color:#94a3b8;font-size:1.1rem;flex-shrink:0;"></i>
+                            <input id="rrs-search-motoristas" type="text" placeholder="Buscar por nome ou cargo..." style="border:none;outline:none;flex:1;font-size:0.9rem;background:transparent;color:#1e293b;">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:#64748b;cursor:pointer;white-space:nowrap;">
+                                <input type="checkbox" id="rota-sucesso-motoristas-aptos"> Somente Aptos
+                            </label>
+                        </div>
+                    </div>
+                    <div style="padding:0 32px 32px;overflow-x:auto;">
+                        <div id="rrs-table-motoristas" style="background:white;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+                            <div style="text-align:center;padding:40px;color:#94a3b8;">Selecione esta tela para carregar.</div>
+                        </div>
+                    </div>
+                </section>
                 <!-- VIEW: RH LOGÍSTICA - SINISTROS -->
                 <section id="view-rh-logistica-sinistros" class="content-view" style="padding:0; background:#f8fafc;">
                     <div id="rh-logistica-sinistros-container"></div>
