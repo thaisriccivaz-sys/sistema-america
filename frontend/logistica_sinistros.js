@@ -941,12 +941,17 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
 
     modal.innerHTML = `
         <div class="modal-content" style="max-width:100vw; width:100vw; height:100vh; max-height:100vh; margin:0; border-radius:0; display:flex; flex-direction:column; overflow:hidden;">
-            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0;">
-                <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-pencil-simple" style="color:#60a5fa;"></i> Editar Sinistro
-                    <span style="font-size:0.75rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:6px;">PENDENTE</span>
-                </h3>
-                <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff;"><i class="ph ph-x"></i></button>
+            <div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b); z-index:10; flex-shrink:0; align-items:flex-start;">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <h3 style="color:#fff; margin:0; display:flex; align-items:center; gap:8px;">
+                        <i class="ph ph-pencil-simple" style="color:#60a5fa;"></i> Editar Sinistro
+                        <span style="font-size:0.75rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:6px;">PENDENTE</span>
+                    </h3>
+                    <div style="color:#94a3b8; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        <i class="ph ph-user"></i> ${sinistro.nome_completo || 'Colaborador não identificado'}
+                    </div>
+                </div>
+                <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff; align-self:flex-start;"><i class="ph ph-x"></i></button>
             </div>
             <div class="modal-body" style="display:flex; gap:1.5rem; flex:1; overflow-y:auto; padding:1.5rem;">
 
