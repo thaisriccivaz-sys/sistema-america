@@ -1,4 +1,4 @@
-﻿const API_URL = '/api';
+const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -6333,7 +6333,7 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Solicitação de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Acordo de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
                 { nome: 'Desistência de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc') },
-                { nome: 'Desistência de Auxílio-Combustível', cond: ((c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vt')) && currentDocs.some(d => (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && deNorm(d.document_type) === deNorm('Acordo de Auxílio-Combustível')) },
+                { nome: 'Desistência de Auxílio-Combustível', cond: (c.meio_transporte || '').toLowerCase().includes('outros') && currentDocs.some(d => (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && deNorm(d.document_type) === deNorm('Acordo de Auxílio-Combustível')) },
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
@@ -11142,7 +11142,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                                     { nome: 'Solicita\u00E7\u00E3o de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Acordo de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
                 { nome: 'Desist\u00EAncia de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc') },
-                { nome: 'Desist\u00EAncia de Aux\u00EDlio-Combust\u00EDvel', cond: ((c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vt')) && Array.isArray(window.currentDocs) && window.currentDocs.some(function(d){ return (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === 'acordo de auxilio-combustivel'; }) },
+                { nome: 'Desist\u00EAncia de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('outros') && Array.isArray(window.currentDocs) && window.currentDocs.some(function(d){ return (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === 'acordo de auxilio-combustivel'; }) },
 
                 { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 // Responsabilidade Equipamento: somente tipo Administrativo
@@ -13353,7 +13353,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                                         { nome: 'Solicita\u00E7\u00E3o de VT', cond: (c.meio_transporte || '').toLowerCase().includes('vt') },
                 { nome: 'Acordo de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('vc') },
                 { nome: 'Desist\u00EAncia de Vale-Transporte', cond: (c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vc') },
-                { nome: 'Desist\u00EAncia de Aux\u00EDlio-Combust\u00EDvel', cond: ((c.meio_transporte || '').toLowerCase().includes('outros') || (c.meio_transporte || '').toLowerCase().includes('vt')) && Array.isArray(window.currentDocs) && window.currentDocs.some(function(d){ return (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === 'acordo de auxilio-combustivel'; }) },
+                { nome: 'Desist\u00EAncia de Aux\u00EDlio-Combust\u00EDvel', cond: (c.meio_transporte || '').toLowerCase().includes('outros') && Array.isArray(window.currentDocs) && window.currentDocs.some(function(d){ return (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') && (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() === 'acordo de auxilio-combustivel'; }) },
 
                     { nome: 'Responsabilidade Veículo', cond: deNorm(deptNome).includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                     // Responsabilidade Equipamento: somente tipo Administrativo
