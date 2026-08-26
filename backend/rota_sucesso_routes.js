@@ -97,7 +97,8 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
         db.all(`SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.cnh_categoria,
             c.data_admissao, c.foto_path, c.status
             FROM colaboradores c
-            WHERE c.status NOT LIKE '%esligado%' AND c.status NOT LIKE '%niciado%'${extra}
+            WHERE c.status NOT LIKE '%esligado%' AND c.status NOT LIKE '%niciado%'
+            AND LOWER(COALESCE(c.tipo_contrato,'')) NOT LIKE '%intermitente%'${extra}
             ORDER BY c.nome_completo ASC`, [], (err, colabs) => {
             if (err) return res.status(500).json({ error: err.message });
             if (!colabs || colabs.length === 0) return res.json([]);
@@ -113,8 +114,19 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
                 db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph})`, ids, (errF, faltasRows) => {
                     if (errF) faltasRows = [];
 
-                    db.all(`SELECT id, colaborador_id, tipo, token, status FROM rota_sucesso_respostas WHERE colaborador_id IN (${ph})`, ids, (errT, tokens) => {
-                        if (errT) tokens = [];
+                    // Pega apenas o token mais recente por (colaborador_id, tipo)
+                    db.all(`SELECT id, colaborador_id, tipo, token, status FROM rota_sucesso_respostas
+                        WHERE colaborador_id IN (${ph})
+                        ORDER BY id DESC`, ids, (errT, allTokens) => {
+                        if (errT) allTokens = [];
+
+                        // Deduplica: manter apenas o mais recente por (colaborador_id, tipo)
+                        const tokens = [];
+                        const seen = new Set();
+                        for (const t of allTokens) {
+                            const k = `${t.colaborador_id}:${t.tipo}`;
+                            if (!seen.has(k)) { seen.add(k); tokens.push(t); }
+                        }
 
                         const result = colabs.map(colab => {
                             const eleg = calcularElegibilidade(
@@ -141,10 +153,14 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
         const { colaborador_id, tipo } = req.body;
         if (!colaborador_id || !tipo) return res.status(400).json({ error: "colaborador_id e tipo obrigatórios" });
 
-        db.get(`SELECT id, token, status FROM rota_sucesso_respostas WHERE colaborador_id = ? AND tipo = ?`, [colaborador_id, tipo], (err, row) => {
+        db.get(`SELECT id, token, status FROM rota_sucesso_respostas WHERE colaborador_id = ? AND tipo = ? ORDER BY id DESC LIMIT 1`, [colaborador_id, tipo], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
             const base = process.env.RENDER_EXTERNAL_URL || "https://sistema.america.onrender.com";
-            if (row) return res.json({ token: row.token, url: `${base}/rota-sucesso/formulario/${row.token}`, status: row.status, id: row.id });
+            // Se existir e ainda não respondido, retornar token existente
+            if (row && row.status !== "respondido") {
+                return res.json({ token: row.token, url: `${base}/rota-sucesso/formulario/${row.token}`, status: row.status, id: row.id });
+            }
+            // Se não existir ou já foi respondido → criar novo token (novo ciclo)
             const token = randomUUID();
             db.run(`INSERT INTO rota_sucesso_respostas (colaborador_id, tipo, token) VALUES (?, ?, ?)`, [colaborador_id, tipo, token], function(errI) {
                 if (errI) return res.status(500).json({ error: errI.message });
@@ -225,8 +241,8 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
         });
     });
 
-    // GET PDF/impressão de resposta
-    app.get("/api/rota-sucesso/respostas/ver/:id/pdf", authenticateToken, (req, res) => {
+    // GET PDF/impressão de resposta - sem auth (token de sessão passado via query)
+    app.get("/api/rota-sucesso/respostas/ver/:id/pdf", (req, res) => {
         db.get(`SELECT r.*, c.nome_completo, c.cargo, c.departamento FROM rota_sucesso_respostas r JOIN colaboradores c ON c.id=r.colaborador_id WHERE r.id=?`, [req.params.id], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Não encontrado" });
             if (!row.respostas_json) return res.status(400).json({ error: "Sem respostas" });

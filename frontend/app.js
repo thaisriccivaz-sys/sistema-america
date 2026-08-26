@@ -774,6 +774,8 @@ const BREADCRUMB_MAP = {
     'administrativo-protocolos': { path: 'Protocolos', code: 'ADM006' },
     // Processos
     'sac': { path: 'SAC — Portal de Ocorrências', code: 'SAC001' },
+    'rota-sucesso-ajudantes':  { path: 'rh - Rota de Sucesso - Ajudantes',  code: 'RHRS01' },
+    'rota-sucesso-motoristas': { path: 'rh - Rota de Sucesso - Motoristas', code: 'RHRS02' },
 };
 
 /* ── PERMISSÕES DO PRONTUÁRIO DIGITAL ──────────────────────────────────── */
@@ -1164,6 +1166,8 @@ const TAB_META = {
     'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
     'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
+    'rota-sucesso-ajudantes':  { color: '#1d4ed8', icon: 'ph-rocket', title: 'RS - Ajudantes' },
+    'rota-sucesso-motoristas': { color: '#1d4ed8', icon: 'ph-rocket', title: 'RS - Motoristas' },
 };
 
 
