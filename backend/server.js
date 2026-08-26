@@ -8101,50 +8101,56 @@ app.get('/api/colaboradores/:id/arquivo/cnh', (req, res) => {
     if (!token) return res.status(401).json({ error: 'Não autorizado' });
     try { require('jsonwebtoken').verify(token, SECRET_KEY); } catch (e) { return res.status(401).json({ error: 'Token inválido' }); }
 
-    db.get('SELECT id, nome_completo, cnh_numero, cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
+    // 1. Buscar dados básicos do colaborador (colunas que sempre existem)
+    db.get('SELECT id, nome_completo, cnh_numero FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
-        // 1. Se tem base64 legado direto no colaborador — servir direto
-        if (row.cnh_arquivo) {
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
-            return res.end(Buffer.from(row.cnh_arquivo, 'base64'));
-        }
+        // 2. Tentar buscar cnh_arquivo legado (coluna pode não existir — query separada para não quebrar)
+        db.get('SELECT cnh_arquivo FROM colaboradores WHERE id = ?', [req.params.id], (err2, rowCnh) => {
+            const cnhBase64 = rowCnh && rowCnh.cnh_arquivo;
 
-        // 2. Buscar na tabela documentos (upload via Ficha Cadastral)
-        db.get(
-            "SELECT id, file_path, file_name, r2_key FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1",
-            [req.params.id],
-            async (err2, docRow) => {
-                if (err2 || !docRow) {
+            if (cnhBase64) {
+                // Caso legado: base64 direto na tabela colaboradores
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="CNH_${encodeURIComponent(row.nome_completo || row.cnh_numero || 'colaborador')}.pdf"`);
+                return res.end(Buffer.from(cnhBase64, 'base64'));
+            }
+
+            // 3. Buscar na tabela documentos (upload via Ficha Cadastral) — inclui r2_key para R2
+            db.get(
+                "SELECT id, file_path, file_name, r2_key FROM documentos WHERE colaborador_id = ? AND (document_type = 'CNH' OR file_name LIKE '%CNH%') ORDER BY id DESC LIMIT 1",
+                [req.params.id],
+                async (err3, docRow) => {
+                    if (err3 || !docRow) {
+                        return res.status(404).json({
+                            error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                        });
+                    }
+
+                    // 3a. Tem r2_key → redirecionar para URL assinada do R2 (caso padrão após migração)
+                    if (docRow.r2_key) {
+                        try {
+                            const r2 = require('./utils/r2');
+                            if (r2.isReady()) {
+                                const signedUrl = await r2.getSignedUrl(docRow.r2_key, 300);
+                                return res.redirect(signedUrl);
+                            }
+                        } catch (r2Err) {
+                            console.error('[CNH-DOWNLOAD] Erro ao gerar URL R2:', r2Err.message);
+                        }
+                    }
+
+                    // 3b. Fallback: arquivo ainda existe no disco local
+                    if (docRow.file_path && fs.existsSync(docRow.file_path)) {
+                        return res.download(docRow.file_path, docRow.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
+                    }
+
                     return res.status(404).json({
-                        error: `Nenhum arquivo de CNH cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuário Digital → Ficha Cadastral para fazer o upload da CNH.`
+                        error: `Arquivo de CNH registrado mas não encontrado no armazenamento. Faça um novo upload da CNH de ${row.nome_completo || 'este colaborador'}.`
                     });
                 }
-
-                // 2a. Tem r2_key → buscar no R2 (caso padrão após migração)
-                if (docRow.r2_key) {
-                    try {
-                        const r2 = require('./utils/r2');
-                        if (r2.isReady()) {
-                            const signedUrl = await r2.getSignedUrl(docRow.r2_key, 300);
-                            return res.redirect(signedUrl);
-                        }
-                    } catch (r2Err) {
-                        console.error('[CNH-DOWNLOAD] Erro ao gerar URL R2:', r2Err.message);
-                    }
-                }
-
-                // 2b. Fallback: arquivo ainda existe no disco local
-                if (docRow.file_path && fs.existsSync(docRow.file_path)) {
-                    return res.download(docRow.file_path, docRow.file_name || `CNH_${encodeURIComponent(row.nome_completo)}.pdf`);
-                }
-
-                return res.status(404).json({
-                    error: `Arquivo de CNH registrado mas não encontrado no armazenamento. Faça um novo upload da CNH de ${row.nome_completo || 'este colaborador'}.`
-                });
-            }
-        );
+            );
+        });
     });
 });
 
