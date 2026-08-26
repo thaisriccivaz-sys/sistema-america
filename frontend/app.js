@@ -15063,9 +15063,13 @@ async function checkUserNotificacoes() {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clock-countdown'; titulo = '🔴 SAC com SLA vencido'; navTarget = 'sac';
                 } else if (notif.tipo === 'sac_acompanhamento_vencido') {
                     bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-clock-countdown'; titulo = '🚨 Tempo de acompanhamento estourado'; navTarget = 'sac';
+                } else if (notif.tipo === 'rota_sucesso_formulario') {
+                    bg = '#dcfce7'; color = '#15803d'; icon = 'ph-rocket'; titulo = '🚀 Rota de Sucesso';
+                    navTarget = (dados.cargo || '').toLowerCase().includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
+
 
                 const popup = document.createElement('div');
                 popup.classList.add('custom-user-popup-toast');
@@ -15280,17 +15284,15 @@ async function checkUserNotificacoes() {
                     } else {
                         btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
                     }
- } else if (notif.tipo === 'rota_sucesso_formulario') {
-                    bg = '#dcfce7'; color = '#15803d'; icon = 'ph-rocket'; titulo = 'Rota de Sucesso';
-                    const rsCargo = (dados.cargo || '').toLowerCase();
-                    const rsTarget = rsCargo.includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
-                    const rsInitFn = rsCargo.includes('motorista') ? 'initRotaSucessoMotoristas' : 'initRotaSucessoAjudantes';
-                    navTarget = rsTarget;
+                } else if (notif.tipo === 'rota_sucesso_formulario') {
+                    const _rsTgt = (dados.cargo || '').toLowerCase().includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
+                    const _rsInit = (dados.cargo || '').toLowerCase().includes('motorista') ? 'initRotaSucessoMotoristas' : 'initRotaSucessoAjudantes';
                     if (dados.id) {
-                        btnOnClick = window.markUserNotifLida(''); this.closest('[data-notif-id]').remove(); navigateTo(''); window[] && window[](); setTimeout(() => { window.open('/rota-sucesso/respostas/ver//pdf', '_blank'); }, 300);;
+                        btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_rsTgt}'); window.${_rsInit} && window.${_rsInit}(); setTimeout(function(){ window.open('/api/rota-sucesso/respostas/ver/${dados.id}/pdf','_blank'); }, 400);`;
                     } else {
-                        btnOnClick = window.markUserNotifLida(''); this.closest('[data-notif-id]').remove(); navigateTo(''); window[] && window[]();;
-                    }                }
+                        btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_rsTgt}'); window.${_rsInit} && window.${_rsInit}();`;
+                    }
+                }
 
                 const hasEmojiIcon = ['sac_atribuicao', 'sac_atribuicao_gestor', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
 
