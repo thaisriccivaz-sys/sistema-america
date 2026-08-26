@@ -2471,7 +2471,16 @@ async function _rrGerarImagensRota() {
             drawMember(v.ajudante, 'Ajudante Geral', v._fotoAjudante, '#d97706'); // amarelo
             
             // Desenhar candidatos em teste
-            const cands = (window._rrCandidatosTesteData || []).filter(c => c.rota_motorista && c.rota_motorista.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim());
+            // rota_motorista pode ser JSON {"YYYY-MM-DD":"Nome"} — faz parse igual ao _rrPatchVehicleCards
+            const _dataRota = window._rrDataRotaAtual || '';
+            const cands = (window._rrCandidatosTesteData || []).filter(c => {
+                if (!c.rota_motorista) return false;
+                let cMot = c.rota_motorista;
+                if (typeof cMot === 'string' && cMot.startsWith('{')) {
+                    try { cMot = JSON.parse(cMot)[_dataRota] || ''; } catch(e) { cMot = ''; }
+                }
+                return cMot && cMot.toLowerCase().trim() === (v.motorista || '').toLowerCase().trim();
+            });
             cands.forEach(cand => {
                 ctx.strokeStyle = '#e9eef3';
                 ctx.lineWidth = 1;
@@ -2479,9 +2488,9 @@ async function _rrGerarImagensRota() {
                 ctx.moveTo(PAD + 8, crY - 4);
                 ctx.lineTo(PAD + LEFT_W - 8, crY - 4);
                 ctx.stroke();
-                
+
                 const tipoCand = (cand.tipo || '').toLowerCase().includes('motorista') ? 'Motorista' : 'Ajudante';
-                drawMember(cand.nome, 'Candidato - ' + tipoCand, cand.foto_base64, '#7c3aed'); // roxo
+                drawMember(cand.nome, 'Candidato: ' + tipoCand, cand.foto_base64, '#7c3aed'); // roxo
             });
 
             // ── Direita: Serviços (word-wrap, sem compressão) ──
