@@ -315,6 +315,61 @@
     return String(next).padStart(4, '0');
   }
 
+  // ── Mapa de ícones de produtos (único ponto de verdade) ────────────────────
+  const SAC_EQUIP_ICONS = {
+    'STD OBRA': '💙',    'STD EVENTO': '💜',
+    'LX OBRA':  '🟦',    'LX EVENTO':  '🟣',
+    'EXL OBRA': '🔵',    'EXL EVENTO': '🟣',
+    'ELX OBRA': '🔵',    'ELX EVENTO': '🟣',
+    'PCD OBRA': '♿',    'PCD EVENTO': '♿',
+    'CHUVEIRO OBRA': '🚿',         'CHUVEIRO EVENTO': '🚿',
+    'HIDRÁULICO OBRA': '🚽',       'HIDRÁULICO EVENTO': '🚽',
+    'MICTÓRIO OBRA': '💦',         'MICTÓRIO EVENTO': '💦',
+    'PBII OBRA': '🧼',             'PBII EVENTO': '🧼',
+    'PBIII OBRA': '🧼',            'PBIII EVENTO': '🧼',
+    'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
+    'GUARITA DUPLA OBRA': '⚪',    'GUARITA DUPLA EVENTO': '⚪',
+    'LIMPA FOSSA OBRA': '💧',      'LIMPA FOSSA EVENTO': '💧',
+    'CARRINHO': '🛤',   'CAIXA DAGUA': '🧊'
+  };
+
+  /**
+   * Retorna "ícone NOMEdesc" para um item de produto.
+   * @param {string} desc - nome do produto (ex: "STD OBRA")
+   * @param {number|string} qtd  - quantidade (opcional)
+   */
+  function _sacFmtProd(desc, qtd) {
+    const icon = SAC_EQUIP_ICONS[desc] || SAC_EQUIP_ICONS[(desc||'').toUpperCase()] || '';
+    const prefix = icon ? icon + ' ' : '';
+    return qtd ? `${prefix}${qtd}x ${desc}` : `${prefix}${desc}`;
+  }
+
+  /**
+   * Dado um texto de equipamento já salvo (ex: "2x STD OBRA, 3x PCD EVENTO"),
+   * injeta os ícones antes de cada item que ainda não tem ícone.
+   */
+  function _sacInjectIcons(equipStr) {
+    if (!equipStr) return '';
+    return equipStr.split(',').map(part => {
+      const s = part.trim();
+      if (!s) return s;
+      // Se já começa com emoji/ícone, não duplicar
+      if (/^\p{Emoji}/u.test(s)) return s;
+      // Extrair "Nx DESC" ou apenas "DESC"
+      const m = s.match(/^(\d+)x\s+(.+)$/i);
+      if (m) {
+        const qtd = m[1], desc = m[2].trim().toUpperCase();
+        const icon = SAC_EQUIP_ICONS[desc] || SAC_EQUIP_ICONS[m[2].trim()] || '';
+        return icon ? `${icon} ${s}` : s;
+      } else {
+        const desc = s.toUpperCase();
+        const icon = SAC_EQUIP_ICONS[desc] || SAC_EQUIP_ICONS[s] || '';
+        return icon ? `${icon} ${s}` : s;
+      }
+    }).join(', ');
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
     if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
@@ -861,7 +916,7 @@
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
       </div>
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticket.equipment}">
-        ${ticket.equipment}
+        ${_sacInjectIcons(ticket.equipment)}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
         <span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span>
@@ -943,8 +998,12 @@
         <input type="date" value="${_tableEndDate}" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;" onchange="SAC.setTableDate('end',this.value)">
         <button class="sac-btn sac-btn-primary" onclick="SAC.exportCSV()" style="margin-left:auto;"><i class="ph ph-download-simple"></i> Exportar CSV</button>
       </div>
-      <div style="flex:1;overflow:auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+      <!-- scroll espelhado no TOPO da tabela -->
+      <div id="sac-table-topscroll" style="overflow-x:auto;overflow-y:hidden;height:14px;border-radius:6px 6px 0 0;border:1px solid #e2e8f0;border-bottom:none;background:#f8fafc;">
+        <div id="sac-table-topscroll-inner" style="height:1px;"></div>
+      </div>
+      <div id="sac-table-wrapper" style="flex:1;overflow:auto;background:#fff;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;">
+        <table id="sac-main-table" style="width:100%;border-collapse:collapse;font-size:0.83rem;">
           <thead>
             <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
               <th style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;" onclick="SAC.sortTable('protocol')">Nº ${sortIcon('protocol')}</th>
@@ -958,25 +1017,27 @@
             </tr>
           </thead>
           <tbody>
-          ${paged.length===0?`<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum chamado encontrado</td></tr>`:
-          paged.map(t => {
-            const stage = PIPELINE_STAGES.find(s=>s.id===t.stage)||{name:t.stage,color:'#64748b'};
-            const type  = TICKET_TYPES[t.typeKey]||{name:t.typeKey,icon:'❓'};
-            const sla   = getSLADetails(t);
-            const slaColor = sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d';
-            return `<tr style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-              <td style="padding:9px 12px;font-family:monospace;font-weight:700;color:#f97316;">${t.protocol} ${t.isUrgent ? ' <i class="ph ph-warning-circle" style="color:#dc2626;" title="Urgente"></i>' : ''}</td>
-              <td style="padding:9px 12px;color:#64748b;font-size:0.78rem;">${formatDateShort(t.openDate)}</td>
-              <td style="padding:9px 12px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window._stripEmojis(t.clientName)}</td>
-              <td style="padding:9px 12px;color:#64748b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.equipment}</td>
-              <td style="padding:9px 12px;"><span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span></td>
-              <td style="padding:9px 12px;"><span style="background:${stage.color}18;color:${stage.color};border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">${stage.name}</span></td>
-              <td style="padding:9px 12px;"><span style="color:${slaColor};font-weight:700;font-size:0.78rem;">${sla.label}</span></td>
-              <td style="padding:9px 12px;text-align:right;">
-                <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.78rem;" onclick="SAC.openDetail('${t.id}')"><i class="ph ph-eye"></i> Ver</button>
-              </td>
-            </tr>`;
-          }).join('')}
+            ${paged.length === 0
+              ? `<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">Nenhum chamado encontrado</td></tr>`
+              : paged.map(t => {
+                  const stage = PIPELINE_STAGES.find(s => s.id === t.stage) || { label: t.stage, color: '#64748b', name: t.stage };
+                  const type  = TICKET_TYPES[t.typeKey] || { name: t.typeKey, icon: '❓' };
+                  const sla   = getSLADetails(t);
+                  const slaColor = sla.status === 'danger' ? '#dc2626' : sla.status === 'warning' ? '#d97706' : '#15803d';
+                  return `<tr style="border-bottom:1px solid #f1f5f9;cursor:pointer;" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                    <td style="padding:9px 12px;font-family:monospace;font-weight:700;color:#f97316;">${t.protocol}${t.isUrgent ? ' <i class="ph ph-warning-circle" style="color:#dc2626;" title="Urgente"></i>' : ''}</td>
+                    <td style="padding:9px 12px;color:#64748b;font-size:0.78rem;">${formatDateShort(t.openDate)}</td>
+                    <td style="padding:9px 12px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.clientName}">${window._stripEmojis(t.clientName)}</td>
+                    <td style="padding:9px 12px;color:#64748b;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_sacInjectIcons(t.equipment)}</td>
+                    <td style="padding:9px 12px;"><span style="background:#fff7ed;color:#c2410c;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">${type.icon} ${type.name}</span></td>
+                    <td style="padding:9px 12px;"><span style="background:${stage.color}18;color:${stage.color};border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">${stage.label || stage.name}</span></td>
+                    <td style="padding:9px 12px;"><span style="color:${slaColor};font-weight:700;font-size:0.78rem;">${sla.label}</span></td>
+                    <td style="padding:9px 12px;text-align:right;">
+                      <button class="sac-btn sac-btn-secondary" style="padding:4px 10px;font-size:0.78rem;" onclick="SAC.openDetail('${t.id}')"><i class="ph ph-eye"></i> Ver</button>
+                    </td>
+                  </tr>`;
+                }).join('')
+            }
           </tbody>
         </table>
       </div>
@@ -989,6 +1050,27 @@
         </div>
       </div>
     </div>`;
+
+    // Sincronizar scroll espelhado do topo com o wrapper da tabela
+    requestAnimationFrame(() => {
+      const wrapper   = document.getElementById('sac-table-wrapper');
+      const topScroll = document.getElementById('sac-table-topscroll');
+      const topInner  = document.getElementById('sac-table-topscroll-inner');
+      const table     = document.getElementById('sac-main-table');
+      if (!wrapper || !topScroll || !topInner || !table) return;
+      topInner.style.width = table.scrollWidth + 'px';
+      let _syncing = false;
+      topScroll.addEventListener('scroll', () => {
+        if (_syncing) return; _syncing = true;
+        wrapper.scrollLeft = topScroll.scrollLeft;
+        _syncing = false;
+      });
+      wrapper.addEventListener('scroll', () => {
+        if (_syncing) return; _syncing = true;
+        topScroll.scrollLeft = wrapper.scrollLeft;
+        _syncing = false;
+      });
+    });
   }
 
   // ── CONFIG ───────────────────────────────────────────────────
@@ -1287,19 +1369,19 @@
         }
         if (erroEl) erroEl.style.display = 'none';
 
-        // Coletar produtos selecionados
+        // Coletar produtos selecionados (com ícones)
         let prodsSelecionados = [];
         if (totalProds === 0) {
             prodsSelecionados = [];
         } else if (totalProds === 1 && produtos.length === 1 && parseInt(produtos[0].qtd) <= 1) {
-            prodsSelecionados = [`${produtos[0].qtd}x ${produtos[0].desc}`];
+            prodsSelecionados = [_sacFmtProd(produtos[0].desc, produtos[0].qtd)];
         } else {
             for (let i = 0; i < totalProds; i++) {
                 const chk = document.getElementById(`sac-os-prod-${i}`);
                 const qtdEl = document.getElementById(`sac-os-prod-qtd-${i}`);
                 if (chk && chk.checked) {
                     const qtd = qtdEl ? parseInt(qtdEl.value) || 1 : 1;
-                    prodsSelecionados.push(`${qtd}x ${produtos[i].desc}`);
+                    prodsSelecionados.push(_sacFmtProd(produtos[i].desc, qtd));
                 }
             }
         }
@@ -1451,25 +1533,9 @@
         // Parse products
         const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
 
-        const SAC_EQUIP_ICONS = {
-            'STD OBRA': '🚻', 'STD EVENTO': '🚻',
-            'LX OBRA': '🚻', 'LX EVENTO': '🚻',
-            'EXL OBRA': '🚻', 'EXL EVENTO': '🚻',
-            'PCD OBRA': '♿', 'PCD EVENTO': '♿',
-            'CHUVEIRO OBRA': '🚿', 'CHUVEIRO EVENTO': '🚿',
-            'MICTÓRIO OBRA': '💧', 'MICTÓRIO EVENTO': '💧',
-            'PBII OBRA': '🧼', 'PBII EVENTO': '🧼',
-            'PBIII OBRA': '🧼', 'PBIII EVENTO': '🧼',
-            'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
-            'GUARITA DUPLA OBRA': '⚪', 'GUARITA DUPLA EVENTO': '⚪',
-            'LIMPA FOSSA OBRA': '💧', 'LIMPA FOSSA EVENTO': '💧',
-            'CARRINHO': '🛤', 'CAIXA DAGUA': '🧊'
-        };
-
-        const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
-            const icone = SAC_EQUIP_ICONS[p.desc] || '';
-            return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
-        }));
+        const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p =>
+            _sacFmtProd(p.desc, p.qtd)
+        ));
         const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
         const precisaModal = prodsUnicos.length > 1 || (prodsUnicos.length === 1 && (() => {
             const m = prodsUnicos[0].match(/(\d+)x /);
@@ -1518,7 +1584,7 @@
             const desc = t.description ? (t.description.length > 80 ? t.description.substring(0,80)+'...' : t.description) : 'Sem descrição';
             const clientInfo = t.clientName ? `<div style="font-size:0.8rem;color:#334155;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-user" style="margin-top:2px;color:#94a3b8;"></i><span style="font-weight:600;flex:1;line-height:1.3;">${window._stripEmojis(t.clientName)}</span></div>` : '';
             const addressInfo = t.address ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-map-pin" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.address}</span></div>` : '';
-            const equipmentInfo = t.equipment ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:10px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-package" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${t.equipment}</span></div>` : '';
+            const equipmentInfo = t.equipment ? `<div style="font-size:0.75rem;color:#475569;margin-bottom:10px;display:flex;align-items:flex-start;gap:4px;"><i class="ph ph-package" style="margin-top:2px;color:#94a3b8;"></i><span style="flex:1;line-height:1.3;">${_sacInjectIcons(t.equipment)}</span></div>` : '';
             
             return `
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:left;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);display:flex;flex-direction:column;">
@@ -1605,27 +1671,10 @@
 
       // produtos vem como JSON string do banco SQLite — fazer parse
       const _parseProds = (o) => { try { return JSON.parse(o.produtos || '[]'); } catch(e) { return []; } };
-      
-      const SAC_EQUIP_ICONS = {
-          'STD OBRA': '💙', 'STD EVENTO': '💜',
-          'LX OBRA': '🟦', 'LX EVENTO': '🟣',
-          'EXL OBRA': '🔵', 'EXL EVENTO': '🟣',
-          'PCD OBRA': '♿', 'PCD EVENTO': '♿',
-          'CHUVEIRO OBRA': '🚿', 'CHUVEIRO EVENTO': '🚿',
-          'HIDRÁULICO OBRA': '🚽', 'HIDRÁULICO EVENTO': '🚽',
-          'MICTÓRIO OBRA': '💦', 'MICTÓRIO EVENTO': '💦',
-          'PBII OBRA': '🧼', 'PBII EVENTO': '🧼',
-          'PBIII OBRA': '🧼', 'PBIII EVENTO': '🧼',
-          'GUARITA INDIVIDUAL OBRA': '⬜', 'GUARITA INDIVIDUAL EVENTO': '⬜',
-          'GUARITA DUPLA OBRA': '⚪', 'GUARITA DUPLA EVENTO': '⚪',
-          'LIMPA FOSSA OBRA': '💧', 'LIMPA FOSSA EVENTO': '💧',
-          'CARRINHO': '🛤', 'CAIXA DAGUA': '🧊'
-      };
 
-      const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p => {
-          const icone = SAC_EQUIP_ICONS[p.desc] || '';
-          return (icone ? `${icone} ` : '') + [p.qtd, p.desc].filter(Boolean).join('x ');
-      }));
+      const todosProds = osDoEndereco.flatMap(o => _parseProds(o).map(p =>
+          _sacFmtProd(p.desc, p.qtd)
+      ));
       const prodsUnicos = [...new Set(todosProds)].filter(Boolean);
       const precisaModal = prodsUnicos.length > 1 || (prodsUnicos.length === 1 && (() => { const m = prodsUnicos[0].match(/(\d+)x /); return m && parseInt(m[1]) > 1; })());
       const equipFinal = precisaModal
@@ -1641,7 +1690,6 @@
       _wiz.contacts[0].name = os.responsavel || '';
       _wiz.contacts[0].phone = os.telefone || '';
       _wiz.contacts[0].email = os.email || '';
-      _wiz.protocol   = nextProtocol();
       _wiz._protocolLocked = true;
       _wiz._osLinked  = true;
       renderWizard();
@@ -2041,7 +2089,7 @@
             
             <h2 style="margin:16px 0 0;font-size:1.25rem;color:#1e293b;">${window._stripEmojis(t.clientName)}</h2>
             <div style="font-size:0.85rem;color:#64748b;margin-top:4px;">
-                <div style="font-weight:600;color:#1e293b;">${t.equipment}</div>
+                <div style="font-weight:600;color:#1e293b;">${_sacInjectIcons(t.equipment)}</div>
                 ${t.address ? `<div style="display:flex;align-items:flex-start;gap:6px;margin-top:4px;font-size:0.72rem;color:#64748b;word-break:break-word;line-height:1.4;" title="${t.address}"><i class="ph ph-map-pin" style="color:#3b82f6;flex-shrink:0;margin-top:2px;"></i><span>${t.address}</span></div>` : ''}
             </div>
 
