@@ -94,6 +94,10 @@
 
   // ── ESTADO DO MÓDULO ─────────────────────────────────────────
   let _tickets = [];
+  // Guards de popup: evitar reabrir o mesmo popup mais de uma vez por sessão
+  const _slaPendingShown = new Set();
+  const _followupShown   = new Set();
+  const _aguardShown     = new Set();
   window._stripEmojis = function(str) {
     if (!str || typeof str !== 'string') return '';
     return str.replace(/^[^a-zA-Z0-9À-ɏ]+/, '').replace(/[🌀-🧿☀-⛿✀-➿😀-🙏🚀-🛿🇠-🇿]/gu, '').trim();
@@ -657,12 +661,14 @@
     setTimeout(() => {
       checkFollowUpAlerts();
       checkSLAOverdue();
-      // Reabrir popups pendentes do localStorage
+      // Reabrir popups pendentes do localStorage (apenas uma vez por ticket por sessão)
       _tickets.forEach(ticket => {
         const pendingType = localStorage.getItem('sac_pending_popup_' + ticket.id);
-        if (pendingType) {
-          showMandatoryJustificationPopup(ticket, pendingType);
-        }
+        if (!pendingType) return;
+        const guardSet = pendingType === 'sla' ? _slaPendingShown : pendingType === 'followup' ? _followupShown : _aguardShown;
+        if (guardSet.has(ticket.id)) return;
+        guardSet.add(ticket.id);
+        showMandatoryJustificationPopup(ticket, pendingType);
       });
     }, 2000);
   };
@@ -1081,17 +1087,32 @@
       const topInner  = document.getElementById('sac-table-topscroll-inner');
       const table     = document.getElementById('sac-main-table');
       if (!wrapper || !topScroll || !topInner || !table) return;
-      topInner.style.width = table.scrollWidth + 'px';
+
+      // Garantir que a tabela não encolha além do conteúdo
+      table.style.minWidth = 'max-content';
+
+      function syncWidth() {
+        topInner.style.width = table.scrollWidth + 'px';
+      }
+      syncWidth();
+
+      // Manter sincronizado se a janela redimensionar
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(syncWidth);
+        ro.observe(table);
+        ro.observe(wrapper);
+      }
+
       let _syncing = false;
       topScroll.addEventListener('scroll', () => {
         if (_syncing) return; _syncing = true;
         wrapper.scrollLeft = topScroll.scrollLeft;
-        _syncing = false;
+        requestAnimationFrame(() => { _syncing = false; });
       });
       wrapper.addEventListener('scroll', () => {
         if (_syncing) return; _syncing = true;
         topScroll.scrollLeft = wrapper.scrollLeft;
-        _syncing = false;
+        requestAnimationFrame(() => { _syncing = false; });
       });
     });
   }
@@ -4678,7 +4699,8 @@
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
             }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
           }
-          if (ticket.followUpPendingJustification === true) {
+          if (ticket.followUpPendingJustification === true && !_followupShown.has(ticket.id)) {
+            _followupShown.add(ticket.id);
             showMandatoryJustificationPopup(ticket, 'followup');
           }
         }
@@ -4700,7 +4722,8 @@
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
             }).catch(e => console.error('[SAC] notificar-aguard:', e));
           }
-          if (ticket.aguardPendingJustification === true) {
+          if (ticket.aguardPendingJustification === true && !_aguardShown.has(ticket.id)) {
+            _aguardShown.add(ticket.id);
             showMandatoryJustificationPopup(ticket, 'aguard');
           }
         }
@@ -4713,8 +4736,9 @@
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
     _tickets.forEach(ticket => {
-      // Forçar popup se estiver pendente, independente do status atual da OS
-      if (ticket.slaOverduePendingJustification === true) {
+      // Forçar popup apenas se pendente E não foi exibido nesta sessão ainda
+      if (ticket.slaOverduePendingJustification === true && !_slaPendingShown.has(ticket.id)) {
+        _slaPendingShown.add(ticket.id);
         showMandatoryJustificationPopup(ticket, 'sla');
       }
 

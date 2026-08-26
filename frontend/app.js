@@ -1,4 +1,4 @@
-const API_URL = '/api';
+﻿const API_URL = '/api';
 window.API_URL = API_URL;
 
 
@@ -14994,21 +14994,34 @@ setInterval(checkLogisticaNotificacoes, 60000);
 setTimeout(checkLogisticaNotificacoes, 5000);
 
 // --- POLLING: Notificacoes por Usuario (Configuraveis) ---
-const _userNotifSeen = new Set();
+// Persistir IDs vistos no sessionStorage para sobreviver a navegações SPA sem reload
+const _userNotifSeen = new Set(
+    JSON.parse(sessionStorage.getItem('_userNotifSeenIds') || '[]')
+);
+function _userNotifMarkSeen(id) {
+    _userNotifSeen.add(id);
+    try {
+        const arr = Array.from(_userNotifSeen).slice(-200); // manter só os últimos 200
+        sessionStorage.setItem('_userNotifSeenIds', JSON.stringify(arr));
+    } catch(e) {}
+}
+let _checkUserNotifRunning = false;
 async function checkUserNotificacoes() {
+    if (_checkUserNotifRunning) return; // evitar execução concorrente
+    _checkUserNotifRunning = true;
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    if (!token) return;
+    if (!token) { _checkUserNotifRunning = false; return; }
 
     try {
         const resp = await fetch('/api/notificacoes/me', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!resp.ok) return;
+        if (!resp.ok) { _checkUserNotifRunning = false; return; }
         const notifs = await resp.json();
 
         for (const notif of notifs) {
             if (_userNotifSeen.has(notif.id)) continue;
-            _userNotifSeen.add(notif.id);
+            _userNotifMarkSeen(notif.id);
 
             try {
                 let dados = {};
@@ -15336,6 +15349,7 @@ async function checkUserNotificacoes() {
             } catch (parseErr) { }
         }
     } catch (e) { }
+    finally { _checkUserNotifRunning = false; }
 }
 
 window.markUserNotifLida = function (id) {
