@@ -15280,7 +15280,17 @@ async function checkUserNotificacoes() {
                     } else {
                         btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.forceOpenSAC();`;
                     }
-                }
+ } else if (notif.tipo === 'rota_sucesso_formulario') {
+                    bg = '#dcfce7'; color = '#15803d'; icon = 'ph-rocket'; titulo = 'Rota de Sucesso';
+                    const rsCargo = (dados.cargo || '').toLowerCase();
+                    const rsTarget = rsCargo.includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
+                    const rsInitFn = rsCargo.includes('motorista') ? 'initRotaSucessoMotoristas' : 'initRotaSucessoAjudantes';
+                    navTarget = rsTarget;
+                    if (dados.id) {
+                        btnOnClick = window.markUserNotifLida(''); this.closest('[data-notif-id]').remove(); navigateTo(''); window[] && window[](); setTimeout(() => { window.open('/rota-sucesso/respostas/ver//pdf', '_blank'); }, 300);;
+                    } else {
+                        btnOnClick = window.markUserNotifLida(''); this.closest('[data-notif-id]').remove(); navigateTo(''); window[] && window[]();;
+                    }                }
 
                 const hasEmojiIcon = ['sac_atribuicao', 'sac_atribuicao_gestor', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
 

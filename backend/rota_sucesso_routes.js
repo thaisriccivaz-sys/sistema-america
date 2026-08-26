@@ -113,7 +113,7 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
                 db.all(`SELECT colaborador_id FROM faltas WHERE colaborador_id IN (${ph})`, ids, (errF, faltasRows) => {
                     if (errF) faltasRows = [];
 
-                    db.all(`SELECT colaborador_id, tipo, token, status FROM rota_sucesso_respostas WHERE colaborador_id IN (${ph})`, ids, (errT, tokens) => {
+                    db.all(`SELECT id, colaborador_id, tipo, token, status FROM rota_sucesso_respostas WHERE colaborador_id IN (${ph})`, ids, (errT, tokens) => {
                         if (errT) tokens = [];
 
                         const result = colabs.map(colab => {
@@ -167,18 +167,51 @@ module.exports = function (app, db, authenticateToken, sendEmailParaNotificados)
     app.post("/api/rota-sucesso/formulario/:token", (req, res) => {
         const { respostas } = req.body;
         if (!respostas) return res.status(400).json({ error: "Respostas obrigatórias" });
-        db.get(`SELECT r.*, c.nome_completo FROM rota_sucesso_respostas r JOIN colaboradores c ON c.id = r.colaborador_id WHERE r.token = ?`, [req.params.token], (err, row) => {
+        db.get(`SELECT r.*, c.nome_completo, c.cargo, c.email, c.email_corporativo FROM rota_sucesso_respostas r JOIN colaboradores c ON c.id = r.colaborador_id WHERE r.token = ?`, [req.params.token], (err, row) => {
             if (err || !row) return res.status(404).json({ error: "Não encontrado" });
             if (row.status === "respondido") return res.status(400).json({ error: "Já respondido" });
             const now = new Date().toISOString();
             db.run(`UPDATE rota_sucesso_respostas SET status='respondido', respostas_json=?, respondido_em=? WHERE token=?`, [JSON.stringify(respostas), now, req.params.token], (errU) => {
                 if (errU) return res.status(500).json({ error: errU.message });
                 const labels = { hab_b: "Habilitação B", motorista1: "Motorista I", hab_d: "Habilitação D (B→D)", motorista2: "Motorista II" };
-                const msg = `📋 Formulário "${labels[row.tipo] || row.tipo}" preenchido por ${row.nome_completo}`;
-                const dados = JSON.stringify({ id: row.id, colaborador_id: row.colaborador_id, nome: row.nome_completo, tipo: row.tipo });
+                const tipoLabel = labels[row.tipo] || row.tipo;
+                const msg = `📋 Formulário "${tipoLabel}" preenchido por ${row.nome_completo}`;
+                const dados = JSON.stringify({ id: row.id, colaborador_id: row.colaborador_id, nome: row.nome_completo, tipo: row.tipo, cargo: row.cargo || '' });
+
+                // Popup + email para usuários configurados
                 db.all(`SELECT usuario_id FROM config_notificacoes WHERE tipo='rota_sucesso_formulario'`, [], (errN, rowsN) => {
-                    if (!errN && rowsN) rowsN.forEach(r => db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?,?,?,?)`, [r.usuario_id, "rota_sucesso_formulario", msg, dados]));
+                    if (!errN && rowsN) {
+                        rowsN.forEach(r => db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?,?,?,?)`, [r.usuario_id, "rota_sucesso_formulario", msg, dados]));
+                    }
                 });
+
+                // Enviar e-mail de notificação
+                if (typeof sendEmailParaNotificados === 'function') {
+                    const respostasObj = respostas || {};
+                    const qaHtml = Object.entries(respostasObj).map(([p, r]) =>
+                        `<div style="margin-bottom:12px;padding:10px 14px;border-radius:8px;border-left:3px solid #15803d;background:#f8fafc;">
+                            <div style="font-size:0.82rem;font-weight:700;color:#374151;margin-bottom:4px;">${p}</div>
+                            <div style="font-size:0.9rem;color:#1e293b;">${r || '—'}</div>
+                        </div>`).join('');
+
+                    sendEmailParaNotificados('rota_sucesso_formulario', {
+                        subject: `🚀 Rota de Sucesso — Formulário preenchido por ${row.nome_completo}`,
+                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                            <div style="background:linear-gradient(135deg,#15803d,#166534);padding:24px;color:white;border-radius:12px 12px 0 0;">
+                                <div style="font-size:1.2rem;font-weight:700;">🚀 Programa Rota de Sucesso</div>
+                                <div style="opacity:.8;font-size:.85rem;">Novo formulário preenchido</div>
+                            </div>
+                            <div style="padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;">
+                                <div style="font-size:1rem;font-weight:700;margin-bottom:4px;color:#1e293b;">${row.nome_completo}</div>
+                                <div style="font-size:.85rem;color:#64748b;margin-bottom:16px;">${row.cargo || ''} — ${tipoLabel}</div>
+                                <div style="font-size:.8rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;border-bottom:2px solid #dcfce7;padding-bottom:6px;">Respostas</div>
+                                ${qaHtml || '<p style="color:#94a3b8;">Sem respostas registradas.</p>'}
+                                <p style="font-size:.75rem;color:#94a3b8;margin-top:20px;text-align:center;">Este é um e-mail automático do Sistema América Rental.</p>
+                            </div>
+                        </div>`
+                    }).catch(e => console.error('[RotaSucesso] Erro ao enviar e-mail:', e.message));
+                }
+
                 res.json({ success: true });
             });
         });
