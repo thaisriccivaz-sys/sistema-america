@@ -318,6 +318,69 @@
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
     if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+
+    // ── SLA especial para Visita Técnica criada a partir de OS ──────────────
+    // Deadline = dia seguinte à data da OS às 15:00 horário de Brasília (UTC-3)
+    if (ticket.typeKey === 'visita_tecnica' && ticket.osDate) {
+        const isConcluido = ticket.stage === 'concluido';
+        const isClosed = isConcluido || ticket.stage === 'encerrado';
+
+        // Parsear a data da OS (formato YYYY-MM-DD ou DD/MM/YYYY)
+        let osDateStr = ticket.osDate;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(osDateStr)) {
+            const [d, m, y] = osDateStr.split('/');
+            osDateStr = `${y}-${m}-${d}`;
+        }
+        // Deadline: dia seguinte às 15:00 BRT (15:00 BRT = 18:00 UTC)
+        const deadlineMs = new Date(osDateStr + 'T18:00:00.000Z').getTime() + 86400000; // +1 dia
+
+        const openStr = _normDate(ticket.openDate || new Date().toISOString());
+        const opened  = new Date(openStr).getTime();
+        const limitMs = deadlineMs - opened;
+        const now     = Date.now();
+        const elapsed = isClosed
+            ? (ticket.timeline && ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado')
+                ? new Date(_normDate(ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado').time)).getTime() - opened
+                : now - opened)
+            : now - opened;
+        const remainMs = deadlineMs - (isClosed ? (opened + elapsed) : now);
+
+        const fmtHM = (ms) => {
+            const totalMin = Math.floor(Math.abs(ms) / 60000);
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return `${h}h${m.toString().padStart(2,'0')}m`;
+        };
+
+        const isOverdue  = remainMs <= 0;
+        const pct        = Math.max(0, Math.min(100, Math.round((remainMs / limitMs) * 100)));
+        const consumedPct = 100 - pct;
+        let barColor = isOverdue ? '#dc2626' : consumedPct <= 40 ? '#15803d' : consumedPct <= 70 ? '#2563eb' : '#d97706';
+        const labelColor = isOverdue ? '#dc2626' : consumedPct > 70 ? '#d97706' : consumedPct > 40 ? '#2563eb' : '#15803d';
+
+        let label;
+        if (isConcluido) {
+            const withinSLA = !isOverdue;
+            label = `✓ ${fmtHM(elapsed)} (${withinSLA ? 'no prazo' : 'em atraso'})`;
+            barColor = withinSLA ? '#15803d' : '#dc2626';
+        } else if (isOverdue) {
+            label = `-${fmtHM(remainMs)}`;
+        } else {
+            label = `${fmtHM(remainMs)} restantes`;
+        }
+
+        return {
+            remaining: Math.round((remainMs / 3600000) * 10) / 10,
+            pct, consumedPct, isOverdue,
+            isConcluido,
+            label, barColor, labelColor,
+            status: isOverdue ? 'danger' : pct < 30 ? 'warning' : 'ok',
+            deadlineMs,
+            closedDateMs: isClosed ? (opened + elapsed) : null
+        };
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const openStr = _normDate(ticket.openDate || new Date().toISOString());
     const opened = new Date(openStr).getTime();
     const limitMs = type.sla * 3600000;
@@ -1251,33 +1314,57 @@
         // Remover modal
         document.getElementById('sac-from-os-modal')?.remove();
 
-        // Abrir wizard com dados pré-preenchidos
-        openWizard();
-        _wiz.protocol        = nextProtocol();
-        _wiz.osNumber        = numero;
-        _wiz.clientName      = cliente;
-        _wiz.cnpjCpf         = contrato;
-        _wiz.equipment       = prodsSelecionados.join(', ');
-        _wiz.address         = endereco;
-        _wiz.typeKey         = 'visita_tecnica';
-        _wiz.currentOcc      = (OCCURRENCES_BY_TYPE.visita_tecnica || [])[0] || '';
-        _wiz.description     = desc;
-        _wiz._protocolLocked = true;
-        _wiz._osLinked       = true;
-        _wiz._openedBy       = osData.openedBy || '';
-        _wiz._stage          = 'abertura'; // força coluna de abertura
-        _wiz.contacts        = [{
-            id: Date.now(),
-            type: 'Contato de Instalação',
-            name: contato,
-            phone: telefone,
-            email: ''
-        }];
+        // Função que configura o wizard com os dados e faz o submit direto
+        const _preencherESubmitarWizard = () => {
+            openWizard();
+            _wiz.protocol        = nextProtocol();
+            _wiz.osNumber        = numero;
+            _wiz.clientName      = cliente;
+            _wiz.cnpjCpf         = contrato;
+            _wiz.equipment       = prodsSelecionados.join(', ');
+            _wiz.address         = endereco;
+            _wiz.typeKey         = 'visita_tecnica';
+            _wiz.currentOcc      = (OCCURRENCES_BY_TYPE.visita_tecnica || [])[0] || '';
+            _wiz.description     = desc;
+            _wiz._protocolLocked = true;
+            _wiz._osLinked       = true;
+            _wiz._openedBy       = osData.openedBy || '';
+            _wiz._stage          = 'abertura';
+            _wiz.osDate          = osData.osDate || ''; // data da OS para cálculo de SLA
+            _wiz.contacts        = [{
+                id: Date.now(),
+                type: 'Contato de Instalação',
+                name: contato,
+                phone: telefone,
+                email: ''
+            }];
+            // Submeter direto sem exibir o wizard
+            SAC.wizSubmit();
+        };
 
-        renderWizard();
-        const ov = document.getElementById('sac-wizard-overlay');
-        if (ov) ov.style.display = 'flex';
-        if (typeof navigateTo === 'function') navigateTo('sac');
+        // Garantir que o SAC está inicializado antes de abrir o wizard
+        const sacView = document.getElementById('view-sac');
+        const sacOverlay = document.getElementById('sac-wizard-overlay');
+        if (!sacOverlay || !sacView || sacView.style.display === 'none') {
+            // SAC não está carregado: navegar para ele e aguardar inicialização
+            if (typeof window.forceOpenSAC === 'function') {
+                window.forceOpenSAC();
+            } else if (typeof navigateTo === 'function') {
+                navigateTo('sac');
+            }
+            // Aguardar o SAC inicializar (initSAC é async)
+            let attempts = 0;
+            const intv = setInterval(() => {
+                const ov = document.getElementById('sac-wizard-overlay');
+                if (ov && window.SAC && typeof window.SAC.wizSubmit === 'function') {
+                    clearInterval(intv);
+                    setTimeout(_preencherESubmitarWizard, 200);
+                }
+                if (++attempts > 40) clearInterval(intv);
+            }, 200);
+        } else {
+            _preencherESubmitarWizard();
+        }
     };
   };
 
@@ -2910,8 +2997,11 @@
     wizUpdateContact(id, field, value) { const c = _wiz.contacts.find(x => x.id === id); if (c) c[field] = value; },
     wizRemoveContact(id) { if (_wiz.contacts.length <= 1) { showToast('Mínimo 1 contato.', 'warning'); return; } _wiz.contacts = _wiz.contacts.filter(x => x.id !== id); renderWizard(); },
     async wizSubmit() {
-      if (!_wiz.clientName.trim()||!_wiz.equipment.trim()) { showToast('Dados obrigatórios ausentes.','warning'); return; }
-      if (_wiz.contacts.some(c => !c.name.trim()) || !_wiz.description.trim()) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
+      const fromOS = !!_wiz._osLinked;
+      if (!_wiz.clientName.trim()) { showToast('Preencha o nome do cliente.','warning'); return; }
+      if (!fromOS && !_wiz.equipment.trim()) { showToast('Preencha o equipamento.','warning'); return; }
+      if (!fromOS && _wiz.contacts.some(c => !c.name.trim())) { showToast('Preencha os campos obrigatórios (*).','warning'); return; }
+      if (!_wiz.description.trim()) { showToast('Preencha a descrição.','warning'); return; }
 
       const btn = document.getElementById('wiz-submit-btn');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Criando...'; }
@@ -2953,7 +3043,10 @@
           costCenters: [],
           attachments: finalAttachments,
           checklist: [...(CHECKLISTS_BY_TYPE.all||[]),...(CHECKLISTS_BY_TYPE[_wiz.typeKey]||[])].map(text=>({text,checked:false})),
-          logisticsTask:null, commercialTask:null, financialTask:null
+          logisticsTask:null, commercialTask:null, financialTask:null,
+          // Campos extras quando criado a partir de uma OS de visita técnica
+          osDate: _wiz.osDate || '',          // data da OS (YYYY-MM-DD) para cálculo de SLA especial
+          openedByFromOS: _wiz._openedBy || ''  // usuário que criou a OS
         };
 
         const res = await fetch('/api/sac/tickets', {

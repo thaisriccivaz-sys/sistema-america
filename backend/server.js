@@ -29558,6 +29558,8 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             aguardPendingJustification: r.aguard_pending_justification === 1,
             slaOverdueNotified: r.sla_overdue_notified === 1,
             slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
+            osDate: r.os_date || null,
+            openedByFromOS: r.opened_by_from_os || null,
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
         res.json(parsed);
@@ -29625,6 +29627,8 @@ const sacMigrations = [
   `ALTER TABLE sac_tickets ADD COLUMN sla_overdue_pending_justification INTEGER DEFAULT 0`,
   `ALTER TABLE sac_tickets ADD COLUMN tags TEXT`,
   `ALTER TABLE sac_tickets ADD COLUMN sac_checklist TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN os_date TEXT`,
+  `ALTER TABLE sac_tickets ADD COLUMN opened_by_from_os TEXT`,
 ];
 db.serialize(() => {
   sacMigrations.forEach(sql => {
@@ -29717,8 +29721,9 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         logistics_task, commercial_task, financial_task, comments,
         sla_frozen_at, sla_elapsed_ms, follow_up_deadline, follow_up_notified, follow_up_pending_justification, close_date, open_date,
         aguard_deadline, aguard_notified, aguard_pending_justification,
-        sla_overdue_notified, sla_overdue_pending_justification, tags, sac_checklist
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        sla_overdue_notified, sla_overdue_pending_justification, tags, sac_checklist,
+        os_date, opened_by_from_os
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [
         t.id, t.protocol, t.osNumber, t.clientName, t.cnpjCpf, t.equipment, t.address,
         t.contactName, t.contactPhone, t.contactEmail, t.channel, t.typeKey, t.isUrgent ? 1 : 0, JSON.stringify(t.occurrences||[]),
@@ -29727,7 +29732,8 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
         JSON.stringify(t.commercialTask||null), JSON.stringify(t.financialTask||null), JSON.stringify(t.comments||[]),
         t.slaFrozenAt||null, t.slaElapsedMs||null, t.followUpDeadline||null, t.followUpNotified?1:0, t.followUpPendingJustification?1:0, t.closeDate||null, t.openDate||null,
         t.aguardDeadline||null, t.aguardNotified?1:0, t.aguardPendingJustification?1:0,
-        t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0, JSON.stringify(t.tags||[]), JSON.stringify(t.sacChecklist||null)
+        t.slaOverdueNotified?1:0, t.slaOverduePendingJustification?1:0, JSON.stringify(t.tags||[]), JSON.stringify(t.sacChecklist||null),
+        t.osDate||null, t.openedByFromOS||null
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         

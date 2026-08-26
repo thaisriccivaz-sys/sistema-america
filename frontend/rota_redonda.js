@@ -2996,7 +2996,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             responsavel: _p0.responsavel || '',
                             telefone:    _p0.telefone || '',
                             produtos:    Array.isArray(_p0.produtos) ? _p0.produtos : [],
-                            openedBy:    _openedBy2
+                            openedBy:    _openedBy2,
+                            osDate:      _p0.data_os || ''  // data da OS para cálculo de SLA especial
                         };
                         if (typeof window.createSACTicketFromOS === 'function') {
                             setTimeout(() => {
