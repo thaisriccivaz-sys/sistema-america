@@ -7657,7 +7657,7 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
             : `<div style="text-align:center;"><div style="border-bottom:1px solid #000;width:280px;height:60px;margin:0 auto;"></div><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '???'}</p></div>`;
 
         const termoHTML = `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaração de Responsabilidade por Infração</title>
+<html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaracao de Responsabilidade por Infracao</title>
 <style>
 body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:0;padding:20px}
 .logo{text-align:center;margin-bottom:16px}.logo img{max-width:280px}
@@ -7675,52 +7675,52 @@ table.dados td:first-child{font-weight:600;width:170px}
 .rodape{font-size:11px;color:#64748b;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
 p{line-height:1.5;margin:5px 0}
 </style></head><body>
-<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="América Rental">` : '<h3>AMÉRICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
-<h1>Declaração de Responsabilidade por Infração de Tr??nsito</h1>
-<h2>CNPJ nº 03.434.448/0001-01 ??? Rua Salto da Divisa, nº 97, Parque Alvorada ??? Guarulhos/SP</h2>
+<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="America Rental">` : '<h3>AMERICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
+<h1>Declaracao de Responsabilidade por Infracao de Transito</h1>
+<h2>CNPJ no 03.434.448/0001-01 - Rua Salto da Divisa, no 97, Parque Alvorada - Guarulhos/SP</h2>
 <div class="bloco">
   <div class="bloco-title">Dados do Colaborador</div>
   <table class="dados">
-    <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '???'}</td></tr>
-    <tr><td>CPF:</td><td>${m.colab_cpf || '???'}</td></tr>
-    <tr><td>Data da Declaração:</td><td>${dataDeclFmt}</td></tr>
+    <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '-'}</td></tr>
+    <tr><td>CPF:</td><td>${m.colab_cpf || '-'}</td></tr>
+    <tr><td>Data da Declaracao:</td><td>${dataDeclFmt}</td></tr>
   </table>
 </div>
 <div class="bloco">
-  <div class="bloco-title">Dados da Infração</div>
-  <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veículo e único responsável pela infração de trânsito abaixo:</p>
+  <div class="bloco-title">Dados da Infracao</div>
+  <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veiculo e unico responsavel pela infracao de transito abaixo:</p>
   <table class="dados">
-    <tr><td>PLACA:</td><td>${m.placa || '???'}</td></tr>
-    <tr><td>AUTO DE INFRAÇÃO (AIT):</td><td>${m.numero_ait || '???'}</td></tr>
-    <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infracao)}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</td></tr>
-    <tr><td>ENDEREÇO:</td><td>${m.local_infracao || '???'}</td></tr>
-    <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '???'}</td></tr>
+    <tr><td>PLACA:</td><td>${m.placa || '-'}</td></tr>
+    <tr><td>AUTO DE INFRACAO (AIT):</td><td>${m.numero_ait || '-'}</td></tr>
+    <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infracao)}${m.hora_infracao ? ' as ' + m.hora_infracao : ''}</td></tr>
+    <tr><td>ENDERECO:</td><td>${m.local_infracao || '-'}</td></tr>
+    <tr><td>DESCRICAO:</td><td>${m.motivo || '-'}</td></tr>
   </table>
-  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeit??vel ??rg??o que a pontuação seja lanºada em meu prontuário, nos termos do artigo 257, parágrafo 7º do C??digo de Tr??nsito Brasileiro e da Resolu????o do Contran nº 918, de 28 de março de 2022, em todos os ??rg??os que se fizer necessário.</p>
-  <p style="font-size:11px;color:#475569;">Resolu????o CONTRAN nº 918, de 28 de março de 2022 - Se????o I - Da Identificação do Condutor Infrator - Art. 5?? à 1??. [...] Declaro ciência quanto aos termos do artigo 257, parágrafo 8º do CTB, que prev?? que em caso de não identificação do condutor infrator e, em sendo o veículo de propriedade de pessoa jur??dica, ser?? lavrada nova multa, cujo valor ser?? o dobro da multa originºria. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
+  <p>Neste ato me responsabilizo pelo cometimento da aludida infracao, requerendo a este respeitavel orgao que a pontuacao seja lancada em meu prontuario, nos termos do artigo 257, paragrafo 7o do Codigo de Transito Brasileiro e da Resolucao do Contran no 918, de 28 de marco de 2022, em todos os orgaos que se fizer necessario.</p>
+  <p style="font-size:11px;color:#475569;">Resolucao CONTRAN no 918, de 28 de marco de 2022 - Secao I - Da Identificacao do Condutor Infrator - Art. 5 ao 1. [...] Declaro ciencia quanto aos termos do artigo 257, paragrafo 8o do CTB, que preve que em caso de nao identificacao do condutor infrator e, em sendo o veiculo de propriedade de pessoa juridica, sera lavrada nova multa, cujo valor sera o dobro da multa originaria. Declaro, ainda, que sou responsavel penal, civel e administrativamente pela veracidade das informacoes e dos documentos fornecidos.</p>
 </div>
 <div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPÇÃO 1 - INDICA????O DO CONDUTOR</div>
-  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao ??rg??o competente, evitando a aplicação de multa por Não Identificação de Condutor (NIC).</p>
-  <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto à pontuação em minha CNH.</p>
-  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '???'} pontos</span></p>
+  <div class="opcao-titulo">OPCAO 1 - INDICACAO DO CONDUTOR</div>
+  <p>(${checkInd}) Declaro que opto pela indicacao como condutor infrator, autorizando a empresa a realizar a devida identificacao junto ao orgao competente, evitando a aplicacao de multa por Nao Identificacao de Condutor (NIC).</p>
+  <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infracao, inclusive quanto a pontuacao em minha CNH.</p>
+  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuacao:</strong> <span class="vd">${m.pontuacao || '-'} pontos</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICA????O DO CONDUTOR (NIC)</div>
-  <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que ser?? aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
-  <p><strong>Valor da Multa Originºria:</strong> ${fmtMoney(valorOriginal)}</p>
-  <p><strong>Valor da Multa NIC</strong> (2x a originºria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <div class="opcao-titulo">OPCAO 2 - NAO INDICACAO DO CONDUTOR (NIC)</div>
+  <p>(${checkNic}) Declaro que opto por nao realizar a indicacao do condutor, estando ciente de que sera aplicada a multa por Nao Identificacao de Condutor (NIC), conforme legislacao vigente.</p>
+  <p><strong>Valor da Multa Originaria:</strong> ${fmtMoney(valorOriginal)}</p>
+  <p><strong>Valor da Multa NIC</strong> (2x a originaria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
-  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou à empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, à 8º, do C??digo de Tr??nsito Brasileiro, no valor correspondente ao dobro da multa originºria.</p>
-  <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ nº 03.434.448/0001-01, com sede na Rua Salto da Divisa, nº 97, CEP 07242-300, Parque Alvorada ??? Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
-  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x &nbsp; (${numParcelas>3?'???':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
+  <p>Estou ciente de que minha omissao na entrega tempestiva dos documentos gerou a empresa a aplicacao da multa acessoria por Nao Identificacao do Condutor (NIC), nos termos do art. 257, 8o, do Codigo de Transito Brasileiro, no valor correspondente ao dobro da multa originaria.</p>
+  <p>Autorizo a empresa AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ no 03.434.448/0001-01, com sede na Rua Salto da Divisa, no 97, CEP 07242-300, Parque Alvorada - Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x &nbsp; (${numParcelas>3?'X':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
-  <div class="opcao-titulo">OPÇÃO 3 - COBRANºA DE MULTA, PRAZO DE INDICA????O PERDIDO</div>
-  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Al??m disso, estou ciente de que não ser?? feita nenhuma indicação de pontuação na minha carteira de habilitação, por??m assumo integralmente as responsabilidades legais.</p>
+  <div class="opcao-titulo">OPCAO 3 - COBRANCA DE MULTA, PRAZO DE INDICACAO PERDIDO</div>
+  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Alem disso, estou ciente de que nao sera feita nenhuma indicacao de pontuacao na minha carteira de habilitacao, porem assumo integralmente as responsabilidades legais.</p>
   <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
-  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'???':' '}) 1x &nbsp; (${numParcelas===2?'???':' '}) 2x &nbsp; (${numParcelas===3?'???':' '}) 3x</p>
+  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
@@ -7732,7 +7732,7 @@ p{line-height:1.5;margin:5px 0}
     ${selfieHtml}
   </div>` : ''}
 </div>
-<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão - América Rental Equipamentos Ltda.</div>
+<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestao - America Rental Equipamentos Ltda.</div>
 </body></html>`;
 
         const termoBase64 = Buffer.from(termoHTML).toString('base64');
