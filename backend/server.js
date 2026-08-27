@@ -11378,14 +11378,17 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
                 const nomeDeptEmail = (deptRow && deptRow.nome_aso) ? deptRow.nome_aso : (colab.departamento || '-');
 
                 const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                const exames = (colab.cargo || '').toLowerCase().includes('motorista')
+                const tipoExameStr = tipo_exame || 'Admissional';
+                const isMotorista = (colab.cargo || '').toLowerCase().includes('motorista');
+                const tipoComExamesCompl = ['admissional', 'periódico', 'periodico'];
+                const examesCompl = isMotorista && tipoComExamesCompl.some(t => tipoExameStr.toLowerCase().includes(t))
                     ? 'Audiometria, acuidade visual, E.E.G, E.C.G e Glicemia.'
-                    : 'Exame Padrão';
+                    : '';
+                const exames = examesCompl ? `Exame Padrão<br>Exames Complementares: ${examesCompl}` : 'Exame Padrão';
 
                 // Formatar data: YYYY-MM-DD to DD/MM/YYYY
                 const [y, m, d] = data_exame.split('-');
                 const dataFormatada = `${d}/${m}/${y}`;
-                const tipoExameStr = tipo_exame || 'Admissional';
 
                 const novaFuncaoHtml = (tipoExameStr === 'Troca de Função' && nova_funcao)
                     ? `<p><strong>Nova Função:</strong> ${nova_funcao}</p>`

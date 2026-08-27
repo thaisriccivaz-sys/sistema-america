@@ -7245,6 +7245,7 @@ window.renderASOTab = function (container, filteredDocs) {
                     <select id="aso-tipo-exame-tab" class="form-control" style="padding:0.5rem; font-size:0.85rem; height:38px;" onchange="document.getElementById('aso-nova-funcao-container').style.display = this.value === 'Troca de Função' ? 'block' : 'none';">
                         <option value="Admissional">Admissional</option>
                         <option value="Demissional">Demissional</option>
+                        <option value="Pedido de Demissão">Pedido de Demissão</option>
                         <option value="Retorno ao trabalho">Retorno ao trabalho</option>
                         <option value="Periódico">Periódico</option>
                         <option value="Troca de Função">Troca de Função</option>
@@ -7298,7 +7299,8 @@ window.sendASOEmailTab = async function () {
     const exames = examesCompl ? `Exame Padrão\nExames Complementares: ${examesCompl}` : 'Exame Padrão';
 
     const novaFuncaoText = (tipoExame === 'Troca de Função' && novaFuncao) ? `\nNova Função: ${novaFuncao}` : '';
-    const mailBody = `Título: Exame Médico\n\nSegue abaixo as informações para a realização do exame do colaborador.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção Atual: ${viewedColaborador.cargo || '-'}${novaFuncaoText}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
+    const tipoExameFallback = tipoExame || 'Médico';
+    const mailBody = `Título: Exame ${tipoExameFallback}\n\nSegue abaixo as informações para a realização do exame ${tipoExameFallback} do colaborador que deve comparecer.\n\nData: ${dt}\nNome: ${viewedColaborador.nome_completo || viewedColaborador.nome}\nCPF: ${viewedColaborador.cpf || '-'}\nFunção Atual: ${viewedColaborador.cargo || '-'}${novaFuncaoText}\nDepartamento: ${viewedColaborador.departamento || '-'}\n\nExames:\n${exames}\n\n⚠️ IMPORTANTE:\nApós o exame ficar pronto, favor enviar o documento por e-mail para: rh@americarental.com.br`;
 
     const btn = document.getElementById('btn-enviar-aso-email-tab');
     const originalContent = btn.innerHTML;
@@ -7330,7 +7332,7 @@ window.sendASOEmailTab = async function () {
         }
     } catch (e) {
         if (confirm(`Não foi possível enviar automaticamente. Erro do Servidor:\n\n${e.message}\n\nDeseja abrir seu e-mail com o texto preenchido?`)) {
-            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame Médico - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
+            window.location.href = `mailto:${destinatario}?cc=rh@americarental.com.br,rh2@americarental.com.br&subject=Exame ${tipoExameFallback} - ${viewedColaborador.nome_completo || viewedColaborador.nome}&body=${encodeURIComponent(mailBody)}`;
         }
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Enviar Solicitação'; }
