@@ -2849,14 +2849,25 @@
             }
         } catch(e) {}
 
-        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower) ||
-                           (t.commercialTask && t.commercialTask.assignedTo && t.commercialTask.assignedTo.toLowerCase() === actualUsernameLower) ||
-                           (t.financialTask && t.financialTask.assignedTo && t.financialTask.assignedTo.toLowerCase() === actualUsernameLower);
+        // Buscar o nome do usuário atual na lista de usuários do SAC (para fallback por assignedToName)
+        const _myRecord = (window._sacUsersList || []).find(u => {
+            const un = (u.username || u.login || u.email || '').toLowerCase();
+            return un === actualUsernameLower || (currUserId && String(u.id) === currUserId);
+        });
+        const _myNomeLower = (_myRecord ? (_myRecord.nome || '') : (currNome || '')).toLowerCase().trim();
+        const _myFirstName = _myNomeLower.split(' ')[0];
+        // Retorna true se o assignedToName bate com o primeiro nome do usuário (ao menos 4 chars)
+        const _nameMatchFn = (assignedToName) => _myFirstName.length > 3 && !!assignedToName && assignedToName.toLowerCase().includes(_myFirstName);
+
+        const isAssigned = (t.logisticsTask && t.logisticsTask.assignedTo && (t.logisticsTask.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(t.logisticsTask.assignedToName))) ||
+                           (t.commercialTask && t.commercialTask.assignedTo && (t.commercialTask.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(t.commercialTask.assignedToName))) ||
+                           (t.financialTask && t.financialTask.assignedTo && (t.financialTask.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(t.financialTask.assignedToName)));
         // isCreator: so para SAC-atribuidos (nao gestores). Gestor NAO ganha visibilidade por ser criador.
         const isCreator = !myManagedDepts.length && t.timeline && t.timeline.length > 0 && t.timeline[0].user && t.timeline[0].user.toLowerCase() === cuLower;
-        const wasEverAssigned = isAssigned || (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
-                                (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower)) ||
-                                (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && h.assignedTo.toLowerCase() === actualUsernameLower));
+        const wasEverAssigned = isAssigned ||
+            (t.logisticsTask && t.logisticsTask.history && t.logisticsTask.history.some(h => h.assignedTo && (h.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(h.assignedToName)))) ||
+            (t.commercialTask && t.commercialTask.history && t.commercialTask.history.some(h => h.assignedTo && (h.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(h.assignedToName)))) ||
+            (t.financialTask && t.financialTask.history && t.financialTask.history.some(h => h.assignedTo && (h.assignedTo.toLowerCase() === actualUsernameLower || _nameMatchFn(h.assignedToName))));
         // Gestor ve apenas chamados onde a task do seu dept esta ATIVA (nao concluida/nula)
         // Quando chamado e transferido para outro dept, task vira null e gestor original para de ver
         let isManagerOfTicket = false;

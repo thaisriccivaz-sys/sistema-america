@@ -29987,9 +29987,11 @@ function fixSacAssignedTo() {
                     if (u.nome && normStr(u.nome) === nameNorm) return true;
                     // Match nome parcial
                     if (u.nome && (normStr(u.nome).includes(nameNorm) || nameNorm.includes(normStr(u.nome)))) return true;
-                    // Match username dentro do nome normalizado (ex: "ana.vitoria" está em "ana vitoria gomes dos santos")
-                    const usernormParts = u.username.toLowerCase().split('.');
-                    return usernormParts.length >= 2 && usernormParts.every(part => nameNorm.replace(/\s+/g,'.').includes(part));
+                    // Match por partes do username, ignorando partes que indicam departamento (ex: caroline.COMERCIAL)
+                    const DEPT_KEYWORDS = ['comercial','logistica','logistico','financeiro','financeira','admin','administracao','operacional','operacao','escritorio','diretoria','rh','ti'];
+                    const usernormParts = u.username.toLowerCase().split('.')
+                        .filter(p => p.length > 2 && !DEPT_KEYWORDS.includes(p));
+                    return usernormParts.length >= 1 && usernormParts.every(part => nameNorm.replace(/\s+/g,'.').includes(part));
                 });
                 return u ? u.username : null;
             };
@@ -30027,6 +30029,36 @@ function fixSacAssignedTo() {
 }
 // Roda 5 segundos após o startup (depois do fixSacEncoding)
 setTimeout(fixSacAssignedTo, 5000);
+
+// ── Correção automática de departamentos de usuários SAC ──────────────────────
+// Corrige departamentos incorretos (ex: ESCRITÓRIO) para usuários SAC que
+// deveriam ter Logística, Comercial ou Financeiro baseado no username.
+function fixSacUserDepartamentos() {
+    const DEPT_KEYWORDS = {
+        comercial: 'Comercial',
+        logistica: 'Logística',
+        logistico: 'Logística',
+        financeiro: 'Financeiro',
+        financeira: 'Financeiro',
+    };
+    db.all("SELECT id, username, departamento FROM usuarios WHERE ativo = 1 AND departamento = 'ESCRITÓRIO'", [], (err, rows) => {
+        if (err) { console.error('[fix-dept] Erro:', err.message); return; }
+        rows.forEach(u => {
+            const parts = (u.username || '').toLowerCase().split('.');
+            for (const part of parts) {
+                if (DEPT_KEYWORDS[part]) {
+                    const correctDept = DEPT_KEYWORDS[part];
+                    db.run("UPDATE usuarios SET departamento = ? WHERE id = ?", [correctDept, u.id], (e) => {
+                        if (e) console.error(`[fix-dept] Erro ao corrigir usuario ${u.username}:`, e.message);
+                        else console.log(`[fix-dept] Corrigido departamento de ${u.username}: ESCRITÓRIO → ${correctDept}`);
+                    });
+                    break;
+                }
+            }
+        });
+    });
+}
+setTimeout(fixSacUserDepartamentos, 6000);
 
 // ── POST /api/sac/notificar-atribuicao ────────────────────────────────────────
 // Notifica por e-mail + popup interno o colaborador atribuído a um chamado de SAC
