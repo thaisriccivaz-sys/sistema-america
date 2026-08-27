@@ -2959,9 +2959,15 @@
     if (!ticket || ticket.stage === colId) { _draggedId = null; return; }
 
     if (ticket.stage === 'aguardando_setores') {
-        alert('Um chamado em "Aguardando Setores" n\u00e3o pode ser arrastado manualmente. Ele ser\u00e1 movido para "Respondido" automaticamente quando o respons\u00e1vel responder no card.');
-        _draggedId = null;
-        return;
+        // Bloqueia apenas se há alguém atribuído. Sem atribuição, libera movimentação.
+        const hasAnyAssignee = (ticket.logisticsTask && ticket.logisticsTask.assignedTo) ||
+                               (ticket.commercialTask && ticket.commercialTask.assignedTo) ||
+                               (ticket.financialTask && ticket.financialTask.assignedTo);
+        if (hasAnyAssignee) {
+            alert('Um chamado em "Aguardando Setores" n\u00e3o pode ser arrastado manualmente. Ele ser\u00e1 movido para "Respondido" automaticamente quando o respons\u00e1vel responder no card.');
+            _draggedId = null;
+            return;
+        }
     }
 
     if (colId === 'respondido') {
@@ -3006,9 +3012,11 @@
     const srcIdx = PIPELINE_STAGES.findIndex(s => s.id === ticket.stage);
     const tgtIdx = PIPELINE_STAGES.findIndex(s => s.id === targetStageId);
     if (tgtIdx > srcIdx) {
-      if (ticket.logisticsTask && !ticket.logisticsTask.isCompleted) return { sector:'Logística', task: ticket.logisticsTask.name };
-      if (ticket.commercialTask && !ticket.commercialTask.isCompleted) return { sector:'Comercial', task: ticket.commercialTask.name };
-      if (ticket.financialTask  && !ticket.financialTask.isCompleted)  return { sector:'Financeiro',  task: ticket.financialTask.name };
+      // Só bloqueia se a tarefa está incompleta E tem alguém atribuído.
+      // Se a atribuição foi retirada (assignedTo = null/vazio), não bloqueia.
+      if (ticket.logisticsTask && !ticket.logisticsTask.isCompleted && ticket.logisticsTask.assignedTo) return { sector:'Logística', task: ticket.logisticsTask.name };
+      if (ticket.commercialTask && !ticket.commercialTask.isCompleted && ticket.commercialTask.assignedTo) return { sector:'Comercial', task: ticket.commercialTask.name };
+      if (ticket.financialTask  && !ticket.financialTask.isCompleted  && ticket.financialTask.assignedTo)  return { sector:'Financeiro',  task: ticket.financialTask.name };
     }
     if (targetStageId === 'concluido' && !isChecklistComplete(ticket)) {
       return { sector:'SAC', task: 'Preenchimento do Check-list Obrigatório' };
@@ -3410,7 +3418,20 @@
       if (newGestorSetor) {
           t.gestorSetor = newGestorSetor;
       }
-      
+
+      // Se a atribuição foi removida (sem novo usuário) e nenhuma tarefa ficou com atribuído,
+      // limpar os flags de aguardo para não bloquear movimentação nem exibir popup de justificativa.
+      if (!newUsername) {
+          const stillHasAssignee = (t.logisticsTask && t.logisticsTask.assignedTo) ||
+                                   (t.commercialTask && t.commercialTask.assignedTo) ||
+                                   (t.financialTask && t.financialTask.assignedTo);
+          if (!stillHasAssignee) {
+              t.aguardDeadline = null;
+              t.aguardNotified = false;
+              t.aguardPendingJustification = false;
+          }
+      }
+
       updateTicket(t);
       showToast(`Atribuição de ${targetKey.replace('Task','')} atualizada.`, 'success');
       
