@@ -18686,6 +18686,14 @@ window.atualizarTodasAssinaturas = async function (btn) {
                   <input id="pm-file-emprestimo" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #86efac;border-radius:6px;background:#fff;">
                 </div>
 
+                <div style="margin-bottom:1.5rem;padding:0.75rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#334155;display:block;margin-bottom:4px;">
+                    📤 Comunicação (PDF Único)
+                    <span style="font-weight:400;color:#64748b;font-size:0.75rem;"> — opcional, enviado igual para todos, anexado no final</span>
+                  </label>
+                  <input id="pm-file-comunicacao" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                </div>
+
                 <button type="button" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                   <i class="ph ph-magic-wand"></i> Processar Holerites Anexados
                 </button>
