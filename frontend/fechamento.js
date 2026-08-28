@@ -10,6 +10,7 @@ window._fechamento = (function () {
     // ESTADO GLOBAL
     // ─────────────────────────────────────────────────────────────────
     let _dados = [];
+    var _stateArquivos = { farmacia: false, mercado_texto: null, consignado: false };
     let _mes = null;
     let _ano = null;
 
@@ -182,16 +183,25 @@ window._fechamento = (function () {
       <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
     </label>
 
+    <!-- Olho Farmácia -->
+    <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i></button>
+
     <!-- Upload Consignado -->
     <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
       <i class="ph ph-upload-simple"></i> Consignado (XLSX)
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
     </label>
 
+    <!-- Olho Consignado -->
+    <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver consignado carregado"><i class="ph ph-eye"></i></button>
+
     <!-- Colar Mercado -->
     <button onclick="window._fechamento.abrirModalMercado()" style="background:#d97706;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
       <i class="ph ph-shopping-cart"></i> Mercado (Texto)
     </button>
+
+    <!-- Olho Mercado -->
+    <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i></button>
 
     <!-- Multas prontuário -->
     <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
@@ -235,29 +245,27 @@ window._fechamento = (function () {
       <table id="fech-tabela" style="width:100%;border-collapse:separate; border-spacing:0; font-size:.8rem;min-width:1500px;">
         <thead style="position:sticky; top:0; z-index:10;">
           <tr style="background:#1e40af;color:#fff;">
-            <th style="padding:.45rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;">Colaborador</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Cargo</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Salário</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;" title="Horas normais mensais">H.Normais</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;" title="Horas trabalhadas">H.Trab.</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Ext.60%</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Ext.100%</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">DSR</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Faltas</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Atrasos</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">VT</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Farmácia</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Mercado</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Multas</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Academia</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Consig.</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Comissão</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Bônus</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">PLR</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Prêmio</th>
-            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Outros</th>
-            <th style="padding:.45rem .5rem;white-space:nowrap;position:sticky;top:0;background:#164e63;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Total Bruto</th>
-            <th style="padding:.45rem .5rem;white-space:nowrap;position:sticky;top:0;background:#064e3b;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Líquido</th>
+            <th style="padding:.4rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;">Colaborador</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:left;">Cargo</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">Sal&aacute;rio</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">H.Normais<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">9435</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">H.Trab.</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Ext.60%<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">264</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Ext.100%<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">200</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">DSR</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Faltas<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">8792</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Atrasos<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">8060</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">VT<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">48</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Farm&aacute;cia<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">238</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Mercado<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">279</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Multas<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">302</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Academia<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">278</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Consig.<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">9750</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Comiss&atilde;o<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">37</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">B&ocirc;nus</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">PLR<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">873</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">Pr&ecirc;mio</th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Outros<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">290</span></th>
           </tr>
         </thead>
         <tbody id="fech-tbody"></tbody>
@@ -436,8 +444,8 @@ window._fechamento = (function () {
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .4rem;text-align:right;font-weight:600;color:#0e4680;background:#eff6ff;" id="fech-bruto-${idx}">${fmt(calc.totalBruto)}</td>
-<td style="padding:.35rem .4rem;text-align:right;font-weight:700;color:#065f46;background:#ecfdf5;" id="fech-liq-${idx}">${fmt(calc.liquido)}</td>`;
+
+`;
             tbody.appendChild(tr);
         });
 
@@ -452,22 +460,40 @@ window._fechamento = (function () {
     }
 
     function inpHora(idx, campo, val) {
-        let v = val || '';
-        if (v === '00:00' || v === '0:00' || v === '0') v = '';
-        let blur = ' onblur="if(this.value === \'00:00\' || this.value === \'0:00\' || this.value === \'0\') this.value = \'\';"';
-        return `<input type="text" placeholder="" value="${v}" style="width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)"${blur}>`;
+        var v = (val && val !== '00:00' && val !== '0:00' && val !== '0') ? val : '';
+        var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
+        var ob = "if(this.value==='00:00'||this.value==='0:00'||this.value==='0')this.value=''";
+        return '<input type=\'text\' placeholder=\'\'  value=\'' + (v||'') + '\''
+            + ' style=\'width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;\''
+            + ' oninput=\'' + oi + '\''
+            + ' onblur=\'' + ob + '\'>';
     }
     function inpNum(idx, campo, val, placeholder, step) {
-        let v = parseFloat(val);
+        var v = parseFloat(val);
         if (isNaN(v) || v === 0) v = '';
-        let blur = '';
-        if (step === '0.01') {
-            if (v !== '') v = parseFloat(v).toFixed(2);
-            blur = ' onblur="if(this.value && parseFloat(this.value) !== 0) this.value = parseFloat(this.value).toFixed(2); else this.value = \'\';"';
-        } else {
-            blur = ' onblur="if(this.value && parseFloat(this.value) === 0) this.value = \'\';"';
+        var displayVal = '';
+        var isMoney = step === '0.01';
+        if (v !== '') {
+            displayVal = isMoney ? parseFloat(v).toFixed(2) : String(v);
         }
-        return `<input type="number" step="${step||1}" min="0" value="${v}" placeholder="" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)"${blur}>`;
+        var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;';
+        var w = isMoney ? '58px' : '68px';
+        var blurFn = isMoney
+            ? "if(this.value && parseFloat(this.value)!==0){this.value=parseFloat(this.value).toFixed(2);}else{this.value='';}"
+            : "if(this.value && parseFloat(this.value)===0){this.value='';}";
+        var oiFn = "window._fechamento.atualizar(" + idx + ",'" + campo + "',parseFloat(this.value)||0)";
+        var inp = '<input type=\'text\' inputmode=\'decimal\''
+            + ' value=\'' + displayVal + '\''
+            + ' placeholder=\'\'  '
+            + ' style=\'width:' + w + ';' + stComum + '\''
+            + ' oninput=\'' + oiFn + '\''
+            + ' onblur=\'' + blurFn + '\'>';
+        if (isMoney) {
+            return '<div style=\'display:flex;align-items:center;gap:1px;\'>'
+                + '<span style=\'color:#6b7280;font-size:.75rem;margin-right:1px;\'>R$</span>'
+                + inp + '</div>';
+        }
+        return inp;
     }
     function inpDsr(idx, val) {
         return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
@@ -483,10 +509,7 @@ window._fechamento = (function () {
         if (!_dados[idx]) return;
         _dados[idx][campo] = valor;
         const calc = calcularColaborador(_dados[idx]);
-        const brutoEl = document.getElementById(`fech-bruto-${idx}`);
-        const liqEl = document.getElementById(`fech-liq-${idx}`);
-        if (brutoEl) brutoEl.textContent = fmt(calc.totalBruto);
-        if (liqEl) liqEl.textContent = fmt(calc.liquido);
+        
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -985,7 +1008,7 @@ window._fechamento = (function () {
         const trEls = document.querySelectorAll('#fech-tbody tr');
         trEls.forEach(tr => {
             if (parseInt(tr.dataset.idx) === idx) {
-                const inputs = tr.querySelectorAll('input[type=number]');
+                const inputs = tr.querySelectorAll('input[type=text],input[type=number]');
                 // encontrar input de comissao e bonus_comissao pelas posições
                 inputs.forEach(inp => {
                     if (inp.getAttribute('oninput').includes("'comissao'")) inp.value = valorComissao;
@@ -1082,9 +1105,33 @@ window._fechamento = (function () {
         }
     }
 
+    function verFarmacia() {
+        if (!_stateArquivos.farmacia) {
+            Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum arquivo carregado nesta sessão.' });
+            return;
+        }
+        Swal.fire({ icon: 'success', title: 'Farmácia', text: 'Arquivo importado com sucesso nesta sessão.' });
+    }
+    function verConsignado() {
+        if (!_stateArquivos.consignado) {
+            Swal.fire({ icon: 'info', title: 'Consignado', text: 'Nenhum arquivo carregado nesta sessão.' });
+            return;
+        }
+        Swal.fire({ icon: 'success', title: 'Consignado', text: 'Planilha importada com sucesso nesta sessão.' });
+    }
+    function verMercado() {
+        var txt = _stateArquivos.mercado_texto;
+        if (!txt) {
+            Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum texto carregado nesta sessão.' });
+            return;
+        }
+        var safe = txt.replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 2000);
+        Swal.fire({ title: 'Dados Mercado', html: '<pre style="text-align:left;font-size:.75rem;max-height:300px;overflow:auto;background:#fffbeb;padding:.5rem;border-radius:.4rem;">' + safe + '</pre>', width: 500 });
+    }
+
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
-        uploadFarmacia, uploadConsignado,
+        uploadFarmacia, uploadConsignado, verFarmacia, verConsignado, verMercado,
         abrirModalMercado, fecharModalMercado, parseMercado,
         carregarMultas, carregarPLR,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
