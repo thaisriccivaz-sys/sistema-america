@@ -9509,21 +9509,14 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
             let text = '';
             
             try {
-                const pdfParse = require('pdf-parse');
-                // The prompt says: const { PDFParse } = require('pdf-parse'); const parser = new PDFParse({ verbosity: 0, data: buf }); const pdfData = await parser.getText();
-                // However, pdf-parse is usually a function. Let's try both:
-                if (typeof pdfParse === 'function') {
-                    const pdfData = await pdfParse(file.buffer);
-                    text = pdfData.text;
-                } else if (pdfParse.PDFParse) {
-                    const parser = new pdfParse.PDFParse({ verbosity: 0, data: file.buffer });
-                    text = await parser.getText();
-                } else {
-                    const pdfData = await pdfParse(file.buffer);
-                    text = pdfData.text;
-                }
+                const { PDFParse } = require('pdf-parse');
+                const _mercParser = new PDFParse({ verbosity: 0, data: file.buffer });
+                const _mercData = await _mercParser.getText();
+                // getText() retorna objeto { text: '...' } — garantir que é string
+                text = (typeof _mercData === 'string') ? _mercData : (_mercData.text || '');
             } catch (e) {
-                console.error('Erro ao parsear PDF do mercado:', e);
+                console.error('Erro ao parsear PDF do mercado:', e.message);
+                text = '';
             }
             
             // Buscar linha com regex /^\|?-?[\t -]+R\$\s*([\d,.]+)/m ou buscar a linha com R$ 0,00 que contém o total
@@ -9570,7 +9563,21 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
 });
 
 // GET: Stream do PDF do mercado via R2
-app.get('/api/fechamento/mercado-pdf/:id', authenticateToken, async (req, res) => {
+app.get('/api/fechamento/mercado-pdf/:id', async (req, res) => {
+    // Aceita token via query string (para usar em iframe/src) ou via header
+    const tokenQuery = req.query.token;
+    if (tokenQuery) {
+        const jwt = require('jsonwebtoken');
+        try { jwt.verify(tokenQuery, process.env.JWT_SECRET || 'america2024'); }
+        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    } else {
+        // Validar via header Authorization
+        const authHeader = req.headers['authorization'];
+        if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
+        const jwt = require('jsonwebtoken');
+        try { jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'america2024'); }
+        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    }
     try {
         const { id } = req.params;
         const row = await new Promise((resolve, reject) => {
@@ -9593,6 +9600,16 @@ app.get('/api/fechamento/mercado-pdf/:id', authenticateToken, async (req, res) =
         console.error('[mercado-pdf] Erro:', e.message);
         res.status(500).send('Erro ao baixar arquivo');
     }
+});
+
+// GET: Listar PDFs do Mercado por mes/ano
+app.get('/api/fechamento/mercado-pdfs/:ano/:mes', authenticateToken, (req, res) => {
+    const { ano, mes } = req.params;
+    db.all('SELECT id, nome_arquivo, nome_no_pdf, valor, r2_key FROM fechamento_mercado_uploads WHERE ano = ? AND mes = ? ORDER BY id ASC',
+        [parseInt(ano), parseInt(mes)], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
 });
 
 // POST: Upload e parse da planilha de consignado (.xlsx)
@@ -9756,16 +9773,15 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, (req, 
     db.all(`SELECT m.*, c.cpf FROM multas m
             JOIN colaboradores c ON m.colaborador_id = c.id
             WHERE m.tipo_resolucao = 'desconto_folha'
-            AND m.parcelas > 0
-            AND m.status IN ('Aceita', 'Assinada', 'Processada', 'aceita', 'assinada')
-            AND m.valor_multa IS NOT NULL`, [],
+            AND m.valor_multa IS NOT NULL
+            AND m.status NOT IN ('Cancelada', 'cancelada', 'Rejeitada', 'rejeitada', 'Negada', 'negada')`, [],
     (err, multas) => {
         if (err) return res.status(500).json({ error: err.message });
         const mesAtualNum = parseInt(ano) * 100 + parseInt(mes);
         const grupos = {}; // colaborador_id -> { valor_total, detalhes }
         for (const m of multas) {
             const valorTotal = parseFloat(m.valor_multa) || 0;
-            const numParcelas = parseInt(m.parcelas) || 1;
+            const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
             // Parcela 1 começa no mês seguinte ao created_at
             const dtBase = new Date(m.created_at);

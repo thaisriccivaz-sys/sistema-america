@@ -398,6 +398,15 @@ window._fechamento = (function () {
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
             renderizarTabela(_dados);
+            // Restaurar eye buttons se há dados persistidos
+            (function() {
+                var tF = _dados.some(function(r) { return parseFloat(r.farmacia) > 0; });
+                var tC = _dados.some(function(r) { return parseFloat(r.consignado) > 0; });
+                var tM = _dados.some(function(r) { return parseFloat(r.mercado) > 0; });
+                if (tF) { _stateArquivos.farmacia = true; var b = document.getElementById('fech-btn-eye-farmacia'); if (b) b.style.display = 'inline-flex'; }
+                if (tC) { _stateArquivos.consignado = true; var b = document.getElementById('fech-btn-eye-consignado'); if (b) b.style.display = 'inline-flex'; }
+                if (tM) { _stateArquivos.mercado_pdfs = true; var b = document.getElementById('fech-btn-eye-mercado'); if (b) b.style.display = 'inline-flex'; }
+            })();
             if (wrap) wrap.style.display = 'block';
             if (msg) msg.style.display = 'none';
             if (toolbar) toolbar.style.display = 'flex';
@@ -1225,18 +1234,40 @@ window._fechamento = (function () {
             Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum arquivo carregado nesta sessão.' });
             return;
         }
-        Swal.fire({ icon: 'success', title: 'Farmácia', text: 'Arquivo importado com sucesso nesta sessão.' });
+        var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
+        var linhas = resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>');
+        var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
+        Swal.fire({ icon: 'info', title: 'Farmácia — ' + resumoFarm.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhas + '</div><br><strong>Total: R$ ' + total.toFixed(2) + '</strong>', width: 500 });
     }
     function verConsignado() {
         if (!_stateArquivos.consignado) {
             Swal.fire({ icon: 'info', title: 'Consignado', text: 'Nenhum arquivo carregado nesta sessão.' });
             return;
         }
-        Swal.fire({ icon: 'success', title: 'Consignado', text: 'Planilha importada com sucesso nesta sessão.' });
+        var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
+        var linhasCons = resumoCons.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.consignado).toFixed(2); }).join('<br>');
+        var totalCons = resumoCons.reduce(function(s, r) { return s + parseFloat(r.consignado); }, 0);
+        Swal.fire({ icon: 'info', title: 'Consignado — ' + resumoCons.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhasCons + '</div><br><strong>Total: R$ ' + totalCons.toFixed(2) + '</strong>', width: 500 });
     }
-    function verMercado() {
+    async function verMercado() {
+        // Se não tem dados na sessão, buscar do banco
         if (!_dadosMercado || _dadosMercado.length === 0) {
-            Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum PDF carregado nesta sessão.' });
+            if (!_mes || !_ano) {
+                Swal.fire({ icon: 'info', title: 'Mercado', text: 'Selecione um mês para ver os PDFs.' });
+                return;
+            }
+            try {
+                var resp = await fetch('/api/fechamento/mercado-pdfs/' + _ano + '/' + _mes, {
+                    headers: { 'Authorization': 'Bearer ' + getToken() }
+                });
+                var json = await resp.json();
+                if (Array.isArray(json) && json.length > 0) {
+                    _dadosMercado = json.map(function(r) { return { id: r.id, nome: r.nome_no_pdf || r.nome_arquivo, valor: r.valor, r2_key: r.r2_key }; });
+                }
+            } catch(e) { console.error('Erro ao buscar PDFs mercado:', e); }
+        }
+        if (!_dadosMercado || _dadosMercado.length === 0) {
+            Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum PDF de mercado encontrado para este mês.' });
             return;
         }
         var iframesHtml = _dadosMercado.map(function(r) {
