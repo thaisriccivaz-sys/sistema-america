@@ -1466,7 +1466,7 @@ GERADORES_PERFIL.forEach(nome => {
 
     // Visível apenas para colaboradores com "Outros" como meio de transporte
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros', departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: 'meio_transporte~outros|vc', departamentos: null }), nomeGerador]
     );
 })();
 
