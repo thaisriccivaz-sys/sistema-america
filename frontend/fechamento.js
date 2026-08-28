@@ -455,7 +455,14 @@ window._fechamento = (function () {
         return `<input type="text" placeholder="00:00" value="${val||''}" style="width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)">`;
     }
     function inpNum(idx, campo, val, placeholder, step) {
-        return `<input type="number" step="${step||1}" min="0" value="${(val||val===0)?val:''}" placeholder="${placeholder||'0'}" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)">`;
+        let v = (val || val === 0) ? val : '';
+        let blur = '';
+        if (step === '0.01') {
+            if (v !== '') v = parseFloat(v).toFixed(2);
+            blur = ' onblur="if(this.value) this.value = parseFloat(this.value).toFixed(2);"';
+        }
+        return `<input type="number" step="${step||1}" min="0" value="${v}" placeholder="${placeholder||'0'}" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)"${blur}>`;
+    }" min="0" value="${(val||val===0)?val:''}" placeholder="${placeholder||'0'}" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)">`;
     }
     function inpDsr(idx, val) {
         return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
