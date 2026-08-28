@@ -1267,28 +1267,43 @@ window._fechamento = (function () {
     // Aplica dados do RHID na linha do colaborador
     function aplicarPontoNaTabela(idx, dados) {
         if (!_dados[idx]) return;
-        // H.Trab. = dias trabalhados × 8h em HH:MM (ou usar totalHorasMinutos se disponível)
-        var diasTrab = dados.diasTrabalhados || 0;
-        var htrab = minToHH(diasTrab * 8 * 60);
-        // Extras: diasComHoraExtra como referência — não temos breakdown 60%/100% da API
-        // Faltas
-        var faltas = dados.faltas || 0;
-        // Atualizar _dados
-        if (htrab) { _dados[idx].horas_trabalhadas = htrab; }
-        _dados[idx].dias_falta = faltas;
-        // Atualizar tela
-        var trEls = document.querySelectorAll("#fech-tbody tr");
-        trEls.forEach(function(tr) {
-            if (parseInt(tr.dataset.idx) !== idx) return;
-            // H.Trab input
-            var inputs = tr.querySelectorAll("input");
-            inputs.forEach(function(inp) {
-                var oi = inp.getAttribute("oninput") || "";
-                if (oi.includes("horas_trabalhadas") && htrab) inp.value = htrab;
-                if (oi.includes("dias_falta") && faltas !== undefined) inp.value = faltas;
-            });
-        });
-        atualizar(idx, "dias_falta", faltas);
+
+        // Extrair dados do RHID
+        var diasTrab = dados.diasTrabalhados;
+        var faltas   = dados.faltas;
+
+        // Converter diasTrabalhados em HH:MM (dias × 8h)
+        var htrab = '';
+        if (diasTrab !== null && diasTrab !== undefined && !isNaN(diasTrab)) {
+            var totalMin = Math.round(diasTrab * 8 * 60);
+            var hh = Math.floor(totalMin / 60);
+            var mm = totalMin % 60;
+            htrab = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+        }
+
+        // Atualizar _dados em memória
+        if (htrab) _dados[idx].horas_trabalhadas = htrab;
+        if (faltas !== null && faltas !== undefined) _dados[idx].dias_falta = faltas;
+
+        // Atualizar DOM: encontrar tr por data-idx
+        var trEls = document.querySelectorAll('#fech-tbody tr');
+        for (var ti = 0; ti < trEls.length; ti++) {
+            var tr = trEls[ti];
+            if (parseInt(tr.dataset.idx) !== idx) continue;
+
+            var inputs = tr.querySelectorAll('input');
+            for (var ii = 0; ii < inputs.length; ii++) {
+                var inp = inputs[ii];
+                var oi = inp.getAttribute('oninput') || '';
+                if (htrab && oi.indexOf('horas_trabalhadas') !== -1) inp.value = htrab;
+                if (faltas !== null && faltas !== undefined && oi.indexOf('dias_falta') !== -1) inp.value = faltas;
+            }
+            break;
+        }
+
+        // Disparar atualizar para salvar no _dados
+        if (htrab) atualizar(idx, 'horas_trabalhadas', htrab);
+        if (faltas !== null && faltas !== undefined) atualizar(idx, 'dias_falta', faltas);
     }
 
     async function buscarPontoTodos() {
@@ -1322,7 +1337,7 @@ window._fechamento = (function () {
                     nomesOk.push(row.nome_completo);
                 } else {
                     semCadastro++;
-                    nomesSem.push(row.nome_completo);
+                    nomesSem.push(row.nome_completo + (dados.aviso ? ' (sem apuração)' : ''));
                 }
             } catch(e) {
                 erros++;

@@ -9449,9 +9449,10 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
 app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single('pdf'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-        const pdfParse = require('pdf-parse');
-        const pdfData = await pdfParse(req.file.buffer);
-        const text = pdfData.text || '';
+        const { PDFParse } = require('pdf-parse');
+        const _farmParser = new PDFParse({ verbosity: 0, data: req.file.buffer });
+        const _farmData = await _farmParser.getText();
+        const text = _farmData.text || '';
         // Parse: linhas com "CPF NOME ... Total Conveniado: RR$valor"
         const result = {};
         const lines = text.split('\n');
@@ -9634,7 +9635,7 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
             const mesAtualNum = parseInt(ano) * 100 + parseInt(mes);
             if (inicioNum <= mesAtualNum && mesAtualNum <= fimNum) {
                 if (!grouped[cpf]) grouped[cpf] = { nome, valor: 0, detalhes: [] };
-                grouped[cpf].valor += valorParcela;
+                grouped[cpf].valor = Math.round((grouped[cpf].valor + valorParcela) * 100) / 100;
                 grouped[cpf].detalhes.push({ parcela: valorParcela, inicio: inicioStr, total: totalParcelas });
             }
         }
@@ -9644,11 +9645,17 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
             ON CONFLICT(mes, ano, cpf) DO UPDATE SET valor_total=excluded.valor_total, detalhe_json=excluded.detalhe_json`);
         for (const [cpf, data] of Object.entries(grouped)) {
             await new Promise((resolve, reject) => {
-                stmtC.run([mes, ano, cpf, data.nome, data.valor, JSON.stringify(data.detalhes)], (err) => err ? reject(err) : resolve());
+                stmtC.run([mes, ano, cpf, data.nome, Math.round(data.valor * 100) / 100, JSON.stringify(data.detalhes)], (err) => err ? reject(err) : resolve());
             });
         }
         stmtC.finalize();
-        res.json({ ok: true, consignado: grouped });
+        // Garantir que todos os valores estão arredondados no response
+        Object.keys(grouped).forEach(cpf => {
+            grouped[cpf].valor = Math.round(grouped[cpf].valor * 100) / 100;
+        });
+        const debug_cpfs = Object.keys(grouped);
+        console.log('[upload-consignado] CPFs encontrados no XLSX:', debug_cpfs.join(', ').substring(0, 500));
+        res.json({ ok: true, consignado: grouped, debug_cpfs });
     } catch(e) {
         res.status(500).json({ error: e.message });
     }
