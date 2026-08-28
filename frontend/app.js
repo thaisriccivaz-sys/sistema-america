@@ -18761,8 +18761,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                     <tr>
                       <th style="padding:0.5rem 0.75rem;text-align:center;width:40px;"><i class="ph ph-check-square" style="color:#64748b;"></i></th>
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">NOME DETECTADO</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">COLABORADOR</th>
-                      <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
+                                            <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#166534;" title="Documento de Empréstimos associado por CPF">EMPRÉSTIMO</th>
@@ -19275,14 +19274,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
               <input type="checkbox" ${item.selecionado&&item.colaborador_id?'checked':''} ${!item.colaborador_id?'disabled':''} onchange="window._pmToggle(${realIdx},this.checked)"
                 style="width:15px;height:15px;cursor:pointer;">
             </td>
-            <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:${nomeColor};font-weight:${nomeWeight};">${item.nomeDetectado || '<span style="color:#9ca3af">Não detectado</span>'}</td>
-            <td style="padding:0.5rem 0.75rem;">
-              <select onchange="window._pmCorrigirColab(${realIdx},this.value)"
-                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;background:${bg};">
-                ${dropdownOpts.replace(`value="${item.colaborador_id||''}"`, `value="${item.colaborador_id||''}" selected`)}
-              </select>
-            </td>
-            <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
+            <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:${nomeColor};font-weight:${nomeWeight};">${item.nomeDetectado || '<span style="color:#9ca3af">Não detectado</span>'}</td>            <td style="padding:0.5rem 0.75rem;font-size:0.8rem;color:#64748b;">${item.departamento || '-'}</td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${((item.paginaAdiantamento && item.paginaAdiantamento !== '-') || item.temAdiantamento) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
