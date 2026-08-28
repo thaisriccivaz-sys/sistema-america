@@ -4779,7 +4779,7 @@ window.editColaborador = async function (id) {
             if (stateSaved) stateSaved.style.display = 'none';
             if (fotoPreview) {
                 fotoPreview.style.display = 'block';
-                fotoPreview.src = `${API_URL.replace('/api', '')}/${c.foto_path}?t=${Date.now()}`;
+                fotoPreview.src = (c.foto_path.startsWith('http') ? c.foto_path : `${API_URL.replace('/api', '')}/${c.foto_path}?t=${Date.now()}`);
             }
         } else {
             if (stateSaved) stateSaved.style.display = 'flex';
@@ -5252,7 +5252,7 @@ window.openProntuario = async function (id, nome, cargo, cpf, sexo = '', admissa
     const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
     if (fotoImg && fotoPlaceholder) {
         const fotoSrc = viewedColaborador.foto_base64 ||
-            (viewedColaborador.foto_path ? `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}` : null);
+            (viewedColaborador.foto_path ? (viewedColaborador.foto_path.startsWith('http') ? viewedColaborador.foto_path : `${API_URL.replace('/api', '')}/${viewedColaborador.foto_path}?t=${Date.now()}`) : null);
         if (fotoSrc) {
             fotoImg.src = fotoSrc;
             if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${viewedColaborador.id}`;
@@ -5333,7 +5333,7 @@ window.uploadFotoProntuario = async function (input) {
                 const fotoLink = document.getElementById('prontuario-foto-link');
                 const fotoPlaceholder = document.getElementById('prontuario-photo-placeholder');
                 if (fotoImg && fotoPlaceholder) {
-                    const newSrc = `${API_URL.replace('/api', '')}/${updated.foto_path}?t=${Date.now()}`;
+                    const newSrc = (updated.foto_path.startsWith('http') ? updated.foto_path : `${API_URL.replace('/api', '')}/${updated.foto_path}?t=${Date.now()}`);
                     fotoImg.src = newSrc;
                     if (fotoLink) fotoLink.href = `${API_URL.replace('/api', '')}/api/colaboradores/foto/${updated.id}`;
                     fotoImg.style.display = 'block';
