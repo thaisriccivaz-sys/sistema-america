@@ -73,6 +73,20 @@ function extrairNomeDaPagina(texto) {
     return null;
 }
 
+
+// Extrai CPF do texto de uma página (formato XXX.XXX.XXX-XX)
+function extrairCpfDaPagina(texto) {
+    if (!texto) return null;
+    const match = texto.match(/(\d{3}[.\-]\d{3}[.\-]\d{3}[.\-]\d{2})/);
+    if (match) {
+        const digits = match[1].replace(/[^\d]/g, '');
+        if (digits.length === 11) {
+            return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+    }
+    return null;
+}
+
 // Busca colaborador pelo nome no banco (match normalizado)
 function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
     if (!nomeExtraido) return null;
@@ -104,6 +118,18 @@ function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
     }
 
     return null;
+}
+
+// Busca colaborador pelo CPF (match exato nos digitos)
+function buscarColaboradorPorCpf(cpf, todosColaboradores) {
+    if (!cpf) return null;
+    const cpfNorm = cpf.replace(/[^\d]/g, '');
+    if (cpfNorm.length !== 11) return null;
+    const encontrado = todosColaboradores.find(c => {
+        const cCpf = (c.cpf || '').replace(/[^\d]/g, '');
+        return cCpf && cCpf === cpfNorm;
+    });
+    return encontrado ? { colaborador: encontrado, confianca: 'exato' } : null;
 }
 
 /**
@@ -163,7 +189,7 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
     const colaboradores = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo,
+            `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.cpf,
                     d.tipo AS setor
              FROM colaboradores c
              LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
@@ -181,12 +207,16 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     for (let i = 0; i < totalPaginas; i++) {
         const texto = pageTexts[i] || '';
         let nomeDetectado = extrairNomeDaPagina(texto);
-        let match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
+        const cpfDetectado = extrairCpfDaPagina(texto);
+        // 1. Tenta match por CPF (mais confiável — imune a mudança de nome)
+        let match = cpfDetectado ? buscarColaboradorPorCpf(cpfDetectado, colaboradores) : null;
+        // 2. Se não achou por CPF, tenta por nome
+        if (!match) match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
         
-        if (!nomeDetectado && lastNomeDetectado) {
+        if (!nomeDetectado && !cpfDetectado && lastNomeDetectado) {
             nomeDetectado = lastNomeDetectado;
             match = lastMatch;
-        } else if (nomeDetectado) {
+        } else if (nomeDetectado || cpfDetectado) {
             lastNomeDetectado = nomeDetectado;
             lastMatch = match;
         }
@@ -194,6 +224,7 @@ async function processarPDF(bufferPDF, tipoDocumento) {
         resultado.push({
             pagina:           i + 1,
             nomeDetectado:    nomeDetectado || null,
+            cpfDetectado:     cpfDetectado || null,
             colaborador_id:   match?.colaborador?.id || null,
             colaborador_nome: match?.colaborador?.nome_completo || null,
             colaborador_email: match?.colaborador?.email || match?.colaborador?.email_corporativo || null,
@@ -270,7 +301,7 @@ async function extrairPagina(bufferPDF, numeroPaginaOuArray, tipoRecorte = false
  * Salva o PDF individual no disco e insere no banco de dados
  * Retorna { docId, filePath }
  */
-async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento }) {
+async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento, temEmprestimo }) {
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
     if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
 
@@ -306,9 +337,9 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const docId = await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO documentos
-             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, tem_adiantamento, tem_pagamento)
-             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'), ?, ?)`,
-            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || '', temAdiantamento ? 1 : 0, temPagamento ? 1 : 0],
+             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, tem_adiantamento, tem_pagamento, tem_emprestimo)
+             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'), ?, ?, ?)`,
+            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || '', temAdiantamento ? 1 : 0, temPagamento ? 1 : 0, temEmprestimo ? 1 : 0],
             function(err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -319,8 +350,53 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     return { docId, filePath };
 }
 
+/**
+ * Processa o PDF de Empréstimos/Comunicados identificando colaboradores por CPF.
+ * Cada página do PDF deve conter o CPF do colaborador (formato XXX.XXX.XXX-XX).
+ * Retorna array [{colaborador_id, colaborador_nome, pagina, cpf}]
+ * apenas para as páginas que tiverem CPF com match no banco.
+ */
+async function processarPDFEmprestimos(bufferPDF) {
+    console.log('[EMPRESTIMOS] Iniciando processamento por CPF...');
+    const pageTexts = await extrairTextosPorPagina(bufferPDF);
+
+    const colaboradores = await new Promise((resolve, reject) => {
+        db.all(
+            `SELECT c.id, c.nome_completo, c.cpf FROM colaboradores c
+             WHERE c.status != 'Desligado' OR c.status IS NULL`,
+            [],
+            (err, rows) => err ? reject(err) : resolve(rows || [])
+        );
+    });
+
+    const resultado = [];
+    for (let i = 0; i < pageTexts.length; i++) {
+        const texto = pageTexts[i] || '';
+        const cpf = extrairCpfDaPagina(texto);
+        if (!cpf) {
+            console.log(`[EMPRESTIMOS] Pág ${i + 1}: nenhum CPF encontrado`);
+            continue;
+        }
+        const match = buscarColaboradorPorCpf(cpf, colaboradores);
+        if (match) {
+            resultado.push({
+                colaborador_id:   match.colaborador.id,
+                colaborador_nome: match.colaborador.nome_completo,
+                pagina:           i + 1,
+                cpf,
+            });
+            console.log(`[EMPRESTIMOS] Pág ${i + 1}: CPF ${cpf} → ${match.colaborador.nome_completo}`);
+        } else {
+            console.log(`[EMPRESTIMOS] Pág ${i + 1}: CPF ${cpf} → sem match no banco`);
+        }
+    }
+    console.log(`[EMPRESTIMOS] Total encontrado: ${resultado.length} colaborador(es)`);
+    return resultado;
+}
+
 module.exports = {
     processarPDF,
+    processarPDFEmprestimos,
     extrairPagina,
     salvarDocumentoNoBanco,
     normalizarNome,

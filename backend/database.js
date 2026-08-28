@@ -771,13 +771,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('assinafy_sent_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_sent_at DATETIME", (err) => {});
                     if (!cols.includes('signed_file_path')) db.run("ALTER TABLE documentos ADD COLUMN signed_file_path TEXT", (err) => {});
                     if (!cols.includes('assinafy_signed_at')) db.run("ALTER TABLE documentos ADD COLUMN assinafy_signed_at DATETIME", (err) => {});
-                    // Campos de período do atestado
-                    if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT", (err) => {});  // 'dias' | 'horas'
-                    if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT", (err) => {}); // data ISO ou HH:MM
-                    if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT", (err) => {});   // data ISO ou HH:MM
-                    // Indicadores se holerite adiantamento/pagamento foram anexados
+                    // Campos de periodo do atestado
+                    if (!cols.includes('atestado_tipo'))  db.run("ALTER TABLE documentos ADD COLUMN atestado_tipo TEXT", (err) => {});
+                    if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT", (err) => {});
+                    if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT", (err) => {});
+                    // Indicadores se holerite adiantamento/pagamento/emprestimo foram anexados
                     if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_emprestimo'))   db.run("ALTER TABLE documentos ADD COLUMN tem_emprestimo INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('boleto_financeiro_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN boleto_financeiro_enviado_em TEXT", (err) => {});
                 });
                 

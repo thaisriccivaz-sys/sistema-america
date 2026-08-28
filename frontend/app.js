@@ -18678,6 +18678,14 @@ window.atualizarTodasAssinaturas = async function (btn) {
                   <input id="pm-file-pagamento" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                 </div>
 
+                <div style="margin-bottom:1.5rem;padding:0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#166534;display:block;margin-bottom:4px;">
+                    📎 Documentos de Empréstimos (PDF Único)
+                    <span style="font-weight:400;color:#64748b;font-size:0.75rem;"> — opcional, associado por CPF do colaborador</span>
+                  </label>
+                  <input id="pm-file-emprestimo" type="file" accept=".pdf" style="width:100%;padding:0.5rem;border:1px solid #86efac;border-radius:6px;background:#fff;">
+                </div>
+
                 <button type="button" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                   <i class="ph ph-magic-wand"></i> Processar Holerites Anexados
                 </button>
@@ -18915,6 +18923,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
     window._pmProcessarDuplo = async function () {
         const fileAd = document.getElementById('pm-file-adiantamento')?.files[0];
         const filePg = document.getElementById('pm-file-pagamento')?.files[0];
+        const fileEmpr = document.getElementById('pm-file-emprestimo')?.files[0];
 
         if (!fileAd && !filePg) {
             Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
@@ -18932,8 +18941,9 @@ window.atualizarTodasAssinaturas = async function (btn) {
 
         const b64Ad = await readB64(fileAd);
         const b64Pg = await readB64(filePg);
+        const b64Empr = await readB64(fileEmpr);
 
-        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg };
+        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, emprestimo: b64Empr };
 
         document.getElementById('pm-processing').style.display = 'block';
         document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Processando Holerites...';
@@ -18945,6 +18955,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
             formData.append('ano', document.getElementById('pm-ano').value);
             if (fileAd) formData.append('pdfAdiantamento', fileAd);
             if (filePg) formData.append('pdfPagamento', filePg);
+            if (fileEmpr) formData.append('pdfEmprestimo', fileEmpr);
 
             const r = await fetch('/api/pagamentos-massa/processar', {
                 method: 'POST',
@@ -18963,6 +18974,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                     if (item) {
                         item.paginaAdiantamento = res.paginaAdiantamento;
                         item.paginaPagamento = res.paginaPagamento;
+                        item.paginaEmprestimo = res.paginaEmprestimo || null;
                         matches++;
                     }
                 });
@@ -19044,6 +19056,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                             pagina: i.pagina,
                             paginaAdiantamento: i.paginaAdiantamento,
                             paginaPagamento: i.paginaPagamento,
+                            paginaEmprestimo: i.paginaEmprestimo || null,
                             colaborador_id: i.colaborador_id,
                             docId: i.docId,
                             enviarEmail: false,
