@@ -3696,6 +3696,99 @@ db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (e
     }
 });
 
+// ────────────────────────────────────────────────────────────────────
+// Auto-migration: Campos 7. Folha no colaborador
+// ────────────────────────────────────────────────────────────────────
+[
+    'folha_periculosidade', 'folha_periculosidade_valor',
+    'folha_insalubridade', 'folha_insalubridade_valor',
+    'folha_mensalidade_sindical', 'folha_mensalidade_sindical_valor',
+    'folha_pensao_tipo', 'folha_pensao_pct',
+    'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
+    'academia_desconto_valor'
+].forEach((col) => {
+    let def = 'TEXT';
+    if (['folha_periculosidade','folha_insalubridade','folha_mensalidade_sindical','folha_plr'].includes(col)) def = 'INTEGER DEFAULT 0';
+    else if (['folha_periculosidade_valor','folha_mensalidade_sindical_valor','folha_pensao_pct','folha_plr_valor','academia_desconto_valor'].includes(col)) def = 'REAL DEFAULT 0';
+    else if (col === 'folha_insalubridade_valor') def = 'REAL DEFAULT 324.20';
+    else if (col === 'folha_plr_meses') def = "TEXT DEFAULT '[]'";
+    else if (col === 'folha_plr_valor') def = 'REAL DEFAULT 800';
+    else if (col === 'academia_desconto_valor') def = 'REAL DEFAULT 60';
+    db.run('ALTER TABLE colaboradores ADD COLUMN ' + col + ' ' + def, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.error('[Migration] Erro ao adicionar ' + col + ':', err.message);
+        }
+    });
+});
+
+// Auto-migration: Tabela fechamento_mensal
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_mensal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    colaborador_id INTEGER NOT NULL,
+    horas_normais TEXT,
+    horas_trabalhadas TEXT,
+    horas_noturnas TEXT,
+    dias_falta INTEGER DEFAULT 0,
+    data_faltas TEXT DEFAULT '[]',
+    horas_atraso TEXT,
+    extra_60 TEXT,
+    extra_100 TEXT,
+    dsr TEXT DEFAULT 'Não',
+    vt INTEGER DEFAULT 0,
+    farmacia REAL DEFAULT 0,
+    mercado REAL DEFAULT 0,
+    outros REAL DEFAULT 0,
+    multas REAL DEFAULT 0,
+    academia REAL DEFAULT 0,
+    consignado REAL DEFAULT 0,
+    comissao REAL DEFAULT 0,
+    bonus_comissao REAL DEFAULT 0,
+    premio REAL DEFAULT 0,
+    insalubridade REAL DEFAULT 0,
+    periculosidade REAL DEFAULT 0,
+    plr REAL DEFAULT 0,
+    pensao REAL DEFAULT 0,
+    dias_intermitente INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'rascunho',
+    planilha_enviada_em DATETIME,
+    email_contabilidade TEXT DEFAULT 'thais.ricci@americarental.com.br',
+    pdf_folha_r2key TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mes, ano, colaborador_id)
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_mensal:', err.message); });
+
+// Auto-migration: Tabela fechamento_comissao
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    colaborador_id INTEGER NOT NULL,
+    valor_comissao REAL DEFAULT 0,
+    contratos_fechados INTEGER DEFAULT 0,
+    bonus_primeiro_lugar INTEGER DEFAULT 0,
+    valor_bonus REAL DEFAULT 0,
+    preenchido_em DATETIME,
+    link_token TEXT UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mes, ano, colaborador_id)
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_comissao:', err.message); });
+
+// Auto-migration: Tabela fechamento_consignado
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_consignado (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    cpf TEXT NOT NULL,
+    nome TEXT,
+    valor_total REAL DEFAULT 0,
+    detalhe_json TEXT DEFAULT '[]',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mes, ano, cpf)
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_consignado:', err.message); });
+
 // Auto-migration: fix broken document_type encoding for Pensão Aliment??cia
 const brokenVariants = [
     'Pens\u00c3\u00a3o Aliment\u00c3\u00adcia',
@@ -4155,7 +4248,13 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade',
-        'motorista_avaliador'
+        'motorista_avaliador',
+        'folha_periculosidade', 'folha_periculosidade_valor',
+        'folha_insalubridade', 'folha_insalubridade_valor',
+        'folha_mensalidade_sindical', 'folha_mensalidade_sindical_valor',
+        'folha_pensao_tipo', 'folha_pensao_pct',
+        'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
+        'academia_desconto_valor'
     ];
 
     const values = colunas.map(col => {
@@ -9259,8 +9358,262 @@ app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
     });
 });
 
-// POST: Salva o estado atual da tabela de recibos (histórico editável)
+// ═══════════════════════════════════════════════════════════════════
+// FECHAMENTO MENSAL — API ROUTES
+// ═══════════════════════════════════════════════════════════════════
+
+// GET: Buscar dados do fechamento de um mês/ano
+app.get('/api/fechamento/:ano/:mes', authenticateToken, (req, res) => {
+    const { ano, mes } = req.params;
+    db.all(
+        `SELECT fm.*, c.nome_completo, c.salario, c.cargo, c.departamento, c.status as colab_status,
+                c.tipo_contrato, c.meio_transporte, c.adiantamento_salarial, c.adiantamento_valor,
+                c.academia_participa, c.academia_desconto_valor,
+                c.folha_periculosidade, c.folha_periculosidade_valor,
+                c.folha_insalubridade, c.folha_insalubridade_valor,
+                c.folha_mensalidade_sindical, c.folha_mensalidade_sindical_valor,
+                c.folha_pensao_tipo, c.folha_pensao_pct,
+                c.folha_plr, c.folha_plr_valor, c.folha_plr_meses,
+                c.data_admissao, c.cpf
+         FROM colaboradores c
+         LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
+         WHERE c.status != 'Desligado'
+         ORDER BY c.nome_completo ASC`,
+        [mes, ano],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        }
+    );
+});
+
+// POST: Salvar/atualizar dados do fechamento (upsert por colaborador)
+app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
+    const { mes, ano, itens } = req.body;
+    if (!mes || !ano || !Array.isArray(itens)) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    const stmt = db.prepare(`INSERT INTO fechamento_mensal
+        (mes, ano, colaborador_id, horas_normais, horas_trabalhadas, horas_noturnas,
+         dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
+         vt, farmacia, mercado, outros, multas, academia, consignado,
+         comissao, bonus_comissao, premio, insalubridade, periculosidade,
+         plr, pensao, dias_intermitente, status, email_contabilidade)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
+            horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
+            horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
+            data_faltas=excluded.data_faltas, horas_atraso=excluded.horas_atraso,
+            extra_60=excluded.extra_60, extra_100=excluded.extra_100, dsr=excluded.dsr,
+            vt=excluded.vt, farmacia=excluded.farmacia, mercado=excluded.mercado,
+            outros=excluded.outros, multas=excluded.multas, academia=excluded.academia,
+            consignado=excluded.consignado, comissao=excluded.comissao,
+            bonus_comissao=excluded.bonus_comissao, premio=excluded.premio,
+            insalubridade=excluded.insalubridade, periculosidade=excluded.periculosidade,
+            plr=excluded.plr, pensao=excluded.pensao, dias_intermitente=excluded.dias_intermitente,
+            status=excluded.status, email_contabilidade=excluded.email_contabilidade,
+            updated_at=CURRENT_TIMESTAMP`);
+    try {
+        const saveItem = (item) => new Promise((resolve, reject) => {
+            stmt.run([
+                mes, ano, item.colaborador_id,
+                item.horas_normais || null, item.horas_trabalhadas || null, item.horas_noturnas || null,
+                item.dias_falta || 0, JSON.stringify(item.data_faltas || []), item.horas_atraso || null,
+                item.extra_60 || null, item.extra_100 || null, item.dsr || 'Não',
+                item.vt || 0, item.farmacia || 0, item.mercado || 0, item.outros || 0,
+                item.multas || 0, item.academia || 0, item.consignado || 0,
+                item.comissao || 0, item.bonus_comissao || 0, item.premio || 0,
+                item.insalubridade || 0, item.periculosidade || 0,
+                item.plr || 0, item.pensao || 0, item.dias_intermitente || 0,
+                item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br'
+            ], (err) => err ? reject(err) : resolve());
+        });
+        Promise.all(itens.map(saveItem))
+            .then(() => { stmt.finalize(); res.json({ ok: true }); })
+            .catch((err) => { stmt.finalize(); res.status(500).json({ error: err.message }); });
+    } catch(e) { stmt.finalize(); res.status(500).json({ error: e.message }); }
+});
+
+// POST: Upload e parse do PDF de Farmácia para o fechamento
+app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single('pdf'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        const { PDFParse } = require('pdf-parse');
+        const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
+        const pdfData = await parser.getText();
+        const text = pdfData.text || '';
+        // Parse: linhas com "CPF NOME ... Total Conveniado: RR$valor"
+        const result = {};
+        // Extract per-employee totals: each block ends with "Total Conveniado: RR$X"
+        const lines = text.split('\n');
+        let currentCpf = null, currentNome = null;
+        for (const line of lines) {
+            // Match CPF line: "443.561.588-65 DANIEL ALMEIDA SANTOS ..."
+            const cpfMatch = line.match(/(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2})\s+([A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇa-záéíóúâêôãõàüç ]+)/);
+            if (cpfMatch) {
+                currentCpf = cpfMatch[1].replace(/[.\-]/g, '');
+                currentNome = cpfMatch[2].trim();
+            }
+            const totalMatch = line.match(/Total Conveniado:\s*RR?\$([0-9,.]+)/i);
+            if (totalMatch && currentCpf) {
+                const valor = parseFloat(totalMatch[1].replace(',', '.'));
+                if (!result[currentCpf]) result[currentCpf] = { nome: currentNome, valor: 0 };
+                result[currentCpf].valor += valor;
+                currentCpf = null; currentNome = null;
+            }
+        }
+        res.json({ ok: true, farmacia: result });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST: Upload e parse da planilha de consignado (.xlsx)
+app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.single('xlsx'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        const { mes, ano } = req.body;
+        if (!mes || !ano) return res.status(400).json({ error: 'Mês/ano obrigatórios' });
+        const XLSX = require('xlsx');
+        const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const header = rows[0]; // headers
+        const idxCpf = header.indexOf('cpf');
+        const idxNome = header.indexOf('nomeTrabalhador');
+        const idxInicioDesconto = header.indexOf('competenciaInicioDesconto');
+        const idxTotalParcelas = header.indexOf('totalParcelas');
+        const idxValorParcela = header.indexOf('valorParcela');
+        // Group by CPF, filter active for mes/ano
+        const mesAno = `${String(mes).padStart(2,'0')}/${ano}`;
+        const grouped = {};
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row[idxCpf]) continue;
+            const cpf = String(row[idxCpf]).replace(/[.\-]/g, '');
+            const nome = row[idxNome] || '';
+            const inicioStr = row[idxInicioDesconto] || '';
+            const totalParcelas = parseInt(row[idxTotalParcelas]) || 0;
+            const valorParcela = parseFloat(row[idxValorParcela]) || 0;
+            // Parse competenciaInicioDesconto "MM/YYYY"
+            const [mIni, aIni] = inicioStr.split('/').map(Number);
+            if (!mIni || !aIni) continue;
+            const inicioNum = aIni * 100 + mIni;
+            const fimNum = (() => {
+                let m = mIni + totalParcelas - 1;
+                let a = aIni + Math.floor((m - 1) / 12);
+                m = ((m - 1) % 12) + 1;
+                return a * 100 + m;
+            })();
+            const mesAtualNum = parseInt(ano) * 100 + parseInt(mes);
+            if (inicioNum <= mesAtualNum && mesAtualNum <= fimNum) {
+                if (!grouped[cpf]) grouped[cpf] = { nome, valor: 0, detalhes: [] };
+                grouped[cpf].valor += valorParcela;
+                grouped[cpf].detalhes.push({ parcela: valorParcela, inicio: inicioStr, total: totalParcelas });
+            }
+        }
+        // Upsert into fechamento_consignado
+        const stmtC = db.prepare(`INSERT INTO fechamento_consignado (mes, ano, cpf, nome, valor_total, detalhe_json)
+            VALUES (?,?,?,?,?,?)
+            ON CONFLICT(mes, ano, cpf) DO UPDATE SET valor_total=excluded.valor_total, detalhe_json=excluded.detalhe_json`);
+        for (const [cpf, data] of Object.entries(grouped)) {
+            await new Promise((resolve, reject) => {
+                stmtC.run([mes, ano, cpf, data.nome, data.valor, JSON.stringify(data.detalhes)], (err) => err ? reject(err) : resolve());
+            });
+        }
+        stmtC.finalize();
+        res.json({ ok: true, consignado: grouped });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET: Buscar consignado de um mês
+app.get('/api/fechamento/consignado/:ano/:mes', authenticateToken, (req, res) => {
+    db.all('SELECT * FROM fechamento_consignado WHERE ano=? AND mes=?', [req.params.ano, req.params.mes], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// POST: Salvar e-mail da contabilidade para o fechamento
+app.post('/api/fechamento/email-contabilidade', authenticateToken, (req, res) => {
+    const { mes, ano, email } = req.body;
+    db.run(`UPDATE fechamento_mensal SET email_contabilidade=? WHERE mes=? AND ano=?`, [email, mes, ano], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true });
+    });
+});
+
+// POST: Salvar link de comissão preenchido (público — sem auth)
+app.post('/api/fechamento/comissao-submit', (req, res) => {
+    const { token, colaborador_id, mes, ano, valor_comissao, contratos_fechados, bonus_primeiro_lugar, valor_bonus } = req.body;
+    db.get('SELECT id FROM fechamento_comissao WHERE link_token=? AND mes=? AND ano=?', [token, mes, ano], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Link inválido ou expirado' });
+        db.run(`UPDATE fechamento_comissao SET valor_comissao=?, contratos_fechados=?, bonus_primeiro_lugar=?, valor_bonus=?, preenchido_em=CURRENT_TIMESTAMP WHERE link_token=?`,
+            [valor_comissao||0, contratos_fechados||0, bonus_primeiro_lugar?1:0, valor_bonus||0, token],
+            (err2) => {
+                if (err2) return res.status(500).json({ error: err2.message });
+                res.json({ ok: true });
+            });
+    });
+});
+
+// GET: Formulário público de comissão
+app.get('/comissao/:token', (req, res) => {
+    const { token } = req.params;
+    db.get(`SELECT fc.*, c.nome_completo FROM fechamento_comissao fc
+            JOIN colaboradores c ON fc.colaborador_id = c.id
+            WHERE fc.link_token=?`, [token], (err, row) => {
+        if (err || !row) return res.status(404).send('<h2>Link inválido ou expirado.</h2>');
+        if (row.preenchido_em) return res.send(`<h2>Obrigado! Comissão de ${row.nome_completo} já foi preenchida.</h2>`);
+        res.send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Comissão — América Rental</title>
+<style>body{font-family:sans-serif;max-width:500px;margin:2rem auto;padding:1rem;background:#f8fafc;}
+h2{color:#1e40af;margin-bottom:1.5rem;}.form-group{margin-bottom:1rem;}label{display:block;font-weight:600;margin-bottom:.3rem;color:#374151;}
+input,select{width:100%;padding:.6rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:1rem;box-sizing:border-box;}
+button{background:#1e40af;color:#fff;border:none;padding:.8rem 2rem;border-radius:.5rem;font-size:1rem;cursor:pointer;width:100%;margin-top:1rem;}
+.card{background:#fff;border-radius:.75rem;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.colab{color:#6b7280;font-size:.9rem;margin-bottom:1rem;}
+</style></head><body>
+<div class="card">
+<h2>Comissão — ${String(row.mes).padStart(2,'0')}/${row.ano}</h2>
+<div class="colab">Colaborador: <strong>${row.nome_completo}</strong></div>
+<form id="frm">
+<div class="form-group"><label>Valor Total da Comissão (R$)</label>
+<input type="number" step="0.01" name="valor_comissao" value="${row.valor_comissao||''}" required></div>
+<div class="form-group"><label>Quantidade de Contratos Fechados</label>
+<input type="number" name="contratos_fechados" value="${row.contratos_fechados||0}" required></div>
+<div class="form-group"><label>Bônus 1º Lugar?</label>
+<select name="bonus_primeiro_lugar">
+<option value="0" ${!row.bonus_primeiro_lugar?'selected':''}>Não</option>
+<option value="1" ${row.bonus_primeiro_lugar?'selected':''}>Sim</option>
+</select></div>
+<div class="form-group" id="bonus-val-group" style="display:${row.bonus_primeiro_lugar?'block':'none'}">
+<label>Valor do Bônus (R$)</label>
+<input type="number" step="0.01" name="valor_bonus" value="${row.valor_bonus||''}"></div>
+<button type="submit">Salvar Comissão</button>
+</form></div>
+<script>
+document.querySelector('[name=bonus_primeiro_lugar]').onchange = function() {
+    document.getElementById('bonus-val-group').style.display = this.value==='1'?'block':'none';
+};
+document.getElementById('frm').onsubmit = async function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this));
+    data.token = '${token}';
+    data.mes = ${row.mes};
+    data.ano = ${row.ano};
+    const r = await fetch('/api/fechamento/comissao-submit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const j = await r.json();
+    if (j.ok) { document.querySelector('.card').innerHTML = '<h2 style="color:#059669">✅ Comissão salva com sucesso!</h2><p>Obrigado, ${row.nome_completo.split(' ')[0]}!</p>'; }
+    else { alert('Erro: ' + j.error); }
+};
+</script></body></html>`);
+    });
+});
+
+// POST: Salvar/atualizar dados do fechamento (upsert por colaborador)
 app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
+
     const { mes, ano, itens } = req.body;
     if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Par??metros inválidos' });
 
