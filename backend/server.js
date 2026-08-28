@@ -9797,6 +9797,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
     const bufAd = pdfDuploBase64 && pdfDuploBase64.adiantamento ? Buffer.from(pdfDuploBase64.adiantamento, 'base64') : null;
     const bufPg = pdfDuploBase64 && pdfDuploBase64.pagamento ? Buffer.from(pdfDuploBase64.pagamento, 'base64') : null;
     const bufEmpr = pdfDuploBase64 && pdfDuploBase64.emprestimo ? Buffer.from(pdfDuploBase64.emprestimo, 'base64') : null;
+    const bufCom = pdfDuploBase64 && pdfDuploBase64.comunicacao ? Buffer.from(pdfDuploBase64.comunicacao, 'base64') : null;
     
     const novoProcesso = require('./novo_processo_assinafy');
     const tipo = tipoDocumento || 'Holerite Adiantamento';
