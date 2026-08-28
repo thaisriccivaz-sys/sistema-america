@@ -9699,6 +9699,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             temAdiantamento: r.tem_adiantamento ? true : false,
             temPagamento:    r.tem_pagamento    ? true : false,
             temEmprestimo:   r.tem_emprestimo   ? true : false,
+            temComunicacao:  r.tem_comunicacao  ? true : false,
         }));
         
         res.json({ ok: true, resultado });
@@ -9761,6 +9762,15 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
             emprPages.forEach(p => basePdfDoc.addPage(p));
         }
 
+        // Merge Comunicação (genérico) if provided (todas as páginas)
+        const pdfComunicacao = req.body.pdfComunicacao;
+        if (pdfComunicacao) {
+            const bufCom = Buffer.from(pdfComunicacao, 'base64');
+            const comPdfDoc = await PDFDocument.load(bufCom);
+            const comPages = await basePdfDoc.copyPages(comPdfDoc, comPdfDoc.getPageIndices());
+            comPages.forEach(p => basePdfDoc.addPage(p));
+        }
+
         const mergedPdfBytes = await basePdfDoc.save();
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -9813,7 +9823,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
                 console.log(`[PAGAMENTOS-MASSA] forcarAnexar=true para colaborador ${item.colaborador_id}, doc ${docId}. hasNewHolerites=${hasNewHolerites}`);
                 if (hasNewHolerites) {
-                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowOld && rowOld.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -9891,6 +9901,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 temAdiantamento: temAdFlag,
                                 temPagamento: temPgFlag,
                                 temEmprestimo: temEmprFlag,
+                            temComunicacao: temComFlag,
                             });
                             docId = dbRes2.docId;
                             try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive forcarAnexar skip:', e2.message); }
@@ -9962,7 +9973,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
                 if (hasNewHolerites) {
                     // Sempre reconstrói a partir do _base.pdf para nunca duplicar
-                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowBase && rowBase.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -10027,7 +10038,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             const temAd = !!(bufAd && item.paginaAdiantamento);
                             const temPg = !!(bufPg && item.paginaPagamento);
                             await new Promise(r => db.run(
-                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ? WHERE id = ?',
+                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ? WHERE id = ?',
                                 [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, docId], () => r()
                             ));
 

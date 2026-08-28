@@ -314,7 +314,7 @@ async function extrairPagina(bufferPDF, numeroPaginaOuArray, tipoRecorte = false
  * Salva o PDF individual no disco e insere no banco de dados
  * Retorna { docId, filePath }
  */
-async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento, temEmprestimo }) {
+async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento, temEmprestimo, temComunicacao }) {
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
     if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
 

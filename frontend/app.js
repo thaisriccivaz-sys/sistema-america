@@ -18766,6 +18766,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#166534;" title="Documento de Empréstimos associado por CPF">EMPRÉSTIMO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#475569;" title="Documento genérico enviado a todos">COMUNICAÇÃO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#16a34a;">SALVO</th>
                        <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
@@ -18925,6 +18926,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
         const fileAd = document.getElementById('pm-file-adiantamento')?.files[0];
         const filePg = document.getElementById('pm-file-pagamento')?.files[0];
         const fileEmpr = document.getElementById('pm-file-emprestimo')?.files[0];
+        const fileCom = document.getElementById('pm-file-comunicacao')?.files[0];
 
         if (!fileAd && !filePg) {
             Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
@@ -18944,7 +18946,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
         const b64Pg = await readB64(filePg);
         const b64Empr = await readB64(fileEmpr);
 
-        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, emprestimo: b64Empr };
+        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, emprestimo: b64Empr, comunicacao: b64Com };
 
         document.getElementById('pm-processing').style.display = 'block';
         document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Processando Holerites...';
@@ -19288,6 +19290,9 @@ window.atualizarTodasAssinaturas = async function (btn) {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
               ${item.paginaEmprestimo ? '<span style="color:#166534;">OK</span>' : (item.temEmprestimo ? '<span style="color:#166534;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
             </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
+              ${temComAoVivo ? '<span style="color:#475569;">OK</span>' : (item.temComunicacao ? '<span style="color:#475569;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
+            </td>
             ${celulaSalvo}
             ${celulaEnviado}
             <td style="padding:0.5rem 0.75rem;text-align:center;">
@@ -19335,6 +19340,9 @@ window.atualizarTodasAssinaturas = async function (btn) {
             if (item.paginaEmprestimo && window._pdfDuploBase64 && window._pdfDuploBase64.emprestimo) {
                const i6 = document.createElement('input'); i6.type='hidden'; i6.name='pdfEmprestimo'; i6.value=window._pdfDuploBase64.emprestimo; f.appendChild(i6);
                const i7 = document.createElement('input'); i7.type='hidden'; i7.name='paginaEmprestimo'; i7.value=item.paginaEmprestimo; f.appendChild(i7);
+            }
+            if (window._pdfDuploBase64 && window._pdfDuploBase64.comunicacao) {
+               const i8 = document.createElement('input'); i8.type='hidden'; i8.name='pdfComunicacao'; i8.value=window._pdfDuploBase64.comunicacao; f.appendChild(i8);
             }
             document.body.appendChild(f);
             f.submit();

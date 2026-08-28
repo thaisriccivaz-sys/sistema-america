@@ -779,6 +779,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_emprestimo'))   db.run("ALTER TABLE documentos ADD COLUMN tem_emprestimo INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_comunicacao'))  db.run("ALTER TABLE documentos ADD COLUMN tem_comunicacao INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('boleto_financeiro_enviado_em')) db.run("ALTER TABLE documentos ADD COLUMN boleto_financeiro_enviado_em TEXT", (err) => {});
                 });
                 
