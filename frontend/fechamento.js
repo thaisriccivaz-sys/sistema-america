@@ -261,7 +261,7 @@ window._fechamento = (function () {
         document.getElementById('fech-btn-salvar').style.display = 'none';
 
         try {
-            const token = localStorage.getItem('authToken');
+            const token = window.currentToken || localStorage.getItem('erp_token') || '';
             const resp = await fetch(`/api/fechamento/${_ano}/${_mes}`, {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
@@ -408,7 +408,7 @@ window._fechamento = (function () {
         });
 
         try {
-            const token = localStorage.getItem('authToken');
+            const token = window.currentToken || localStorage.getItem('erp_token') || '';
             const resp = await fetch('/api/fechamento/salvar', {
                 method: 'POST',
                 headers: {
