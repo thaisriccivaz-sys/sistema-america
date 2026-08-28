@@ -189,7 +189,7 @@ async function processarPDF(bufferPDF, tipoDocumento) {
     console.log('[PAGAMENTOS-MASSA] Buscando colaboradores no banco...');
     const colaboradores = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.cpf,
+            `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo,
                     d.tipo AS setor
              FROM colaboradores c
              LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento))
@@ -200,23 +200,19 @@ async function processarPDF(bufferPDF, tipoDocumento) {
         );
     });
 
-    // Processar cada página
+    // Processar cada página — match por NOME (holerites não contêm CPF)
     let lastMatch = null;
     let lastNomeDetectado = null;
     const resultado = [];
     for (let i = 0; i < totalPaginas; i++) {
         const texto = pageTexts[i] || '';
         let nomeDetectado = extrairNomeDaPagina(texto);
-        const cpfDetectado = extrairCpfDaPagina(texto);
-        // 1. Tenta match por CPF (mais confiável — imune a mudança de nome)
-        let match = cpfDetectado ? buscarColaboradorPorCpf(cpfDetectado, colaboradores) : null;
-        // 2. Se não achou por CPF, tenta por nome
-        if (!match) match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
+        let match = nomeDetectado ? buscarColaboradorPorNome(nomeDetectado, colaboradores) : null;
         
-        if (!nomeDetectado && !cpfDetectado && lastNomeDetectado) {
+        if (!nomeDetectado && lastNomeDetectado) {
             nomeDetectado = lastNomeDetectado;
             match = lastMatch;
-        } else if (nomeDetectado || cpfDetectado) {
+        } else if (nomeDetectado) {
             lastNomeDetectado = nomeDetectado;
             lastMatch = match;
         }
@@ -224,7 +220,6 @@ async function processarPDF(bufferPDF, tipoDocumento) {
         resultado.push({
             pagina:           i + 1,
             nomeDetectado:    nomeDetectado || null,
-            cpfDetectado:     cpfDetectado || null,
             colaborador_id:   match?.colaborador?.id || null,
             colaborador_nome: match?.colaborador?.nome_completo || null,
             colaborador_email: match?.colaborador?.email || match?.colaborador?.email_corporativo || null,
