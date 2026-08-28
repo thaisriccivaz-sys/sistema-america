@@ -18765,6 +18765,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
                       <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#166534;" title="Documento de Empréstimos associado por CPF">EMPRÉSTIMO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#16a34a;">SALVO</th>
                        <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
@@ -18983,6 +18984,14 @@ window.atualizarTodasAssinaturas = async function (btn) {
                     Swal.fire({ icon:'warning', title:'Nenhuma correspondência', text:'Nenhum colaborador foi encontrado nos holerites anexados.', timer:3000 });
                     _pmFiltrar();
                     return;
+                }
+
+                // Aviso se PDF de empréstimos foi enviado mas nenhum CPF foi identificado
+                const algumComEmprestimo = data.resultado.some(r => r.paginaEmprestimo);
+                if (fileEmpr && !algumComEmprestimo) {
+                    Swal.fire({ icon:'warning', title:'Empréstimos sem match',
+                        html: 'O PDF de empréstimos foi anexado, mas <b>nenhum CPF foi encontrado</b> nas páginas do documento.<br><br>Verifique se o CPF está no PDF (formato XXX.XXX.XXX-XX) e se o colaborador tem CPF cadastrado no sistema.',
+                        timer: 8000, timerProgressBar: true });
                 }
 
                 // Auto-salvar automaticamente após processar
@@ -19276,6 +19285,9 @@ window.atualizarTodasAssinaturas = async function (btn) {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${((item.paginaPagamento && item.paginaPagamento !== '-') || item.temPagamento) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
+              ${item.paginaEmprestimo ? '<span style="color:#166534;">OK</span>' : (item.temEmprestimo ? '<span style="color:#166534;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
+            </td>
             ${celulaSalvo}
             ${celulaEnviado}
             <td style="padding:0.5rem 0.75rem;text-align:center;">
@@ -19319,6 +19331,10 @@ window.atualizarTodasAssinaturas = async function (btn) {
             if (item.paginaPagamento && window._pdfDuploBase64.pagamento) {
                const i4 = document.createElement('input'); i4.type='hidden'; i4.name='pdfPagamento'; i4.value=window._pdfDuploBase64.pagamento; f.appendChild(i4);
                const i5 = document.createElement('input'); i5.type='hidden'; i5.name='paginaPagamento'; i5.value=item.paginaPagamento; f.appendChild(i5);
+            }
+            if (item.paginaEmprestimo && window._pdfDuploBase64 && window._pdfDuploBase64.emprestimo) {
+               const i6 = document.createElement('input'); i6.type='hidden'; i6.name='pdfEmprestimo'; i6.value=window._pdfDuploBase64.emprestimo; f.appendChild(i6);
+               const i7 = document.createElement('input'); i7.type='hidden'; i7.name='paginaEmprestimo'; i7.value=item.paginaEmprestimo; f.appendChild(i7);
             }
             document.body.appendChild(f);
             f.submit();

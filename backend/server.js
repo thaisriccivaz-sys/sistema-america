@@ -9720,7 +9720,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
     }
 
     try {
-        const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento } = req.body;
+        const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento, pdfEmprestimo, paginaEmprestimo } = req.body;
         if (!docId) return res.status(400).send('Doc ID não fornecido');
 
         const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
@@ -9750,6 +9750,15 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
             const pgPages = await basePdfDoc.copyPages(pgPdfDoc, pgPdfDoc.getPageIndices());
             pgPages.forEach(p => basePdfDoc.addPage(p));
+        }
+
+        // Merge Empréstimo if provided (página inteira, sem recorte)
+        if (pdfEmprestimo && paginaEmprestimo) {
+            const bufEmpr = Buffer.from(pdfEmprestimo, 'base64');
+            const bufExtraidaEmpr = await pagamentosMassa.extrairPagina(bufEmpr, paginaEmprestimo, false);
+            const emprPdfDoc = await PDFDocument.load(bufExtraidaEmpr);
+            const emprPages = await basePdfDoc.copyPages(emprPdfDoc, emprPdfDoc.getPageIndices());
+            emprPages.forEach(p => basePdfDoc.addPage(p));
         }
 
         const mergedPdfBytes = await basePdfDoc.save();

@@ -74,16 +74,34 @@ function extrairNomeDaPagina(texto) {
 }
 
 
-// Extrai CPF do texto de uma página (formato XXX.XXX.XXX-XX)
+// Extrai CPF do texto de uma página.
+// O pdfreader pode concatenar tokens de formas variadas, então tentamos múltiplos padrões:
+// 1. Formato canônico com ponto e traço: 123.456.789-00
+// 2. Qualquer separador (ponto, traço, espaço): 123 456 789-00
+// 3. 11 dígitos consecutivos isolados (sem outro dígito imediatamente antes/depois)
 function extrairCpfDaPagina(texto) {
     if (!texto) return null;
-    const match = texto.match(/(\d{3}[.\-]\d{3}[.\-]\d{3}[.\-]\d{2})/);
-    if (match) {
-        const digits = match[1].replace(/[^\d]/g, '');
-        if (digits.length === 11) {
-            return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-        }
-    }
+
+    const normalizar = (str) => {
+        const digits = str.replace(/[^\d]/g, '');
+        if (digits.length !== 11) return null;
+        // Rejeitar sequências óbvias (todos iguais: 00000000000, 11111111111...)
+        if (/^(\d)\1{10}$/.test(digits)) return null;
+        return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    };
+
+    // Padrão 1: XXX.XXX.XXX-XX  ou  XXX-XXX-XXX-XX  (separadores ponto ou traço)
+    let m = texto.match(/\d{3}[.\-]\d{3}[.\-]\d{3}[.\-]\d{2}/);
+    if (m) { const r = normalizar(m[0]); if (r) return r; }
+
+    // Padrão 2: qualquer separador único (ponto, traço OU espaço) entre grupos
+    m = texto.match(/\d{3}[ .\-]\d{3}[ .\-]\d{3}[ .\-]\d{2}/);
+    if (m) { const r = normalizar(m[0]); if (r) return r; }
+
+    // Padrão 3: 11 dígitos consecutivos NÃO precedidos/seguidos de outro dígito
+    m = texto.match(/(?<!\d)(\d{11})(?!\d)/);
+    if (m) { const r = normalizar(m[1]); if (r) return r; }
+
     return null;
 }
 
