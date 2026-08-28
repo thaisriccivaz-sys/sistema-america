@@ -12,6 +12,7 @@ window._fechamento = (function () {
     let _dados = [];
     var _stateArquivos = { farmacia: false, mercado_texto: null, consignado: false };
     var _dadosPonto = {}; // { colaborador_id: dadosRHID } — persiste entre filtros
+    var _dadosMercado = [];
     let _mes = null;
     let _ano = null;
 
@@ -196,10 +197,11 @@ window._fechamento = (function () {
     <!-- Olho Consignado -->
     <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver consignado carregado"><i class="ph ph-eye"></i></button>
 
-    <!-- Colar Mercado -->
-    <button onclick="window._fechamento.abrirModalMercado()" style="background:#d97706;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-shopping-cart"></i> Mercado (Texto)
-    </button>
+    <!-- Upload Mercado PDFs -->
+    <label id="fech-label-mercado" style="background:#d97706;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+      <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
+      <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
+    </label>
 
     <!-- Olho Mercado -->
     <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i></button>
@@ -252,27 +254,27 @@ window._fechamento = (function () {
       <table id="fech-tabela" style="width:100%;border-collapse:separate; border-spacing:0; font-size:.8rem;min-width:1500px;">
         <thead style="position:sticky; top:0; z-index:10;">
           <tr style="background:#1e40af;color:#fff;">
-            <th style="padding:.4rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;">Colaborador</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:left;">Cargo</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">Sal&aacute;rio</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">H.Normais<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">9435</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">H.Trab.</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Ext.60%<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">264</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Ext.100%<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">200</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">DSR</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Faltas<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">8792</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Atrasos<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">8060</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">VT<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">48</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Farm&aacute;cia<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">238</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Mercado<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">279</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Multas<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">302</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Academia<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">278</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Consig.<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">9750</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Comiss&atilde;o<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">37</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">B&ocirc;nus</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">PLR<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">873</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;">Pr&ecirc;mio</th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.2;">Outros<br><span style="font-size:.65rem;font-weight:400;opacity:.75;">290</span></th>
+            <th style="padding:.4rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;"><strong>Colaborador</strong></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;text-align:left;"><strong>Cargo</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Sal&aacute;rio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>H.Normais</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9435</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>H.Trab.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.100%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">200</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8792</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Atrasos</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8060</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>VT</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">48</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Farm&aacute;cia</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">238</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Mercado</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">279</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Multas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">302</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Academia</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">278</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Consig.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9750</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Comiss&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">37</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>B&ocirc;nus</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>PLR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">873</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Pr&ecirc;mio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Outros</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">290</span></th>
           </tr>
         </thead>
         <tbody id="fech-tbody"></tbody>
@@ -597,6 +599,9 @@ window._fechamento = (function () {
             var debugInfo = json.debug_cpfs && json.debug_cpfs.length
                 ? '\n\nCPFs no PDF: ' + json.debug_cpfs.slice(0,5).join(', ') + (json.debug_cpfs.length>5 ? '...' : '')
                 : '';
+            _stateArquivos.farmacia = true;
+            var _btnEF = document.getElementById('fech-btn-eye-farmacia');
+            if (_btnEF) _btnEF.style.display = 'inline-flex';
             Swal.fire({ icon: 'success', title: 'Farmácia processada!', text: atualizados + ' colaboradores com desconto de ' + Object.keys(json.farmacia).length + ' no PDF.' + debugInfo, timer: 4000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no PDF de Farmácia', text: e.message });
@@ -635,6 +640,9 @@ window._fechamento = (function () {
                     atualizados++;
                 }
             });
+            _stateArquivos.consignado = true;
+            var _btnEC = document.getElementById('fech-btn-eye-consignado');
+            if (_btnEC) _btnEC.style.display = 'inline-flex';
             Swal.fire({ icon: 'success', title: 'Consignado processado!', text: `${atualizados} colaboradores com desconto.`, timer: 3000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no XLSX de Consignado', text: e.message });
@@ -653,6 +661,70 @@ window._fechamento = (function () {
         const modal = document.getElementById('fech-modal-mercado');
         if (modal) modal.style.display = 'none';
     }
+    // ─────────────────────────────────────────────────────────────────
+    // UPLOAD MERCADO (MÚltiplos PDFs)
+    // ─────────────────────────────────────────────────────────────────
+    async function uploadMercadoPdfs(input) {
+        if (!input.files || input.files.length === 0) return;
+        var files = Array.from(input.files);
+        var formData = new FormData();
+        files.forEach(function(f) { formData.append('pdfs', f); });
+        formData.append('mes', _mes);
+        formData.append('ano', _ano);
+        try {
+            Swal.fire({ title: 'Processando ' + files.length + ' PDF(s) de Mercado...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+            var resp = await fetch('/api/fechamento/upload-mercado-pdfs', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getToken() },
+                body: formData
+            });
+            var json = await resp.json();
+            if (!json.ok) throw new Error(json.error);
+            _dadosMercado = json.resultados || [];
+            // Normalizar nomes do PDF
+            var normRes = {};
+            _dadosMercado.forEach(function(r) {
+                var nNorm = (r.nome || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                normRes[nNorm] = r;
+            });
+            // Preencher coluna mercado por nome do colaborador
+            var atualizados = 0;
+            _dados.forEach(function(row, idx) {
+                var nColab = (row.nome_completo || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                var match = normRes[nColab];
+                if (!match) {
+                    // Tentar match parcial com palavras
+                    Object.keys(normRes).forEach(function(k) {
+                        if (!match) {
+                            var pw = k.split(' ').filter(Boolean);
+                            var pc = nColab.split(' ').filter(Boolean);
+                            var hits = pw.filter(function(p) { return pc.includes(p); });
+                            if (hits.length >= Math.min(2, pw.length)) match = normRes[k];
+                        }
+                    });
+                }
+                if (match) {
+                    var val = match.valor;
+                    _dados[idx].mercado = val;
+                    var cell = document.getElementById('fech-cell-mercado-' + idx);
+                    if (cell) { var inp = cell.querySelector('input'); if (inp) inp.value = parseFloat(val).toFixed(2); }
+                    atualizar(idx, 'mercado', val);
+                    atualizados++;
+                }
+            });
+            // Mostrar botão de olho
+            _stateArquivos.mercado_pdfs = true;
+            var _btnEM = document.getElementById('fech-btn-eye-mercado');
+            if (_btnEM) _btnEM.style.display = 'inline-flex';
+            // Resultado
+            var totalPdfs = _dadosMercado.length;
+            Swal.fire({ icon: 'success', title: 'Mercado processado!', text: totalPdfs + ' PDF(s) importados. ' + atualizados + ' colaboradores com valor preenchido.', timer: 4000, showConfirmButton: false });
+        } catch(e) {
+            Swal.fire({ icon: 'error', title: 'Erro no Mercado', text: e.message });
+        }
+        input.value = '';
+    }
+
     function parseMercado() {
         const texto = document.getElementById('fech-mercado-texto').value || '';
         const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
@@ -1163,13 +1235,25 @@ window._fechamento = (function () {
         Swal.fire({ icon: 'success', title: 'Consignado', text: 'Planilha importada com sucesso nesta sessão.' });
     }
     function verMercado() {
-        var txt = _stateArquivos.mercado_texto;
-        if (!txt) {
-            Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum texto carregado nesta sessão.' });
+        if (!_dadosMercado || _dadosMercado.length === 0) {
+            Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum PDF carregado nesta sessão.' });
             return;
         }
-        var safe = txt.replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 2000);
-        Swal.fire({ title: 'Dados Mercado', html: '<pre style="text-align:left;font-size:.75rem;max-height:300px;overflow:auto;background:#fffbeb;padding:.5rem;border-radius:.4rem;">' + safe + '</pre>', width: 500 });
+        var iframesHtml = _dadosMercado.map(function(r) {
+            var url = '/api/fechamento/mercado-pdf/' + r.id + '?token=' + encodeURIComponent(getToken());
+            var nomeLabel = r.nome + (r.valor ? ' — R$ ' + parseFloat(r.valor).toFixed(2).replace('.', ',') : '');
+            return '<div style="margin-bottom:1rem;">'
+                + '<div style="font-size:.75rem;font-weight:600;color:#374151;padding:.25rem .5rem;background:#f3f4f6;border-radius:.25rem .25rem 0 0;border:1px solid #d1d5db;">' + nomeLabel + '</div>'
+                + '<iframe src="' + url + '" style="width:100%;height:500px;border:1px solid #d1d5db;border-top:none;border-radius:0 0 .25rem .25rem;" title="' + r.nome + '"></iframe>'
+                + '</div>';
+        }).join('');
+        Swal.fire({
+            title: 'PDFs do Mercado (' + _dadosMercado.length + ')',
+            html: '<div style="max-height:70vh;overflow-y:auto;padding:.5rem;">' + iframesHtml + '</div>',
+            width: '90vw',
+            showCloseButton: true,
+            showConfirmButton: false
+        });
     }
 
     // Converte minutos em HH:MM
@@ -1265,7 +1349,7 @@ window._fechamento = (function () {
 
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
-        uploadFarmacia, uploadConsignado, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
+        uploadFarmacia, uploadConsignado, uploadMercadoPdfs, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
         carregarMultas, carregarPLR,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
