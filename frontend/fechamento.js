@@ -227,37 +227,42 @@ window._fechamento = (function () {
   </div>
 
   <!-- Tabela principal -->
-  <div id="fech-tabela-wrap" style="overflow-x:auto;display:none;">
-    <table id="fech-tabela" style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:1500px;">
-      <thead>
-        <tr style="background:#1e40af;color:#fff;">
-          <th style="padding:.45rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;background:#1e40af;z-index:2;">Colaborador</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Cargo</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Salário</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;" title="Horas normais mensais">H.Normais</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;" title="Horas trabalhadas">H.Trab.</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Ext.60%</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Ext.100%</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">DSR</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Faltas</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Atrasos</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">VT</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;background:#0c4a6e;">Farmácia</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;background:#78350f;">Mercado</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;background:#7f1d1d;">Multas</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Academia</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;background:#4c1d95;">Consig.</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Comissão</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Bônus</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;background:#14532d;">PLR</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Prêmio</th>
-          <th style="padding:.45rem .35rem;white-space:nowrap;">Outros</th>
-          <th style="padding:.45rem .5rem;white-space:nowrap;background:#164e63;">Total Bruto</th>
-          <th style="padding:.45rem .5rem;white-space:nowrap;background:#064e3b;">Líquido</th>
-        </tr>
-      </thead>
-      <tbody id="fech-tbody"></tbody>
-    </table>
+  <div id="fech-tabela-wrap" style="display:none;">
+    <div id="fech-top-scroll" style="overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:4px;" onscroll="document.getElementById('fech-tabela-inner').scrollLeft = this.scrollLeft;">
+      <div id="fech-top-scroll-content" style="height:14px;"></div>
+    </div>
+    <div id="fech-tabela-inner" style="overflow-x:auto; max-height: 65vh; overflow-y:auto; border-bottom:1px solid #e5e7eb;" onscroll="document.getElementById('fech-top-scroll').scrollLeft = this.scrollLeft;">
+      <table id="fech-tabela" style="width:100%;border-collapse:separate; border-spacing:0; font-size:.8rem;min-width:1500px;">
+        <thead style="position:sticky; top:0; z-index:10;">
+          <tr style="background:#1e40af;color:#fff;">
+            <th style="padding:.45rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;">Colaborador</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Cargo</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Salário</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;" title="Horas normais mensais">H.Normais</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;" title="Horas trabalhadas">H.Trab.</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Ext.60%</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Ext.100%</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">DSR</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Faltas</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Atrasos</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">VT</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Farmácia</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Mercado</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Multas</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Academia</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Consig.</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Comissão</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Bônus</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">PLR</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Prêmio</th>
+            <th style="padding:.45rem .35rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Outros</th>
+            <th style="padding:.45rem .5rem;white-space:nowrap;position:sticky;top:0;background:#164e63;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Total Bruto</th>
+            <th style="padding:.45rem .5rem;white-space:nowrap;position:sticky;top:0;background:#064e3b;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;">Líquido</th>
+          </tr>
+        </thead>
+        <tbody id="fech-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- ABAS: Fechamento | Comissão | Conferência Folha -->
@@ -410,7 +415,7 @@ window._fechamento = (function () {
             tr.style.cssText = `border-bottom:1px solid #e5e7eb;${bgRow ? 'background:' + bgRow + ';' : ''}`;
             tr.dataset.idx = idx;
             tr.innerHTML = `
-<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}</td>
+<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}</td>
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="padding:.35rem .3rem;white-space:nowrap;">${fmt(row.salario)}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
@@ -435,6 +440,15 @@ window._fechamento = (function () {
 <td style="padding:.35rem .4rem;text-align:right;font-weight:700;color:#065f46;background:#ecfdf5;" id="fech-liq-${idx}">${fmt(calc.liquido)}</td>`;
             tbody.appendChild(tr);
         });
+
+        // Atualizar barra de rolagem superior
+        setTimeout(() => {
+            const t = document.getElementById('fech-tabela');
+            const c = document.getElementById('fech-top-scroll-content');
+            if (t && c) {
+                c.style.width = t.offsetWidth + 'px';
+            }
+        }, 100);
     }
 
     function inpHora(idx, campo, val) {
