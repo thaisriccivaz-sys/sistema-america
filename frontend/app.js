@@ -18945,6 +18945,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
         const b64Ad = await readB64(fileAd);
         const b64Pg = await readB64(filePg);
         const b64Empr = await readB64(fileEmpr);
+        const b64Com = await readB64(fileCom);
 
         window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, emprestimo: b64Empr, comunicacao: b64Com };
 
