@@ -19205,6 +19205,7 @@ window.atualizarTodasAssinaturas = async function (btn) {
     };
 
     function _pmRenderTabela(itens) {
+        const temComAoVivo = !!(window._pdfDuploBase64 && window._pdfDuploBase64.comunicacao);
         const tbody = document.getElementById('pm-tbody');
         if (!tbody) return;
         const matchColors = { exato: '#dcfce7', parcial: '#fef9c3', aproximado: '#ffedd5', null: '#fee2e2' };
