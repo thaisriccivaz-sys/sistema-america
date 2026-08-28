@@ -9508,22 +9508,48 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
             let valor = 0;
             let text = '';
             
-            try {
+                        try {
                 const { PDFParse } = require('pdf-parse');
-                const _mercParser = new PDFParse({ verbosity: 0, data: file.buffer });
-                const _mercData = await _mercParser.getText();
-                // getText() retorna objeto { text: '...' } — garantir que é string
-                text = (typeof _mercData === 'string') ? _mercData : (_mercData.text || '');
+                const _mParser = new PDFParse({ verbosity: 0, data: file.buffer });
+                const _mData = await _mParser.getText();
+                text = (_mData && typeof _mData.text === 'string') ? _mData.text : (typeof _mData === 'string' ? _mData : '');
             } catch (e) {
-                console.error('Erro ao parsear PDF do mercado:', e.message);
+                console.error('[mercado-pdf-parse] Erro:', e.message);
                 text = '';
             }
             
-            // Buscar linha com regex /^\|?-?[\t -]+R\$\s*([\d,.]+)/m ou buscar a linha com R$ 0,00 que contém o total
-            const matchTotal = text.match(/^\|?[\t -]+R\$\s*([\d,.]+)/m) || text.match(/R\$\s*([\d,.]+)[\s\t]*R\$\s*0,00/i);
-            
-            if (matchTotal && matchTotal[1]) {
-                valor = parseFloat(matchTotal[1].replace(',', '.'));
+            // Extrair o valor total do PDF
+            // Linha de total do Mercado Berlim: '|- \t- \t- \t- \t- \tR$ 183,28 R$ 0,00 ...'
+            // Estratégia: encontrar a linha com múltiplos '-' e R$ 0,00 (linha de totais)
+            const linhasTxt = (typeof text === 'string') ? text.split('\n') : [];
+            let totalLineTxt = '';
+            // Preferir linha que tem R$ X,XX R$ 0,00 (indicador de linha de total)
+            for (const ln of linhasTxt) {
+                if (ln.indexOf('R$ 0,00') !== -1 || ln.indexOf('R$\t0,00') !== -1 || ln.indexOf('0,00') !== -1) {
+                    // Linha de total tem pelo menos 2 valores monetários e traços
+                    if ((ln.match(/R\$/g) || []).length >= 2) {
+                        totalLineTxt = ln;
+                        break;
+                    }
+                }
+            }
+            if (totalLineTxt) {
+                // Pegar o primeiro valor R$ desta linha
+                const mV = totalLineTxt.match(/R\$\s*([\d]+(?:[.,][\d]+)?)/);
+                if (mV && mV[1]) {
+                    valor = parseFloat(mV[1].replace(',', '.'));
+                }
+            }
+            if (!valor && typeof text === 'string' && text.length > 0) {
+                // Fallback: pegar todos os valores monetários e retornar o maior (= total)
+                const todosValores = [];
+                const regV = /R\$\s*([\d]+(?:[.,][\d]+)?)/g;
+                let mFB;
+                while ((mFB = regV.exec(text)) !== null) {
+                    const v = parseFloat(mFB[1].replace(',', '.'));
+                    if (!isNaN(v) && v > 0) todosValores.push(v);
+                }
+                if (todosValores.length > 0) valor = Math.max(...todosValores);
             } else {
                 // Fallback: tentar encontrar o total de outra forma
                 const matchFallback = text.match(/-\s+R\$\s*([\d,.]+)\s+R\$\s*0,00/i) || text.match(/R\$\s*([\d,.]+)/);

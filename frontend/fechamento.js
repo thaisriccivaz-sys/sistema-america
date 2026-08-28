@@ -405,7 +405,9 @@ window._fechamento = (function () {
                 var tM = _dados.some(function(r) { return parseFloat(r.mercado) > 0; });
                 if (tF) { _stateArquivos.farmacia = true; var b = document.getElementById('fech-btn-eye-farmacia'); if (b) b.style.display = 'inline-flex'; }
                 if (tC) { _stateArquivos.consignado = true; var b = document.getElementById('fech-btn-eye-consignado'); if (b) b.style.display = 'inline-flex'; }
+            salvarSilencioso();
                 if (tM) { _stateArquivos.mercado_pdfs = true; var b = document.getElementById('fech-btn-eye-mercado'); if (b) b.style.display = 'inline-flex'; }
+            salvarSilencioso();
             })();
             if (wrap) wrap.style.display = 'block';
             if (msg) msg.style.display = 'none';
@@ -612,6 +614,7 @@ window._fechamento = (function () {
             var _btnEF = document.getElementById('fech-btn-eye-farmacia');
             if (_btnEF) _btnEF.style.display = 'inline-flex';
             Swal.fire({ icon: 'success', title: 'Farmácia processada!', text: atualizados + ' colaboradores com desconto de ' + Object.keys(json.farmacia).length + ' no PDF.' + debugInfo, timer: 4000, showConfirmButton: false });
+            salvarSilencioso();
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no PDF de Farmácia', text: e.message });
         }
@@ -912,6 +915,45 @@ window._fechamento = (function () {
     // ─────────────────────────────────────────────────────────────────
     // SALVAR TUDO
     // ─────────────────────────────────────────────────────────────────
+    // Salvar silenciosamente (sem Swal de sucesso) — usado após imports automáticos
+    async function salvarSilencioso() {
+        if (!_mes || !_ano || !_dados || _dados.length === 0) return;
+        try {
+            const itens = _dados.map(function(row) {
+                return {
+                    colaborador_id: row.id || row.colaborador_id,
+                    horas_normais: row.horas_normais,
+                    horas_trabalhadas: row.horas_trabalhadas,
+                    extra_60: row.extra_60,
+                    extra_100: row.extra_100,
+                    horas_atraso: row.horas_atraso,
+                    dias_falta: row.dias_falta,
+                    dsr: row.dsr,
+                    vt: row.vt,
+                    farmacia: row.farmacia,
+                    mercado: row.mercado,
+                    multas: row.multas,
+                    academia: row.academia,
+                    consignado: row.consignado,
+                    outros: row.outros,
+                    bonus: row.bonus,
+                    premio: row.premio,
+                    comissao: row.comissao,
+                    plr: row.plr,
+                    observacao: row.observacao
+                };
+            });
+            await fetch('/api/fechamento/salvar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                body: JSON.stringify({ mes: _mes, ano: _ano, itens })
+            });
+            console.log('[fechamento] Auto-save realizado após import.');
+        } catch(e) {
+            console.warn('[fechamento] Auto-save falhou:', e.message);
+        }
+    }
+
     async function salvarTudo() {
         if (!_mes || !_ano) return;
         const btn = document.getElementById('fech-btn-salvar');
@@ -1395,7 +1437,7 @@ window._fechamento = (function () {
 
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
-        uploadFarmacia, uploadConsignado, uploadMercadoPdfs, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
+        uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
         carregarMultas, carregarPLR,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
