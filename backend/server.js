@@ -1297,7 +1297,7 @@ GERADORES_PERFIL.forEach(nome => {
     const conteudoHTML = `<p><b>ACEITE DE RECEBIMENTO POR E-MAIL</b></p><br><p>Eu, <b>\${NOME_COMPLETO}</b>, portador(a) do CPF nº <b>\${CPF}</b>, ocupando o cargo de <b>\${CARGO}</b> no departamento de <b>\${DEPARTAMENTO}</b>, admitido(a) em <b>\${DATA_ADMISSAO}</b>, venho por meio deste documento <b>declarar meu aceite e ciência</b> de que:</p><p>1. Estou ciente de que a empresa <b>América Rental Equipamentos Ltda.</b> poder?? me enviar comunicados, documentos, contratos, holerites, avisos e demais informações corporativas por <b>e-mail</b>, inclusive com validade legal.</p><p>2. O endereço de e-mail cadastrado para recebimento dessas comunicações ??: <b>\${EMAIL}</b>.</p><p>3. Reconhe??o que sou o(a) <b>responsável pela guarda, confidencialidade e acesso</b> à referida caixa de e-mail e que o recebimento das mensagens na referida conta equivale ao recebimento pessoal.</p><p>4. Comprometo-me a comunicar imediatamente ao setor de Recursos Humanos caso ocorra qualquer alteração no endereço de e-mail acima informado ou caso eu perca o acesso a ele.</p><p>5. Estou ciente de que a América Rental Equipamentos Ltda. não se responsabiliza pelo uso indevido da minha conta de e-mail por terceiros, nem por acessos não autorizados decorrentes de neglig??ncia de minha parte na guarda da minha senha.</p>`;
 
     // Forçar atualização do conte??do para quem já tem a tabela
-    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+    // db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
 
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
         if (excluido) return;
@@ -1394,7 +1394,7 @@ GERADORES_PERFIL.forEach(nome => {
   </table>
 </div>`;
 
-    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+    // db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
 
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
         if (excluido) return;
@@ -1451,7 +1451,7 @@ GERADORES_PERFIL.forEach(nome => {
   </table>
 </div>`;
 
-    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+    // db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
 
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
         if (excluido) return;
@@ -1512,7 +1512,7 @@ GERADORES_PERFIL.forEach(nome => {
   </table>
 </div>`;
 
-    db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
+    // db.run("UPDATE geradores SET conteudo = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))", [conteudoHTML, nomeGerador]);
 
     db.get("SELECT nome FROM geradores_excluidos WHERE nome = ?", [nomeGerador], (e, excluido) => {
         if (excluido) return;
@@ -1710,7 +1710,7 @@ e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
 // Cleanup old lowercase seeded generators to prevent duplicates
 db.run("DELETE FROM geradores WHERE nome IN ('habilitação categoria b', 'habilitação categoria d')");
 
-db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria B'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
+// db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria B'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
 db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria B'", (err, row) => {
     if (!row) {
         db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria B', habBHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
@@ -1718,7 +1718,7 @@ db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria B'", (err
         });
     }
 });
-db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria D'", [habDHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}']);
+// db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria D'", [habDHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}']);
 db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria D'", (err, row) => {
     if (!row) {
         db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria D', habDHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
