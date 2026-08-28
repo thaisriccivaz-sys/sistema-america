@@ -462,7 +462,6 @@ window._fechamento = (function () {
             blur = ' onblur="if(this.value) this.value = parseFloat(this.value).toFixed(2);"';
         }
         return `<input type="number" step="${step||1}" min="0" value="${v}" placeholder="${placeholder||'0'}" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)"${blur}>`;
-    }" min="0" value="${(val||val===0)?val:''}" placeholder="${placeholder||'0'}" style="width:68px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;" oninput="window._fechamento.atualizar(${idx},'${campo}',this.value)">`;
     }
     function inpDsr(idx, val) {
         return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
