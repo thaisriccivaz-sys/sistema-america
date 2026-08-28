@@ -11,6 +11,7 @@ window._fechamento = (function () {
     // ─────────────────────────────────────────────────────────────────
     let _dados = [];
     var _stateArquivos = { farmacia: false, mercado_texto: null, consignado: false };
+    var _dadosPonto = {}; // { colaborador_id: dadosRHID } — persiste entre filtros
     let _mes = null;
     let _ano = null;
 
@@ -212,6 +213,12 @@ window._fechamento = (function () {
     <button onclick="window._fechamento.carregarPLR()" style="background:#059669;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
       <i class="ph ph-trophy"></i> Calcular PLR
     </button>
+
+    <!-- Buscar Ponto RHID -->
+    <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+      <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
+    </button>
+    <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
 
     <div style="flex:1;min-width:20px;"></div>
 
@@ -541,20 +548,56 @@ window._fechamento = (function () {
             const json = await resp.json();
             if (!json.ok) throw new Error(json.error);
             // Preencher coluna farmácia por CPF
-            let atualizados = 0;
+            var atualizados = 0;
+            // Índice de nomes normalizados do PDF para fallback por nome
+            var normPdf = {};
+            Object.keys(json.farmacia).forEach(function(cpfKey) {
+                var nomePdf = (json.farmacia[cpfKey].nome || '').toUpperCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                normPdf[nomePdf] = cpfKey;
+            });
             _dados.forEach((row, idx) => {
-                const cpf = (row.cpf || '').replace(/[.\-]/g, '');
+                var cpf = (row.cpf || '').replace(/[.\-]/g, '');
+                var matchKey = null;
+                // 1. Match por CPF
                 if (json.farmacia[cpf]) {
-                    const val = json.farmacia[cpf].valor;
+                    matchKey = cpf;
+                } else {
+                    // 2. Fallback: match por nome normalizado
+                    var nomeColab = (row.nome_completo || '').toUpperCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                    if (normPdf[nomeColab]) {
+                        matchKey = normPdf[nomeColab];
+                    } else {
+                        // 3. Match parcial: >= 3 palavras em comum
+                        Object.keys(normPdf).forEach(function(nomePdfKey) {
+                            if (!matchKey) {
+                                var pw = nomePdfKey.split(' ').filter(Boolean);
+                                var pc = nomeColab.split(' ').filter(Boolean);
+                                var matches = pw.filter(function(p) { return pc.includes(p); });
+                                if (matches.length >= Math.min(3, pw.length)) {
+                                    matchKey = normPdf[nomePdfKey];
+                                }
+                            }
+                        });
+                    }
+                }
+                if (matchKey !== null) {
+                    var val = json.farmacia[matchKey].valor;
                     _dados[idx].farmacia = val;
-                    // Atualizar input na tela
-                    const cell = document.getElementById(`fech-cell-farmacia-${idx}`);
-                    if (cell) cell.querySelector('input').value = val;
+                    var cell = document.getElementById('fech-cell-farmacia-' + idx);
+                    if (cell) {
+                        var inp = cell.querySelector('input');
+                        if (inp) inp.value = parseFloat(val).toFixed(2);
+                    }
                     atualizar(idx, 'farmacia', val);
                     atualizados++;
                 }
             });
-            Swal.fire({ icon: 'success', title: `Farmácia processada!`, text: `${atualizados} colaboradores com desconto. Total de entradas: ${Object.keys(json.farmacia).length}.`, timer: 3000, showConfirmButton: false });
+            var debugInfo = json.debug_cpfs && json.debug_cpfs.length
+                ? '\n\nCPFs no PDF: ' + json.debug_cpfs.slice(0,5).join(', ') + (json.debug_cpfs.length>5 ? '...' : '')
+                : '';
+            Swal.fire({ icon: 'success', title: 'Farmácia processada!', text: atualizados + ' colaboradores com desconto de ' + Object.keys(json.farmacia).length + ' no PDF.' + debugInfo, timer: 4000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no PDF de Farmácia', text: e.message });
         }
@@ -1129,9 +1172,100 @@ window._fechamento = (function () {
         Swal.fire({ title: 'Dados Mercado', html: '<pre style="text-align:left;font-size:.75rem;max-height:300px;overflow:auto;background:#fffbeb;padding:.5rem;border-radius:.4rem;">' + safe + '</pre>', width: 500 });
     }
 
+    // Converte minutos em HH:MM
+    function minToHH(min) {
+        if (!min && min !== 0) return "";
+        var h = Math.floor(Math.abs(min) / 60);
+        var m = Math.abs(min) % 60;
+        return (min < 0 ? "-" : "") + String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+    }
+
+    // Aplica dados do RHID na linha do colaborador
+    function aplicarPontoNaTabela(idx, dados) {
+        if (!_dados[idx]) return;
+        // H.Trab. = dias trabalhados × 8h em HH:MM (ou usar totalHorasMinutos se disponível)
+        var diasTrab = dados.diasTrabalhados || 0;
+        var htrab = minToHH(diasTrab * 8 * 60);
+        // Extras: diasComHoraExtra como referência — não temos breakdown 60%/100% da API
+        // Faltas
+        var faltas = dados.faltas || 0;
+        // Atualizar _dados
+        if (htrab) { _dados[idx].horas_trabalhadas = htrab; }
+        _dados[idx].dias_falta = faltas;
+        // Atualizar tela
+        var trEls = document.querySelectorAll("#fech-tbody tr");
+        trEls.forEach(function(tr) {
+            if (parseInt(tr.dataset.idx) !== idx) return;
+            // H.Trab input
+            var inputs = tr.querySelectorAll("input");
+            inputs.forEach(function(inp) {
+                var oi = inp.getAttribute("oninput") || "";
+                if (oi.includes("horas_trabalhadas") && htrab) inp.value = htrab;
+                if (oi.includes("dias_falta") && faltas !== undefined) inp.value = faltas;
+            });
+        });
+        atualizar(idx, "dias_falta", faltas);
+    }
+
+    async function buscarPontoTodos() {
+        if (!_mes || !_ano) { Swal.fire({ icon: "warning", text: "Busque um mês antes de carregar o ponto." }); return; }
+        var btn = document.getElementById("fech-btn-buscar-ponto");
+        var badge = document.getElementById("fech-badge-ponto");
+        if (btn) { btn.disabled = true; btn.innerHTML = "<i class=\"ph ph-spinner\"></i> Buscando..."; }
+        if (badge) badge.style.display = "none";
+
+        var colabsComCpf = _dados.filter(function(r) { return r.cpf || r.colaborador_id; });
+        var ok = 0, semCadastro = 0, erros = 0;
+        var nomesOk = [], nomesSem = [];
+
+        Swal.fire({ title: "Buscando ponto...", html: "0 / " + colabsComCpf.length + " colaboradores", allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+        var total = colabsComCpf.length;
+        var concluidos = 0;
+
+        await Promise.allSettled(colabsComCpf.map(async function(row) {
+            var cpf = (row.cpf || "").replace(/[.\-]/g, "");
+            var idx = _dados.indexOf(row);
+            if (!cpf) { semCadastro++; nomesSem.push(row.nome_completo); concluidos++; return; }
+            try {
+                var resp = await fetch("/api/diretoria/controlid/ponto-colaborador?cpf=" + encodeURIComponent(cpf) + "&mes=" + _mes + "&ano=" + _ano,
+                    { headers: { "Authorization": "Bearer " + getToken() } });
+                var dados = await resp.json();
+                if (dados.success && dados.encontrado) {
+                    _dadosPonto[row.colaborador_id || row.id] = dados;
+                    aplicarPontoNaTabela(idx, dados);
+                    ok++;
+                    nomesOk.push(row.nome_completo);
+                } else {
+                    semCadastro++;
+                    nomesSem.push(row.nome_completo);
+                }
+            } catch(e) {
+                erros++;
+            }
+            concluidos++;
+            Swal.update({ html: concluidos + " / " + total + " colaboradores" });
+        }));
+
+        Swal.close();
+        if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
+
+        var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
+        if (badge) {
+            badge.style.display = "inline";
+            badge.innerHTML = ok + " encontrados" + (semCadastro > 0 ? " / " + semCadastro + " sem cadastro" : "") + (erros > 0 ? " / " + erros + " erros" : "");
+        }
+
+        var msgTipo = ok > 0 ? "success" : "warning";
+        var msgTxt = ok + " colaborador(es) com ponto carregado.";
+        if (semCadastro > 0) msgTxt += "\n" + semCadastro + " sem cadastro no RHID: " + nomesSem.slice(0,3).join(", ") + (nomesSem.length > 3 ? "..." : "");
+        if (erros > 0) msgTxt += "\n" + erros + " erros de conexão.";
+        Swal.fire({ icon: msgTipo, title: "Ponto " + mesFmt, text: msgTxt, timer: 5000, showConfirmButton: ok === 0 });
+    }
+
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
-        uploadFarmacia, uploadConsignado, verFarmacia, verConsignado, verMercado,
+        uploadFarmacia, uploadConsignado, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
         carregarMultas, carregarPLR,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,

@@ -9436,21 +9436,26 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
 app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single('pdf'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
-        const pdfData = await parser.getText();
+        const pdfParse = require('pdf-parse');
+        const pdfData = await pdfParse(req.file.buffer);
         const text = pdfData.text || '';
         // Parse: linhas com "CPF NOME ... Total Conveniado: RR$valor"
         const result = {};
-        // Extract per-employee totals: each block ends with "Total Conveniado: RR$X"
         const lines = text.split('\n');
         let currentCpf = null, currentNome = null;
         for (const line of lines) {
-            // Match CPF line: "443.561.588-65 DANIEL ALMEIDA SANTOS ..."
+            // Formato 1: "CPF NOME" — "443.561.588-65 DANIEL ALMEIDA SANTOS ..."
             const cpfMatch = line.match(/(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2})\s+([A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇa-záéíóúâêôãõàüç ]+)/);
             if (cpfMatch) {
                 currentCpf = cpfMatch[1].replace(/[.\-]/g, '');
                 currentNome = cpfMatch[2].trim();
+            } else {
+                // Formato 2: "NOME CPF" — "JOSE HENRIQUE VILAS BOAS DA SILVA 443.561.588-65"
+                const cpfMatch2 = line.match(/([A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇa-záéíóúâêôãõàüç ]{5,})\s+(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2})/);
+                if (cpfMatch2) {
+                    currentNome = cpfMatch2[1].trim();
+                    currentCpf = cpfMatch2[2].replace(/[.\-]/g, '');
+                }
             }
             const totalMatch = line.match(/Total Conveniado:\s*RR?\$([0-9,.]+)/i);
             if (totalMatch && currentCpf) {
@@ -9460,11 +9465,18 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
                 currentCpf = null; currentNome = null;
             }
         }
-        res.json({ ok: true, farmacia: result });
+        // Debug: lista de CPFs e nomes encontrados no PDF
+        const debug_cpfs = Object.keys(result);
+        const debug_nomes = debug_cpfs.map(cpf => `${result[cpf].nome} (${cpf})`);
+        console.log('[upload-farmacia] Encontrados:', debug_nomes.join(' | ') || 'NENHUM');
+        console.log('[upload-farmacia] Texto bruto (primeiros 500 chars):', text.substring(0, 500).replace(/\n/g, '\\n'));
+        res.json({ ok: true, farmacia: result, debug_cpfs, debug_nomes });
     } catch (e) {
+        console.error('[upload-farmacia] Erro:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
+
 
 // POST: Upload e parse da planilha de consignado (.xlsx)
 app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.single('xlsx'), async (req, res) => {
