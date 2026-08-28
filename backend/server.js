@@ -9839,7 +9839,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             } else if (fsSync.existsSync(fullPath)) {
                                 baseBytes = await fsP.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0);
+                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0) + (rowOld.tem_comunicacao ? 1 : 0);
                                 if (paginasHolAnt > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHolAnt);
@@ -9876,6 +9876,15 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 const emprPgs = await basePdfDoc.copyPages(emprDoc, emprDoc.getPageIndices());
                                 emprPgs.forEach(p => basePdfDoc.addPage(p));
                                 temEmprFlag = true;
+                            }
+                            
+                            // Comunicação genérica: por último de tudo
+                            let temComFlag = false;
+                            if (bufCom) {
+                                const comDoc = await PDFDocument.load(bufCom);
+                                const comPgs = await basePdfDoc.copyPages(comDoc, comDoc.getPageIndices());
+                                comPgs.forEach(p => basePdfDoc.addPage(p));
+                                temComFlag = true;
                             }
 
                             const mergedBytes = await basePdfDoc.save();
@@ -9993,7 +10002,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 // Fallback: usa o arquivo atual e tenta remover páginas de holerite
                                 baseBytes = await fs.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0);
+                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0) + (rowBase.tem_comunicacao ? 1 : 0);
                                 if (paginasHoleriteAnteriores > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHoleriteAnteriores);
@@ -10031,6 +10040,15 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 temEmprMerged = true;
                             }
 
+                             // Comunicação genérica: por último de tudo
+                             let temComMerged = false;
+                             if (bufCom) {
+                                 const comPdfDoc = await PDFDocument.load(bufCom);
+                                 const comPages = await basePdfDoc.copyPages(comPdfDoc, comPdfDoc.getPageIndices());
+                                 comPages.forEach(p => basePdfDoc.addPage(p));
+                                 temComMerged = true;
+                             }
+
                             const mergedPdfBytes = await basePdfDoc.save();
                             await fs.writeFile(fullPath, mergedPdfBytes);
 
@@ -10039,7 +10057,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             const temPg = !!(bufPg && item.paginaPagamento);
                             await new Promise(r => db.run(
                                 'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ? WHERE id = ?',
-                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, docId], () => r()
+                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, docId], () => r()
                             ));
 
                             // Opcional: Atualizar no OneDrive se configurado
