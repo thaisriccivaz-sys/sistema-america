@@ -9617,7 +9617,7 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row[idxCpf]) continue;
-            const cpf = String(row[idxCpf]).replace(/[.\-]/g, '');
+            const cpf = String(row[idxCpf]).replace(/[.\-]/g, '').padStart(11, '0');
             const nome = row[idxNome] || '';
             const inicioStr = row[idxInicioDesconto] || '';
             const totalParcelas = parseInt(row[idxTotalParcelas]) || 0;
