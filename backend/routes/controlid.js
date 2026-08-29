@@ -268,6 +268,16 @@ router.get('/ponto-colaborador', async (req, res) => {
         return res.status(400).json({ success: false, message: 'CPF inválido.' });
     }
 
+    // Buscar salário do colaborador no banco para calcular adicional noturno
+    let colaborador = null;
+    try {
+        colaborador = await new Promise(function(resolve, reject) {
+            db.get('SELECT salario FROM colaboradores WHERE cpf = ?', [cpf], function(err, row) {
+                if (err) reject(err); else resolve(row || null);
+            });
+        });
+    } catch(e) { colaborador = null; }
+
     try {
         const token = await getRHIDToken(db);
         const authHeader = `Bearer ${token}`;
@@ -447,6 +457,23 @@ router.get('/ponto-colaborador', async (req, res) => {
             resultado.aviso = apuracaoErro + ' | ' + resultado.aviso;
         }
 
+        // Calcular horas noturnas e adicional noturno
+        const _minNot = resultado.minutosNoturnos || 0;
+        let _horasNotStr = '';
+        let _adicionalNotVal = 0;
+        if (_minNot > 0) {
+            // Hora noturna reduzida: fator 60/52.5 = 1.142857
+            const _hNotReduzido = (_minNot * (60 / 52.5)) / 60; // horas decimais reduzidas
+            const _salario = parseFloat(colaborador && colaborador.salario) || 0;
+            const _hNorm = 220; // base padrão CLT
+            const _valHora = _salario > 0 ? (_salario / _hNorm) : 0;
+            _adicionalNotVal = Math.round(_hNotReduzido * _valHora * 0.20 * 100) / 100;
+            // Formatar HH:MM com horas brutas reais
+            const _hBruto = Math.floor(_minNot / 60);
+            const _mBruto = _minNot % 60;
+            _horasNotStr = String(_hBruto).padStart(2, '0') + ':' + String(_mBruto).padStart(2, '0');
+        }
+
         return res.json({
             success: true,
             encontrado: true,
@@ -454,8 +481,10 @@ router.get('/ponto-colaborador', async (req, res) => {
             nomeRHID,
             dataIni,
             dataFinal,
-            apuracaoRaw: apuracaoData, // incluído para debug/exploração
-            apuracaoErro,              // detalhe do erro da apuração para o frontend
+            horasNoturnas: _horasNotStr,
+            adicionalNoturnoValor: _adicionalNotVal,
+            apuracaoRaw: apuracaoData,
+            apuracaoErro,
             ...resultado
         });
 
@@ -530,6 +559,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let diasVR          = null; // Dias com >6h trabalhadas (base para VR)
     let faltas          = null;
     let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
+    let minutosNoturnos  = 0;   // Total de minutos em horário noturno (22h-5h) no mês
 
     // O RHID pode retornar a resposta como uma string JSON dupla (stringificada)
     if (typeof data === 'string') {
@@ -548,6 +578,10 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         });
 
         diasTrabalhados = diasComPresenca.length; // VT: todos os dias com presença
+        // Somar minutos noturnos de todos os dias (campo RHID: horasNoturnasNaoExtra + extraNoturna)
+        minutosNoturnos = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.horasNoturnasNaoExtra) || 0) + (parseInt(d.extraNoturna) || 0);
+        }, 0);
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
         diasVR = diasComPresenca.filter(d => {
@@ -746,6 +780,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         diasVR,
         faltas,
         diasComHoraExtra,
+        minutosNoturnos,
         aviso: (diasTrabalhados === null)
             ? 'Não foi possível interpretar a resposta do RHID. ' + payloadDebug
             : null

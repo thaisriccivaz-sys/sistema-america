@@ -3759,6 +3759,10 @@ db.run(`CREATE TABLE IF NOT EXISTS fechamento_mensal (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(mes, ano, colaborador_id)
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_mensal:', err.message); });
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN adicional_noturno REAL DEFAULT 0', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
+    // coluna ja existe — OK silencioso
+});
 
 // Auto-migration: Tabela fechamento_comissao
 db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
@@ -9409,8 +9413,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
-         plr, pensao, dias_intermitente, status, email_contabilidade)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         plr, pensao, dias_intermitente, status, email_contabilidade, adicional_noturno)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -9423,6 +9427,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             insalubridade=excluded.insalubridade, periculosidade=excluded.periculosidade,
             plr=excluded.plr, pensao=excluded.pensao, dias_intermitente=excluded.dias_intermitente,
             status=excluded.status, email_contabilidade=excluded.email_contabilidade,
+            adicional_noturno=excluded.adicional_noturno,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -9436,7 +9441,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.comissao || 0, item.bonus_comissao || 0, item.premio || 0,
                 item.insalubridade || 0, item.periculosidade || 0,
                 item.plr || 0, item.pensao || 0, item.dias_intermitente || 0,
-                item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br'
+                item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
+                item.adicional_noturno || 0
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
