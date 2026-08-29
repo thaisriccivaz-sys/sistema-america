@@ -2115,7 +2115,7 @@ window.assinarComCertificado = async function (assId, event) {
     }
 };
 
-async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
+async function carregarOpcoesResponsavel(selectElementId, responsavelId, responsavelNome) {
     const select = document.getElementById(selectElementId);
     if (!select) return;
 
@@ -2123,6 +2123,7 @@ async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
     const colabs = await apiGet('/colaboradores');
     select.innerHTML = '<option value="">Nenhum</option>';
 
+    let foundMatch = null;
     if (colabs) {
         colabs.forEach(c => {
             if (c.status === 'Desligado') return;
@@ -2130,9 +2131,18 @@ async function carregarOpcoesResponsavel(selectElementId, responsavelId) {
             opt.value = c.id;
             opt.dataset.nome = c.nome_completo;
             opt.textContent = c.nome_completo;
-            if (responsavelId && c.id == responsavelId) opt.selected = true;
+            
+            if ((responsavelId && c.id == responsavelId) || (!responsavelId && responsavelNome && c.nome_completo === responsavelNome)) {
+                opt.selected = true;
+                foundMatch = c.id;
+            }
             select.appendChild(opt);
         });
+        if (foundMatch) {
+            select.value = foundMatch;
+        } else {
+            select.value = ""; // fallback para Nenhum
+        }
     }
 }
 
@@ -2156,7 +2166,7 @@ async function loadDepartamentos() {
             <td><span style="${badgeColor}font-size:0.75rem;padding:2px 10px;border-radius:999px;font-weight:600;">${tipo}</span></td>
             <td>${responsavel}</td>
             <td style="text-align: right; display:flex; gap:0.4rem; justify-content:flex-end; align-items:center;">
-                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}','${(d.nome_aso||'').replace(/\'/g,"\\\\\'")}')" title="Editar">
+                <button type="button" class="btn btn-primary btn-sm" onclick="editDepartamento(${d.id}, '${d.nome.replace(/\'/g, "\\'")}','${tipo}','${d.responsavel_id || ''}','${(d.nome_aso||'').replace(/\'/g,"\\'")}', '${(d.responsavel_nome||'').replace(/\'/g, "\\'")}')" title="Editar">
                     <i class="ph ph-note-pencil"></i> Editar
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" onclick="deleteDepartamento(${d.id}, '${d.nome.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" title="Excluir" style="background:#e03131; border-color:#e03131;">
@@ -2167,13 +2177,13 @@ async function loadDepartamentos() {
     });
 }
 
-window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual, nomeAsoAtual) {
+window.editDepartamento = async function (id, nomeAtual, tipoAtual, responsavelIdAtual, nomeAsoAtual, responsavelNomeAtual) {
     document.getElementById('edit-departamento-id').value = id;
     document.getElementById('edit-departamento-nome').value = nomeAtual;
     document.getElementById('edit-departamento-tipo').value = tipoAtual || 'Operacional';
     const asoEl = document.getElementById('edit-departamento-aso');
     if (asoEl) asoEl.value = nomeAsoAtual || '';
-    await carregarOpcoesResponsavel('edit-departamento-responsavel', responsavelIdAtual);
+    await carregarOpcoesResponsavel('edit-departamento-responsavel', responsavelIdAtual, responsavelNomeAtual);
     document.getElementById('modal-editar-departamento').style.display = 'flex';
 }
 
