@@ -449,7 +449,7 @@ window._fechamento = (function () {
 <td style="display:none;"></td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
-<td id="fech-cell-adic-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpValor(idx,'adicional_noturno',row.adicional_noturno||0)}</td>
+<td id="fech-cell-adic-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpNum(idx,'adicional_noturno',row.adicional_noturno||0,'','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
 <td style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
