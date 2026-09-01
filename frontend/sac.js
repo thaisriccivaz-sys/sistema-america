@@ -173,13 +173,23 @@
     try {
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
+      const _sacLoadTs = Date.now(); // timestamp ANTES da fetch (detectar race condition de save)
       const [ticketsRes, deptsRes, usersRes, occsRes] = await Promise.all([
         fetch('/api/sac/tickets', { headers }),
         fetch('/api/departamentos', { headers }).catch(() => null),
         fetch('/api/usuarios', { headers }).catch(() => null),
         fetch('/api/sac/ocorrencias', { headers }).catch(() => null)
       ]);
-      if (ticketsRes.ok) _tickets = await ticketsRes.json();
+      if (ticketsRes.ok) {
+          const _fresh = await ticketsRes.json();
+          // Só substituir _tickets se nenhum save aconteceu DURANTE essa carga de rede.
+          // Evita sobrescrever stage='respondido' com dado desatualizado vindo do servidor.
+          if ((window._sacLastSaveMs || 0) <= _sacLoadTs) {
+              _tickets = _fresh;
+          } else {
+              console.warn('[SAC] loadTickets: save detectado durante a carga — dados do servidor descartados para evitar race condition.');
+          }
+      }
       if (deptsRes && deptsRes.ok) _globalDepartamentos = await deptsRes.json();
       if (usersRes && usersRes.ok) window._sacUsersList = await usersRes.json();
       if (occsRes && occsRes.ok) {
@@ -648,7 +658,11 @@
             if (secsSinceLastSave < 30) return;
             const ov = document.getElementById('sac-modal-overlay');
             if (!ov || ov.style.display === 'none') {
+                const _snapSave = window._sacLastSaveMs || 0;
                 await loadTickets();
+                // Verificar novamente após o load: se houve save durante a carga, não renderizar
+                // (dados já foram descartados em loadTickets, mas garantimos não fazer renderAll com lixo)
+                if ((window._sacLastSaveMs || 0) > _snapSave) return;
                 renderAll();
             }
         }
@@ -4612,7 +4626,11 @@
       if (_retries < 3) {
         const delay = 1500 * Math.pow(2, _retries); // 1.5s, 3s, 6s
         console.warn(`[SAC] Falha ao salvar OS ${t.protocol}, tentativa ${_retries+1}/3 em ${delay}ms`, e.message);
-        setTimeout(() => updateTicket(t, _retries + 1), delay);
+        setTimeout(() => {
+            // Usar a versão mais recente do ticket em memória (pode ter mudado durante a espera)
+            const _latestT = _tickets.find(x => x.id === t.id);
+            updateTicket(_latestT || t, _retries + 1);
+        }, delay);
       } else {
         console.error(`[SAC] FALHA PERMANENTE ao salvar OS ${t.protocol}`, e);
         // Mostrar erro visível — dados NÃO foram salvos no servidor
