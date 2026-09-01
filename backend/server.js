@@ -4862,7 +4862,15 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'habilitacao_b', 'habilitacao_b_data', 'habilitacao_d', 'habilitacao_d_data',
         'tamanho_camiseta', 'tamanho_calca', 'tamanho_calcado',
         'brigadista_participa', 'brigadista_validade',
-        'motorista_avaliador'
+        'motorista_avaliador',
+        'folha_periculosidade', 'folha_periculosidade_valor',
+        'folha_insalubridade', 'folha_insalubridade_valor',
+        'folha_mensalidade_sindical', 'folha_mensalidade_sindical_valor',
+        'folha_pensao_tipo', 'folha_pensao_pct',
+        'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
+        'academia_desconto_valor',
+        'folha_vr', 'folha_vr_valor',
+        'folha_va', 'folha_va_valor'
     ];
 
     const allowedColunas = colunas;
