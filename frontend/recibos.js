@@ -789,7 +789,7 @@ function _isVT(m) { return m.includes('vale transporte') || m.includes('(vt)') |
 function _isVC(m) { return m.includes('combustivel') || m.includes('combustível') || m.includes('(vc)') || m === 'vc'; }
 
 function _calcTotaisRecibo(c, s) {
-    const valorVR = window._recibosValorVR || 35.00;
+    const valorVR = (c && c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00);
     const mTransp = (c.meio_transporte||'').toLowerCase();
     
     // VR
@@ -1312,7 +1312,8 @@ window._autoSalvarRecibo = function(id) {
         const ano = parseInt(document.getElementById('rec-ano')?.value);
         if(!mes || !ano) return;
         
-        const valorVR = window._recibosValorVR || 35.00;
+        const _colabObj = _recibosAllColabs ? _recibosAllColabs.find(x => x.id === id) : null;
+        const valorVR = (_colabObj && _colabObj.folha_vr && parseFloat(_colabObj.folha_vr_valor) > 0) ? parseFloat(_colabObj.folha_vr_valor) : (window._recibosValorVR || 35.00);
         const s = _recibosSelecoes[id];
         if (!s) return;
         
@@ -2005,8 +2006,8 @@ window._recBuscarPontoSelecionados = async function () {
 
     // Salvar apuração automaticamente no backend após a busca
     try {
-        const valorVR = window._recibosValorVR || 35.00;
         const itensSalvar = sels.map(c => ({
+            // valorVR is now per-collaborator below
             colaborador_id: c.id,
             dias_trabalhados: _recibosSelecoes[c.id].diasTrabalhados,
             dias_vr: _recibosSelecoes[c.id].diasVR,
@@ -2017,7 +2018,7 @@ window._recBuscarPontoSelecionados = async function () {
             folgas_vr: _recibosSelecoes[c.id].folgasVR || 0,
             faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
-            valor_vr: valorVR,
+            valor_vr: (c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00),
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
         }));
         fetch(`${API_URL}/recibos/salvar`, {
