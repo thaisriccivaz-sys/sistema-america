@@ -843,6 +843,7 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas<br>VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas<br>VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VR">Valor<br>VR</th>
+            <th style="position:sticky;top:0;background:#fef9c3;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Vale Alimentação (fixo mensal)">Valor<br>VA</th>
         `;
     }
 
@@ -984,6 +985,9 @@ function _renderTabela() {
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvr-${c.id}" value="${s.valVREdit != null ? s.valVREdit.toFixed(2) : totais.totalFinalVR.toFixed(2)}"
               style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVREdit != null) ? '#dc2626' : '#064e3b'};"
               onchange="window.atualizarValorEditado(${c.id},'valVREdit',this.value)">
+          </td>
+          <td style="padding:.45rem .2rem;text-align:center;background:#fef9c3;font-weight:700;color:${c.folha_va && c.folha_va_valor > 0 ? '#854d0e' : '#94a3b8'};font-size:.78rem;">
+            ${c.folha_va && c.folha_va_valor > 0 ? 'R$\u00a0' + _recFmt(c.folha_va_valor) : '—'}
           </td>
         </tr>`;
     }).join('');
@@ -1193,7 +1197,8 @@ window.exportarExcelRecibos = async function() {
             { header: 'JANTAR', key: 'jantar', width: 12 },
             { header: 'FOLGAS VR', key: 'folgasVR', width: 15 },
             { header: 'FALTAS VR', key: 'faltasVR', width: 15 },
-            { header: 'VALOR VR', key: 'valorVR', width: 15 }
+            { header: 'VALOR VR', key: 'valorVR', width: 15 },
+            { header: 'VALOR VA', key: 'valorVA', width: 15 }
         ];
 
         sheet.getRow(1).font = { bold: true };
@@ -1222,12 +1227,14 @@ window.exportarExcelRecibos = async function() {
                 jantar: s.diasExtra || 0,
                 folgasVR: s.folgasVR || 0,
                 faltasVR: s.faltasVR || 0,
-                valorVR: vr
+                valorVR: vr,
+                valorVA: (c.folha_va && c.folha_va_valor > 0) ? c.folha_va_valor : 0
             });
         });
 
         sheet.getColumn('valorVT').numFmt = '"R$" #,##0.00';
         sheet.getColumn('valorVR').numFmt = '"R$" #,##0.00';
+        sheet.getColumn('valorVA').numFmt = '"R$" #,##0.00';
         
         sheet.getColumn('folgasVT').alignment = { horizontal: 'center' };
         sheet.getColumn('faltasVT').alignment = { horizontal: 'center' };
@@ -2147,11 +2154,12 @@ window.gerarRecibosEmMassa = async function () {
         const m = (c.meio_transporte||'').toLowerCase();
 
         // VR — sempre para todos
-        corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo);
+        const _vrColab = (c.folha_vr && c.folha_vr_valor > 0) ? c.folha_vr_valor : valorVR;
+        corpo += _buildReciboBlock('VR', c, s, mes, mesNome, ano, _vrColab, logo);
 
         // VT ou VC — conforme meio_transporte cadastrado
-        if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo); }
-        if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo); }
+        if (_isVT(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VT', c, s, mes, mesNome, ano, _vrColab, logo); }
+        if (_isVC(m)) { corpo += '<div class="pb"></div>' + _buildReciboBlock('VC', c, s, mes, mesNome, ano, _vrColab, logo); }
     });
 
     const fullHtml = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -2382,9 +2390,10 @@ window.anexarRecibosDocsMassa = async function () {
                 let corpo = '';
                 // 1123px é a altura proporcional a 794px de largura para o formato A4 (297/210 = 1.414)
                 const pageDiv = '<div style="width:794px; height:1123px; position:relative; overflow:hidden; background:#fff;">';
-                corpo += pageDiv + _buildReciboBlock('VR', c, s, mes, mesNome, ano, valorVR, logo) + '</div>';
-                if (_isVT(m)) { corpo += pageDiv + _buildReciboBlock('VT', c, s, mes, mesNome, ano, valorVR, logo) + '</div>'; }
-                if (_isVC(m)) { corpo += pageDiv + _buildReciboBlock('VC', c, s, mes, mesNome, ano, valorVR, logo) + '</div>'; }
+                const _vrColabD = (c.folha_vr && c.folha_vr_valor > 0) ? c.folha_vr_valor : valorVR;
+                corpo += pageDiv + _buildReciboBlock('VR', c, s, mes, mesNome, ano, _vrColabD, logo) + '</div>';
+                if (_isVT(m)) { corpo += pageDiv + _buildReciboBlock('VT', c, s, mes, mesNome, ano, _vrColabD, logo) + '</div>'; }
+                if (_isVC(m)) { corpo += pageDiv + _buildReciboBlock('VC', c, s, mes, mesNome, ano, _vrColabD, logo) + '</div>'; }
 
                 // Escrever HTML no iframe isolado (CSS fica dentro do iframe, não afeta o sistema)
                 const iDoc = pdfIframe.contentDocument || pdfIframe.contentWindow.document;
@@ -3425,6 +3434,11 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     </table>
   </td>
 </tr>`;
+
+    // Vale Alimentação extra line (fora do template literal acima)
+    if (tipo === 'VR' && colab.folha_va && parseFloat(colab.folha_va_valor) > 0) {
+        linhas += `<tr><td colspan="3" style="padding:0;"><table style="width:100%;border-collapse:collapse;"><tr style="background:#fef9c3;"><td style="padding:9px 16px;font-size:11px;font-weight:700;color:#854d0e;border-top:2px solid #f6d860;">VALE ALIMENTAÇÃO (VA):</td><td style="padding:9px 16px;text-align:right;font-size:14px;font-weight:800;color:#854d0e;border-top:2px solid #f6d860;">R$&nbsp;${_recFmt(parseFloat(colab.folha_va_valor))}</td></tr></table></td></tr>`;
+    }
 
     } else if (tipo === 'VT') {
         titulo    = 'RECIBO DE VALE TRANSPORTE';

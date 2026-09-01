@@ -2683,6 +2683,40 @@
                                             </div>
                                         </div>
 
+                                        <!-- Vale Refeição (VR) por colaborador -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-fork-knife"></i> Vale Refeição (VR)</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Recebe VR?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="folha_vr" value="0" checked onchange="toggleFolhaField('vr',this.value)"> Não</label>
+                                                        <label><input type="radio" name="folha_vr" value="1" onchange="toggleFolhaField('vr',this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-folha-vr" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group"><label>Valor Diário (R$)</label><input type="number" id="colab-folha-vr-valor" step="0.01" value="0" min="0" placeholder="Ex: 35.00"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Vale Alimentação (VA) -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-basket"></i> Vale Alimentação (VA)</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Recebe VA?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="folha_va" value="0" checked onchange="toggleFolhaField('va',this.value)"> Não</label>
+                                                        <label><input type="radio" name="folha_va" value="1" onchange="toggleFolhaField('va',this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-folha-va" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group"><label>Valor Mensal Fixo (R$)</label><input type="number" id="colab-folha-va-valor" step="0.01" value="0" min="0" placeholder="Ex: 300.00"></div>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div><!-- End module-folha card -->
 

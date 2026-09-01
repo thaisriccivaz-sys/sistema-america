@@ -3705,11 +3705,13 @@ db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (e
     'folha_mensalidade_sindical', 'folha_mensalidade_sindical_valor',
     'folha_pensao_tipo', 'folha_pensao_pct',
     'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
-    'academia_desconto_valor'
+    'academia_desconto_valor',
+    'folha_vr', 'folha_vr_valor',
+    'folha_va', 'folha_va_valor'
 ].forEach((col) => {
     let def = 'TEXT';
-    if (['folha_periculosidade','folha_insalubridade','folha_mensalidade_sindical','folha_plr'].includes(col)) def = 'INTEGER DEFAULT 0';
-    else if (['folha_periculosidade_valor','folha_mensalidade_sindical_valor','folha_pensao_pct','folha_plr_valor','academia_desconto_valor'].includes(col)) def = 'REAL DEFAULT 0';
+    if (['folha_periculosidade','folha_insalubridade','folha_mensalidade_sindical','folha_plr','folha_vr','folha_va'].includes(col)) def = 'INTEGER DEFAULT 0';
+    else if (['folha_periculosidade_valor','folha_mensalidade_sindical_valor','folha_pensao_pct','folha_plr_valor','academia_desconto_valor','folha_vr_valor','folha_va_valor'].includes(col)) def = 'REAL DEFAULT 0';
     else if (col === 'folha_insalubridade_valor') def = 'REAL DEFAULT 324.20';
     else if (col === 'folha_plr_meses') def = "TEXT DEFAULT '[]'";
     else if (col === 'folha_plr_valor') def = 'REAL DEFAULT 800';
@@ -4271,7 +4273,9 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'folha_mensalidade_sindical', 'folha_mensalidade_sindical_valor',
         'folha_pensao_tipo', 'folha_pensao_pct',
         'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
-        'academia_desconto_valor'
+        'academia_desconto_valor',
+        'folha_vr', 'folha_vr_valor',
+        'folha_va', 'folha_va_valor'
     ];
 
     const values = colunas.map(col => {
