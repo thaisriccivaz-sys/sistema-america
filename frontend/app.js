@@ -5114,7 +5114,11 @@ if (formColab) {
             folha_pensao_pct: parseFloat(document.getElementById('colab-folha-pensao-pct')?.value) || 0,
             folha_plr: parseInt(document.querySelector('input[name="folha_plr"]:checked')?.value) || 0,
             folha_plr_valor: parseFloat(document.getElementById('colab-folha-plr-valor')?.value) || 0,
-            folha_plr_meses: JSON.stringify(Array.from(document.querySelectorAll('.plr-mes-check:checked')).map(el => el.value))
+            folha_plr_meses: JSON.stringify(Array.from(document.querySelectorAll('.plr-mes-check:checked')).map(el => el.value)),
+            folha_vr: parseInt(document.querySelector('input[name="folha_vr"]:checked')?.value) || 0,
+            folha_vr_valor: parseFloat(document.getElementById('colab-folha-vr-valor')?.value) || 0,
+            folha_va: parseInt(document.querySelector('input[name="folha_va"]:checked')?.value) || 0,
+            folha_va_valor: parseFloat(document.getElementById('colab-folha-va-valor')?.value) || 0
         };
 
         // Converter valores formatados (R$) para números antes de enviar
