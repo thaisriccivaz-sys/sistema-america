@@ -1071,21 +1071,21 @@ function _renderTabela() {
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.diasUteisVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.diasUteisVT) ? '#dc2626' : ((s.diasUteisVT||0)>0?'#be185d':'#94a3b8')};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.diasUteisVT) ? '#dc2626' : ((s.diasUteisVT||0)>0?'#1e293b':'#94a3b8')};"
               placeholder="0" title="Dias Úteis VT (26→25)"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasUteisVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.faltasVTN||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVTN) ? '#dc2626' : ((s.faltasVTN||0)>0?'#9f1239':'#94a3b8')};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVTN) ? '#dc2626' : ((s.faltasVTN||0)>0?'#1e293b':'#94a3b8')};"
               placeholder="0" title="Faltas VT"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVTN',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.extrasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.extrasVT) ? '#dc2626' : ((s.extrasVT||0)>0?'#15803d':'#94a3b8')};"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.extrasVT) ? '#dc2626' : ((s.extrasVT||0)>0?'#1e293b':'#94a3b8')};"
               placeholder="0" title="Extras VT (dias fora da escala)"
               onchange="window.atualizarDadosReciboColab(${c.id},'extrasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
@@ -1093,7 +1093,7 @@ function _renderTabela() {
             ${window._isVT(m) ? `
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvt-${c.id}"
               value="${s.valorVT != null ? Number(s.valorVT).toFixed(2) : (s.valVTEdit != null ? s.valVTEdit.toFixed(2) : '0.00')}"
-              style="width:58px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#9f1239'};"
+              style="width:58px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#1e293b'};"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
@@ -2428,6 +2428,13 @@ window._recBuscarVT = async function () {
                 s.extrasVT    = extrasVT;
                 s.valorVT     = valorVT;
                 s.vtStatus    = 'ok';
+                s.valVTEdit   = null;
+                if (s.edited_fields) {
+                    delete s.edited_fields.diasUteisVT;
+                    delete s.edited_fields.faltasVTN;
+                    delete s.edited_fields.extrasVT;
+                    delete s.edited_fields.valorVT;
+                }
                 okVT++;
 
                 // Trigger save
@@ -2436,7 +2443,9 @@ window._recBuscarVT = async function () {
                     dias_uteis_vt: diasUteisVT,
                     faltas_vt: faltasVTN,
                     extras_vt: extrasVT,
-                    valor_vt: valorVT
+                    valor_vt: valorVT,
+                    valor_vt_editado: null,
+                    edited_fields: s.edited_fields ? JSON.stringify(s.edited_fields) : "{}"
                 }];
                 fetch(`${API_URL}/recibos/salvar`, {
                     method: 'POST',
