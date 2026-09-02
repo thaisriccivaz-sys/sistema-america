@@ -624,7 +624,8 @@ async function pipelineExportarExcel(registrosOverride) {
         // Ícones de produto (ENTREGA) ou ⭕ (RETIRADA) — vêm por último, após var e hab
         const icProdOuRetir = [];
         if (ts.includes('retirada')) {
-            icProdOuRetir.push('⭕');
+            // Distingue retirada parcial (🔶) de retirada total (⭕)
+            icProdOuRetir.push(pipelineGetIconServico(r.tipo_servico) || '⭕');
         } else if (ts.includes('entrega') && produtosArr.length) {
             const prodSet = new Set();
             produtosArr.forEach(p => {
@@ -803,7 +804,8 @@ async function pipelineExportarExcel(registrosOverride) {
 
         if (!isManutRecorr) {
             if (isRetiradaExp) {
-                iconeServico = '⭕';
+                // Distingue retirada parcial (🔶) de retirada total (⭕)
+                iconeServico = pipelineGetIconServico(r.tipo_servico) || '⭕';
             } else if (isEntregaExp && produtosArr.length) {
                 // Coleta ícones únicos dos produtos (preserva ordem, sem duplicatas)
                 const iconesProdSet = new Set();
