@@ -806,6 +806,12 @@ function _filtrarERendar() {
     _recibosFiltrados = _recibosAllColabs.filter(c => {
         // Ocultar colaboradores Intermitentes cujo cálculo de recibo seja zerado
         if (_isIntermitenteZerado(c, _recibosSelecoes[c.id])) return false;
+        // Não mostrar colaborador ainda não admitido no mês selecionado
+        if (c.data_admissao) {
+            const admDt = new Date(c.data_admissao + 'T00:00:00');
+            const fimMesSel = new Date(anoAt, mesAt, 0); // último dia do mês selecionado
+            if (!isNaN(admDt) && admDt > fimMesSel) return false;
+        }
         const nomeC = _recNome(c).toLowerCase();
         if (nome   && !nomeC.includes(nome))               return false;
         if (dept   && c.departamento !== dept)             return false;
@@ -902,12 +908,14 @@ function _calcTotaisRecibo(c, s) {
     // Transp
     let totalFinalTransp = 0;
     let valTransp = parseFloat(c.valor_transporte) || 0;
+    // Base VT/VC: 30 fixo para colaboradores normais; proporcional para o mês de admissão
+    const baseTransp = (s.diasBaseVT != null && s.diasBaseVT > 0) ? s.diasBaseVT : 30;
     if (_isVT(mTransp)) {
         valTransp = valTransp * 2;
-        const diasVT = Math.max(0, 30 - (s.folgasVT || 0) - (s.faltasVT || 0));
+        const diasVT = Math.max(0, baseTransp - (s.folgasVT || 0) - (s.faltasVT || 0));
         totalFinalTransp = diasVT * valTransp;
     } else if (_isVC(mTransp)) {
-        const diariaVC = valTransp / 30;
+        const diariaVC = valTransp / baseTransp;
         const descVC = (s.faltasVT || 0) * diariaVC;
         totalFinalTransp = Math.max(0, valTransp - descVC);
     }
@@ -1658,6 +1666,19 @@ window._recBuscarPontoSelecionados = async function () {
                 const admissaoColab = c.data_admissao
                     ? new Date(c.data_admissao + 'T00:00:00')
                     : null;
+
+                // Base VT/VC proporcional para colaboradores no mês de admissão
+                // Ex: admissão 08/09 → base = 23 dias (08 a 30/09), não 30
+                let diasBaseVT = 30;
+                if (admissaoColab && !isNaN(admissaoColab)) {
+                    const admMes = admissaoColab.getMonth() + 1;
+                    const admAno = admissaoColab.getFullYear();
+                    if (admMes === mes && admAno === ano) {
+                        const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+                        diasBaseVT = ultimoDiaMes - admissaoColab.getDate() + 1;
+                    }
+                }
+                s.diasBaseVT = diasBaseVT;
 
                 diariaTotal.forEach(d => {
                     const dt = parseDia(d);
