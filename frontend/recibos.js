@@ -1669,6 +1669,7 @@ window._recBuscarPontoSelecionados = async function () {
 
                 // Base VT/VC proporcional para colaboradores no mês de admissão
                 // Ex: admissão 08/09 → base = 23 dias (08 a 30/09), não 30
+                // Nota: s.diasBaseVT é atribuído abaixo, após const s = _recibosSelecoes
                 let diasBaseVT = 30;
                 if (admissaoColab && !isNaN(admissaoColab)) {
                     const admMes = admissaoColab.getMonth() + 1;
@@ -1678,7 +1679,6 @@ window._recBuscarPontoSelecionados = async function () {
                         diasBaseVT = ultimoDiaMes - admissaoColab.getDate() + 1;
                     }
                 }
-                s.diasBaseVT = diasBaseVT;
 
                 diariaTotal.forEach(d => {
                     const dt = parseDia(d);
@@ -1856,6 +1856,7 @@ window._recBuscarPontoSelecionados = async function () {
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
+                s.diasBaseVT  = diasBaseVT;   // base proporcional VT/VC (admissão)
                 s.folgasVR = folgasVR;
                 s.faltasVR = faltasVR;
                 s.folgasVT = folgasVT;
