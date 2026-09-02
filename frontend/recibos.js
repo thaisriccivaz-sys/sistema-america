@@ -2139,6 +2139,10 @@ window._recBuscarVCVR = async function () {
             faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: (c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00),
+            dias_uteis_vt: _recibosSelecoes[c.id].diasUteisVT || 0,
+            faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
+            extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
+            valor_vt: _recibosSelecoes[c.id].valorVT || 0,
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
         }));
         fetch(`${API_URL}/recibos/salvar`, {
@@ -2776,6 +2780,10 @@ window.anexarRecibosDocsMassa = async function () {
             faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
+            dias_uteis_vt: _recibosSelecoes[c.id].diasUteisVT || 0,
+            faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
+            extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
+            valor_vt: _recibosSelecoes[c.id].valorVT || 0,
             apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
         }));
         await fetch(`${API_URL}/recibos/salvar`, {
@@ -2974,6 +2982,10 @@ window.baixarConferenciaPonto = async function () {
             faltas_vr: _recibosSelecoes[c.id].faltasVR || 0,
             dias_extra: _recibosSelecoes[c.id].diasExtra,
             valor_vr: valorVR,
+            dias_uteis_vt: _recibosSelecoes[c.id].diasUteisVT || 0,
+            faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
+            extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
+            valor_vt: _recibosSelecoes[c.id].valorVT || 0,
             apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
         }));
         // Executar de forma assíncrona sem aguardar (sem await) para evitar bloqueio de pop-up

@@ -10364,6 +10364,10 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
         db.run("ALTER TABLE recibos_historico ADD COLUMN valor_vt_editado REAL", () => {});
         db.run("ALTER TABLE recibos_historico ADD COLUMN valor_vr_editado REAL", () => {});
         db.run("ALTER TABLE recibos_historico ADD COLUMN edited_fields TEXT", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN dias_uteis_vt INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN faltas_vtn INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN extras_vt INTEGER DEFAULT 0", () => {});
+        db.run("ALTER TABLE recibos_historico ADD COLUMN valor_vt REAL", () => {});
         db.run("ALTER TABLE recibos_historico ADD COLUMN faltas_vr INTEGER DEFAULT 0", function() {
             let pending = itens.length;
             if (pending === 0) {
@@ -10372,8 +10376,8 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             }
 
             const stmt = db.prepare(`
-            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas, folgas_vt, faltas_vt, folgas_vr, faltas_vr, valor_vt_editado, valor_vr_editado, edited_fields) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas, folgas_vt, faltas_vt, folgas_vr, faltas_vr, valor_vt_editado, valor_vr_editado, edited_fields, dias_uteis_vt, faltas_vtn, extras_vt, valor_vt) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(colaborador_id, mes, ano) 
             DO UPDATE SET 
                 dias_trabalhados=excluded.dias_trabalhados,
@@ -10388,6 +10392,10 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
                 faltas_vr=excluded.faltas_vr,
                 valor_vt_editado=excluded.valor_vt_editado,
                 valor_vr_editado=excluded.valor_vr_editado,
+                dias_uteis_vt=excluded.dias_uteis_vt,
+                faltas_vtn=excluded.faltas_vtn,
+                extras_vt=excluded.extras_vt,
+                valor_vt=excluded.valor_vt,
                 edited_fields=COALESCE(excluded.edited_fields, recibos_historico.edited_fields),
                 apuracao_diaria=COALESCE(excluded.apuracao_diaria, recibos_historico.apuracao_diaria)
             `, function(errPrep) {
@@ -10400,7 +10408,7 @@ app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
             
             let runError = null;
             itens.forEach(i => {
-                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria, i.folgas || 0, i.folgas_vt || 0, i.faltas_vt || 0, i.folgas_vr || 0, i.faltas_vr || 0, i.valor_vt_editado, i.valor_vr_editado, i.edited_fields], function(errRun) {
+                stmt.run([mes, ano, i.colaborador_id, i.dias_trabalhados, i.dias_vr, i.faltas, i.dias_extra, i.valor_vr, i.apuracao_diaria, i.folgas || 0, i.folgas_vt || 0, i.faltas_vt || 0, i.folgas_vr || 0, i.faltas_vr || 0, i.valor_vt_editado, i.valor_vr_editado, i.edited_fields, (i.dias_uteis_vt !== undefined ? i.dias_uteis_vt : i.diasUteisVT) || 0, (i.faltas_vtn !== undefined ? i.faltas_vtn : (i.faltas_vt !== undefined ? i.faltas_vt : i.faltasVTN)) || 0, (i.extras_vt !== undefined ? i.extras_vt : i.extrasVT) || 0, (i.valor_vt !== undefined ? i.valor_vt : i.valorVT) || 0], function(errRun) {
                     if (errRun && !runError) {
                         runError = errRun;
                         console.error('[SALVAR RECIBOS] Erro no stmt.run:', errRun.message);
