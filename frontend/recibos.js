@@ -677,13 +677,13 @@ function _buildRecibosLayout(mesAt, anoAt) {
       <div>
         <label style="font-size:.77rem;font-weight:600;color:#475569;display:block;margin-bottom:.25rem;">&nbsp;</label>
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <button id="btn-buscar-vcvr" onclick="window._recBuscarVCVR()"
-            style="display:flex;align-items:center;gap:6px;padding:.42rem .85rem;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">
-            <i class="ph ph-fingerprint"></i> Buscar VC e VR
-          </button>
           <button id="btn-buscar-vt" onclick="window._recBuscarVT()"
             style="display:flex;align-items:center;gap:6px;padding:.42rem .85rem;background:#be185d;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">
             <i class="ph ph-bus"></i> Buscar VT
+          </button>
+          <button id="btn-buscar-vcvr" onclick="window._recBuscarVCVR()"
+            style="display:flex;align-items:center;gap:6px;padding:.42rem .85rem;background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;">
+            <i class="ph ph-fingerprint"></i> Buscar VC e VR
           </button>
         </div>
       </div>
@@ -715,19 +715,20 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VC" onclick="window.ordenarRecibos('faltasVT')">Faltas<br>VC <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VC" onclick="window.ordenarRecibos('faltasVT')">Faltas<br>VC <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VC">Valor<br>VC</th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas<br>VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas<br>VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'}"></i></th>
           </tr>
         </thead>
         <tbody id="rec-tbody">
-          <tr><td colspan="8" style="text-align:center;padding:3rem;color:#94a3b8;">
+          <tr><td colspan="13" style="text-align:center;padding:3rem;color:#94a3b8;">
             <i class="ph ph-spinner" style="font-size:1.5rem;animation:rec-spin 1s linear infinite;display:block;margin-bottom:.6rem;"></i>
             Carregando colaboradores...
           </td></tr>
@@ -960,12 +961,13 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VC" onclick="window.ordenarRecibos('faltasVT')">Faltas<br>VC <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VC" onclick="window.ordenarRecibos('faltasVT')">Faltas<br>VC <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;" title="Valor Total VC">Valor<br>VC</th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias > 3h extra" onclick="window.ordenarRecibos('jantar')">Jantar <i class="ph ${_recibosSortCol==='jantar'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='jantar'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VR" onclick="window.ordenarRecibos('folgasVR')">Folgas<br>VR <i class="ph ${_recibosSortCol==='folgasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#adfca9;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VR" onclick="window.ordenarRecibos('faltasVR')">Faltas<br>VR <i class="ph ${_recibosSortCol==='faltasVR'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVR'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -975,7 +977,7 @@ function _renderTabela() {
     }
 
     if (!_recibosFiltrados.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:2.5rem;color:#94a3b8;">
             <i class="ph ph-users" style="font-size:2rem;display:block;margin-bottom:.5rem;"></i>
             Nenhum colaborador encontrado.</td></tr>`;
         _atualizarContador(); return;
@@ -1066,20 +1068,6 @@ function _renderTabela() {
           <td style="padding:.55rem .5rem;max-width:110px;">
             <div style="color:#475569;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.departamento||''}">${c.departamento||'—'}</div>
           </td>
-          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
-            ${window._isVC(m) ? `
-            <input type="number" min="0" max="35" value="${s.folgasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.folgasVT) ? '#dc2626' : ((s.folgasVT||0)>0?'#0891b2':'#94a3b8')};"
-              placeholder="0" title="Folgas VC"
-              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
-          </td>
-          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
-            ${window._isVC(m) ? `
-            <input type="number" min="0" max="35" value="${s.faltasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVT) ? '#dc2626' : ((s.faltasVT||0)>0?'#1e3a5f':'#94a3b8')};"
-              placeholder="0" title="Faltas VC"
-              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
-          </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.diasUteisVT||''}"
@@ -1106,6 +1094,27 @@ function _renderTabela() {
             <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvt-${c.id}"
               value="${s.valorVT != null ? Number(s.valorVT).toFixed(2) : (s.valVTEdit != null ? s.valVTEdit.toFixed(2) : '0.00')}"
               style="width:58px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#9f1239'};"
+              onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
+          </td>
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
+            ${window._isVC(m) ? `
+            <input type="number" min="0" max="35" value="${s.folgasVT||''}"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.folgasVT) ? '#dc2626' : ((s.folgasVT||0)>0?'#0891b2':'#94a3b8')};"
+              placeholder="0" title="Folgas VC"
+              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
+          </td>
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
+            ${window._isVC(m) ? `
+            <input type="number" min="0" max="35" value="${s.faltasVT||''}"
+              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVT) ? '#dc2626' : ((s.faltasVT||0)>0?'#1e3a5f':'#94a3b8')};"
+              placeholder="0" title="Faltas VC"
+              onchange="window.atualizarDadosReciboColab(${c.id},'faltasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
+          </td>
+          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
+            ${window._isVC(m) ? `
+            <input type="number" step="0.01" min="0" class="no-spin" id="inp-valvc-${c.id}"
+              value="${s.valVTEdit != null ? s.valVTEdit.toFixed(2) : totais.totalFinalTransp.toFixed(2)}"
+              style="width:58px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#1e3a5f'};"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#adfca9;">
