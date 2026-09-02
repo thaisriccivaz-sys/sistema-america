@@ -1040,7 +1040,7 @@ function _renderTabela() {
               onchange="window.toggleReciboColab(${c.id},this.checked)">
           </td>
           <td style="padding:.55rem 1rem;max-width:280px;">
-            <div style="font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${nomeCompleto}">${nome} ${btnObs}</div>
+            <div style="display:flex;align-items:center;gap:4px;font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;" title="${nomeCompleto}"><span style="overflow:hidden;text-overflow:ellipsis;min-width:0;">${nome}</span>${btnObs}</div>
             <div style="font-size:.74rem;color:#94a3b8;">CPF: ${c.cpf||'—'}</div>
           </td>
           <td style="padding:.55rem 1rem;">
