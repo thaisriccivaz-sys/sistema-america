@@ -2373,9 +2373,25 @@ window._recBuscarVT = async function () {
                 const dataMes    = resMes.ok    ? await resMes.json()    : null;
                 const dataMesAnt = resMesAnt.ok ? await resMesAnt.json() : null;
 
-                // Unir todos os dias de ambos os meses
-                const diasMes    = (dataMes    && dataMes.apuracao_diaria)    ? dataMes.apuracao_diaria    : [];
-                const diasMesAnt = (dataMesAnt && dataMesAnt.apuracao_diaria) ? dataMesAnt.apuracao_diaria : [];
+                // Unir todos os dias de ambos os meses com extração robusta do apuracaoRaw
+                const extrair = (dataRaw) => {
+                    if (!dataRaw || !dataRaw.apuracaoRaw) return [];
+                    try {
+                        let p = typeof dataRaw.apuracaoRaw === 'string' ? JSON.parse(dataRaw.apuracaoRaw) : dataRaw.apuracaoRaw;
+                        if (Array.isArray(p)) return p;
+                        if (p && typeof p === 'object') {
+                            const arrKeys = ['records','listaDias','lista','itens','dias','data','items','apuracao','result','results'];
+                            for (const k of arrKeys) if (Array.isArray(p[k])) return p[k];
+                            const firstArr = Object.keys(p).find(k => Array.isArray(p[k]));
+                            if (firstArr) return p[firstArr];
+                            if (p.date || p.dateTimeStr) return [p];
+                        }
+                    } catch(e) { }
+                    return [];
+                };
+
+                const diasMes    = extrair(dataMes);
+                const diasMesAnt = extrair(dataMesAnt);
                 const todosDias  = [...diasMesAnt, ...diasMes];
 
                 // Filtrar apenas dias dentro da janela VT (26/M-1 → 25/M)
@@ -2398,18 +2414,25 @@ window._recBuscarVT = async function () {
                     if (dt < janelaVTIni || dt > janelaVTFim) return;
 
                     const dateStr = dt.toISOString().split('T')[0];
-                    const isFolga   = _vtIsFolga(c, dateStr);
-                    const horasTrab = d.totalHorasTrabalhadas || 0;
-                    const trabalhou = horasTrab > 0;
-                    const isFeriado = !!(d.idJustification && String(d.idJustification).toLowerCase().includes('feri'));
-                    const isFalta   = !trabalhou && !isFolga && !isFeriado;
+                    const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
+                    const isFolgaRaw = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
+                                    statusRHID.includes('feriado') || statusRHID.includes('f.c.') ||
+                                    d.folga === true || d.isHoliday === true || d.isHoliday === 1;
+                    const isFolga = isFolgaRaw || _vtIsFolga(c, dateStr);
 
-                    if (!isFolga && !isFeriado) {
+                    const horasTrab = d.totalHorasTrabalhadas || 0;
+                    const manualExterno = (window._pontoTipoOverride || {})[String(c.id) + '_' + dateStr] === 'externo';
+                    const trabalhou = horasTrab > 0 || manualExterno;
+                    
+                    // Se não trabalhou num dia útil (mesmo que atestado), é falta pro VT (não usou o passe)
+                    const isFalta = !isFolga && !trabalhou;
+
+                    if (!isFolga) {
                         // Era dia de trabalho previsto
                         diasUteisVT++;
                         if (isFalta) faltasVTN++;
                     } else if (isFolga && trabalhou) {
-                        // Trabalhou num dia de folga = extra VT
+                        // Trabalhou num dia de folga/feriado = extra VT
                         extrasVT++;
                     }
                 });
@@ -3256,10 +3279,11 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul bem claro
                 }
                 
-                // Destaque amarelinho para os dias remanescentes do VR (26 ao último dia do mês atual)
+                // Destaque amarelinho para os dias do mês ANTERIOR (26 a 31 do M-1)
+                // que fazem parte do VT do mês atual, mas não do VR do mês atual.
                 if (diaStr.includes('-')) {
                     const p = diaStr.split('-'); // [YYYY, MM, DD]
-                    if (parseInt(p[2], 10) >= 26 && parseInt(p[1], 10) === mesInt) {
+                    if (parseInt(p[1], 10) !== mesInt) {
                         if (bg === '#fff' || bg === '#f8fafc') {
                             bg = '#fef9c3'; // amarelinho clarinho
                         }
