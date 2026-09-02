@@ -715,8 +715,8 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -961,8 +961,8 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -1072,7 +1072,7 @@ function _renderTabela() {
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.diasUteisVT||''}"
               style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.diasUteisVT) ? '#dc2626' : ((s.diasUteisVT||0)>0?'#1e293b':'#94a3b8')};"
-              placeholder="0" title="Dias Úteis VT (26→25)"
+              placeholder="0" title="Dias Úteis VT"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasUteisVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
@@ -1724,7 +1724,7 @@ window._recBuscarVCVR = async function () {
                     // ── Determinação de FALTA baseada nos dados do RHID (espelha backend) ──
                     // ORDEM IMPORTANTE: folga/DSR/feriado é verificado ANTES de faltaDiaInteiro
                     // (ControlID pode retornar faltaDiaInteiro=true em dias de folga atribuída)
-                    const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
+                    const horasTrab = d.totalHorasTrabalhadas || 0;
                     // IMPORTANTE: usar apenas horas reais — diasTrabalhados pode ser 1 em dias faltosos
                     const trabalhou = horasTrab > 0;
                     const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
@@ -2315,11 +2315,9 @@ window._recBuscarVT = async function () {
     const ano = parseInt(document.getElementById('rec-ano')?.value);
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
-    // Janela VT: dia 26 do mês anterior → dia 25 do mês selecionado
-    const mesPrevVT = mes === 1 ? 12 : mes - 1;
-    const anoPrevVT = mes === 1 ? ano - 1 : ano;
-    const janelaVTIni = new Date(anoPrevVT, mesPrevVT - 1, 26);
-    const janelaVTFim = new Date(ano, mes - 1, 25);
+    // Janela VT: dia 1 ao último dia do mês (igual VC/VR)
+    const janelaVTIni = new Date(ano, mes - 1, 1);
+    const janelaVTFim = new Date(ano, mes, 0);
 
     const btnVT  = document.getElementById('btn-buscar-vt');
     const badgeVT = document.getElementById('rec-vt-badge');
@@ -2392,7 +2390,7 @@ window._recBuscarVT = async function () {
 
                     const dateStr = dt.toISOString().split('T')[0];
                     const isFolga   = _vtIsFolga(c, dateStr);
-                    const horasTrab = d.totalHorasTrabalhadas || d.horasUteis || 0;
+                    const horasTrab = d.totalHorasTrabalhadas || 0;
                     const trabalhou = horasTrab > 0;
                     const isFeriado = !!(d.idJustification && String(d.idJustification).toLowerCase().includes('feri'));
                     const isFalta   = !trabalhou && !isFolga && !isFeriado;
@@ -3813,10 +3811,13 @@ function _buildReciboBlock(tipo, colab, dados, mes, mesNome, ano, valorVR, logoB
     } else if (tipo === 'VT') {
         titulo    = 'RECIBO DE VALE TRANSPORTE';
         beneficio = 'Vale Transporte';
-        // Cálculo automático: 30 - folgas(incl.feriados) - faltas(com e sem atestado)
-        // Trabalho Externo tem direito a VT (não é descontado)
-        const folgasVT = dados.folgasVT || 0;
-        const diasVT   = Math.max(0, 30 - folgasVT - (dados.faltasVT || 0));
+        
+        // Use exact same calculation variables as UI
+        const diasUteisVT = dados.diasUteisVT || 0;
+        const faltasVTN = dados.faltasVTN || 0;
+        const extrasVT = dados.extrasVT || 0;
+        const diasVT = Math.max(0, diasUteisVT - faltasVTN + extrasVT);
+        
         totalFinal = diasVT * valTransp;
         if (dados.valVTEdit != null) totalFinal = parseFloat(dados.valVTEdit);
         linhas = `
