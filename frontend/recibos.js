@@ -3727,23 +3727,21 @@ window.mostrarRegrasRecibos = function() {
                 </div>
                 <div style="padding:20px;overflow-y:auto;flex:1;font-size:0.9rem;color:#334155;line-height:1.6;">
                     <h4 style="color:#0f172a;margin-top:0;">🍔 1. Vale Refeição (VR)</h4>
-                    <p><strong>Regra de Carga Horária Mínima (Meio Período):</strong><br>
-                    Nem sempre "ir trabalhar" garante o VR. Se o colaborador não atingir a carga mínima exigida no dia, ele <strong>perde o VR</strong> (a linha no sistema fica <span style="background:#fde047;padding:2px 4px;border-radius:4px;font-weight:bold;color:#854d0e;">AMARELA</span>).<br>
-                    * <strong>Regra Padrão:</strong> Mínimo de <strong>6 horas (360 minutos)</strong> trabalhadas.<br>
-                    * <strong>Aos Sábados:</strong> Para colaboradores nas escalas <code>Padrão Sábado 4h</code> ou <code>Padrão Sábado Alternado</code>, a exigência cai para <strong>3 horas (180 minutos)</strong> trabalhadas.</p>
-                    
-                    <p><strong>Regra de Domingos ("Colher de Chá"):</strong><br>
-                    Como incentivo ao trabalho de domingo, a regra da Carga Horária Mínima é <strong>desativada</strong>.<br>
-                    * Trabalhou no domingo? <strong>Ganha o VR independente do tempo que ficou lá</strong>.<br>
-                    * <strong>Atenção (Exceções):</strong> Essa colher de chá NÃO vale para colaboradores que possuem o domingo como dia de escala normal (<code>1 folga / 6x1</code>, <code>2 folgas rodízio</code> e <code>12x36</code>). Para essas escalas, o domingo cobra as 6 horas mínimas normais.</p>
+                    <p><strong>Regra de Carga Horária Mínima:</strong><br>
+                    O colaborador recebe VR em <strong>qualquer dia em que trabalhou 2 horas ou mais (120 minutos)</strong>, independente do dia da semana, da escala ou de ser folga/sábado/domingo.<br>
+                    * <strong>Regra Única:</strong> Mínimo de <strong>2 horas (120 minutos)</strong> trabalhadas → garante o VR do dia.<br>
+                    * <strong>Menos de 2 horas trabalhadas:</strong> O dia conta como folga e não gera VR.<br>
+                    * <strong>Não trabalhou:</strong> Conta como falta ou folga conforme a escala.</p>
 
                     <p><strong>Faltas, Atestados e Justificativas no VR:</strong><br>
-                    * <strong>Faltas (injustificadas) e Atestados:</strong> Descontam o VR.<br>
+                    * <strong>Atestado/Justificativa com horas registradas (≥ 2h):</strong> Conta VR normalmente.<br>
+                    * <strong>Atestado/Justificativa sem horas (ausência total) em dia de trabalho:</strong> Desconta o VR.<br>
+                    * <strong>Atestado/Justificativa em dia de folga da escala:</strong> Não desconta (é folga, não falta).<br>
                     * <strong>Trabalho Externo e Erro no Ponto:</strong> NÃO descontam o VR.<br>
                     * <strong>Férias:</strong> Descontam os dias a receber do próximo mês.</p>
 
                     <p><strong>Situações Especiais do VR:</strong><br>
-                    * <strong>Contratos Intermitentes:</strong> Ganham o VR exato pela quantidade de dias em que efetivamente trabalharam e bateram a carga horária mínima. Nunca levam desconto de "falta".</p>
+                    * <strong>Contratos Intermitentes:</strong> Ganham o VR exato pela quantidade de dias em que efetivamente trabalharam 2h ou mais. Nunca levam desconto de "falta".</p>
 
                     <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
 
@@ -3777,12 +3775,11 @@ window.mostrarRegrasRecibos = function() {
 
                     <h4 style="color:#0f172a;">🎨 Guia Visual: Cores da Tela de Conferência</h4>
                     <ul style="padding-left:20px;margin-bottom:0;">
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Branco:</strong> Dia trabalhado (Tudo Certo).</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Claro:</strong> Folga, DSR ou Feriado de descanso.</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong style="color:#b91c1c;">Vermelho:</strong> Faltas e Atestados (Desconto ativado).</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#fde047;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Amarelo Ouro:</strong> Perdeu VR (Não bateu a carga horária mínima).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Branco:</strong> Dia trabalhado normalmente (Tudo Certo).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Claro:</strong> Folga, DSR ou Feriado de descanso sem horas.</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong style="color:#b91c1c;">Vermelho:</strong> Faltas e Atestados sem horas (Desconto de VR/VT ativado).</li>
                         <li><span style="display:inline-block;width:12px;height:12px;background:#e9d5ff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Roxo:</strong> Férias OU Bateu meta de Jantar.</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#dcfce7;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Verde Claro:</strong> Folga Trabalhada (Foi trabalhar no descanso).</li>
+                        <li><span style="display:inline-block;width:12px;height:12px;background:#dcfce7;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Verde Claro:</strong> Trabalhou em dia de folga/descanso e atingiu ≥ 2h → recebe VR.</li>
                         <li><span style="display:inline-block;width:12px;height:12px;background:#e0f2fe;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Médio:</strong> Trabalho Externo / Serviço em Campo.</li>
                     </ul>
                 </div>
