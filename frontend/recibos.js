@@ -2329,8 +2329,8 @@ window._recBuscarVT = async function () {
     // Janela VT: dia 26 do mês anterior → dia 25 do mês selecionado
     const mesPrevVT = mes === 1 ? 12 : mes - 1;
     const anoPrevVT = mes === 1 ? ano - 1 : ano;
-    const janelaVTIni = new Date(anoPrevVT, mesPrevVT - 1, 26);
-    const janelaVTFim = new Date(ano, mes - 1, 25);
+    const janelaVTIni = new Date(anoPrevVT, mesPrevVT - 1, 26, 0, 0, 0);
+    const janelaVTFim = new Date(ano, mes - 1, 25, 23, 59, 59);
 
     const btnVT  = document.getElementById('btn-buscar-vt');
     const badgeVT = document.getElementById('rec-vt-badge');
