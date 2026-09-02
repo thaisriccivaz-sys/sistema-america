@@ -10350,7 +10350,7 @@ app.post('/api/fechamento/config', authenticateToken, (req, res) => {
 app.post('/api/recibos/salvar', authenticateToken, (req, res) => {
 
     const { mes, ano, itens } = req.body;
-    if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Par??metros inválidos' });
+    if (!mes || !ano || !itens || !Array.isArray(itens)) return res.status(400).json({ error: 'Parâmetros inválidos' });
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');

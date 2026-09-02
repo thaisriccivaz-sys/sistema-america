@@ -715,8 +715,8 @@ function _buildRecibosLayout(mesAt, anoAt) {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -925,14 +925,16 @@ function _calcTotaisRecibo(c, s) {
     let totalFinalTransp = 0;
     let valTransp = parseFloat(c.valor_transporte) || 0;
     if (_isVT(mTransp)) {
-        if (s.valorVT != null && !isNaN(s.valorVT)) {
-            totalFinalTransp = parseFloat(s.valorVT); // Já calculado pela nova api
+        if (s.valorVT != null && !isNaN(s.valorVT) && !s.edited_fields?.diasUteisVT && !s.edited_fields?.faltasVTN && !s.edited_fields?.extrasVT) {
+            totalFinalTransp = parseFloat(s.valorVT); // Já calculado pela api (ou histórico sem edições locais nessas colunas)
         } else {
             const tarifaDupla = valTransp * 2;
             const d = s.diasUteisVT || 0;
             const f = s.faltasVTN || 0;
             const e = s.extrasVT || 0;
             totalFinalTransp = Math.max(0, d - f + e) * tarifaDupla;
+            // O valor recalculado precisa se refletir no state, para salvar certinho
+            s.valorVT = totalFinalTransp;
         }
     } else if (_isVC(mTransp)) {
         const diariaVC = valTransp / 30;
@@ -961,8 +963,8 @@ function _renderTabela() {
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Cargo / Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
-            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Dias Úteis VT (26→25)" onclick="window.ordenarRecibos('diasUteisVT')">Dias<br>VT <i class="ph ${_recibosSortCol==='diasUteisVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='diasUteisVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
+            <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT (26→25)" onclick="window.ordenarRecibos('faltasVTN')">Faltas<br>VT <i class="ph ${_recibosSortCol==='faltasVTN'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVTN'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Extras VT (dias fora da escala)" onclick="window.ordenarRecibos('extrasVT')">Extras<br>VT <i class="ph ${_recibosSortCol==='extrasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='extrasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#fbb6ce;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Valor VT" onclick="window.ordenarRecibos('valorVT')">Valor<br>VT <i class="ph ${_recibosSortCol==='valorVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='valorVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .4rem;text-align:center;color:#475569;font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VC" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VC <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'};vertical-align:middle;margin-left:4px;"></i></th>
@@ -1072,14 +1074,14 @@ function _renderTabela() {
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.diasUteisVT||''}"
               style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.diasUteisVT) ? '#dc2626' : ((s.diasUteisVT||0)>0?'#1e293b':'#94a3b8')};"
-              placeholder="0" title="Dias Úteis VT"
+              placeholder="0" title="Dias Úteis VT (26→25)"
               onchange="window.atualizarDadosReciboColab(${c.id},'diasUteisVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
             ${window._isVT(m) ? `
             <input type="number" min="0" max="35" value="${s.faltasVTN||''}"
               style="width:36px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.faltasVTN) ? '#dc2626' : ((s.faltasVTN||0)>0?'#1e293b':'#94a3b8')};"
-              placeholder="0" title="Faltas VT"
+              placeholder="0" title="Faltas VT (26→25)"
               onchange="window.atualizarDadosReciboColab(${c.id},'faltasVTN',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
           <td style="padding:.45rem .2rem;text-align:center;background:#fbb6ce;">
@@ -1617,6 +1619,8 @@ window._recBuscarVCVR = async function () {
     const anoPrev = mes === 1 ? ano - 1 : ano;
     const janelaIni = new Date(ano, mes - 1, 1);      // 01/M
     const janelaFim = new Date(ano, mes, 0);           // último dia de M
+    const janelaConfIni = new Date(anoPrev, mesPrev - 1, 26);
+    const janelaConfFim = new Date(ano, mes, 0);
 
 
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
@@ -1715,11 +1719,14 @@ window._recBuscarVCVR = async function () {
                 diariaTotal.forEach(d => {
                     const dt = parseDia(d);
                     if (!dt) return;
-                    if (dt < janelaIni || dt > janelaFim) return; // fora da janela de desconto
+                    if (dt < janelaConfIni || dt > janelaConfFim) return; // fora da janela MÁXIMA (26 a fim do mês atual)
                     if (admissaoColab && dt < admissaoColab) return; // antes da admissão → ignora
 
-                    // Inclui no Cartão de Ponto (mesmo período da janela)
+                    // Inclui no Cartão de Ponto TUDO da janela de conferência
                     apuracaoParaCartao.push(d);
+
+                    // A partir daqui, cálculo do VR/VC: só aplica para os dias dentro da janela 01/M a Fim/M
+                    if (dt < janelaIni) return;
 
                     // ── Determinação de FALTA baseada nos dados do RHID (espelha backend) ──
                     // ORDEM IMPORTANTE: folga/DSR/feriado é verificado ANTES de faltaDiaInteiro
@@ -2315,9 +2322,11 @@ window._recBuscarVT = async function () {
     const ano = parseInt(document.getElementById('rec-ano')?.value);
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
-    // Janela VT: dia 1 ao último dia do mês (igual VC/VR)
-    const janelaVTIni = new Date(ano, mes - 1, 1);
-    const janelaVTFim = new Date(ano, mes, 0);
+    // Janela VT: dia 26 do mês anterior → dia 25 do mês selecionado
+    const mesPrevVT = mes === 1 ? 12 : mes - 1;
+    const anoPrevVT = mes === 1 ? ano - 1 : ano;
+    const janelaVTIni = new Date(anoPrevVT, mesPrevVT - 1, 26);
+    const janelaVTFim = new Date(ano, mes - 1, 25);
 
     const btnVT  = document.getElementById('btn-buscar-vt');
     const badgeVT = document.getElementById('rec-vt-badge');
@@ -2630,6 +2639,16 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[h.colaborador_id].faltasVR = h.faltas_vr != null ? h.faltas_vr : h.faltas;
                     _recibosSelecoes[h.colaborador_id].valVTEdit = h.valor_vt_editado != null ? h.valor_vt_editado : null;
                     _recibosSelecoes[h.colaborador_id].valVREdit = h.valor_vr_editado != null ? h.valor_vr_editado : null;
+                    
+                    // Fields exclusivos do VT
+                    _recibosSelecoes[h.colaborador_id].diasUteisVT = h.dias_uteis_vt != null ? h.dias_uteis_vt : 0;
+                    _recibosSelecoes[h.colaborador_id].faltasVTN = h.faltas_vtn != null ? h.faltas_vtn : 0;
+                    _recibosSelecoes[h.colaborador_id].extrasVT = h.extras_vt != null ? h.extras_vt : 0;
+                    _recibosSelecoes[h.colaborador_id].valorVT = h.valor_vt != null ? h.valor_vt : 0;
+                    if (h.dias_uteis_vt > 0 || h.faltas_vtn > 0 || h.extras_vt > 0) {
+                        _recibosSelecoes[h.colaborador_id].vtStatus = 'ok';
+                    }
+
                     if (h.edited_fields) {
                         try {
                             _recibosSelecoes[h.colaborador_id].edited_fields = JSON.parse(h.edited_fields);
@@ -2905,8 +2924,8 @@ window.baixarConferenciaPonto = async function () {
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesInt-1];
     const valorVR = window._recibosValorVR || 35.00;
 
-    // Período da conferência: 01/M → último dia de M (mês selecionado completo)
-    const dtIniConf = new Date(anoInt, mesInt - 1, 1);  // 01/M
+    // Período da conferência: 26 do mês anterior → último dia de M (cobre VT e VR)
+    const dtIniConf = new Date(anoInt, mesInt - 2, 26);
     const dtFimConf = new Date(anoInt, mesInt, 0);       // último dia de M
     const fmtDate = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
     const periodoTexto = `${fmtDate(dtIniConf)} a ${fmtDate(dtFimConf)}`;
@@ -3235,6 +3254,16 @@ window.baixarConferenciaPonto = async function () {
                     bg = '#e0f2fe'; // Trabalho Externo: azul claro
                 } else if (tipo === 'folga' || tipo === 'feriado') {
                     bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul bem claro
+                }
+                
+                // Destaque amarelinho para os dias remanescentes do VR (26 ao último dia do mês atual)
+                if (diaStr.includes('-')) {
+                    const p = diaStr.split('-'); // [YYYY, MM, DD]
+                    if (parseInt(p[2], 10) >= 26 && parseInt(p[1], 10) === mesInt) {
+                        if (bg === '#fff' || bg === '#f8fafc') {
+                            bg = '#fef9c3'; // amarelinho clarinho
+                        }
+                    }
                 }
 
                 // Cor da fonte: vermelho para faltas/justificados/atestados; escuro para trab. externo e dias normais
