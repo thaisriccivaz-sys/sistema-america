@@ -3770,7 +3770,9 @@ window.mostrarRegrasRecibos = function() {
                     1. <strong>Dias Normais (Seg a Sex):</strong> Precisa fazer jornada normal completa <strong>+ 3 horas extras</strong> E totalizar, no mínimo, <strong>9 horas totais</strong> de trabalho bruto.<br>
                     2. <strong>Sábados (Jornadas Curtas &le; 5h):</strong> Só ganha jantar quem atingir <strong>11 horas e 1 minuto</strong> de trabalho (661 minutos).<br>
                     3. <strong>Domingos, Folgas e Feriados:</strong> Se for trabalhar na folga, o Jantar só é liberado se trabalhar <strong>12 horas totais</strong> completas.</p>
-                    
+
+                    <p><strong>Contratos Intermitentes:</strong> Independente do dia ou do horário cadastrado, o jantar só é liberado se trabalharem <strong>12 horas ou mais</strong> no dia.</p>
+
                     <p><strong>Departamento Administrativo:</strong> <strong>NUNCA recebem jantar</strong>, independentemente de quantas horas extras realizem.</p>
                     
                     <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
