@@ -2407,18 +2407,22 @@ window._recBuscarVT = async function () {
                 let diasUteisVT = 0;
                 let faltasVTN   = 0;
                 let extrasVT    = 0;
+                
+                const admissaoColab = c.data_admissao ? new Date(c.data_admissao + 'T00:00:00') : null;
 
                 todosDias.forEach(d => {
                     const dt = parseDt(d);
                     if (!dt) return;
                     if (dt < janelaVTIni || dt > janelaVTFim) return;
+                    if (admissaoColab && dt < admissaoColab) return;
 
                     const dateStr = dt.toISOString().split('T')[0];
                     const statusRHID = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-                    const isFolgaRaw = statusRHID.includes('folg') || statusRHID.includes('dsr') ||
+                    const semHor = ((d.idHorarioContratual||0)===0 && (d.strHorarioContratualSimples||'').trim()==='');
+                    const isFolgaRaw = semHor || statusRHID.includes('folg') || statusRHID.includes('dsr') ||
                                     statusRHID.includes('feriado') || statusRHID.includes('f.c.') ||
                                     d.folga === true || d.isHoliday === true || d.isHoliday === 1;
-                    const isFolga = isFolgaRaw || _vtIsFolga(c, dateStr);
+                    const isFolga = isFolgaRaw;
 
                     const horasTrab = d.totalHorasTrabalhadas || 0;
                     const manualExterno = (window._pontoTipoOverride || {})[String(c.id) + '_' + dateStr] === 'externo';
@@ -2442,8 +2446,10 @@ window._recBuscarVT = async function () {
                     // Calcular apenas com a escala (sem RHID)
                     const dt = new Date(janelaVTIni);
                     while (dt <= janelaVTFim) {
-                        const dateStr = dt.toISOString().split('T')[0];
-                        if (!_vtIsFolga(c, dateStr)) diasUteisVT++;
+                        if (!admissaoColab || dt >= admissaoColab) {
+                            const dateStr = dt.toISOString().split('T')[0];
+                            if (!_vtIsFolga(c, dateStr)) diasUteisVT++;
+                        }
                         dt.setDate(dt.getDate() + 1);
                     }
                     faltasVTN = 0;
