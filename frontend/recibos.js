@@ -895,51 +895,32 @@ function _isVC(m) { return m.includes('combustivel') || m.includes('combustível
 function _calcTotaisRecibo(c, s) {
     const valorVR = (c && c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00);
     const mTransp = (c.meio_transporte||'').toLowerCase();
-    
-    // Detectar se é o mês de admissão do colaborador (primeiro recibo proporcional)
-    const _recMesAtual = parseInt(document.getElementById('rec-mes')?.value) || 0;
-    const _recAnoAtual = parseInt(document.getElementById('rec-ano')?.value) || 0;
-    const _isAdmissaoMes = !!(c.data_admissao && (() => {
-        const adm = new Date(c.data_admissao + 'T00:00:00');
-        return !isNaN(adm)
-            && adm.getMonth() + 1 === _recMesAtual
-            && adm.getFullYear() === _recAnoAtual
-            && adm.getDate() > 1; // só proporcional se admissão não foi dia 1
-    })());
 
-    // VR
-    let totalFinalVR;
-    if (_isAdmissaoMes && s.diasVR != null) {
-        // Primeiro mês de admissão: usar dias reais trabalhados com VR (não crédito M+1)
-        // s.diasVR já exclui folgas e faltas (calculado só a partir da data de admissão)
-        // s.diasExtra (jantar) é somado normalmente
-        totalFinalVR = Math.max(0, ((s.diasVR || 0) + (s.diasExtra || 0)) * valorVR);
-    } else {
-        // Meses normais: crédito = M+1 (campo Dias Mês Seg.) − desconto de folgas/faltas
-        const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
-            ? window._recibos_diasBruto
-            : ((s.diasVR != null && s.diasVR > 0) ? s.diasVR : (s.diasTrabalhados || 0));
-        const brutoVR     = totalDiasMes * valorVR;
-        const brutoJantar = (s.diasExtra || 0) * valorVR;
-        const totalDescVR = ((s.folgasVR || 0) * valorVR) + ((s.faltasVR || 0) * valorVR);
-        totalFinalVR = Math.max(0, brutoVR + brutoJantar - totalDescVR);
-    }
+    // VR — crédito = M+1 (campo Dias Mês Seg.) para todos os colaboradores.
+    // Deduções (folgasVR, faltasVR) já são calculadas apenas a partir da data de admissão
+    // pelo filtro admissaoColab no loop de apuração (dias anteriores à admissão são ignorados).
+    const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
+        ? window._recibos_diasBruto
+        : ((s.diasVR != null && s.diasVR > 0) ? s.diasVR : (s.diasTrabalhados || 0));
+    const brutoVR     = totalDiasMes * valorVR;
+    const brutoJantar = (s.diasExtra || 0) * valorVR;
+    const totalDescVR = ((s.folgasVR || 0) * valorVR) + ((s.faltasVR || 0) * valorVR);
+    const totalFinalVR = Math.max(0, brutoVR + brutoJantar - totalDescVR);
 
-    // Transp
+    // Transp — base 30 para todos os colaboradores (inclusive novatos).
+    // Deduções (folgasVT, faltasVT) já são calculadas apenas a partir da data de admissão.
     let totalFinalTransp = 0;
     let valTransp = parseFloat(c.valor_transporte) || 0;
-    // Base VT/VC: 30 fixo para colaboradores normais; proporcional para o mês de admissão
-    const baseTransp = (s.diasBaseVT != null && s.diasBaseVT > 0) ? s.diasBaseVT : 30;
     if (_isVT(mTransp)) {
         valTransp = valTransp * 2;
-        const diasVT = Math.max(0, baseTransp - (s.folgasVT || 0) - (s.faltasVT || 0));
+        const diasVT = Math.max(0, 30 - (s.folgasVT || 0) - (s.faltasVT || 0));
         totalFinalTransp = diasVT * valTransp;
     } else if (_isVC(mTransp)) {
-        const diariaVC = valTransp / baseTransp;
+        const diariaVC = valTransp / 30;
         const descVC = (s.faltasVT || 0) * diariaVC;
         totalFinalTransp = Math.max(0, valTransp - descVC);
     }
-    
+
     return { totalFinalVR, totalFinalTransp };
 }
 
@@ -1683,22 +1664,11 @@ window._recBuscarPontoSelecionados = async function () {
                 const apuracaoParaCartao = [];
 
                 // Data de admissão: ignora dias anteriores à entrada do colaborador
+                // nas deduções (folgas, faltas, feriados). O crédito (VR/VT) usa
+                // o mês inteiro normalmente — os dias pré-admissão são tratados no adiantamento.
                 const admissaoColab = c.data_admissao
                     ? new Date(c.data_admissao + 'T00:00:00')
                     : null;
-
-                // Base VT/VC proporcional para colaboradores no mês de admissão
-                // Ex: admissão 08/09 → base = 23 dias (08 a 30/09), não 30
-                // Nota: s.diasBaseVT é atribuído abaixo, após const s = _recibosSelecoes
-                let diasBaseVT = 30;
-                if (admissaoColab && !isNaN(admissaoColab)) {
-                    const admMes = admissaoColab.getMonth() + 1;
-                    const admAno = admissaoColab.getFullYear();
-                    if (admMes === mes && admAno === ano) {
-                        const ultimoDiaMes = new Date(ano, mes, 0).getDate();
-                        diasBaseVT = ultimoDiaMes - admissaoColab.getDate() + 1;
-                    }
-                }
 
                 diariaTotal.forEach(d => {
                     const dt = parseDia(d);
@@ -1876,7 +1846,6 @@ window._recBuscarPontoSelecionados = async function () {
 
                 const s = _recibosSelecoes[c.id];
                 s.diasTrabalhados = diasCredito; // dias de escala p/ VT/VC
-                s.diasBaseVT  = diasBaseVT;   // base proporcional VT/VC (admissão)
                 s.folgasVR = folgasVR;
                 s.faltasVR = faltasVR;
                 s.folgasVT = folgasVT;
