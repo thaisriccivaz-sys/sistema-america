@@ -3788,6 +3788,16 @@ window.mostrarRegrasRecibos = function() {
                     
                     <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
 
+                    <h4 style="color:#0f172a;">🆕 4. Regras para Novos Colaboradores (Mês de Admissão)</h4>
+                    <p>Quando um colaborador é recém-admitido, o sistema aplica as seguintes regras no seu primeiro recibo:</p>
+                    <p>
+                    * <strong>Exibição na Lista:</strong> Se o mês da conferência for <em>anterior</em> ao mês de admissão do colaborador, ele não aparecerá na lista de recibos.<br>
+                    * <strong>Crédito de Benefícios (VR e VT/VC):</strong> A base de pagamento do VR (dias do mês seguinte) e a base do Transporte (30 dias) são projetadas de forma <strong>integral</strong>, exatamente igual aos demais colaboradores. O sistema não faz corte proporcional no crédito.<br>
+                    * <strong>Descontos (Folgas e Faltas):</strong> As deduções no recibo são apuradas <strong>apenas a partir da data de admissão</strong> até o fim do mês. Os dias anteriores ao início do colaborador são completamente ignorados (não contam como folga nem como falta), pois o acerto desses dias já é tratado pela empresa via adiantamento.
+                    </p>
+
+                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+
                     <h4 style="color:#0f172a;">🎨 Guia Visual: Cores da Tela de Conferência</h4>
                     <ul style="padding-left:20px;margin-bottom:0;">
                         <li><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Branco:</strong> Dia trabalhado normalmente (Tudo Certo).</li>
