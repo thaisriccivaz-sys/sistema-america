@@ -705,7 +705,7 @@ function _buildRecibosLayout(mesAt, anoAt) {
           <tr id="rec-thead-tr" style="background:#f1f5f9;border-bottom:2px solid #e2e8f0;">
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;width:36px;z-index:11;"></th>
             <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('nome')">Colaborador <i class="ph ${_recibosSortCol==='nome'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='nome'?'1':'0.3'}"></i></th>
-            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem 1rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Cargo / Departamento <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
+            <th style="position:sticky;top:0;background:#f1f5f9;padding:.7rem .5rem;text-align:left;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" onclick="window.ordenarRecibos('cargo')">Depto <i class="ph ${_recibosSortCol==='cargo'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='cargo'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .75rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;white-space:nowrap;">Meio Transp.</th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Folgas VT" onclick="window.ordenarRecibos('folgasVT')">Folgas<br>VT <i class="ph ${_recibosSortCol==='folgasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='folgasVT'?'1':'0.3'}"></i></th>
             <th style="position:sticky;top:0;background:#8aa0fe;padding:.7rem .5rem;text-align:center;color:#475569;font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;z-index:11;cursor:pointer;user-select:none;white-space:nowrap;" title="Faltas VT" onclick="window.ordenarRecibos('faltasVT')">Faltas<br>Transp. <i class="ph ${_recibosSortCol==='faltasVT'?(_recibosSortAsc?'ph-caret-up':'ph-caret-down'):'ph-caret-up'}" style="opacity:${_recibosSortCol==='faltasVT'?'1':'0.3'}"></i></th>
@@ -967,7 +967,7 @@ function _renderTabela() {
     tbody.innerHTML = _recibosFiltrados.map(c => {
         const s    = _recibosSelecoes[c.id] || { selecionado:false, diasTrabalhados:0, diasVR:0, faltas:0, folgas:0, diasExtra:0, pontoStatus:null, folgasVT:0, faltasVT:0, folgasVR:0, faltasVR:0 };
         const nomeCompleto = _recNome(c);
-        const nome = nomeCompleto.length > 30 ? nomeCompleto.substring(0, 30) + '...' : nomeCompleto;
+        const nome = nomeCompleto.length > 15 ? nomeCompleto.substring(0, 15) + '...' : nomeCompleto;
         const tipo = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
         
         const temFeriasJanela = window._temFeriasJanela ? window._temFeriasJanela(c, anoAt, mesAt) : false;
@@ -1039,13 +1039,12 @@ function _renderTabela() {
               style="width:16px;height:16px;accent-color:#2563eb;cursor:pointer;"
               onchange="window.toggleReciboColab(${c.id},this.checked)">
           </td>
-          <td style="padding:.55rem 1rem;max-width:280px;">
+          <td style="padding:.55rem .5rem;max-width:140px;">
             <div style="display:flex;align-items:center;gap:4px;font-weight:600;color:${nomeCor};font-size:.88rem;white-space:nowrap;" title="${nomeCompleto}"><span style="overflow:hidden;text-overflow:ellipsis;min-width:0;">${nome}</span>${btnObs}</div>
             <div style="font-size:.74rem;color:#94a3b8;">CPF: ${c.cpf||'—'}</div>
           </td>
-          <td style="padding:.55rem 1rem;">
-            <div style="color:#475569;font-size:.85rem;">${c.cargo||'—'}</div>
-            <div style="font-size:.74rem;color:#94a3b8;">${c.departamento||'—'}</div>
+          <td style="padding:.55rem .5rem;max-width:110px;">
+            <div style="color:#475569;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${c.departamento||''}">${c.departamento||'—'}</div>
           </td>
           <td style="padding:.55rem .75rem;text-align:center;background:#8aa0fe;">${transpBadge}</td>
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
