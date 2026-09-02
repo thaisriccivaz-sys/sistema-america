@@ -109,6 +109,104 @@ function _isFeriadoSPGru(d) {
 }
 
 /**
+ * Retorna true se a data (string 'YYYY-MM-DD') é um dia de FOLGA PROGRAMADA
+ * pela escala do colaborador. Usado para não descontar VR/VT/VC em dias de
+ * atestado/justificativa que caem em folgas da escala.
+ *
+ * Escalas suportadas:
+ *   padrao_seg_sexta / null → folga = Sáb e Dom
+ *   padrao_seis_dias / padrao_sab_4h → folga = Dom
+ *   padrao_sab_alternado → folga = Dom + Sábs ímpares (pelo ciclo)
+ *   escala_duas_folgas → folga = dias fixos + domingos rotativos
+ *   12x36 → folga = dias de descanso de 36h (calculado pelo ciclo)
+ *   24x72 → folga = dias de descanso de 72h (calculado pelo ciclo)
+ */
+function _ehDiaFolgaEscala(colab, dateStr) {
+    if (!dateStr) return false;
+    const d = new Date(dateStr + 'T12:00:00');
+    if (isNaN(d)) return false;
+    const ds = d.getDay(); // 0=Dom, 1=Seg ... 6=Sáb
+    const escalaTipo = (colab.escala_tipo || '').trim().toLowerCase();
+    const cicloRef = colab.escala_ciclo_inicio
+        ? new Date(colab.escala_ciclo_inicio + 'T00:00:00')
+        : null;
+
+    // ── 12x36: dia de trabalho ou folga baseado no ciclo ──────────────────
+    // Ciclo: [TRABALHO, FOLGA, TRABALHO, FOLGA, ...] alternando por dia
+    // O ciclo_inicio marca um dia de TRABALHO (dia 0 do ciclo).
+    // Dias pares do ciclo = trabalho, dias ímpares = folga.
+    if (escalaTipo === '12x36' || escalaTipo.includes('12x36')) {
+        if (!cicloRef) return false; // sem referência, não é possível determinar
+        const MS_DIA = 24 * 60 * 60 * 1000;
+        // Zerar horas para comparação de dias
+        const refDay = new Date(cicloRef.getFullYear(), cicloRef.getMonth(), cicloRef.getDate());
+        const curDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diffDias = Math.round((curDay - refDay) / MS_DIA);
+        // diffDias par = mesmo ciclo que ciclo_inicio (dia de TRABALHO)
+        // diffDias ímpar = dia de FOLGA (36h de descanso)
+        const ehFolga12x36 = ((diffDias % 2) + 2) % 2 === 1;
+        return ehFolga12x36;
+    }
+
+    // ── 24x72: folga nos 3 dias de descanso após 1 dia de trabalho ─────────
+    if (escalaTipo === '24x72' || escalaTipo.includes('24x72')) {
+        if (!cicloRef) return false;
+        const MS_DIA = 24 * 60 * 60 * 1000;
+        const refDay = new Date(cicloRef.getFullYear(), cicloRef.getMonth(), cicloRef.getDate());
+        const curDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diffDias = Math.round((curDay - refDay) / MS_DIA);
+        // Ciclo de 4 dias: [TRABALHO=0, FOLGA=1, FOLGA=2, FOLGA=3]
+        const posNoCiclo = ((diffDias % 4) + 4) % 4;
+        return posNoCiclo !== 0; // 1,2,3 = folga; 0 = trabalho
+    }
+
+    // ── padrao_seis_dias / padrao_sab_4h: Seg-Sáb, folga = Dom ──────────
+    if (escalaTipo === 'padrao_seis_dias' || escalaTipo === 'padrao_sab_4h') {
+        return ds === 0; // Domingo = folga
+    }
+
+    // ── padrao_sab_alternado: Seg-Sex + Sábs alternados ───────────────────
+    if (escalaTipo === 'padrao_sab_alternado') {
+        if (ds === 0) return true; // Dom sempre folga
+        if (ds !== 6) return false; // Seg-Sex nunca folga
+        // Sáb: verificar ciclo (par=trabalho, ímpar=folga)
+        if (!cicloRef) return false;
+        const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+        const refSab = new Date(cicloRef);
+        while (refSab.getDay() !== 6) refSab.setDate(refSab.getDate() + 1);
+        const semanas = Math.round((d - refSab) / MS_SEMANA);
+        return ((semanas % 2) + 2) % 2 !== 0; // ímpar = folga
+    }
+
+    // ── escala_duas_folgas: folgas fixas + domingos rotativos ─────────────
+    if (escalaTipo === 'escala_duas_folgas') {
+        const DIAS_NOME = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        let diasFolgaFixos = [];
+        let temDomingoNasFolgas = false;
+        try {
+            const folgas = JSON.parse(colab.escala_folgas || '[]');
+            temDomingoNasFolgas = folgas.some(f => f.toLowerCase() === 'dom');
+            diasFolgaFixos = folgas.map(f => DIAS_NOME.indexOf(f)).filter(n => n > 0);
+        } catch(e) {}
+        if (diasFolgaFixos.includes(ds)) return true; // folga fixa
+        if (ds === 0 && temDomingoNasFolgas) {
+            // Dom rotativo: posição 2 no ciclo de 3 = folga
+            if (!cicloRef) return false;
+            const MS_SEMANA = 7 * 24 * 60 * 60 * 1000;
+            const refDom = new Date(cicloRef);
+            while (refDom.getDay() !== 0) refDom.setDate(refDom.getDate() + 1);
+            const semanas = Math.round((d - refDom) / MS_SEMANA);
+            const pos = ((semanas % 3) + 3) % 3;
+            return pos === 2; // posição 2 = folga no ciclo
+        }
+        return false;
+    }
+
+    // ── padrao_seg_sexta / null / padrão → folga = Sáb e Dom ────────────
+    return ds === 0 || ds === 6; // Sábado e Domingo = folga
+}
+
+/**
  * ─── NOVA REGRA DE CRÉDITO ──────────────────────────────────────────────────
  *
  * Calcula os dias de benefício (crédito) do colaborador no mês/ano
@@ -1655,7 +1753,15 @@ window._recBuscarPontoSelecionados = async function () {
                                             const _j = JSON.stringify(m || '').toLowerCase();
                                             return _j.includes('externo') || _j.includes('trabalho ext');
                                         });
-                        if (isErroP2 || isExterno2 || hT2 > 0) {
+                        // ── NOVA REGRA: dia de folga da escala NÃO desconta VR/VT/VC ──
+                        // Se o atestado/justificativa cobre um dia que é folga programada
+                        // pela escala do colaborador, tratar como folga (sem desconto).
+                        const dStr2Just = String(d.date || d.dateTimeStr || '').substring(0, 10);
+                        const isFolgaEscala2 = typeof _ehDiaFolgaEscala === 'function'
+                            && _ehDiaFolgaEscala(c, dStr2Just);
+                        if (isFolgaEscala2) {
+                            tipo2 = 'folga'; // Folga da escala → não desconta mesmo com justificativa
+                        } else if (isErroP2 || isExterno2 || hT2 > 0) {
                             tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo → não conta falta)
                         } else {
                             tipo2 = 'justificado'; // Falta justificada genuína
