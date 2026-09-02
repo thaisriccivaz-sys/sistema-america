@@ -1898,6 +1898,8 @@ window._recBuscarPontoSelecionados = async function () {
                 if (tipoDepto !== 'Administrativo' && apuracaoParaCartao.length > 0) {
                     s.diasExtra = apuracaoParaCartao.filter(d => {
                         const minTrab = d.totalHorasTrabalhadas || 0;
+                        // Intermitente: jantar apenas a partir de 12h trabalhadas (não importa o horário previsto)
+                        if (isIntermitente) return minTrab >= 720;
                         const hPrev = _parseHorasPrevistas(d);
                         if (hPrev > 0) {
                             // SAB com jornada curta (≤5h = ≤300min): jantar exige mínimo 11h01 (661min)
