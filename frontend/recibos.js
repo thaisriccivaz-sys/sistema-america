@@ -896,14 +896,34 @@ function _calcTotaisRecibo(c, s) {
     const valorVR = (c && c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00);
     const mTransp = (c.meio_transporte||'').toLowerCase();
     
+    // Detectar se é o mês de admissão do colaborador (primeiro recibo proporcional)
+    const _recMesAtual = parseInt(document.getElementById('rec-mes')?.value) || 0;
+    const _recAnoAtual = parseInt(document.getElementById('rec-ano')?.value) || 0;
+    const _isAdmissaoMes = !!(c.data_admissao && (() => {
+        const adm = new Date(c.data_admissao + 'T00:00:00');
+        return !isNaN(adm)
+            && adm.getMonth() + 1 === _recMesAtual
+            && adm.getFullYear() === _recAnoAtual
+            && adm.getDate() > 1; // só proporcional se admissão não foi dia 1
+    })());
+
     // VR
-    const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
-        ? window._recibos_diasBruto
-        : ((s.diasVR != null && s.diasVR > 0) ? s.diasVR : (s.diasTrabalhados || 0));
-    const brutoVR = totalDiasMes * valorVR;
-    const brutoJantar = (s.diasExtra || 0) * valorVR;
-    const totalDescVR = ((s.folgasVR || 0) * valorVR) + ((s.faltasVR || 0) * valorVR);
-    const totalFinalVR = Math.max(0, brutoVR + brutoJantar - totalDescVR);
+    let totalFinalVR;
+    if (_isAdmissaoMes && s.diasVR != null) {
+        // Primeiro mês de admissão: usar dias reais trabalhados com VR (não crédito M+1)
+        // s.diasVR já exclui folgas e faltas (calculado só a partir da data de admissão)
+        // s.diasExtra (jantar) é somado normalmente
+        totalFinalVR = Math.max(0, ((s.diasVR || 0) + (s.diasExtra || 0)) * valorVR);
+    } else {
+        // Meses normais: crédito = M+1 (campo Dias Mês Seg.) − desconto de folgas/faltas
+        const totalDiasMes = (window._recibos_diasBruto && window._recibos_diasBruto > 0)
+            ? window._recibos_diasBruto
+            : ((s.diasVR != null && s.diasVR > 0) ? s.diasVR : (s.diasTrabalhados || 0));
+        const brutoVR     = totalDiasMes * valorVR;
+        const brutoJantar = (s.diasExtra || 0) * valorVR;
+        const totalDescVR = ((s.folgasVR || 0) * valorVR) + ((s.faltasVR || 0) * valorVR);
+        totalFinalVR = Math.max(0, brutoVR + brutoJantar - totalDescVR);
+    }
 
     // Transp
     let totalFinalTransp = 0;
