@@ -1650,7 +1650,7 @@ window._recBuscarPontoSelecionados = async function () {
                 }
 
                 let faltasJanela = 0;
-                const MIN_VR = 360; // 6 horas em minutos
+                const MIN_VR = 120; // 2 horas em minutos — nova regra: qualquer dia com ≥ 2h trabalhadas gera VR
                 // Cartão de Ponto = mesmos dias da janela de desconto (não mais o mês M-1 completo)
                 const apuracaoParaCartao = [];
 
@@ -1759,8 +1759,8 @@ window._recBuscarPontoSelecionados = async function () {
                         const dStr2Just = String(d.date || d.dateTimeStr || '').substring(0, 10);
                         const isFolgaEscala2 = typeof _ehDiaFolgaEscala === 'function'
                             && _ehDiaFolgaEscala(c, dStr2Just);
-                        if (isFolgaEscala2) {
-                            tipo2 = 'folga'; // Folga da escala → não desconta mesmo com justificativa
+                        if (isFolgaEscala2 && hT2 < MIN_VR) {
+                            tipo2 = 'folga'; // Folga da escala sem horas suficientes → não desconta
                         } else if (isErroP2 || isExterno2 || hT2 > 0) {
                             tipo2 = ''; // Trabalhado (erro de ponto / trabalho externo → não conta falta)
                         } else {
@@ -1788,30 +1788,7 @@ window._recBuscarPontoSelecionados = async function () {
                         tipo2 = 'falta';
                     }
 
-                    // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR ---
-                    let perdeVRPorHoras = false;
-                    if (tipo2 === '' && trb2) {
-                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
-                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
-                        const isSat2 = !isNaN(dParsed2) && dParsed2.getDay() === 6;
-                        
-                        const escTipo = (c.escala_tipo || '').toLowerCase();
-                        const isEscalaExcecao = escTipo === 'padrao_sab_4h' || escTipo === 'padrao_sab_alternado';
-                        const isEscalaExcluidaDom = escTipo.includes('uma_folga') || escTipo.includes('duas_folgas') || escTipo.includes('12x36');
-                                                
-                        const limiteMinutos = (isSat2 && isEscalaExcecao) ? 180 : 360;
-                        
-                        if (hT2 < limiteMinutos) {
-                            perdeVRPorHoras = true;
-                        }
-                        
-                        // -- NOVA REGRA DOMINGO: Não perde VR se trabalhar qualquer hora no Domingo (min 2h já bateu tipo2='') --
-                        const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
-                        if (isDom2 && !isEscalaExcluidaDom) {
-                            perdeVRPorHoras = false;
-                        }
-                    }
-                    d.perdeVRPorHoras = perdeVRPorHoras; // Salva para exibir na conferência de ponto
+                    d.perdeVRPorHoras = false; // Nova regra: ≥ 2h sempre gera VR — sem penalidade por horas
 
                     const mTr = (c.meio_transporte || '').toLowerCase();
                     const isVC = typeof _isVC === 'function' ? _isVC(mTr) : false;
@@ -1832,16 +1809,6 @@ window._recBuscarPontoSelecionados = async function () {
                             faltasVT++; // Para Vale Combustível, Férias desconta (Falta)
                         } else {
                             folgasVT++; // Para Vale Transporte, Férias NÃO desconta (Folga)
-                        }
-                    }
-
-                    // Se trabalhou menos que o mínimo (nova regra) e não é atestado/falta normal, perde SÓ o VR
-                    if (perdeVRPorHoras) {
-                        const isInt = (c.tipo_contrato || '').toLowerCase().includes('intermitente');
-                        if (isInt) {
-                            folgasVR++;
-                        } else {
-                            faltasVR++;
                         }
                     }
                 });
@@ -1873,14 +1840,11 @@ window._recBuscarPontoSelecionados = async function () {
                 s.folgasVT = folgasVT;
                 s.faltasVT = faltasVT;
 
-                // ── diasVR = dias com horário contratual agendado na janela RHID ──
-                // Regra VR: conta todo dia em que o colaborador tinha escala contratual.
-                // Exclui: FOLGA ESCALA sem horário (5x2/6x1), DSR puro de Domingo, FERIADO sem escala.
-                // Inclui: TRABALHADO, JUSTIFICADO, FALTA, DSR e FERIADO em dias agendados (7x0).
-                // FALLBACK: se RHID retorna idHorarioContratual=0 mas o colaborador trabalhou >= 6h
-                //   (ex: DSR marcado incorretamente), o dia conta como dia VR pelo trabalho realizado.
+                // ── diasVR = dias com VR na janela RHID ──────────────────────────
+                // Regra VR (nova): todo dia em que o colaborador trabalhou >= 2h (MIN_VR = 120min) conta VR.
+                // Exclui: dias com idJustification e 0h trabalhadas (ausência real sem horas).
+                // Inclui: TRABALHADO qualquer horário ≥ 2h, DSR/Feriado ≥ 2h, dias agendados com horário.
                 // Fallback final: sem dados RHID → usa dias de escala.
-                // MIN_VR já definido acima (360 min = 6h)
                 if (apuracaoParaCartao.length > 0) {
                     s.diasVR = apuracaoParaCartao.filter(d => {
                         // Trabalho externo: campo/serviço fora do escritório → sempre conta VR
@@ -1891,7 +1855,9 @@ window._recBuscarPontoSelecionados = async function () {
                                          || abrVR === 'te' || abrVR === 't.e.'
                                          || abrVR.startsWith('te ') || abrVR.includes('ext');
                             if (isExtVR) return true; // trab. externo → conta VR
-                            return false; // falta justificada → não conta VR
+                            // Nova regra: se trabalhou ≥ 2h mesmo com justificativa → conta VR
+                            if ((d.totalHorasTrabalhadas || 0) >= MIN_VR) return true;
+                            return false; // falta justificada sem horas → não conta VR
                         }
 
                         // Dia agendado = tem horário contratual cadastrado no RHID
@@ -1899,23 +1865,9 @@ window._recBuscarPontoSelecionados = async function () {
                                         || (d.strHorarioContratualSimples || '').trim() !== '';
                         if (temHorario) return true; // agendado → conta
 
-                        // FALLBACK: trabalhou >= 6h sem horário cadastrado
+                        // FALLBACK: trabalhou >= 2h sem horário cadastrado (nova regra unificada — vale para todos os dias)
                         const minTrabFallback = d.totalHorasTrabalhadas || 0;
-                        
-                        // -- NOVA REGRA DOMINGO --
-                        const dStr2 = String(d.date || d.dateTimeStr || '').substring(0, 10);
-                        const dParsed2 = new Date(dStr2 + 'T12:00:00');
-                        const isDom2 = !isNaN(dParsed2) && dParsed2.getDay() === 0;
-
-                        if (isDom2 && minTrabFallback >= 120) {
-                            const escTipo = (c.escala_tipo || '').toLowerCase();
-                            const isEscalaExcluidaDom = escTipo.includes('uma_folga') || escTipo.includes('duas_folgas') || escTipo.includes('12x36');
-                            if (!isEscalaExcluidaDom) {
-                                return true; // Domingo vale VR se trabalhou o mínimo e não é de escala excluída
-                            }
-                        }
-                        
-                        return minTrabFallback >= MIN_VR;
+                        return minTrabFallback >= MIN_VR; // MIN_VR = 120min = 2h
                     }).length;
                 } else {
                     s.diasVR = diasCredito; // fallback: sem dados RHID → usa escala
@@ -2941,18 +2893,8 @@ window.baixarConferenciaPonto = async function () {
 
                 // ── Coloração ────────────────────────────────────────────────────────
                 
-                // --- NOVA REGRA DE CARGA HORÁRIA MÍNIMA PARA VR (UI) ---
-                const escTipoUI = (c.escala_tipo || '').toLowerCase();
-                const isEscalaExcecaoUI = escTipoUI === 'padrao_sab_4h' || escTipoUI === 'padrao_sab_alternado';
-                const isEscalaExcluidaDomUI = escTipoUI.includes('uma_folga') || escTipoUI.includes('duas_folgas') || escTipoUI.includes('12x36');
-                const limiteMinutosUI = (isSat && isEscalaExcecaoUI) ? 180 : 360;
-                
-                const isAusenciaRegra = isFlt || tipo === 'justificado' || tipo === 'atestado' || d.idJustification;
-                let perdeVRPorHorasUI = !isAusenciaRegra && hTrab > 0 && hTrab < limiteMinutosUI;
-                
-                if (isSunday && !isEscalaExcluidaDomUI) {
-                    perdeVRPorHorasUI = false;
-                }
+                // Nova regra: qualquer dia com >= 2h trabalhadas gera VR — sem penalidade por horas
+                const perdeVRPorHorasUI = false; // Regra de mínimo de horas removida
 
                 let bg = '#fff';
 
