@@ -2535,11 +2535,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Fechar sugestões ao clicar fora
+    // Fechar sugestões e dropdowns ao clicar fora
     document.addEventListener('click', (ev) => {
         const sugg = document.getElementById('rr-endereco-suggestions');
         if (sugg && !sugg.contains(ev.target) && ev.target.id !== 'rr-input-endereco') {
             sugg.style.display = 'none';
+        }
+        
+        const wrapperEq = document.getElementById('rr-hab-equipe-wrapper');
+        const ddEq = document.getElementById('rr-hab-equipe-dropdown');
+        if (wrapperEq && ddEq && !wrapperEq.contains(ev.target)) {
+            ddEq.style.display = 'none';
+        }
+
+        const wrapperAt = document.getElementById('rr-hab-atend-wrapper');
+        const ddAt = document.getElementById('rr-hab-atend-dropdown');
+        if (wrapperAt && ddAt && !wrapperAt.contains(ev.target)) {
+            ddAt.style.display = 'none';
         }
     });
 
@@ -2562,7 +2574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resp.status === 404 && numOs) {
                     // Nova OS manual — libera formulário até o passo de endereço
                     const numSalvo = numOs;
-                    osState.produtos = []; osState.tiposServico = new Set();
+                    osState.produtos = []; osState.tiposServico = new Set(); osState.habEquipe = new Set();
       osState.acoes = new Set();
                     osState.clienteConfirmado = true;   // desbloqueia bloco principal
                     osState.enderecoConfirmado = false;  // mantém bloqueio do endereço
@@ -3088,7 +3100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnLimpar) {
             osState.loadedId = null;
             osState.modoDuplicado = false;
-            osState.produtos = []; osState.tiposServico = new Set();
+            osState.produtos = []; osState.tiposServico = new Set(); osState.habEquipe = new Set();
       osState.acoes = new Set(); osState.clienteConfirmado = true;
             osState.enderecoConfirmado = false;
             osState.coordenadasConfirmadas = false; osState.agendaVerificada = false;
@@ -3550,6 +3562,46 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
 /**
  * Abre/fecha o dropdown de Habilidade da Equipe.
  */
+// --- Dropdown Habilidade Atendimento ---
+function rrToggleHabAtendDropdown() {
+    const dd = document.getElementById('rr-hab-atend-dropdown');
+    if (!dd) return;
+    const isOpen = dd.style.display !== 'none';
+    dd.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+        rrAtualizarCheckboxesHabAtend();
+    }
+}
+
+function rrOnHabAtendChange() {
+    const chks = document.querySelectorAll('.rr-hab-atend-chk');
+    osState.tiposServico = new Set([...chks].filter(c => c.checked).map(c => c.value));
+    rrAtualizarDisplayHabAtend();
+    atualizarIconesCliente();
+    rrSincronizarHabEquipeDeAtendimento();
+}
+
+function rrAtualizarCheckboxesHabAtend() {
+    document.querySelectorAll('.rr-hab-atend-chk').forEach(chk => {
+        chk.checked = osState.tiposServico.has(chk.value);
+    });
+    rrAtualizarDisplayHabAtend();
+}
+
+function rrAtualizarDisplayHabAtend() {
+    const display = document.getElementById('rr-hab-atend-display');
+    if (!display) return;
+    const selecionadas = [...osState.tiposServico];
+    if (selecionadas.length === 0) {
+        display.innerHTML = '<span id="rr-hab-atend-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>';
+    } else {
+        display.innerHTML = selecionadas.map(sk => {
+            const ic = {'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗'}[sk] || '';
+            return `<span style="background:#dcfce7;color:#166534;border-radius:99px;padding:1px 7px;font-size:0.65rem;font-weight:600;white-space:nowrap;">${ic ? `<span style="margin-right:2px">${ic}</span>` : ''}${sk}</span>`;
+        }).join(' ');
+    }
+}
+
 function rrToggleHabEquipeDropdown() {
     const dd = document.getElementById('rr-hab-equipe-dropdown');
     if (!dd) return;

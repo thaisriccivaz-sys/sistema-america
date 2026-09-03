@@ -331,11 +331,21 @@ window._eqShowTooltip = function(ev, membId) {
   const horario = m.horario_entrada && m.horario_saida
     ? `${m.horario_entrada} – ${m.horario_saida}`
     : m.horario_entrada ? m.horario_entrada : '';
-  if (!escala && !horario && !folgas) return;
+    
+  let habs = [];
+  try {
+      if (m.habilidades_equipe) habs = typeof m.habilidades_equipe === 'string' ? JSON.parse(m.habilidades_equipe) : m.habilidades_equipe;
+  } catch(e) {}
+  if (!Array.isArray(habs)) habs = [];
+
+  if (!escala && !horario && !folgas && !habs.length) return;
+  
   let html = '';
   if (escala) html += `<div class="eq-tt-row"><i class="ph ph-calendar-check eq-tt-icon" style="color:#7dd3fc;"></i><span>${escala}</span></div>`;
   if (folgas) html += `<div class="eq-tt-row"><i class="ph ph-moon eq-tt-icon" style="color:#c4b5fd;"></i><span>Folga: ${folgas}</span></div>`;
   if (horario) html += `<div class="eq-tt-row"><i class="ph ph-clock eq-tt-icon" style="color:#86efac;"></i><span>${horario}</span></div>`;
+  if (habs.length) html += `<div class="eq-tt-row"><i class="ph ph-shield-check eq-tt-icon" style="color:#fde047;"></i><span>Habs: ${habs.join(', ')}</span></div>`;
+  
   tt.innerHTML = html;
   tt.style.display = 'block';
   const x = Math.min(ev.clientX + 12, window.innerWidth - 240);
