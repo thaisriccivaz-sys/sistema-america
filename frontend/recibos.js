@@ -1272,30 +1272,11 @@ window.calcularTotalRecibos = function() {
     _recibosFiltrados.forEach(c => {
         const inpVR = document.getElementById(`inp-valvr-${c.id}`);
         const inpVT = document.getElementById(`inp-valvt-${c.id}`);
+        const inpVC = document.getElementById(`inp-valvc-${c.id}`);
         
-        let vr = 0;
-        let vt = 0;
-        let vc = 0;
-
-        if (inpVR) {
-            vr = parseFloat(inpVR.value) || 0;
-        }
-
-        if (inpVT) {
-            const val = parseFloat(inpVT.value) || 0;
-            const meio = (c.meio_transporte || '').toLowerCase();
-            if (typeof _isVC === 'function' && _isVC(meio)) {
-                vc += val;
-            } else if (typeof _isVT === 'function' && _isVT(meio)) {
-                vt += val;
-            } else {
-                vt += val; 
-            }
-        }
-        
-        totalVR += vr;
-        totalVT += vt;
-        totalVC += vc;
+        if (inpVR) totalVR += parseFloat(inpVR.value) || 0;
+        if (inpVT) totalVT += parseFloat(inpVT.value) || 0;
+        if (inpVC) totalVC += parseFloat(inpVC.value) || 0;
     });
 
     const modalHtml = `
