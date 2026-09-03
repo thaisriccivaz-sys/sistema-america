@@ -1772,6 +1772,12 @@ window._recBuscarVCVR = async function () {
                 let folgasVR = 0, faltasVR = 0, folgasVT = 0, faltasVT = 0;
 
                 apuracaoParaCartao.forEach(d => {
+                    // ── Folgas/Faltas de VR/VC: apenas de 01/M em diante ──
+                    // Os dias 26–31 do mês anterior ficam visíveis na conferência de ponto
+                    // mas NÃO são descontados de VR/VC (período de desconto = 01/M a fim/M).
+                    const _dtFiltro2 = parseDia(d);
+                    if (!_dtFiltro2 || _dtFiltro2 < janelaIni) return;
+
                     // IMPORTANTE: totalHorasTrabalhadas já inclui horas noturnas
                     // NÃO somar horasTotalNoturno (seria dupla contagem para noturnos)
                     const hT2 = d.totalHorasTrabalhadas || 0;
@@ -1997,11 +2003,11 @@ window._recBuscarVCVR = async function () {
                         const dow = dtIt.getDay();
                         if (dow === 0 || dow === 6) folgasSup++; // DOM e SAB
                     }
-                    // Adicionar feriados que caíram em dia útil (Seg-Sex)
+                    // Adicionar feriados que caíram em dia útil (Seg-Sex) — apenas do período 01/M em diante
                     apuracaoParaCartao.forEach(d => {
                         if (d.isHoliday) {
                             const dtH = parseDia(d);
-                            if (dtH) {
+                            if (dtH && dtH >= janelaIni) {
                                 const dow = dtH.getDay();
                                 if (dow >= 1 && dow <= 5) folgasSup++; // Feriado em dia útil
                             }
