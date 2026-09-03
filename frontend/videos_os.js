@@ -323,3 +323,106 @@ window.vidosExcluirVideo = async function(osId, link) {
         mostrarToastAviso('❌ Erro ao excluir: ' + e.message);
     }
 }
+
+
+window.vidosToggleAll = function(el) {
+    const isChecked = el.checked;
+    const cbs = document.querySelectorAll('.vidos-chk-row');
+    cbs.forEach(cb => cb.checked = isChecked);
+    vidosUpdateCheckboxes();
+};
+
+window.vidosUpdateCheckboxes = function() {
+    const cbs = document.querySelectorAll('.vidos-chk-row:checked');
+    const bar = document.getElementById('vidos-batch-actions');
+    const count = document.getElementById('vidos-batch-count');
+    if(bar && count) {
+        if(cbs.length > 0) {
+            bar.style.display = 'flex';
+            count.textContent = cbs.length;
+        } else {
+            bar.style.display = 'none';
+            document.getElementById('vidos-chk-all').checked = false;
+        }
+    }
+};
+
+window.vidosAcaoLote = async function(acao) {
+    const cbs = document.querySelectorAll('.vidos-chk-row:checked');
+    if(cbs.length === 0) return;
+    
+    let msg = '';
+    if(acao === 'bloquear') msg = 'Tem certeza que deseja bloquear ' + cbs.length + ' manutenções?';
+    if(acao === 'desbloquear') msg = 'Tem certeza que deseja desbloquear ' + cbs.length + ' manutenções?';
+    if(acao === 'excluir_videos') msg = 'Tem certeza que deseja EXCLUIR OS VÍDEOS de ' + cbs.length + ' OSs?';
+    
+    if(!confirm(msg)) return;
+    
+    const ids = Array.from(cbs).map(cb => parseInt(cb.value));
+    
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('Processando...', 2000);
+        const resp = await fetch('/api/logistica/videos-os/lote', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ ids, acao })
+        });
+        const data = await resp.json();
+        if(!resp.ok) throw new Error(data.error || 'Erro na operação em lote');
+        
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(data.message);
+        else alert(data.message);
+        
+        vidosCarregar();
+    } catch(e) {
+        console.error(e);
+        if (typeof mostrarToastErro === 'function') mostrarToastErro(e.message);
+        else alert('Erro: ' + e.message);
+    }
+};
+
+window.vidosPromptUploadLote = function() {
+    document.getElementById('vidos-file-lote').click();
+};
+
+window.vidosFazerUploadLote = async function(input) {
+    if(!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    const cbs = document.querySelectorAll('.vidos-chk-row:checked');
+    if(cbs.length === 0) return;
+    const ids = Array.from(cbs).map(cb => parseInt(cb.value));
+    
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('video', file);
+    formData.append('os_ids', JSON.stringify(ids));
+    
+    try {
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('Enviando vídeo para ' + ids.length + ' OSs... Aguarde!', 5000);
+        
+        const resp = await fetch('/api/logistica/os/upload-video-lote', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        const data = await resp.json();
+        
+        if(!resp.ok) throw new Error(data.error || 'Erro no upload em lote');
+        
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Vídeo enviado com sucesso para ' + ids.length + ' OSs!');
+        else alert('Vídeo enviado com sucesso!');
+        
+        input.value = '';
+        vidosCarregar();
+    } catch(e) {
+        console.error(e);
+        if (typeof mostrarToastErro === 'function') mostrarToastErro(e.message);
+        else alert('Erro: ' + e.message);
+        input.value = '';
+    }
+};
