@@ -252,7 +252,10 @@ async function vidosCarregar() {
             tr.innerHTML = `
                 <td style="padding:10px; text-align:center;"><input type="checkbox" class="vidos-chk-row" value="${os.id}" onchange="vidosUpdateCheckboxes()"></td>
                 <td style="padding:10px;"><b>${os.numero_os || '—'}</b><br><span style="font-size:0.7rem; color:${os.manutencao_bloqueada ? '#ef4444' : 'transparent'}; font-weight:bold;">${os.manutencao_bloqueada ? 'BLOQUEADO' : ''}</span></td>
-                <td style="padding:10px;">${os.cliente || '—'}</td>
+                <td style="padding:10px;">
+                    <div style="color:#1e293b;">${os.cliente || '—'}</div>
+                    ${os.endereco ? `<div style="font-size:0.75rem; color:#94a3b8; margin-top:3px; line-height:1.2;">${os.endereco}</div>` : ''}
+                </td>
                 <td style="padding:10px;">${os.tipo_servico || '—'}</td>
                 <td style="padding:10px;">${dataFormatada}</td>
                 <td style="padding:10px; vertical-align:top;">${videosHtml}</td>
