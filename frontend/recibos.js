@@ -458,9 +458,10 @@ function _recLog_renderizarPainel() {
     try { log = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
 
     const cfg = [
-        { tipo: 'ponto',   icon: 'ph-fingerprint',  label: 'Ponto buscado',  cor: '#475569', bg: '#f1f5f9', borda: '#e2e8f0' },
-        { tipo: 'recibos', icon: 'ph-printer',       label: 'Recibos gerados', cor: '#1d4ed8', bg: '#eff6ff', borda: '#bfdbfe' },
-        { tipo: 'anexo',   icon: 'ph-paperclip',     label: 'Docs anexados',   cor: '#059669', bg: '#d1fae5', borda: '#6ee7b7' },
+        { tipo: 'ponto',   icon: 'ph-fingerprint',  label: 'VC e VR buscados',  cor: '#475569', bg: '#f1f5f9', borda: '#e2e8f0' },
+        { tipo: 'vt',      icon: 'ph-bus',          label: 'VT buscado',        cor: '#9d174d', bg: '#fce7f3', borda: '#fbcfe8' },
+        { tipo: 'recibos', icon: 'ph-printer',      label: 'Recibos gerados',   cor: '#1d4ed8', bg: '#eff6ff', borda: '#bfdbfe' },
+        { tipo: 'anexo',   icon: 'ph-paperclip',    label: 'Docs anexados',     cor: '#059669', bg: '#d1fae5', borda: '#6ee7b7' },
     ];
 
     // Garante que o tooltip global existe
@@ -500,7 +501,8 @@ window._recLogShowModal = function(tipo) {
     if (!entry) return;
 
     const lbl = {
-        'ponto': 'Ponto buscado',
+        'ponto': 'VC e VR buscados',
+        'vt': 'VT buscado',
         'recibos': 'Recibos gerados',
         'anexo': 'Docs anexados'
     }[tipo] || tipo;
@@ -2534,6 +2536,11 @@ window._recBuscarVT = async function () {
         if (erroVT > 0) partes.push(`<span style="color:#f59e0b;"><i class="ph ph-warning"></i> ${erroVT} sem dados</span>`);
         badgeVT.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:600;';
         badgeVT.innerHTML = partes.join(' &nbsp; ');
+    }
+    
+    if (mes && ano && sels.length > 0) {
+        _recLog_registrar('vt', mes, ano, sels.map(c => _recNome(c)));
+        _recLog_renderizarPainel();
     }
 };
 
