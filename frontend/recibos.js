@@ -1442,19 +1442,26 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
         window.event.target.style.color = '#dc2626';
     }
 
-    if (campo.includes('folgas') || campo.includes('faltas') || campo === 'diasExtra') {
-        const c = _recibosAllColabs.find(x => x.id === id);
-        if (c) {
-            if (campo.includes('VT') || campo.includes('Transp')) {
-                _recibosSelecoes[id].valVTEdit = null;
-                const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+    const c = _recibosAllColabs.find(x => x.id === id);
+    if (c) {
+        const vrFields = ['folgasVR', 'faltasVR', 'diasExtra', 'diasVR', 'diasTrabalhados'];
+        const transpFields = ['diasUteisVT', 'faltasVTN', 'extrasVT', 'faltasVT'];
+
+        if (vrFields.includes(campo)) {
+            _recibosSelecoes[id].valVREdit = null;
+            const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+            const inp = document.getElementById(`inp-valvr-${id}`);
+            if (inp) inp.value = totais.totalFinalVR.toFixed(2);
+        }
+        if (transpFields.includes(campo)) {
+            _recibosSelecoes[id].valVTEdit = null;
+            const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
+            if (window._isVT && window._isVT(c.meio_transporte)) {
                 const inp = document.getElementById(`inp-valvt-${id}`);
                 if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
-            } else {
-                _recibosSelecoes[id].valVREdit = null;
-                const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
-                const inp = document.getElementById(`inp-valvr-${id}`);
-                if (inp) inp.value = totais.totalFinalVR.toFixed(2);
+            } else if (window._isVC && window._isVC(c.meio_transporte)) {
+                const inp = document.getElementById(`inp-valvc-${id}`);
+                if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
             }
         }
     }
@@ -4147,74 +4154,55 @@ window.mostrarRegrasRecibos = function() {
                 </div>
                 <div style="padding:20px;overflow-y:auto;flex:1;font-size:0.9rem;color:#334155;line-height:1.6;">
                     <h4 style="color:#0f172a;margin-top:0;">🍔 1. Vale Refeição (VR)</h4>
+                    <p><strong>Cálculo do Crédito (Dias do Mês Seguinte):</strong><br>
+                    O crédito base de VR é pago de forma antecipada para o mês seguinte (ex: Folha de Agosto paga os dias úteis/corridos de Setembro).</p>
+                    
+                    <p><strong>Período de Apuração de Descontos:</strong> Do dia <strong>01 ao último dia</strong> do mês de fechamento.</p>
+
                     <p><strong>Regra de Carga Horária Mínima:</strong><br>
                     O colaborador recebe VR em <strong>qualquer dia em que trabalhou 2 horas ou mais (120 minutos)</strong>, independente do dia da semana, da escala ou de ser folga/sábado/domingo.<br>
-                    * <strong>Regra Única:</strong> Mínimo de <strong>2 horas (120 minutos)</strong> trabalhadas → garante o VR do dia.<br>
-                    * <strong>Menos de 2 horas trabalhadas:</strong> O dia conta como folga e não gera VR.<br>
-                    * <strong>Não trabalhou:</strong> Conta como falta ou folga conforme a escala.</p>
+                    * Mínimo de <strong>2 horas (120 minutos)</strong> trabalhadas &rarr; garante o VR do dia.<br>
+                    * <strong>Menos de 2 horas trabalhadas:</strong> O dia conta como folga e gera desconto no VR.<br>
+                    * <strong>Não trabalhou:</strong> Conta como falta ou folga (conforme a escala) e gera desconto.</p>
 
                     <p><strong>Faltas, Atestados e Justificativas no VR:</strong><br>
-                    * <strong>Atestado/Justificativa com horas registradas (≥ 2h):</strong> Conta VR normalmente.<br>
+                    * <strong>Atestado/Justificativa com horas registradas (≥ 2h):</strong> Não desconta.<br>
                     * <strong>Atestado/Justificativa sem horas (ausência total) em dia de trabalho:</strong> Desconta o VR.<br>
                     * <strong>Atestado/Justificativa em dia de folga da escala:</strong> Não desconta (é folga, não falta).<br>
                     * <strong>Trabalho Externo e Erro no Ponto:</strong> NÃO descontam o VR.<br>
-                    * <strong>Férias:</strong> Descontam os dias a receber do próximo mês.</p>
-
-                    <p><strong>Situações Especiais do VR:</strong><br>
-                    * <strong>Contratos Intermitentes:</strong> Ganham o VR exato pela quantidade de dias em que efetivamente trabalharam 2h ou mais. Nunca levam desconto de "falta".</p>
+                    * <strong>Férias:</strong> Descontam o VR.</p>
 
                     <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
 
-                    <h4 style="color:#0f172a;">🚌 2. Vale Transporte (VT) e Vale Combustível (VC)</h4>
-                    <p><strong>Sem Regra de Carga Horária Mínima:</strong><br>
-                    Diferente do VR, <strong>não existe exigência de horas</strong> para o Transporte. Se o colaborador foi até a empresa, mesmo que por 1 hora e depois foi embora, o sistema <strong>NÃO desconta</strong> o VT/VC.</p>
-                    
-                    <p><strong>Faltas, Atestados e Justificativas no Transporte:</strong><br>
-                    * <strong>Faltas (injustificadas) e Atestados:</strong> Descontam o transporte.<br>
-                    * <strong>Trabalho Externo:</strong> Não desconta o transporte.</p>
-
-                    <p><strong>Diferença Crucial no tratamento de Férias (VT x VC):</strong><br>
-                    * Para Vale Transporte (VT): Férias entra no cálculo final como <strong>Folga</strong>.<br>
-                    * Para Vale Combustível (VC): Férias entra no cálculo final como <strong>Falta</strong>.</p>
-
-                    <p><strong>Situações Especiais do Transporte:</strong><br>
-                    * <strong>Liderança (Supervisão/Encarregados):</strong> O espelho de ponto é ignorado para o desconto de VT. O sistema assume um valor fixo em que o supervisor trabalhou todos os <strong>Dias Úteis do Mês (Segunda a Sexta)</strong>. Suas folgas de VT são unicamente os sábados, domingos e feriados no dia de semana.</p>
+                    <h4 style="color:#0f172a;">🚌 2. Vale Transporte (VT)</h4>
+                    <p><strong>Período de Apuração (Diferente):</strong> Do dia <strong>26 do mês anterior ao dia 25 do mês atual</strong>.</p>
+                    <p><strong>Cálculo:</strong> Baseado exclusivamente nos dias úteis da escala em que o colaborador precisou se deslocar.<br>
+                    * O sistema calcula quantos <strong>Dias Úteis</strong> haviam na janela 26 a 25.<br>
+                    * Se o colaborador <strong>faltar</strong> num dia útil (mesmo justificado), leva falta no VT.<br>
+                    * Se o colaborador <strong>trabalhar numa folga</strong>, ganha um dia <strong>Extra</strong> de VT.<br>
+                    * <strong>Sem Regra de Horas:</strong> Se foi trabalhar, mesmo por 10 minutos, o VT não é descontado.<br>
+                    * <strong>Férias:</strong> Não desconta como falta, apenas não conta como dia útil de escala (folga).</p>
 
                     <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
 
-                    <h4 style="color:#0f172a;">🍽️ 3. Benefício de Jantar</h4>
+                    <h4 style="color:#0f172a;">⛽ 3. Vale Combustível (VC)</h4>
+                    <p><strong>Período de Apuração:</strong> Do dia <strong>01 ao último dia</strong> do mês de fechamento (Igual ao VR).</p>
+                    <p><strong>Cálculo Base 30 Dias:</strong><br>
+                    * O VC sempre considera uma base fixa de pagamento mensal integral.</p>
+                    <p><strong>Descontos:</strong><br>
+                    * <strong>Faltas:</strong> Apenas as faltas (injustificadas ou atestados sem trabalho) geram desconto no VC.<br>
+                    * <strong>Folgas:</strong> Dias de folga e fins de semana <strong>NÃO</strong> descontam do VC.<br>
+                    * <strong>Férias:</strong> Entram como Falta e descontam o VC integralmente.</p>
+
+                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
+
+                    <h4 style="color:#0f172a;">🍽️ 4. Benefício de Jantar</h4>
                     <p>O Jantar é uma bonificação restrita a fortes extensões de jornada (quando atinge, a linha fica <span style="background:#e9d5ff;padding:2px 4px;border-radius:4px;font-weight:bold;color:#6b21a8;">ROXA</span>).</p>
                     <p><strong>Regras para Liberação do Jantar:</strong><br>
                     1. <strong>Dias Normais (Seg a Sex):</strong> Precisa fazer jornada normal completa <strong>+ 3 horas extras</strong> E totalizar, no mínimo, <strong>9 horas totais</strong> de trabalho bruto.<br>
                     2. <strong>Sábados (Jornadas Curtas &le; 5h):</strong> Só ganha jantar quem atingir <strong>11 horas e 1 minuto</strong> de trabalho (661 minutos).<br>
                     3. <strong>Domingos, Folgas e Feriados:</strong> Se for trabalhar na folga, o Jantar só é liberado se trabalhar <strong>12 horas totais</strong> completas.</p>
-
-                    <p><strong>Contratos Intermitentes:</strong> Independente do dia ou do horário cadastrado, o jantar só é liberado se trabalharem <strong>12 horas ou mais</strong> no dia.</p>
-
-                    <p><strong>Departamento Administrativo:</strong> <strong>NUNCA recebem jantar</strong>, independentemente de quantas horas extras realizem.</p>
-                    
-                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
-
-                    <h4 style="color:#0f172a;">🆕 4. Regras para Novos Colaboradores (Mês de Admissão)</h4>
-                    <p>Quando um colaborador é recém-admitido, o sistema aplica as seguintes regras no seu primeiro recibo:</p>
-                    <p>
-                    * <strong>Exibição na Lista:</strong> Se o mês da conferência for <em>anterior</em> ao mês de admissão do colaborador, ele não aparecerá na lista de recibos.<br>
-                    * <strong>Crédito de Benefícios (VR e VT/VC):</strong> A base de pagamento do VR (dias do mês seguinte) e a base do Transporte (30 dias) são projetadas de forma <strong>integral</strong>, exatamente igual aos demais colaboradores. O sistema não faz corte proporcional no crédito.<br>
-                    * <strong>Descontos (Folgas e Faltas):</strong> As deduções no recibo são apuradas <strong>apenas a partir da data de admissão</strong> até o fim do mês. Os dias anteriores ao início do colaborador são completamente ignorados (não contam como folga nem como falta), pois o acerto desses dias já é tratado pela empresa via adiantamento.
-                    </p>
-
-                    <hr style="border:0;border-top:1px solid #e2e8f0;margin:20px 0;">
-
-                    <h4 style="color:#0f172a;">🎨 Guia Visual: Cores da Tela de Conferência</h4>
-                    <ul style="padding-left:20px;margin-bottom:0;">
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Branco:</strong> Dia trabalhado normalmente (Tudo Certo).</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Claro:</strong> Folga, DSR ou Feriado de descanso sem horas.</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong style="color:#b91c1c;">Vermelho:</strong> Faltas e Atestados sem horas (Desconto de VR/VT ativado).</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#e9d5ff;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Roxo:</strong> Férias OU Bateu meta de Jantar.</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#dcfce7;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Verde Claro:</strong> Trabalhou em dia de folga/descanso e atingiu ≥ 2h → recebe VR.</li>
-                        <li><span style="display:inline-block;width:12px;height:12px;background:#e0f2fe;border:1px solid #ccc;border-radius:2px;margin-right:5px;"></span> <strong>Azul Médio:</strong> Trabalho Externo / Serviço em Campo.</li>
-                    </ul>
-                </div>
+                    <p><strong>Departamento Administrativo:</strong> <strong>NUNCA recebem jantar</strong>, independentemente de quantas horas extras realizem.</p></div>
             </div>
         `;
     }
