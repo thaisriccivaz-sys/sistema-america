@@ -4257,13 +4257,22 @@ function renderRotaRedonda() {
                         <input type="hidden" id="rr-tipo-servico" onchange="onChangeTipoServico();">
                     </div>
                     
-                    <div style="flex: 2;">
+                    <div style="flex: 2; position: relative;">
                         <label style="${labelStyle}">Habilidade Atendimento</label>
-                        <div style="display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; margin-top: 2px;">
-                            ${HABILIDADES.filter(s => s !== 'TECNICO').map(s => {
-                                const ic = {'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗'}[s] || '';
-                                return `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}</button>`;
-                            }).join('')}
+                        <div id="rr-hab-atend-wrapper" style="position:relative;">
+                            <div id="rr-hab-atend-display" onclick="rrToggleHabAtendDropdown()" style="display:flex; align-items:center; gap:4px; min-height:26px; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.7rem; cursor:pointer; background:white; flex-wrap:wrap; user-select:none;">
+                                <span id="rr-hab-atend-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>
+                            </div>
+                            <div id="rr-hab-atend-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:300; background:white; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.12); padding:6px 0;">
+                                ${HABILIDADES.filter(s => s !== 'TECNICO').map(s => {
+                                    const ic = {'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗'}[s] || '';
+                                    return `
+                                    <label style="display:flex; align-items:center; gap:8px; padding:4px 10px; cursor:pointer; font-size:0.75rem; color:#1e293b;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+                                        <input type="checkbox" class="rr-hab-atend-chk" value="${s}" onchange="rrOnHabAtendChange()" style="cursor:pointer;">
+                                        ${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}
+                                    </label>`;
+                                }).join('')}
+                            </div>
                         </div>
                     </div>
 
