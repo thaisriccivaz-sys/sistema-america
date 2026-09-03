@@ -1,4 +1,4 @@
-﻿// ── EQUIPES MODULE ────────────────────────────────────────────────────────────
+// ── EQUIPES MODULE ────────────────────────────────────────────────────────────
 (function () {
 'use strict';
 
@@ -207,6 +207,31 @@ function _renderAll(el) {
   </div>
 
   <!-- Modal nova equipe -->
+  <!-- Modal de Habilidades -->
+  <div id="eq-habilidades-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:1.5rem;width:400px;max-width:90vw;box-shadow:0 10px 25px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:1rem;">
+      <h3 style="margin:0;font-size:1.15rem;color:#0f172a;">Habilidades do Colaborador</h3>
+      <div id="eq-hab-colab-name" style="font-weight:600;color:#334155;font-size:1.05rem;"></div>
+      
+      <div id="eq-hab-checkboxes" style="display:flex;flex-direction:column;gap:8px;margin:0.5rem 0;">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- Div para Thais.Ricci -->
+      <div id="eq-hab-thais-area" style="display:none;margin-top:0.5rem;padding-top:1rem;border-top:1px solid #e2e8f0;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:#ef4444;cursor:pointer;">
+          <input type="checkbox" id="eq-hab-destaque-check">
+          Destacar com borda vermelha
+        </label>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;">
+        <button class="eq-btn-sec" onclick="document.getElementById('eq-habilidades-modal').style.display='none'">Cancelar</button>
+        <button class="eq-btn-primary" onclick="window._eqSalvarHabilidades()"><i class="ph ph-floppy-disk"></i> Salvar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="eq-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:2rem;width:400px;max-width:95vw;">
       <h3 style="margin:0 0 1.25rem;font-size:1.1rem;font-weight:800;">Nova Equipe</h3>
@@ -357,6 +382,128 @@ window._eqToggleDestaque = async function(e, colabId) {
   } catch (err) {
       console.error('Erro ao alternar destaque:', err);
   }
+};
+
+window._eqHabColabId = null;
+window._eqAbrirHabilidades = function(e, colabId) {
+    if (e.target.closest('button') || e.target.closest('.ph-x')) return;
+    window._eqHabColabId = colabId;
+    
+    // Buscar o colaborador
+    let colab = null;
+    _equipes.forEach(eq => {
+        const m = eq.membros.find(x => (x.colaborador_id||x.id) === colabId);
+        if (m) colab = m;
+    });
+    if (!colab) colab = _semEquipe.find(x => (x.colaborador_id||x.id) === colabId);
+    if (!colab) return;
+
+    document.getElementById('eq-hab-colab-name').textContent = colab.nome_completo || colab.nome || '';
+    
+    // Regras de Habilidades
+    const cargo = (colab.cargo || colab.funcao || '').toLowerCase();
+    const cnh = (colab.cnh_categoria || '').toUpperCase();
+    
+    const isLider = cargo.includes('líder') || cargo.includes('lider');
+    const isMotorista = cargo.includes('motorista');
+    const cnhCaminhao = ['C', 'D', 'E', 'AC', 'AD', 'AE'].includes(cnh);
+    
+    let skillsDisponiveis = [];
+    if (isLider) {
+        skillsDisponiveis = ['Caminhão', 'Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+    } else if (isMotorista) {
+        skillsDisponiveis = ['Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+        if (cnhCaminhao) skillsDisponiveis.unshift('Caminhão');
+    } else {
+        // Ajudantes
+        skillsDisponiveis = ['VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+    }
+
+    // Parse habilidades atuais
+    let habsAtuais = [];
+    try {
+        if (colab.habilidades_equipe) habsAtuais = JSON.parse(colab.habilidades_equipe);
+    } catch(err) {}
+
+    // Renderizar checkboxes
+    const container = document.getElementById('eq-hab-checkboxes');
+    container.innerHTML = skillsDisponiveis.map(sk => {
+        const checked = habsAtuais.includes(sk) ? 'checked' : '';
+        return `
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" class="eq-hab-chk" value="${sk}" ${checked}>
+                ${sk}
+            </label>
+        `;
+    }).join('');
+
+    // Checkbox da Thais
+    const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+    const isThais = (erpUser.username === 'Thais.Ricci' || erpUser.nome === 'Thais.Ricci');
+    
+    const thaisArea = document.getElementById('eq-hab-thais-area');
+    const thaisCheck = document.getElementById('eq-hab-destaque-check');
+    if (isThais) {
+        thaisArea.style.display = 'block';
+        thaisCheck.checked = (colab.destaque_equipe === 1);
+    } else {
+        thaisArea.style.display = 'none';
+        thaisCheck.checked = false;
+    }
+
+    document.getElementById('eq-habilidades-modal').style.display = 'flex';
+};
+
+window._eqSalvarHabilidades = async function() {
+    const colabId = window._eqHabColabId;
+    if (!colabId) return;
+
+    const inputs = document.querySelectorAll('.eq-hab-chk');
+    const selecionadas = Array.from(inputs).filter(i => i.checked).map(i => i.value);
+
+    const erpUser = JSON.parse(localStorage.getItem('erp_user') || '{}');
+    const isThais = (erpUser.username === 'Thais.Ricci' || erpUser.nome === 'Thais.Ricci');
+    const querDestaque = isThais ? document.getElementById('eq-hab-destaque-check').checked : null;
+
+    try {
+        // Salvar habilidades
+        const resHab = await _eq_patch(`/colaboradores/${colabId}/habilidades_equipe`, { habilidades: JSON.stringify(selecionadas) });
+        
+        // Atualizar nos dados locais
+        if (resHab.sucesso) {
+            let colab = null;
+            _equipes.forEach(eq => {
+                const m = eq.membros.find(x => (x.colaborador_id||x.id) === colabId);
+                if (m) { m.habilidades_equipe = JSON.stringify(selecionadas); colab = m; }
+            });
+            if (!colab) {
+                const sem = _semEquipe.find(x => (x.colaborador_id||x.id) === colabId);
+                if (sem) { sem.habilidades_equipe = JSON.stringify(selecionadas); colab = sem; }
+            }
+
+            // Se for a Thais e ela mudou o destaque, disparar a requisição de destaque
+            if (isThais && colab) {
+                const destaqueAtual = (colab.destaque_equipe === 1);
+                if (destaqueAtual !== querDestaque) {
+                    await _eq_patch(`/colaboradores/${colabId}/destaque`, {});
+                    colab.destaque_equipe = querDestaque ? 1 : 0;
+                }
+            }
+
+            document.getElementById('eq-habilidades-modal').style.display = 'none';
+            const board = document.getElementById('equipes-board');
+            if (board) board.innerHTML = _renderBoard(_busca);
+            _reRenderFora();
+            const { vEq } = _getVirtualData();
+            const reservaEq = vEq.find(eq => eq.nome === 'Equipe Reserva');
+            const intermitenteEq = vEq.find(eq => eq.nome === 'Equipe Intermitente');
+            if (reservaEq) _reRenderColuna(reservaEq.id);
+            if (intermitenteEq) _reRenderColuna(intermitenteEq.id);
+        }
+    } catch (err) {
+        console.error('Erro ao salvar habilidades:', err);
+        alert('Erro ao salvar.');
+    }
 };
 
 function _eqStatus(membros) {
@@ -597,7 +744,9 @@ function _renderCard(m) {
       avatarBorder = '';
   }
   
-  if (m.destaque_equipe === 1) {
+  const erpUserEq = JSON.parse(localStorage.getItem('erp_user') || '{}');
+  const isThaisEq = (erpUserEq.username === 'Thais.Ricci' || erpUserEq.nome === 'Thais.Ricci');
+  if (m.destaque_equipe === 1 && isThaisEq) {
       borderStyle += 'border-color:#ef4444;border-width:2px;border-style:solid;';
   }
   
@@ -625,7 +774,7 @@ function _renderCard(m) {
     ondragleave="window._eqCardDragLeave(event,this)"
     onmouseenter="window._eqShowTooltip(event,${m.colaborador_id||m.id})"
     onmouseleave="window._eqHideTooltip()"
-    onclick="window._eqToggleDestaque(event, ${m.colaborador_id||m.id})"
+    onclick="window._eqAbrirHabilidades(event, ${m.colaborador_id||m.id})"
     style="position:relative;${borderStyle}">
     ${avatarHtml}
     <div class="eq-card-info">
