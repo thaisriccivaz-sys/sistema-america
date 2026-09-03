@@ -410,9 +410,9 @@ window._eqAbrirHabilidades = function(e, colabId) {
     
     let skillsDisponiveis = [];
     if (isLider) {
-        skillsDisponiveis = ['Caminhão Carroceria', 'Caminhão Tanque', 'Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+        skillsDisponiveis = ['Caminhão Carroceria', 'Caminhão Tanque', 'Carretinha Caminhonete', 'Carretinha Utilitário', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
     } else if (isMotorista) {
-        skillsDisponiveis = ['Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+        skillsDisponiveis = ['Carretinha Caminhonete', 'Carretinha Utilitário', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
         if (cnhCaminhao) {
             skillsDisponiveis.unshift('Caminhão Tanque');
             skillsDisponiveis.unshift('Caminhão Carroceria');
@@ -426,6 +426,8 @@ window._eqAbrirHabilidades = function(e, colabId) {
     let habsAtuais = [];
     try {
         if (colab.habilidades_equipe) habsAtuais = JSON.parse(colab.habilidades_equipe);
+        // Migração em memória para quem já marcou Carretinha
+        habsAtuais = habsAtuais.map(h => h === 'Carretinha' ? 'Carretinha Caminhonete' : h);
     } catch(err) {}
 
     // Renderizar checkboxes
