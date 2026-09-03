@@ -1488,7 +1488,7 @@ window._autoSalvarRecibo = function(id) {
             valor_vr: valorVR,
             valor_vt_editado: s.valVTEdit !== undefined ? s.valVTEdit : null,
             valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
-            edited_fields: s.edited_fields ? JSON.stringify(s.edited_fields) : null,
+            edited_fields: s.edited_fields && Object.keys(s.edited_fields).length > 0 ? JSON.stringify(s.edited_fields) : "{}",
             apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
         }];
         
@@ -2149,7 +2149,10 @@ window._recBuscarVCVR = async function () {
             faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
             extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
             valor_vt: _recibosSelecoes[c.id].valorVT || 0,
-            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
+            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null,
+            valor_vr_editado: _recibosSelecoes[c.id].valVREdit !== undefined ? _recibosSelecoes[c.id].valVREdit : null,
+            valor_vt_editado: _recibosSelecoes[c.id].valVTEdit !== undefined ? _recibosSelecoes[c.id].valVTEdit : null,
+            edited_fields: _recibosSelecoes[c.id].edited_fields && Object.keys(_recibosSelecoes[c.id].edited_fields).length > 0 ? JSON.stringify(_recibosSelecoes[c.id].edited_fields) : "{}"
         }));
         fetch(`${API_URL}/recibos/salvar`, {
             method: 'POST',
@@ -2486,12 +2489,24 @@ window._recBuscarVT = async function () {
                 // Trigger save
                 const itensSalvar = [{
                     colaborador_id: c.id,
+                    dias_trabalhados: s.diasTrabalhados,
+                    dias_vr: s.diasVR,
+                    faltas: s.faltas,
+                    folgas: s.folgas || 0,
+                    folgas_vt: s.folgasVT || 0,
+                    faltas_vt: s.faltasVT || 0,
+                    folgas_vr: s.folgasVR || 0,
+                    faltas_vr: s.faltasVR || 0,
+                    dias_extra: s.diasExtra,
+                    valor_vr: (c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00),
+                    apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null,
                     dias_uteis_vt: diasUteisVT,
-                    faltas_vt: faltasVTN,
+                    faltas_vtn: faltasVTN,
                     extras_vt: extrasVT,
                     valor_vt: valorVT,
                     valor_vt_editado: null,
-                    edited_fields: s.edited_fields ? JSON.stringify(s.edited_fields) : "{}"
+                    valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
+                    edited_fields: s.edited_fields && Object.keys(s.edited_fields).length > 0 ? JSON.stringify(s.edited_fields) : "{}"
                 }];
                 fetch(`${API_URL}/recibos/salvar`, {
                     method: 'POST',
@@ -2790,7 +2805,10 @@ window.anexarRecibosDocsMassa = async function () {
             faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
             extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
             valor_vt: _recibosSelecoes[c.id].valorVT || 0,
-            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || [])
+            apuracao_diaria: JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria || []),
+            valor_vr_editado: _recibosSelecoes[c.id].valVREdit !== undefined ? _recibosSelecoes[c.id].valVREdit : null,
+            valor_vt_editado: _recibosSelecoes[c.id].valVTEdit !== undefined ? _recibosSelecoes[c.id].valVTEdit : null,
+            edited_fields: _recibosSelecoes[c.id].edited_fields && Object.keys(_recibosSelecoes[c.id].edited_fields).length > 0 ? JSON.stringify(_recibosSelecoes[c.id].edited_fields) : "{}"
         }));
         await fetch(`${API_URL}/recibos/salvar`, {
             method: 'POST',
@@ -2992,7 +3010,10 @@ window.baixarConferenciaPonto = async function () {
             faltas_vtn: _recibosSelecoes[c.id].faltasVTN || 0,
             extras_vt: _recibosSelecoes[c.id].extrasVT || 0,
             valor_vt: _recibosSelecoes[c.id].valorVT || 0,
-            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null
+            apuracao_diaria: (_recibosSelecoes[c.id].apuracaoDiaria && _recibosSelecoes[c.id].apuracaoDiaria.length > 0) ? JSON.stringify(_recibosSelecoes[c.id].apuracaoDiaria) : null,
+            valor_vr_editado: _recibosSelecoes[c.id].valVREdit !== undefined ? _recibosSelecoes[c.id].valVREdit : null,
+            valor_vt_editado: _recibosSelecoes[c.id].valVTEdit !== undefined ? _recibosSelecoes[c.id].valVTEdit : null,
+            edited_fields: _recibosSelecoes[c.id].edited_fields && Object.keys(_recibosSelecoes[c.id].edited_fields).length > 0 ? JSON.stringify(_recibosSelecoes[c.id].edited_fields) : "{}"
         }));
         // Executar de forma assíncrona sem aguardar (sem await) para evitar bloqueio de pop-up
         fetch(`${API_URL}/recibos/salvar`, {
