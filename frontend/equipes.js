@@ -410,10 +410,13 @@ window._eqAbrirHabilidades = function(e, colabId) {
     
     let skillsDisponiveis = [];
     if (isLider) {
-        skillsDisponiveis = ['Caminhão', 'Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
+        skillsDisponiveis = ['Caminhão Carroceria', 'Caminhão Tanque', 'Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
     } else if (isMotorista) {
         skillsDisponiveis = ['Carretinha', 'VAC', 'Reparos', 'Montagem', 'Desmontagem'];
-        if (cnhCaminhao) skillsDisponiveis.unshift('Caminhão');
+        if (cnhCaminhao) {
+            skillsDisponiveis.unshift('Caminhão Tanque');
+            skillsDisponiveis.unshift('Caminhão Carroceria');
+        }
     } else {
         // Ajudantes
         skillsDisponiveis = ['VAC', 'Reparos', 'Montagem', 'Desmontagem'];
