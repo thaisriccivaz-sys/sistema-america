@@ -18364,6 +18364,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
         db.run("ALTER TABLE os_logistica ADD COLUMN manutencao_quinzenal INTEGER DEFAULT 0", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN primeira_manutencao TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN habilidade_equipe TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN manutencao_bloqueada INTEGER DEFAULT 0", () => { });
     }
 });
 
@@ -27742,6 +27743,112 @@ app.delete('/api/logistica/os/:numero_os/link-video', authenticateToken, (req, r
 });
 
 // Excluir um link de video específico de uma OS (por ID)
+
+// ====== AÇÕES EM LOTE PARA OBSERVAÇÕES OS ======
+app.post('/api/logistica/videos-os/lote', authenticateToken, (req, res) => {
+    const { ids, acao } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Nenhum ID fornecido' });
+    
+    if (acao === 'bloquear') {
+        const placeholders = ids.map(() => '?').join(',');
+        db.run(`UPDATE os_logistica SET manutencao_bloqueada = 1 WHERE id IN (${placeholders})`, ids, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, message: 'Manutenções bloqueadas com sucesso.' });
+        });
+    } else if (acao === 'desbloquear') {
+        const placeholders = ids.map(() => '?').join(',');
+        db.run(`UPDATE os_logistica SET manutencao_bloqueada = 0 WHERE id IN (${placeholders})`, ids, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, message: 'Manutenções desbloqueadas com sucesso.' });
+        });
+    } else if (acao === 'excluir_videos') {
+        const placeholders = ids.map(() => '?').join(',');
+        // Set link_video to null for all selected OSs
+        db.run(`UPDATE os_logistica SET link_video = NULL WHERE id IN (${placeholders})`, ids, function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true, message: 'Vídeos excluídos com sucesso das OS selecionadas.' });
+        });
+    } else {
+        res.status(400).json({ error: 'Ação inválida' });
+    }
+});
+
+app.post('/api/logistica/os/upload-video-lote', authenticateToken, multerVideo.single('video'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+    let os_ids = [];
+    try {
+        os_ids = JSON.parse(req.body.os_ids || '[]');
+    } catch(e) {
+        return res.status(400).json({ error: 'os_ids inválido' });
+    }
+    
+    if (!Array.isArray(os_ids) || os_ids.length === 0) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'Nenhuma OS selecionada' });
+    }
+
+    const token = req._videoToken || require('path').basename(req.file.filename, require('path').extname(req.file.filename));
+    const shortCode = gerarShortCode();
+
+    try {
+        if (!r2 || !r2.isReady()) throw new Error('R2 Storage não configurado.');
+        const fileExt = require('path').extname(req.file.originalname).replace('.', '') || 'mp4';
+        const r2Key = `os_videos/lote_${Date.now()}/${shortCode}.${fileExt}`;
+        const publicUrl = await r2.uploadToR2(r2Key, req.file.path, req.file.mimetype);
+
+        fs.unlinkSync(req.file.path);
+
+        const relativeShortLink = `/v/${shortCode}`;
+        const shortLinkUrl = `${req.protocol}://${req.get('host')}/v/${shortCode}`;
+
+        db.run(
+            `INSERT INTO os_videos (token, short_code, os_id, numero_os, nome_original, mime_type, tamanho, caminho_arquivo)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [token, shortCode, null, null, req.file.originalname, req.file.mimetype, req.file.size, publicUrl],
+            function (err) {
+                if (err) console.error('[OS Videos Lote] Erro ao registrar vídeo no banco:', err.message);
+
+                // Update all selected OSs
+                const placeholders = os_ids.map(() => '?').join(',');
+                db.all(`SELECT id, link_video FROM os_logistica WHERE id IN (${placeholders})`, os_ids, (errSelect, rows) => {
+                    if (errSelect) return res.status(500).json({ error: errSelect.message });
+                    
+                    let completed = 0;
+                    if (rows.length === 0) {
+                         return res.json({ ok: true, short_code: shortCode, link: publicUrl });
+                    }
+                    
+                    rows.forEach(row => {
+                        let newLinks = [relativeShortLink];
+                        if (row && row.link_video) {
+                            try {
+                                const parsed = JSON.parse(row.link_video);
+                                if (Array.isArray(parsed)) newLinks = [...parsed, relativeShortLink];
+                                else newLinks = [row.link_video, relativeShortLink];
+                            } catch (e) {
+                                if (row.link_video.trim() !== '') {
+                                    newLinks = row.link_video.split(',').map(s => s.trim()).filter(Boolean);
+                                    newLinks.push(relativeShortLink);
+                                }
+                            }
+                        }
+                        db.run('UPDATE os_logistica SET link_video = ? WHERE id = ?', [JSON.stringify(newLinks), row.id], () => {
+                            completed++;
+                            if (completed === rows.length) {
+                                res.json({ ok: true, short_code: shortCode, link: publicUrl, short_link: shortLinkUrl });
+                            }
+                        });
+                    });
+                });
+            }
+        );
+    } catch (error) {
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.delete('/api/logistica/os-id/:id/link-video', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { link } = req.query; // o link específico a ser removido

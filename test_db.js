@@ -1,12 +1,1 @@
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('backend/data/hr_system_v2.sqlite');
-db.get('SELECT payload_json FROM mtr_local WHERE numero_mtr = "260011827085"', (err, row) => {
-    if(row) {
-        let payload = row.payload_json;
-        if(payload.length > 500) {
-            console.log(payload.substring(0, 300) + '... (TRUNCATED)');
-        } else {
-            console.log(payload);
-        }
-    }
-});
+const sqlite3 = require('sqlite3').verbose(); const db = new sqlite3.Database('backend/data/hr_system_v2.sqlite'); const q = \SELECT d.*, MAX(COALESCE(u2.username, u.username)) as responsavel_username, MAX(COALESCE(u2.id, u.id)) as responsavel_usuario_id FROM departamentos d LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(d.responsavel_nome)) LEFT JOIN colaboradores c ON c.id = d.responsavel_id LEFT JOIN usuarios u2 ON LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email_corporativo)) OR LOWER(TRIM(u2.username)) = LOWER(TRIM(c.email)) WHERE d.id = 32 GROUP BY d.id\; db.get(q, (err, row) => console.log(row));

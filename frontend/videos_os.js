@@ -65,11 +65,22 @@ const TELA_VIDEOS_OS = `
         </button>
     </div>
 
+    <!-- AÇÕES EM LOTE -->
+    <div id="vidos-batch-actions" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:1rem; align-items:center; gap:10px;">
+        <span style="font-weight:bold; color:#475569; font-size:0.85rem;"><span id="vidos-batch-count">0</span> selecionados:</span>
+        <button onclick="vidosPromptUploadLote()" style="background:#3b82f6; color:white; border:none; border-radius:4px; padding:5px 12px; font-size:0.8rem; font-weight:600; cursor:pointer;"><i class="ph ph-upload-simple"></i> Enviar Vídeo</button>
+        <button onclick="vidosAcaoLote('bloquear')" style="background:#ef4444; color:white; border:none; border-radius:4px; padding:5px 12px; font-size:0.8rem; font-weight:600; cursor:pointer;"><i class="ph ph-lock"></i> Bloquear</button>
+        <button onclick="vidosAcaoLote('desbloquear')" style="background:#10b981; color:white; border:none; border-radius:4px; padding:5px 12px; font-size:0.8rem; font-weight:600; cursor:pointer;"><i class="ph ph-lock-key-open"></i> Desbloquear</button>
+        <button onclick="vidosAcaoLote('excluir_videos')" style="background:#64748b; color:white; border:none; border-radius:4px; padding:5px 12px; font-size:0.8rem; font-weight:600; cursor:pointer;"><i class="ph ph-trash"></i> Excluir Vídeos</button>
+        <input type="file" id="vidos-file-lote" accept="video/*" style="display:none;" onchange="vidosFazerUploadLote(this)">
+    </div>
+    
     <!-- TABELA DE RESULTADOS -->
     <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
             <thead>
                 <tr style="background:#f1f5f9; text-align:left; color:#475569;">
+                    <th style="padding:10px; border-bottom:2px solid #cbd5e1; width:40px; text-align:center;"><input type="checkbox" id="vidos-chk-all" onchange="vidosToggleAll(this)"></th>
                     <th style="padding:10px; border-bottom:2px solid #cbd5e1;">OS</th>
                     <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Cliente</th>
                     <th style="padding:10px; border-bottom:2px solid #cbd5e1;">Serviço</th>
@@ -186,6 +197,11 @@ async function vidosCarregar() {
         });
         
         tbody.innerHTML = '';
+        const bar = document.getElementById('vidos-batch-actions');
+        if(bar) bar.style.display = 'none';
+        const chkAll = document.getElementById('vidos-chk-all');
+        if(chkAll) chkAll.checked = false;
+        
         todasOs.forEach(os => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid #e2e8f0';
@@ -234,7 +250,8 @@ async function vidosCarregar() {
             }
             
             tr.innerHTML = `
-                <td style="padding:10px;"><b>${os.numero_os || '—'}</b></td>
+                <td style="padding:10px; text-align:center;"><input type="checkbox" class="vidos-chk-row" value="${os.id}" onchange="vidosUpdateCheckboxes()"></td>
+                <td style="padding:10px;"><b>${os.numero_os || '—'}</b><br><span style="font-size:0.7rem; color:${os.manutencao_bloqueada ? '#ef4444' : 'transparent'}; font-weight:bold;">${os.manutencao_bloqueada ? 'BLOQUEADO' : ''}</span></td>
                 <td style="padding:10px;">${os.cliente || '—'}</td>
                 <td style="padding:10px;">${os.tipo_servico || '—'}</td>
                 <td style="padding:10px;">${dataFormatada}</td>

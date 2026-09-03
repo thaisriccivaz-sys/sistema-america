@@ -185,7 +185,7 @@ function pipelineRenderCard(os) {
 
     return `
     <div class="pipe-card" data-os-id="${os.id}"
-         style="background:${bgCard};border-left:3px solid ${borderCard};position:relative;"
+         style="background:${bgCard};${os.manutencao_bloqueada ? 'border: 2px solid #ef4444;' : 'border-left:3px solid ' + borderCard + ';'}position:relative;"
          onclick="pipelineAbrirOS(${os.id},'${(os.numero_os||'').replace(/'/g,"\\'")}')"
          >
         <!-- Checkbox de seleção -->
@@ -489,7 +489,7 @@ async function pipelineExportarExcel(registrosOverride) {
     // Se passado uma lista, usa ela; caso contrário usa todos os dados do pipeline
     let registros;
     if (Array.isArray(registrosOverride)) {
-        registros = registrosOverride;
+        registros = registrosOverride.filter(r => !r.manutencao_bloqueada);
     } else {
 
         if (!_pipelineDados || Object.keys(_pipelineDados).length === 0) {
@@ -506,6 +506,9 @@ async function pipelineExportarExcel(registrosOverride) {
             });
             cat.forEach(r => registros.push(r));
         });
+        
+        // --- NOVO: Filtrar manutenções bloqueadas ---
+        registros = registros.filter(r => !r.manutencao_bloqueada);
     }
     if (registros.length === 0) { alert('Nenhum registro para exportar.'); return; }
 

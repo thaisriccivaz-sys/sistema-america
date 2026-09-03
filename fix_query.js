@@ -1,20 +1,14 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 let code = fs.readFileSync('backend/server.js', 'utf8');
 
-const oldQuery = `        WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(?)) AND u.ativo = 1\r\n        LIMIT 1\r\n    \`, [assignedUsername], async (err, user) => {`;
-const newQuery = `        WHERE (LOWER(TRIM(u.username)) = LOWER(TRIM(?)) OR LOWER(TRIM(u.nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(REPLACE(u.nome, ' ', '.'))) = LOWER(TRIM(?))) AND u.ativo = 1\r\n        LIMIT 1\r\n    \`, [assignedUsername, assignedUserNome || assignedUsername, assignedUsername], async (err, user) => {`;
+code = code.replace(
+    'INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas, folgas_vt, faltas_vt, folgas_vr, faltas_vr, valor_vt_editado, valor_vr_editado, edited_fields) \n            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO recibos_historico (mes, ano, colaborador_id, dias_trabalhados, dias_vr, faltas, dias_extra, valor_vr, apuracao_diaria, folgas, folgas_vt, faltas_vt, folgas_vr, faltas_vr, valor_vt_editado, valor_vr_editado, edited_fields, dias_uteis_vt, faltas_vtn, extras_vt, valor_vt) \n            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+);
 
-const oldQueryLF = `        WHERE LOWER(TRIM(u.username)) = LOWER(TRIM(?)) AND u.ativo = 1\n        LIMIT 1\n    \`, [assignedUsername], async (err, user) => {`;
-const newQueryLF = `        WHERE (LOWER(TRIM(u.username)) = LOWER(TRIM(?)) OR LOWER(TRIM(u.nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(REPLACE(u.nome, ' ', '.'))) = LOWER(TRIM(?))) AND u.ativo = 1\n        LIMIT 1\n    \`, [assignedUsername, assignedUserNome || assignedUsername, assignedUsername], async (err, user) => {`;
+code = code.replace(
+    'valor_vr_editado=excluded.valor_vr_editado,\n                edited_fields=COALESCE(excluded.edited_fields, recibos_historico.edited_fields)',
+    'valor_vr_editado=excluded.valor_vr_editado,\n                dias_uteis_vt=excluded.dias_uteis_vt,\n                faltas_vtn=excluded.faltas_vtn,\n                extras_vt=excluded.extras_vt,\n                valor_vt=excluded.valor_vt,\n                edited_fields=COALESCE(excluded.edited_fields, recibos_historico.edited_fields)'
+);
 
-if (code.includes(oldQuery)) {
-    code = code.replace(oldQuery, newQuery);
-    fs.writeFileSync('backend/server.js', code);
-    console.log('Fixed query successfully (CRLF)');
-} else if (code.includes(oldQueryLF)) {
-    code = code.replace(oldQueryLF, newQueryLF);
-    fs.writeFileSync('backend/server.js', code);
-    console.log('Fixed query successfully (LF)');
-} else {
-    console.log('Could not find the target code');
-}
+fs.writeFileSync('backend/server.js', code);

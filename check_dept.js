@@ -1,7 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('backend/data/hr_system_v2.sqlite');
-
-db.all("SELECT DISTINCT tipo FROM departamentos", [], (err, rows) => {
-    if (err) console.error(err);
-    else console.log("hr_system_v2.sqlite departamentos.tipo:", rows);
+const dbPath = process.env.DB_PATH || 'backend/data/hr_system_v2.sqlite';
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
+    if (err) { console.error('Error opening DB:', err); return; }
+    db.all("SELECT * FROM departamentos WHERE nome LIKE '%Ajudante%'", (err, rows) => {
+        console.log('Departamentos:', rows);
+    });
 });

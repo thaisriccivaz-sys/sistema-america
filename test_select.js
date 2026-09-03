@@ -1,0 +1,10 @@
+const { JSDOM } = require('jsdom');
+const dom = JSDOM.fragment(`<select id='s'><option value=''>Nenhum</option></select>`);
+const select = dom.querySelector('select');
+const opt = select.ownerDocument.createElement('option');
+opt.value = '10';
+opt.textContent = 'Wagner';
+opt.selected = true;
+select.appendChild(opt);
+console.log('Value:', select.value);
+console.log('SelectedIndex:', select.selectedIndex);
