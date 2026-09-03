@@ -3653,6 +3653,11 @@
              isHandled = true;
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
+             // ── BUG FIX: limpar flags de aguardando ao mover para respondido via comentário
+             t.aguardDeadline = null;
+             t.aguardNotified = false;
+             t.aguardPendingJustification = false;
+             localStorage.removeItem('sac_pending_popup_' + t.id);
              t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
              // Comentário inserido no bloco roxo, removemos a duplicação no quadro branco
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
@@ -3693,8 +3698,15 @@
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
       const taskName = key === 'logisticsTask' ? 'Logística' : key === 'commercialTask' ? 'Comercial' : 'Financeiro';
-      if (isRedirect) { t.stage = 'respondido'; t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user }); }
-      else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}"`, user }); }
+      if (isRedirect) {
+        t.stage = 'respondido';
+        // ── BUG FIX: limpar flags de aguardando ao sair da coluna
+        t.aguardDeadline = null;
+        t.aguardNotified = false;
+        t.aguardPendingJustification = false;
+        localStorage.removeItem('sac_pending_popup_' + t.id);
+        t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user });
+      } else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
       if (isRedirect) { showToast(`OS ${t.protocol} respondida! Movida para Respondido.`,'warning'); }
       else { showToast('Pendência marcada como resolvida!','success'); }
@@ -4182,6 +4194,13 @@
         if (new Date(followUpDeadlineVal).getTime() <= Date.now()) { showToast('A data/hora limite deve ser no futuro.','warning'); return; }
       }
       ticket.stage = pt.targetStageId;
+      // ── BUG FIX: limpar flags de aguardando quando o ticket sai da coluna aguardando_setores
+      if (oldStageId === 'aguardando_setores' && pt.targetStageId !== 'aguardando_setores') {
+        ticket.aguardDeadline = null;
+        ticket.aguardNotified = false;
+        ticket.aguardPendingJustification = false;
+        localStorage.removeItem('sac_pending_popup_' + ticket.id);
+      }
       ticket.nextSteps = isClosing ? 'Encerrado: ' + closeReason : nextSteps;
       if (isClosing) { ticket.closeDate = new Date().toISOString(); ticket.checklistJustification = clJust||null; }
       if (isExecucao) {
@@ -4797,6 +4816,14 @@
 
       // 2. Verificar se Aguardando Setores estourou (notificação e popup) independente do estágio
       if (ticket.aguardDeadline) {
+        // ── BUG FIX: se o ticket saiu de aguardando_setores, limpar os flags para nunca mais disparar
+        if (ticket.stage !== 'aguardando_setores' && ticket.aguardPendingJustification) {
+          ticket.aguardPendingJustification = false;
+          ticket.aguardDeadline = null;
+          localStorage.removeItem('sac_pending_popup_' + ticket.id);
+          updateTicket(ticket);
+          return;
+        }
         const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
         if (!isNaN(aguardPrazo) && aguardPrazo < now) {
           if (!ticket.aguardNotified && ticket.stage === 'aguardando_setores') {
@@ -4811,7 +4838,8 @@
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.aguardDeadline })
             }).catch(e => console.error('[SAC] notificar-aguard:', e));
           }
-          if (ticket.aguardPendingJustification === true && !_aguardShown.has(ticket.id)) {
+          // ── BUG FIX: só mostra popup se ainda estiver em aguardando_setores
+          if (ticket.aguardPendingJustification === true && ticket.stage === 'aguardando_setores' && !_aguardShown.has(ticket.id)) {
             _aguardShown.add(ticket.id);
             showMandatoryJustificationPopup(ticket, 'aguard');
           }
