@@ -1098,13 +1098,7 @@ function _renderTabela() {
               style="width:58px;padding:.2rem .1rem;border:1px solid #f9a8d4;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.valVTEdit != null) ? '#dc2626' : '#1e293b'};"
               onchange="window.atualizarValorEditado(${c.id},'valVTEdit',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
           </td>
-          <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
-            ${window._isVC(m) ? `
-            <input type="number" min="0" max="35" value="${s.folgasVT||''}"
-              style="width:36px;padding:.2rem .1rem;border:1px solid #e2e8f0;border-radius:6px;text-align:center;font-size:.75rem;font-weight:600;color:${(s.edited_fields && s.edited_fields.folgasVT) ? '#dc2626' : ((s.folgasVT||0)>0?'#0891b2':'#94a3b8')};"
-              placeholder="0" title="Folgas VC"
-              onchange="window.atualizarDadosReciboColab(${c.id},'folgasVT',this.value)">` : '<span style="color:#cbd5e1;font-size:.8rem;">—</span>'}
-          </td>
+          
           <td style="padding:.45rem .2rem;text-align:center;background:#8aa0fe;">
             ${window._isVC(m) ? `
             <input type="number" min="0" max="35" value="${s.faltasVT||''}"
