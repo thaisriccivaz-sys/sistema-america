@@ -7,6 +7,7 @@ let osState = {
     produtos: [],
     tiposServico: new Set(),
     acoes: new Set(),
+    habEquipe: new Set(),          // Habilidades da Equipe para esta OS
     tempoTotal: 10,
     qtdTanques: 0,
     clienteConfirmado: true,
@@ -1100,6 +1101,9 @@ function duplicarOsNaTela(payload) {
     osState.tiposServico = new Set(); // Limpa o tipo de serviço
     const vars = Array.isArray(payload.variaveis) ? payload.variaveis : (typeof payload.variaveis === 'string' ? JSON.parse(payload.variaveis || '[]') : []);
     osState.acoes = new Set(vars); // Preserva ações/variáveis atreladas ao serviço
+    // Preserva habilidades da equipe
+    const habEq = Array.isArray(payload.habilidade_equipe) ? payload.habilidade_equipe : [];
+    osState.habEquipe = new Set(habEq);
     osState.clienteConfirmado = true;
     osState.clienteNome = payload.cliente || '';
     osState.enderecoSelecionado = payload.endereco || '';
@@ -1533,6 +1537,7 @@ function carregarRegistroNaTela(os) {
     osState.produtos             = parseJsonFront(os.produtos).map(p => ({ ...p, id: Date.now() + Math.random() }));
     osState.tiposServico         = new Set(parseJsonFront(os.habilidades));
     osState.acoes                = new Set(parseJsonFront(os.variaveis));
+    osState.habEquipe            = new Set(parseJsonFront(os.habilidade_equipe));
 
     // Fallback: Inferir variáveis não parseadas através dos ícones presentes no nome do cliente
     if (os.cliente) {
@@ -2716,7 +2721,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     produtos: [...osState.produtos],
                     tipo_os: osState.tipoOs,
                     habilidades: [],
-                    variaveis: [...osState.acoes]
+                    variaveis: [...osState.acoes],
+                    habilidade_equipe: [...osState.habEquipe]
                 };
 
                 // Usa a mesma função de duplicar
@@ -2807,6 +2813,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Resgata Habilidades e Variaveis
             const habilidadesSelecionadas = Array.from(osState.tiposServico);
             const variaveisSelecionadas = Array.from(osState.acoes);
+            const habEquipeSelecionadas = Array.from(osState.habEquipe);
 
             // Monta o PAYLOAD
             const payload = {
@@ -2834,6 +2841,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 observacoes_internas: document.getElementById('rr-input-obs-internas')?.value?.trim() || '',
                 habilidades: habilidadesSelecionadas,
                 variaveis: variaveisSelecionadas,
+                habilidade_equipe: habEquipeSelecionadas,
                 link_video: document.getElementById('rr-input-video')?.value?.trim() || '',
                 manutencao_quinzenal: document.getElementById('rr-chk-quinzenal')?.checked ? 1 : 0,
                 primeira_manutencao: document.getElementById('rr-input-primeira-manutencao')?.value || ''
@@ -3100,6 +3108,8 @@ document.addEventListener('DOMContentLoaded', () => {
             else osState.tiposServico.add(tipo);
             atualizarUI();
             atualizarIconesCliente();
+            // Sincroniza automações de Habilidade da Equipe
+            rrSincronizarHabEquipeDeAtendimento();
             return;
         }
 
@@ -3530,6 +3540,100 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
     osState.acoes = new Set([...acoesProdutos, ...acoesManuais]);
 
     console.log('[Habilidades] Tipo:', tipoServico, '| Selecionadas:', [...osState.tiposServico], '| wipeManuals:', wipeManuals);
+
+    // ── Auto-preenche Habilidade da Equipe com base nas habilidades de atendimento ──
+    rrSincronizarHabEquipeDeAtendimento();
+}
+
+// ── HABILIDADE DA EQUIPE — funções de controle do dropdown ──────────────────
+
+/**
+ * Abre/fecha o dropdown de Habilidade da Equipe.
+ */
+function rrToggleHabEquipeDropdown() {
+    const dd = document.getElementById('rr-hab-equipe-dropdown');
+    if (!dd) return;
+    const isOpen = dd.style.display !== 'none';
+    dd.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+        // Ao abrir, sincroniza checkboxes com osState.habEquipe
+        rrAtualizarCheckboxesHabEquipe();
+    }
+}
+
+/**
+ * Chamado quando o usuário marca/desmarca um checkbox de habEquipe.
+ * Lê os checkboxes e salva no state.
+ */
+function rrOnHabEquipeChange() {
+    const chks = document.querySelectorAll('.rr-hab-equipe-chk');
+    osState.habEquipe = new Set([...chks].filter(c => c.checked).map(c => c.value));
+    rrAtualizarDisplayHabEquipe();
+}
+
+/**
+ * Sincroniza os checkboxes do dropdown com osState.habEquipe.
+ */
+function rrAtualizarCheckboxesHabEquipe() {
+    document.querySelectorAll('.rr-hab-equipe-chk').forEach(chk => {
+        chk.checked = osState.habEquipe.has(chk.value);
+    });
+    rrAtualizarDisplayHabEquipe();
+}
+
+/**
+ * Atualiza os badges/tags exibidos no campo "Habilidade da Equipe".
+ */
+function rrAtualizarDisplayHabEquipe() {
+    const display = document.getElementById('rr-hab-equipe-display');
+    const placeholder = document.getElementById('rr-hab-equipe-placeholder');
+    if (!display) return;
+
+    const selecionadas = [...osState.habEquipe];
+    if (selecionadas.length === 0) {
+        display.innerHTML = '<span id="rr-hab-equipe-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>';
+    } else {
+        display.innerHTML = selecionadas.map(sk =>
+            `<span style="background:#dbeafe;color:#1d4ed8;border-radius:99px;padding:1px 7px;font-size:0.65rem;font-weight:600;white-space:nowrap;">${sk}</span>`
+        ).join(' ');
+    }
+}
+
+/**
+ * Sincroniza Habilidade da Equipe baseado nas habilidades de atendimento selecionadas.
+ * Chamado após cada mudança em osState.tiposServico.
+ * Regras:
+ *   - VAC em atendimento → adiciona VAC na equipe
+ *   - CARRETINHA em atendimento → adiciona Carretinha Caminhonete na equipe
+ *   - TANQUE GRANDE em atendimento → adiciona Caminhão Tanque na equipe
+ *   - Tipo serviço REPARO EQUIPAMENTO → adiciona Reparos
+ *   - Tipo serviço VISITA TECNICA → adiciona Visita técnica
+ * Não remove o que o usuário marcou manualmente — apenas ADICIONA.
+ */
+function rrSincronizarHabEquipeDeAtendimento() {
+    const tipoServico = (document.getElementById('rr-tipo-servico')?.value || '').trim().toUpperCase();
+
+    // Automação por tipo de serviço
+    if (tipoServico.includes('REPARO') && tipoServico.includes('EQUIPAMENTO')) {
+        osState.habEquipe.add('Reparos');
+    }
+    if (tipoServico.includes('VISITA') && tipoServico.includes('TECNICA')) {
+        osState.habEquipe.add('Visita técnica');
+    }
+
+    // Automação por habilidade de atendimento
+    if (osState.tiposServico.has('VAC')) {
+        osState.habEquipe.add('VAC');
+    }
+    if (osState.tiposServico.has('CARRETINHA')) {
+        osState.habEquipe.add('Carretinha Caminhonete');
+    }
+    if (osState.tiposServico.has('TANQUE GRANDE')) {
+        osState.habEquipe.add('Caminhão Tanque');
+    }
+
+    // Atualiza a UI
+    rrAtualizarCheckboxesHabEquipe();
 }
 
 function atualizarDropdownProdutos() {
@@ -3913,6 +4017,9 @@ function atualizarUI() {
 
     // Atualiza Totais
     document.getElementById('rr-total-prod').innerText = totalItens;
+
+    // Atualiza display de Habilidade da Equipe
+    if (typeof rrAtualizarDisplayHabEquipe === 'function') rrAtualizarDisplayHabEquipe();
 }
 
 function renderRotaRedonda() {
@@ -4099,12 +4206,28 @@ function renderRotaRedonda() {
                     </div>
                     
                     <div style="flex: 2;">
-                        <label style="${labelStyle}">Habilidades</label>
+                        <label style="${labelStyle}">Habilidade Atendimento</label>
                         <div style="display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; margin-top: 2px;">
                             ${HABILIDADES.filter(s => s !== 'TECNICO').map(s => {
                                 const ic = {'VAC':'🏗️', 'UTILITARIO':'🛻', 'CARRETINHA':'🔗'}[s] || '';
                                 return `<button class="btn-tipo-servico" data-tipo="${s}" style="border: 1px solid #2d9e5f; color: #2d9e5f; background: transparent; border-radius: 99px; padding: 2px 10px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">${ic ? `<span style="margin-right:3px;font-size:0.8rem;">${ic}</span>` : ''}${s}</button>`;
                             }).join('')}
+                        </div>
+                    </div>
+
+                    <div style="flex: 2; position: relative;">
+                        <label style="${labelStyle}">Habilidade da Equipe</label>
+                        <div id="rr-hab-equipe-wrapper" style="position:relative;">
+                            <div id="rr-hab-equipe-display" onclick="rrToggleHabEquipeDropdown()" style="display:flex; align-items:center; gap:4px; min-height:26px; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.7rem; cursor:pointer; background:white; flex-wrap:wrap; user-select:none;">
+                                <span id="rr-hab-equipe-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>
+                            </div>
+                            <div id="rr-hab-equipe-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:300; background:white; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.12); padding:6px 0;">
+                                ${['Caminhão Carroceria','Caminhão Tanque','Carretinha Caminhonete','Carretinha Utilitário','VAC','Reparos','Montagem','Desmontagem','Visita técnica'].map(sk => `
+                                    <label style="display:flex; align-items:center; gap:8px; padding:4px 10px; cursor:pointer; font-size:0.75rem; color:#1e293b;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
+                                        <input type="checkbox" class="rr-hab-equipe-chk" value="${sk}" onchange="rrOnHabEquipeChange()" style="cursor:pointer;">
+                                        ${sk}
+                                    </label>`).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>

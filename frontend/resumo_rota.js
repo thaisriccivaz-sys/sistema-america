@@ -875,6 +875,7 @@ window.rrImportarPlanilha = async function(input) {
     let osObsMap = {}; // numero_os  -> observacoes (Obs. Motoristas)
     let osHabsMap = {}; // chave -> habilidades[]
     let osVarsMap = {}; // chave -> variaveis[]
+    let osHabEquipeMap = {}; // chave -> habilidade_equipe[]
     let osListByNum = {}; // numero_os -> [ db_record, ... ] (FALLBACK INTELIGENTE)
     window._rrObsMetaMap = {}; // obs_text -> {habs, vars} (mapa secundário)
     try {
@@ -902,6 +903,7 @@ window.rrImportarPlanilha = async function(input) {
         if (resColab.ok) {
             const list = await resColab.json();
             // Usa URL do endpoint de foto (suporta foto_base64 E foto_path)
+            window._rrColabHabsMap = window._rrColabHabsMap || {}; // nome_lower → habilidades_equipe[]
             list.forEach(c => {
                 const nomeKey = (c.nome_completo || '').toLowerCase().trim();
                 fotoMap[nomeKey] = `/api/colaboradores/foto/${c.id}`;
@@ -910,6 +912,17 @@ window.rrImportarPlanilha = async function(input) {
                     window._rrColabAvaliadorMap = window._rrColabAvaliadorMap || {};
                     window._rrColabAvaliadorMap[nomeKey] = (c.motorista_avaliador || 'Não') === 'Sim';
                 }
+                // Habilidades da equipe
+                let habsColab = [];
+                try {
+                    if (c.habilidades_equipe) {
+                        habsColab = typeof c.habilidades_equipe === 'string'
+                            ? JSON.parse(c.habilidades_equipe)
+                            : c.habilidades_equipe;
+                    }
+                } catch(e) {}
+                if (!Array.isArray(habsColab)) habsColab = [];
+                window._rrColabHabsMap[nomeKey] = habsColab;
             });
         }
         if (resOS.ok) {
@@ -955,8 +968,20 @@ window.rrImportarPlanilha = async function(input) {
                         }
                     }
                     if (!Array.isArray(vars)) vars = [vars];
+
+                    let habEquipe = [];
+                    if (os.habilidade_equipe) {
+                        try {
+                            habEquipe = typeof os.habilidade_equipe === 'string' ? JSON.parse(os.habilidade_equipe) : os.habilidade_equipe;
+                        } catch (e) {
+                            habEquipe = [os.habilidade_equipe];
+                        }
+                    }
+                    if (!Array.isArray(habEquipe)) habEquipe = [];
+
                     if (!osHabsMap[key] && habs.length) osHabsMap[key] = habs;
                     if (!osVarsMap[key] && vars.length) osVarsMap[key] = vars;
+                    if (!osHabEquipeMap[key] && habEquipe.length) osHabEquipeMap[key] = habEquipe;
                     // Fallback por obs: guarda {habs,vars} keyed pelo texto da obs
                     if (os.observacoes && (habs.length || vars.length)) {
                         const _ok = os.observacoes.trim().toUpperCase().substring(0, 80);
@@ -1011,6 +1036,9 @@ window.rrImportarPlanilha = async function(input) {
                 }
                 if (osVarsMap[matchedKey] && (!os.variaveis || !os.variaveis.length)) {
                     os.variaveis = osVarsMap[matchedKey];
+                }
+                if (osHabEquipeMap[matchedKey] && (!os.habilidade_equipe || !os.habilidade_equipe.length)) {
+                    os.habilidade_equipe = osHabEquipeMap[matchedKey];
                 }
             }
 
@@ -1070,6 +1098,41 @@ window.rrImportarPlanilha = async function(input) {
 
         if (sobrecarga) {
             v.alertaCarga = `Capacidade excedida! Este veículo suporta ${v._maxCarga} banheiros, mas a rota projeta ${erroAtingido} simultâneos. Verifique a rota.`;
+        }
+    });
+
+
+    // --- INSIGHT 3: HABILIDADE DA EQUIPE ---
+    // Para cada veículo, verifica se a "piscina" de habilidades (motorista + ajudante)
+    // cobre todas as habilidades de equipe exigidas pelas OS da rota.
+    _rrVeiculos.forEach(v => {
+        const motKey = (v.motorista || '').trim().toLowerCase();
+        const ajuKey = (v.ajudante  || '').trim().toLowerCase();
+        const colabHabsMap = window._rrColabHabsMap || {};
+
+        // Piscina de habilidades da equipe (motorista + ajudante combinados)
+        const piscina = new Set([
+            ...(colabHabsMap[motKey] || []),
+            ...(colabHabsMap[ajuKey] || [])
+        ]);
+
+        // Habilidades exigidas por todas as OS da rota deste veículo
+        const faltantes = new Set();
+        v.os.forEach(os => {
+            const habsExigidas = Array.isArray(os.habilidade_equipe)
+                ? os.habilidade_equipe
+                : [];
+            habsExigidas.forEach(h => {
+                if (h && !piscina.has(h)) {
+                    faltantes.add(h);
+                }
+            });
+        });
+
+        if (faltantes.size > 0) {
+            v.alertasHabEquipe = [...faltantes];
+        } else {
+            v.alertasHabEquipe = [];
         }
     });
 
@@ -1318,6 +1381,12 @@ function _rrRenderCorpo() {
             ${badgeAlerta}
             ${badgeDisp}
             ${badgeAviso}
+            ${(v.alertasHabEquipe && v.alertasHabEquipe.length > 0)
+                ? `<div style="background:#fef3c7;color:#92400e;padding:10px 18px;border-bottom:1px solid #fde68a;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                    <i class="ph ph-shield-warning" style="font-size:1.1rem;color:#d97706;"></i>
+                    <span>⚠️ Habilidade da Equipe ausente nesta rota: <b>${v.alertasHabEquipe.join(', ')}</b> — Nenhum membro da equipe possui esta habilidade cadastrada.</span>
+                   </div>`
+                : ''}
             <div style="display:flex;gap:0;border-top:1px solid #e2e8f0;">
                 <div style="flex:1 1 40%;padding:14px 18px;background:#f8fafc;border-right:1px solid #e2e8f0;">
                     <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Resumo da Rota</div>

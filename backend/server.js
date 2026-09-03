@@ -4190,7 +4190,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 // GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
 // IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para nao ser capturada como id='resumo'
 app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
-    db.all("SELECT id, nome_completo, departamento, motorista_avaliador FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
+    db.all("SELECT id, nome_completo, departamento, motorista_avaliador, habilidades_equipe FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -18363,6 +18363,7 @@ db.run(`CREATE TABLE IF NOT EXISTS os_logistica (
         db.run("ALTER TABLE os_logistica ADD COLUMN patrimonio TEXT", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN manutencao_quinzenal INTEGER DEFAULT 0", () => { });
         db.run("ALTER TABLE os_logistica ADD COLUMN primeira_manutencao TEXT", () => { });
+        db.run("ALTER TABLE os_logistica ADD COLUMN habilidade_equipe TEXT", () => { });
     }
 });
 
@@ -18795,7 +18796,7 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio,
-        manutencao_quinzenal, primeira_manutencao
+        manutencao_quinzenal, primeira_manutencao, habilidade_equipe
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
 
@@ -18823,11 +18824,11 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                 }
             }
 
-            // Cliente OK (mesmo ou nova OS) ??? insere
+            // Cliente OK (mesmo ou nova OS) → insere
             db.run(`INSERT INTO os_logistica (numero_os, tipo_os, cliente, endereco, complemento, cep, lat, lng,
                 contrato, data_os, responsavel, telefone, email, tipo_servico, hora_inicio, hora_fim,
-                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                turno, dias_semana, produtos, observacoes, observacoes_internas, habilidades, variaveis, link_video, patrimonio, manutencao_quinzenal, primeira_manutencao, habilidade_equipe)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [numero_os, tipo_os, cliente, endereco, complemento, cep,
                     lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
                     contrato, data_os, responsavel, telefone, email, tipo_servico,
@@ -18837,7 +18838,8 @@ app.post('/api/logistica/os', authenticateToken, (req, res) => {
                     observacoes, observacoes_internas,
                     typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                     typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                    link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null],
+                    link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null,
+                    typeof habilidade_equipe === 'object' ? JSON.stringify(habilidade_equipe) : (habilidade_equipe || null)],
                 function (err) {
                     if (err) return res.status(500).json({ error: err.message });
                     const newId = this.lastID;
@@ -18859,13 +18861,13 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
         contrato, data_os, responsavel, telefone, email, tipo_servico,
         hora_inicio, hora_fim, turno, dias_semana, produtos, observacoes,
         observacoes_internas, habilidades, variaveis, link_video, patrimonio,
-        manutencao_quinzenal, primeira_manutencao
+        manutencao_quinzenal, primeira_manutencao, habilidade_equipe
     } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
     const osId = req.params.id;
 
     // Ao editar uma OS existente, o usuário pode alterar o cliente livremente.
-    // A validação de conflito de cliente s?? se aplica ao criar uma nova OS (POST).
+    // A validação de conflito de cliente só se aplica ao criar uma nova OS (POST).
     db.get(`SELECT * FROM os_logistica WHERE id = ?`, [osId], (errOld, oldRow) => {
         if (errOld) return res.status(500).json({ error: errOld.message });
 
@@ -18873,7 +18875,7 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
             numero_os=?, tipo_os=?, cliente=?, endereco=?, complemento=?, cep=?, lat=?, lng=?,
             contrato=?, data_os=?, responsavel=?, telefone=?, email=?, tipo_servico=?, hora_inicio=?, hora_fim=?,
             turno=?, dias_semana=?, produtos=?, observacoes=?, observacoes_internas=?, habilidades=?, variaveis=?, link_video=?, patrimonio=?,
-            manutencao_quinzenal=?, primeira_manutencao=?,
+            manutencao_quinzenal=?, primeira_manutencao=?, habilidade_equipe=?,
             atualizado_em=datetime('now') WHERE id=?`,
             [numero_os, tipo_os, cliente, endereco, complemento, cep,
                 lat ? parseFloat(lat) : null, lng ? parseFloat(lng) : null,
@@ -18884,7 +18886,9 @@ app.put('/api/logistica/os/:id', authenticateToken, (req, res) => {
                 observacoes, observacoes_internas,
                 typeof habilidades === 'object' ? JSON.stringify(habilidades) : habilidades,
                 typeof variaveis === 'object' ? JSON.stringify(variaveis) : variaveis,
-                link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null, osId],
+                link_video, patrimonio, manutencao_quinzenal ? 1 : 0, primeira_manutencao || null,
+                typeof habilidade_equipe === 'object' ? JSON.stringify(habilidade_equipe) : (habilidade_equipe || null),
+                osId],
             function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
