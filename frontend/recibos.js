@@ -1450,10 +1450,11 @@ window.atualizarDadosReciboColab = function (id, campo, valor) {
         if (transpFields.includes(campo)) {
             _recibosSelecoes[id].valVTEdit = null;
             const totais = _calcTotaisRecibo(c, _recibosSelecoes[id]);
-            if (window._isVT && window._isVT(c.meio_transporte)) {
+            const mTransp = (c.meio_transporte || '').toLowerCase();
+            if (typeof _isVT === 'function' && _isVT(mTransp)) {
                 const inp = document.getElementById(`inp-valvt-${id}`);
                 if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
-            } else if (window._isVC && window._isVC(c.meio_transporte)) {
+            } else if (typeof _isVC === 'function' && _isVC(mTransp)) {
                 const inp = document.getElementById(`inp-valvc-${id}`);
                 if (inp) inp.value = totais.totalFinalTransp.toFixed(2);
             }
