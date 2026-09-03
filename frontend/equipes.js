@@ -426,9 +426,10 @@ window._eqAbrirHabilidades = function(e, colabId) {
     let habsAtuais = [];
     try {
         if (colab.habilidades_equipe) habsAtuais = JSON.parse(colab.habilidades_equipe);
-        // Migração em memória para quem já marcou Carretinha
-        habsAtuais = habsAtuais.map(h => h === 'Carretinha' ? 'Carretinha Caminhonete' : h);
     } catch(err) {}
+    
+    // Migração para manter checkado se já tinha "Carretinha" salvo
+    habsAtuais = habsAtuais.map(sk => sk === 'Carretinha' ? 'Carretinha Caminhonete' : sk);
 
     // Renderizar checkboxes
     const container = document.getElementById('eq-hab-checkboxes');
