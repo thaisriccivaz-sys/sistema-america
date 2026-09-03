@@ -472,14 +472,14 @@ function _recLog_renderizarPainel() {
         document.body.appendChild(tt);
     }
 
-    painel.innerHTML = cfg.map(c => {
+    const badges = cfg.map(c => {
         const entry = log[c.tipo];
-        if (!entry) return '';
+        if (!entry) return null;
         const nomesCurtos = entry.nomes.slice(0, 5);
         const extraNum = entry.nomes.length - 5;
         const extra = extraNum > 0 ? `\n+${extraNum} mais... (Clique para ver todos)` : '';
         const tooltipText = `${c.label}\n${entry.dataHora}\n\n${nomesCurtos.join('\n')}${extra}`;
-        return `<div
+        const html = `<div
             style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:${c.bg};border:1px solid ${c.borda};cursor:pointer;transition:filter 0.2s;"
             data-reclog="${encodeURIComponent(tooltipText)}"
             onclick="window._recLogShowModal('${c.tipo}')" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='brightness(1)'"
@@ -488,7 +488,19 @@ function _recLog_renderizarPainel() {
             <span style="font-size:.72rem;font-weight:700;color:${c.cor};">${c.label}</span>
             <span style="font-size:.7rem;color:#64748b;font-weight:500;">${entry.dataHora}</span>
         </div>`;
-    }).join('');
+        return { tipo: c.tipo, html };
+    }).filter(Boolean);
+
+    const row1 = badges.filter(b => ['ponto', 'vt'].includes(b.tipo)).map(b => b.html).join('');
+    const row2 = badges.filter(b => ['recibos', 'anexo'].includes(b.tipo)).map(b => b.html).join('');
+
+    let finalHtml = '';
+    if (row1) finalHtml += `<div style="display:flex;gap:8px;">${row1}</div>`;
+    if (row2) finalHtml += `<div style="display:flex;gap:8px;">${row2}</div>`;
+    
+    painel.style.flexDirection = 'column';
+    painel.style.alignItems = 'flex-end';
+    painel.innerHTML = finalHtml;
 }
 
 window._recLogShowModal = function(tipo) {
