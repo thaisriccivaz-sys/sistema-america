@@ -134,7 +134,15 @@ window._fechamento = (function () {
     // CONFERÊNCIA DE PONTO
     // ─────────────────────────────────────────────────────────────────
     function abrirConferenciaPonto(idx = null) {
-        const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
+        // Restaurar _dadosPonto da sessionStorage se perdido em F5
+        if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
+            try {
+                var _ssKey = '_fech_dp_' + _mes + '_' + _ano;
+                var _ssSaved = sessionStorage.getItem(_ssKey);
+                if (_ssSaved) { var _ssParsed = JSON.parse(_ssSaved); if (_ssParsed) Object.assign(_dadosPonto, _ssParsed); }
+            } catch(e3) {}
+        }
+                const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
 
         // ── Helper: extrair array de dias de apuracaoRaw (qualquer formato RHID) ──
         // Mesma lógica de extrairDiaria usada em recibos.js
@@ -1787,6 +1795,8 @@ window._fechamento = (function () {
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
         await salvarSilencioso();
+        // Persistir _dadosPonto em sessionStorage para sobreviver ao F5
+        try { sessionStorage.setItem('_fech_dp_' + _mes + '_' + _ano, JSON.stringify(_dadosPonto)); } catch(e2) {}
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
