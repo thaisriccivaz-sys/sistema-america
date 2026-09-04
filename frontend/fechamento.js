@@ -136,40 +136,45 @@ window._fechamento = (function () {
     function abrirConferenciaPonto(idx = null) {
         const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
 
-        // ── Sem dados de sessão (F5): mostrar tabela resumo com totais salvos ──
+        // ── Helpers de formatação de tempo ──
+        function secToHHMM(sec) {
+            const s = parseInt(sec) || 0;
+            if (s === 0) return '—';
+            return String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        }
+        function minToHHMM(min) {
+            const m = parseInt(min) || 0;
+            if (m === 0) return '—';
+            return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+        }
+        function _parsePercStr(s) {
+            return Math.round(parseFloat(String(s || '').trim().replace(',', '.').replace('%', '')) || 0);
+        }
+
+        // ── Sem dados de sessão (F5): tabela resumo com totais salvos ──
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
             let rows = '';
             colabs.forEach(row => {
-                const noturnas = row.horas_noturnas || '—';
-                const ext60    = row.extra_60    || '—';
-                const ext100   = row.extra_100   || '—';
-                const faltas   = row.dias_falta  || 0;
-                const atraso   = row.horas_atraso || '—';
-                const dsr      = row.dsr || '—';
                 rows += `<tr style="border-bottom:1px solid #e2e8f0">
                     <td style="padding:5px 8px;text-align:left">${row.nome_completo}</td>
-                    <td style="padding:5px 8px;text-align:center">${noturnas}</td>
-                    <td style="padding:5px 8px;text-align:center">${ext60}</td>
-                    <td style="padding:5px 8px;text-align:center">${ext100}</td>
-                    <td style="padding:5px 8px;text-align:center">${faltas}</td>
-                    <td style="padding:5px 8px;text-align:center">${atraso}</td>
-                    <td style="padding:5px 8px;text-align:center">${dsr}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.horas_noturnas || '—'}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.extra_60 || '—'}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.extra_100 || '—'}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.dias_falta || 0}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.horas_atraso || '—'}</td>
+                    <td style="padding:5px 8px;text-align:center">${row.dsr || '—'}</td>
                 </tr>`;
             });
             const html = `<div style="font-size:0.8rem;color:#64748b;margin-bottom:10px;text-align:center">
-                ℹ️ Dados de ponto brutos são de sessão apenas. Para ver o detalhamento dia a dia, clique em <b>Buscar Ponto</b> novamente.
-                <br>Exibindo totais já salvos no fechamento:
+                ℹ️ Dados de ponto brutos são de sessão apenas. Para o detalhamento dia a dia, clique em <b>Buscar Ponto</b> novamente.<br>Exibindo totais salvos no fechamento:
             </div>
             <div style="max-height:60vh;overflow-y:auto">
             <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
                 <thead><tr style="background:#f1f5f9;font-weight:600">
                     <th style="padding:6px 8px;text-align:left">Colaborador</th>
-                    <th style="padding:6px 8px">Noturnas</th>
-                    <th style="padding:6px 8px">Ext.60%</th>
-                    <th style="padding:6px 8px">Ext.100%</th>
-                    <th style="padding:6px 8px">Faltas</th>
-                    <th style="padding:6px 8px">Atraso</th>
-                    <th style="padding:6px 8px">DSR</th>
+                    <th style="padding:6px 8px">Noturnas</th><th style="padding:6px 8px">Ext.60%</th>
+                    <th style="padding:6px 8px">Ext.100%</th><th style="padding:6px 8px">Faltas</th>
+                    <th style="padding:6px 8px">Atraso</th><th style="padding:6px 8px">DSR</th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>`;
@@ -177,80 +182,125 @@ window._fechamento = (function () {
             return;
         }
 
-        // ── Com dados de sessão: mostrar detalhamento dia a dia ──
-        let html = `<div style="max-height: 60vh; overflow-y: auto; font-size: 0.85rem; text-align: left;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 15px; font-size: 0.75rem; justify-content:center;">
-             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fef08a;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
-             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fecaca;border:1px solid #fca5a5;border-radius:2px;"></span> Falta</span>
-             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#e9d5ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Extra 60%</span>
-             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#bfdbfe;border:1px solid #93c5fd;border-radius:2px;"></span> Extra 100%</span>
-          </div>
-        `;
-        
+        // ── Com dados de sessão: tabela detalhada dia a dia ──
+        const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        let html = `<div style="max-height:72vh;overflow-y:auto;">`;
         let achou = false;
 
         colabs.forEach(row => {
             const ponto = _dadosPonto[row.colaborador_id] || _dadosPonto[row.id];
-            // Normalizar apuracaoRaw para garantir que é um array
             let apArr = ponto && ponto.apuracaoRaw;
             if (apArr && !Array.isArray(apArr)) apArr = apArr.records || null;
             if (!apArr || apArr.length === 0) return;
             achou = true;
 
-            html += `<div style="margin-bottom: 1.5rem;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.2rem; display:flex; justify-content:space-between;">
-                   <span>${row.nome_completo}</span>
-                   <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">${apArr.length} dias carregados</span>
+            html += `<div style="margin-bottom:1.5rem;">
+                <h4 style="margin:0 0 6px 0;color:#1e293b;font-size:0.88rem;border-bottom:2px solid #334155;padding-bottom:4px;">
+                    ${row.nome_completo}
                 </h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px;">`;
+                <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap;">
+                    <thead>
+                    <tr style="background:#1e293b;color:white;font-weight:600;text-align:center;">
+                        <th style="padding:4px 5px;">DATA</th>
+                        <th style="padding:4px 5px;">DIA PREVISTO</th>
+                        <th style="padding:4px 5px;">ENT. 1</th>
+                        <th style="padding:4px 5px;">SAÍ. 1</th>
+                        <th style="padding:4px 5px;">ENT. 2</th>
+                        <th style="padding:4px 5px;">SAÍ. 2</th>
+                        <th style="padding:4px 5px;">TOT. NORMAIS</th>
+                        <th style="padding:4px 5px;">TOT. NOTURNO</th>
+                        <th style="padding:4px 5px;">DIA FALTA</th>
+                        <th style="padding:4px 5px;">FALTA/ATRASO</th>
+                        <th style="padding:4px 5px;">ABONO</th>
+                        <th style="padding:4px 5px;">EXTRA 60%</th>
+                        <th style="padding:4px 5px;">EXTRA 100%</th>
+                        <th style="padding:4px 5px;">TOT. TRAB.</th>
+                    </tr>
+                    </thead>
+                    <tbody>`;
 
             apArr.forEach(dia => {
-                let diaNum = String(dia.date || dia.dateTimeStr || '').substring(8, 10);
-                if(!diaNum || diaNum.length < 2) diaNum = '?';
+                const dtStr  = String(dia.date || dia.dateTimeStr || '').substring(0, 10);
+                const diaNum = dtStr.substring(8, 10) || '?';
+                const dtObj  = new Date(dtStr + 'T12:00:00');
+                const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
+                const diaLabel = diaNum + ' ' + (DIAS_SEM[diaSem] || '');
 
-                let bg = '#f8fafc';
-                let color = '#475569';
-                let tooltip = `${diaNum}/${String(_mes).padStart(2,'0')}`;
+                // Horário previsto
+                const horarioPrevisto = (dia.strHorarioContratualSimples || '').trim() || '—';
 
-                if (parseInt(dia.horasFaltaAtraso) > 0) {
-                    bg = '#fef08a'; color = '#854d0e';
-                    tooltip += ' - Atraso/Saída Antecipada (' + dia.horasFaltaAtraso + ' min)';
-                }
-                if (parseInt(dia.faltasDiasInteiro) > 0) {
-                    bg = '#fecaca'; color = '#b91c1c';
-                    tooltip += ' - Falta';
-                }
+                // Marcações filtradas (E/S apenas, sem justificativas I)
+                const marcacoes = (dia.listAfdtManutencao || [])
+                    .filter(m => m._typeRegister === 'E' || m._typeRegister === 'S')
+                    .sort((a, b) => (parseInt(a.hora) || 0) - (parseInt(b.hora) || 0));
+                const entradas = marcacoes.filter(m => m._typeRegister === 'E');
+                const saidas   = marcacoes.filter(m => m._typeRegister === 'S');
+                const ent1 = entradas[0] ? secToHHMM(entradas[0].hora) : '—';
+                const sai1 = saidas[0]   ? secToHHMM(saidas[0].hora)   : '—';
+                const ent2 = entradas[1] ? secToHHMM(entradas[1].hora) : '—';
+                const sai2 = saidas[1]   ? secToHHMM(saidas[1].hora)   : '—';
 
-                let has60 = false, has100 = false;
-                if(Array.isArray(dia.percentuaisExtra)) {
-                    dia.percentuaisExtra.forEach((pct, i) => {
-                        let parsed = Math.round(parseFloat(String(pct).trim().replace(',', '.').replace('%', '')) || 0);
-                        let mins = parseInt((dia.horaExtraDeCadaPercentual || [])[i]) || 0;
-                        if(parsed === 60 && mins > 0) has60 = true;
-                        if(parsed === 100 && mins > 0) has100 = true;
-                    });
-                }
-                if (has60)  { bg = '#e9d5ff'; color = '#6b21a8'; tooltip += ' - Extra 60%'; }
-                if (has100) { bg = '#bfdbfe'; color = '#1e3a8a'; tooltip += ' - Extra 100%'; }
+                // Totais
+                const totNormais = minToHHMM(dia.horasDiurnasNaoExtra);
+                const totNoturno = minToHHMM(dia.horasTotalNoturno);
+                const diaFalta   = parseInt(dia.faltaDiaInteiro) || parseInt(dia.faltasDiasInteiro) || 0;
+                const faltaAtr   = minToHHMM(dia.horasFaltaAtraso);
+                const abono      = (dia.abreviationJustification || dia.nomeJustificativa || '').substring(0, 14) || '—';
+                const totTrab    = minToHHMM(dia.totalHorasTrabalhadas);
 
-                html += `<div title="${tooltip}" style="background: ${bg}; color: ${color}; border: 1px solid rgba(0,0,0,0.05); border-radius: 4px; padding: 0.4rem 0; text-align: center; font-weight: 600; font-size: 0.8rem; cursor: help;">
-                    ${diaNum}
-                </div>`;
+                // Extras por percentual
+                const pcts  = Array.isArray(dia.percentuaisExtra) ? dia.percentuaisExtra : [];
+                const hexts = Array.isArray(dia.horaExtraDeCadaPercentual) ? dia.horaExtraDeCadaPercentual : [];
+                let min60 = 0, min100 = 0;
+                pcts.forEach((pct, i) => {
+                    const p = _parsePercStr(pct);
+                    if (p === 60)  min60  += parseInt(hexts[i]) || 0;
+                    if (p === 100) min100 += parseInt(hexts[i]) || 0;
+                });
+                const extra60  = min60  > 0 ? minToHHMM(min60)  : '—';
+                const extra100 = min100 > 0 ? minToHHMM(min100) : '—';
+
+                // Cor da linha
+                let bg = '#ffffff';
+                if (dia.isFerias)                              bg = '#dbeafe'; // azul — férias
+                else if (diaFalta > 0)                         bg = '#fee2e2'; // vermelho — falta integral
+                else if (parseInt(dia.horasFaltaAtraso) > 0)  bg = '#fef9c3'; // amarelo — atraso/falta parcial
+                else if (min60 > 0 || min100 > 0)             bg = '#f3e8ff'; // roxo — hora extra
+                else if (diaSem === 0 || diaSem === 6)         bg = '#f3f4f6'; // cinza — sab/dom
+
+                const faltaColor = diaFalta > 0 ? 'color:#b91c1c;font-weight:700;' : '';
+
+                html += `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;" title="${dia.toolTipAlert || ''}">
+                    <td style="padding:3px 5px;text-align:center;font-weight:600;">${diaLabel}</td>
+                    <td style="padding:3px 5px;text-align:center;">${horarioPrevisto}</td>
+                    <td style="padding:3px 5px;text-align:center;">${ent1}</td>
+                    <td style="padding:3px 5px;text-align:center;">${sai1}</td>
+                    <td style="padding:3px 5px;text-align:center;">${ent2}</td>
+                    <td style="padding:3px 5px;text-align:center;">${sai2}</td>
+                    <td style="padding:3px 5px;text-align:center;">${totNormais}</td>
+                    <td style="padding:3px 5px;text-align:center;">${totNoturno}</td>
+                    <td style="padding:3px 5px;text-align:center;${faltaColor}">${diaFalta > 0 ? '1' : '0'}</td>
+                    <td style="padding:3px 5px;text-align:center;">${faltaAtr}</td>
+                    <td style="padding:3px 5px;text-align:center;font-size:0.68rem;">${abono}</td>
+                    <td style="padding:3px 5px;text-align:center;">${extra60}</td>
+                    <td style="padding:3px 5px;text-align:center;">${extra100}</td>
+                    <td style="padding:3px 5px;text-align:center;font-weight:600;">${totTrab}</td>
+                </tr>`;
             });
 
-            html += `</div></div>`;
+            html += `</tbody></table></div></div>`;
         });
-        
-        if(!achou) {
-            html += `<div style="text-align:center; padding: 2rem; color: #64748b;">Nenhum detalhe de ponto diário carregado para a seleção.</div>`;
-        }
 
+        if (!achou) {
+            html += `<div style="text-align:center;padding:2rem;color:#64748b;">Nenhum detalhe de ponto diário disponível para a seleção.</div>`;
+        }
         html += `</div>`;
 
         Swal.fire({
             title: 'Conferência de Ponto',
-            html: html,
-            width: '800px',
+            html,
+            width: '1150px',
             showCloseButton: true,
             confirmButtonText: 'Fechar',
             confirmButtonColor: '#0f172a'
