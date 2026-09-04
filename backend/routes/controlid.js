@@ -272,11 +272,15 @@ router.get('/ponto-colaborador', async (req, res) => {
     let colaborador = null;
     try {
         colaborador = await new Promise(function(resolve, reject) {
-            db.get('SELECT salario FROM colaboradores WHERE cpf = ?', [cpf], function(err, row) {
-                if (err) reject(err); else resolve(row || null);
-            });
+            db.get(
+                "SELECT salario FROM colaboradores WHERE REPLACE(REPLACE(REPLACE(cpf,'.',''),'-',''),' ','') = ?",
+                [cpfLimpo],
+                function(err, row) { if (err) reject(err); else resolve(row || null); }
+            );
         });
-    } catch(e) { colaborador = null; }
+        console.log('[ControlID] salário para CPF=' + cpfLimpo + ':', colaborador ? colaborador.salario : 'NÃO ENCONTRADO');
+    } catch(e) { colaborador = null; console.warn('[ControlID] Erro ao buscar salário:', e.message); }
+
 
     try {
         const token = await getRHIDToken(db);
