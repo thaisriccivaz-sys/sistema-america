@@ -1408,7 +1408,68 @@ window._fechamento = (function () {
             if (cellAdicNot) { var inpAdicNot = cellAdicNot.querySelector('input'); if (inpAdicNot) inpAdicNot.value = dados.adicionalNoturnoValor; }
             atualizar(idx, 'adicional_noturno', dados.adicionalNoturnoValor);
         }
-        if (faltas !== null && faltas !== undefined) atualizar(idx, 'dias_falta', faltas);
+        if (faltas !== null && faltas !== undefined) {
+            _dados[idx].dias_falta = faltas;
+            var trFalta = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trFalta.length; ti++) {
+                if (parseInt(trFalta[ti].dataset.idx) !== idx) continue;
+                Array.from(trFalta[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'dias_falta'") !== -1) i.value = faltas; });
+                break;
+            }
+            atualizar(idx, 'dias_falta', faltas);
+        }
+
+        // ── Horas Normais (todos, não só intermitentes) ────────────────────────
+        if (dados.minutosNormais > 0) {
+            var hn = minToHH(dados.minutosNormais);
+            _dados[idx].horas_normais = hn;
+            var trHN = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trHN.length; ti++) {
+                if (parseInt(trHN[ti].dataset.idx) !== idx) continue;
+                Array.from(trHN[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'horas_normais'") !== -1) i.value = hn; });
+                break;
+            }
+            atualizar(idx, 'horas_normais', hn);
+        }
+
+        // ── Ext 60% ───────────────────────────────────────────────────────────
+        if (dados.minutosExt60 > 0) {
+            var ext60 = minToHH(dados.minutosExt60);
+            _dados[idx].extra_60 = ext60;
+            var trE60 = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trE60.length; ti++) {
+                if (parseInt(trE60[ti].dataset.idx) !== idx) continue;
+                Array.from(trE60[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'extra_60'") !== -1) i.value = ext60; });
+                break;
+            }
+            atualizar(idx, 'extra_60', ext60);
+        }
+
+        // ── Ext 100% ──────────────────────────────────────────────────────────
+        if (dados.minutosExt100 > 0) {
+            var ext100 = minToHH(dados.minutosExt100);
+            _dados[idx].extra_100 = ext100;
+            var trE100 = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trE100.length; ti++) {
+                if (parseInt(trE100[ti].dataset.idx) !== idx) continue;
+                Array.from(trE100[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'extra_100'") !== -1) i.value = ext100; });
+                break;
+            }
+            atualizar(idx, 'extra_100', ext100);
+        }
+
+        // ── Atrasos ───────────────────────────────────────────────────────────
+        if (dados.minutosAtraso > 0) {
+            var atrStr = minToHH(dados.minutosAtraso);
+            _dados[idx].horas_atraso = atrStr;
+            var trAtr = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trAtr.length; ti++) {
+                if (parseInt(trAtr[ti].dataset.idx) !== idx) continue;
+                Array.from(trAtr[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'horas_atraso'") !== -1) i.value = atrStr; });
+                break;
+            }
+            atualizar(idx, 'horas_atraso', atrStr);
+        }
     }
 
     async function buscarPontoTodos() {

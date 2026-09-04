@@ -560,6 +560,10 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let faltas          = null;
     let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
     let minutosNoturnos  = 0;   // Total de minutos em horário noturno (22h-5h) no mês
+    let minutosNormais   = 0;   // H. Normais (diurnas não-extra, em minutos)
+    let minutosExt60     = 0;   // Horas extras 60% (extraDiurna, em minutos)
+    let minutosExt100    = 0;   // Horas extras 100% (extraNoturna, em minutos)
+    let minutosAtraso    = 0;   // Atrasos + saída antecipada (em minutos)
 
     // O RHID pode retornar a resposta como uma string JSON dupla (stringificada)
     if (typeof data === 'string') {
@@ -581,6 +585,18 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         // Somar minutos noturnos de todos os dias (campo RHID: horasNoturnasNaoExtra + extraNoturna)
         minutosNoturnos = data.reduce(function(acc, d) {
             return acc + (parseInt(d.horasNoturnasNaoExtra) || 0) + (parseInt(d.extraNoturna) || 0);
+        }, 0);
+        minutosNormais = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.horasDiurnasNaoExtra) || 0);
+        }, 0);
+        minutosExt60 = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.extraDiurna) || 0);
+        }, 0);
+        minutosExt100 = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.extraNoturna) || 0);
+        }, 0);
+        minutosAtraso = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.atrasoEntrada) || 0) + (parseInt(d.saidaAntecipada) || 0);
         }, 0);
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
@@ -781,6 +797,10 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         faltas,
         diasComHoraExtra,
         minutosNoturnos,
+        minutosNormais,
+        minutosExt60,
+        minutosExt100,
+        minutosAtraso,
         aviso: (diasTrabalhados === null)
             ? 'Não foi possível interpretar a resposta do RHID. ' + payloadDebug
             : null
