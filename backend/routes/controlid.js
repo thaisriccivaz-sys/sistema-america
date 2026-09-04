@@ -611,6 +611,20 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return acc + (parseInt(d.horasFaltaAtraso) || 0); // FALTA E ATRASO do PDF
         }, 0);
         console.log('[ControlID] processarApuracao parciais → noturnos:', minutosNoturnos, 'ext60:', minutosExt60, 'ext100:', minutosExt100, 'atraso:', minutosAtraso, 'faltas previstas:', data.reduce(function(a,d){return a+(parseInt(d.faltasDiasInteiro)||0);},0));
+        // DEBUG: mostrar estrutura real de percentuaisExtra nos dias com extra
+        const diasComExtra = data.filter(function(d) { return (parseInt(d.extraDiurna)||0) > 0 || (parseInt(d.extraNoturna)||0) > 0; });
+        if (diasComExtra.length > 0) {
+            const exemploDia = diasComExtra[0];
+            console.log('[ControlID] EXEMPLO DIA COM EXTRA:', exemploDia.date || exemploDia.dateTimeStr,
+                '| extraDiurna:', exemploDia.extraDiurna,
+                '| extraNoturna:', exemploDia.extraNoturna,
+                '| percentuaisExtra:', JSON.stringify(exemploDia.percentuaisExtra),
+                '| horaExtraDeCadaPercentual:', JSON.stringify(exemploDia.horaExtraDeCadaPercentual),
+                '| percentuaisExtra_types:', (Array.isArray(exemploDia.percentuaisExtra) ? exemploDia.percentuaisExtra.map(function(x){return typeof x + ':' + x;}) : 'N/A')
+            );
+        } else {
+            console.log('[ControlID] Nenhum dia com extraDiurna ou extraNoturna > 0 neste período.');
+        }
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
         diasVR = diasComPresenca.filter(d => {
