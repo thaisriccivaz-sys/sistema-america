@@ -1485,7 +1485,11 @@ window._autoSalvarRecibo = function(id) {
             valor_vr: valorVR,
             valor_vt_editado: s.valVTEdit !== undefined ? s.valVTEdit : null,
             valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
-            edited_fields: s.edited_fields && Object.keys(s.edited_fields).length > 0 ? JSON.stringify(s.edited_fields) : "{}",
+            dias_uteis_vt: s.diasUteisVT || 0,
+            faltas_vtn: s.faltasVTN || 0,
+            extras_vt: s.extrasVT || 0,
+            valor_vt: s.valorVT || 0,
+                        edited_fields: s.edited_fields && Object.keys(s.edited_fields).length > 0 ? JSON.stringify(s.edited_fields) : "{}",
             apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null
         }];
         
