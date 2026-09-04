@@ -236,6 +236,34 @@ window._fechamento = (function () {
                 // Horário previsto
                 const previsto = (dia.strHorarioContratualSimples || '').trim();
 
+                // ── Status do dia (idêntico ao recibos.js) ──────────────────────────────
+                const _stRaw = (dia.status || dia.situacao || dia.tipo || '').toString().toLowerCase();
+                const _isFolgaSt  = _stRaw.includes('folg') || _stRaw.includes('dsr');
+                const _isFolgaFlag = dia.folga === true;
+                const _isDSRMin   = (dia.dsrConsideradoMinutos || 0) > 0;
+                const _semHorario  = ((dia.idHorarioContratual || 0) === 0 && (dia.strHorarioContratualSimples || '').trim() === '');
+                const _horasTrab3  = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
+                const _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
+                const _tipLow = (dia.toolTipAlert || '').toLowerCase();
+
+                let _statusDia = '';
+                if (dia.isFerias) {
+                    _statusDia = 'Férias';
+                } else if (dia.isHoliday) {
+                    _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
+                } else if (dia.idJustification) {
+                    if (_tipLow.includes('atestado') || _tipLow.includes('medic')) _statusDia = 'Atestado Médico';
+                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
+                    else if (_tipLow) _statusDia = dia.toolTipAlert.substring(0, 18);
+                    else _statusDia = 'Justificado';
+                } else if (_isFolgaSt || _isFolgaFlag || _isDSRMin) {
+                    _statusDia = (_horasTrab3 >= 120) ? '' : 'Folga';
+                } else if (_semHorario && !_trabalhou3) {
+                    _statusDia = 'Folga';
+                } else if (diaFalta > 0) {
+                    _statusDia = 'Falta';
+                }
+
                 // Marcações — hora no formato HHMM (832 = 08:32)
                 let marcacoes = [];
                 if (_statusDia === 'Férias') {
@@ -278,34 +306,6 @@ window._fechamento = (function () {
                 const extra60  = fmtMin(min60);
                 const extra100 = fmtMin(min100);
                 const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
-
-                // ── Status do dia (idêntico ao recibos.js) ──────────────────────────────
-                const _stRaw = (dia.status || dia.situacao || dia.tipo || '').toString().toLowerCase();
-                const _isFolgaSt  = _stRaw.includes('folg') || _stRaw.includes('dsr');
-                const _isFolgaFlag = dia.folga === true;
-                const _isDSRMin   = (dia.dsrConsideradoMinutos || 0) > 0;
-                const _semHorario  = ((dia.idHorarioContratual || 0) === 0 && (dia.strHorarioContratualSimples || '').trim() === '');
-                const _horasTrab3  = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
-                const _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
-                const _tipLow = (dia.toolTipAlert || '').toLowerCase();
-
-                let _statusDia = '';
-                if (dia.isFerias) {
-                    _statusDia = 'Férias';
-                } else if (dia.isHoliday) {
-                    _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
-                } else if (dia.idJustification) {
-                    if (_tipLow.includes('atestado') || _tipLow.includes('medic')) _statusDia = 'Atestado Médico';
-                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
-                    else if (_tipLow) _statusDia = dia.toolTipAlert.substring(0, 18);
-                    else _statusDia = 'Justificado';
-                } else if (_isFolgaSt || _isFolgaFlag || _isDSRMin) {
-                    _statusDia = (_horasTrab3 >= 120) ? '' : 'Folga';
-                } else if (_semHorario && !_trabalhou3) {
-                    _statusDia = 'Folga';
-                } else if (diaFalta > 0) {
-                    _statusDia = 'Falta';
-                }
 
                 // DIA PREVISTO: mostra horário contratual OU status especial
                 const _prevTexto = _statusDia || (dia.strHorarioContratualSimples || '').trim();
