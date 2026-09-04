@@ -219,7 +219,6 @@ window._fechamento = (function () {
         });
     }
 return {
-        abrirConferenciaPonto,
             totalBruto: Math.round(totalBruto * 100) / 100,
             inss: Math.round(inss * 100) / 100,
             irrf: Math.round(irrf * 100) / 100,
@@ -1030,7 +1029,7 @@ return {
         try {
             const itens = _dados.map(function(row) {
                 return {
-                    colaborador_id: row.id || row.colaborador_id,
+                    colaborador_id: row.colaborador_id || row.id,
                     horas_normais: row.horas_normais,
                     horas_trabalhadas: row.horas_trabalhadas,
                     horas_noturnas: row.horas_noturnas || null,
@@ -1075,7 +1074,7 @@ return {
         const itens = _dados.map(row => {
             const calc = calcularColaborador(row);
             return {
-                colaborador_id: row.id || row.colaborador_id,
+                colaborador_id: row.colaborador_id || row.id,
                 horas_normais: row.horas_normais,
                 horas_trabalhadas: row.horas_trabalhadas,
                 horas_noturnas: row.horas_noturnas,
@@ -1622,6 +1621,7 @@ return {
 
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
+        abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
         carregarMultas, carregarPLR,

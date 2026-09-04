@@ -3767,6 +3767,12 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN adicional_noturno REAL DEFAULT 
     // coluna ja existe — OK silencioso
 });
 
+// Migration: limpar DSR 'Não' padrão antigo para NULL (branco = não selecionado)
+db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Não'", function(e) {
+    if (e) console.error('[Migration] dsr cleanup:', e.message);
+    else if (this && this.changes > 0) console.log('[Migration] DSR limpado para NULL em', this.changes, 'registros');
+});
+
 // Auto-migration: Tabela fechamento_comissao
 db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -9455,7 +9461,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 mes, ano, item.colaborador_id,
                 item.horas_normais || null, item.horas_trabalhadas || null, item.horas_noturnas || null,
                 item.dias_falta || 0, JSON.stringify(item.data_faltas || []), item.horas_atraso || null,
-                item.extra_60 || null, item.extra_100 || null, item.dsr || 'Não',
+                item.extra_60 || null, item.extra_100 || null, item.dsr || null,
                 item.vt || 0, item.farmacia || 0, item.mercado || 0, item.outros || 0,
                 item.multas || 0, item.academia || 0, item.consignado || 0,
                 item.comissao || 0, item.bonus_comissao || 0, item.premio || 0,
