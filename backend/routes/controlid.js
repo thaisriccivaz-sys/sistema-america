@@ -594,37 +594,29 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return acc + (parseInt(d.horasDiurnasNaoExtra) || 0);
         }, 0);
         // horaExtraDeCadaPercentual é um ARRAY paralelo a percentuaisExtra
-        // ex: percentuaisExtra=[60,100], horaExtraDeCadaPercentual=[575,363]
+        // ATENÇÃO: percentuaisExtra vem como STRINGS do RHID, ex: "  60,0% " ou "  100,0% "
+        // Função auxiliar para normalizar: "  60,0% " → 60
+        function _parsePercStr(s) {
+            return Math.round(parseFloat(String(s).trim().replace(',', '.').replace('%', '')) || 0);
+        }
         minutosExt60 = data.reduce(function(acc, d) {
             const percentuais = Array.isArray(d.percentuaisExtra) ? d.percentuaisExtra : [];
-            const horas      = Array.isArray(d.horaExtraDeCadaPercentual) ? d.horaExtraDeCadaPercentual : [];
-            const idx60 = percentuais.indexOf(60);
-            return acc + (idx60 >= 0 ? (parseInt(horas[idx60]) || 0) : 0);
+            const horas       = Array.isArray(d.horaExtraDeCadaPercentual) ? d.horaExtraDeCadaPercentual : [];
+            var v60 = 0;
+            percentuais.forEach(function(pct, i) { if (_parsePercStr(pct) === 60) v60 += (parseInt(horas[i]) || 0); });
+            return acc + v60;
         }, 0);
         minutosExt100 = data.reduce(function(acc, d) {
             const percentuais = Array.isArray(d.percentuaisExtra) ? d.percentuaisExtra : [];
             const horas       = Array.isArray(d.horaExtraDeCadaPercentual) ? d.horaExtraDeCadaPercentual : [];
-            const idx100 = percentuais.indexOf(100);
-            return acc + (idx100 >= 0 ? (parseInt(horas[idx100]) || 0) : 0);
+            var v100 = 0;
+            percentuais.forEach(function(pct, i) { if (_parsePercStr(pct) === 100) v100 += (parseInt(horas[i]) || 0); });
+            return acc + v100;
         }, 0);
         minutosAtraso = data.reduce(function(acc, d) {
             return acc + (parseInt(d.horasFaltaAtraso) || 0); // FALTA E ATRASO do PDF
         }, 0);
-        console.log('[ControlID] processarApuracao parciais → noturnos:', minutosNoturnos, 'ext60:', minutosExt60, 'ext100:', minutosExt100, 'atraso:', minutosAtraso, 'faltas previstas:', data.reduce(function(a,d){return a+(parseInt(d.faltasDiasInteiro)||0);},0));
-        // DEBUG: mostrar estrutura real de percentuaisExtra nos dias com extra
-        const diasComExtra = data.filter(function(d) { return (parseInt(d.extraDiurna)||0) > 0 || (parseInt(d.extraNoturna)||0) > 0; });
-        if (diasComExtra.length > 0) {
-            const exemploDia = diasComExtra[0];
-            console.log('[ControlID] EXEMPLO DIA COM EXTRA:', exemploDia.date || exemploDia.dateTimeStr,
-                '| extraDiurna:', exemploDia.extraDiurna,
-                '| extraNoturna:', exemploDia.extraNoturna,
-                '| percentuaisExtra:', JSON.stringify(exemploDia.percentuaisExtra),
-                '| horaExtraDeCadaPercentual:', JSON.stringify(exemploDia.horaExtraDeCadaPercentual),
-                '| percentuaisExtra_types:', (Array.isArray(exemploDia.percentuaisExtra) ? exemploDia.percentuaisExtra.map(function(x){return typeof x + ':' + x;}) : 'N/A')
-            );
-        } else {
-            console.log('[ControlID] Nenhum dia com extraDiurna ou extraNoturna > 0 neste período.');
-        }
+        console.log('[ControlID] processarApuracao → noturnos:', minutosNoturnos, 'ext60:', minutosExt60, 'ext100:', minutosExt100, 'atraso:', minutosAtraso);
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
         diasVR = diasComPresenca.filter(d => {

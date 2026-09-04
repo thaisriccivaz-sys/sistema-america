@@ -1492,6 +1492,8 @@ window._fechamento = (function () {
         Swal.close();
         // Re-renderiza a tabela com os dados atualizados (_dados foi atualizado por aplicarPontoNaTabela)
         renderizarTabela(_dados);
+        // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
+        salvarSilencioso();
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
