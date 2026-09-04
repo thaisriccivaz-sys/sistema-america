@@ -134,13 +134,8 @@ window._fechamento = (function () {
     // CONFERÊNCIA DE PONTO
     // ─────────────────────────────────────────────────────────────────
     function abrirConferenciaPonto(idx = null) {
-        // Restaurar _dadosPonto da sessionStorage se perdido em F5
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
-            try {
-                var _ssKey = '_fech_dp_' + _mes + '_' + _ano;
-                var _ssSaved = sessionStorage.getItem(_ssKey);
-                if (_ssSaved) { var _ssParsed = JSON.parse(_ssSaved); if (_ssParsed) Object.assign(_dadosPonto, _ssParsed); }
-            } catch(e3) {}
+            try { var _ss = sessionStorage.getItem('_fech_dp_'+_mes+'_'+_ano); if (_ss) Object.assign(_dadosPonto, JSON.parse(_ss)); } catch(_e3) {}
         }
                 const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
 
@@ -233,36 +228,44 @@ window._fechamento = (function () {
                 const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
                 const diaLabel = diaNum + '/' + mesNum + ' ' + (_DIAS_SEM[diaSem] || '');
 
-                // Horário previsto
-                const previsto = (dia.strHorarioContratualSimples || '').trim();
-
-                // ── Status do dia (idêntico ao recibos.js) ──────────────────────────────
-                const _stRaw = (dia.status || dia.situacao || dia.tipo || '').toString().toLowerCase();
-                const _isFolgaSt  = _stRaw.includes('folg') || _stRaw.includes('dsr');
-                const _isFolgaFlag = dia.folga === true;
-                const _isDSRMin   = (dia.dsrConsideradoMinutos || 0) > 0;
-                const _semHorario  = ((dia.idHorarioContratual || 0) === 0 && (dia.strHorarioContratualSimples || '').trim() === '');
-                const _horasTrab3  = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
-                const _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
-                const _tipLow = (dia.toolTipAlert || '').toLowerCase();
-
-                let _statusDia = '';
-                if (dia.isFerias) {
-                    _statusDia = 'Férias';
-                } else if (dia.isHoliday) {
-                    _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
-                } else if (dia.idJustification) {
-                    if (_tipLow.includes('atestado') || _tipLow.includes('medic')) _statusDia = 'Atestado Médico';
-                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
-                    else if (_tipLow) _statusDia = dia.toolTipAlert.substring(0, 18);
-                    else _statusDia = 'Justificado';
-                } else if (_isFolgaSt || _isFolgaFlag || _isDSRMin) {
-                    _statusDia = (_horasTrab3 >= 120) ? '' : 'Folga';
-                } else if (_semHorario && !_trabalhou3) {
-                    _statusDia = 'Folga';
-                } else if (diaFalta > 0) {
-                    _statusDia = 'Falta';
+                // ── Status do dia (var: sem TDZ) ─────────────────────────────
+                var _stRaw     = (dia.status || dia.situacao || dia.tipo || '').toString().toLowerCase();
+                var _isFolgaSt  = _stRaw.includes('folg') || _stRaw.includes('dsr');
+                var _isFolgaFlag = dia.folga === true;
+                var _isDSRMin   = (dia.dsrConsideradoMinutos || 0) > 0;
+                var _semHorario  = ((dia.idHorarioContratual || 0) === 0 && (dia.strHorarioContratualSimples || '').trim() === '');
+                var _horasTrab3  = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
+                var _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
+                var _tipLow     = (dia.toolTipAlert || '').toLowerCase();
+                var _isFerias3  = dia.isFerias === true || _tipLow.includes('férias') || _tipLow.includes('ferias') || _tipLow.includes('vacation');
+                if (!_isFerias3) {
+                    var _mF3 = dia.listAfdtManutencao || [];
+                    var _semTrab3 = (dia.diasTrabalhados || 0) === 0 && (dia.totalHorasTrabalhadas || 0) === 0;
+                    var _dtObj3 = new Date(String(dia.date || dia.dateTimeStr || '').substring(0,10) + 'T12:00:00');
+                    var _diaSem3 = !isNaN(_dtObj3.getTime()) ? _dtObj3.getDay() : -1;
+                    if (_semTrab3 && _mF3.length > 0) {
+                        if (_mF3.every(function(m){ return m._typeRegister === 'I'; }) && dia.idJustification) _isFerias3 = true;
+                        if (!_isFerias3 && (_diaSem3===0||_diaSem3===6) && _mF3.every(function(m){ return (m.hora||0)===0; })) _isFerias3 = true;
+                    }
                 }
+                var _statusDia = '';
+                if (_isFerias3)                                                       _statusDia = 'Férias';
+                else if (dia.isHoliday)                                               _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
+                else if (dia.idJustification) {
+                    if (_tipLow.includes('atestado') || _tipLow.includes('medic'))    _statusDia = 'Atestado Médico';
+                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
+                    else _statusDia = (dia.toolTipAlert || 'Justificado').substring(0, 20);
+                }
+                else if ((_isFolgaSt || _isFolgaFlag || _isDSRMin) && _horasTrab3 < 120) _statusDia = 'Folga';
+                else if (_semHorario && !_trabalhou3)                                 _statusDia = 'Folga';
+                else if ((parseInt(dia.faltaDiaInteiro)||parseInt(dia.faltasDiasInteiro)||0) > 0) _statusDia = 'Falta';
+
+                // Horário previsto ou status especial
+                var _prevTexto = _statusDia || (dia.strHorarioContratualSimples || '').trim();
+                var _prevColor = _statusDia === 'Falta'  ? 'color:#dc2626;font-weight:700;' :
+                                 _statusDia === 'Folga'  ? 'color:#c2410c;font-weight:600;' :
+                                 _statusDia === 'Férias' ? 'color:#166534;font-weight:600;' :
+                                 (_statusDia ? 'color:#6b21a8;font-style:italic;' : '');
 
                 // Marcações — hora no formato HHMM (832 = 08:32)
                 let marcacoes = [];
@@ -307,20 +310,13 @@ window._fechamento = (function () {
                 const extra100 = fmtMin(min100);
                 const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
 
-                // DIA PREVISTO: mostra horário contratual OU status especial
-                const _prevTexto = _statusDia || (dia.strHorarioContratualSimples || '').trim();
-                const _prevColor = (_statusDia === 'Falta') ? 'color:#dc2626;font-weight:700;' :
-                                   (_statusDia === 'Folga') ? 'color:#c2410c;font-weight:600;' :
-                                   (_statusDia === 'Férias') ? 'color:#166534;font-weight:600;' :
-                                   (_statusDia && _statusDia !== '') ? 'color:#6b21a8;font-style:italic;' : '';
-
                 // Cor da linha
-                let bg = '#ffffff';
+                var bg = '#ffffff';
                 if (_statusDia === 'Férias')          bg = '#dcfce7'; // verde — férias
                 else if (_statusDia === 'Folga')      bg = '#fff7ed'; // laranja — folga
-                else if (diaFalta > 0)                bg = '#fee2e2'; // vermelho — falta integral
-                else if (faltaAtrMin > 0)             bg = '#fef9c3'; // amarelo — atraso/falta parcial
-                else if (min60 > 0 || min100 > 0)    bg = '#f3e8ff'; // roxo — hora extra
+                else if (diaFalta > 0)                bg = '#fee2e2'; // vermelho — falta
+                else if (faltaAtrMin > 0)             bg = '#fef9c3'; // amarelo — atraso
+                else if (min60 > 0 || min100 > 0)    bg = '#f3e8ff'; // roxo — extra
 
                 const tdSt = 'padding:4px 3px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:10.5px;';
                 const fC = diaFalta > 0 ? 'color:#dc2626;font-weight:700;' : '';
@@ -403,24 +399,26 @@ window._fechamento = (function () {
         const win = window.open('', '_blank', 'width=' + screen.availWidth + ',height=' + screen.availHeight + ',top=0,left=0');
         if (win) { win.document.write(fullHtml); win.document.close(); }
         else {
-            // Popup bloqueado → injetar overlay na mesma página
-            const _ov = document.getElementById('_conf-ponto-overlay');
-            if (_ov) _ov.remove();
-            const _div = document.createElement('div');
-            _div.id = '_conf-ponto-overlay';
-            _div.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow-y:auto;font-family:Arial,sans-serif;';
-            _div.innerHTML = `<div style="background:#1e293b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:9999;gap:8px;flex-wrap:wrap;">
-                <span style="font-weight:700;font-size:13px;">Conferência de Ponto — ${mesNome}/${_ano}</span>
-                <div style="display:flex;gap:8px;">
-                    <button onclick="window.print()" style="background:#fff;color:#1e293b;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;">🖨 Imprimir PDF</button>
-                    <button onclick="document.getElementById('_conf-ponto-overlay').remove()" style="background:#ef4444;color:#fff;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;">✕ Fechar</button>
-                </div>
-            </div>
-            ${legenda}
-            ${achou ? corpo : '<div style="padding:40px;text-align:center;color:#64748b;">Nenhum detalhe de ponto diário disponível.</div>'}`;
-            document.body.appendChild(_div);
+            var _ov2 = document.getElementById('_conf-ponto-overlay'); if (_ov2) _ov2.remove();
+            var _div2 = document.createElement('div');
+            _div2.id = '_conf-ponto-overlay';
+            _div2.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow-y:auto;font-family:Arial,sans-serif;';
+            var _bar = document.createElement('div');
+            _bar.style.cssText = 'background:#1e293b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:9999;gap:8px;flex-wrap:wrap;';
+            _bar.innerHTML = '<span style="font-weight:700;font-size:13px;">Conf. de Ponto — ' + mesNome + '/' + _ano + '</span>';
+            var _btnPrint = document.createElement('button');
+            _btnPrint.textContent = '🖨 Imprimir PDF'; _btnPrint.onclick = function(){ window.print(); };
+            _btnPrint.style.cssText = 'background:#fff;color:#1e293b;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;';
+            var _btnClose = document.createElement('button');
+            _btnClose.textContent = '✕ Fechar'; _btnClose.onclick = function(){ document.getElementById('_conf-ponto-overlay').remove(); };
+            _btnClose.style.cssText = 'background:#ef4444;color:#fff;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;';
+            var _btnBar = document.createElement('div'); _btnBar.style.cssText = 'display:flex;gap:8px;';
+            _btnBar.appendChild(_btnPrint); _btnBar.appendChild(_btnClose);
+            _bar.appendChild(_btnBar); _div2.appendChild(_bar);
+            var _legDiv = document.createElement('div'); _legDiv.innerHTML = legenda; _div2.appendChild(_legDiv);
+            var _bodyDiv = document.createElement('div'); _bodyDiv.innerHTML = achou ? corpo : '<div style="padding:40px;text-align:center;color:#64748b;">Nenhum detalhe disponível.</div>'; _div2.appendChild(_bodyDiv);
+            document.body.appendChild(_div2);
         }
-
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1795,8 +1793,7 @@ window._fechamento = (function () {
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
         await salvarSilencioso();
-        // Persistir _dadosPonto em sessionStorage para sobreviver ao F5
-        try { sessionStorage.setItem('_fech_dp_' + _mes + '_' + _ano, JSON.stringify(_dadosPonto)); } catch(e2) {}
+        try { sessionStorage.setItem('_fech_dp_'+_mes+'_'+_ano, JSON.stringify(_dadosPonto)); } catch(_e2) {}
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
