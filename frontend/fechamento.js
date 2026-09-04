@@ -394,7 +394,25 @@ window._fechamento = (function () {
 
         const win = window.open('', '_blank', 'width=' + screen.availWidth + ',height=' + screen.availHeight + ',top=0,left=0');
         if (win) { win.document.write(fullHtml); win.document.close(); }
-        else if (typeof Swal !== 'undefined') Swal.fire('Pop-up bloqueado', 'Habilite pop-ups no navegador para visualizar a conferência de ponto.', 'warning');
+        else {
+            // Popup bloqueado → injetar overlay na mesma página
+            const _ov = document.getElementById('_conf-ponto-overlay');
+            if (_ov) _ov.remove();
+            const _div = document.createElement('div');
+            _div.id = '_conf-ponto-overlay';
+            _div.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow-y:auto;font-family:Arial,sans-serif;';
+            _div.innerHTML = `<div style="background:#1e293b;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:9999;gap:8px;flex-wrap:wrap;">
+                <span style="font-weight:700;font-size:13px;">Conferência de Ponto — ${mesNome}/${_ano}</span>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="window.print()" style="background:#fff;color:#1e293b;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;">🖨 Imprimir PDF</button>
+                    <button onclick="document.getElementById('_conf-ponto-overlay').remove()" style="background:#ef4444;color:#fff;border:none;padding:6px 14px;border-radius:5px;font-weight:700;cursor:pointer;font-size:12px;">✕ Fechar</button>
+                </div>
+            </div>
+            ${legenda}
+            ${achou ? corpo : '<div style="padding:40px;text-align:center;color:#64748b;">Nenhum detalhe de ponto diário disponível.</div>'}`;
+            document.body.appendChild(_div);
+        }
+
     }
 
     // ─────────────────────────────────────────────────────────────────
