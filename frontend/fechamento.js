@@ -116,7 +116,110 @@ window._fechamento = (function () {
                              + vt + farmacia + mercado + outros + multas
                              + academia + consignado + adiantamento + pensao + sindical;
         const liquido = Math.max(0, totalBruto - totalDescontos);
-        return {
+        
+    // ─────────────────────────────────────────────────────────────────
+    // CONFERÊNCIA DE PONTO
+    // ─────────────────────────────────────────────────────────────────
+    function abrirConferenciaPonto(idx = null) {
+        if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
+            Swal.fire('Atenção', 'Nenhum ponto carregado nesta sessão. Busque o ponto (RHID) primeiro antes de conferir.', 'warning');
+            return;
+        }
+
+        let html = `<div style="max-height: 60vh; overflow-y: auto; font-size: 0.85rem; text-align: left;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 15px; font-size: 0.75rem; justify-content:center;">
+             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fef08a;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
+             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fecaca;border:1px solid #fca5a5;border-radius:2px;"></span> Falta</span>
+             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#e9d5ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Extra 60%</span>
+             <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#bfdbfe;border:1px solid #93c5fd;border-radius:2px;"></span> Extra 100%</span>
+          </div>
+        `;
+        
+        const colabs = idx !== null ? [_dados[idx]] : _dados;
+        let achou = false;
+
+        colabs.forEach(row => {
+            const ponto = _dadosPonto[row.id] || _dadosPonto[row.colaborador_id];
+            if (!ponto || !ponto.apuracaoRaw || ponto.apuracaoRaw.length === 0) return;
+            achou = true;
+
+            html += `<div style="margin-bottom: 1.5rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.2rem; display:flex; justify-content:space-between;">
+                   <span>${row.nome_completo}</span>
+                   <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">${ponto.apuracaoRaw.length} dias carregados</span>
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px;">`;
+
+            ponto.apuracaoRaw.forEach(dia => {
+                let diaNum = String(dia.date || dia.dateTimeStr || '').substring(8, 10);
+                if(!diaNum || diaNum.length < 2) diaNum = '?';
+
+                let bg = '#f8fafc';
+                let color = '#475569';
+                let tooltip = `${diaNum}/${String(_mes).padStart(2,'0')}`;
+
+                // Horas em atraso
+                if (parseInt(dia.horasFaltaAtraso) > 0) {
+                    bg = '#fef08a'; // amarelo
+                    color = '#854d0e';
+                    tooltip += ' - Atraso/Saída Antecipada (' + dia.horasFaltaAtraso + ' min)';
+                }
+                
+                // Falta
+                if (parseInt(dia.faltasDiasInteiro) > 0) {
+                    bg = '#fecaca'; // vermelho
+                    color = '#b91c1c';
+                    tooltip += ' - Falta';
+                }
+
+                // Ext 60%
+                let has60 = false;
+                let has100 = false;
+                if(Array.isArray(dia.percentuaisExtra)) {
+                    dia.percentuaisExtra.forEach((pct, i) => {
+                        let parsed = Math.round(parseFloat(String(pct).trim().replace(',', '.').replace('%', '')) || 0);
+                        let mins = parseInt(dia.horaExtraDeCadaPercentual[i]) || 0;
+                        if(parsed === 60 && mins > 0) has60 = true;
+                        if(parsed === 100 && mins > 0) has100 = true;
+                    });
+                }
+                
+                if (has60) {
+                    bg = '#e9d5ff'; // roxo
+                    color = '#6b21a8';
+                    tooltip += ' - Extra 60%';
+                }
+                if (has100) {
+                    bg = '#bfdbfe'; // azul
+                    color = '#1e3a8a';
+                    tooltip += ' - Extra 100%';
+                }
+
+                html += `<div title="${tooltip}" style="background: ${bg}; color: ${color}; border: 1px solid rgba(0,0,0,0.05); border-radius: 4px; padding: 0.4rem 0; text-align: center; font-weight: 600; font-size: 0.8rem; cursor: help;">
+                    ${diaNum}
+                </div>`;
+            });
+
+            html += `</div></div>`;
+        });
+        
+        if(!achou) {
+            html += `<div style="text-align:center; padding: 2rem; color: #64748b;">Nenhum detalhe de ponto diário carregado para a seleção.</div>`;
+        }
+
+        html += `</div>`;
+
+        Swal.fire({
+            title: 'Conferência de Ponto',
+            html: html,
+            width: '800px',
+            showCloseButton: true,
+            confirmButtonText: 'Fechar',
+            confirmButtonColor: '#0f172a'
+        });
+    }
+return {
+        abrirConferenciaPonto,
             totalBruto: Math.round(totalBruto * 100) / 100,
             inss: Math.round(inss * 100) / 100,
             irrf: Math.round(irrf * 100) / 100,
@@ -219,6 +322,9 @@ window._fechamento = (function () {
     <!-- Buscar Ponto RHID -->
     <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
       <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
+    </button>
+    <button onclick="window._fechamento.abrirConferenciaPonto()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:.4rem;padding:.4rem .85rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+      <i class="ph ph-list-numbers"></i> Conferência de Ponto
     </button>
     <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
 
@@ -519,7 +625,8 @@ window._fechamento = (function () {
     }
     function inpDsr(idx, val) {
         return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
-            <option value="Não" ${val!=='Sim'?'selected':''}>N</option>
+            <option value="" ${(!val || (val!=='Sim' && val!=='Não'))?'selected':''}></option>
+            <option value="Não" ${val==='Não'?'selected':''}>N</option>
             <option value="Sim" ${val==='Sim'?'selected':''}>S</option>
         </select>`;
     }
@@ -1398,6 +1505,10 @@ window._fechamento = (function () {
         }
         if (faltas !== null && faltas !== undefined) {
             _dados[idx].dias_falta = faltas;
+            if (faltas > 0) {
+                _dados[idx].dsr = 'Sim';
+                atualizar(idx, 'dsr', 'Sim');
+            }
             var trFalta = document.querySelectorAll('#fech-tbody tr');
             for (var ti = 0; ti < trFalta.length; ti++) {
                 if (parseInt(trFalta[ti].dataset.idx) !== idx) continue;
@@ -1493,7 +1604,7 @@ window._fechamento = (function () {
         // Re-renderiza a tabela com os dados atualizados (_dados foi atualizado por aplicarPontoNaTabela)
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
-        salvarSilencioso();
+        await salvarSilencioso();
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
