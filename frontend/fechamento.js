@@ -187,12 +187,25 @@ window._fechamento = (function () {
         let html = `<div style="max-height:72vh;overflow-y:auto;">`;
         let achou = false;
 
+        // 🔍 DEBUG — remover após diagnóstico
+        const _keys = Object.keys(_dadosPonto);
+        console.log('[CONF] _dadosPonto keys:', _keys.length, 'primeiras:', _keys.slice(0,5));
+        if (_dados[0]) console.log('[CONF] _dados[0] id:', _dados[0].id, 'colaborador_id:', _dados[0].colaborador_id);
+        if (_keys.length > 0) {
+            const _sample = _dadosPonto[_keys[0]];
+            const _raw = _sample && _sample.apuracaoRaw;
+            console.log('[CONF] apuracaoRaw tipo:', typeof _raw, 'isArray:', Array.isArray(_raw), 'length:', Array.isArray(_raw) ? _raw.length : (_raw ? Object.keys(_raw).length : 0));
+            if (_raw && !Array.isArray(_raw)) console.log('[CONF] apuracaoRaw keys:', Object.keys(_raw).slice(0,5));
+        }
+        // fim DEBUG
+
         colabs.forEach(row => {
             const ponto = _dadosPonto[row.colaborador_id] || _dadosPonto[row.id];
             let apArr = ponto && ponto.apuracaoRaw;
             if (apArr && !Array.isArray(apArr)) apArr = apArr.records || null;
             if (!apArr || apArr.length === 0) return;
             achou = true;
+
 
             html += `<div style="margin-bottom:1.5rem;">
                 <h4 style="margin:0 0 6px 0;color:#1e293b;font-size:0.88rem;border-bottom:2px solid #334155;padding-bottom:4px;">
