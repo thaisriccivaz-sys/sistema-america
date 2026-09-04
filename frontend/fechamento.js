@@ -134,11 +134,50 @@ window._fechamento = (function () {
     // CONFERÊNCIA DE PONTO
     // ─────────────────────────────────────────────────────────────────
     function abrirConferenciaPonto(idx = null) {
+        const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
+
+        // ── Sem dados de sessão (F5): mostrar tabela resumo com totais salvos ──
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
-            Swal.fire('Atenção', 'Nenhum ponto carregado nesta sessão. Busque o ponto (RHID) primeiro antes de conferir.', 'warning');
+            let rows = '';
+            colabs.forEach(row => {
+                const noturnas = row.horas_noturnas || '—';
+                const ext60    = row.extra_60    || '—';
+                const ext100   = row.extra_100   || '—';
+                const faltas   = row.dias_falta  || 0;
+                const atraso   = row.horas_atraso || '—';
+                const dsr      = row.dsr || '—';
+                rows += `<tr style="border-bottom:1px solid #e2e8f0">
+                    <td style="padding:5px 8px;text-align:left">${row.nome_completo}</td>
+                    <td style="padding:5px 8px;text-align:center">${noturnas}</td>
+                    <td style="padding:5px 8px;text-align:center">${ext60}</td>
+                    <td style="padding:5px 8px;text-align:center">${ext100}</td>
+                    <td style="padding:5px 8px;text-align:center">${faltas}</td>
+                    <td style="padding:5px 8px;text-align:center">${atraso}</td>
+                    <td style="padding:5px 8px;text-align:center">${dsr}</td>
+                </tr>`;
+            });
+            const html = `<div style="font-size:0.8rem;color:#64748b;margin-bottom:10px;text-align:center">
+                ℹ️ Dados de ponto brutos são de sessão apenas. Para ver o detalhamento dia a dia, clique em <b>Buscar Ponto</b> novamente.
+                <br>Exibindo totais já salvos no fechamento:
+            </div>
+            <div style="max-height:60vh;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+                <thead><tr style="background:#f1f5f9;font-weight:600">
+                    <th style="padding:6px 8px;text-align:left">Colaborador</th>
+                    <th style="padding:6px 8px">Noturnas</th>
+                    <th style="padding:6px 8px">Ext.60%</th>
+                    <th style="padding:6px 8px">Ext.100%</th>
+                    <th style="padding:6px 8px">Faltas</th>
+                    <th style="padding:6px 8px">Atraso</th>
+                    <th style="padding:6px 8px">DSR</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table></div>`;
+            Swal.fire({ title: 'Conferência de Ponto (Totais)', html, width: '900px', showCloseButton: true, confirmButtonText: 'Fechar', confirmButtonColor: '#0f172a' });
             return;
         }
 
+        // ── Com dados de sessão: mostrar detalhamento dia a dia ──
         let html = `<div style="max-height: 60vh; overflow-y: auto; font-size: 0.85rem; text-align: left;">
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 15px; font-size: 0.75rem; justify-content:center;">
              <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fef08a;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
@@ -148,22 +187,24 @@ window._fechamento = (function () {
           </div>
         `;
         
-        const colabs = idx !== null ? [_dados[idx]] : _dados;
         let achou = false;
 
         colabs.forEach(row => {
-            const ponto = _dadosPonto[row.id] || _dadosPonto[row.colaborador_id];
-            if (!ponto || !ponto.apuracaoRaw || ponto.apuracaoRaw.length === 0) return;
+            const ponto = _dadosPonto[row.colaborador_id] || _dadosPonto[row.id];
+            // Normalizar apuracaoRaw para garantir que é um array
+            let apArr = ponto && ponto.apuracaoRaw;
+            if (apArr && !Array.isArray(apArr)) apArr = apArr.records || null;
+            if (!apArr || apArr.length === 0) return;
             achou = true;
 
             html += `<div style="margin-bottom: 1.5rem;">
                 <h4 style="margin: 0 0 0.5rem 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.2rem; display:flex; justify-content:space-between;">
                    <span>${row.nome_completo}</span>
-                   <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">${ponto.apuracaoRaw.length} dias carregados</span>
+                   <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">${apArr.length} dias carregados</span>
                 </h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px;">`;
 
-            ponto.apuracaoRaw.forEach(dia => {
+            apArr.forEach(dia => {
                 let diaNum = String(dia.date || dia.dateTimeStr || '').substring(8, 10);
                 if(!diaNum || diaNum.length < 2) diaNum = '?';
 
@@ -171,42 +212,26 @@ window._fechamento = (function () {
                 let color = '#475569';
                 let tooltip = `${diaNum}/${String(_mes).padStart(2,'0')}`;
 
-                // Horas em atraso
                 if (parseInt(dia.horasFaltaAtraso) > 0) {
-                    bg = '#fef08a'; // amarelo
-                    color = '#854d0e';
+                    bg = '#fef08a'; color = '#854d0e';
                     tooltip += ' - Atraso/Saída Antecipada (' + dia.horasFaltaAtraso + ' min)';
                 }
-                
-                // Falta
                 if (parseInt(dia.faltasDiasInteiro) > 0) {
-                    bg = '#fecaca'; // vermelho
-                    color = '#b91c1c';
+                    bg = '#fecaca'; color = '#b91c1c';
                     tooltip += ' - Falta';
                 }
 
-                // Ext 60%
-                let has60 = false;
-                let has100 = false;
+                let has60 = false, has100 = false;
                 if(Array.isArray(dia.percentuaisExtra)) {
                     dia.percentuaisExtra.forEach((pct, i) => {
                         let parsed = Math.round(parseFloat(String(pct).trim().replace(',', '.').replace('%', '')) || 0);
-                        let mins = parseInt(dia.horaExtraDeCadaPercentual[i]) || 0;
+                        let mins = parseInt((dia.horaExtraDeCadaPercentual || [])[i]) || 0;
                         if(parsed === 60 && mins > 0) has60 = true;
                         if(parsed === 100 && mins > 0) has100 = true;
                     });
                 }
-                
-                if (has60) {
-                    bg = '#e9d5ff'; // roxo
-                    color = '#6b21a8';
-                    tooltip += ' - Extra 60%';
-                }
-                if (has100) {
-                    bg = '#bfdbfe'; // azul
-                    color = '#1e3a8a';
-                    tooltip += ' - Extra 100%';
-                }
+                if (has60)  { bg = '#e9d5ff'; color = '#6b21a8'; tooltip += ' - Extra 60%'; }
+                if (has100) { bg = '#bfdbfe'; color = '#1e3a8a'; tooltip += ' - Extra 100%'; }
 
                 html += `<div title="${tooltip}" style="background: ${bg}; color: ${color}; border: 1px solid rgba(0,0,0,0.05); border-radius: 4px; padding: 0.4rem 0; text-align: center; font-weight: 600; font-size: 0.8rem; cursor: help;">
                     ${diaNum}
