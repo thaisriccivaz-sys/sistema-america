@@ -136,25 +136,46 @@ window._fechamento = (function () {
     function abrirConferenciaPonto(idx = null) {
         const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
 
-        // ── Helpers de formatação de tempo ──
-        function secToHHMM(sec) {
-            const s = parseInt(sec) || 0;
-            if (s === 0) return '—';
-            return String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        // ── Helper: extrair array de dias de apuracaoRaw (qualquer formato RHID) ──
+        // Mesma lógica de extrairDiaria usada em recibos.js
+        const _RHID_FIELDS = ['records','listaDias','lista','itens','dias','data','items','apuracao','result','results'];
+        function extrairArr(raw2) {
+            if (!raw2) return null;
+            let p = typeof raw2 === 'string'
+                ? (function(){ try { return JSON.parse(raw2); } catch(e){ return null; } })()
+                : raw2;
+            if (!p) return null;
+            if (Array.isArray(p)) return p.length > 0 ? p : null;
+            if (typeof p === 'object') {
+                for (const f of _RHID_FIELDS) { if (Array.isArray(p[f]) && p[f].length > 0) return p[f]; }
+                const anyKey = Object.keys(p).find(function(k){ return Array.isArray(p[k]) && p[k].length > 0; });
+                if (anyKey) return p[anyKey];
+                if (p.date || p.dateTimeStr) return [p];
+            }
+            return null;
         }
-        function minToHHMM(min) {
+
+        // ── Helper: hora em HHMM → "HH:MM" (832 = "08:32") ──
+        function fmtHHMM(hhmm) {
+            const n = parseInt(hhmm) || 0;
+            if (n === 0) return '';
+            return String(Math.floor(n / 100)).padStart(2, '0') + ':' + String(n % 100).padStart(2, '0');
+        }
+
+        // ── Helper: minutos → "HH:MM" ──
+        function fmtMin(min) {
             const m = parseInt(min) || 0;
-            if (m === 0) return '—';
+            if (m === 0) return '';
             return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
         }
-        function _parsePercStr(s) {
-            return Math.round(parseFloat(String(s || '').trim().replace(',', '.').replace('%', '')) || 0);
-        }
+
+        const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto',
+                         'Setembro','Outubro','Novembro','Dezembro'][parseInt(_mes) - 1] || _mes;
 
         // ── Sem dados de sessão (F5): tabela resumo com totais salvos ──
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
             let rows = '';
-            colabs.forEach(row => {
+            colabs.forEach(function(row) {
                 rows += `<tr style="border-bottom:1px solid #e2e8f0">
                     <td style="padding:5px 8px;text-align:left">${row.nome_completo}</td>
                     <td style="padding:5px 8px;text-align:center">${row.horas_noturnas || '—'}</td>
@@ -165,7 +186,7 @@ window._fechamento = (function () {
                     <td style="padding:5px 8px;text-align:center">${row.dsr || '—'}</td>
                 </tr>`;
             });
-            const html = `<div style="font-size:0.8rem;color:#64748b;margin-bottom:10px;text-align:center">
+            const html2 = `<div style="font-size:0.8rem;color:#64748b;margin-bottom:10px;text-align:center">
                 ℹ️ Dados de ponto brutos são de sessão apenas. Para o detalhamento dia a dia, clique em <b>Buscar Ponto</b> novamente.<br>Exibindo totais salvos no fechamento:
             </div>
             <div style="max-height:60vh;overflow-y:auto">
@@ -178,144 +199,167 @@ window._fechamento = (function () {
                 </tr></thead>
                 <tbody>${rows}</tbody>
             </table></div>`;
-            Swal.fire({ title: 'Conferência de Ponto (Totais)', html, width: '900px', showCloseButton: true, confirmButtonText: 'Fechar', confirmButtonColor: '#0f172a' });
+            Swal.fire({ title: 'Conferência de Ponto (Totais)', html: html2, width: '900px', showCloseButton: true, confirmButtonText: 'Fechar', confirmButtonColor: '#0f172a' });
             return;
         }
 
-        // ── Com dados de sessão: tabela detalhada dia a dia ──
-        const DIAS_SEM = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        let html = `<div style="max-height:72vh;overflow-y:auto;">`;
+        // ── Com dados de sessão: popup com tabela detalhada ──
+        const _DIAS_SEM = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+        let corpo = '';
         let achou = false;
 
-        colabs.forEach(row => {
+        colabs.forEach(function(row) {
             const ponto = _dadosPonto[row.colaborador_id] || _dadosPonto[row.id];
-            // Normalizar apuracaoRaw para garantir array — RHID pode retornar array puro,
-            // objeto paginado {records:[...]}, ou objeto com chaves numéricas {0:{...},1:{...}}
-            let apArr = ponto && ponto.apuracaoRaw;
-            if (apArr && !Array.isArray(apArr)) {
-                if (Array.isArray(apArr.records)) apArr = apArr.records;
-                else if (Array.isArray(apArr.data))    apArr = apArr.data;
-                else if (Array.isArray(apArr.items))   apArr = apArr.items;
-                else {
-                    // Objeto com chaves numéricas: {0:{date:...}, 1:{date:...}}
-                    const vals = Object.values(apArr).filter(v => v && typeof v === 'object' && (v.date || v.dateTimeStr));
-                    apArr = vals.length > 0 ? vals : null;
-                }
-            }
+            const apArr = extrairArr(ponto && ponto.apuracaoRaw);
             if (!apArr || apArr.length === 0) return;
             achou = true;
 
-            html += `<div style="margin-bottom:1.5rem;">
-                <h4 style="margin:0 0 6px 0;color:#1e293b;font-size:0.88rem;border-bottom:2px solid #334155;padding-bottom:4px;">
-                    ${row.nome_completo}
-                </h4>
-                <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:0.72rem;white-space:nowrap;">
-                    <thead>
-                    <tr style="background:#1e293b;color:white;font-weight:600;text-align:center;">
-                        <th style="padding:4px 5px;">DATA</th>
-                        <th style="padding:4px 5px;">DIA PREVISTO</th>
-                        <th style="padding:4px 5px;">ENT. 1</th>
-                        <th style="padding:4px 5px;">SAÍ. 1</th>
-                        <th style="padding:4px 5px;">ENT. 2</th>
-                        <th style="padding:4px 5px;">SAÍ. 2</th>
-                        <th style="padding:4px 5px;">TOT. NORMAIS</th>
-                        <th style="padding:4px 5px;">TOT. NOTURNO</th>
-                        <th style="padding:4px 5px;">DIA FALTA</th>
-                        <th style="padding:4px 5px;">FALTA/ATRASO</th>
-                        <th style="padding:4px 5px;">ABONO</th>
-                        <th style="padding:4px 5px;">EXTRA 60%</th>
-                        <th style="padding:4px 5px;">EXTRA 100%</th>
-                        <th style="padding:4px 5px;">TOT. TRAB.</th>
-                    </tr>
-                    </thead>
-                    <tbody>`;
+            const thSt = 'padding:5px 4px;border:1px solid #1a335a;text-align:center;font-size:10px;white-space:nowrap;';
+            let rowsHtml = '';
 
-            apArr.forEach(dia => {
+            apArr.forEach(function(dia) {
                 const dtStr  = String(dia.date || dia.dateTimeStr || '').substring(0, 10);
                 const diaNum = dtStr.substring(8, 10) || '?';
+                const mesNum = dtStr.substring(5, 7) || '';
                 const dtObj  = new Date(dtStr + 'T12:00:00');
                 const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
-                const diaLabel = diaNum + ' ' + (DIAS_SEM[diaSem] || '');
+                const diaLabel = diaNum + '/' + mesNum + ' ' + (_DIAS_SEM[diaSem] || '');
 
                 // Horário previsto
-                const horarioPrevisto = (dia.strHorarioContratualSimples || '').trim() || '—';
+                const previsto = (dia.strHorarioContratualSimples || '').trim();
 
-                // Marcações filtradas (E/S apenas, sem justificativas I)
-                const marcacoes = (dia.listAfdtManutencao || [])
-                    .filter(m => m._typeRegister === 'E' || m._typeRegister === 'S')
-                    .sort((a, b) => (parseInt(a.hora) || 0) - (parseInt(b.hora) || 0));
-                const entradas = marcacoes.filter(m => m._typeRegister === 'E');
-                const saidas   = marcacoes.filter(m => m._typeRegister === 'S');
-                const ent1 = entradas[0] ? secToHHMM(entradas[0].hora) : '—';
-                const sai1 = saidas[0]   ? secToHHMM(saidas[0].hora)   : '—';
-                const ent2 = entradas[1] ? secToHHMM(entradas[1].hora) : '—';
-                const sai2 = saidas[1]   ? secToHHMM(saidas[1].hora)   : '—';
+                // Marcações — hora no formato HHMM (832 = 08:32)
+                let marcacoes = [];
+                if (dia.isFerias) {
+                    marcacoes = ['Férias', '', 'Férias', ''];
+                } else if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
+                    marcacoes = dia.listAfdtManutencao.map(function(m) {
+                        return fmtHHMM(m.hora) + (m.isManual ? ' (I)' : '') + (m.isPreAssigned ? ' (P)' : '');
+                    });
+                } else if (dia.marcacoes && Array.isArray(dia.marcacoes)) {
+                    marcacoes = dia.marcacoes.map(function(m) { return m.hora || m.time || m; });
+                }
+                const e1 = marcacoes[0] || '';
+                const s1 = marcacoes[1] || '';
+                const e2 = marcacoes[2] || '';
+                const s2 = marcacoes[3] || '';
 
-                // Totais
-                const totNormais = minToHHMM(dia.horasDiurnasNaoExtra);
-                const totNoturno = minToHHMM(dia.horasTotalNoturno);
-                const diaFalta   = parseInt(dia.faltaDiaInteiro) || parseInt(dia.faltasDiasInteiro) || 0;
-                const faltaAtr   = minToHHMM(dia.horasFaltaAtraso);
-                const abono      = (dia.abreviationJustification || dia.nomeJustificativa || '').substring(0, 14) || '—';
-                const totTrab    = minToHHMM(dia.totalHorasTrabalhadas);
+                // Totais normais + noturno
+                const normaisMin = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
+                const normais = fmtMin(normaisMin);
+                const noturnMin = (dia.totalHorasTrabalhadas > 0) ? (dia.horasNoturnasNaoExtra || 0) : 0;
+                const noturn = fmtMin(noturnMin);
 
-                // Extras por percentual
+                // Falta e atraso
+                const diaFalta = parseInt(dia.faltaDiaInteiro) || parseInt(dia.faltasDiasInteiro) || 0;
+                const faltaAtrMin = parseInt(dia.horasFaltaAtraso) || 0;
+                const faltaAtr = fmtMin(faltaAtrMin);
+
+                // Abono
+                const abono = (dia.abreviationJustification || dia.nomeJustificativa || '').substring(0, 12);
+
+                // Extra 60% / 100%
                 const pcts  = Array.isArray(dia.percentuaisExtra) ? dia.percentuaisExtra : [];
                 const hexts = Array.isArray(dia.horaExtraDeCadaPercentual) ? dia.horaExtraDeCadaPercentual : [];
                 let min60 = 0, min100 = 0;
-                pcts.forEach((pct, i) => {
-                    const p = _parsePercStr(pct);
-                    if (p === 60)  min60  += parseInt(hexts[i]) || 0;
-                    if (p === 100) min100 += parseInt(hexts[i]) || 0;
+                pcts.forEach(function(pct, i) {
+                    const p2 = Math.round(parseFloat(String(pct || '').trim().replace(',', '.').replace('%', '')) || 0);
+                    if (p2 === 60)  min60  += parseInt(hexts[i]) || 0;
+                    if (p2 === 100) min100 += parseInt(hexts[i]) || 0;
                 });
-                const extra60  = min60  > 0 ? minToHHMM(min60)  : '—';
-                const extra100 = min100 > 0 ? minToHHMM(min100) : '—';
+                const extra60  = fmtMin(min60);
+                const extra100 = fmtMin(min100);
+                const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
 
                 // Cor da linha
                 let bg = '#ffffff';
-                if (dia.isFerias)                              bg = '#dbeafe'; // azul — férias
-                else if (diaFalta > 0)                         bg = '#fee2e2'; // vermelho — falta integral
-                else if (parseInt(dia.horasFaltaAtraso) > 0)  bg = '#fef9c3'; // amarelo — atraso/falta parcial
-                else if (min60 > 0 || min100 > 0)             bg = '#f3e8ff'; // roxo — hora extra
-                else if (diaSem === 0 || diaSem === 6)         bg = '#f3f4f6'; // cinza — sab/dom
+                if (dia.isFerias)                   bg = '#dbeafe'; // azul — férias
+                else if (diaFalta > 0)               bg = '#fee2e2'; // vermelho — falta integral
+                else if (faltaAtrMin > 0)            bg = '#fef9c3'; // amarelo — atraso/falta parcial
+                else if (min60 > 0 || min100 > 0)   bg = '#f3e8ff'; // roxo — hora extra
+                else if (diaSem === 0 || diaSem === 6) bg = '#f3f4f6'; // cinza — sab/dom
 
-                const faltaColor = diaFalta > 0 ? 'color:#b91c1c;font-weight:700;' : '';
+                const tdSt = 'padding:4px 3px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:10.5px;';
+                const fC = diaFalta > 0 ? 'color:#dc2626;font-weight:700;' : '';
 
-                html += `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;" title="${dia.toolTipAlert || ''}">
-                    <td style="padding:3px 5px;text-align:center;font-weight:600;">${diaLabel}</td>
-                    <td style="padding:3px 5px;text-align:center;">${horarioPrevisto}</td>
-                    <td style="padding:3px 5px;text-align:center;">${ent1}</td>
-                    <td style="padding:3px 5px;text-align:center;">${sai1}</td>
-                    <td style="padding:3px 5px;text-align:center;">${ent2}</td>
-                    <td style="padding:3px 5px;text-align:center;">${sai2}</td>
-                    <td style="padding:3px 5px;text-align:center;">${totNormais}</td>
-                    <td style="padding:3px 5px;text-align:center;">${totNoturno}</td>
-                    <td style="padding:3px 5px;text-align:center;${faltaColor}">${diaFalta > 0 ? '1' : '0'}</td>
-                    <td style="padding:3px 5px;text-align:center;">${faltaAtr}</td>
-                    <td style="padding:3px 5px;text-align:center;font-size:0.68rem;">${abono}</td>
-                    <td style="padding:3px 5px;text-align:center;">${extra60}</td>
-                    <td style="padding:3px 5px;text-align:center;">${extra100}</td>
-                    <td style="padding:3px 5px;text-align:center;font-weight:600;">${totTrab}</td>
+                rowsHtml += `<tr style="background:${bg};">
+                    <td style="${tdSt}text-align:left;white-space:nowrap;">${diaLabel}</td>
+                    <td style="${tdSt}">${previsto}</td>
+                    <td style="${tdSt}">${e1}</td>
+                    <td style="${tdSt}">${s1}</td>
+                    <td style="${tdSt}">${e2}</td>
+                    <td style="${tdSt}">${s2}</td>
+                    <td style="${tdSt}">${normais}</td>
+                    <td style="${tdSt}">${noturn}</td>
+                    <td style="${tdSt}${fC}">${diaFalta > 0 ? '1' : ''}</td>
+                    <td style="${tdSt}">${faltaAtr}</td>
+                    <td style="${tdSt}font-size:9.5px;">${abono}</td>
+                    <td style="${tdSt}">${extra60}</td>
+                    <td style="${tdSt}">${extra100}</td>
+                    <td style="${tdSt}font-weight:600;">${totTrab}</td>
                 </tr>`;
             });
 
-            html += `</tbody></table></div></div>`;
+            corpo += `
+            <div style="page-break-after:always;padding:12px;">
+              <h2 style="margin:0 0 3px;color:#1e293b;font-size:14px;">Conferência de Ponto — ${row.nome_completo}</h2>
+              <p style="margin:0 0 10px;font-size:11px;color:#475569;">${mesNome}/${_ano}</p>
+              <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;">
+                <colgroup>
+                  <col style="width:10%"><col style="width:14%">
+                  <col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+                  <col style="width:7%"><col style="width:7%"><col style="width:4%"><col style="width:7%">
+                  <col style="width:5%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+                </colgroup>
+                <thead>
+                  <tr style="background:#1e293b;color:#fff;">
+                    <th style="${thSt}text-align:left;">DATA</th>
+                    <th style="${thSt}">DIA PREVISTO</th>
+                    <th style="${thSt}">ENT. 1</th>
+                    <th style="${thSt}">SAÍ. 1</th>
+                    <th style="${thSt}">ENT. 2</th>
+                    <th style="${thSt}">SAÍ. 2</th>
+                    <th style="${thSt}">TOT. NORMAIS</th>
+                    <th style="${thSt}">TOT. NOTURNO</th>
+                    <th style="${thSt}">DIA FALTA</th>
+                    <th style="${thSt}">FALTA/ATRASO</th>
+                    <th style="${thSt}">ABONO</th>
+                    <th style="${thSt}">EXTRA 60%</th>
+                    <th style="${thSt}">EXTRA 100%</th>
+                    <th style="${thSt}">TOT. TRAB.</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+              </div>
+            </div>`;
         });
 
-        if (!achou) {
-            html += `<div style="text-align:center;padding:2rem;color:#64748b;">Nenhum detalhe de ponto diário disponível para a seleção.</div>`;
-        }
-        html += `</div>`;
+        // Legenda de cores
+        const legenda = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 20px 0;font-size:10px;color:#475569;">
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;"></span> Falta integral</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Hora Extra</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;border-radius:2px;"></span> Férias</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:2px;"></span> Sáb/Dom</span>
+        </div>`;
 
-        Swal.fire({
-            title: 'Conferência de Ponto',
-            html,
-            width: '1150px',
-            showCloseButton: true,
-            confirmButtonText: 'Fechar',
-            confirmButtonColor: '#0f172a'
-        });
+        const fullHtml = `<!DOCTYPE html><html><head>
+            <title>Conferência de Ponto — ${mesNome}/${_ano}</title>
+            <style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;}@media print{.no-print{display:none!important;}}</style>
+        </head><body>
+        <div class="no-print" style="background:#1e293b;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:999;flex-wrap:wrap;gap:8px;">
+            <span style="font-weight:700;font-size:14px;">Conferência de Ponto — ${mesNome}/${_ano}</span>
+            <button onclick="window.print()" style="background:#fff;color:#1e293b;border:none;padding:8px 20px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;">🖨 Imprimir / Salvar PDF</button>
+        </div>
+        ${legenda}
+        ${achou ? corpo : '<div style="padding:40px;text-align:center;color:#64748b;font-size:14px;">Nenhum detalhe de ponto diário disponível.<br>Os dados de apuração diária não foram encontrados na resposta do RHID.</div>'}
+        </body></html>`;
+
+        const win = window.open('', '_blank', 'width=' + screen.availWidth + ',height=' + screen.availHeight + ',top=0,left=0');
+        if (win) { win.document.write(fullHtml); win.document.close(); }
+        else if (typeof Swal !== 'undefined') Swal.fire('Pop-up bloqueado', 'Habilite pop-ups no navegador para visualizar a conferência de ponto.', 'warning');
     }
 
     // ─────────────────────────────────────────────────────────────────
