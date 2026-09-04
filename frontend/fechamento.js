@@ -230,7 +230,7 @@ window._fechamento = (function () {
 
                 // Marcações — hora no formato HHMM (832 = 08:32)
                 let marcacoes = [];
-                if (dia.isFerias) {
+                if (_statusDia === 'Férias') {
                     marcacoes = ['Férias', '', 'Férias', ''];
                 } else if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
                     marcacoes = dia.listAfdtManutencao.map(function(m) {
@@ -271,20 +271,55 @@ window._fechamento = (function () {
                 const extra100 = fmtMin(min100);
                 const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
 
+                // ── Status do dia (idêntico ao recibos.js) ──────────────────────────────
+                const _stRaw = (dia.status || dia.situacao || dia.tipo || '').toString().toLowerCase();
+                const _isFolgaSt  = _stRaw.includes('folg') || _stRaw.includes('dsr');
+                const _isFolgaFlag = dia.folga === true;
+                const _isDSRMin   = (dia.dsrConsideradoMinutos || 0) > 0;
+                const _semHorario  = ((dia.idHorarioContratual || 0) === 0 && (dia.strHorarioContratualSimples || '').trim() === '');
+                const _horasTrab3  = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
+                const _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
+                const _tipLow = (dia.toolTipAlert || '').toLowerCase();
+
+                let _statusDia = '';
+                if (dia.isFerias) {
+                    _statusDia = 'Férias';
+                } else if (dia.isHoliday) {
+                    _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
+                } else if (dia.idJustification) {
+                    if (_tipLow.includes('atestado') || _tipLow.includes('medic')) _statusDia = 'Atestado Médico';
+                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
+                    else if (_tipLow) _statusDia = dia.toolTipAlert.substring(0, 18);
+                    else _statusDia = 'Justificado';
+                } else if (_isFolgaSt || _isFolgaFlag || _isDSRMin) {
+                    _statusDia = (_horasTrab3 >= 120) ? '' : 'Folga';
+                } else if (_semHorario && !_trabalhou3) {
+                    _statusDia = 'Folga';
+                } else if (diaFalta > 0) {
+                    _statusDia = 'Falta';
+                }
+
+                // DIA PREVISTO: mostra horário contratual OU status especial
+                const _prevTexto = _statusDia || (dia.strHorarioContratualSimples || '').trim();
+                const _prevColor = (_statusDia === 'Falta') ? 'color:#dc2626;font-weight:700;' :
+                                   (_statusDia === 'Folga') ? 'color:#c2410c;font-weight:600;' :
+                                   (_statusDia === 'Férias') ? 'color:#166534;font-weight:600;' :
+                                   (_statusDia && _statusDia !== '') ? 'color:#6b21a8;font-style:italic;' : '';
+
                 // Cor da linha
                 let bg = '#ffffff';
-                if (dia.isFerias)                   bg = '#dbeafe'; // azul — férias
-                else if (diaFalta > 0)               bg = '#fee2e2'; // vermelho — falta integral
-                else if (faltaAtrMin > 0)            bg = '#fef9c3'; // amarelo — atraso/falta parcial
-                else if (min60 > 0 || min100 > 0)   bg = '#f3e8ff'; // roxo — hora extra
-                else if (diaSem === 0 || diaSem === 6) bg = '#f3f4f6'; // cinza — sab/dom
+                if (_statusDia === 'Férias')          bg = '#dcfce7'; // verde — férias
+                else if (_statusDia === 'Folga')      bg = '#fff7ed'; // laranja — folga
+                else if (diaFalta > 0)                bg = '#fee2e2'; // vermelho — falta integral
+                else if (faltaAtrMin > 0)             bg = '#fef9c3'; // amarelo — atraso/falta parcial
+                else if (min60 > 0 || min100 > 0)    bg = '#f3e8ff'; // roxo — hora extra
 
                 const tdSt = 'padding:4px 3px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:10.5px;';
                 const fC = diaFalta > 0 ? 'color:#dc2626;font-weight:700;' : '';
 
                 rowsHtml += `<tr style="background:${bg};">
                     <td style="${tdSt}text-align:left;white-space:nowrap;">${diaLabel}</td>
-                    <td style="${tdSt}">${previsto}</td>
+                    <td style="${tdSt}${_prevColor}">${_prevTexto}</td>
                     <td style="${tdSt}">${e1}</td>
                     <td style="${tdSt}">${s1}</td>
                     <td style="${tdSt}">${e2}</td>
@@ -341,8 +376,8 @@ window._fechamento = (function () {
             <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;"></span> Falta integral</span>
             <span><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
             <span><span style="display:inline-block;width:10px;height:10px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Hora Extra</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;border-radius:2px;"></span> Férias</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:2px;"></span> Sáb/Dom</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #86efac;border-radius:2px;"></span> Férias</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:2px;"></span> Folga</span>
         </div>`;
 
         const fullHtml = `<!DOCTYPE html><html><head>
