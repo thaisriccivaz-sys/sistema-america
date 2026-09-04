@@ -589,19 +589,24 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         minutosNormais = data.reduce(function(acc, d) {
             return acc + (parseInt(d.horasDiurnasNaoExtra) || 0);
         }, 0);
+        // horaExtraDeCadaPercentual é um ARRAY paralelo a percentuaisExtra
+        // ex: percentuaisExtra=[60,100], horaExtraDeCadaPercentual=[575,363]
         minutosExt60 = data.reduce(function(acc, d) {
-            const pct = d.horaExtraDeCadaPercentual || {};
-            const v60 = parseInt(pct[60] !== undefined ? pct[60] : (pct['60'] !== undefined ? pct['60'] : 0)) || 0;
-            return acc + v60;
+            const percentuais = Array.isArray(d.percentuaisExtra) ? d.percentuaisExtra : [];
+            const horas      = Array.isArray(d.horaExtraDeCadaPercentual) ? d.horaExtraDeCadaPercentual : [];
+            const idx60 = percentuais.indexOf(60);
+            return acc + (idx60 >= 0 ? (parseInt(horas[idx60]) || 0) : 0);
         }, 0);
         minutosExt100 = data.reduce(function(acc, d) {
-            const pct = d.horaExtraDeCadaPercentual || {};
-            const v100 = parseInt(pct[100] !== undefined ? pct[100] : (pct['100'] !== undefined ? pct['100'] : 0)) || 0;
-            return acc + v100;
+            const percentuais = Array.isArray(d.percentuaisExtra) ? d.percentuaisExtra : [];
+            const horas       = Array.isArray(d.horaExtraDeCadaPercentual) ? d.horaExtraDeCadaPercentual : [];
+            const idx100 = percentuais.indexOf(100);
+            return acc + (idx100 >= 0 ? (parseInt(horas[idx100]) || 0) : 0);
         }, 0);
         minutosAtraso = data.reduce(function(acc, d) {
             return acc + (parseInt(d.horasFaltaAtraso) || 0); // FALTA E ATRASO do PDF
         }, 0);
+        console.log('[ControlID] processarApuracao parciais → noturnos:', minutosNoturnos, 'ext60:', minutosExt60, 'ext100:', minutosExt100, 'atraso:', minutosAtraso, 'faltas previstas:', data.reduce(function(a,d){return a+(parseInt(d.faltasDiasInteiro)||0);},0));
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
         diasVR = diasComPresenca.filter(d => {
