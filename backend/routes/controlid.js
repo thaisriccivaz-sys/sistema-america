@@ -347,7 +347,7 @@ router.get('/ponto-colaborador', async (req, res) => {
         const mesNum = parseInt(mes, 10);
         const anoNum = parseInt(ano, 10);
         const dataIni = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
-        const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+        const ultimoDia = Math.min(30, new Date(anoNum, mesNum, 0).getDate()); // máx dia 30 conforme regra de fechamento
         const dataFinal = `${anoNum}-${String(mesNum).padStart(2, '0')}-${ultimoDia}`;
 
         // ── PASSO 3: Buscar apuração do ponto ────────────────────────────────
@@ -462,12 +462,12 @@ router.get('/ponto-colaborador', async (req, res) => {
         let _horasNotStr = '';
         let _adicionalNotVal = 0;
         if (_minNot > 0) {
-            // Hora noturna reduzida: fator 60/52.5 = 1.142857
-            const _hNotReduzido = (_minNot * (60 / 52.5)) / 60; // horas decimais reduzidas
+            // Adicional noturno 20%: baseado nas horas brutas da coluna Total Noturno
+            const _hNot = _minNot / 60; // horas decimais brutas
             const _salario = parseFloat(colaborador && colaborador.salario) || 0;
             const _hNorm = 220; // base padrão CLT
             const _valHora = _salario > 0 ? (_salario / _hNorm) : 0;
-            _adicionalNotVal = Math.round(_hNotReduzido * _valHora * 0.20 * 100) / 100;
+            _adicionalNotVal = Math.round(_hNot * _valHora * 0.20 * 100) / 100;
             // Formatar HH:MM com horas brutas reais
             const _hBruto = Math.floor(_minNot / 60);
             const _mBruto = _minNot % 60;
@@ -584,19 +584,23 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         diasTrabalhados = diasComPresenca.length; // VT: todos os dias com presença
         // Somar minutos noturnos de todos os dias (campo RHID: horasNoturnasNaoExtra + extraNoturna)
         minutosNoturnos = data.reduce(function(acc, d) {
-            return acc + (parseInt(d.horasNoturnasNaoExtra) || 0) + (parseInt(d.extraNoturna) || 0);
+            return acc + (parseInt(d.horasTotalNoturno) || 0); // horasTotalNoturno já inclui extras noturnas
         }, 0);
         minutosNormais = data.reduce(function(acc, d) {
             return acc + (parseInt(d.horasDiurnasNaoExtra) || 0);
         }, 0);
         minutosExt60 = data.reduce(function(acc, d) {
-            return acc + (parseInt(d.extraDiurna) || 0);
+            const pct = d.horaExtraDeCadaPercentual || {};
+            const v60 = parseInt(pct[60] !== undefined ? pct[60] : (pct['60'] !== undefined ? pct['60'] : 0)) || 0;
+            return acc + v60;
         }, 0);
         minutosExt100 = data.reduce(function(acc, d) {
-            return acc + (parseInt(d.extraNoturna) || 0);
+            const pct = d.horaExtraDeCadaPercentual || {};
+            const v100 = parseInt(pct[100] !== undefined ? pct[100] : (pct['100'] !== undefined ? pct['100'] : 0)) || 0;
+            return acc + v100;
         }, 0);
         minutosAtraso = data.reduce(function(acc, d) {
-            return acc + (parseInt(d.atrasoEntrada) || 0) + (parseInt(d.saidaAntecipada) || 0);
+            return acc + (parseInt(d.horasFaltaAtraso) || 0); // FALTA E ATRASO do PDF
         }, 0);
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
@@ -626,44 +630,9 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return true;
         }).length;
 
-        faltas = data.filter(d => {
-            const status = (d.status || d.situacao || d.tipo || '').toString().toLowerCase();
-            
-            // Se for explicitamente folga, dsr ou feriado, não é falta!
-            // ATENÇÃO: NÃO usar d.compensado aqui, pois ele fica true em dias normais de trabalho em certas escalas.
-            if (status.includes('folga') || status.includes('dsr') || status.includes('feriado') ||
-                d.folga === true || d.isHoliday === 1 || d.isHoliday === true) {
-                return false;
-            }
-
-            // NOVA LÓGICA: Se não há previsão de horário contratual e não houve trabalho, é folga/dsr!
-            // O RHID pode colocar status de "falta" ou "faltasDiasInteiro" indevidamente para folgas de escalas flexíveis.
-            const idHorario = d.idHorarioContratual || 0;
-            const strHorario = d.strHorarioContratualSimples || '';
-            const semHorarioPrevisto = (idHorario === 0 && strHorario.trim() === '');
-
-            if (semHorarioPrevisto && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
-                return false; // Não tem turno programado para hoje, portanto é folga, não falta!
-            }
-
-            // Falta explícita, atestado ou licença
-            if (status === 'falta' || status === 'ausente' || status === '3' ||
-                status.includes('falt') || status.includes('atestado') || status.includes('afastamento') || 
-                status.includes('licença') || status.includes('licenca') || status.includes('justificad') || 
-                (d.faltaDiaInteiro === true) || (d.faltasDiasInteiro > 0)) {
-                return true;
-            }
-
-            // Tratamento para justificativas genéricas (d.idJustification != null)
-            if (d.idJustification != null && (!d.diasTrabalhados || d.diasTrabalhados === 0)) {
-                // Se tinha horário previsto e justificou sem trabalhar, conta como ausência (que será tratada pelo RH)
-                if (!semHorarioPrevisto) {
-                    return true;
-                }
-            }
-
-            return false;
-        }).length;
+        faltas = data.reduce(function(acc, d) {
+            return acc + (parseInt(d.faltasDiasInteiro) || 0); // DIA FALTA do PDF
+        }, 0);
 
         diasComHoraExtra = data.filter(d => {
             const he    = parseFloat(d.horasExtras || d.horas_extras || d.extra || d.overtime || 0);

@@ -257,7 +257,7 @@ window._fechamento = (function () {
             <th style="padding:.4rem .6rem;text-align:left;white-space:nowrap;position:sticky;left:0;top:0;background:#1e40af;z-index:20;box-shadow:inset -1px -1px 0 #cbd5e1, inset 0 -1px 0 #cbd5e1;"><strong>Colaborador</strong></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;text-align:left;"><strong>Cargo</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="display:none;"></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>H.Normais</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9435</span></th>
+            <th style="display:none;"><strong>H.Normais</strong></th>
             <th id="fech-th-noturno" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#6d28d9;z-index:10;box-shadow:inset 0 -1px 0 #a78bfa;text-align:center;line-height:1.3;" title="Horas trabalhadas entre 22h e 5h"><strong>Total Noturno</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">HH:MM</span></th>
             <th id="fech-th-adic-noturno" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#6d28d9;z-index:10;box-shadow:inset 0 -1px 0 #a78bfa;text-align:center;line-height:1.3;" title="Adicional noturno 20% (hora reduzida 52,5 min)"><strong>Ad. Noturno</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">R$</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
@@ -447,7 +447,7 @@ window._fechamento = (function () {
 <td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}</td>
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="display:none;"></td>
-<td style="padding:.35rem .3rem;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
+<td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
 <td id="fech-cell-adic-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpNum(idx,'adicional_noturno',row.adicional_noturno||0,'','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
@@ -1380,21 +1380,7 @@ window._fechamento = (function () {
         }
 
         // Disparar atualizar para salvar no _dados
-        // H.Normais: preencher do ponto apenas para colaboradores intermitentes
-        var isIntermitente = _dados[idx] && (_dados[idx].tipo_contrato || '').toLowerCase() === 'intermitente';
-        if (htrab && isIntermitente) {
-            _dados[idx].horas_normais = htrab;
-            var inpHN = document.querySelector('#fech-cell-horas-normais-' + idx + ' input, tr[data-idx="' + idx + '"] input[data-campo="horas_normais"]');
-            if (!inpHN) {
-                var allInputs = document.querySelectorAll('#fech-tbody tr');
-                if (allInputs[idx]) {
-                    var found = Array.from(allInputs[idx].querySelectorAll('input')).find(function(i){ return (i.getAttribute('oninput')||'').indexOf('horas_normais') !== -1; });
-                    if (found) inpHN = found;
-                }
-            }
-            if (inpHN) inpHN.value = htrab;
-            atualizar(idx, 'horas_normais', htrab);
-        }
+        // H.Normais: coluna ocultada — não preencher do ponto
         // Horas noturnas (todos os colaboradores)
         if (dados.horasNoturnas) {
             _dados[idx].horas_noturnas = dados.horasNoturnas;
@@ -1419,18 +1405,7 @@ window._fechamento = (function () {
             atualizar(idx, 'dias_falta', faltas);
         }
 
-        // ── Horas Normais (todos, não só intermitentes) ────────────────────────
-        if (dados.minutosNormais > 0) {
-            var hn = minToHH(dados.minutosNormais);
-            _dados[idx].horas_normais = hn;
-            var trHN = document.querySelectorAll('#fech-tbody tr');
-            for (var ti = 0; ti < trHN.length; ti++) {
-                if (parseInt(trHN[ti].dataset.idx) !== idx) continue;
-                Array.from(trHN[ti].querySelectorAll('input')).forEach(function(i) { if ((i.getAttribute('oninput')||'').indexOf("'horas_normais'") !== -1) i.value = hn; });
-                break;
-            }
-            atualizar(idx, 'horas_normais', hn);
-        }
+        // H.Normais: coluna ocultada — não preencher do ponto
 
         // ── Ext 60% ───────────────────────────────────────────────────────────
         if (dados.minutosExt60 > 0) {
