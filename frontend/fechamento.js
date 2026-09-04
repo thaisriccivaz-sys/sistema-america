@@ -1490,6 +1490,8 @@ window._fechamento = (function () {
         }));
 
         Swal.close();
+        // Re-renderiza a tabela com os dados atualizados (_dados foi atualizado por aplicarPontoNaTabela)
+        renderizarTabela(_dados);
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
