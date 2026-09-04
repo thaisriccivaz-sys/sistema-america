@@ -116,7 +116,20 @@ window._fechamento = (function () {
                              + vt + farmacia + mercado + outros + multas
                              + academia + consignado + adiantamento + pensao + sindical;
         const liquido = Math.max(0, totalBruto - totalDescontos);
-        
+        return {
+            totalBruto: Math.round(totalBruto * 100) / 100,
+            inss: Math.round(inss * 100) / 100,
+            irrf: Math.round(irrf * 100) / 100,
+            descontoFalta: Math.round(descontoFalta * 100) / 100,
+            descontoAtraso: Math.round(descontoAtraso * 100) / 100,
+            valorExtra60: Math.round(valorExtra60 * 100) / 100,
+            valorExtra100: Math.round(valorExtra100 * 100) / 100,
+            pensao: Math.round(pensao * 100) / 100,
+            totalDescontos: Math.round(totalDescontos * 100) / 100,
+            liquido: Math.round(liquido * 100) / 100,
+        };
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // CONFERÊNCIA DE PONTO
     // ─────────────────────────────────────────────────────────────────
@@ -217,19 +230,6 @@ window._fechamento = (function () {
             confirmButtonText: 'Fechar',
             confirmButtonColor: '#0f172a'
         });
-    }
-return {
-            totalBruto: Math.round(totalBruto * 100) / 100,
-            inss: Math.round(inss * 100) / 100,
-            irrf: Math.round(irrf * 100) / 100,
-            descontoFalta: Math.round(descontoFalta * 100) / 100,
-            descontoAtraso: Math.round(descontoAtraso * 100) / 100,
-            valorExtra60: Math.round(valorExtra60 * 100) / 100,
-            valorExtra100: Math.round(valorExtra100 * 100) / 100,
-            pensao: Math.round(pensao * 100) / 100,
-            totalDescontos: Math.round(totalDescontos * 100) / 100,
-            liquido: Math.round(liquido * 100) / 100,
-        };
     }
 
     // ─────────────────────────────────────────────────────────────────
