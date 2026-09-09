@@ -3154,7 +3154,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
     try {
         const https = require('https');
 
-        // Helper: GET para a API Assinafy
+        // Helper: GET para a API Assinafy — retorna { statusCode, data }
         const assinafyGet = (p) => new Promise((resolve, reject) => {
             const opts = {
                 hostname: 'api.assinafy.com.br',
@@ -3166,14 +3166,18 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
                 const chunks = [];
                 resp.on('data', c => chunks.push(c));
                 resp.on('end', () => {
-                    try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
-                    catch(e) { resolve(null); }
+                    try {
+                        const body = JSON.parse(Buffer.concat(chunks).toString());
+                        resolve({ statusCode: resp.statusCode, data: body });
+                    } catch(e) { resolve({ statusCode: resp.statusCode, data: null }); }
                 });
             });
             r.on('error', reject);
             r.setTimeout(12000, () => r.destroy());
             r.end();
         });
+
+        const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
         // Buscar documentos suspeitos: "Assinado" no banco mas sem PDF recuperado (signed_r2_key NULL)
         const suspDocs = await new Promise((resolve, reject) =>
@@ -3211,35 +3215,55 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
             return res.json({
                 success: true,
                 message: 'Nenhum documento suspeito encontrado.',
-                reverted: 0,
+                revertedCount: 0,
                 checked: 0,
                 details: []
             });
         }
 
         let reverted = 0;
+        let errorsCount = 0;
         const details = [];
 
         for (const doc of allSusp) {
             let realStatus = null;
+            let httpCode = null;
             try {
-                const detail = await assinafyGet(`/v1/documents/${doc.assinafy_id}`);
-                if (detail) {
-                    const d = detail.data || detail;
+                await sleep(200); // Respeitar rate limit da API
+                const resp = await assinafyGet(`/v1/documents/${doc.assinafy_id}`);
+                httpCode = resp.statusCode;
+
+                if (httpCode === 429) {
+                    // Rate limited — não conseguimos confirmar, revertemos por segurança
+                    console.log(`[FIX-FALSE] ⚠️ Rate limited (429) para ${doc._table} id=${doc.id}. Revertendo por segurança.`);
+                    realStatus = 'rate_limited';
+                } else if (httpCode === 200 && resp.data) {
+                    const d = resp.data.data || resp.data;
                     realStatus = String(d.status || d.status_id || '').toLowerCase();
+                } else {
+                    console.warn(`[FIX-FALSE] HTTP ${httpCode} ao consultar id=${doc.assinafy_id} — ignorando.`);
+                    realStatus = 'api_error';
                 }
             } catch (e) {
                 console.warn(`[FIX-FALSE] Erro ao consultar Assinafy id=${doc.assinafy_id}: ${e.message}`);
+                realStatus = 'api_error';
+                errorsCount++;
             }
 
-            const isPending = !realStatus
+            // Documentos confirmados como assinados no Assinafy (com certificado) são mantidos como Assinado
+            // Apenas pendentes e rate_limited são revertidos
+            const isTrulySignedInAssinafy = realStatus === 'certificated' || realStatus === 'signed' || realStatus === 'completed';
+            const isPending = !isTrulySignedInAssinafy && (
+                realStatus === 'rate_limited'
                 || realStatus === 'pending_signature'
                 || realStatus === 'pending'
                 || realStatus === 'waiting'
-                || realStatus.includes('pend')
-                || realStatus.includes('wait');
+                || (realStatus && realStatus.includes('pend'))
+                || (realStatus && realStatus.includes('wait'))
+                || realStatus === 'api_error'
+            );
 
-            console.log(`[FIX-FALSE] ${doc._table} id=${doc.id} assinafyId=${doc.assinafy_id} status Assinafy: "${realStatus}" isPending=${isPending}`);
+            console.log(`[FIX-FALSE] ${doc._table} id=${doc.id} assinafyId=${doc.assinafy_id} status Assinafy: "${realStatus}" httpCode=${httpCode} isPending=${isPending} isSigned=${isTrulySignedInAssinafy}`);
 
             if (isPending) {
                 if (doc._table === 'documentos') {
@@ -3268,7 +3292,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
         }
 
         console.log(`[FIX-FALSE] Concluído: ${reverted} documento(s) revertido(s) de ${allSusp.length} verificado(s).`);
-        res.json({ success: true, reverted, checked: allSusp.length, details });
+        res.json({ success: true, revertedCount: reverted, errorsCount, checked: allSusp.length, details });
 
     } catch (e) {
         console.error('[FIX-FALSE] Erro:', e.message);
