@@ -18672,6 +18672,49 @@ window.recuperarPDFsAssinados = async function (btn) {
     }
 };
 
+// Corrigir Status Falsos: varre Assinafy e reverte docs marcados falsamente como "Assinado" para "Pendente"
+window.corrigirStatusFalsosAssinaturas = async function (btn) {
+    if (!confirm('Esta ação verificará todos os documentos marcados como "Assinado" no sistema. Se no Assinafy ainda estiverem pendentes, o status será revertido para "Pendente". Deseja continuar?')) return;
+    
+    const icon = btn.querySelector('i');
+    if (icon) { icon.className = 'ph ph-spinner ph-spin'; }
+    btn.disabled = true;
+    
+    const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    
+    try {
+        if (typeof showToast !== 'undefined') showToast('Verificando status de assinaturas no Assinafy... (isso pode levar um minuto)', 'info');
+        
+        const res = await fetch(`${API_URL}/assinaturas/fix-false-signed`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            let msg = `Verificação concluída!\n✅ ${data.revertedCount} documento(s) revertido(s) para Pendente.`;
+            if (data.errorsCount && data.errorsCount > 0) {
+                msg += `\n⚠️ ${data.errorsCount} erro(s) encontrados durante a verificação.`;
+            }
+            
+            if (data.revertedCount > 0) {
+                alert(msg);
+                await window.loadAssinaturasDigitais();
+            } else {
+                if (typeof showToast !== 'undefined') showToast('Nenhum documento com status falso encontrado.', 'success');
+            }
+        } else {
+            alert('Erro ao corrigir status: ' + (data.error || 'Resposta inválida'));
+        }
+    } catch (e) {
+        console.error('[FIX-FALSE-SIGNED] Erro:', e);
+        alert('Erro ao tentar corrigir status: ' + e.message);
+    } finally {
+        if (icon) { icon.className = 'ph ph-arrow-counter-clockwise'; }
+        btn.disabled = false;
+    }
+};
 // Registrar navegação para a tela de assinaturas
 (function () {
     const origNavigate = window.navigateTo;
