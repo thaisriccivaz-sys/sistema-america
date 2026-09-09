@@ -8725,15 +8725,15 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
         // Documento Assinado mas PDF ainda indisponível — exibir mensagem informativa
         if (row.assinafy_status === 'Assinado') {
             return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
-                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="20"><title>PDF sendo finalizado</title>' +
                 '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
                 '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
                 'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
-                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                'button,a.btn{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}</style></head>' +
                 '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
                 '<h2>PDF sendo finalizado</h2>' +
                 '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
-                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+                '<a href="" class="btn">&#128260; Tentar novamente</a></div></body></html>'
             );
         }
 
@@ -8895,15 +8895,15 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         // Documento Assinado mas PDF ainda indisponível — exibir mensagem em vez do PDF sem assinatura
         if (row.assinafy_status === 'Assinado') {
             return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
-                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="20"><title>PDF sendo finalizado</title>' +
                 '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
                 '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
                 'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
-                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                'button,a.btn{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}</style></head>' +
                 '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
                 '<h2>PDF sendo finalizado</h2>' +
                 '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
-                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+                '<a href="" class="btn">&#128260; Tentar novamente</a></div></body></html>'
             );
         }
 
@@ -11871,15 +11871,15 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
         // 4. Documento Assinado mas PDF ainda não disponível — mensagem informativa
         if (row.assinafy_status === 'Assinado') {
             return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
-                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="20"><title>PDF sendo finalizado</title>' +
                 '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
                 '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
                 'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
-                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                'button,a.btn{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}</style></head>' +
                 '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
                 '<h2>PDF sendo finalizado</h2>' +
                 '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
-                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+                '<a href="" class="btn">&#128260; Tentar novamente</a></div></body></html>'
             );
         }
 
