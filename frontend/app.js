@@ -18645,88 +18645,95 @@ window.atualizarTodasAssinaturas = async function (btn) {
         };
     } else {
         // Fallback: observar clique no item do menu
-        // ── Persistência R2 dos 4 PDFs de massa ──────────────────────────────────────
-    window._pmSalvarPdfR2 = async function(campo, file) {
-        if (!file || file.type !== 'application/pdf') return;
-        const mes = document.getElementById('pm-mes')?.value;
-        const ano = document.getElementById('pm-ano')?.value;
-        const tipoDocumento = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
-        if (!mes || !ano) return;
-        const statusEl = document.getElementById('pm-r2-status-' + campo);
-        if (statusEl) statusEl.innerHTML = '<span style="color:#6b7280;font-size:0.75rem">⏳ Salvando no R2...</span>';
-        try {
-            const formData = new FormData();
-            formData.append('pdf', file);
-            formData.append('campo', campo);
-            formData.append('mes', mes);
-            formData.append('ano', ano);
-            formData.append('tipoDocumento', tipoDocumento);
-            const r = await fetch('/api/pagamentos-massa/salvar-pdf', {
-                method: 'POST',
-                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
-                body: formData,
-            });
-            const data = await r.json();
-            if (!r.ok) throw new Error(data.error || 'Erro ao salvar');
-            if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;"><i class=\"ph ph-check-circle\"></i> ' + file.name + ' <button onclick=\"window._pmViewPdfR2(\'' + campo + '\');\" style=\"background:none;border:none;color:#3b82f6;cursor:pointer;font-size:0.72rem;padding:0 4px;text-decoration:underline;\">👁 Ver</button></span>';
-            // Se comunicação foi salva, atualizar flag para render
-            if (campo === 'comunicacao') {
-                window._pdfDuploBase64 = window._pdfDuploBase64 || {};
-                window._pdfDuploBase64.comunicacaoSalva = true;
-            }
-        } catch(e) {
-            if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;font-size:0.75rem">❌ ' + e.message + '</span>';
-        }
-    };
-
-    window._pmViewPdfR2 = function(campo) {
-        const mes = document.getElementById('pm-mes')?.value;
-        const ano = document.getElementById('pm-ano')?.value;
-        const tipo = encodeURIComponent(document.getElementById('pm-tipo-doc')?.value || 'Pagamentos');
-        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        fetch('/api/pagamentos-massa/view-pdf?mes=' + mes + '&ano=' + ano + '&tipoDocumento=' + tipo + '&campo=' + campo, {
-            headers: { Authorization: 'Bearer ' + token }
-        }).then(r => r.blob()).then(blob => {
-            window.open(URL.createObjectURL(blob), '_blank');
-        }).catch(e => alert('Erro ao abrir PDF: ' + e.message));
-    };
-
-    window._pmRestaurarPdfs = async function() {
-        const mes = document.getElementById('pm-mes')?.value;
-        const ano = document.getElementById('pm-ano')?.value;
-        const tipo = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
-        if (!mes || !ano || tipo !== 'Pagamentos') return;
-        try {
-            const r = await fetch('/api/pagamentos-massa/pdfs-salvos?mes=' + encodeURIComponent(mes) + '&ano=' + encodeURIComponent(ano) + '&tipoDocumento=' + encodeURIComponent(tipo), {
-                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
-            });
-            const data = await r.json();
-            if (!r.ok || !data.pdfs) return;
-            let temCom = false;
-            ['adiantamento','pagamento','emprestimo','comunicacao'].forEach(function(campo) {
-                const info = data.pdfs[campo];
-                const statusEl = document.getElementById('pm-r2-status-' + campo);
-                if (info && statusEl) {
-                    statusEl.innerHTML = '<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;"><i class=\"ph ph-check-circle\"></i> ' + (info.nome_arquivo || campo + '.pdf') + ' <button onclick=\"window._pmViewPdfR2(\'' + campo + '\');\" style=\"background:none;border:none;color:#3b82f6;cursor:pointer;font-size:0.72rem;padding:0 4px;text-decoration:underline;\">👁 Ver</button></span>';
-                    if (campo === 'comunicacao') temCom = true;
-                }
-            });
-            if (temCom) {
-                window._pdfDuploBase64 = window._pdfDuploBase64 || {};
-                window._pdfDuploBase64.comunicacaoSalva = true;
-                if (typeof window._pmFiltrar === 'function' && document.getElementById('pm-review-section') && document.getElementById('pm-review-section').style.display !== 'none') {
-                    window._pmFiltrar();
-                }
-            }
-        } catch(e) { console.warn('[PM-R2] Erro ao restaurar:', e); }
-    };
-
         document.addEventListener('click', function (e) {
             const link = e.target.closest('[data-target="assinaturas-digitais"]');
             if (link) setTimeout(() => window.loadAssinaturasDigitais(), 200);
         });
     }
 })();
+
+
+// ── Persistência R2 dos 4 PDFs de massa (Pagamentos em Massa) ─────────────────
+window._pmSalvarPdfR2 = async function(campo, file) {
+    if (!file || file.type !== 'application/pdf') return;
+    const mes = document.getElementById('pm-mes')?.value;
+    const ano = document.getElementById('pm-ano')?.value;
+    const tipoDocumento = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
+    if (!mes || !ano) return;
+    const statusEl = document.getElementById('pm-r2-status-' + campo);
+    if (statusEl) statusEl.innerHTML = '<span style="color:#6b7280;font-size:0.75rem">⏳ Salvando no R2...</span>';
+    try {
+        const formData = new FormData();
+        formData.append('pdf', file);
+        formData.append('campo', campo);
+        formData.append('mes', mes);
+        formData.append('ano', ano);
+        formData.append('tipoDocumento', tipoDocumento);
+        const r = await fetch('/api/pagamentos-massa/salvar-pdf', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) },
+            body: formData,
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Erro ao salvar');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;">'
+            + '<i class=\"ph ph-check-circle\"></i> ' + file.name
+            + ' <button onclick=\"window._pmViewPdfR2(\'' + campo + '\');\" style=\"background:none;border:none;color:#3b82f6;cursor:pointer;font-size:0.72rem;padding:0 4px;text-decoration:underline;\">👁 Ver</button></span>';
+        if (campo === 'comunicacao') {
+            window._pdfDuploBase64 = window._pdfDuploBase64 || {};
+            window._pdfDuploBase64.comunicacaoSalva = true;
+        }
+    } catch(e) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#dc2626;font-size:0.75rem">❌ ' + e.message + '</span>';
+    }
+};
+
+window._pmViewPdfR2 = function(campo) {
+    const mes = document.getElementById('pm-mes')?.value;
+    const ano = document.getElementById('pm-ano')?.value;
+    const tipo = encodeURIComponent(document.getElementById('pm-tipo-doc')?.value || 'Pagamentos');
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    fetch('/api/pagamentos-massa/view-pdf?mes=' + mes + '&ano=' + ano + '&tipoDocumento=' + tipo + '&campo=' + campo, {
+        headers: { Authorization: 'Bearer ' + token }
+    }).then(r => r.blob()).then(blob => {
+        window.open(URL.createObjectURL(blob), '_blank');
+    }).catch(e => alert('Erro ao abrir PDF: ' + e.message));
+};
+
+window._pmRestaurarPdfs = async function() {
+    const mes = document.getElementById('pm-mes')?.value;
+    const ano = document.getElementById('pm-ano')?.value;
+    const tipo = document.getElementById('pm-tipo-doc')?.value || 'Pagamentos';
+    if (!mes || !ano || tipo !== 'Pagamentos') return;
+    try {
+        const r = await fetch('/api/pagamentos-massa/pdfs-salvos?mes=' + encodeURIComponent(mes)
+            + '&ano=' + encodeURIComponent(ano) + '&tipoDocumento=' + encodeURIComponent(tipo), {
+            headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+        });
+        const data = await r.json();
+        if (!r.ok || !data.pdfs) return;
+        let temCom = false;
+        ['adiantamento','pagamento','emprestimo','comunicacao'].forEach(function(campo) {
+            const info = data.pdfs[campo];
+            const statusEl = document.getElementById('pm-r2-status-' + campo);
+            if (info && statusEl) {
+                statusEl.innerHTML = '<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;">'
+                    + '<i class=\"ph ph-check-circle\"></i> ' + (info.nome_arquivo || campo + '.pdf')
+                    + ' <button onclick=\"window._pmViewPdfR2(\'' + campo + '\');\" style=\"background:none;border:none;color:#3b82f6;cursor:pointer;font-size:0.72rem;padding:0 4px;text-decoration:underline;\">👁 Ver</button></span>';
+                if (campo === 'comunicacao') temCom = true;
+            }
+        });
+        if (temCom) {
+            window._pdfDuploBase64 = window._pdfDuploBase64 || {};
+            window._pdfDuploBase64.comunicacaoSalva = true;
+            if (typeof window._pmFiltrar === 'function'
+                && document.getElementById('pm-review-section')
+                && document.getElementById('pm-review-section').style.display !== 'none') {
+                window._pmFiltrar();
+            }
+        }
+    } catch(e) { console.warn('[PM-R2] Erro ao restaurar:', e); }
+};
 
 
 
