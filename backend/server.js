@@ -2969,7 +2969,7 @@ app.post('/api/assinaturas/recover-signed', authenticateToken, async (req, res) 
         const signed = [];
         const signedStatuses = new Set(['signed', 'certificated', '3', '4', 'closed']);
         for (let page = 1; page <= totalPages; page++) {
-            const resp = await assinafyGet(`/v1/documents?page=${page}&per_page=100`);
+            const resp = await assinafyGet(`/v1/accounts/${ASSINAFY_CONFIG.accountId}/documents?page=${page}&per_page=100`);
             if (!resp) break;
             // Log da estrutura da resposta para diagnóstico
             if (page === 1) {
