@@ -3147,6 +3147,135 @@ app.post('/api/assinaturas/recover-signed', authenticateToken, async (req, res) 
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Rota: POST /api/assinaturas/fix-false-signed
+// Varre o banco procurando documentos com assinafy_status = 'Assinado' mas sem signed_r2_key.
+// Para cada um, consulta o Assinafy. Se o Assinafy disser pending_signature, reverte para 'Pendente'.
+app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res) => {
+    try {
+        const https = require('https');
+
+        // Helper: GET para a API Assinafy
+        const assinafyGet = (p) => new Promise((resolve, reject) => {
+            const opts = {
+                hostname: 'api.assinafy.com.br',
+                path: p,
+                method: 'GET',
+                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+            };
+            const r = https.request(opts, resp => {
+                const chunks = [];
+                resp.on('data', c => chunks.push(c));
+                resp.on('end', () => {
+                    try { resolve(JSON.parse(Buffer.concat(chunks).toString())); }
+                    catch(e) { resolve(null); }
+                });
+            });
+            r.on('error', reject);
+            r.setTimeout(12000, () => r.destroy());
+            r.end();
+        });
+
+        // Buscar documentos suspeitos: "Assinado" no banco mas sem PDF recuperado (signed_r2_key NULL)
+        const suspDocs = await new Promise((resolve, reject) =>
+            db.all(
+                `SELECT id, assinafy_id, assinado_em, assinafy_signed_at, file_name, document_type
+                 FROM documentos
+                 WHERE assinafy_status = 'Assinado'
+                   AND (signed_r2_key IS NULL OR signed_r2_key = '')
+                   AND assinafy_id IS NOT NULL AND assinafy_id != ''`,
+                [],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            )
+        );
+
+        const suspAdm = await new Promise((resolve, reject) =>
+            db.all(
+                `SELECT id, assinafy_id, assinado_em, nome_documento
+                 FROM admissao_assinaturas
+                 WHERE assinafy_status = 'Assinado'
+                   AND (signed_r2_key IS NULL OR signed_r2_key = '')
+                   AND assinafy_id IS NOT NULL AND assinafy_id != ''`,
+                [],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            )
+        );
+
+        const allSusp = [
+            ...suspDocs.map(r => ({ ...r, _table: 'documentos' })),
+            ...suspAdm.map(r => ({ ...r, _table: 'admissao_assinaturas' }))
+        ];
+
+        console.log(`[FIX-FALSE] Encontrados ${allSusp.length} documento(s) suspeito(s) (Assinado sem PDF).`);
+
+        if (!allSusp.length) {
+            return res.json({
+                success: true,
+                message: 'Nenhum documento suspeito encontrado.',
+                reverted: 0,
+                checked: 0,
+                details: []
+            });
+        }
+
+        let reverted = 0;
+        const details = [];
+
+        for (const doc of allSusp) {
+            let realStatus = null;
+            try {
+                const detail = await assinafyGet(`/v1/documents/${doc.assinafy_id}`);
+                if (detail) {
+                    const d = detail.data || detail;
+                    realStatus = String(d.status || d.status_id || '').toLowerCase();
+                }
+            } catch (e) {
+                console.warn(`[FIX-FALSE] Erro ao consultar Assinafy id=${doc.assinafy_id}: ${e.message}`);
+            }
+
+            const isPending = !realStatus
+                || realStatus === 'pending_signature'
+                || realStatus === 'pending'
+                || realStatus === 'waiting'
+                || realStatus.includes('pend')
+                || realStatus.includes('wait');
+
+            console.log(`[FIX-FALSE] ${doc._table} id=${doc.id} assinafyId=${doc.assinafy_id} status Assinafy: "${realStatus}" isPending=${isPending}`);
+
+            if (isPending) {
+                if (doc._table === 'documentos') {
+                    await new Promise((resolve, reject) =>
+                        db.run(
+                            `UPDATE documentos SET assinafy_status = 'Pendente', assinado_em = NULL, assinafy_signed_at = NULL WHERE id = ?`,
+                            [doc.id],
+                            err => err ? reject(err) : resolve()
+                        )
+                    );
+                } else {
+                    await new Promise((resolve, reject) =>
+                        db.run(
+                            `UPDATE admissao_assinaturas SET assinafy_status = 'Pendente', assinado_em = NULL WHERE id = ?`,
+                            [doc.id],
+                            err => err ? reject(err) : resolve()
+                        )
+                    );
+                }
+                reverted++;
+                console.log(`[FIX-FALSE] ✅ Revertido para Pendente: ${doc._table} id=${doc.id}`);
+                details.push({ id: doc.id, table: doc._table, assinafy_id: doc.assinafy_id, realStatus, action: 'reverted_to_pending' });
+            } else {
+                details.push({ id: doc.id, table: doc._table, assinafy_id: doc.assinafy_id, realStatus, action: 'kept_signed' });
+            }
+        }
+
+        console.log(`[FIX-FALSE] Concluído: ${reverted} documento(s) revertido(s) de ${allSusp.length} verificado(s).`);
+        res.json({ success: true, reverted, checked: allSusp.length, details });
+
+    } catch (e) {
+        console.error('[FIX-FALSE] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Endpoint: Limpar todos os registros de teste de assinaturas
 app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res) => {
     try {

@@ -715,3 +715,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentArea = document.querySelector('.main-content');
     if(contentArea) observer.observe(contentArea, { childList: true, subtree: true, attributes: true });
 });
+
+// ─── Recuperar PDFs assinados do Assinafy ────────────────────────────────────
+window.assinaturasRecuperarPDFs = async function() {
+    if (!confirm('Isso vai buscar PDFs assinados no Assinafy e salvá-los no sistema.\n\nEsse processo pode demorar alguns segundos. Continuar?')) return;
+    const btn = document.querySelector('[onclick="assinaturasRecuperarPDFs()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite"></i> Buscando...'; }
+    try {
+        const res = await fetch('/api/assinaturas/recover-signed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ..._assAuthHeader() },
+            body: JSON.stringify({ pages: 20 })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✅ Recuperação concluída!\n\n${data.recovered} PDF(s) recuperado(s) de ${data.total} documento(s) assinados no Assinafy.`);
+            renderAssinaturasPendentes();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha desconhecida'));
+        }
+    } catch (e) {
+        alert('Erro ao recuperar PDFs: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-cloud-arrow-down"></i> Recuperar PDFs'; }
+    }
+};
+
+// ─── Corrigir documentos marcados como Assinado que ainda estão pendentes ───
+window.assinaturasCorrigirStatusFalsos = async function() {
+    if (!confirm('Isso vai verificar no Assinafy todos os documentos marcados como "Assinado" sem PDF salvo.\n\nDocumentos que o Assinafy ainda reporta como pendentes serão revertidos para "Pendente".\n\nContinuar?')) return;
+    const btn = document.querySelector('[onclick="assinaturasCorrigirStatusFalsos()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite"></i> Verificando...'; }
+    try {
+        const res = await fetch('/api/assinaturas/fix-false-signed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ..._assAuthHeader() },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.success) {
+            const msg = data.reverted > 0
+                ? `✅ Correção concluída!\n\n${data.reverted} documento(s) revertido(s) para "Pendente" de ${data.checked} verificado(s).\n\nEsses documentos ainda não foram assinados no Assinafy.`
+                : `✅ Tudo certo!\n\nNenhum documento falso encontrado (${data.checked} verificado(s)).`;
+            alert(msg);
+            if (data.reverted > 0) renderAssinaturasPendentes();
+        } else {
+            alert('Erro: ' + (data.error || 'Falha desconhecida'));
+        }
+    } catch (e) {
+        alert('Erro ao corrigir status: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-arrow-counter-clockwise"></i> Corrigir Status Falsos'; }
+    }
+};

@@ -1199,9 +1199,17 @@
                         <div class="card" style="padding: 1.5rem;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap:wrap; gap:0.5rem;">
                                 <h3 style="margin:0; font-size: 1.1rem;">Geradas recentemente</h3>
-                                <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
-                                    <i class="ph ph-download-simple"></i> Baixar Todas (ZIP)
-                                </button>
+                                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                                    <button class="btn btn-secondary btn-sm" onclick="assinaturasRecuperarPDFs()" title="Busca PDFs assinados no Assinafy e salva no sistema">
+                                        <i class="ph ph-cloud-arrow-down"></i> Recuperar PDFs
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" onclick="assinaturasCorrigirStatusFalsos()" title="Reverte documentos marcados como Assinado que ainda estão pendentes no Assinafy" style="border-color:#f59e0b;color:#d97706;">
+                                        <i class="ph ph-arrow-counter-clockwise"></i> Corrigir Status Falsos
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="assinaturasBaixarTodas()">
+                                        <i class="ph ph-download-simple"></i> Baixar Todas (ZIP)
+                                    </button>
+                                </div>
                             </div>
                             <!-- Filtros -->
                             <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1rem;">
