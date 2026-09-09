@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -10754,7 +10754,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
                    d.upload_date, d.assinafy_sent_at, d.assinafy_signed_at, d.assinafy_status,
-                   d.tem_adiantamento, d.tem_pagamento, d.tem_emprestimo,
+                   d.tem_adiantamento, d.tem_pagamento, d.tem_emprestimo, d.tem_comunicacao,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d
@@ -10818,6 +10818,107 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         res.status(500).json({ error: e.message });
     }
 });
+// POST: Salvar PDF de massa no R2 (adiantamento, pagamento, emprestimo, comunicacao)
+app.post('/api/pagamentos-massa/salvar-pdf', authenticateToken, upload.single('pdf'), async (req, res) => {
+    const { campo, mes, ano, tipoDocumento } = req.body;
+    if (!campo || !mes || !ano || !tipoDocumento) return res.status(400).json({ error: 'Parâmetros obrigatórios: campo, mes, ano, tipoDocumento' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+    const r2 = require('./utils/r2');
+    if (!r2.isReady()) return res.status(503).json({ error: 'R2 não configurado' });
+
+    try {
+        const ext = 'pdf';
+        const hash = Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+        const safeAno  = String(ano).replace(/[^0-9]/g, '');
+        const safeMes  = String(mes).replace(/[^0-9]/g, '').padStart(2, '0');
+        const safeTipo = (tipoDocumento || 'Pagamentos').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+        const safeCampo = (campo || 'doc').replace(/[^a-zA-Z0-9_]/g, '_');
+        const r2Key = `DocumentosMassa/${safeAno}/${safeMes}/${safeTipo}/${safeCampo}_${hash}.${ext}`;
+
+        await r2.uploadToR2(r2Key, req.file.buffer, 'application/pdf');
+
+        // Upsert no banco
+        await new Promise((resolve, reject) =>
+            db.run(
+                `INSERT INTO docs_massa_pdfs (mes, ano, tipo_documento, campo, r2_key, nome_arquivo, tamanho)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(mes, ano, tipo_documento, campo) DO UPDATE SET
+                   r2_key = excluded.r2_key,
+                   nome_arquivo = excluded.nome_arquivo,
+                   tamanho = excluded.tamanho,
+                   uploaded_at = datetime('now')`,
+                [mes, ano, tipoDocumento, campo, r2Key, req.file.originalname, req.file.size],
+                (err) => err ? reject(err) : resolve()
+            )
+        );
+
+        console.log(`[DOCS-MASSA-PDF] Salvo: ${campo} → ${r2Key}`);
+        res.json({ ok: true, r2_key: r2Key, nome_arquivo: req.file.originalname });
+    } catch (e) {
+        console.error('[DOCS-MASSA-PDF] Erro ao salvar PDF:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET: Listar PDFs de massa salvos para mes/ano/tipo
+app.get('/api/pagamentos-massa/pdfs-salvos', authenticateToken, async (req, res) => {
+    const { mes, ano, tipoDocumento } = req.query;
+    if (!mes || !ano || !tipoDocumento) return res.status(400).json({ error: 'Parâmetros obrigatórios: mes, ano, tipoDocumento' });
+
+    try {
+        const rows = await new Promise((resolve, reject) =>
+            db.all(
+                'SELECT campo, r2_key, nome_arquivo, tamanho, uploaded_at FROM docs_massa_pdfs WHERE mes = ? AND ano = ? AND tipo_documento = ?',
+                [mes, ano, tipoDocumento],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            )
+        );
+
+        const r2 = require('./utils/r2');
+        const pdfs = {};
+        for (const row of rows) {
+            pdfs[row.campo] = {
+                r2_key: row.r2_key,
+                nome_arquivo: row.nome_arquivo,
+                tamanho: row.tamanho,
+                uploaded_at: row.uploaded_at,
+            };
+        }
+        res.json({ ok: true, pdfs });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET: Visualizar PDF de massa salvo no R2
+app.get('/api/pagamentos-massa/view-pdf', authenticateToken, async (req, res) => {
+    const { mes, ano, tipoDocumento, campo } = req.query;
+    if (!mes || !ano || !tipoDocumento || !campo) return res.status(400).json({ error: 'Parâmetros obrigatórios: mes, ano, tipoDocumento, campo' });
+
+    try {
+        const row = await new Promise((resolve, reject) =>
+            db.get(
+                'SELECT r2_key, nome_arquivo FROM docs_massa_pdfs WHERE mes = ? AND ano = ? AND tipo_documento = ? AND campo = ?',
+                [mes, ano, tipoDocumento, campo],
+                (err, row) => err ? reject(err) : resolve(row)
+            )
+        );
+        if (!row || !row.r2_key) return res.status(404).json({ error: 'PDF não encontrado' });
+
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(503).json({ error: 'R2 não configurado' });
+
+        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        res.setHeader('Content-Type', contentType || 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${row.nome_arquivo || campo + '.pdf'}"`);
+        stream.pipe(res);
+    } catch (e) {
+        console.error('[DOCS-MASSA-PDF] Erro ao visualizar PDF:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // POST: Preview merge de holerites on the fly
 app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
     // Authenticate manually from query token because form POST doesn't send Bearer header easily
@@ -11081,6 +11182,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                     temAdiantamento: !!(item.paginaAdiantamento && bufAd),
                     temPagamento:    !!(item.paginaPagamento    && bufPg),
                     temEmprestimo:   !!(item.paginaEmprestimo   && bufEmpr),
+                    temComunicacao:  !!(bufCom),
                 });
                 docId = dbRes.docId;
 
@@ -31961,6 +32063,20 @@ app.get('/api/arquivos-perdidos', (req, res) => {
 // ============================================================
 
 // Tabela principal
+
+// Migration: tabela para persistir PDFs de massa no R2
+db.run(`CREATE TABLE IF NOT EXISTS docs_massa_pdfs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes TEXT NOT NULL,
+    ano TEXT NOT NULL,
+    tipo_documento TEXT NOT NULL,
+    campo TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    nome_arquivo TEXT,
+    tamanho INTEGER,
+    uploaded_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(mes, ano, tipo_documento, campo) ON CONFLICT REPLACE
+)`, (err) => { if (err) console.error('[MIGRATION] docs_massa_pdfs:', err.message); });
 db.run(`CREATE TABLE IF NOT EXISTS feedback_documentos (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   colaborador_id   INTEGER NOT NULL,
