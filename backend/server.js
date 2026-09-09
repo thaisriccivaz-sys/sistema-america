@@ -2491,10 +2491,13 @@ async function pollAdmissaoAssinaturas() {
                 // 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
                 // 'signed' = todos assinaram, certificado ainda sendo gerado (código 3).
                 // 'certificated' / '4' = certificado emitido (estado final).
+                // ATENÇÃO: 'pending_signature' contém 'sign' mas NÃO é assinado — não usar includes('sign')!
                 const isSigned = statusRaw.includes('certificat') || statusRaw === '4'
                                || statusRaw === 'signed' || statusRaw === '3'
-                               || statusRaw.includes('sign') && !statusRaw.includes('unsign');
-                if (!isSigned) {
+                               || statusRaw === 'closed' || statusRaw === 'completed_signed';
+                // Explicitamente rejeitar pending_signature / pending (ainda aguardando)
+                const isPending = statusRaw.includes('pending') || statusRaw === 'draft' || statusRaw === 'waiting';
+                if (!isSigned || isPending) {
                     console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} → status="${statusRaw}" (ainda pendente)`);
                     continue;
                 }
@@ -8847,10 +8850,11 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                     } else {
                         const assifanyStatus = dataObj?.status || '';
                         if (assifanyStatus === 'pending_signature' || assifanyStatus === 'pending' || assifanyStatus === 'draft') {
-                            // Status mismatch: nosso DB diz 'Assinado' mas Assinafy diz que ainda está pendente
-                            // Auto-corrigir o banco e liberar fallback para o PDF original
-                            console.warn(`[VIEW-DIAG] MISMATCH: doc=${row.id} DB=Assinado Assinafy=${assifanyStatus}. Corrigindo DB para Aguardando.`);
-                            db.run("UPDATE documentos SET assinafy_status = 'Aguardando' WHERE id = ?", [row.id]);
+                            // Assinafy ainda diz pending — pode ser que a assinatura foi feita mas o certificado
+                            // ainda não foi gerado, OU o documento realmente ainda não foi assinado.
+                            // NÃO resetar o DB — o polling vai detectar quando o PDF ficar disponível.
+                            // Apenas liberar o fallback para mostrar o PDF original por enquanto.
+                            console.warn(`[VIEW-DIAG] doc=${row.id} DB=Assinado mas Assinafy=${assifanyStatus}. Mostrando PDF original como fallback (sem alterar DB).`);
                             assinafyPendingSignature = true;
                         } else {
                             // URL não encontrada mas status não é pending — pode ser signed sem URL ainda
