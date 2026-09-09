@@ -304,4 +304,14 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
     return { assinafyDocId, urlAssinatura, emailColaborador: email, nomeColab: nome, docType: doc.document_type };
 }
 
-module.exports = { enviarDocumentoParaAssinafy };
+async function cancelarDocumentoAssinafy(assinafyDocId) {
+    console.log(`[ASSINAFY] Cancelando documento: ${assinafyDocId}`);
+    const r = await req('POST', `/v1/documents/${assinafyDocId}/cancel`, {});
+    if (r.status >= 200 && r.status < 300) {
+        console.log(`[ASSINAFY] Documento cancelado com sucesso.`);
+        return true;
+    }
+    throw new Error(`Erro ao cancelar documento (HTTP ${r.status}): ${r.json?.message || r.raw.substring(0, 150)}`);
+}
+
+module.exports = { enviarDocumentoParaAssinafy, cancelarDocumentoAssinafy };

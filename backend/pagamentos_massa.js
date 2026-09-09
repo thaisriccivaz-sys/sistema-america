@@ -324,7 +324,7 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const mesSemPad = String(parseInt(mes, 10) || '');
     const docsExistentes = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT id, file_path, r2_key FROM documentos
+            `SELECT id, file_path, r2_key, assinafy_id FROM documentos
              WHERE colaborador_id = ? AND tab_name = 'Pagamentos'
                AND (month = ? OR month = ?)
                AND year = ?`,
@@ -334,7 +334,17 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     });
 
     const r2Mod = require('./utils/r2');
+    const novoProcesso = require('./novo_processo_assinafy');
     for (const docAntigo of docsExistentes) {
+        // Cancela documento no Assinafy para invalidar o link de assinatura antigo
+        // Sem isso, o colaborador ainda recebe/tem o link antigo e pode assinar o doc errado
+        if (docAntigo.assinafy_id) {
+            try {
+                await novoProcesso.cancelarDocumentoAssinafy(docAntigo.assinafy_id);
+            } catch (cancelErr) {
+                console.warn('[PAGAMENTOS-MASSA] Falha ao cancelar doc no Assinafy (pode já ter sido cancelado):', cancelErr.message);
+            }
+        }
         // Remove arquivo físico antigo (silenciosamente)
         try { if (docAntigo.file_path && fs.existsSync(docAntigo.file_path)) fs.unlinkSync(docAntigo.file_path); } catch(_) {}
         // Remove do R2 se tiver chave
