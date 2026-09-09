@@ -3178,7 +3178,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
         // Buscar documentos suspeitos: "Assinado" no banco mas sem PDF recuperado (signed_r2_key NULL)
         const suspDocs = await new Promise((resolve, reject) =>
             db.all(
-                `SELECT id, assinafy_id, assinado_em, assinafy_signed_at, file_name, document_type
+                `SELECT id, assinafy_id, assinafy_signed_at, file_name, document_type
                  FROM documentos
                  WHERE assinafy_status = 'Assinado'
                    AND (signed_r2_key IS NULL OR signed_r2_key = '')
@@ -3245,7 +3245,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
                 if (doc._table === 'documentos') {
                     await new Promise((resolve, reject) =>
                         db.run(
-                            `UPDATE documentos SET assinafy_status = 'Pendente', assinado_em = NULL, assinafy_signed_at = NULL WHERE id = ?`,
+                            `UPDATE documentos SET assinafy_status = 'Pendente', assinafy_signed_at = NULL WHERE id = ?`,
                             [doc.id],
                             err => err ? reject(err) : resolve()
                         )
