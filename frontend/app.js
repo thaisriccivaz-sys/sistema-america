@@ -19751,12 +19751,17 @@ window._pmRestaurarPdfs = async function() {
                                 localItem.docId = res.docId;
                                 // Limpa erro anterior se agora foi com sucesso
                                 localItem.erroEnvio = false;
-                                localItem.assinadoStatus = localItem.assinadoStatus === 'Erro' ? null : localItem.assinadoStatus;
                                 if (isSalvarOnly) {
                                     localItem.salvoEm = dataHora;   // ✅ Data/hora do salvamento
+                                    // Mantém status de assinatura anterior (apenas salvou, não reenviou)
+                                    localItem.assinadoStatus = localItem.assinadoStatus === 'Erro' ? null : localItem.assinadoStatus;
                                 } else {
-                                    localItem.salvoEm = localItem.salvoEm || dataHora; // Mantém salvo se já existia
-                                    localItem.enviadoEm = dataHora; // Ô£ê Data/hora do envio por e-mail
+                                    // Novo envio para assinatura: zerar status anterior de "Assinado"
+                                    // para que a badge mude de ASSINADO → ENVIADO imediatamente
+                                    localItem.assinadoStatus = null;  // Voltará a 'Assinado' só após o colab assinar
+                                    localItem.assinadoEm    = null;   // Zera data da assinatura anterior
+                                    localItem.salvoEm = localItem.salvoEm || dataHora;
+                                    localItem.enviadoEm = dataHora;   // ✅ Data/hora do envio por e-mail
                                 }
                             } else if (!res.ok) {
                                 // Marca erro na sessão para nome ficar vermelho imediatamente
