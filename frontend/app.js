@@ -19098,10 +19098,44 @@ window._pmRestaurarPdfs = async function() {
     };
 
     window._pmProcessarDuplo = async function () {
-        const fileAd = document.getElementById('pm-file-adiantamento')?.files[0];
-        const filePg = document.getElementById('pm-file-pagamento')?.files[0];
-        const fileEmpr = document.getElementById('pm-file-emprestimo')?.files[0];
-        const fileCom = document.getElementById('pm-file-comunicacao')?.files[0];
+        const mes  = document.getElementById('pm-mes')?.value || '';
+        const ano  = document.getElementById('pm-ano')?.value || '';
+        const tipo = encodeURIComponent(document.getElementById('pm-tipo-doc')?.value || 'Pagamentos');
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+
+        // Helper: tenta pegar do input; se vazio, baixa do R2
+        const _getFile = async function(campo, inputId) {
+            const fromInput = document.getElementById(inputId)?.files[0];
+            if (fromInput) return fromInput;  // arquivo selecionado no input → usar ele
+            // Sem arquivo no input → tentar R2
+            if (!mes || !ano) return null;
+            try {
+                const r2r = await fetch('/api/pagamentos-massa/view-pdf?mes=' + encodeURIComponent(mes)
+                    + '&ano=' + encodeURIComponent(ano) + '&tipoDocumento=' + tipo + '&campo=' + campo, {
+                    headers: { Authorization: 'Bearer ' + token }
+                });
+                if (!r2r.ok) return null;
+                const blob = await r2r.blob();
+                if (!blob || blob.size === 0) return null;
+                // Tentar ler nome do status div
+                const statusEl = document.getElementById('pm-r2-status-' + campo);
+                let nome = campo + '.pdf';
+                if (statusEl) {
+                    const txt = statusEl.innerText || statusEl.textContent || '';
+                    const match = txt.match(/([^s]+.pdf)/i);
+                    if (match) nome = match[1];
+                }
+                return new File([blob], nome, { type: 'application/pdf' });
+            } catch(e2) {
+                console.warn('[PM] Erro ao buscar R2 para campo ' + campo + ':', e2);
+                return null;
+            }
+        };
+
+        const fileAd   = await _getFile('adiantamento', 'pm-file-adiantamento');
+        const filePg   = await _getFile('pagamento',    'pm-file-pagamento');
+        const fileEmpr = await _getFile('emprestimo',   'pm-file-emprestimo');
+        const fileCom  = await _getFile('comunicacao',  'pm-file-comunicacao');
 
         if (!fileAd && !filePg) {
             Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
