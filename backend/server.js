@@ -2485,11 +2485,14 @@ async function pollAdmissaoAssinaturas() {
                 };
 
                 // Status do Assinafy que indicam assinatura EFETIVAMENTE completa.
-                // ATENº??O: 'completed' significa que o envelope foi CRIAÇÃO com sucesso (ainda aguardando assinatura).
-                // Apenas 'certificated' e o código '4' indicam que TODOS assinaram e o certificado foi emitido.
-                const isSigned = statusRaw.includes('certificat') || statusRaw === '4';
+                // 'completed' significa que o envelope foi CRIADO com sucesso (ainda aguardando assinatura).
+                // 'signed' = todos assinaram, certificado ainda sendo gerado (código 3).
+                // 'certificated' / '4' = certificado emitido (estado final).
+                const isSigned = statusRaw.includes('certificat') || statusRaw === '4'
+                               || statusRaw === 'signed' || statusRaw === '3'
+                               || statusRaw.includes('sign') && !statusRaw.includes('unsign');
                 if (!isSigned) {
-                    console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} ? status="${statusRaw}" (ainda pendente)`);
+                    console.log(`[POLL-ADMISSAO] Doc ${doc.assinafy_id} → status="${statusRaw}" (ainda pendente)`);
                     continue;
                 }
 
@@ -2628,12 +2631,9 @@ async function pollAdmissaoAssinaturas() {
                     }
                 }
 
-                // PROTEÇÃO: só marca 'Assinado' se o PDF assinado foi efetivamente baixado.
-                // Sem PDF, significa que o Assinafy ainda não gerou o certificado (falso positivo).
-                if (!finalBuffer) {
-                    console.warn(`[POLL-ADMISSAO] ??? Doc ${doc.assinafy_id} retornou status de assinado mas sem PDF disponºvel. Mantendo como Pendente.`);
-                } else {
-                    // Atualizar banco em AMBAS as tabelas, pois o mesmo documento pode existir nas duas
+
+                if (finalBuffer) {
+                    // PDF disponível: atualiza status + caminho + R2 em ambas as tabelas
                     db.run(
                         `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE assinafy_id = ?`,
                         [signedPath, doc.assinafy_id]
@@ -2642,7 +2642,20 @@ async function pollAdmissaoAssinaturas() {
                         `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, signed_r2_key = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
                         [signedPath, signedR2Key, doc.assinafy_id]
                     );
-                    console.log(`[POLL-ADMISSAO] Banco atualizado como Assinado para assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || 'N/A'}`);
+                    console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado + PDF: assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || 'N/A'}`);
+                } else {
+                    // PDF ainda não disponível (Assinafy ainda gerando o certificado — normal, leva alguns segundos).
+                    // Marca como Assinado agora para atualizar o status visível imediatamente.
+                    // Próximo ciclo de polling (status='Assinado' AND signed_file_path IS NULL) tentará baixar o PDF.
+                    console.warn(`[POLL-ADMISSAO] ⚠️ Doc ${doc.assinafy_id} ASSINADO mas PDF ainda não disponível. Marcando status e aguardando próximo ciclo para baixar PDF.`);
+                    db.run(
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
+                        [doc.assinafy_id]
+                    );
+                    db.run(
+                        `UPDATE documentos SET assinafy_status = 'Assinado', assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
+                        [doc.assinafy_id]
+                    );
                 }
             } catch (e) {
                 console.warn(`[POLL-ADMISSAO] Erro ao verificar doc ${doc.assinafy_id}: ${e.message}`);
