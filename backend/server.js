@@ -1223,6 +1223,9 @@ db.run("ALTER TABLE documentos ADD COLUMN r2_key TEXT", (err) => {
 db.run("ALTER TABLE documentos ADD COLUMN signed_r2_key TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration signed_r2_key:', err.message);
 });
+db.run("ALTER TABLE admissao_assinaturas ADD COLUMN signed_r2_key TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('Migration admissao_assinaturas signed_r2_key:', err.message);
+});
 
 db.run("ALTER TABLE colaboradores ADD COLUMN tamanho_camiseta TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error(err);
@@ -2619,13 +2622,29 @@ async function pollAdmissaoAssinaturas() {
 
                 // Upload do assinado para R2 (duplo backup com OneDrive)
                 let signedR2Key = null;
-                if (finalBuffer && doc.source === 'documento') {
+                let admissaoSignedR2Key = null;
+                if (finalBuffer) {
                     try {
-                        // Buscar o docId pelo assinafy_id
-                        const docRow = await new Promise((res2, rej2) =>
-                            db.get('SELECT id FROM documentos WHERE assinafy_id = ?', [doc.assinafy_id], (e, r) => e ? rej2(e) : res2(r))
-                        );
-                        if (docRow) signedR2Key = await uploadSignedDocToR2(docRow.id, finalBuffer);
+                        if (doc.source === 'documento') {
+                            // Buscar o docId pelo assinafy_id
+                            const docRow = await new Promise((res2, rej2) =>
+                                db.get('SELECT id FROM documentos WHERE assinafy_id = ?', [doc.assinafy_id], (e, r) => e ? rej2(e) : res2(r))
+                            );
+                            if (docRow) signedR2Key = await uploadSignedDocToR2(docRow.id, finalBuffer);
+                        } else if (doc.source === 'admissao') {
+                            // Upload direto para admissao_assinaturas
+                            const colabRow = await new Promise((res2, rej2) =>
+                                db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [doc.colaborador_id], (e, r) => e ? rej2(e) : res2(r))
+                            );
+                            const nomeColab = (colabRow?.nome_completo || 'COLABORADOR').toUpperCase().replace(/\s+/g, '_');
+                            const nomeDoc = (doc.nome_documento || 'DOCUMENTO').replace(/\s+/g, '_');
+                            const admR2Key = buildR2Key('Colaboradores', 'Assinaturas', nomeColab, nomeDoc, 'pdf');
+                            if (r2Utils.isReady && r2Utils.isReady()) {
+                                await r2Utils.uploadToR2(admR2Key, finalBuffer, 'application/pdf');
+                                admissaoSignedR2Key = admR2Key;
+                                console.log(`[POLL-ADMISSAO] ✅ R2 admissao upload: ${admR2Key}`);
+                            }
+                        }
                     } catch (r2Err) {
                         console.warn(`[POLL-ADMISSAO] R2 signed upload falhou: ${r2Err.message}`);
                     }
@@ -2635,14 +2654,14 @@ async function pollAdmissaoAssinaturas() {
                 if (finalBuffer) {
                     // PDF disponível: atualiza status + caminho + R2 em ambas as tabelas
                     db.run(
-                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ? WHERE assinafy_id = ?`,
-                        [signedPath, doc.assinafy_id]
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ?, signed_r2_key = COALESCE(?, signed_r2_key) WHERE assinafy_id = ?`,
+                        [signedPath, admissaoSignedR2Key, doc.assinafy_id]
                     );
                     db.run(
                         `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, signed_r2_key = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
                         [signedPath, signedR2Key, doc.assinafy_id]
                     );
-                    console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado + PDF: assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || 'N/A'}`);
+                    console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado + PDF: assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || admissaoSignedR2Key || 'N/A'}`);
                 } else {
                     // PDF ainda não disponível (Assinafy ainda gerando o certificado — normal, leva alguns segundos).
                     // Marca como Assinado agora para atualizar o status visível imediatamente.
@@ -8640,6 +8659,15 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
                                     if (signPdfPfx.verificarDisponibilidade().disponivel) {
                                         try { finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' }); } catch (e) { console.error('PFX PROXY ERR:', e.message); try { db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); } catch (z) { } }
                                     }
+                                    // Lazy: cache no R2 para acelerar próximas visualizações
+                                    if (r2Utils.isReady() && row.id && !row.signed_r2_key) {
+                                        setImmediate(async () => {
+                                            try {
+                                                await uploadSignedDocToR2(row.id, finalBuf);
+                                                console.log(`[DOWNLOAD-LAZY] signed_r2_key salvo para doc ${row.id}`);
+                                            } catch (e2) { console.warn('[DOWNLOAD-LAZY] R2 upload falhou:', e2.message); }
+                                        });
+                                    }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
@@ -8650,8 +8678,8 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // PRIORIDADE 4: Arquivo original no R2
-        if (row.r2_key && r2Utils.isReady()) {
+        // PRIORIDADE 4: Arquivo original no R2 — NÃO servir unsigned quando doc está Assinado
+        if (row.r2_key && r2Utils.isReady() && row.assinafy_status !== 'Assinado') {
             try {
                 const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
                 const r2FileName = row.file_name || 'documento.pdf';
@@ -8669,8 +8697,9 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
         }
 
         // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
+        // NÃO devolver para docs Assinados — evita mostrar PDF sem assinatura
         pathLocal = row.file_path;
-        if (pathLocal && fs.existsSync(pathLocal)) {
+        if (pathLocal && fs.existsSync(pathLocal) && row.assinafy_status !== 'Assinado') {
             let isDocx = false;
             try {
                 const fd = fs.openSync(pathLocal, 'r');
@@ -8693,7 +8722,22 @@ app.get('/api/documentos/download/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        return res.status(404).json({ error: 'Arquivo fàsico não encontrado no servidor.' });
+        // Documento Assinado mas PDF ainda indisponível — exibir mensagem informativa
+        if (row.assinafy_status === 'Assinado') {
+            return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
+                '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
+                'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
+                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
+                '<h2>PDF sendo finalizado</h2>' +
+                '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
+                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+            );
+        }
+
+        return res.status(404).json({ error: 'Arquivo físico não encontrado no servidor.' });
     });
 });
 
@@ -8780,6 +8824,15 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                                             finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
                                         }
                                     } catch (e) { console.error('PFX PROXY ERR:', e.message); try { db.run("INSERT INTO system_logs (msg) VALUES (?)", ['PFX PROXY ERR ' + String(e.message)]); } catch (z) { } }
+                                    // Lazy: cache o PDF assinado no R2 para acelerar próximas visualizações
+                                    if (r2Utils.isReady() && row.id && !row.signed_r2_key) {
+                                        setImmediate(async () => {
+                                            try {
+                                                await uploadSignedDocToR2(row.id, finalBuf);
+                                                console.log(`[VIEW-LAZY] signed_r2_key salvo para doc ${row.id}`);
+                                            } catch (e2) { console.warn('[VIEW-LAZY] R2 upload falhou:', e2.message); }
+                                        });
+                                    }
                                     res.setHeader('Content-Type', 'application/pdf');
                                     return res.send(finalBuf);
                                 }
@@ -8790,8 +8843,8 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
         }
 
-        // PRIORIDADE 4: Arquivo original no R2 (para /view)
-        if (row.r2_key && r2Utils.isReady()) {
+        // PRIORIDADE 4: Arquivo original no R2 (para /view) — NÃO servir unsigned quando doc está Assinado
+        if (row.r2_key && r2Utils.isReady() && row.assinafy_status !== 'Assinado') {
             try {
                 const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
                 const r2FileName = row.file_name || 'documento.pdf';
@@ -8815,7 +8868,8 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
         // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
         pathLocal = row.file_path;
-        if (pathLocal && fs.existsSync(pathLocal)) {
+        // Não devolver PDF original para docs Assinados — evita mostrar versão sem assinatura
+        if (pathLocal && fs.existsSync(pathLocal) && row.assinafy_status !== 'Assinado') {
             let isDocx = false;
             try {
                 const fd = fs.openSync(pathLocal, 'r');
@@ -8836,6 +8890,21 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             }
             res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(safeFilename)}"`);
             return fs.createReadStream(pathLocal).pipe(res);
+        }
+
+        // Documento Assinado mas PDF ainda indisponível — exibir mensagem em vez do PDF sem assinatura
+        if (row.assinafy_status === 'Assinado') {
+            return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
+                '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
+                'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
+                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
+                '<h2>PDF sendo finalizado</h2>' +
+                '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
+                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+            );
         }
 
         return res.status(404).json({ error: 'Arquivo fàsico não encontrado no servidor.' });
@@ -11719,16 +11788,32 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
         );
         if (!row) return res.status(404).json({ error: 'Registro não encontrado' });
 
-        // 1. Arquivo local como fonte primária
-        let pathToFile = row.signed_file_path;
+        const docName = encodeURIComponent(row.nome_documento || 'documento');
 
-        if (pathToFile && fs.existsSync(pathToFile)) {
+        // 1. Prioridade: signed_r2_key no R2 (PDF assinado já cacheado)
+        if (row.signed_r2_key && r2Utils.isReady()) {
+            try {
+                const fileData = await r2Utils.downloadStreamFromR2(row.signed_r2_key);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${docName}_Assinado.pdf"`);
+                if (fileData.contentLength) res.setHeader('Content-Length', fileData.contentLength);
+                if (fileData.stream && typeof fileData.stream.pipe === 'function') return fileData.stream.pipe(res);
+                if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                    const bytes = await fileData.stream.transformToByteArray();
+                    return res.send(Buffer.from(bytes));
+                }
+            } catch (r2Err) { console.warn('[ADMISSAO-DL] signed_r2_key falhou:', r2Err.message); }
+        }
+
+        // 2. Arquivo local (fallback para quando existia disco local ou Render não reiniciou)
+        let pathToFile = row.signed_file_path;
+        if (pathToFile && fs.existsSync(pathToFile) && row.assinafy_status !== 'Assinado') {
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.nome_documento || 'documento')}_Assinado.pdf"`);
+            res.setHeader('Content-Disposition', `inline; filename="${docName}_Assinado.pdf"`);
             return fs.createReadStream(pathToFile).pipe(res);
         }
 
-        // 2. Se local não existe, tenta Assinafy (redirecionando diretamente)
+        // 3. Buscar no Assinafy (PDF assinado ainda não cacheado no R2)
         if (row.assinafy_id) {
             try {
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`,
@@ -11744,8 +11829,33 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                                 const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
                                 if (dl.ok) {
                                     const arrayBuffer = await dl.arrayBuffer();
+                                    let finalBuf = Buffer.from(arrayBuffer);
+                                    // Aplicar certificado PFX se disponível
+                                    try {
+                                        const signPdfPfx = require('./sign_pdf_pfx');
+                                        if (signPdfPfx.verificarDisponibilidade().disponivel) {
+                                            finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
+                                        }
+                                    } catch (pfxErr) { console.warn('[ADMISSAO-DL] PFX err:', pfxErr.message); }
+                                    // Lazy: cache no R2 e atualiza DB
+                                    if (r2Utils.isReady() && row.id && !row.signed_r2_key) {
+                                        setImmediate(async () => {
+                                            try {
+                                                const colabRow = await new Promise((res2, rej2) =>
+                                                    db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [row.colaborador_id], (e, r2) => e ? rej2(e) : res2(r2))
+                                                );
+                                                const nomeColab = (colabRow?.nome_completo || 'COLABORADOR').toUpperCase().replace(/\s+/g, '_');
+                                                const nomeDoc = (row.nome_documento || 'DOCUMENTO').replace(/\s+/g, '_');
+                                                const r2Key = buildR2Key('Colaboradores', 'Assinaturas', nomeColab, nomeDoc, 'pdf');
+                                                await r2Utils.uploadToR2(r2Key, finalBuf, 'application/pdf');
+                                                db.run('UPDATE admissao_assinaturas SET signed_r2_key = ? WHERE id = ?', [r2Key, row.id]);
+                                                console.log(`[ADMISSAO-DL-LAZY] signed_r2_key salvo para admissao ${row.id}: ${r2Key}`);
+                                            } catch (e2) { console.warn('[ADMISSAO-DL-LAZY] R2 upload falhou:', e2.message); }
+                                        });
+                                    }
                                     res.setHeader('Content-Type', 'application/pdf');
-                                    return res.send(Buffer.from(arrayBuffer));
+                                    res.setHeader('Content-Disposition', `inline; filename="${docName}_Assinado.pdf"`);
+                                    return res.send(finalBuf);
                                 } else {
                                     return res.redirect(signedUrl);
                                 }
@@ -11756,6 +11866,21 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
             } catch (e) {
                 console.warn('[DOWNLOAD-ADMISSAO] Falha proxy Assinafy:', e.message);
             }
+        }
+
+        // 4. Documento Assinado mas PDF ainda não disponível — mensagem informativa
+        if (row.assinafy_status === 'Assinado') {
+            return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF sendo finalizado</title>' +
+                '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
+                '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
+                'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
+                'button{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;}' +
+                '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#9203;</div>' +
+                '<h2>PDF sendo finalizado</h2>' +
+                '<p>O documento foi assinado. O arquivo com assinatura digital estará disponível em instantes.</p>' +
+                '<button onclick="location.reload()">&#128260; Tentar novamente</button></div></body></html>'
+            );
         }
 
         return res.status(404).json({ error: 'Arquivo assinado não encontrado no servidor.' });
