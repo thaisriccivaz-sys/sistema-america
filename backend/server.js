@@ -11295,14 +11295,33 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                              }
 
                             const mergedPdfBytes = await basePdfDoc.save();
-                            await fs.writeFile(fullPath, mergedPdfBytes);
 
-                            // Atualizar indicadores de holerite no banco
+                            // Salvar o PDF mesclado: R2 (principal) ou disco (fallback)
+                            const r2ModMerge = require('./utils/r2');
+                            let newR2Key = rowBase.r2_key || null;
+                            if (r2ModMerge.isReady() && newR2Key) {
+                                // Sobrescrever o documento existente no R2 com a versão com holerites
+                                await r2ModMerge.uploadToR2(newR2Key, Buffer.from(mergedPdfBytes), 'application/pdf');
+                                console.log('[PM] Documento mesclado atualizado no R2:', newR2Key);
+                            } else if (r2ModMerge.isReady()) {
+                                // Sem chave R2 existente: criar nova
+                                const colab2 = await new Promise((rr, rx) => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [item.colaborador_id], (e2, r2) => e2 ? rx(e2) : rr(r2)));
+                                const nomeColab2 = pagamentosMassa.normalizarNome(colab2?.nome_completo || '').replace(/\s+/g, '_');
+                                const safeT2 = tipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+                                newR2Key = `Colaboradores/${nomeColab2}/Documentos/Pagamentos/${anoDoc}/${mesDoc}_${safeT2}_${nomeColab2}.pdf`;
+                                await r2ModMerge.uploadToR2(newR2Key, Buffer.from(mergedPdfBytes), 'application/pdf');
+                                console.log('[PM] Documento mesclado criado no R2:', newR2Key);
+                            } else {
+                                // Último recurso: escrever em disco
+                                await fs.writeFile(fullPath, mergedPdfBytes);
+                            }
+
+                            // Atualizar indicadores de holerite e r2_key no banco
                             const temAd = !!(bufAd && item.paginaAdiantamento);
                             const temPg = !!(bufPg && item.paginaPagamento);
                             await new Promise(r => db.run(
-                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ? WHERE id = ?',
-                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, docId], () => r()
+                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ?, r2_key = ? WHERE id = ?',
+                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, newR2Key, docId], () => r()
                             ));
 
                             // Opcional: Atualizar no OneDrive se configurado
