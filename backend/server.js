@@ -8803,6 +8803,7 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         }
 
         // Se NAO tem assinado local (.pfx vazio ou excluído), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
+        let assinafyPendingSignature = false; // true = Assinafy confirma que o doc ainda NAO foi assinado (status mismatch)
         if (row.assinafy_id) {
             try {
                 console.log(`[VIEW-DIAG] doc=${row.id} assinafy_id=${row.assinafy_id} status=${row.assinafy_status} signed_r2_key=${row.signed_r2_key || 'null'}`);
@@ -8844,8 +8845,17 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                             }
                         } catch (err) { console.warn('[VIEW-DIAG] Erro ao baixar PDF Assinafy:', err.message); }
                     } else {
-                        // URL não encontrada — logar o JSON para entender a estrutura
-                        console.warn(`[VIEW-DIAG] extractSignedUrl retornou null. JSON parcial: ${JSON.stringify(dataObj).substring(0, 400)}`);
+                        const assifanyStatus = dataObj?.status || '';
+                        if (assifanyStatus === 'pending_signature' || assifanyStatus === 'pending' || assifanyStatus === 'draft') {
+                            // Status mismatch: nosso DB diz 'Assinado' mas Assinafy diz que ainda está pendente
+                            // Auto-corrigir o banco e liberar fallback para o PDF original
+                            console.warn(`[VIEW-DIAG] MISMATCH: doc=${row.id} DB=Assinado Assinafy=${assifanyStatus}. Corrigindo DB para Aguardando.`);
+                            db.run("UPDATE documentos SET assinafy_status = 'Aguardando' WHERE id = ?", [row.id]);
+                            assinafyPendingSignature = true;
+                        } else {
+                            // URL não encontrada mas status não é pending — pode ser signed sem URL ainda
+                            console.warn(`[VIEW-DIAG] extractSignedUrl retornou null. assinafy_status=${assifanyStatus} JSON parcial: ${JSON.stringify(dataObj).substring(0, 400)}`);
+                        }
                     }
                 } else {
                     const errText = await r.text().catch(() => '');
@@ -8857,7 +8867,8 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         }
 
         // PRIORIDADE 4: Arquivo original no R2 (para /view) — NÃO servir unsigned quando doc está Assinado
-        if (row.r2_key && r2Utils.isReady() && row.assinafy_status !== 'Assinado') {
+        // Exceto quando Assinafy confirma que o doc ainda está pendente (assinafyPendingSignature=true)
+        if (row.r2_key && r2Utils.isReady() && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature)) {
             try {
                 const fileData = await r2Utils.downloadStreamFromR2(row.r2_key);
                 const r2FileName = row.file_name || 'documento.pdf';
@@ -8881,8 +8892,8 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
 
         // Fallback final: Devolve o arquivo original NÃO ASSINADO (docs antigos no disco)
         pathLocal = row.file_path;
-        // Não devolver PDF original para docs Assinados — evita mostrar versão sem assinatura
-        if (pathLocal && fs.existsSync(pathLocal) && row.assinafy_status !== 'Assinado') {
+        // Não devolver PDF original para docs Assinados — EXCETO se Assinafy confirmou que ainda está pendente
+        if (pathLocal && fs.existsSync(pathLocal) && (row.assinafy_status !== 'Assinado' || assinafyPendingSignature)) {
             let isDocx = false;
             try {
                 const fd = fs.openSync(pathLocal, 'r');
@@ -8905,8 +8916,9 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
             return fs.createReadStream(pathLocal).pipe(res);
         }
 
-        // Documento Assinado mas PDF ainda indisponível — exibir mensagem em vez do PDF sem assinatura
-        if (row.assinafy_status === 'Assinado') {
+        // Documento realmente Assinado no Assinafy mas PDF ainda indisponível — exibir mensagem
+        // (assinafyPendingSignature=true significa status mismatch já corrigido — não exibir aqui)
+        if (row.assinafy_status === 'Assinado' && !assinafyPendingSignature) {
             return res.status(202).set('Content-Type', 'text/html; charset=utf-8').send(
                 '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="20"><title>PDF sendo finalizado</title>' +
                 '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
