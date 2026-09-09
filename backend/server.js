@@ -2927,6 +2927,210 @@ app.post('/api/assinaturas/sync', authenticateToken, async (req, res) => {
     }
 });
 
+// ─── RECUPERAÇÃO EM LOTE: busca docs assinados no Assinafy e recupera PDFs ───
+// Rota: POST /api/assinaturas/recover-signed
+// Chama o Assinafy paginado, encontra docs com status signed/certificated,
+// faz match por nome no banco, baixa PDF assinado e salva em R2.
+app.post('/api/assinaturas/recover-signed', authenticateToken, async (req, res) => {
+    try {
+        const https = require('https');
+        const totalPages = req.body.pages || 10; // quantas páginas buscar (default 10, ~1000 docs)
+
+        // Função auxiliar: GET para a API Assinafy
+        const assinafyGet = (path) => new Promise((resolve, reject) => {
+            const opts = {
+                hostname: 'api.assinafy.com.br',
+                path,
+                method: 'GET',
+                headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' }
+            };
+            const r = https.request(opts, resp => {
+                const chunks = [];
+                resp.on('data', c => chunks.push(c));
+                resp.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch(e) { resolve(null); } });
+            });
+            r.on('error', reject);
+            r.setTimeout(15000, () => r.destroy());
+            r.end();
+        });
+
+        // Extrair URL do PDF assinado (reutiliza a mesma lógica do polling)
+        const extractSignedUrl = (dt) => {
+            let u = dt.certificated_file_url || dt.report_url || dt.bundle_url || dt.signature_report_url
+                  || dt.artifacts?.certificated || dt.artifacts?.bundle || dt.artifacts?.signed_file || dt.signed_file_url;
+            if (u) return u;
+            const jsonStr = JSON.stringify(dt);
+            const matches = jsonStr.match(/https:\/\/[^"]+\.pdf[^"]*/gi);
+            if (matches && matches.length) return matches.find(l => /cert|bundle|report|sign|assinad/i.test(l)) || matches[matches.length - 1];
+            return dt.download_link || dt.download_url || dt.file_url || dt.document_pdf || null;
+        };
+
+        // 1. Coletar todos os docs assinados do Assinafy (paginando)
+        const signed = [];
+        const signedStatuses = new Set(['signed', 'certificated', '3', '4', 'closed']);
+        for (let page = 1; page <= totalPages; page++) {
+            const resp = await assinafyGet(`/v1/documents?page=${page}&per_page=100`);
+            if (!resp) break;
+            const items = resp.data || resp.documents || (Array.isArray(resp) ? resp : []);
+            if (!items.length) break;
+            for (const item of items) {
+                const st = String(item.status || '').toLowerCase();
+                if (signedStatuses.has(st) || st.includes('certificat')) {
+                    signed.push(item);
+                }
+            }
+            // Se retornou menos de 100, não há mais páginas
+            if (items.length < 100) break;
+        }
+
+        console.log(`[RECOVER] Assinafy retornou ${signed.length} documento(s) assinado(s).`);
+        if (!signed.length) return res.json({ success: true, message: 'Nenhum documento assinado encontrado no Assinafy.', recovered: 0 });
+
+        // 2. Buscar todos os docs do banco que precisam de PDF (Assinado mas sem R2)
+        const dbDocs = await new Promise((resolve, reject) =>
+            db.all(`SELECT id, assinafy_id, document_type, file_name, tab_name, colaborador_id
+                    FROM documentos
+                    WHERE assinafy_status = 'Assinado' AND signed_r2_key IS NULL AND assinafy_id IS NOT NULL`,
+                [], (err, rows) => err ? reject(err) : resolve(rows || []))
+        );
+        const dbAdm = await new Promise((resolve, reject) =>
+            db.all(`SELECT id, assinafy_id, nome_documento, colaborador_id
+                    FROM admissao_assinaturas
+                    WHERE assinafy_status = 'Assinado' AND signed_r2_key IS NULL AND assinafy_id IS NOT NULL`,
+                [], (err, rows) => err ? reject(err) : resolve(rows || []))
+        );
+
+        // Índice: assinafy_id → registro do banco
+        const byId = {};
+        for (const d of dbDocs) byId[d.assinafy_id] = { ...d, _table: 'documentos' };
+        for (const d of dbAdm) byId[d.assinafy_id] = { ...d, _table: 'admissao_assinaturas' };
+
+        // Índice por nome normalizado: para match quando os IDs são diferentes
+        const normName = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const byName = {};
+        for (const d of dbDocs) {
+            const n = normName(d.file_name || d.document_type);
+            if (n) byName[n] = { ...d, _table: 'documentos' };
+        }
+        for (const d of dbAdm) {
+            const n = normName(d.nome_documento);
+            if (n) byName[n] = { ...d, _table: 'admissao_assinaturas' };
+        }
+
+        let recovered = 0;
+        const results = [];
+
+        for (const item of signed) {
+            const assinafyId = item.id;
+            const itemName = item.name || '';
+
+            // Tentar match: primeiro por assinafy_id exato, depois por nome normalizado
+            let dbRow = byId[assinafyId];
+            if (!dbRow) {
+                const nn = normName(itemName.replace(/\.(pdf|docx?)$/i, ''));
+                dbRow = byName[nn];
+            }
+            if (!dbRow) {
+                // Tenta match parcial: pelo menos 8 chars em comum
+                const nn = normName(itemName.replace(/\.(pdf|docx?)$/i, ''));
+                for (const [key, row] of Object.entries(byName)) {
+                    if (nn.length >= 8 && key.includes(nn.substring(0, 8))) {
+                        dbRow = row;
+                        break;
+                    }
+                }
+            }
+            if (!dbRow) {
+                console.log(`[RECOVER] Sem match no banco para Assinafy doc "${itemName}" (${assinafyId})`);
+                results.push({ assinafyId, name: itemName, matched: false });
+                continue;
+            }
+
+            // Buscar detalhes completos para obter URL do PDF assinado
+            let signedUrl = extractSignedUrl(item);
+            if (!signedUrl) {
+                try {
+                    const detail = await assinafyGet(`/v1/documents/${assinafyId}`);
+                    if (detail) signedUrl = extractSignedUrl(detail.data || detail);
+                } catch(e) { /* ignora */ }
+            }
+
+            if (!signedUrl) {
+                console.warn(`[RECOVER] Sem URL do PDF assinado para "${itemName}" (${assinafyId})`);
+                // Mesmo sem PDF, atualizar o assinafy_id correto se ele estava errado
+                if (dbRow.assinafy_id !== assinafyId) {
+                    const tbl = dbRow._table;
+                    db.run(`UPDATE ${tbl} SET assinafy_id = ? WHERE id = ?`, [assinafyId, dbRow.id]);
+                    console.log(`[RECOVER] assinafy_id corrigido no banco: ${dbRow.assinafy_id} → ${assinafyId} (${tbl} id=${dbRow.id})`);
+                }
+                results.push({ assinafyId, name: itemName, matched: true, docId: dbRow.id, table: dbRow._table, pdfDownloaded: false });
+                continue;
+            }
+
+            // Baixar o PDF assinado
+            let pdfBuffer = null;
+            try {
+                const pdfResp = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                if (pdfResp.ok) {
+                    pdfBuffer = Buffer.from(await pdfResp.arrayBuffer());
+                    console.log(`[RECOVER] PDF baixado: "${itemName}" ${pdfBuffer.length} bytes`);
+                } else {
+                    console.warn(`[RECOVER] Falha ao baixar PDF: ${pdfResp.status} ${pdfResp.statusText}`);
+                }
+            } catch(e) {
+                console.warn(`[RECOVER] Erro ao baixar PDF: ${e.message}`);
+            }
+
+            if (!pdfBuffer) {
+                results.push({ assinafyId, name: itemName, matched: true, docId: dbRow.id, table: dbRow._table, pdfDownloaded: false });
+                continue;
+            }
+
+            // Fazer upload para R2
+            let r2Key = null;
+            try {
+                if (r2Utils && r2Utils.isReady && r2Utils.isReady()) {
+                    const colabRow = await new Promise((res2, rej2) =>
+                        db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [dbRow.colaborador_id], (e, r) => e ? rej2(e) : res2(r))
+                    );
+                    const nomeColab = (colabRow?.nome_completo || 'COLABORADOR').toUpperCase().replace(/\s+/g, '_');
+                    const nomeDoc = (dbRow.file_name || dbRow.nome_documento || dbRow.document_type || 'Documento').replace(/\s+/g, '_');
+                    r2Key = buildR2Key('Colaboradores', 'Assinaturas', nomeColab, nomeDoc, 'pdf');
+                    await r2Utils.uploadToR2(r2Key, pdfBuffer, 'application/pdf');
+                    console.log(`[RECOVER] ✅ PDF salvo em R2: ${r2Key}`);
+                }
+            } catch(e) {
+                console.warn(`[RECOVER] R2 upload falhou: ${e.message}`);
+                r2Key = null;
+            }
+
+            // Atualizar banco: assinafy_id correto + signed_r2_key
+            const tbl = dbRow._table;
+            if (tbl === 'documentos') {
+                await new Promise((res2, rej2) =>
+                    db.run(`UPDATE documentos SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`,
+                        [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
+                );
+            } else {
+                await new Promise((res2, rej2) =>
+                    db.run(`UPDATE admissao_assinaturas SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinado_em = COALESCE(assinado_em, CURRENT_TIMESTAMP) WHERE id = ?`,
+                        [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
+                );
+            }
+
+            recovered++;
+            results.push({ assinafyId, name: itemName, matched: true, docId: dbRow.id, table: tbl, pdfDownloaded: true, r2Key });
+        }
+
+        console.log(`[RECOVER] Concluído: ${recovered} PDFs recuperados de ${signed.length} docs assinados.`);
+        res.json({ success: true, recovered, total: signed.length, results });
+    } catch (e) {
+        console.error('[RECOVER] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Endpoint: Limpar todos os registros de teste de assinaturas
 app.delete('/api/assinaturas/limpar-testes', authenticateToken, async (req, res) => {
     try {

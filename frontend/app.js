@@ -18633,6 +18633,45 @@ window.atualizarTodasAssinaturas = async function (btn) {
     }
 };
 
+// Recuperar PDFs assinados: varre Assinafy, faz match por nome e baixa os PDFs faltando
+window.recuperarPDFsAssinados = async function (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) { icon.className = 'ph ph-spinner ph-spin'; }
+    btn.disabled = true;
+    const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+        if (typeof showToast !== 'undefined') showToast('Buscando documentos assinados no Assinafy... (pode levar 30-60s)', 'info');
+        const res = await fetch(`${API_URL}/assinaturas/recover-signed`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pages: 10 })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            const { recovered, total, results } = data;
+            const semMatch = (results || []).filter(r => !r.matched).length;
+            const semPdf = (results || []).filter(r => r.matched && !r.pdfDownloaded).length;
+            let msg = `Recuperação concluída!\n✅ ${recovered} PDF(s) recuperado(s) de ${total} doc(s) assinado(s) no Assinafy.`;
+            if (semMatch > 0) msg += `\n⚠️ ${semMatch} doc(s) sem correspondência no banco.`;
+            if (semPdf > 0) msg += `\n⚠️ ${semPdf} doc(s) assinado(s) mas PDF ainda indisponível no Assinafy.`;
+            if (recovered > 0) {
+                alert(msg);
+                await window.loadAssinaturasDigitais();
+            } else {
+                if (typeof showToast !== 'undefined') showToast(msg, semMatch > 0 ? 'warning' : 'info');
+            }
+        } else {
+            alert('Erro ao recuperar PDFs: ' + (data.error || 'Resposta inválida'));
+        }
+    } catch (e) {
+        console.error('[RECOVER] Erro:', e);
+        alert('Erro ao tentar recuperar PDFs: ' + e.message);
+    } finally {
+        if (icon) { icon.className = 'ph ph-cloud-arrow-down'; }
+        btn.disabled = false;
+    }
+};
+
 // Registrar navegação para a tela de assinaturas
 (function () {
     const origNavigate = window.navigateTo;
