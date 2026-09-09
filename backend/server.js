@@ -8805,16 +8805,21 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
         // Se NAO tem assinado local (.pfx vazio ou excluído), mas tem Assinafy (colaborador assinou), tentar buscar da Assinafy
         if (row.assinafy_id) {
             try {
+                console.log(`[VIEW-DIAG] doc=${row.id} assinafy_id=${row.assinafy_id} status=${row.assinafy_status} signed_r2_key=${row.signed_r2_key || 'null'}`);
                 const r = await fetch(`https://api.assinafy.com.br/v1/documents/${row.assinafy_id}`, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey, 'Accept': 'application/json' } });
+                console.log(`[VIEW-DIAG] Assinafy API status=${r.status} ok=${r.ok}`);
                 if (r.ok) {
                     const data = await r.json();
-                    const signedUrl = extractSignedUrl(data?.data || data);
+                    const dataObj = data?.data || data;
+                    const signedUrl = extractSignedUrl(dataObj);
+                    console.log(`[VIEW-DIAG] signedUrl=${signedUrl ? signedUrl.substring(0, 80) + '...' : 'NULL'} keys=${Object.keys(dataObj || {}).join(',')}`);
                     if (signedUrl) {
                         try {
                             if (!signedUrl.includes('assinafy.com.br')) {
                                 return res.redirect(signedUrl);
                             } else {
                                 const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                                console.log(`[VIEW-DIAG] PDF download status=${dl.status}`);
                                 if (dl.ok) {
                                     const arrayBuffer = await dl.arrayBuffer();
                                     let finalBuf = Buffer.from(arrayBuffer);
@@ -8837,10 +8842,18 @@ app.get('/api/documentos/view/:id', authenticateToken, (req, res) => {
                                     return res.send(finalBuf);
                                 }
                             }
-                        } catch (err) { }
+                        } catch (err) { console.warn('[VIEW-DIAG] Erro ao baixar PDF Assinafy:', err.message); }
+                    } else {
+                        // URL não encontrada — logar o JSON para entender a estrutura
+                        console.warn(`[VIEW-DIAG] extractSignedUrl retornou null. JSON parcial: ${JSON.stringify(dataObj).substring(0, 400)}`);
                     }
+                } else {
+                    const errText = await r.text().catch(() => '');
+                    console.warn(`[VIEW-DIAG] Assinafy API falhou status=${r.status}: ${errText.substring(0, 200)}`);
                 }
-            } catch (e) { console.warn('Proxy Assinafy erro:', e.message); }
+            } catch (e) { console.warn('[VIEW-DIAG] Proxy Assinafy erro:', e.message); }
+        } else {
+            console.log(`[VIEW-DIAG] doc=${row.id} SEM assinafy_id, status=${row.assinafy_status}`);
         }
 
         // PRIORIDADE 4: Arquivo original no R2 (para /view) — NÃO servir unsigned quando doc está Assinado
