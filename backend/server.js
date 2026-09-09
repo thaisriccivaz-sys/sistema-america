@@ -10819,7 +10819,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
     }
 });
 // POST: Salvar PDF de massa no R2 (adiantamento, pagamento, emprestimo, comunicacao)
-app.post('/api/pagamentos-massa/salvar-pdf', authenticateToken, upload.single('pdf'), async (req, res) => {
+app.post('/api/pagamentos-massa/salvar-pdf', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).single('pdf'), async (req, res) => {
     const { campo, mes, ano, tipoDocumento } = req.body;
     if (!campo || !mes || !ano || !tipoDocumento) return res.status(400).json({ error: 'Parâmetros obrigatórios: campo, mes, ano, tipoDocumento' });
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
