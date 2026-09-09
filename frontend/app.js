@@ -18862,7 +18862,7 @@ window._pmRestaurarPdfs = async function() {
                   <div id="pm-r2-status-comunicacao" style="margin-top:3px;min-height:18px;"></div>
                 </div>
 
-                <button type="button" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                <button type="button" id="pm-btn-processar" onclick="window._pmProcessarDuplo()" style="width:100%;padding:0.7rem;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                   <i class="ph ph-magic-wand"></i> Processar Holerites Anexados
                 </button>
               </div>
@@ -19098,6 +19098,10 @@ window._pmRestaurarPdfs = async function() {
     };
 
     window._pmProcessarDuplo = async function () {
+        const _btn = document.getElementById('pm-btn-processar');
+        const _btnOrig = '<i class=\"ph ph-magic-wand\"></i> Processar Holerites Anexados';
+        if (_btn) { _btn.disabled = true; _btn.style.opacity = '0.75'; _btn.innerHTML = '<i class=\"ph ph-spinner\" style=\"animation:spin 1s linear infinite;margin-right:0.5rem;\"></i> Aguarde...'; }
+        const _restoreBtn = () => { if (_btn) { _btn.disabled = false; _btn.style.opacity = ''; _btn.innerHTML = _btnOrig; } };
         const mes  = document.getElementById('pm-mes')?.value || '';
         const ano  = document.getElementById('pm-ano')?.value || '';
         const tipo = encodeURIComponent(document.getElementById('pm-tipo-doc')?.value || 'Pagamentos');
@@ -19138,6 +19142,7 @@ window._pmRestaurarPdfs = async function() {
         const fileCom  = await _getFile('comunicacao',  'pm-file-comunicacao');
 
         if (!fileAd && !filePg) {
+            _restoreBtn();
             Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
             return;
         }
@@ -19300,6 +19305,7 @@ window._pmRestaurarPdfs = async function() {
                     const ptxt = document.getElementById('pm-progress-title');
                     if(ptxt) ptxt.innerHTML = `<span style="background:#10b981;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">3</span> Salvando holerites...`;
                     window.onbeforeunload = null;
+                    _restoreBtn();
                     _pmPollStatus(itensSalvar.length, true);
                 } catch(eS) {
                     document.getElementById('pm-processing').style.display = 'none';
@@ -19309,6 +19315,7 @@ window._pmRestaurarPdfs = async function() {
             }
         } catch (e) {
             document.getElementById('pm-processing').style.display = 'none';
+            _restoreBtn();
             Swal.fire({ icon:'error', title:'Erro ao processar', text: e.message });
         }
     };

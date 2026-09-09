@@ -11035,7 +11035,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
                 console.log(`[PAGAMENTOS-MASSA] forcarAnexar=true para colaborador ${item.colaborador_id}, doc ${docId}. hasNewHolerites=${hasNewHolerites}`);
                 if (hasNewHolerites) {
-                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowOld && rowOld.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -11059,6 +11059,22 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                     const pagsCopiadasBase = await docLimpo.copyPages(tempDoc, Array.from({ length: paginasBase }, (_, i) => i));
                                     pagsCopiadasBase.forEach(p => docLimpo.addPage(p));
                                     baseBytes = await docLimpo.save();
+                                }
+                            } else if (rowOld && rowOld.r2_key) {
+                                // R2 fallback
+                                const r2ModFA = require('./utils/r2');
+                                if (!r2ModFA.isReady()) throw new Error('Arquivo base nao encontrado e R2 nao configurado');
+                                const { stream: r2StFA } = await r2ModFA.downloadStreamFromR2(rowOld.r2_key);
+                                const r2ChFA = []; await new Promise((rr,rx) => { r2StFA.on('data',c=>r2ChFA.push(c)); r2StFA.on('end',rr); r2StFA.on('error',rx); });
+                                baseBytes = Buffer.concat(r2ChFA);
+                                console.log('[PM] Base do R2 (forcarAnexar):', rowOld.r2_key);
+                                const tmpFA = await PDFDocument.load(baseBytes);
+                                const holAntFA = (rowOld.tem_adiantamento?1:0)+(rowOld.tem_pagamento?1:0)+(rowOld.tem_emprestimo?1:0)+(rowOld.tem_comunicacao?1:0);
+                                if (holAntFA > 0) {
+                                    const totFA = tmpFA.getPageCount(), baseFA = Math.max(1, totFA-holAntFA);
+                                    const limFA = await PDFDocument.create();
+                                    const pgsFA = await limFA.copyPages(tmpFA, Array.from({length:baseFA},(_,i)=>i));
+                                    pgsFA.forEach(p=>limFA.addPage(p)); baseBytes = await limFA.save();
                                 }
                             } else {
                                 throw new Error(`Arquivo base não encontrado: ${fullPath}`);
@@ -11195,7 +11211,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
                 if (hasNewHolerites) {
                     // Sempre reconstrói a partir do _base.pdf para nunca duplicar
-                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowBase && rowBase.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -11211,6 +11227,22 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 // Usa a cópia base - sem holerites, 100% limpo
                                 baseBytes = await fs.readFile(baseCopyPath);
                                 console.log(`[PAGAMENTOS-MASSA] Usando _base.pdf para colaborador ${item.colaborador_id}`);
+                            } else if (rowBase && rowBase.r2_key) {
+                                // R2 fallback
+                                const r2ModMG = require('./utils/r2');
+                                if (!r2ModMG.isReady()) throw new Error('Arquivo base nao encontrado e R2 nao configurado');
+                                const { stream: r2StMG } = await r2ModMG.downloadStreamFromR2(rowBase.r2_key);
+                                const r2ChMG = []; await new Promise((rr,rx) => { r2StMG.on('data',c=>r2ChMG.push(c)); r2StMG.on('end',rr); r2StMG.on('error',rx); });
+                                baseBytes = Buffer.concat(r2ChMG);
+                                console.log('[PM] Base do R2 (merge normal):', rowBase.r2_key);
+                                const tmpMG = await PDFDocument.load(baseBytes);
+                                const holAntMG = (rowBase.tem_adiantamento?1:0)+(rowBase.tem_pagamento?1:0)+(rowBase.tem_emprestimo?1:0)+(rowBase.tem_comunicacao?1:0);
+                                if (holAntMG > 0) {
+                                    const totMG = tmpMG.getPageCount(), baseMG = Math.max(1, totMG-holAntMG);
+                                    const limMG = await PDFDocument.create();
+                                    const pgsMG = await limMG.copyPages(tmpMG, Array.from({length:baseMG},(_,i)=>i));
+                                    pgsMG.forEach(p=>limMG.addPage(p)); baseBytes = await limMG.save();
+                                }
                             } else {
                                 // Fallback: usa o arquivo atual e tenta remover páginas de holerite
                                 baseBytes = await fs.readFile(fullPath);
