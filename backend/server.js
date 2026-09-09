@@ -2971,11 +2971,27 @@ app.post('/api/assinaturas/recover-signed', authenticateToken, async (req, res) 
         for (let page = 1; page <= totalPages; page++) {
             const resp = await assinafyGet(`/v1/documents?page=${page}&per_page=100`);
             if (!resp) break;
+            // Log da estrutura da resposta para diagnóstico
+            if (page === 1) {
+                const keys = Object.keys(resp || {});
+                console.log(`[RECOVER] Página 1 - keys da resposta: ${keys.join(',')}`);
+                const items0 = resp.data || resp.documents || (Array.isArray(resp) ? resp : []);
+                if (items0.length > 0) {
+                    const firstItem = items0[0];
+                    console.log(`[RECOVER] Primeiro item - status="${firstItem.status}" keys=${Object.keys(firstItem).join(',')}`);
+                    // Log dos primeiros 5 statuses para ver o que vem
+                    const statuses = items0.slice(0,5).map(i => i.status);
+                    console.log(`[RECOVER] Primeiros 5 statuses: ${JSON.stringify(statuses)}`);
+                } else {
+                    console.log(`[RECOVER] Resposta página 1 (raw primeiros 300 chars): ${JSON.stringify(resp).substring(0,300)}`);
+                }
+            }
             const items = resp.data || resp.documents || (Array.isArray(resp) ? resp : []);
             if (!items.length) break;
             for (const item of items) {
-                const st = String(item.status || '').toLowerCase();
-                if (signedStatuses.has(st) || st.includes('certificat')) {
+                const st = String(item.status || item.status_id || '').toLowerCase();
+                // Aceita qualquer variação de assinado/certificado
+                if (signedStatuses.has(st) || st.includes('certificat') || st.includes('signed') || st === 'completed') {
                     signed.push(item);
                 }
             }
