@@ -316,7 +316,7 @@ async function extrairPagina(bufferPDF, numeroPaginaOuArray, tipoRecorte = false
  */
 async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nomeArquivo, tipoDocumento, ano, mes, basePath, temAdiantamento, temPagamento, temEmprestimo, temComunicacao }) {
     const colabDir = path.join(basePath, `colab_${colaboradorId}`);
-    if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true });
+    try { if (!fs.existsSync(colabDir)) fs.mkdirSync(colabDir, { recursive: true }); } catch(_) {}
 
     // ── UPSERT: remove documentos de Pagamentos existentes para o mesmo colaborador/mês/ano ──
     // Isso evita duplicatas quando o usuário clica em "Anexar em Massa" mais de uma vez.
@@ -324,7 +324,7 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     const mesSemPad = String(parseInt(mes, 10) || '');
     const docsExistentes = await new Promise((resolve, reject) => {
         db.all(
-            `SELECT id, file_path FROM documentos
+            `SELECT id, file_path, r2_key FROM documentos
              WHERE colaborador_id = ? AND tab_name = 'Pagamentos'
                AND (month = ? OR month = ?)
                AND year = ?`,
@@ -333,9 +333,14 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
         );
     });
 
+    const r2Mod = require('./utils/r2');
     for (const docAntigo of docsExistentes) {
         // Remove arquivo físico antigo (silenciosamente)
         try { if (docAntigo.file_path && fs.existsSync(docAntigo.file_path)) fs.unlinkSync(docAntigo.file_path); } catch(_) {}
+        // Remove do R2 se tiver chave
+        if (docAntigo.r2_key && r2Mod.isReady()) {
+            try { await r2Mod.deleteFromR2(docAntigo.r2_key); } catch(_) {}
+        }
         // Remove registro do banco
         await new Promise((resolve) => db.run('DELETE FROM documentos WHERE id = ?', [docAntigo.id], () => resolve()));
     }
@@ -344,15 +349,32 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
     }
     // ────────────────────────────────────────────────────────────────────────────────────────────
 
+    // Salvar em disco como fallback (útil em ambientes locais sem R2)
     const filePath = path.join(colabDir, nomeArquivo);
-    fs.writeFileSync(filePath, bufferPDF);
+    try { fs.writeFileSync(filePath, bufferPDF); } catch(_) {}
+
+    // Upload para R2 (principal — garante persistência entre deploys no Render)
+    let r2Key = null;
+    if (r2Mod.isReady()) {
+        try {
+            const nomeColabNorm = normalizarNome(nomeColab || '').replace(/\s+/g, '_');
+            const anoStr  = String(ano);
+            const mesStr  = String(mes || '').padStart(2, '0');
+            r2Key = `Colaboradores/${nomeColabNorm}/Documentos/Pagamentos/${anoStr}/${mesStr}_${tipoDocumento}_${nomeColabNorm}.pdf`;
+            await r2Mod.uploadToR2(r2Key, Buffer.from(bufferPDF), 'application/pdf');
+            console.log('[PAGAMENTOS-MASSA] Documento enviado ao R2:', r2Key);
+        } catch (r2Err) {
+            console.warn('[PAGAMENTOS-MASSA] Falha ao enviar para R2, usando disco como fallback:', r2Err.message);
+            r2Key = null;
+        }
+    }
 
     const docId = await new Promise((resolve, reject) => {
         db.run(
             `INSERT INTO documentos
-             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao)
-             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'), ?, ?, ?, ?)`,
-            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || '', temAdiantamento ? 1 : 0, temPagamento ? 1 : 0, temEmprestimo ? 1 : 0, temComunicacao ? 1 : 0],
+             (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao, r2_key)
+             VALUES (?, 'Pagamentos', ?, ?, ?, ?, ?, 'Pendente', datetime('now'), ?, ?, ?, ?, ?)`,
+            [colaboradorId, tipoDocumento, filePath, nomeArquivo, ano, mes || '', temAdiantamento ? 1 : 0, temPagamento ? 1 : 0, temEmprestimo ? 1 : 0, temComunicacao ? 1 : 0, r2Key],
             function(err) {
                 if (err) reject(err);
                 else resolve(this.lastID);
@@ -360,7 +382,7 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
         );
     });
 
-    return { docId, filePath };
+    return { docId, filePath, r2Key };
 }
 
 /**
