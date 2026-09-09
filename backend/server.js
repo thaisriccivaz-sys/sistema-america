@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
@@ -17319,6 +17319,7 @@ function verificarExperienciasVencendo() {
                 continue;
             }
 
+
             // ?????? Envio di??rio: envia todos os dias dentro da janela até finalizar ??????????????????
             const deveEnviar15d = diasRestantes <= 15 && diasRestantes > 7 && !r.notificacao_15d_enviada; // mantido p/ auditoria
             const deveEnviar7d  = diasRestantes <= 7  && diasRestantes > 0  && !r.notificacao_7d_enviada;  // mantido p/ auditoria
@@ -31185,6 +31186,9 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
+        // Retornar imediatamente — nao esperar emails (fire-and-forget)
+        res.json({ success: true, id: t.id, protocol });
+
         // Notificar usuários com permissão Ver Todos no SAC
         const getSACUsersQuery = `
             SELECT u.id as usuario_id, u.nome, NULLIF(c.email_corporativo, '') as dest_email
@@ -31235,9 +31239,6 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
                 }
             }
         });
-
-        // Retornar o protocolo gerado para que o frontend use o valor correto
-        res.json({ success: true, id: t.id, protocol });
     }); // fim db.run INSERT
             } // fim callback db.get MAX
         ); // fim db.get
