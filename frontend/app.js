@@ -18663,8 +18663,12 @@ window._pmSalvarPdfR2 = async function(campo, file) {
     const statusEl = document.getElementById('pm-r2-status-' + campo);
     if (statusEl) statusEl.innerHTML = '<span style="color:#6b7280;font-size:0.75rem">⏳ Salvando no R2...</span>';
     try {
+        // Copiar arquivo para Blob para não consumir o stream original do File
+        // (fetch consuming File.stream() torna o File ilegível por arrayBuffer() depois)
+        const _buf = await file.arrayBuffer();
+        const _blob = new Blob([_buf], { type: 'application/pdf' });
         const formData = new FormData();
-        formData.append('pdf', file);
+        formData.append('pdf', _blob, file.name);
         formData.append('campo', campo);
         formData.append('mes', mes);
         formData.append('ano', ano);
