@@ -18275,6 +18275,15 @@ window.limparAsssinaturasTeste = async function () {
 window.loadAssinaturasDigitais = async function () {
     const container = document.getElementById('assinaturas-digitais-container');
     if (!container) return;
+    
+    // Restrição de botões avançados apenas para Thais.Ricci
+    if (window.currentUser && window.currentUser.username === 'Thais.Ricci') {
+        const btnRec = document.getElementById('btn-recuperar-pdfs');
+        const btnCor = document.getElementById('btn-corrigir-falsos');
+        if (btnRec) btnRec.style.display = 'flex';
+        if (btnCor) btnCor.style.display = 'flex';
+    }
+    
     container.innerHTML = '<div style="text-align:center;padding:3rem;"><i class="ph ph-circle-notch ph-spin" style="font-size:2.5rem;color:#f503c5;"></i><p style="margin-top:1rem;color:#64748b;">Carregando...</p></div>';
 
     try {
