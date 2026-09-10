@@ -2656,12 +2656,17 @@ async function pollAdmissaoAssinaturas() {
 
                 if (finalBuffer) {
                     // PDF disponível: atualiza status + caminho + R2 em ambas as tabelas
+                    // Extrair data real de assinatura da resposta do Assinafy
+                    const _signedAtRaw = docData.signed_at || docData.finished_at || docData.certificated_at || docData.updated_at || null;
+                    const _signedAtVal = _signedAtRaw ? new Date(_signedAtRaw).toISOString().replace('T', ' ').substring(0, 19) : null;
+                    console.log(`[POLL-ADMISSAO] Data assinatura real: ${_signedAtVal || 'não encontrada — usando CURRENT_TIMESTAMP'}`);
+                    const _assinado_em_sql = _signedAtVal ? `'${_signedAtVal}'` : 'CURRENT_TIMESTAMP';
                     db.run(
-                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP, signed_file_path = ?, signed_r2_key = COALESCE(?, signed_r2_key) WHERE assinafy_id = ?`,
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = ${_assinado_em_sql}, signed_file_path = ?, signed_r2_key = COALESCE(?, signed_r2_key) WHERE assinafy_id = ?`,
                         [signedPath, admissaoSignedR2Key, doc.assinafy_id]
                     );
                     db.run(
-                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, signed_r2_key = ?, assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ?`,
+                        `UPDATE documentos SET assinafy_status = 'Assinado', signed_file_path = ?, signed_r2_key = ?, assinafy_signed_at = ${_assinado_em_sql} WHERE assinafy_id = ?`,
                         [signedPath, signedR2Key, doc.assinafy_id]
                     );
                     console.log(`[POLL-ADMISSAO] ✅ Banco atualizado como Assinado + PDF: assinafy_id=${doc.assinafy_id} | R2: ${signedR2Key || admissaoSignedR2Key || 'N/A'}`);
@@ -2670,12 +2675,15 @@ async function pollAdmissaoAssinaturas() {
                     // Marca como Assinado agora para atualizar o status visível imediatamente.
                     // Próximo ciclo de polling (status='Assinado' AND signed_file_path IS NULL) tentará baixar o PDF.
                     console.warn(`[POLL-ADMISSAO] ⚠️ Doc ${doc.assinafy_id} ASSINADO mas PDF ainda não disponível. Marcando status e aguardando próximo ciclo para baixar PDF.`);
+                    const _signedAtRawNoPdf = docData.signed_at || docData.finished_at || docData.certificated_at || docData.updated_at || null;
+                    const _signedAtValNoPdf = _signedAtRawNoPdf ? new Date(_signedAtRawNoPdf).toISOString().replace('T', ' ').substring(0, 19) : null;
+                    const _assinado_em_sql_nopdf = _signedAtValNoPdf ? `'${_signedAtValNoPdf}'` : 'CURRENT_TIMESTAMP';
                     db.run(
-                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = CURRENT_TIMESTAMP WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
+                        `UPDATE admissao_assinaturas SET assinafy_status = 'Assinado', assinado_em = ${_assinado_em_sql_nopdf} WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
                         [doc.assinafy_id]
                     );
                     db.run(
-                        `UPDATE documentos SET assinafy_status = 'Assinado', assinafy_signed_at = CURRENT_TIMESTAMP WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
+                        `UPDATE documentos SET assinafy_status = 'Assinado', assinafy_signed_at = ${_assinado_em_sql_nopdf} WHERE assinafy_id = ? AND assinafy_status != 'Assinado'`,
                         [doc.assinafy_id]
                     );
                 }
@@ -2907,10 +2915,15 @@ app.post('/api/assinaturas/sync', authenticateToken, async (req, res) => {
                 let sql = `UPDATE ${table} SET assinafy_status = ?`;
                 let params = [newStatus];
                 if (newStatus === 'Assinado') {
+                    // Usar data real do Assinafy em vez de CURRENT_TIMESTAMP
+                    const _syncSignedAtRaw = d.signed_at || d.finished_at || d.certificated_at || d.updated_at || null;
+                    const _syncSignedAt = _syncSignedAtRaw ? new Date(_syncSignedAtRaw).toISOString().replace('T', ' ').substring(0, 19) : null;
+                    console.log(`[SYNC] Data assinatura real: ${_syncSignedAt || 'não encontrada — usando CURRENT_TIMESTAMP'} (raw: ${_syncSignedAtRaw})`);
+                    const _syncDateExpr = _syncSignedAt ? `'${_syncSignedAt}'` : 'CURRENT_TIMESTAMP';
                     if (source === 'documento') {
-                        sql += `, assinafy_signed_at = CURRENT_TIMESTAMP`;
+                        sql += `, assinafy_signed_at = ${_syncDateExpr}`;
                     } else {
-                        sql += `, assinado_em = CURRENT_TIMESTAMP`;
+                        sql += `, assinado_em = ${_syncDateExpr}`;
                     }
                 }
                 sql += ` WHERE id = ?`;
@@ -3122,15 +3135,23 @@ app.post('/api/assinaturas/recover-signed', authenticateToken, async (req, res) 
 
             // Atualizar banco: assinafy_id correto + signed_r2_key
             const tbl = dbRow._table;
+            // Extrair data real de assinatura do item do Assinafy
+            const _recoverRaw = item.signed_at || item.finished_at || item.certificated_at || item.updated_at || null;
+            const _recoverSignedAt = _recoverRaw ? new Date(_recoverRaw).toISOString().replace('T', ' ').substring(0, 19) : null;
+            if (_recoverSignedAt) console.log(`[RECOVER] Data assinatura real: ${_recoverSignedAt}`);
             if (tbl === 'documentos') {
+                const _recSql = _recoverSignedAt
+                    ? `UPDATE documentos SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinafy_signed_at = '${_recoverSignedAt}' WHERE id = ?`
+                    : `UPDATE documentos SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`;
                 await new Promise((res2, rej2) =>
-                    db.run(`UPDATE documentos SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinafy_signed_at = COALESCE(assinafy_signed_at, CURRENT_TIMESTAMP) WHERE id = ?`,
-                        [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
+                    db.run(_recSql, [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
                 );
             } else {
+                const _recAdmSql = _recoverSignedAt
+                    ? `UPDATE admissao_assinaturas SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinado_em = '${_recoverSignedAt}' WHERE id = ?`
+                    : `UPDATE admissao_assinaturas SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinado_em = COALESCE(assinado_em, CURRENT_TIMESTAMP) WHERE id = ?`;
                 await new Promise((res2, rej2) =>
-                    db.run(`UPDATE admissao_assinaturas SET assinafy_id = ?, signed_r2_key = COALESCE(?, signed_r2_key), assinado_em = COALESCE(assinado_em, CURRENT_TIMESTAMP) WHERE id = ?`,
-                        [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
+                    db.run(_recAdmSql, [assinafyId, r2Key, dbRow.id], err => err ? rej2(err) : res2())
                 );
             }
 
@@ -3299,7 +3320,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
         const cleanedDocs = await new Promise((resolve, reject) =>
             db.run(
                 `UPDATE documentos SET assinafy_signed_at = NULL
-                 WHERE assinafy_status = 'Pendente'
+                 WHERE assinafy_status IN ('Pendente', 'Aguardando')
                    AND assinafy_signed_at IS NOT NULL`,
                 [],
                 function(err) { err ? reject(err) : resolve(this.changes); }
@@ -3308,7 +3329,7 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
         const cleanedAdm = await new Promise((resolve, reject) =>
             db.run(
                 `UPDATE admissao_assinaturas SET assinado_em = NULL
-                 WHERE assinafy_status = 'Pendente'
+                 WHERE assinafy_status IN ('Pendente', 'Aguardando')
                    AND assinado_em IS NOT NULL`,
                 [],
                 function(err) { err ? reject(err) : resolve(this.changes); }
