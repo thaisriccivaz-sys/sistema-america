@@ -184,7 +184,18 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
     const email = (colab.email || '').trim();
     const cpf   = (colab.cpf   || '').replace(/\D/g, '');
-    const fone  = (colab.telefone || '').replace(/\D/g, '');
+    // Normaliza telefone para E.164 (+55DDNNNNNNNNN) exigido pelo Assinafy
+    const foneRaw = (colab.telefone || '').replace(/\D/g, '');
+    let fone = '';
+    if (foneRaw.length >= 10) {
+        // Remove +55 ou 55 do início se já vier formatado
+        const semPais = foneRaw.startsWith('55') && foneRaw.length > 11 ? foneRaw.slice(2) : foneRaw;
+        const ddd = semPais.slice(0, 2);
+        let numero = semPais.slice(2);
+        // Celulares BR: se tiver 8 dígitos e não começar com 9, insere o 9
+        if (numero.length === 8 && !numero.startsWith('9')) numero = '9' + numero;
+        fone = `+55${ddd}${numero}`;
+    }
     const nome  = colab.nome_completo || 'Colaborador';
 
     console.log(`[1] ${nome} | email="${email}" | email_corp="${colab.email_corporativo || ''}" | CPF: ${cpf}`);
