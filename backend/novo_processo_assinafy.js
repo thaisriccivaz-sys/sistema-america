@@ -184,17 +184,24 @@ async function enviarDocumentoParaAssinafy(documentId, colaboradorId) {
 
     const email = (colab.email || '').trim();
     const cpf   = (colab.cpf   || '').replace(/\D/g, '');
-    // Normaliza telefone para E.164 (+55DDNNNNNNNNN) exigido pelo Assinafy
+    // Normaliza telefone para E.164 (+55DDNNNNNNNNN) exigido pelo Assinafy.
+    // O campo é opcional — se o número não tiver 9 dígitos após o DDD, não enviamos
+    // para evitar o erro 400 "número de telefone inválido".
     const foneRaw = (colab.telefone || '').replace(/\D/g, '');
     let fone = '';
     if (foneRaw.length >= 10) {
-        // Remove +55 ou 55 do início se já vier formatado
+        // Remove prefixo +55/55 se já vier formatado
         const semPais = foneRaw.startsWith('55') && foneRaw.length > 11 ? foneRaw.slice(2) : foneRaw;
         const ddd = semPais.slice(0, 2);
-        let numero = semPais.slice(2);
-        // Celulares BR: se tiver 8 dígitos e não começar com 9, insere o 9
-        if (numero.length === 8 && !numero.startsWith('9')) numero = '9' + numero;
-        fone = `+55${ddd}${numero}`;
+        const numero = semPais.slice(2);
+        // Assinafy exige exatamente 9 dígitos após o DDD (celular BR moderno)
+        // Números com 8 dígitos são válidos no Brasil mas não aceitos pelo Assinafy —
+        // nesses casos omitimos o campo para não bloquear o envio.
+        if (numero.length === 9) {
+            fone = `+55${ddd}${numero}`;
+        } else {
+            console.warn(`[SIGNER] Telefone \"${colab.telefone}\" tem ${numero.length} dígitos (esperado 9) — campo whatsapp_phone_number omitido.`);
+        }
     }
     const nome  = colab.nome_completo || 'Colaborador';
 
