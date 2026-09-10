@@ -12259,7 +12259,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
 
         // 2. Arquivo local (fallback para quando existia disco local ou Render não reiniciou)
         let pathToFile = row.signed_file_path;
-        if (pathToFile && fs.existsSync(pathToFile) && row.assinafy_status !== 'Assinado') {
+        if (pathToFile && fs.existsSync(pathToFile)) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${docName}_Assinado.pdf"`);
             return fs.createReadStream(pathToFile).pipe(res);
@@ -12278,7 +12278,12 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                             if (!signedUrl.includes('assinafy.com.br')) {
                                 return res.redirect(signedUrl);
                             } else {
-                                const dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                                // Tentar sem X-Api-Key primeiro (URLs pré-assinadas não precisam do header e o header pode causar 401)
+                                let dl = await fetch(signedUrl);
+                                if (!dl.ok) {
+                                    // Tentar com X-Api-Key como fallback
+                                    dl = await fetch(signedUrl, { headers: { 'X-Api-Key': ASSINAFY_CONFIG.apiKey } });
+                                }
                                 if (dl.ok) {
                                     const arrayBuffer = await dl.arrayBuffer();
                                     let finalBuf = Buffer.from(arrayBuffer);
@@ -12289,7 +12294,7 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                                             finalBuf = await signPdfPfx.assinarPDF(finalBuf, { motivo: 'Assinado eletronicamente pela empresa', nome: 'America Rental Equipamentos Ltda' });
                                         }
                                     } catch (pfxErr) { console.warn('[ADMISSAO-DL] PFX err:', pfxErr.message); }
-                                    // Lazy: cache no R2 e atualiza DB
+                                    // Lazy: cache no R2 e atualiza DB para próximas visualizações
                                     if (r2Utils.isReady() && row.id && !row.signed_r2_key) {
                                         setImmediate(async () => {
                                             try {
@@ -12309,7 +12314,19 @@ app.get('/api/admissao-assinaturas/:id/download', authenticateToken, async (req,
                                     res.setHeader('Content-Disposition', `inline; filename="${docName}_Assinado.pdf"`);
                                     return res.send(finalBuf);
                                 } else {
-                                    return res.redirect(signedUrl);
+                                    // URL do Assinafy expirada — retornar mensagem amigável ao invés de 401
+                                    console.warn(`[ADMISSAO-DL] URL Assinafy expirada (status ${dl.status}) para admissao id=${row.id}. Use "Recuperar PDFs" para reobtê-lo.`);
+                                    return res.status(502).set('Content-Type', 'text/html; charset=utf-8').send(
+                                        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF temporariamente indisponível</title>' +
+                                        '<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;}' +
+                                        '.card{background:#fff;border-radius:12px;padding:2rem 2.5rem;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:420px;}' +
+                                        'h2{color:#334155;margin:.5rem 0;}p{color:#64748b;margin:0 0 1.5rem;font-size:.95rem;}' +
+                                        'a.btn{background:#6366f1;color:#fff;border:none;padding:.6rem 1.4rem;border-radius:8px;font-size:.9rem;cursor:pointer;font-weight:600;text-decoration:none;display:inline-block;}</style></head>' +
+                                        '<body><div class="card"><div style="font-size:2.5rem;margin-bottom:.75rem">&#128196;</div>' +
+                                        '<h2>PDF temporariamente indisponível</h2>' +
+                                        '<p>O link do documento expirou. Clique em <strong>"Recuperar PDFs"</strong> na tela de Assinaturas Digitais para reobtê-lo e tente novamente.</p>' +
+                                        '<a href="javascript:window.close()" class="btn">Fechar</a></div></body></html>'
+                                    );
                                 }
                             }
                         } catch (err) { return res.redirect(signedUrl); }
