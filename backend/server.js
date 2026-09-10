@@ -3291,8 +3291,37 @@ app.post('/api/assinaturas/fix-false-signed', authenticateToken, async (req, res
             }
         }
 
-        console.log(`[FIX-FALSE] Concluído: ${reverted} documento(s) revertido(s) de ${allSusp.length} verificado(s).`);
-        res.json({ success: true, revertedCount: reverted, errorsCount, checked: allSusp.length, details });
+        // ── Limpeza de datas órfãs ──────────────────────────────────────────
+        // Documentos que já foram revertidos para "Pendente" em rodadas anteriores
+        // mas que ainda têm assinafy_signed_at / assinado_em preenchidos.
+        // Isso ocorre quando a 1ª rodada falhou no 429 (isPending=false na época)
+        // e só o status foi zerado, mas a data ficou com valor falso.
+        const cleanedDocs = await new Promise((resolve, reject) =>
+            db.run(
+                `UPDATE documentos SET assinafy_signed_at = NULL
+                 WHERE assinafy_status = 'Pendente'
+                   AND assinafy_signed_at IS NOT NULL`,
+                [],
+                function(err) { err ? reject(err) : resolve(this.changes); }
+            )
+        );
+        const cleanedAdm = await new Promise((resolve, reject) =>
+            db.run(
+                `UPDATE admissao_assinaturas SET assinado_em = NULL
+                 WHERE assinafy_status = 'Pendente'
+                   AND assinado_em IS NOT NULL`,
+                [],
+                function(err) { err ? reject(err) : resolve(this.changes); }
+            )
+        );
+        const totalCleaned = cleanedDocs + cleanedAdm;
+        if (totalCleaned > 0) {
+            console.log(`[FIX-FALSE] 🧹 Datas órfãs zeradas: ${cleanedDocs} documentos + ${cleanedAdm} admissao_assinaturas.`);
+        }
+        // ────────────────────────────────────────────────────────────────────
+
+        console.log(`[FIX-FALSE] Concluído: ${reverted} documento(s) revertido(s) de ${allSusp.length} verificado(s). Datas órfãs zeradas: ${totalCleaned}.`);
+        res.json({ success: true, revertedCount: reverted, errorsCount, checked: allSusp.length, cleanedOrphanDates: totalCleaned, details });
 
     } catch (e) {
         console.error('[FIX-FALSE] Erro:', e.message);
