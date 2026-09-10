@@ -2176,7 +2176,16 @@
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span style="font-family:monospace;font-weight:800;font-size:1rem;color:#f97316;">Nº ${t.protocol}</span>
                 <span class="sac-tag" style="background:${stage.color}18;color:${stage.color};">${stage.name}</span>
-                <span class="sac-tag" style="background:#e0e7ff;color:#4338ca;"><i class="ph ${type.icon}"></i> ${type.name}</span>
+                ${(() => {
+                    const isTop = window.isTopAdmin || false;
+                    const perms = window.activeUserPerms || {};
+                    const canChangeType = isTop || (perms['sac'] === true && perms['sac-atribuidos'] !== true);
+                    if (t.stage === 'concluido' && canChangeType) {
+                        const selectOptions = Object.entries(TICKET_TYPES).map(([k,v]) => `<option value="${k}" ${k===t.typeKey?'selected':''}>${v.name}</option>`).join('');
+                        return `<select class="sac-tag" style="background:#e0e7ff;color:#4338ca;border:1px solid #4338ca;border-radius:12px;padding:2px 8px;font-size:0.75rem;cursor:pointer;outline:none;font-weight:600;" onchange="window.SAC.changeTypeFromModal(this.value)">${selectOptions}</select>`;
+                    }
+                    return `<span class="sac-tag" style="background:#e0e7ff;color:#4338ca;"><i class="ph ${type.icon}"></i> ${type.name}</span>`;
+                })()}
                 <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"><i class="ph ph-clock"></i> ${sla.label}</span>
                 ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(t.followUpDeadline)}</span>` : ''}
             </div>
@@ -3184,6 +3193,31 @@
           console.error('Erro duplicar:', e);
           showToast('Erro ao duplicar chamado: ' + e.message, 'error');
       }
+    },
+    async changeTypeFromModal(newTypeKey) {
+        if (!_selectedTicket) return;
+        if (!confirm('Tem certeza que deseja alterar o tipo deste chamado?')) return;
+        _selectedTicket.typeKey = newTypeKey;
+        try {
+            const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const res = await fetch(`/api/sac/tickets/${_selectedTicket.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(_selectedTicket)
+            });
+            if (!res.ok) throw new Error('Erro na resposta do servidor.');
+            showToast('Tipo de chamado atualizado.', 'success');
+            await loadTickets();
+            const updated = _tickets.find(t => t.id === _selectedTicket.id);
+            if (updated) {
+                _selectedTicket = updated;
+                renderDetailModal();
+                renderAll();
+            }
+        } catch (e) {
+            console.error('Erro ao mudar tipo:', e);
+            showToast('Erro ao atualizar tipo.', 'error');
+        }
     },
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
