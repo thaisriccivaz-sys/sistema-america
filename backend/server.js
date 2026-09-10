@@ -137,53 +137,37 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
         const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
         const attachments = mailOpts.attachments || [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
 
-        // Busca todos os usuários configurados para o tipo, com múltiplas fontes de e-mail
-        db.all(`
-            SELECT
-                u.id as uid, u.nome as unome, u.username, u.email as uemail,
-                cn.email_override as email_override,
-                cn1.email_corporativo as ec_by_nome,   cn1.email as ce_by_nome,
-                cn2.email_corporativo as ec_by_uname,  cn2.email as ce_by_uname,
-                cn3.email_corporativo as ec_by_upart,  cn3.email as ce_by_upart
-            FROM config_notificacoes cn
-            JOIN usuarios u ON u.id = cn.usuario_id
-            LEFT JOIN colaboradores cn1 ON LOWER(TRIM(cn1.nome_completo)) = LOWER(TRIM(u.nome))
-            LEFT JOIN colaboradores cn2 ON LOWER(TRIM(cn2.nome_completo)) = LOWER(TRIM(u.username))
-            LEFT JOIN colaboradores cn3 ON LOWER(TRIM(cn3.nome_completo)) LIKE '%' || REPLACE(LOWER(TRIM(u.username)), '.', ' ') || '%'
-            WHERE cn.tipo = ? AND u.ativo = 1
-        `, [tipo], async (err, rows) => {
-            if (err) {
-                console.error(`[Notif Email] Erro na query tipo="${tipo}":`, err.message);
-                return;
-            }
-            if (!rows || rows.length === 0) {
-                console.log(`[Notif Email] Nenhum usuario configurado para tipo="${tipo}"`);
-                return;
-            }
-            const emails = new Set();
-            rows.forEach(r => {
-                // Helper to add if valid
-                const tryAdd = (em) => {
-                    if (em && em.includes('@')) {
-                        emails.add(em.trim());
-                        return true;
-                    }
-                    return false;
-                };
-
-                // Estratégia 0: email_override
-                if (tryAdd(r.email_override)) return;
-                // Estratégia 1: email corporativo do colaborador
-                if (tryAdd(r.ec_by_nome)) return;
-                if (tryAdd(r.ec_by_uname)) return;
-                if (tryAdd(r.ec_by_upart)) return;
+        db.all(`SELECT u.id as uid, u.nome as unome, u.username, u.email as uemail, cn.email_override FROM config_notificacoes cn JOIN usuarios u ON u.id = cn.usuario_id WHERE cn.tipo = ? AND u.ativo = 1`, [tipo], (err, rows) => {
+            if (err) { console.error(`[Notif Email] Erro na query tipo="${tipo}":`, err.message); return; }
+            if (!rows || rows.length === 0) { console.log(`[Notif Email] Nenhum usuario configurado para tipo="${tipo}"`); return; }
+            
+            db.all(`SELECT id, nome_completo, email_corporativo, email FROM colaboradores`, [], async (errC, colabs) => {
+                if (errC) { console.error('[Notif Email] Erro colabs:', errC.message); return; }
+                const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
                 
-                console.warn(`[Notif Email] Nenhum e-mail corporativo configurado para usuario_id=${r.uid} (username="${r.username}", nome="${r.unome}").`);
-            });
-            if (emails.size === 0) {
-                console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}". Verifique se os colaboradores t??m email_corporativo cadastrado.`);
-                return;
-            }
+                const emails = new Set();
+                rows.forEach(r => {
+                    const tryAdd = (em) => { if (em && em.includes('@')) { emails.add(em.trim()); return true; } return false; };
+                    if (tryAdd(r.email_override)) return;
+                    
+                    const uNome = norm(r.unome);
+                    const uUser = norm(r.username);
+                    let colab = colabs.find(c => {
+                        const cNome = norm(c.nome_completo);
+                        return cNome === uNome || cNome === uUser || cNome.includes(uNome) || cNome.includes(uUser) || uNome.includes(cNome);
+                    });
+                    
+                    if (colab && tryAdd(colab.email_corporativo)) return;
+                    if (colab && tryAdd(colab.email)) return;
+                    if (tryAdd(r.uemail)) return;
+                    
+                    console.warn(`[Notif Email] Nenhum e-mail resolvido para usuario_id=${r.uid} (nome="${r.unome}").`);
+                });
+                
+                if (emails.size === 0) {
+                    console.warn(`[Notif Email] Nenhum e-mail resolvido para tipo="${tipo}".`);
+                    return;
+                }
             console.log(`[Notif Email] Tipo="${tipo}" - enviando para ${emails.size} destinatário(s): ${[...emails].join(', ')}`);
             try {
                 await sendMailHelper({
@@ -196,6 +180,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             } catch (mailErr) {
                 console.error(`[Notif Email] Erro ao enviar email tipo="${tipo}":`, mailErr.message);
             }
+        });
         });
     } catch(e) {
         console.error('[sendEmailParaNotificados] Erro:', e.message);
@@ -32254,51 +32239,40 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                         'Logística': 'Logística', 'Comercial': 'Comercial', 'Financeiro': 'Financeiro' };
     const sectorName = sectorMap[setor] || setor || 'SAC';
     const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+
     const cleanClientName = (clientName || 'Cliente').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2B50}]/gu, '').trim();
 
-    try {
-        const normalizeStr = (str) => (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const sUser = normalizeStr(assignedUsername);
-        const sNome = normalizeStr(assignedUserNome || assignedUsername);
-        const sUserDot = sUser.replace(/\./g, ' ');
-        const sUserSpace = sUser.replace(/ /g, '.');
+    const searchTerm = assignedUsername.toLowerCase().trim();
+    const searchNome = (assignedUserNome || assignedUsername).toLowerCase().trim();
 
-        const allUsers = await new Promise((resolve, reject) => {
-            db.all(`SELECT id, nome, username FROM usuarios WHERE ativo = 1`, [], (err, rows) => err ? reject(err) : resolve(rows));
-        });
-
-        let matchedU = allUsers.find(u => {
-            const un = normalizeStr(u.username);
-            const uno = normalizeStr(u.nome);
-            return un === sUser || uno === sNome || un === sUserSpace || un === sUserDot || uno === sUser || uno === sUserDot;
-        });
-
-        let user = null;
-        if (matchedU) {
-            const colabs = await new Promise((resolve) => {
-                db.all(`SELECT nome_completo, email_corporativo as ec, email as ce FROM colaboradores WHERE status != 'Desligado'`, [], (err, rows) => resolve(rows || []));
-            });
-            const matchedC = colabs.find(c => {
-                const cn = normalizeStr(c.nome_completo);
-                return cn === normalizeStr(matchedU.nome) || cn === normalizeStr(matchedU.username);
-            });
-            user = {
-                id: matchedU.id,
-                nome: matchedU.nome,
-                username: matchedU.username,
-                ec: matchedC ? matchedC.ec : null
-            };
-        } else {
-            console.warn('[SAC notif-atrib] Usuário não encontrado no banco:', assignedUsername);
-        }
-
-        const msgNotif = `Você foi atribuído ao chamado <strong>Nº ${protocol}</strong> — ${clientName} (${sectorName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
-
-        if (user) {
-            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                [user.id, 'sac_atribuicao', msgNotif, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName })]);
+    db.all(`SELECT id, nome, username, email FROM usuarios WHERE ativo = 1`, [], (err, usuarios) => {
+        if (err) { console.error('[SAC notif-atrib] Erro usuarios:', err.message); return res.status(500).json({ error: err.message }); }
+        db.all(`SELECT id, nome_completo, email_corporativo, email FROM colaboradores`, [], async (errC, colabs) => {
+            if (errC) { console.error('[SAC notif-atrib] Erro colabs:', errC.message); return res.status(500).json({ error: errC.message }); }
+            const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+            const searchUser = norm(assignedUsername);
+            const searchNomeN = norm(assignedUserNome);
+            let user = usuarios.find(u => norm(u.username) === searchUser || norm(u.nome) === searchNomeN || norm(u.nome) === searchUser || norm(u.email) === searchUser);
+            if (user) {
+                const uNome = norm(user.nome);
+                let colab = colabs.find(c => {
+                    const cNome = norm(c.nome_completo);
+                    return cNome === uNome || cNome.includes(uNome) || uNome.includes(cNome);
+                });
+                if (colab) {
+                    user.ec = colab.email_corporativo;
+                    user.ce = colab.email;
+                }
+            }
             
-            const emailDest = user.ec;
+            const msgNotif = `Você foi atribuído ao chamado <strong>Nº ${protocol}</strong> — ${clientName} (${sectorName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+
+            if (user) {
+                db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                    [user.id, 'sac_atribuicao', msgNotif, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName })]);
+            }
+
+            const emailDest = user ? (user.ec || user.ce || null) : null;
             if (emailDest && emailDest.includes('@')) {
                 try {
                     await sendMailHelper({
@@ -32329,75 +32303,55 @@ app.post('/api/sac/notificar-atribuicao', authenticateToken, async (req, res) =>
                     });
                 } catch (eM) { console.error('[SAC notif-atrib] Erro email colab:', eM.message); }
             }
-        }
 
-        // Buscar gestor com o mesmo parse flexível de nome
-        const gestor = await new Promise((resolve) => {
             db.get(
-                `SELECT u.id, u.nome, gestor_c.email_corporativo as ec, gestor_c.nome_completo FROM departamentos d LEFT JOIN colaboradores gestor_c ON gestor_c.id = d.responsavel_id LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(gestor_c.nome_completo)) AND u.ativo = 1 WHERE LOWER(d.nome) LIKE LOWER(?) LIMIT 1`,
+                `SELECT u.id, u.nome, u.email as uemail, gestor_c.email_corporativo as ec, gestor_c.email as ce FROM departamentos d LEFT JOIN colaboradores gestor_c ON gestor_c.id = d.responsavel_id LEFT JOIN usuarios u ON LOWER(TRIM(u.nome)) = LOWER(TRIM(gestor_c.nome_completo)) AND u.ativo = 1 WHERE LOWER(d.nome) LIKE LOWER(?) LIMIT 1`,
                 ['%' + sectorName + '%'],
-                (err, row) => resolve(row)
-            );
-        });
+                async (errG, gestor) => {
+                    if (!errG && gestor && gestor.id && (!user || gestor.id !== user.id)) {
+                        const msgGestor = `O colaborador <strong>${assignedUserNome || assignedUsername}</strong> foi atribuído ao chamado SAC <strong>Nº ${protocol}</strong> (${clientName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
+                        db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
+                            [gestor.id, 'sac_atribuicao_gestor', msgGestor, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName, assignedTo: assignedUserNome || assignedUsername })]);
 
-        // Se o gestor não foi achado no SQL via acento, buscar no JS
-        let gestorUser = gestor;
-        if (!gestorUser && sectorName) {
-            const deptObj = await new Promise(r => db.get(`SELECT responsavel_id FROM departamentos WHERE LOWER(nome) LIKE LOWER(?)`, ['%' + sectorName + '%'], (e, row) => r(row)));
-            if (deptObj && deptObj.responsavel_id) {
-                const gestorColab = await new Promise(r => db.get(`SELECT nome_completo, email_corporativo as ec FROM colaboradores WHERE id = ?`, [deptObj.responsavel_id], (e, row) => r(row)));
-                if (gestorColab) {
-                    const matchedGU = allUsers.find(u => normalizeStr(u.nome) === normalizeStr(gestorColab.nome_completo) || normalizeStr(u.username) === normalizeStr(gestorColab.nome_completo));
-                    if (matchedGU) {
-                        gestorUser = { id: matchedGU.id, nome: matchedGU.nome, ec: gestorColab.ec, nome_completo: gestorColab.nome_completo };
+                        const emailGestor = gestor.ec || '';
+                        if (emailGestor.includes('@')) {
+                            try {
+                                await sendMailHelper({
+                                    to: emailGestor,
+                                    subject: `✨ SAC - Novo chamado atribuído ao setor ${sectorName}: Nº ${protocol}`,
+                                    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                                        <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                                            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+                                        </div>
+                                        <div style="padding:24px;">
+                                            <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+                                                <span style="color:#fff;font-size:1.3rem;font-weight:800;">✨ Novo SAC atribuído ao setor</span>
+                                            </div>
+                                            <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${gestor.nome}</strong>!</p>
+                                            <p>Um chamado de SAC foi atribuído ao colaborador <strong>${assignedUserNome || assignedUsername}</strong> do setor <strong>${sectorName}</strong>.</p>
+                                            <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
+                                                <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
+                                                <p style="margin:4px 0;"><strong>Cliente:</strong> ${cleanClientName}</p>
+                                                <p style="margin:4px 0;"><strong>Setor:</strong> ${sectorName}</p>
+                                                <p style="margin:4px 0;"><strong>Atribuído a:</strong> ${assignedUserNome || assignedUsername}</p>
+                                            </div>
+                                            <div style="text-align:center;margin-top:20px;">
+                                                <a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a>
+                                            </div>
+                                            <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
+                                        </div>
+                                    </div>`,
+                                    attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+                                });
+                            } catch (eM2) {}
+                        }
                     }
                 }
-            }
-        }
+            );
 
-        if (gestorUser && gestorUser.id && (!user || gestorUser.id !== user.id)) {
-            const msgGestor = `O colaborador <strong>${assignedUserNome || assignedUsername}</strong> foi atribuído ao chamado SAC <strong>Nº ${protocol}</strong> (${clientName}). <a href="${systemUrl}" style="color:#dc2626;font-weight:700;">Acessar SAC</a>`;
-            db.run(`INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)`,
-                [gestorUser.id, 'sac_atribuicao_gestor', msgGestor, JSON.stringify({ ticketId, protocol, clientName, setor: sectorName, assignedTo: assignedUserNome || assignedUsername })]);
-
-            const emailGestor = gestorUser.ec || '';
-            if (emailGestor.includes('@')) {
-                try {
-                    await sendMailHelper({
-                        to: emailGestor,
-                        subject: `✨ SAC - Novo chamado atribuído ao setor ${sectorName}: Nº ${protocol}`,
-                        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-                            <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
-                                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
-                            </div>
-                            <div style="padding:24px;">
-                                <div style="background:#dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
-                                    <span style="color:#fff;font-size:1.3rem;font-weight:800;">✨ Novo SAC atribuído ao setor</span>
-                                </div>
-                                <p style="font-size:1rem;color:#1e293b;">Olá, <strong>${gestorUser.nome || gestorUser.nome_completo}</strong>!</p>
-                                <p>Um chamado de SAC foi atribuído ao colaborador <strong>${assignedUserNome || assignedUsername}</strong> do setor <strong>${sectorName}</strong>.</p>
-                                <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #dc2626;">
-                                    <p style="margin:4px 0;"><strong>Protocolo:</strong> Nº ${protocol}</p>
-                                    <p style="margin:4px 0;"><strong>Cliente:</strong> ${cleanClientName}</p>
-                                    <p style="margin:4px 0;"><strong>Setor:</strong> ${sectorName}</p>
-                                    <p style="margin:4px 0;"><strong>Atribuído a:</strong> ${assignedUserNome || assignedUsername}</p>
-                                </div>
-                                <div style="text-align:center;margin-top:20px;">
-                                    <a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:0.95rem;">Acessar o Chamado</a>
-                                </div>
-                                <p style="font-size:12px;color:#999;text-align:center;margin-top:20px;"><i>Esta é uma notificação automática do Sistema América Rental.</i></p>
-                            </div>
-                        </div>`,
-                        attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
-                    });
-                } catch (eM2) {}
-            }
-        }
-        res.json({ success: true });
-    } catch (eTotal) {
-        console.error('[SAC notif-atrib] Erro geral:', eTotal);
-        res.status(500).json({ error: eTotal.message });
-    }
+            res.json({ success: true });
+        });
+    });
 });
 
 // ── POST /api/sac/notificar-novo-chamado ───────────────────────────────────────────
