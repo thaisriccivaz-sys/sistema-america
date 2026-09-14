@@ -32037,6 +32037,41 @@ app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     });
 });
 
+// ── PATCH /api/sac/tickets/:id/auto ──────────────────────────────────────────
+// Salva SOMENTE campos automáticos (SLA, urgente, flags de aguardo, comentários
+// de sistema). NUNCA altera stage, timeline ou campos de transição.
+// Usado pelos loops internos de alerta para evitar sobrescrever mudanças de outros usuários.
+app.patch('/api/sac/tickets/:id/auto', authenticateToken, (req, res) => {
+    const t = req.body;
+    db.run(`UPDATE sac_tickets SET
+        comments = ?,
+        is_urgent = ?,
+        follow_up_notified = ?,
+        follow_up_pending_justification = ?,
+        aguard_notified = ?,
+        aguard_pending_justification = ?,
+        aguard_deadline = ?,
+        sla_overdue_notified = ?,
+        sla_overdue_pending_justification = ?,
+        updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+    [
+        JSON.stringify(t.comments || []),
+        t.isUrgent ? 1 : 0,
+        t.followUpNotified ? 1 : 0,
+        t.followUpPendingJustification ? 1 : 0,
+        t.aguardNotified ? 1 : 0,
+        t.aguardPendingJustification ? 1 : 0,
+        t.aguardDeadline || null,
+        t.slaOverdueNotified ? 1 : 0,
+        t.slaOverduePendingJustification ? 1 : 0,
+        req.params.id
+    ], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
 app.delete('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     db.run("DELETE FROM sac_tickets WHERE id = ?", [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });

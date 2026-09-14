@@ -4702,6 +4702,40 @@
     renderAll();
   }
 
+  // ── updateTicketAuto: salva APENAS campos automáticos via PATCH ────────────
+  // NÃO altera stage, timeline ou dados de transição.
+  // Usado pelos loops de SLA/follow-up para evitar sobrescrever mudanças de outros usuários.
+  async function updateTicketAuto(t) {
+    // Atualiza memória local imediatamente
+    _tickets = _tickets.map(x => x.id === t.id ? t : x);
+    // IMPORTANTE: NÃO atualiza _sacLastSaveMs — o auto-refresh deve continuar
+    // livre para buscar dados frescos do servidor e sincronizar mudanças de outros usuários.
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/sac/tickets/' + t.id + '/auto', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          comments: t.comments || [],
+          isUrgent: t.isUrgent || false,
+          followUpNotified: t.followUpNotified || false,
+          followUpPendingJustification: t.followUpPendingJustification || false,
+          aguardNotified: t.aguardNotified || false,
+          aguardPendingJustification: t.aguardPendingJustification || false,
+          aguardDeadline: t.aguardDeadline || null,
+          slaOverdueNotified: t.slaOverdueNotified || false,
+          slaOverduePendingJustification: t.slaOverduePendingJustification || false
+        })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error(`[SAC] PATCH auto erro ${res.status} OS ${t.protocol}:`, errText);
+      }
+    } catch(e) {
+      console.error(`[SAC] PATCH auto falha OS ${t.protocol}:`, e.message);
+    }
+  }
+
   function bindGlobalEvents() {
     // Fechar modal overlay clicando fora
     const ov = document.getElementById('sac-modal-overlay');
@@ -4833,7 +4867,7 @@
             ticket.followUpNotified = true;
             if (!ticket.comments) ticket.comments = [];
             ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de acompanhamento vencido em ' + new Date(prazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-            updateTicket(ticket);
+            updateTicketAuto(ticket);
             const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
             fetch('/api/sac/notificar-acompanhamento', {
               method:'POST',
@@ -4855,7 +4889,7 @@
           ticket.aguardPendingJustification = false;
           ticket.aguardDeadline = null;
           localStorage.removeItem('sac_pending_popup_' + ticket.id);
-          updateTicket(ticket);
+          updateTicketAuto(ticket);
           return;
         }
         const aguardPrazo = new Date(ticket.aguardDeadline).getTime();
@@ -4864,7 +4898,7 @@
             ticket.aguardNotified = true;
             if (!ticket.comments) ticket.comments = [];
             ticket.comments.push({ user:'Sistema', text:'🔔 Prazo de aguardo de setor vencido em ' + new Date(aguardPrazo).toLocaleString('pt-BR') + '. Aguardando justificativa do responsável.', time: new Date().toISOString() });
-            updateTicket(ticket);
+            updateTicketAuto(ticket);
             const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
             fetch('/api/sac/notificar-acompanhamento', {
               method:'POST',
@@ -4928,7 +4962,7 @@
         showMandatoryJustificationPopup(ticket, 'sla');
       }
 
-      if (changed) updateTicket(ticket);
+      if (changed) updateTicketAuto(ticket);
     });
   }
 
