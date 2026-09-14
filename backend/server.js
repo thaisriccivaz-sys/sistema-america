@@ -3811,8 +3811,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
         if (err || !user) {
-            // BACKDOOR RECOVERY: Auto-create admin if it doesn't exist
-            if (username === 'admin' && password === 'admin123') {
+            // BACKDOOR RECOVERY: Auto-create admin if it doesn't exist (APENAS HOMOLOGAÇÃO)
+            if (isHomolog && username === 'admin' && password === 'admin123') {
                 const hash = bcrypt.hashSync('admin123', 10);
                 db.run("INSERT INTO usuarios (username, password_hash, role, ativo) VALUES ('admin', ?, 'Administrador', 1)", [hash], function(insertErr) {
                     if (insertErr) return res.status(500).json({ error: 'Erro ao criar admin de recuperação.' });
