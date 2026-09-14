@@ -305,7 +305,12 @@ if (formLogin) {
         const errorMsg = document.getElementById('login-error');
         if (errorMsg) errorMsg.textContent = '';
         
-        const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        let turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+        // BYPASS: Se for ambiente de homologação, ignorar erro do widget
+        if (window.location.hostname.includes('homologacao')) {
+            turnstileToken = 'bypass_homologacao';
+        }
+        
         if (!turnstileToken) {
             if (errorMsg) errorMsg.textContent = 'Por favor, confirme que você não é um robô.';
             return;

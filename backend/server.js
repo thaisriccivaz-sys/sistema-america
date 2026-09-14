@@ -3777,29 +3777,36 @@ const loginLimiter = rateLimit({
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const { username, password, turnstileToken } = req.body;
 
-    const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
-    if (!TURNSTILE_SECRET_KEY) {
-        console.error('🚨 ATENÇÃO: TURNSTILE_SECRET_KEY não configurada! CAPTCHA desabilitado.');
-    }
-    if (!turnstileToken) {
-        return res.status(401).json({ error: 'Validação de robô (Turnstile) ausente.' });
-    }
-    try {
-        const formData = new URLSearchParams();
-        formData.append('secret', TURNSTILE_SECRET_KEY);
-        formData.append('response', turnstileToken);
-        
-        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            body: formData
-        });
-        const cfData = await cfRes.json();
-        if (!cfData.success) {
-            return res.status(401).json({ error: 'Validação de robô falhou.' });
+    const isHomolog = req.headers.host && req.headers.host.includes('homologacao');
+
+    // BYPASS: Se for ambiente de homologação, não exigir Cloudflare
+    if (isHomolog && turnstileToken === 'bypass_homologacao') {
+        console.log('✅ [Login] Bypass do Turnstile ativado para ambiente de homologação.');
+    } else {
+        const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+        if (!TURNSTILE_SECRET_KEY) {
+            console.error('🚨 ATENÇÃO: TURNSTILE_SECRET_KEY não configurada!');
         }
-    } catch (e) {
-        console.error('Turnstile validation error:', e);
-        return res.status(500).json({ error: 'Erro interno ao validar CAPTCHA.' });
+        if (!turnstileToken) {
+            return res.status(401).json({ error: 'Validação de robô (Turnstile) ausente.' });
+        }
+        try {
+            const formData = new URLSearchParams();
+            formData.append('secret', TURNSTILE_SECRET_KEY);
+            formData.append('response', turnstileToken);
+            
+            const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+                method: 'POST',
+                body: formData
+            });
+            const cfData = await cfRes.json();
+            if (!cfData.success) {
+                return res.status(401).json({ error: 'Validação de robô falhou.' });
+            }
+        } catch (e) {
+            console.error('Turnstile validation error:', e);
+            return res.status(500).json({ error: 'Erro interno ao validar CAPTCHA.' });
+        }
     }
 
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
