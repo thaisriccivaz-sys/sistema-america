@@ -142,7 +142,7 @@ window._fechamento = (function () {
             if (selAno) _ano = parseInt(selAno.value);
         }
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
-            try { var _ss = sessionStorage.getItem('_fech_dp_'+_mes+'_'+_ano); if (_ss) Object.assign(_dadosPonto, JSON.parse(_ss)); } catch(_e3) {}
+            try { var _ss = localStorage.getItem('_fech_dp_'+_mes+'_'+_ano); if (_ss) Object.assign(_dadosPonto, JSON.parse(_ss)); } catch(_e3) {}
         }
 
         // Se _dados ainda está vazio, precisamos buscar o fechamento do mês primeiro
@@ -691,6 +691,13 @@ window._fechamento = (function () {
     async function buscar() {
         _mes = parseInt(document.getElementById('fech-select-mes').value);
         _ano = parseInt(document.getElementById('fech-select-ano').value);
+
+        // Limpa _dadosPonto e recarrega do localStorage para o mês/ano selecionado
+        _dadosPonto = {};
+        try {
+            var _dpSalvo = localStorage.getItem('_fech_dp_'+_mes+'_'+_ano);
+            if (_dpSalvo) Object.assign(_dadosPonto, JSON.parse(_dpSalvo));
+        } catch(_eLs) {}
         const msg = document.getElementById('fech-msg');
         const wrap = document.getElementById('fech-tabela-wrap');
         const toolbar = document.getElementById('fech-toolbar');
@@ -1807,7 +1814,7 @@ window._fechamento = (function () {
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
         await salvarSilencioso();
-        try { sessionStorage.setItem('_fech_dp_'+_mes+'_'+_ano, JSON.stringify(_dadosPonto)); } catch(_e2) {}
+        try { localStorage.setItem('_fech_dp_'+_mes+'_'+_ano, JSON.stringify(_dadosPonto)); } catch(_e2) {}
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;
