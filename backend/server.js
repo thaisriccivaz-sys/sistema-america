@@ -1299,9 +1299,9 @@ GERADORES_PERFIL.forEach(nome => {
         });
     });
 
-    // Regra de visibilidade: aparece no dropdown para todos, e à vis??vel automaticamente na aba contratos
+    // Regra de visibilidade: aparece no dropdown para todos, e visível automaticamente para TODOS os colaboradores (sem condição)
     db.run("UPDATE geradores SET visibilidade_regra = ? WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?))",
-        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: "meio_transporte~vt", departamentos: null }), nomeGerador]
+        [JSON.stringify({ dropdown_todos: true, visivel_automatico: true, condicao: null, departamentos: null }), nomeGerador]
     );
 })();
 
