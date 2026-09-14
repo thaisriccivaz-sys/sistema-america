@@ -17,6 +17,49 @@ window._fechamento = (function () {
     let _ano = null;
 
     // ─────────────────────────────────────────────────────────────────
+    // Helper: extrai versão slim do ponto (só campos usados na conferência)
+    // Reduz os ~11MB da API RHID para ~200KB para guardar no banco
+    // ─────────────────────────────────────────────────────────────────
+    const _RHID_SLIM_FIELDS = ['records','listaDias','lista','itens','dias','data','items','apuracao','result','results'];
+    function _extrairSlimPonto(dadosRHID) {
+        if (!dadosRHID) return null;
+        var raw = dadosRHID.apuracaoRaw;
+        if (!raw) return null;
+        var p = typeof raw === 'string' ? (function(){ try { return JSON.parse(raw); } catch(e){ return null; } })() : raw;
+        if (!p) return null;
+        var arr = null;
+        if (Array.isArray(p) && p.length > 0) arr = p;
+        else if (typeof p === 'object') {
+            for (var f of _RHID_SLIM_FIELDS) { if (Array.isArray(p[f]) && p[f].length > 0) { arr = p[f]; break; } }
+            if (!arr) { var k = Object.keys(p).find(function(k){ return Array.isArray(p[k]) && p[k].length > 0; }); if (k) arr = p[k]; }
+            if (!arr && (p.date || p.dateTimeStr)) arr = [p];
+        }
+        if (!arr || arr.length === 0) return null;
+        return arr.map(function(dia) {
+            return {
+                date: dia.date || dia.dateTimeStr,
+                status: dia.status, situacao: dia.situacao, tipo: dia.tipo,
+                folga: dia.folga, dsrConsideradoMinutos: dia.dsrConsideradoMinutos,
+                idHorarioContratual: dia.idHorarioContratual,
+                strHorarioContratualSimples: dia.strHorarioContratualSimples,
+                totalHorasTrabalhadas: dia.totalHorasTrabalhadas,
+                horasTotalNoturno: dia.horasTotalNoturno,
+                diasTrabalhados: dia.diasTrabalhados,
+                toolTipAlert: dia.toolTipAlert, isFerias: dia.isFerias,
+                listAfdtManutencao: dia.listAfdtManutencao, marcacoes: dia.marcacoes,
+                isHoliday: dia.isHoliday, holidayName: dia.holidayName,
+                idJustification: dia.idJustification,
+                faltaDiaInteiro: dia.faltaDiaInteiro, faltasDiasInteiro: dia.faltasDiasInteiro,
+                horasFaltaAtraso: dia.horasFaltaAtraso,
+                abreviationJustification: dia.abreviationJustification,
+                nomeJustificativa: dia.nomeJustificativa,
+                horasExtra60: dia.horasExtra60, horasExtra100: dia.horasExtra100,
+                horasNoturnasNaoExtra: dia.horasNoturnasNaoExtra
+            };
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // TABELA INSS 2026 (alíquota progressiva)
     // ─────────────────────────────────────────────────────────────────
     const FAIXAS_INSS = [
@@ -713,6 +756,17 @@ window._fechamento = (function () {
             });
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
+            // Reconstituir _dadosPonto a partir de apuracao_ponto salvo no banco
+            _dadosPonto = {};
+            _dados.forEach(function(row) {
+                if (row.apuracao_ponto) {
+                    try {
+                        var slim = JSON.parse(row.apuracao_ponto);
+                        _dadosPonto[row.colaborador_id] = { apuracaoRaw: slim };
+                    } catch(e) {}
+                }
+            });
+            console.log('[fechamento] Ponto reconstruído do banco para', Object.keys(_dadosPonto).length, 'colaboradores');
             renderizarTabela(_dados);
             // Restaurar eye buttons se há dados persistidos
             (function() {
@@ -1814,7 +1868,21 @@ window._fechamento = (function () {
         renderizarTabela(_dados);
         // Rule 21: auto-save obrigatorio apos busca de ponto para persistencia
         await salvarSilencioso();
-        try { localStorage.setItem('_fech_dp_'+_mes+'_'+_ano, JSON.stringify(_dadosPonto)); } catch(_e2) {}
+        // Salvar apuração slim no banco (localStorage não comporta 11MB)
+        (function() {
+            var itensPonto = Object.keys(_dadosPonto).map(function(colabId) {
+                var slim = _extrairSlimPonto(_dadosPonto[colabId]);
+                return slim ? { colaborador_id: colabId, apuracao_ponto: JSON.stringify(slim) } : null;
+            }).filter(Boolean);
+            if (itensPonto.length > 0) {
+                fetch('/api/fechamento/salvar-ponto', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                    body: JSON.stringify({ mes: _mes, ano: _ano, itens: itensPonto })
+                }).then(function(r){ console.log('[fechamento] Ponto slim salvo no banco:', itensPonto.length, 'colaboradores'); })
+                  .catch(function(e){ console.warn('[fechamento] Erro ao salvar ponto no banco:', e); });
+            }
+        })();
         if (btn) { btn.disabled = false; btn.innerHTML = "<i class=\"ph ph-fingerprint\"></i> Buscar Ponto (RHID)"; }
 
         var mesFmt = String(_mes).padStart(2,"0") + "/" + _ano;

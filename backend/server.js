@@ -4229,6 +4229,10 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN adicional_noturno REAL DEFAULT 
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
     // coluna ja existe — OK silencioso
 });
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN apuracao_ponto TEXT', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
+    // coluna ja existe — OK silencioso
+});
 
 // Migration: limpar DSR 'Não' padrão antigo para NULL (branco = não selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Não'", function(e) {
@@ -9967,6 +9971,25 @@ app.get('/api/fechamento/:ano/:mes', authenticateToken, (req, res) => {
             res.json(rows);
         }
     );
+});
+
+// POST: Salvar apuração diária do ponto por colaborador (slim — apenas campos da conferência)
+app.post('/api/fechamento/salvar-ponto', authenticateToken, (req, res) => {
+    const { mes, ano, itens } = req.body;
+    if (!mes || !ano || !Array.isArray(itens)) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    let concluidos = 0;
+    let erros = 0;
+    itens.forEach(function(item) {
+        db.run(
+            `INSERT INTO fechamento_mensal (mes, ano, colaborador_id, apuracao_ponto)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
+             apuracao_ponto = excluded.apuracao_ponto, updated_at = CURRENT_TIMESTAMP`,
+            [mes, ano, item.colaborador_id, item.apuracao_ponto || null],
+            function(e) { if (e) erros++; concluidos++; if (concluidos === itens.length) res.json({ ok: true, erros }); }
+        );
+    });
+    if (itens.length === 0) res.json({ ok: true, erros: 0 });
 });
 
 // POST: Salvar/atualizar dados do fechamento (upsert por colaborador)
