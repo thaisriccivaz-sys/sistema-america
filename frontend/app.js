@@ -856,6 +856,7 @@ window.carregarPermissoesOnline = async function () {
     // Define quem é super admin e pode ver tudo por padrão (Apenas Diretoria!)
     // Verifica: role do banco, departamento OU nome do grupo de permissão
     const isTopAdmin = currentUser.role === 'Diretoria'
+        || currentUser.role === 'Administrador'
         || currentUser.departamento === 'Diretoria'
         || (currentUser.grupo_nome && currentUser.grupo_nome.toLowerCase() === 'diretoria');
     window.isTopAdmin = isTopAdmin;
