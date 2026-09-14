@@ -86,8 +86,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
             db.run(`ALTER TABLE usuarios ADD COLUMN page_bookmarks TEXT DEFAULT '[]'`, (err) => {
                 // Erro esperado se a coluna já existir
             });
-            // (reset de senha temporário removido por segurança)
-
+            
+            // Cria um usuário admin padrão se a tabela estiver vazia
+            db.get("SELECT COUNT(*) as count FROM usuarios", (err, row) => {
+                if (!err && row.count === 0) {
+                    const bcrypt = require('bcryptjs');
+                    const hash = bcrypt.hashSync('admin123', 10);
+                    db.run("INSERT INTO usuarios (username, password_hash, role) VALUES ('admin', ?, 'Administrador')", [hash]);
+                    console.log("[DB] Usuário admin padrão criado. Login: admin / admin123");
+                }
+            });
 
             // Tabela de Configurações (Cargos)
             db.run(`
