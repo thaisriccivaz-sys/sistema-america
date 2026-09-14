@@ -382,9 +382,9 @@ function inicializarMapa() {
         attributionControl: true
     });
 
-    // Tile layer CartoDB Voyager (alternativa gratuita e sem os bloqueios do OpenStreetMap)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    // Tile layer Google Maps (Google Streets) - Estável e sem marca d'água de API
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps',
         maxZoom: 19
     }).addTo(_leafletMap);
 
