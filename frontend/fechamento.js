@@ -134,10 +134,24 @@ window._fechamento = (function () {
     // CONFERÊNCIA DE PONTO
     // ─────────────────────────────────────────────────────────────────
     function abrirConferenciaPonto(idx = null) {
+        // Garantir que _mes e _ano estejam definidos mesmo sem ter clicado em Buscar
+        if (!_mes || !_ano) {
+            const selMes = document.getElementById('fech-select-mes');
+            const selAno = document.getElementById('fech-select-ano');
+            if (selMes) _mes = parseInt(selMes.value);
+            if (selAno) _ano = parseInt(selAno.value);
+        }
         if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
             try { var _ss = sessionStorage.getItem('_fech_dp_'+_mes+'_'+_ano); if (_ss) Object.assign(_dadosPonto, JSON.parse(_ss)); } catch(_e3) {}
         }
-                const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
+
+        // Se _dados ainda está vazio, precisamos buscar o fechamento do mês primeiro
+        if (!_dados || _dados.length === 0) {
+            buscar().then(function() { abrirConferenciaPonto(idx); });
+            return;
+        }
+
+        const colabs = idx !== null ? [_dados[idx]] : _dados.filter(r => r.nome_completo);
 
         // ── Helper: extrair array de dias de apuracaoRaw (qualquer formato RHID) ──
         // Mesma lógica de extrairDiaria usada em recibos.js
