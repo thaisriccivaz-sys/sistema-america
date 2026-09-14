@@ -4022,7 +4022,7 @@ function abrirModalEnderecos(nomeCliente) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function atualizarUI() {
-    // Atualiza Tipos (Habilidades)
+    // Atualiza Tipos (Habilidades) - Legacy buttons se existirem
     document.querySelectorAll('.btn-tipo-servico').forEach(btn => {
         const tipo = btn.dataset.tipo;
         if (osState.tiposServico.has(tipo)) {
@@ -4033,6 +4033,10 @@ function atualizarUI() {
             btn.style.color = '#2d9e5f';
         }
     });
+
+    // Atualiza Novos Dropdowns (Habilidade Atendimento e Habilidade Equipe)
+    if (typeof rrAtualizarCheckboxesHabAtend === 'function') rrAtualizarCheckboxesHabAtend();
+    if (typeof rrAtualizarCheckboxesHabEquipe === 'function') rrAtualizarCheckboxesHabEquipe();
 
     // Atualiza Ações
     document.querySelectorAll('.btn-acao-azul').forEach(btn => {
