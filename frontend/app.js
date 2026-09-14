@@ -233,6 +233,11 @@ const DOCS_DISPONIVEIS = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.hostname.includes('homologacao')) {
+        const tsDiv = document.querySelector('.cf-turnstile');
+        if (tsDiv) tsDiv.style.display = 'none';
+    }
+
     // Check for public form token
     const urlParams = new URLSearchParams(window.location.search);
     const expPublicToken = urlParams.get('exp_public_token');
