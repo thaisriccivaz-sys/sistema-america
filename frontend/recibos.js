@@ -2680,6 +2680,9 @@ window.carregarHistoricoRecibos = async function () {
                     _recibosSelecoes[c.id].diasExtra = 0;
                     _recibosSelecoes[c.id].historicoEncontrado = false;
                     _recibosSelecoes[c.id].isAutoSupervisao = false;
+                    // Limpar ponto do mês anterior para não vazar entre meses
+                    _recibosSelecoes[c.id].apuracaoDiaria = [];
+                    _recibosSelecoes[c.id].pontoStatus = null;
                 }
             });
             // Aplica o histórico
@@ -2990,6 +2993,21 @@ window.baixarConferenciaPonto = async function () {
     const anoInt = parseInt(ano);
     const mesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mesInt-1];
     const valorVR = window._recibosValorVR || 35.00;
+
+    // Verificar se há apuração de ponto para o mês selecionado
+    const temPontoNoMes = sels.some(c =>
+        _recibosSelecoes[c.id]?.apuracaoDiaria &&
+        Array.isArray(_recibosSelecoes[c.id].apuracaoDiaria) &&
+        _recibosSelecoes[c.id].apuracaoDiaria.length > 0
+    );
+    if (!temPontoNoMes) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Ponto não disponível', `Não há ponto buscado para ${mesNome}/${anoInt}.\n\nFaça a busca do ponto (botão "Buscar VC e VR") antes de abrir a conferência.`, 'warning');
+        } else {
+            alert(`Não há ponto buscado para ${mesNome}/${anoInt}. Faça a busca do ponto primeiro.`);
+        }
+        return;
+    }
 
     // Período da conferência: 26 do mês anterior → último dia de M (cobre VT e VR)
     const dtIniConf = new Date(anoInt, mesInt - 2, 26);
