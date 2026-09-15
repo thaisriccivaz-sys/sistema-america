@@ -9960,7 +9960,7 @@ app.get('/api/fechamento/:ano/:mes', authenticateToken, (req, res) => {
                 c.folha_mensalidade_sindical, c.folha_mensalidade_sindical_valor,
                 c.folha_pensao_tipo, c.folha_pensao_pct,
                 c.folha_plr, c.folha_plr_valor, c.folha_plr_meses,
-                c.data_admissao, c.cpf
+                c.data_admissao, c.cpf, c.escala_tipo
          FROM colaboradores c
          LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
          WHERE c.status != 'Desligado'
