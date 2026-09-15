@@ -3378,55 +3378,57 @@ window.baixarConferenciaPonto = async function () {
                     }
                 }
 
-                // ── Coloração ────────────────────────────────────────────────────────
+                // ── Coloração ──────────────────────────────────────────────────────                // 🔹 Estética das Cores 🔹
+                // Variáveis para a hierarquia
+                const isFaltaIntegral = (tipo === 'falta' && !hasPunches);
+                const isFerias = (tipo === 'ferias');
+                const isJustificado = (tipo === 'justificado' || tipo === 'atestado' || txtEspecial.includes('Justificado') || txtEspecial.includes('Atestado') || (typeof ent1 === 'string' && (ent1.includes('Justificado') || ent1.includes('Atestado'))));
+                const isFolga = (tipo === 'folga' || tipo === 'feriado');
+                const isEdicaoManual = marc.some(m => typeof m === 'string' && m.includes('(I)'));
                 
-                // Nova regra: qualquer dia com >= 2h trabalhadas gera VR — sem penalidade por horas
-                const perdeVRPorHorasUI = false; // Regra de mínimo de horas removida
+                // Cálculo para mais de 12h
+                const minTotaisTrabalhados = normMin + ex60 + ex100;
+                const is12x36 = ((c.escala || '').toLowerCase().includes('12x36') || (prevStr || '').toLowerCase().includes('12x36'));
+                const isMaisDe12h = (minTotaisTrabalhados > 720 && !is12x36);
+                const atrasoMinutos = (fatMin || 0);
 
-                let bg = '#fff';
+                var bg = '#fff';
+                if (isFaltaIntegral) bg = '#fe7884';      // 1. Falta Integral
+                else if (isFerias) bg = '#fef9c3';        // 2. Férias
+                else if (isJustificado) bg = '#fee2e2';   // 3. Justificado
+                else if (isFolga && !hasPunches) bg = '#cdd1d4'; // 4. Folga
+                else if (isEdicaoManual) bg = '#feae67';  // 5. Apontamento Manual
+                else if (isMaisDe12h) bg = '#cb79ff';     // 6. > 12h seguidas
+                else if (ex100 > 15) bg = '#dbeafe';      // 7. Extra 100%
+                else if (ex60 > 15) bg = '#93c5fd';       // 8. Extra 60%
+                else if (notMin > 0) bg = '#fbcfe8';      // 9. Noturno
+                else if (atrasoMinutos > 15) bg = '#fde047'; // 10. Atraso
 
-                if (perdeVRPorHorasUI) {
-                    bg = '#fde047'; // Amarelo mais escuro para destacar perda de VR
-                } else if (elegivel_jantar) {
-                    bg = '#e9d5ff'; // Roxo: Jantar
-                } else if ((semHor || isHolidayDay) && hTrab >= 120) {
-                    // Trabalhou em dia SEM horário (folga/dia livre) ou feriado e atingiu mínimo
-                    bg = '#dcfce7'; // Verde claro para destacar horas extras
-                } else if (!semHor && hTrab >= 120 && tipo !== 'falta' && tipo !== 'folga' && tipo !== 'feriado') {
-                    // Dia COM escala prevista e trabalhou normalmente
-                    bg = '#fff'; // Branco normal para dia trabalhado (removido amarelo claro para evitar confusão)
-                } else if (isFlt || tipo === 'justificado' || tipo === 'atestado') {
-                    bg = '#fee2e2'; // Falta / Justificado / Atestado
-                } else if (tipo === 'ferias') {
-                    bg = '#e9d5ff'; // Férias (roxo)
-                } else if (tipo === 'trab_externo') {
-                    bg = '#e0f2fe'; // Trabalho Externo: azul claro
-                } else if (tipo === 'folga' || tipo === 'feriado') {
-                    bg = '#f8fafc'; // Folga ou Feriado não trabalhado: azul bem claro
-                }
-                
-                // Destaque amarelinho para os dias do mês ANTERIOR (26 a 31 do M-1)
-                // que fazem parte do VT do mês atual, mas não do VR do mês atual.
+                // Destaque amarelinho para os dias do mês ANTERIOR (26 a 31 do M-1) no VR
                 if (diaStr.includes('-')) {
-                    const p = diaStr.split('-'); // [YYYY, MM, DD]
-                    if (parseInt(p[1], 10) !== mesInt) {
-                        if (bg === '#fff' || bg === '#f8fafc') {
-                            bg = '#fef9c3'; // amarelinho clarinho
-                        }
+                    const p = diaStr.split('-');
+                    if (parseInt(p[1], 10) !== mesInt && bg === '#fff') {
+                        bg = '#fef9c3'; // amarelinho clarinho fallback apenas se branco
                     }
                 }
 
-                // Cor da fonte: vermelho para faltas/justificados/atestados; escuro para trab. externo e dias normais
-                const isAusencia = isFlt || tipo === 'justificado' || tipo === 'atestado';
-                const fontColor  = isAusencia ? '#b91c1c' : '#1e293b';
+                // Negrito nas inserções manuais
+                const formatManual = (str) => typeof str === 'string' && str.includes('(I)') ? `<b>${str}</b>` : str;
+                const ent1_td = formatManual(ent1);
+                const sai1_td = formatManual(sai1);
+                const ent2_td = formatManual(ent2);
+                const sai2_td = formatManual(sai2);
+
+                const isAusencia = (tipo === 'falta' || isJustificado);
+                const fontColor = isJustificado ? '#b91c1c' : '#1e293b';
 
                 return `<tr id="pconf-${c.id}-${diaStr.replace(/-/g,'')}" style="background:${bg};color:${fontColor};">
                     ${tdC(diaFmt+(dsStr?' - '+dsStr:''),'white-space:nowrap;')}
                     ${tdC(previsto,'font-size:9.5px;word-break:break-word;max-width:90px;')}
-                    ${tdC(ent1,'white-space:nowrap;')}
-                    ${tdC(sai1,'white-space:nowrap;')}
-                    ${tdC(ent2,'font-size:9.5px;')}
-                    ${tdC(sai2,'white-space:nowrap;')}
+                    ${tdC(ent1_td,'white-space:nowrap;')}
+                    ${tdC(sai1_td,'white-space:nowrap;')}
+                    ${tdC(ent2_td,'font-size:9.5px;')}
+                    ${tdC(sai2_td,'white-space:nowrap;')}
                     ${tdC(normMin?fmtHM(normMin):'','text-align:center;font-weight:600;')}
                     ${tdC(notMin?fmtHM(notMin):'','text-align:center;')}
                     ${tdC(isFlt?'1':'','text-align:center;font-weight:700;color:'+(isFlt?'#dc2626':'#111')+';')}

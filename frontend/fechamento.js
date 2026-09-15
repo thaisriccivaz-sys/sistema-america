@@ -399,41 +399,65 @@ window._fechamento = (function () {
                 const extra100 = fmtMin(min100);
                 const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
 
-                // ── Estética das Cores ─────────────────────────────────────────────
-                var bg = '#fff';
-                if ((_semHorario || _tipo === 'feriado') && _trabalhou3) {
-                    bg = '#dcfce7'; // Verde claro para destacar extras na folga
-                } else if (_tipo === 'falta') {
-                    bg = '#fe7884'; // Vermelho mais escuro (NOVO)
-                } else if (_tipo === 'justificado' || _tipo === 'atestado') {
-                    bg = '#fee2e2'; // Vermelho clarinho
-                } else if (_tipo === 'ferias') {
-                    bg = '#e9d5ff'; // Roxo claro
-                } else if (_tipo === 'trab_externo') {
-                    bg = '#e0f2fe'; // Azul clarinho
-                } else if (_tipo === 'folga' || _tipo === 'feriado') {
-                    bg = '#f8fafc'; // Cinza/azul clarinho para descanso
+                // ── Estética das Cores ─────────────────────────────────────────────                // 🔹 Estética das Cores 🔹
+                // Fallback para horas extras caso o array de percentuais venha vazio
+                if (min60 === 0 && min100 === 0) {
+                    const exTot = Math.max(0, dia.extraDiurna || dia.extraAdicionadaDiurna || 0) + Math.max(0, dia.extraNoturna || dia.extraAdicionadaNoturna || 0) || Math.max(0, dia.horasExtrasCalculadas || 0);
+                    if (dia.isHoliday || _isFolgaFlag || _isFolgaSt || diaLabel.includes('DOM')) min100 = exTot;
+                    else min60 = exTot;
                 }
 
-                const fontColor = (_tipo === 'justificado' || _tipo === 'atestado') ? '#b91c1c' : '#111';
+                // Variáveis para a hierarquia
+                const isFaltaIntegral = (_tipo === 'falta' && !hasPunches);
+                const isFerias = (_tipo === 'ferias');
+                const isJustificado = (_tipo === 'justificado' || _tipo === 'atestado' || txtEspecial.includes('Justificado') || txtEspecial.includes('Atestado'));
+                const isFolga = (_tipo === 'folga' || _tipo === 'feriado');
+                const isEdicaoManual = marcacoes.some(m => typeof m === 'string' && m.includes('(I)'));
+                
+                // Cálculo para mais de 12h
+                const minTotaisTrabalhados = normaisMin + min60 + min100;
+                const is12x36 = ((c.escala || '').toLowerCase().includes('12x36') || (_prevStr || '').toLowerCase().includes('12x36'));
+                const isMaisDe12h = (minTotaisTrabalhados > 720 && !is12x36);
+                const atrasoMinutos = (dia.horasFaltaAtraso || 0);
+
+                var bg = '#fff';
+                if (isFaltaIntegral) bg = '#fe7884';      // 1. Falta Integral
+                else if (isFerias) bg = '#fef9c3';        // 2. Férias
+                else if (isJustificado) bg = '#fee2e2';   // 3. Justificado
+                else if (isFolga && !hasPunches) bg = '#cdd1d4'; // 4. Folga
+                else if (isEdicaoManual) bg = '#feae67';  // 5. Apontamento Manual
+                else if (isMaisDe12h) bg = '#cb79ff';     // 6. > 12h seguidas
+                else if (min100 > 15) bg = '#dbeafe';     // 7. Extra 100%
+                else if (min60 > 15) bg = '#93c5fd';      // 8. Extra 60%
+                else if (noturnMin > 0) bg = '#fbcfe8';   // 9. Noturno
+                else if (atrasoMinutos > 15) bg = '#fde047'; // 10. Atraso
+
+                // Negrito nas inserções manuais
+                const formatManual = (str) => typeof str === 'string' && str.includes('(I)') ? `<b>${str}</b>` : str;
+                const ent1_td = formatManual(ent1);
+                const sai1_td = formatManual(sai1);
+                const ent2_td = formatManual(ent2);
+                const sai2_td = formatManual(sai2);
+
+                const fontColor = isJustificado ? '#b91c1c' : '#111';
                 const tdSt = 'padding:4px 3px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:10.5px;';
                 const fC = diaFalta > 0 ? 'color:#111;font-weight:700;' : '';
 
                 rowsHtml += `<tr style="background:${bg};color:${fontColor};">
                     <td style="${tdSt}text-align:left;white-space:nowrap;color:#111;">${diaLabel}</td>
                     <td style="${tdSt}font-size:9.5px;word-break:break-word;max-width:90px;">${_prevTexto}</td>
-                    <td style="${tdSt}white-space:nowrap;">${ent1}</td>
-                    <td style="${tdSt}white-space:nowrap;">${sai1}</td>
-                    <td style="${tdSt}font-size:9.5px;">${ent2}</td>
-                    <td style="${tdSt}white-space:nowrap;">${sai2}</td>
-                    <td style="${tdSt}font-weight:600;color:#111;">${normais}</td>
-                    <td style="${tdSt}color:#111;">${noturn}</td>
-                    <td style="${tdSt}${fC}">${diaFalta > 0 ? '1' : ''}</td>
-                    <td style="${tdSt}color:#111;">${faltaAtr}</td>
-                    <td style="${tdSt}font-size:9.5px;color:#111;">${abono}</td>
-                    <td style="${tdSt}color:#111;">${extra60}</td>
-                    <td style="${tdSt}color:#111;">${extra100}</td>
-                    <td style="${tdSt}font-weight:600;color:#111;">${totTrab}</td>
+                    <td style="${tdSt}white-space:nowrap;">${ent1_td}</td>
+                    <td style="${tdSt}white-space:nowrap;">${sai1_td}</td>
+                    <td style="${tdSt}font-size:9.5px;">${ent2_td}</td>
+                    <td style="${tdSt}white-space:nowrap;">${sai2_td}</td>
+                    <td style="${tdSt}${fC}">${normais}</td>
+                    <td style="${tdSt}">${noturn}</td>
+                    <td style="${tdSt}">${diaFalta > 0 ? diaFalta : ''}</td>
+                    <td style="${tdSt}">${fmtMin(dia.horasFaltaAtraso || 0)}</td>
+                    <td style="${tdSt}">${fmtMin(dia.horasAbono || dia.abono || 0)}</td>
+                    <td style="${tdSt}">${fmtMin(min60)}</td>
+                    <td style="${tdSt}">${fmtMin(min100)}</td>
+                    <td style="${tdSt}font-weight:bold;color:#1d4ed8;">${totTrab}</td>
                 </tr>`;
             });
 
