@@ -3399,8 +3399,8 @@ window.baixarConferenciaPonto = async function () {
                 else if (isFolga && !hasPunches) bg = '#cdd1d4'; // 4. Folga
                 else if (isEdicaoManual) bg = '#feae67';  // 5. Apontamento Manual
                 else if (isMaisDe12h) bg = '#cb79ff';     // 6. > 12h seguidas
-                else if (ex100 > 15) bg = '#dbeafe';      // 7. Extra 100%
-                else if (ex60 > 15) bg = '#93c5fd';       // 8. Extra 60%
+                else if (ex100 > 15) bg = '#93c5fd';      // 7. Extra 100%
+                else if (ex60 > 15) bg = '#dbeafe';       // 8. Extra 60%
                 else if (notMin > 0) bg = '#fbcfe8';      // 9. Noturno
                 else if (atrasoMinutos > 15) bg = '#fde047'; // 10. Atraso
 
