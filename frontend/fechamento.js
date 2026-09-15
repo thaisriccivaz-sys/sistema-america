@@ -276,6 +276,8 @@ window._fechamento = (function () {
 
             const thSt = 'padding:5px 4px;border:1px solid #1a335a;text-align:center;font-size:10px;white-space:nowrap;';
             let rowsHtml = '';
+            // Acumuladores para linha de Totais
+            let totNoturno = 0, totFaltaAtraso = 0, totAbono = 0, totExtra60 = 0, totExtra100 = 0, totTrab = 0;
 
             apArr.forEach(function(dia) {
                 const dtStr  = String(dia.date || dia.dateTimeStr || '').substring(0, 10);
@@ -303,7 +305,6 @@ window._fechamento = (function () {
                     var _diaSem3 = !isNaN(_dtObj3.getTime()) ? _dtObj3.getDay() : -1;
                     if (_semTrab3 && _mF3.length > 0) {
                         if (_mF3.every(function(m){ return m._typeRegister === 'I'; }) && dia.idJustification) _isFerias3 = true;
-                        if (!_isFerias3 && (_diaSem3===0||_diaSem3===6) && _mF3.every(function(m){ return (m.hora||0)===0; })) _isFerias3 = true;
                     }
                 }
                 
@@ -423,6 +424,13 @@ window._fechamento = (function () {
                 const is12x36 = ((row.escala_tipo || '').toLowerCase().includes('12x36') || (_prevStr || '').toLowerCase().includes('12x36'));
                 const isMaisDe12h = (minTotaisTrabalhados > 720 && !is12x36);
                 const atrasoMinutos = (dia.horasFaltaAtraso || 0);
+                // Acumular para linha de totais
+                totNoturno     += noturnMin;
+                totFaltaAtraso += (dia.horasFaltaAtraso || 0);
+                totAbono       += (dia.horasAbono || dia.abono || 0);
+                totExtra60     += min60;
+                totExtra100    += min100;
+                totTrab        += (dia.totalHorasTrabalhadas || 0);
 
                 var bg = '#fff';
                 if (isFaltaIntegral) bg = '#fe7884';      // 1. Falta Integral
@@ -460,9 +468,9 @@ window._fechamento = (function () {
                     <td style="${tdSt}white-space:nowrap;">${sai1_td}</td>
                     <td style="${tdSt}font-size:9.5px;">${ent2_td}</td>
                     <td style="${tdSt}white-space:nowrap;">${sai2_td}</td>
-                    <td style="${tdSt}${fC}">${normais}</td>
+                    
                     <td style="${tdSt}">${noturn}</td>
-                    <td style="${tdSt}">${diaFalta > 0 ? diaFalta : ''}</td>
+                    
                     <td style="${tdSt}">${fmtMin(dia.horasFaltaAtraso || 0)}</td>
                     <td style="${tdSt}">${fmtMin(dia.horasAbono || dia.abono || 0)}</td>
                     <td style="${tdSt}">${fmtMin(min60)}</td>
@@ -491,9 +499,9 @@ window._fechamento = (function () {
                     <th style="${thSt}">SAÍ. 1</th>
                     <th style="${thSt}">ENT. 2</th>
                     <th style="${thSt}">SAÍ. 2</th>
-                    <th style="${thSt}">TOT. NORMAIS</th>
+                    
                     <th style="${thSt}">TOT. NOTURNO</th>
-                    <th style="${thSt}">DIA FALTA</th>
+                    
                     <th style="${thSt}">FALTA/ATRASO</th>
                     <th style="${thSt}">ABONO</th>
                     <th style="${thSt}">EXTRA 60%</th>
@@ -501,7 +509,7 @@ window._fechamento = (function () {
                     <th style="${thSt}">TOT. TRAB.</th>
                   </tr>
                 </thead>
-                <tbody>${rowsHtml}</tbody>
+                <tbody>${rowsHtml}<tr style="background:#0f172a;color:#fff;font-weight:700;"><td style="${thSt}text-align:left;border-color:#0f172a;" colspan="6">TOTAIS DO MÊS</td><td style="${thSt}">${fmtMin(totNoturno)}</td><td style="${thSt}">${fmtMin(totFaltaAtraso)}</td><td style="${thSt}">${fmtMin(totAbono)}</td><td style="${thSt}">${fmtMin(totExtra60)}</td><td style="${thSt}">${fmtMin(totExtra100)}</td><td style="${thSt}color:#93c5fd;">${fmtMin(totTrab)}</td></tr></tbody>
               </table>
               </div>
             </div>`;
