@@ -277,7 +277,7 @@ window._fechamento = (function () {
             const thSt = 'padding:5px 4px;border:1px solid #1a335a;text-align:center;font-size:10px;white-space:nowrap;';
             let rowsHtml = '';
             // Acumuladores para linha de Totais
-            let totNoturno = 0, totFaltaAtraso = 0, totAbono = 0, totExtra60 = 0, totExtra100 = 0, totTrab = 0;
+            let totNoturno = 0, totFaltaAtraso = 0, totAbono = 0, totExtra60 = 0, totExtra100 = 0, _sumTrab = 0;
 
             apArr.forEach(function(dia) {
                 const dtStr  = String(dia.date || dia.dateTimeStr || '').substring(0, 10);
@@ -430,7 +430,7 @@ window._fechamento = (function () {
                 totAbono       += (dia.horasAbono || dia.abono || 0);
                 totExtra60     += min60;
                 totExtra100    += min100;
-                totTrab        += (dia.totalHorasTrabalhadas || 0);
+                _sumTrab       += (dia.totalHorasTrabalhadas || 0);
 
                 var bg = '#fff';
                 if (isFaltaIntegral) bg = '#fe7884';      // 1. Falta Integral
@@ -509,7 +509,7 @@ window._fechamento = (function () {
                     <th style="${thSt}">TOT. TRAB.</th>
                   </tr>
                 </thead>
-                <tbody>${rowsHtml}<tr style="background:#0f172a;color:#fff;font-weight:700;"><td style="${thSt}text-align:left;border-color:#0f172a;" colspan="6">TOTAIS DO MÊS</td><td style="${thSt}">${fmtMin(totNoturno)}</td><td style="${thSt}">${fmtMin(totFaltaAtraso)}</td><td style="${thSt}">${fmtMin(totAbono)}</td><td style="${thSt}">${fmtMin(totExtra60)}</td><td style="${thSt}">${fmtMin(totExtra100)}</td><td style="${thSt}color:#93c5fd;">${fmtMin(totTrab)}</td></tr></tbody>
+                <tbody>${rowsHtml}<tr style="background:#0f172a;color:#fff;font-weight:700;"><td style="${thSt}text-align:left;border-color:#0f172a;" colspan="6">TOTAIS DO MÊS</td><td style="${thSt}">${fmtMin(totNoturno)}</td><td style="${thSt}">${fmtMin(totFaltaAtraso)}</td><td style="${thSt}">${fmtMin(totAbono)}</td><td style="${thSt}">${fmtMin(totExtra60)}</td><td style="${thSt}">${fmtMin(totExtra100)}</td><td style="${thSt}color:#93c5fd;">${fmtMin(_sumTrab)}</td></tr></tbody>
               </table>
               </div>
             </div>`;
