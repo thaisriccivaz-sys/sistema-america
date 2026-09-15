@@ -322,9 +322,9 @@ window._fechamento = (function () {
                 else if (_semHorario && !_trabalhou3)                                 _tipo = 'folga';
                 else if (diaFalta > 0)                                                _tipo = 'falta';
 
-                // Horário Previsto
+                // Horário Previsto base
                 var _prevStr = (dia.strHorarioContratualSimples || '').trim().replace(/[\r\n]+/g, ' ');
-                var _prevTexto = _tipo === 'feriado' ? 'FERIADO' : (_tipo === 'folga' ? '' : _prevStr);
+                var _prevTexto = _prevStr;
                 
                 // Marcações — hora no formato HHMM (832 = 08:32)
                 let marcacoes = [];
@@ -340,16 +340,40 @@ window._fechamento = (function () {
                 var e2 = marcacoes[2] || '';
                 var s2 = marcacoes[3] || '';
 
-                // Textos para status especiais, forçados na coluna Ent. 1
+                var hasPunches = (e1 !== '' || s1 !== '' || e2 !== '' || s2 !== '');
+
+                // Textos Especiais
+                var txtEspecial = '';
+                if (_tipo === 'feriado') txtEspecial = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
+                else if (_tipo === 'folga') txtEspecial = 'Folga';
+                else if (_tipo === 'ferias') txtEspecial = 'Férias';
+                else if (_tipo === 'atestado') txtEspecial = 'Atestado Médico';
+                else if (_tipo === 'justificado') txtEspecial = dia.toolTipAlert ? dia.toolTipAlert.substring(0, 20) : 'Justificado';
+                else if (_tipo === 'trab_externo') txtEspecial = 'Trab. Externo';
+                else if (_tipo === 'falta') txtEspecial = 'Falta';
+
                 var ent1='', sai1='', ent2='', sai2='';
-                if (_tipo === 'feriado' && !e1) { ent1 = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : ''); }
-                else if (_tipo === 'folga' && !e1) { ent1 = 'Folga'; }
-                else if (_tipo === 'ferias' && !e1) { ent1 = 'Férias'; }
-                else if (_tipo === 'atestado') { ent1 = 'Atestado Médico'; }
-                else if (_tipo === 'justificado') { ent1 = dia.toolTipAlert ? dia.toolTipAlert.substring(0, 20) : 'Justificado'; }
-                else if (_tipo === 'trab_externo') { ent1 = 'Trab. Externo'; }
-                else if (_tipo === 'falta') { ent1 = 'Falta'; }
-                else { ent1 = e1; sai1 = s1; ent2 = e2; sai2 = s2; }
+
+                if (!hasPunches && txtEspecial) {
+                    // Ausência Integral: O texto vai para o Dia Previsto. Colunas de batidas ficam vazias.
+                    _prevTexto = txtEspecial;
+                } else if (hasPunches) {
+                    // Ausência Parcial ou Trabalho Normal
+                    // Se folgou/feriado mas tem batida (hora extra), deixa previsto vazio.
+                    _prevTexto = (_tipo === 'folga' || _tipo === 'feriado' || _tipo === 'ferias') ? '' : _prevStr;
+                    
+                    ent1 = e1; sai1 = s1; ent2 = e2; sai2 = s2;
+                    
+                    // Preencher buracos com o motivo se for falta parcial / justificativa parcial
+                    if (_tipo === 'falta' || _tipo === 'justificado' || _tipo === 'atestado' || _tipo === 'trab_externo') {
+                        if (!ent1) ent1 = txtEspecial;
+                        if (!sai1) sai1 = txtEspecial;
+                        if (!ent2) ent2 = txtEspecial;
+                        if (!sai2) sai2 = txtEspecial;
+                    }
+                } else {
+                    ent1 = e1; sai1 = s1; ent2 = e2; sai2 = s2;
+                }
 
                 // Totais
                 const normaisMin = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);

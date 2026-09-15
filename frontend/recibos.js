@@ -3221,7 +3221,7 @@ window.baixarConferenciaPonto = async function () {
 
                 // PREVISTO — folga e dias sem escala não mostram horário previsto
                 const prevStr = (d.strHorarioContratualSimples||'').trim().replace(/[\r\n]+/g,' ') || c.escala || '';
-                const previsto = tipo==='feriado' ? 'FERIADO' : (tipo==='folga' ? '' : prevStr);
+                let previsto = tipo==='feriado' ? 'FERIADO' : (tipo==='folga' ? '' : prevStr);
 
                 // Número de períodos no horário do SAB (para detectar tipo de escala)
                 // 1 período (ex: "08:30-12:00") = compensação/meio-dia → VR ≥ 6h
@@ -3285,27 +3285,49 @@ window.baixarConferenciaPonto = async function () {
                     }
                 }
 
-                let ent1='',sai1='',ent2='',sai2='';
-                if (tipo==='feriado' && !e1)       { ent1='Feriado: '+(d.holidayName||''); }
-                else if (tipo==='folga' && !e1)    { ent1='Folga'; }
-                else if (tipo==='ferias' && !e1)   { ent1='Férias'; }
-                else if (tipo==='atestado')         { ent1='Atestado Médico'; }   // só ENT.1, resto vazio
-                else if (tipo==='justificado')      {
-                    // RHID não distingue tipos: mostra toggle clicavel (Justificado ⇔ Externo)
+                let ent1='', sai1='', ent2='', sai2='';
+                const hasPunches = (e1 !== '' || s1 !== '' || e2 !== '' || s2 !== '');
+
+                let txtEspecial = '';
+                if (tipo==='feriado')       txtEspecial = 'Feriado' + (d.holidayName ? ': ' + d.holidayName : '');
+                else if (tipo==='folga')    txtEspecial = 'Folga';
+                else if (tipo==='ferias')   txtEspecial = 'Férias';
+                else if (tipo==='atestado') txtEspecial = 'Atestado Médico';
+                else if (tipo==='justificado') {
                     const _rowIdJ = `pconf-${c.id}-${diaStr.replace(/-/g,'')}`;
-                    ent1 = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdJ}')" title="Clique para marcar como Trabalho Externo" style="cursor:pointer;border-bottom:1px dashed #b91c1c;padding-bottom:1px;">Justificado ⇕</span>`;
+                    txtEspecial = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdJ}')" title="Clique para marcar como Trabalho Externo" style="cursor:pointer;border-bottom:1px dashed #b91c1c;padding-bottom:1px;">Justificado ⇕</span>`;
                 }
-                else if (tipo==='trab_externo')     {
+                else if (tipo==='trab_externo') {
                     const _isManualExt = (window._pontoTipoOverride || {})[String(c.id) + '_' + diaStr] === 'externo';
                     if (_isManualExt) {
                         const _rowIdE = `pconf-${c.id}-${diaStr.replace(/-/g,'')}`;
-                        ent1 = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdE}')" title="Clique para marcar como Justificado" style="cursor:pointer;border-bottom:1px dashed #374151;padding-bottom:1px;">Externo ⇕</span>`;
+                        txtEspecial = `<span onclick="window._toggleJustExterno('${c.id}','${diaStr}','${_rowIdE}')" title="Clique para marcar como Justificado" style="cursor:pointer;border-bottom:1px dashed #374151;padding-bottom:1px;">Externo ⇕</span>`;
                     } else {
-                        ent1 = 'Trab. Externo';
+                        txtEspecial = 'Trab. Externo';
                     }
                 }
-                else if (tipo==='falta')            { ent1='Falta'; }               // só ENT.1, resto vazio
-                else { ent1=e1; sai1=s1; ent2=e2; sai2=s2; }
+                else if (tipo==='falta') txtEspecial = 'Falta';
+
+                if (!hasPunches && txtEspecial) {
+                    previsto = txtEspecial;
+                } else if (hasPunches) {
+                    if (tipo === 'folga' || tipo === 'feriado' || tipo === 'ferias') {
+                        previsto = '';
+                    } else {
+                        previsto = prevStr;
+                    }
+                    
+                    ent1=e1; sai1=s1; ent2=e2; sai2=s2;
+                    
+                    if (tipo === 'falta' || tipo === 'justificado' || tipo === 'atestado' || tipo === 'trab_externo') {
+                        if (!ent1) ent1 = txtEspecial;
+                        if (!sai1) sai1 = txtEspecial;
+                        if (!ent2) ent2 = txtEspecial;
+                        if (!sai2) sai2 = txtEspecial;
+                    }
+                } else {
+                    ent1=e1; sai1=s1; ent2=e2; sai2=s2;
+                }
 
                 // Horas e extras
                 // TOTAL NORMAIS = total de horas trabalhadas no dia
