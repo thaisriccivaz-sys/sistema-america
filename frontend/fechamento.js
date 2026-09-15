@@ -436,8 +436,14 @@ window._fechamento = (function () {
                 else if (noturnMin > 0) bg = '#fbcfe8';   // 9. Noturno
                 else if (atrasoMinutos > 15) bg = '#fde047'; // 10. Atraso
 
-                // Negrito nas inserções manuais
-                const formatManual = (str) => typeof str === 'string' && str.includes('(I)') ? `<b>${str}</b>` : str;
+                // Negrito nas inserções manuais e nas batidas reais de dias justificados-parciais
+                const formatManual = (str) => {
+                    if (typeof str !== 'string' || !str) return str;
+                    if (str.includes('(I)')) return `<b>${str}</b>`;
+                    // Se o dia é justificado mas tem batida real, deixar em negrito para indicar inconsistência
+                    if (isJustificado && hasPunches && str !== 'Justificado' && str !== 'Falta') return `<b>${str}</b>`;
+                    return str;
+                };
                 const ent1_td = formatManual(ent1);
                 const sai1_td = formatManual(sai1);
                 const ent2_td = formatManual(ent2);
