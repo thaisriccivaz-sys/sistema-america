@@ -3387,7 +3387,7 @@ window.baixarConferenciaPonto = async function () {
                 const isEdicaoManual = marc.some(m => typeof m === 'string' && m.includes('(I)'));
                 
                 // Cálculo para mais de 12h
-                const minTotaisTrabalhados = normMin + ex60 + ex100;
+                const minTotaisTrabalhados = normMin + notMin;
                 const is12x36 = ((c.escala || '').toLowerCase().includes('12x36') || (prevStr || '').toLowerCase().includes('12x36'));
                 const isMaisDe12h = (minTotaisTrabalhados > 720 && !is12x36);
                 const atrasoMinutos = (fatMin || 0);
