@@ -295,6 +295,7 @@ window._fechamento = (function () {
                 var _trabalhou3  = (dia.diasTrabalhados || 0) > 0 || _horasTrab3 > 0;
                 var _tipLow     = (dia.toolTipAlert || '').toLowerCase();
                 var _isFerias3  = dia.isFerias === true || _tipLow.includes('férias') || _tipLow.includes('ferias') || _tipLow.includes('vacation');
+                
                 if (!_isFerias3) {
                     var _mF3 = dia.listAfdtManutencao || [];
                     var _semTrab3 = (dia.diasTrabalhados || 0) === 0 && (dia.totalHorasTrabalhadas || 0) === 0;
@@ -305,53 +306,60 @@ window._fechamento = (function () {
                         if (!_isFerias3 && (_diaSem3===0||_diaSem3===6) && _mF3.every(function(m){ return (m.hora||0)===0; })) _isFerias3 = true;
                     }
                 }
-                var _statusDia = '';
-                if (_isFerias3)                                                       _statusDia = 'Férias';
-                else if (dia.isHoliday)                                               _statusDia = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : '');
+                
+                var diaFalta = parseInt(dia.faltaDiaInteiro) || parseInt(dia.faltasDiasInteiro) || 0;
+
+                // Definir Status Baseado nas regras
+                var _tipo = '';
+                if (_isFerias3)                                                       _tipo = 'ferias';
+                else if (dia.isHoliday)                                               _tipo = 'feriado';
                 else if (dia.idJustification) {
-                    if (_tipLow.includes('atestado') || _tipLow.includes('medic'))    _statusDia = 'Atestado Médico';
-                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _statusDia = 'Trabalho Externo';
-                    else _statusDia = (dia.toolTipAlert || 'Justificado').substring(0, 20);
+                    if (_tipLow.includes('atestado') || _tipLow.includes('medic'))    _tipo = 'atestado';
+                    else if (_tipLow.includes('externo') || _tipLow.includes('trab. ext')) _tipo = 'trab_externo';
+                    else _tipo = 'justificado';
                 }
-                else if ((_isFolgaSt || _isFolgaFlag || _isDSRMin) && _horasTrab3 < 120) _statusDia = 'Folga';
-                else if (_semHorario && !_trabalhou3)                                 _statusDia = 'Folga';
-                else if ((parseInt(dia.faltaDiaInteiro)||parseInt(dia.faltasDiasInteiro)||0) > 0) _statusDia = 'Falta';
+                else if ((_isFolgaSt || _isFolgaFlag || _isDSRMin) && _horasTrab3 < 120) _tipo = 'folga';
+                else if (_semHorario && !_trabalhou3)                                 _tipo = 'folga';
+                else if (diaFalta > 0)                                                _tipo = 'falta';
 
-                // Horário previsto ou status especial
-                var _prevTexto = _statusDia || (dia.strHorarioContratualSimples || '').trim();
-                var _prevColor = _statusDia === 'Falta'  ? 'color:#dc2626;font-weight:700;' :
-                                 _statusDia === 'Folga'  ? 'color:#c2410c;font-weight:600;' :
-                                 _statusDia === 'Férias' ? 'color:#166534;font-weight:600;' :
-                                 (_statusDia ? 'color:#6b21a8;font-style:italic;' : '');
-
+                // Horário Previsto
+                var _prevStr = (dia.strHorarioContratualSimples || '').trim().replace(/[\r\n]+/g, ' ');
+                var _prevTexto = _tipo === 'feriado' ? 'FERIADO' : (_tipo === 'folga' ? '' : _prevStr);
+                
                 // Marcações — hora no formato HHMM (832 = 08:32)
                 let marcacoes = [];
-                if (_statusDia === 'Férias') {
-                    marcacoes = ['Férias', '', 'Férias', ''];
-                } else if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
+                if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
                     marcacoes = dia.listAfdtManutencao.map(function(m) {
                         return fmtHHMM(m.hora) + (m.isManual ? ' (I)' : '') + (m.isPreAssigned ? ' (P)' : '');
                     });
                 } else if (dia.marcacoes && Array.isArray(dia.marcacoes)) {
                     marcacoes = dia.marcacoes.map(function(m) { return m.hora || m.time || m; });
                 }
-                const e1 = marcacoes[0] || '';
-                const s1 = marcacoes[1] || '';
-                const e2 = marcacoes[2] || '';
-                const s2 = marcacoes[3] || '';
+                var e1 = marcacoes[0] || '';
+                var s1 = marcacoes[1] || '';
+                var e2 = marcacoes[2] || '';
+                var s2 = marcacoes[3] || '';
 
-                // Totais normais + noturno
+                // Textos para status especiais, forçados na coluna Ent. 1
+                var ent1='', sai1='', ent2='', sai2='';
+                if (_tipo === 'feriado' && !e1) { ent1 = 'Feriado' + (dia.holidayName ? ': ' + dia.holidayName : ''); }
+                else if (_tipo === 'folga' && !e1) { ent1 = 'Folga'; }
+                else if (_tipo === 'ferias' && !e1) { ent1 = 'Férias'; }
+                else if (_tipo === 'atestado') { ent1 = 'Atestado Médico'; }
+                else if (_tipo === 'justificado') { ent1 = dia.toolTipAlert ? dia.toolTipAlert.substring(0, 20) : 'Justificado'; }
+                else if (_tipo === 'trab_externo') { ent1 = 'Trab. Externo'; }
+                else if (_tipo === 'falta') { ent1 = 'Falta'; }
+                else { ent1 = e1; sai1 = s1; ent2 = e2; sai2 = s2; }
+
+                // Totais
                 const normaisMin = (dia.totalHorasTrabalhadas || 0) + (dia.horasTotalNoturno || 0);
                 const normais = fmtMin(normaisMin);
                 const noturnMin = (dia.totalHorasTrabalhadas > 0) ? (dia.horasNoturnasNaoExtra || 0) : 0;
                 const noturn = fmtMin(noturnMin);
 
-                // Falta e atraso
-                const diaFalta = parseInt(dia.faltaDiaInteiro) || parseInt(dia.faltasDiasInteiro) || 0;
+                // Atraso e Abono
                 const faltaAtrMin = parseInt(dia.horasFaltaAtraso) || 0;
                 const faltaAtr = fmtMin(faltaAtrMin);
-
-                // Abono
                 const abono = (dia.abreviationJustification || dia.nomeJustificativa || '').substring(0, 12);
 
                 // Extra 60% / 100%
@@ -367,32 +375,41 @@ window._fechamento = (function () {
                 const extra100 = fmtMin(min100);
                 const totTrab  = fmtMin(dia.totalHorasTrabalhadas || 0);
 
-                // Cor da linha
-                var bg = '#ffffff';
-                if (_statusDia === 'Férias')          bg = '#dcfce7'; // verde — férias
-                else if (_statusDia === 'Folga')      bg = '#fff7ed'; // laranja — folga
-                else if (diaFalta > 0)                bg = '#fee2e2'; // vermelho — falta
-                else if (faltaAtrMin > 0)             bg = '#fef9c3'; // amarelo — atraso
-                else if (min60 > 0 || min100 > 0)    bg = '#f3e8ff'; // roxo — extra
+                // ── Estética das Cores ─────────────────────────────────────────────
+                var bg = '#fff';
+                if ((_semHorario || _tipo === 'feriado') && _trabalhou3) {
+                    bg = '#dcfce7'; // Verde claro para destacar extras na folga
+                } else if (_tipo === 'falta') {
+                    bg = '#fe7884'; // Vermelho mais escuro (NOVO)
+                } else if (_tipo === 'justificado' || _tipo === 'atestado') {
+                    bg = '#fee2e2'; // Vermelho clarinho
+                } else if (_tipo === 'ferias') {
+                    bg = '#e9d5ff'; // Roxo claro
+                } else if (_tipo === 'trab_externo') {
+                    bg = '#e0f2fe'; // Azul clarinho
+                } else if (_tipo === 'folga' || _tipo === 'feriado') {
+                    bg = '#f8fafc'; // Cinza/azul clarinho para descanso
+                }
 
+                const fontColor = (_tipo === 'justificado' || _tipo === 'atestado') ? '#b91c1c' : '#111';
                 const tdSt = 'padding:4px 3px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:10.5px;';
-                const fC = diaFalta > 0 ? 'color:#dc2626;font-weight:700;' : '';
+                const fC = diaFalta > 0 ? 'color:#111;font-weight:700;' : '';
 
-                rowsHtml += `<tr style="background:${bg};">
-                    <td style="${tdSt}text-align:left;white-space:nowrap;">${diaLabel}</td>
-                    <td style="${tdSt}${_prevColor}">${_prevTexto}</td>
-                    <td style="${tdSt}">${e1}</td>
-                    <td style="${tdSt}">${s1}</td>
-                    <td style="${tdSt}">${e2}</td>
-                    <td style="${tdSt}">${s2}</td>
-                    <td style="${tdSt}">${normais}</td>
-                    <td style="${tdSt}">${noturn}</td>
+                rowsHtml += `<tr style="background:${bg};color:${fontColor};">
+                    <td style="${tdSt}text-align:left;white-space:nowrap;color:#111;">${diaLabel}</td>
+                    <td style="${tdSt}font-size:9.5px;word-break:break-word;max-width:90px;">${_prevTexto}</td>
+                    <td style="${tdSt}white-space:nowrap;">${ent1}</td>
+                    <td style="${tdSt}white-space:nowrap;">${sai1}</td>
+                    <td style="${tdSt}font-size:9.5px;">${ent2}</td>
+                    <td style="${tdSt}white-space:nowrap;">${sai2}</td>
+                    <td style="${tdSt}font-weight:600;color:#111;">${normais}</td>
+                    <td style="${tdSt}color:#111;">${noturn}</td>
                     <td style="${tdSt}${fC}">${diaFalta > 0 ? '1' : ''}</td>
-                    <td style="${tdSt}">${faltaAtr}</td>
-                    <td style="${tdSt}font-size:9.5px;">${abono}</td>
-                    <td style="${tdSt}">${extra60}</td>
-                    <td style="${tdSt}">${extra100}</td>
-                    <td style="${tdSt}font-weight:600;">${totTrab}</td>
+                    <td style="${tdSt}color:#111;">${faltaAtr}</td>
+                    <td style="${tdSt}font-size:9.5px;color:#111;">${abono}</td>
+                    <td style="${tdSt}color:#111;">${extra60}</td>
+                    <td style="${tdSt}color:#111;">${extra100}</td>
+                    <td style="${tdSt}font-weight:600;color:#111;">${totTrab}</td>
                 </tr>`;
             });
 
@@ -432,13 +449,13 @@ window._fechamento = (function () {
             </div>`;
         });
 
-        // Legenda de cores
+        // Legenda de cores atualizada
         const legenda = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 20px 0;font-size:10px;color:#475569;">
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;"></span> Falta integral</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border:1px solid #fde047;border-radius:2px;"></span> Atraso/Saída Antecipada</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Hora Extra</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #86efac;border-radius:2px;"></span> Férias</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:2px;"></span> Folga</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fe7884;border:1px solid #dc2626;border-radius:2px;"></span> Falta integral</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;"></span> Justificado/Atestado</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#e9d5ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Férias</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#f8fafc;border:1px solid #94a3b8;border-radius:2px;"></span> Folga</span>
+            <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #86efac;border-radius:2px;"></span> Extra na Folga/Feriado</span>
         </div>`;
 
         const fullHtml = `<!DOCTYPE html><html><head>
