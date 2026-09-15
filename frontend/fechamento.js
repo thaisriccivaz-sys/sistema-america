@@ -498,12 +498,17 @@ window._fechamento = (function () {
         });
 
         // Legenda de cores atualizada
-        const legenda = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:8px 20px 0;font-size:10px;color:#475569;">
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fe7884;border:1px solid #dc2626;border-radius:2px;"></span> Falta integral</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;"></span> Justificado/Atestado</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#e9d5ff;border:1px solid #d8b4fe;border-radius:2px;"></span> Férias</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#f8fafc;border:1px solid #94a3b8;border-radius:2px;"></span> Folga</span>
-            <span><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #86efac;border-radius:2px;"></span> Extra na Folga/Feriado</span>
+        const legenda = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 20px 0;font-size:10px;color:#475569;line-height:14px;">
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fe7884;border:1px solid #dc2626;border-radius:2px;margin-right:4px;"></span> Falta Integral</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;margin-right:4px;"></span> Justificado</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border:1px solid #fde047;border-radius:2px;margin-right:4px;"></span> Férias</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#cdd1d4;border:1px solid #94a3b8;border-radius:2px;margin-right:4px;"></span> Folga</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#feae67;border:1px solid #f97316;border-radius:2px;margin-right:4px;"></span> Apont. Manual</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#cb79ff;border:1px solid #a855f7;border-radius:2px;margin-right:4px;"></span> > 12h Seguidas</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;border-radius:2px;margin-right:4px;"></span> Extra 100%</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#93c5fd;border:1px solid #3b82f6;border-radius:2px;margin-right:4px;"></span> Extra 60%</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fbcfe8;border:1px solid #f472b6;border-radius:2px;margin-right:4px;"></span> Noturno</span>
+            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fde047;border:1px solid #eab308;border-radius:2px;margin-right:4px;"></span> Atraso</span>
         </div>`;
 
         const fullHtml = `<!DOCTYPE html><html><head>
