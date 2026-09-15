@@ -2090,9 +2090,11 @@ window._recBuscarVCVR = async function () {
                     ok++;
                 }
 
-                // Manter editados: restaurar campos da tabela — apuracaoDiaria já foi atualizado acima
+                // Manter editados: restaurar campos da tabela — mas preservar apuracaoDiaria nova do RHID
                 if (_snapshotEditado) {
+                    const _novaApuracao = _recibosSelecoes[c.id].apuracaoDiaria; // salva ponto novo ANTES de restaurar
                     Object.assign(_recibosSelecoes[c.id], _snapshotEditado);
+                    _recibosSelecoes[c.id].apuracaoDiaria = _novaApuracao;        // re-aplica ponto novo
                     _recibosSelecoes[c.id].is_editado = true;
                 }
 
