@@ -416,7 +416,7 @@ window._fechamento = (function () {
                 
                 // Cálculo para mais de 12h
                 const minTotaisTrabalhados = normaisMin + min60 + min100;
-                const is12x36 = ((c.escala || '').toLowerCase().includes('12x36') || (_prevStr || '').toLowerCase().includes('12x36'));
+                const is12x36 = ((row.escala || '').toLowerCase().includes('12x36') || (_prevStr || '').toLowerCase().includes('12x36'));
                 const isMaisDe12h = (minTotaisTrabalhados > 720 && !is12x36);
                 const atrasoMinutos = (dia.horasFaltaAtraso || 0);
 
