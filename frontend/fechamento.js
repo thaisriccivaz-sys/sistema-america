@@ -401,6 +401,10 @@ window._fechamento = (function () {
 
                 // ── Estética das Cores ─────────────────────────────────────────────                // 🔹 Estética das Cores 🔹
                 // Fallback para horas extras caso o array de percentuais venha vazio
+                // Prioridade 1: campos diretos do slim (banco)
+                if (min60 === 0 && dia.horasExtra60) min60 = parseInt(dia.horasExtra60) || 0;
+                if (min100 === 0 && dia.horasExtra100) min100 = parseInt(dia.horasExtra100) || 0;
+                // Prioridade 2: outros campos legacy da API
                 if (min60 === 0 && min100 === 0) {
                     const exTot = Math.max(0, dia.extraDiurna || dia.extraAdicionadaDiurna || 0) + Math.max(0, dia.extraNoturna || dia.extraAdicionadaNoturna || 0) || Math.max(0, dia.horasExtrasCalculadas || 0);
                     if (dia.isHoliday || _isFolgaFlag || _isFolgaSt || diaLabel.includes('DOM')) min100 = exTot;
