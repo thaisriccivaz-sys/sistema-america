@@ -1645,10 +1645,24 @@ window._recBuscarVCVR = async function () {
     const worker = async () => {
         while (i < sels.length) {
             const c = sels[i++];
-            if (window._recManterEditados && _recibosSelecoes[c.id] && _recibosSelecoes[c.id].is_editado) {
-                ok++; // Conta como sucesso
-                continue;
-            }
+            // Manter editados: salva snapshot dos campos da tabela antes de buscar o ponto
+            // O ponto (apuracaoDiaria) sempre será atualizado; os campos editados serão restaurados depois
+            const _snapshotEditado = (window._recManterEditados && _recibosSelecoes[c.id]?.is_editado)
+                ? {
+                    diasTrabalhados: _recibosSelecoes[c.id].diasTrabalhados,
+                    diasVR:          _recibosSelecoes[c.id].diasVR,
+                    faltas:          _recibosSelecoes[c.id].faltas,
+                    faltasVR:        _recibosSelecoes[c.id].faltasVR,
+                    faltasVT:        _recibosSelecoes[c.id].faltasVT,
+                    folgas:          _recibosSelecoes[c.id].folgas,
+                    folgasVR:        _recibosSelecoes[c.id].folgasVR,
+                    folgasVT:        _recibosSelecoes[c.id].folgasVT,
+                    diasExtra:       _recibosSelecoes[c.id].diasExtra,
+                    valVTEdit:       _recibosSelecoes[c.id].valVTEdit,
+                    valVREdit:       _recibosSelecoes[c.id].valVREdit,
+                    edited_fields:   Object.assign({}, _recibosSelecoes[c.id].edited_fields),
+                }
+                : null;
             const cpf = (c.cpf || '').replace(/\D/g, '');
             if (!cpf || cpf.length < 8) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
@@ -2076,6 +2090,12 @@ window._recBuscarVCVR = async function () {
                     ok++;
                 }
 
+                // Manter editados: restaurar campos da tabela — apuracaoDiaria já foi atualizado acima
+                if (_snapshotEditado) {
+                    Object.assign(_recibosSelecoes[c.id], _snapshotEditado);
+                    _recibosSelecoes[c.id].is_editado = true;
+                }
+
             } catch (ex) {
                 _recibosSelecoes[c.id].pontoStatus = 'erro';
                 erroApi++;
@@ -2361,12 +2381,18 @@ window._recBuscarVT = async function () {
             const s = _recibosSelecoes[c.id];
             if (!s) continue;
 
-            // Manter editados
-            if (manterEditadosVT && s.edited_fields &&
-                (s.edited_fields.diasUteisVT || s.edited_fields.faltasVTN || s.edited_fields.extrasVT)) {
-                okVT++;
-                continue;
-            }
+            // Manter editados VT: salva snapshot antes de buscar o ponto
+            const _snapshotVT = (manterEditadosVT && s.edited_fields &&
+                (s.edited_fields.diasUteisVT || s.edited_fields.faltasVTN || s.edited_fields.extrasVT))
+                ? {
+                    diasUteisVT:  s.diasUteisVT,
+                    faltasVTN:    s.faltasVTN,
+                    extrasVT:     s.extrasVT,
+                    valorVT:      s.valorVT,
+                    valVTEdit:    s.valVTEdit,
+                    edited_fields: Object.assign({}, s.edited_fields),
+                }
+                : null;
 
             const cpf = (c.cpf || '').replace(/\D/g, '');
             if (!cpf || cpf.length < 8) {
@@ -2487,7 +2513,10 @@ window._recBuscarVT = async function () {
                 }
                 okVT++;
 
-                // Trigger save
+                // Manter editados VT: restaurar campos da tabela VT — ponto já foi atualizado
+                if (_snapshotVT) Object.assign(s, _snapshotVT);
+
+                // Trigger save — usa valores atuais do s (restaurados se havia snapshot)
                 const itensSalvar = [{
                     colaborador_id: c.id,
                     dias_trabalhados: s.diasTrabalhados,
@@ -2501,11 +2530,11 @@ window._recBuscarVT = async function () {
                     dias_extra: s.diasExtra,
                     valor_vr: (c.folha_vr && parseFloat(c.folha_vr_valor) > 0) ? parseFloat(c.folha_vr_valor) : (window._recibosValorVR || 35.00),
                     apuracao_diaria: (s.apuracaoDiaria && s.apuracaoDiaria.length > 0) ? JSON.stringify(s.apuracaoDiaria) : null,
-                    dias_uteis_vt: diasUteisVT,
-                    faltas_vtn: faltasVTN,
-                    extras_vt: extrasVT,
-                    valor_vt: valorVT,
-                    valor_vt_editado: null,
+                    dias_uteis_vt: s.diasUteisVT,
+                    faltas_vtn: s.faltasVTN,
+                    extras_vt: s.extrasVT,
+                    valor_vt: s.valorVT,
+                    valor_vt_editado: s.valVTEdit !== undefined ? s.valVTEdit : null,
                     valor_vr_editado: s.valVREdit !== undefined ? s.valVREdit : null,
                     edited_fields: s.edited_fields && Object.keys(s.edited_fields).length > 0 ? JSON.stringify(s.edited_fields) : "{}"
                 }];
