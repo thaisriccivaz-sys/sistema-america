@@ -351,8 +351,8 @@ router.get('/ponto-colaborador', async (req, res) => {
         const mesNum = parseInt(mes, 10);
         const anoNum = parseInt(ano, 10);
         const dataIni = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
-        const ultimoDia = Math.min(30, new Date(anoNum, mesNum, 0).getDate()); // máx dia 30 conforme regra de fechamento
-        const dataFinal = `${anoNum}-${String(mesNum).padStart(2, '0')}-${ultimoDia}`;
+        const ultimoDia = new Date(anoNum, mesNum, 0).getDate(); // último dia real do mês (28, 29, 30 ou 31)
+        const dataFinal = `${anoNum}-${String(mesNum).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
 
         // ── PASSO 3: Buscar apuração do ponto ────────────────────────────────
         let apuracaoData = null;
