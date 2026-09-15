@@ -1978,6 +1978,10 @@ window._recBuscarVCVR = async function () {
                 const tipoDepto = _recibosDeptTipoMap[(c.departamento||'').trim()] || '';
                 if (tipoDepto !== 'Administrativo' && apuracaoParaCartao.length > 0) {
                     s.diasExtra = apuracaoParaCartao.filter(d => {
+                        // Jantar: apenas dias de 01/M em diante (mesma janela de VR/VC)
+                        const _dtJantar = parseDia(d);
+                        if (!_dtJantar || _dtJantar < janelaIni) return false;
+
                         const minTrab = d.totalHorasTrabalhadas || 0;
                         // Intermitente: jantar apenas a partir de 12h trabalhadas (não importa o horário previsto)
                         if (isIntermitente) return minTrab >= 720;
