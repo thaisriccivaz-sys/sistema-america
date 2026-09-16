@@ -2,13 +2,14 @@ const fs = require('fs');
 const { PDFDocument, rgb } = require('pdf-lib');
 
 // ===================================================================
+
 // ESTRATÉGIA DINÂMICA:
-// O BO da Polícia Civil SP sempre tem:
-//   - "1 -" (X≈33) → início da seção Declarante  
-//   - "2 -" (X≈33) → início da seção Partes (NÃO deve ser censurado)
+// O BO da Polícia Civil SP tem (na seção "Pessoas Físicas"):
+//   - "1 -" Partes (colaborador envolvido) → NÃO censurar
+//   - "2 -" Declarante (quem registrou o BO) → CENSURAR
+//   - "3 -" próxima entrada → limite inferior da censura
 //
-// Detectamos os dois marcadores e desenhamos a tarja exatamente
-// entre eles, independente da posição Y no documento.
+// Detectamos "2 -" e "3 -" e desenhamos a tarja entre eles.
 // ===================================================================
 
 async function findCensorBounds(buf) {
@@ -23,8 +24,8 @@ async function findCensorBounds(buf) {
             const textContent = await page.getTextContent();
             const items = textContent.items;
 
-            let y1 = null; // Y de "1 -" (topo da seção Declarante)
-            let y2 = null; // Y de "2 -" (início de Partes — limite inferior)
+            let y2 = null; // Y de "2 -" (início da seção Declarante — topo da censura)
+            let y3 = null; // Y de "3 -" (próxima seção — limite inferior da censura)
             let foundPessoas = false;
 
             for (const item of items) {
@@ -37,27 +38,27 @@ async function findCensorBounds(buf) {
                     foundPessoas = true;
                 }
 
-                // Dentro da seção Pessoas Físicas, encontra "1 -" (X pequeno, próximo à margem)
-                if (foundPessoas && (str === '1 -' || str === '1-') && x < 60 && y1 === null) {
-                    y1 = y;
+                // Dentro de Pessoas Físicas, encontra "2 -" (X próximo à margem)
+                if (foundPessoas && (str === '2 -' || str === '2-') && x < 60 && y2 === null) {
+                    y2 = y;
                 }
 
-                // Depois de achar "1 -", procura "2 -" para delimitar o fim
-                if (y1 !== null && (str === '2 -' || str === '2-') && x < 60 && y2 === null) {
-                    y2 = y;
+                // Depois de achar "2 -", procura "3 -" para delimitar o fim
+                if (y2 !== null && (str === '3 -' || str === '3-') && x < 60 && y3 === null) {
+                    y3 = y;
                     break;
                 }
             }
 
-            if (y1 !== null) {
-                // Se achou "2 -", a tarja vai de logo acima de "2 -" até logo acima de "1 -"
-                // Se não achou "2 -", usa altura fixa de ~115pts (7 linhas × ~17pts)
-                const top = y1 + 17;   // um pouco acima da linha "1 - Declarante"
-                const bottom = y2 !== null
-                    ? y2 + 7           // logo acima de "2 - Partes"
-                    : y1 - 115;        // fallback: 7 linhas abaixo de "1 -"
+            if (y2 !== null) {
+                // Topo: um pouco acima da linha "2 - Declarante"
+                // Base: logo acima de "3 -" (ou fallback de 7 linhas abaixo de "2 -")
+                const top = y2 + 17;
+                const bottom = y3 !== null
+                    ? y3 + 7           // logo acima de "3 -"
+                    : y2 - 115;        // fallback: ~7 linhas
 
-                console.log(`[CENSOR] Detectado: pág=${pageNum}, "1-" Y=${y1.toFixed(1)}, "2-" Y=${y2 !== null ? y2.toFixed(1) : 'N/A'}`);
+                console.log(`[CENSOR] Detectado: pág=${pageNum}, "2-" Y=${y2.toFixed(1)}, "3-" Y=${y3 !== null ? y3.toFixed(1) : 'N/A'}`);
                 console.log(`[CENSOR] Tarja: bottom=${bottom.toFixed(0)} até top=${top.toFixed(0)}, height=${(top - bottom).toFixed(0)}`);
 
                 return {
@@ -75,6 +76,7 @@ async function findCensorBounds(buf) {
         return null;
     }
 }
+
 
 async function censorBOPdfBuffer(pdfBuffer) {
     try {
@@ -97,17 +99,18 @@ async function censorBOPdfBuffer(pdfBuffer) {
             console.log(`[CENSOR] Tarja aplicada com sucesso.`);
         } else {
             // Fallback: coordenadas fixas baseadas no BO padrão SP (página 1)
-            // "1 -" em Y≈464, "2 -" em Y≈353 → tarja de Y=360 até Y=481 (height=121)
+            // "2 -" Declarante em Y≈353, "3 -" em Y≈242 → tarja de Y=249 até Y=370 (height=121)
             console.log('[CENSOR] Fallback: usando coordenadas fixas do layout padrão.');
             if (pages.length > 0) {
                 pages[0].drawRectangle({
                     x: 33,
-                    y: 360,
+                    y: 249,
                     width: 530,
                     height: 121,
                     color: rgb(0, 0, 0),
                 });
             }
+
         }
 
         return await pdfDoc.save();
