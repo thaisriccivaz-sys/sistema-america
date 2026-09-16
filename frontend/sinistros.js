@@ -338,6 +338,14 @@ window.sinAbrirDetalhes = async function(sinId, colabId) {
         '</div>' +
         '</div>' +
 
+        // Descrição da Ocorrência (Histórico do BO)
+        (sinistro.descricao_ocorrencia ? (
+        '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:1rem;margin-bottom:0.75rem;">' +
+        '<p style="font-weight:700;font-size:0.82rem;color:#166534;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-file-text"></i> Descrição da Ocorrência</p>' +
+        '<p style="margin:0;font-size:0.85rem;color:#334155;white-space:pre-wrap;line-height:1.5;">' + sinistro.descricao_ocorrencia + '</p>' +
+        '</div>'
+        ) : '') +
+
         // Tipo e Situação
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
         '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">' +
@@ -347,6 +355,8 @@ window.sinAbrirDetalhes = async function(sinId, colabId) {
         '<label style="font-size:0.72rem;color:#94a3b8;display:block;text-transform:uppercase;">Situação</label>' +
         '<p style="margin:4px 0 0;font-weight:700;font-size:0.9rem;color:#0f172a;">' + (sinistro.situacao_sinistro || 'Novo') + '</p></div>' +
         '</div>' +
+
+
 
         // BO
         boHtml +
@@ -544,8 +554,14 @@ window.abrirModalNovoSinistro = function() {
                             </div>
                         </div>
 
+                        <div class="input-group" style="margin-top:0.75rem;">
+                            <label><i class="ph ph-file-text" style="color:#16a34a;"></i> Descrição da Ocorrência <span style="font-size:0.75rem;color:#94a3b8;">(preenchido automaticamente pelo BO)</span></label>
+                            <textarea id="sin-descricao-ocorrencia" class="form-control" rows="4" placeholder="Descrição extraída do Histórico do BO..." style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.85rem;min-height:90px;"></textarea>
+                        </div>
+
                         <hr style="border-color:#e2e8f0; margin:1.25rem 0;"/>
                         <p style="font-weight:600; color:#1e293b; margin-bottom:0.75rem;"><i class="ph ph-question"></i> Vai ser necessário realizar algum desconto?</p>
+
                         <div style="display:flex; gap:1.5rem; margin-bottom:1rem;">
                             <label style="cursor:pointer;"><input type="radio" name="sin-desconto" value="Sim" onclick="window.toggleSinistroDesconto(true)"> Sim</label>
                             <label style="cursor:pointer;"><input type="radio" name="sin-desconto" value="Não" checked onclick="window.toggleSinistroDesconto(false)"> Não</label>
@@ -882,6 +898,7 @@ window.processarLeituraBO = async function() {
         var fnat = document.getElementById('sin-natureza');if (fnat) fnat.value = boletimData.natureza   || fnat.value || '';
         var fvei = document.getElementById('sin-veiculo'); if (fvei) fvei.value = boletimData.marca_modelo|| fvei.value|| '';
         var fpla = document.getElementById('sin-placa');   if (fpla) fpla.value = boletimData.placa      || fpla.value || '';
+        var fdesc = document.getElementById('sin-descricao-ocorrencia'); if (fdesc && boletimData.historico_bo) fdesc.value = boletimData.historico_bo;
 
         const temDados = boletimData.boletim || boletimData.natureza || boletimData.placa || boletimData.marca_modelo;
         const notifEl = document.getElementById('sin-bo-notif');
@@ -972,6 +989,7 @@ window.finalizarSinistro = async function() {
         const fnat = document.getElementById('sin-natureza'); if (fnat && fnat.value) formData.append('natureza', fnat.value);
         const fvei = document.getElementById('sin-veiculo');  if (fvei && fvei.value) formData.append('veiculo', fvei.value);
         const fpla = document.getElementById('sin-placa');    if (fpla && fpla.value) formData.append('placa', fpla.value);
+        const fdescrOc = document.getElementById('sin-descricao-ocorrencia'); if (fdescrOc && fdescrOc.value) formData.append('descricao_ocorrencia', fdescrOc.value);
 
         const descRad = document.querySelector('input[name="sin-desconto"]:checked');
         const desconto = descRad ? descRad.value : 'Não';
@@ -2077,6 +2095,10 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                         </div>
                     </div>
                     <div class="input-group" style="margin-top:0.75rem;">
+                        <label><i class="ph ph-file-text" style="color:#16a34a;"></i> Descrição da Ocorrência <span style="font-size:0.75rem;color:#94a3b8;">(preenchido automaticamente pelo BO)</span></label>
+                        <textarea id="rh-edit-descricao-ocorrencia" class="form-control" rows="4" placeholder="Descrição extraída do Histórico do BO..." style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.85rem;min-height:90px;">${sinistro.descricao_ocorrencia || ''}</textarea>
+                    </div>
+                    <div class="input-group" style="margin-top:0.75rem;">
                         <label>Observações</label>
                         <textarea id="rh-edit-observacoes" class="form-control" rows="3" placeholder="Informações adicionais ou notas importantes...">${sinistro.observacoes || ''}</textarea>
                     </div>
@@ -2275,6 +2297,8 @@ window.rhSinEditProcessarLeituraBO = async function(btn) {
         const fnat = document.getElementById('rh-edit-natureza'); 
         if (fnat && data.natureza) fnat.value = data.natureza.replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
 
+        var fdescEdit = document.getElementById('rh-edit-descricao-ocorrencia'); if (fdescEdit && data.historico_bo) fdescEdit.value = data.historico_bo;
+
         window._rhEdit.boFile = fileInput.files[0];
 
         const notif = document.getElementById('rh-edit-sin-msg');
@@ -2386,6 +2410,7 @@ window.rhSinSalvar = async function() {
         if (document.getElementById('rh-edit-natureza')) form.append('natureza', document.getElementById('rh-edit-natureza').value);
         if (document.getElementById('rh-edit-veiculo')) form.append('veiculo', document.getElementById('rh-edit-veiculo').value);
         if (document.getElementById('rh-edit-placa')) form.append('placa', document.getElementById('rh-edit-placa').value);
+        if (document.getElementById('rh-edit-descricao-ocorrencia')) form.append('descricao_ocorrencia', document.getElementById('rh-edit-descricao-ocorrencia').value);
         if (document.getElementById('rh-edit-observacoes')) form.append('observacoes', document.getElementById('rh-edit-observacoes').value);
 
         if (window._rhEdit.boFile) {

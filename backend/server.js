@@ -918,6 +918,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes_historico TEXT', (e) => { });
         db.run("ALTER TABLE sinistros ADD COLUMN situacao_sinistro TEXT DEFAULT 'Novo'", (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN descricao_ocorrencia TEXT', (e) => { });
     }
 });
 
@@ -6204,12 +6205,43 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
-        // Ocorrencia: "13/04/2026 as 13:30" ou "ocorrência: Comunicação: 11/05/2026 às 11:30"
+        // ── Extração da Data/Hora da Ocorrência (multi-formato) ───────────────
+        // FORMATO 1: Ocorrência com hora precisa — "Ocorrência: 13/04/2026 às 13:30"
+        // FORMATO 2: Ocorrência com período — "Ocorrência: 16/09/2026 no período Pela manhã"
+        //            → data vem da Ocorrência, hora vem do campo Comunicação
+        // FORMATO 3: SP newlines — "Ocorrência:\nComunicação:\n11/05/2026 às 11:30\n..."
+        //            → hora da comunicação é a primeira data+hora após Comunicação:
         let dataHoraStr = '';
-        const matOc = cleanText.match(/Ocorr[e??]ncia.*?(\d{2}\/\d{2}\/\d{4})\s+[a??]s?\s+(\d{2}:\d{2})/i)
-            || cleanText.match(/Data.*?Ocorr.*?:?\s*(\d{2}\/\d{2}\/\d{4}).*?(\d{2}:\d{2})/i)
-            || cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i); // aggressive fallback
-        if (matOc) dataHoraStr = matOc[1] + ' às ' + matOc[2];
+
+        // Formato 1: Ocorrência tem data + hora direta
+        const matOcDireto = cleanText.match(/Ocorr[eêe]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+        if (matOcDireto) {
+            dataHoraStr = matOcDireto[1] + ' às ' + matOcDireto[2];
+        } else {
+            // Formato 2: Ocorrência tem data + período textual (manhã/tarde/noite)
+            const matOcPeriodo = cleanText.match(/Ocorr[eêe]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per[ií]odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|manh[aã]|tarde|noite)/i);
+            if (matOcPeriodo) {
+                // Pega a hora do campo Comunicação (que tem hora precisa)
+                const matCom = cleanText.match(/Comunica[cç][aã]o:\s*\n?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+                if (matCom) {
+                    dataHoraStr = matOcPeriodo[1] + ' às ' + matCom[2];
+                } else {
+                    // Não achou hora na Comunicação — usa data da Ocorrência + período
+                    const periodo = matOcPeriodo[2].replace(/\s+/g, ' ').trim();
+                    dataHoraStr = matOcPeriodo[1] + ' — ' + periodo;
+                }
+            } else {
+                // Formato 3: SP newlines — "Ocorrência:\nComunicação:\nDATA às HH:MM"
+                const matComunNewline = cleanText.match(/Comunica[cç][aã]o:\s*\n?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+                if (matComunNewline) {
+                    dataHoraStr = matComunNewline[1] + ' às ' + matComunNewline[2];
+                } else {
+                    // Fallback agressivo: primeira data+hora encontrada no texto
+                    const matFallback = cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i);
+                    if (matFallback) dataHoraStr = matFallback[1] + ' às ' + matFallback[2];
+                }
+            }
+        }
 
         // Natureza
         let natureza = '';
@@ -6236,10 +6268,24 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             if (placa.length > 7) placa = placa.substring(0, 7); // Força 7 caracteres
         }
 
+        // ── Histórico do BO (Descrição da Ocorrência) ─────────────────────────
+        // Padrão: "Histórico do BO ... Descrição ocorrência cidadão: TEXTO ... Veículo envolvido:"
+        let historicoBo = '';
+        const matHist = cleanText.match(/Hist[oó]rico\s+do\s+BO\s+.*?Descri[çc][aã]o\s+ocorr[eê]ncia\s+cidad[aã]o:\s*(.*?)(?:\s+Ve[ií]culo\s+envolvido|Veículo\s+envolvido|Pessoa\s+Relacionada|$)/i);
+        if (matHist && matHist[1].trim().length > 10) {
+            historicoBo = matHist[1].trim();
+        } else {
+            // Fallback: pegar tudo entre "Histórico do BO" e "Veículo envolvido"
+            const matHist2 = cleanText.match(/Hist[oó]rico\s+do\s+BO\s+(.*?)(?:Ve[ií]culo\s+envolvido:|Placa:\s*[A-Z]{3}|$)/i);
+            if (matHist2 && matHist2[1].trim().length > 10) {
+                // Remover cabeçalho "Xª Edição criada ... por ... "
+                historicoBo = matHist2[1].replace(/^\d+[ªa]\s+Edi[çc][aã]o\s+criada\s+.*?por\s+.*?\s+/i, '').trim();
+            }
+        }
+
         console.log('[BO] boletim=' + boletim + ' | data=' + dataHoraStr + ' | natureza=' + natureza + ' | placa=' + placa + ' | modelo=' + marcaModelo);
-        console.log('[BO-TEXT primeiros 300 chars]', cleanText.substring(0, 300));
-        // _debug_text ainda à retornado para log no console do frontend (não mais em alert)
-        res.json({ sucesso: true, boletim, data_hora: dataHoraStr, natureza, placa, marca_modelo: marcaModelo, _debug_text: text.substring(0, 2000) });
+        console.log('[BO] historicoBo (primeiros 200):', historicoBo.substring(0, 200));
+        res.json({ sucesso: true, boletim, data_hora: dataHoraStr, natureza, placa, marca_modelo: marcaModelo, historico_bo: historicoBo, _debug_text: text.substring(0, 2000) });
     } catch (e) {
         console.error('[EXTRAIR-BO] Erro:', e.message);
         res.status(500).json({ error: e.message });
@@ -6296,8 +6342,8 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         }
 
         const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
-            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes, situacao_sinistro)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes, situacao_sinistro, descricao_ocorrencia)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
@@ -6306,10 +6352,11 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
         db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
-            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null, 'Novo'],
+            body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null, 'Novo', body.descricao_ocorrencia || null],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 const sinId = this.lastID;
+
 
                 // Sync OneDrive 
                 if (req.file && typeof onedrive !== 'undefined') {
@@ -6415,6 +6462,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     valor_total      = COALESCE(?, valor_total),
                     observacoes      = COALESCE(?, observacoes),
                     observacoes_historico = COALESCE(?, observacoes_historico),
+                    descricao_ocorrencia = COALESCE(?, descricao_ocorrencia),
                     status           = ?,
                     processo_iniciado = ?
                 WHERE id = ?`,
@@ -6432,6 +6480,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.valor_total    || null,
                     body.observacoes    || null,
                     novoHistorico       || null,
+                    body.descricao_ocorrencia || null,
                     novoStatus,
                     processoIniciado,
                     sinistroId
@@ -6439,6 +6488,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                 err => { if (err) reject(err); else resolve(); }
             );
         });
+
 
         // Upload do arquivo BO se enviado
         if (req.file && typeof onedrive !== 'undefined' && sinistro.boletim_path) {

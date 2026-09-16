@@ -394,6 +394,12 @@ window.logSinAbrirModalNovo = function() {
 
                             <!-- COLUNA DIREITA: Tipo de Sinistro + Observações -->
                             <div style="width:380px; flex-shrink:0; display:flex; flex-direction:column; gap:0.85rem; position:sticky; top:0;">
+                                <!-- Descrição da Ocorrência -->
+                                <div class="input-group" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;">
+                                    <label style="color:#15803d;font-weight:700;"><i class="ph ph-file-text"></i> Descrição da Ocorrência <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;">(preenchido automaticamente pelo BO)</span></label>
+                                    <textarea id="log-sin-descricao-ocorrencia" class="form-control" rows="4" placeholder="Descrição extraída do Histórico do BO..." style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.85rem;min-height:90px;"></textarea>
+                                </div>
+
                                 <!-- Tipo de Sinistro -->
                                 <div class="input-group" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:1rem;">
                                     <label style="color:#c2410c;font-weight:700;"><i class="ph ph-tag"></i> Tipo de Sinistro</label>
@@ -767,6 +773,7 @@ window.logSinProcessarLeituraBO = async function() {
         var fnat = document.getElementById('log-sin-natureza');if (fnat) fnat.value = (boletimData.natureza||'').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi,'').trim() || fnat.value || '';
         var fvei = document.getElementById('log-sin-veiculo'); if (fvei) fvei.value = boletimData.marca_modelo || fvei.value || '';
         var fpla = document.getElementById('log-sin-placa');   if (fpla) fpla.value = boletimData.placa || fpla.value || '';
+        var fdescLog = document.getElementById('log-sin-descricao-ocorrencia'); if (fdescLog && boletimData.historico_bo) fdescLog.value = boletimData.historico_bo;
 
         const temDados = boletimData.boletim || boletimData.natureza || boletimData.placa || boletimData.marca_modelo;
         const notifEl = document.getElementById('log-sin-bo-notif');
@@ -854,6 +861,7 @@ window.logSinFinalizarSinistro = async function() {
         var fnat = document.getElementById('log-sin-natureza');if (fnat && fnat.value) formData.append('natureza', fnat.value);
         var fvei = document.getElementById('log-sin-veiculo'); if (fvei && fvei.value) formData.append('veiculo', fvei.value);
         var fpla = document.getElementById('log-sin-placa');   if (fpla && fpla.value) formData.append('placa', fpla.value);
+        var fdescOcLog = document.getElementById('log-sin-descricao-ocorrencia'); if (fdescOcLog && fdescOcLog.value) formData.append('descricao_ocorrencia', fdescOcLog.value);
         var fpar = document.getElementById('log-sin-parcelas');if (fpar) formData.append('parcelas', fpar.value);
         var fvtot= document.getElementById('log-sin-valor-total');if (fvtot && fvtot.value) formData.append('valor_total', fvtot.value);
         var ftipo = document.getElementById('log-sin-tipo'); if (ftipo && ftipo.value) formData.append('tipo_sinistro', ftipo.value);
@@ -1100,6 +1108,12 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <!-- COLUNA DIREITA: Tipo de Sinistro + Observações + Histórico -->
                 <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
+                    <!-- Descrição da Ocorrência -->
+                    <div class="input-group" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;">
+                        <label style="color:#15803d;font-weight:700;"><i class="ph ph-file-text"></i> Descrição da Ocorrência <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;">(preenchido automaticamente pelo BO)</span></label>
+                        <textarea id="edit-sin-descricao-ocorrencia" class="form-control" rows="4" placeholder="Descrição extraída do Histórico do BO..." style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.85rem;min-height:90px;">${sinistro.descricao_ocorrencia || ''}</textarea>
+                    </div>
+
                     <!-- Tipo de Sinistro + Situação -->
                     <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:1rem; display:flex; flex-direction:row; gap:0.75rem; align-items:flex-start; width:100%; box-sizing:border-box;">
                         <div style="flex:1; min-width:0;">
@@ -1207,6 +1221,8 @@ window.logSinEditProcessarLeituraBO = async function(btn) {
         
         const fnat = document.getElementById('edit-sin-natureza'); 
         if (fnat && data.natureza) fnat.value = data.natureza.replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim();
+
+        var fdescEdit2 = document.getElementById('edit-sin-descricao-ocorrencia'); if (fdescEdit2 && data.historico_bo) fdescEdit2.value = data.historico_bo;
 
         window._logSinEditBOFile = fileInput.files[0];
 
@@ -1454,6 +1470,7 @@ window.logSinSalvarEdicao = async function() {
         if (document.getElementById('edit-sin-natureza')) formData.append('natureza', document.getElementById('edit-sin-natureza').value);
         if (document.getElementById('edit-sin-veiculo')) formData.append('veiculo', document.getElementById('edit-sin-veiculo').value);
         if (document.getElementById('edit-sin-placa')) formData.append('placa', document.getElementById('edit-sin-placa').value);
+        if (document.getElementById('edit-sin-descricao-ocorrencia')) formData.append('descricao_ocorrencia', document.getElementById('edit-sin-descricao-ocorrencia').value);
         var fTipo = document.getElementById('edit-sin-tipo'); if (fTipo && fTipo.value) formData.append('tipo_sinistro', fTipo.value);
         var fSituacao = document.getElementById('edit-sin-situacao'); if (fSituacao) formData.append('situacao_sinistro', fSituacao.value || 'Novo');
         var fNovaObs = document.getElementById('edit-sin-nova-obs');
