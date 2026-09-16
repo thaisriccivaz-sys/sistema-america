@@ -1219,7 +1219,7 @@ window.logSinEditProcessarLeituraBO = async function(btn) {
         if (!res.ok) throw new Error(data.error || 'Erro na leitura.');
 
         const fbo = document.getElementById('edit-sin-bo');
-        if (fbo && data.protocolo && !fbo.value) fbo.value = data.protocolo;
+        if (fbo && data.boletim && !fbo.value) fbo.value = data.boletim;
         
         const fdt = document.getElementById('edit-sin-data'); 
         if (fdt && data.data_hora) fdt.value = data.data_hora;
