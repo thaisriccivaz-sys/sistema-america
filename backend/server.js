@@ -6423,9 +6423,18 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         });
 
         if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
-        if (sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
+
+        // Bloquear edição de dados do sinistro se já possui assinaturas,
+        // EXCETO quando só está atualizando situacao_sinistro ou observações (ação da Logística).
+        // O frontend sempre envia todos os campos mas eles podem chegar vazios — verificar se
+        // algum campo crítico tem conteúdo antes de bloquear.
+        const camposEdicao = ['numero_boletim', 'data_hora', 'natureza', 'veiculo', 'placa', 'tipo_sinistro',
+                              'desconto', 'parcelas', 'valor_parcela', 'valor_total', 'observacoes', 'descricao_ocorrencia'];
+        const temEdicaoDeDados = camposEdicao.some(k => body[k] && String(body[k]).trim() !== '');
+        if (temEdicaoDeDados && sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
             return res.status(403).json({ error: 'Edição não permitida: sinistro já possui assinaturas.' });
         }
+
 
         const novoStatus = body.status || sinistro.status;
         const processoIniciado = (novoStatus === 'pendente') ? 1 : sinistro.processo_iniciado;
@@ -6552,70 +6561,61 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
 
                             const placeholders = idsArr.map(() => '?').join(',');
                             db.all(`SELECT id, username, nome, email as u_email FROM usuarios WHERE id IN (${placeholders})`, idsArr, async (errE, userRows) => {
-                                if (!errE && userRows && userRows.length > 0) {
-                                    db.all(`SELECT nome_completo, cpf, email_corporativo, email FROM colaboradores WHERE email_corporativo IS NOT NULL OR email IS NOT NULL`, [], async (errCol, allColabs) => {
-                                        const norm = (s) => s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() : '';
-                                        const emails = new Set();
-                                        const colabsArr = allColabs || [];
+                                if (errE) { console.error('[SINISTRO NOTIF] Erro ao buscar usuários:', errE.message); return; }
+                                if (!userRows || userRows.length === 0) { console.warn('[SINISTRO NOTIF] Nenhum usuário encontrado para os IDs:', idsArr); return; }
 
-                                        for (const u of userRows) {
-                                            const uNome = norm(u.nome);
-                                            const uUser = norm(u.username);
-                                            
-                                            let c = colabsArr.find(cItem => norm(cItem.nome_completo) === uNome || norm(cItem.cpf) === uUser);
-                                            if (!c) {
-                                                c = colabsArr.find(cItem => {
-                                                    const cNome = norm(cItem.nome_completo);
-                                                    return cNome && uNome && (cNome.includes(uNome) || uNome.includes(cNome));
-                                                });
-                                            }
+                                // Coletar e-mails diretamente da tabela usuarios
+                                const emails = new Set();
+                                for (const u of userRows) {
+                                    if (u.u_email && u.u_email.trim()) {
+                                        emails.add(u.u_email.trim());
+                                        console.log(`[SINISTRO NOTIF] E-mail resolvido para ${u.nome || u.username}: ${u.u_email.trim()}`);
+                                    } else {
+                                        console.warn(`[SINISTRO NOTIF] Usuário ${u.nome || u.username} (id=${u.id}) não tem e-mail cadastrado na tabela usuarios.`);
+                                    }
+                                }
 
-                                            if (c && c.email_corporativo) emails.add(c.email_corporativo.trim());
-                                            else if (c && c.email) emails.add(c.email.trim());
-                                            else if (u.u_email) emails.add(u.u_email.trim());
+                                const emailsArr = [...emails].filter(e => e !== '');
+                                console.log(`[SINISTRO NOTIF] Total de e-mails a notificar: ${emailsArr.length}`, emailsArr);
+
+                                if (emailsArr.length > 0) {
+                                    const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
+                                        <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
+                                            <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
+                                        </div>
+                                        <div style="padding:24px;">
+                                            <h2 style="color:#059669;margin-top:0;">📋 Sinistro Finalizado para RH</h2>
+                                            <p>Olá!</p>
+                                            <p>Um boletim de ocorrência de sinistro foi registrado e liberado para o RH do colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
+                                            <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
+                                                <p style="margin:4px 0;"><strong>Boletim:</strong> ${sinistro.numero_boletim || body.numero_boletim || 'N/A'}</p>
+                                                <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${sinistro.data_hora || body.data_hora || 'N/A'}</p>
+                                                <p style="margin:4px 0;"><strong>Veículo:</strong> ${sinistro.veiculo || body.veiculo || 'N/A'}</p>
+                                                <p style="margin:4px 0;"><strong>Placa:</strong> ${sinistro.placa || body.placa || 'N/A'}</p>
+                                            </div>
+                                            <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
+                                            <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
+                                        </div>
+                                    </div>`;
+
+                                    for (const eAddr of emailsArr) {
+                                        try {
+                                            await sendMailHelper({
+                                                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                                                to: eAddr,
+                                                subject: `[Sinistro] Liberado para o RH: ${colab.nome_completo || 'Colaborador'}`,
+                                                html,
+                                                attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
+                                            });
+                                            console.log(`[SINISTRO NOTIF] E-mail enviado para ${eAddr}`);
+                                        } catch(mailErr) {
+                                            console.error('[SINISTRO NOTIF] Erro ao enviar e-mail para', eAddr, ':', mailErr.message);
                                         }
-
-                                        const emailsArr = [...emails].filter(e => e !== '');
-
-                                        if (emailsArr.length > 0) {
-                                            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
-                                            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;">
-                                                <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:20px;text-align:center;">
-                                                    <img src="cid:logo-sinistro" style="max-height:60px;" alt="América Rental">
-                                                </div>
-                                                <div style="padding:24px;">
-                                                    <h2 style="color:#059669;margin-top:0;">📋 Sinistro Finalizado para RH</h2>
-                                                    <p>Olá!</p>
-                                                    <p>Um boletim de ocorrência de sinistro foi registrado e liberado para o RH do colaborador <strong>${colab.nome_completo || 'Colaborador'}</strong>.</p>
-                                                    <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
-                                                        <p style="margin:4px 0;"><strong>Boletim:</strong> ${body.numero_boletim || 'N/A'}</p>
-                                                        <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${body.data_hora || 'N/A'}</p>
-                                                        <p style="margin:4px 0;"><strong>Veículo:</strong> ${body.veiculo || 'N/A'}</p>
-                                                        <p style="margin:4px 0;"><strong>Placa:</strong> ${body.placa || 'N/A'}</p>
-                                                    </div>
-                                                    <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
-                                                    <p style="margin-top:24px;color:#94a3b8;font-size:0.85em;">Atenciosamente,<br>Sistema América Rental</p>
-                                                </div>
-                                            </div>`;
-                                            
-                                            for (const eAddr of emailsArr) {
-                                                try {
-                                                    await sendMailHelper({
-                                                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                                                        to: eAddr,
-                                                        subject: `[Sinistro] Novo registro liberado para o RH: ${colab.nome_completo || 'Colaborador'}`,
-                                                        html,
-                                                        attachments: [{ filename: 'logo.png', path: logoPath, cid: 'logo-sinistro' }]
-                                                    });
-                                                    console.log(`E-mail de sinistro no RH enviado para ${eAddr}`);
-                                                } catch(mailErr) {
-                                                    console.error('Erro ao enviar e-mail de sinistro no RH:', mailErr.message);
-                                                }
-                                            }
-                                        }
-                                    });
+                                    }
                                 }
                             });
+
                         }
                     });
                 }
