@@ -187,6 +187,24 @@ window._renderSinistroCard = function(s, colabId, container) {
     // Limpa prefixo "Crime Consumado..." da natureza para exibição
     const naturezaDisplay = (s.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim() || s.natureza || '—';
 
+    let valorTotalDisplay = '';
+    if (s.valor_total) {
+        let valNum = 0;
+        if (typeof s.valor_total === 'number') valNum = s.valor_total;
+        else {
+            let st = String(s.valor_total).trim();
+            if (st.includes(',')) st = st.replace(/\./g, '').replace(',', '.');
+            valNum = parseFloat(st) || 0;
+        }
+        if (valNum > 0) {
+            const valStr = valNum.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+            let parc = parseInt(s.parcelas) || 1;
+            let valParcNum = valNum / parc;
+            const valParcStr = valParcNum.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+            valorTotalDisplay = `<p style="margin:0 0 6px 0;"><i class="ph ph-currency-dollar"></i> Valor Total: <strong>R$ ${valStr}</strong>&nbsp;&nbsp;<i class="ph ph-list-numbers"></i> Parcelado em <strong>${parc}x de R$ ${valParcStr}</strong></p>`;
+        }
+    }
+
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div style="display:flex; gap:12px;">
@@ -212,7 +230,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <p style="margin:0 0 6px 0;"><i class="ph ph-info"></i> ${aberturaTxt}</p>
                     <p style="margin:0 0 6px 0;"><i class="ph ph-clock"></i> Registrado no sistema: ${dataCriacao}</p>
                     <p style="margin:0 0 6px 0;"><i class="ph ph-pen"></i> Assinatura do Colaborador: ${assinCondutorTxt}</p>
-                    ${(s.valor_total && parseFloat(s.valor_total) > 0) ? `<p style="margin:0 0 6px 0;"><i class="ph ph-currency-dollar"></i> Valor Total: <strong>R$ ${parseFloat(s.valor_total).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>&nbsp;&nbsp;<i class="ph ph-list-numbers"></i> Parcelado em <strong>${s.parcelas || 1}x</strong></p>` : ''}
+                    ${valorTotalDisplay}
 
                 </div>
                 <div>
