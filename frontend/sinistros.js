@@ -377,7 +377,7 @@ window.sinAbrirDetalhes = async function(sinId, colabId) {
         // Novo comentário
         '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">' +
         '<p style="font-weight:700;font-size:0.82rem;color:#475569;margin:0 0 8px;"><i class="ph ph-plus-circle"></i> Nova Observação</p>' +
-        '<textarea id="sin-det-novo-comentario-' + sinId + '" rows="3" class="form-control" placeholder="Escreva uma nova observação aqui..." style="resize:vertical;font-size:0.85rem;"></textarea>' +
+        '<textarea id="sin-det-novo-comentario-' + sinId + '" rows="3" class="form-control" placeholder="Escreva uma nova observação aqui..." style="resize:vertical;font-size:0.85rem;width:100%;min-height:80px;box-sizing:border-box;"></textarea>' +
         '<button onclick="window._sinAdicionarComentario(' + sinId + ')" ' +
         'style="margin-top:8px;background:#0f172a;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">' +
         '<i class="ph ph-paper-plane-tilt"></i> Salvar Observação</button>' +
