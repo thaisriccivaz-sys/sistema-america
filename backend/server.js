@@ -6205,30 +6205,37 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
             || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
-        // ── Extração da Data/Hora da Ocorrência (multi-formato) ───────────────
-        // REGRA: SEMPRE usar o campo "Ocorrência:" — NUNCA usar "Comunicação:"
-        // FORMATO 1: Ocorrência com hora precisa — "Ocorrência: 13/04/2026 às 13:30"
-        // FORMATO 2: Ocorrência com período — "Ocorrência: 16/09/2026 no período Pela manhã"
-        //            → usar a data e o período textual diretamente (sem buscar hora em Comunicação)
+        // ── Extração da Data/Hora da Ocorrência ───────────────────────────────
+        // O pdf-parse lê colunas paralelas em sequência horizontal. O resultado é:
+        //   "Ocorrência: Comunicação: 16/09/2026 no período Pela manhã 16/09/2026 às 12:53"
+        // Portanto a PRIMEIRA data após "Ocorrência: Comunicação:" é sempre a de Ocorrência.
         let dataHoraStr = '';
 
-        // Formato 1: Ocorrência tem data + hora direta
-        const matOcDireto = cleanText.match(/Ocorr[eêẽ]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
-        if (matOcDireto) {
-            dataHoraStr = matOcDireto[1] + ' às ' + matOcDireto[2];
+        // Padrão PRINCIPAL: "Ocorrência: Comunicação: <DATA_OC> <PERÍODO>" (colunas lado a lado no PDF)
+        // Formato A: hora precisa — "Ocorrência: Comunicação: 11/05/2026 às 11:30 ..."
+        const matDuploHora = cleanText.match(/Ocorr.{0,5}ncia:\s*Comunica.{0,10}o:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+        if (matDuploHora) {
+            dataHoraStr = matDuploHora[1] + ' às ' + matDuploHora[2];
         } else {
-            // Formato 2: Ocorrência tem data + período textual (manhã/tarde/noite)
-            const matOcPeriodo = cleanText.match(/Ocorr[eêẽ]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per[ií]odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|manh[aã]|tarde|noite)/i);
-            if (matOcPeriodo) {
-                // Usar apenas data e período da Ocorrência — NÃO buscar hora em Comunicação
-                const periodo = matOcPeriodo[2].replace(/\s+/g, ' ').trim();
-                dataHoraStr = matOcPeriodo[1] + ' no período ' + periodo;
+            // Formato B: período textual — "Ocorrência: Comunicação: 16/09/2026 no período Pela manhã ..."
+            const matDuploPeriodo = cleanText.match(/Ocorr.{0,5}ncia:\s*Comunica.{0,10}o:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per.{0,5}odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|Pela\s+madrugada|manh[aã]|tarde|noite|madrugada)/i);
+            if (matDuploPeriodo) {
+                const periodo = matDuploPeriodo[2].replace(/\s+/g, ' ').trim();
+                dataHoraStr = matDuploPeriodo[1] + ' no período ' + periodo;
             } else {
-                // Fallback: primeira data+hora encontrada no texto
-                const matFallback = cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i);
-                if (matFallback) dataHoraStr = matFallback[1] + ' às ' + matFallback[2];
+                // Fallback: campo Ocorrência sem Comunicação ao lado (formato mais raro)
+                const matOcHora = cleanText.match(/Ocorr.{0,5}ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+                if (matOcHora) {
+                    dataHoraStr = matOcHora[1] + ' às ' + matOcHora[2];
+                } else {
+                    const matOcPeriodo = cleanText.match(/Ocorr.{0,5}ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per.{0,5}odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|manh[aã]|tarde|noite)/i);
+                    if (matOcPeriodo) {
+                        dataHoraStr = matOcPeriodo[1] + ' no período ' + matOcPeriodo[2].trim();
+                    }
+                }
             }
         }
+        console.log('[BO] dataHoraStr extraído:', dataHoraStr);
 
         // Natureza
         // Prioridade 1: extrair o que vem depois de "Não Criminal - " (ex: "Colisão")
