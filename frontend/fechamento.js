@@ -54,7 +54,11 @@ window._fechamento = (function () {
                 abreviationJustification: dia.abreviationJustification,
                 nomeJustificativa: dia.nomeJustificativa,
                 horasExtra60: dia.horasExtra60, horasExtra100: dia.horasExtra100,
-                horasNoturnasNaoExtra: dia.horasNoturnasNaoExtra
+                horasNoturnasNaoExtra: dia.horasNoturnasNaoExtra,
+                percentuaisExtra: dia.percentuaisExtra, horaExtraDeCadaPercentual: dia.horaExtraDeCadaPercentual,
+                extraDiurna: dia.extraDiurna, extraNoturna: dia.extraNoturna,
+                extraAdicionadaDiurna: dia.extraAdicionadaDiurna, extraAdicionadaNoturna: dia.extraAdicionadaNoturna,
+                horasExtrasCalculadas: dia.horasExtrasCalculadas
             };
         });
     }
@@ -331,7 +335,12 @@ window._fechamento = (function () {
                 let marcacoes = [];
                 if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
                     marcacoes = dia.listAfdtManutencao.map(function(m) {
-                        return fmtHHMM(m.hora) + (m.isManual ? ' (I)' : '') + (m.isPreAssigned ? ' (P)' : '');
+                        let suf = '';
+                        if (m.isManual || m._typeRegister === 'I') suf += ' (I)';
+                        if (m.isPreAssigned) suf += ' (P)';
+                        if (m._typeRegister === 'M') suf += ' (M)';
+                        if (m._typeRegister === 'C') suf += ' (C)';
+                        return fmtHHMM(m.hora) + suf;
                     });
                 } else if (dia.marcacoes && Array.isArray(dia.marcacoes)) {
                     marcacoes = dia.marcacoes.map(function(m) { return m.hora || m.time || m; });
@@ -486,10 +495,10 @@ window._fechamento = (function () {
               <div style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;">
                 <colgroup>
-                  <col style="width:10%"><col style="width:14%">
-                  <col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
-                  <col style="width:7%"><col style="width:7%"><col style="width:4%"><col style="width:7%">
-                  <col style="width:5%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+                  <col style="width:10%"><col style="width:18%">
+                  <col style="width:7%"><col style="width:7%"><col style="width:7%"><col style="width:7%">
+                  <col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:7%">
+                  <col style="width:7%"><col style="width:8%">
                 </colgroup>
                 <thead>
                   <tr style="background:#1e293b;color:#fff;">
