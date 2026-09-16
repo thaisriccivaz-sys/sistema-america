@@ -6206,52 +6206,46 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
         // ── Extração da Data/Hora da Ocorrência (multi-formato) ───────────────
+        // REGRA: SEMPRE usar o campo "Ocorrência:" — NUNCA usar "Comunicação:"
         // FORMATO 1: Ocorrência com hora precisa — "Ocorrência: 13/04/2026 às 13:30"
         // FORMATO 2: Ocorrência com período — "Ocorrência: 16/09/2026 no período Pela manhã"
-        //            → data vem da Ocorrência, hora vem do campo Comunicação
-        // FORMATO 3: SP newlines — "Ocorrência:\nComunicação:\n11/05/2026 às 11:30\n..."
-        //            → hora da comunicação é a primeira data+hora após Comunicação:
+        //            → usar a data e o período textual diretamente (sem buscar hora em Comunicação)
         let dataHoraStr = '';
 
         // Formato 1: Ocorrência tem data + hora direta
-        const matOcDireto = cleanText.match(/Ocorr[eêe]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
+        const matOcDireto = cleanText.match(/Ocorr[eêẽ]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
         if (matOcDireto) {
             dataHoraStr = matOcDireto[1] + ' às ' + matOcDireto[2];
         } else {
             // Formato 2: Ocorrência tem data + período textual (manhã/tarde/noite)
-            const matOcPeriodo = cleanText.match(/Ocorr[eêe]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per[ií]odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|manh[aã]|tarde|noite)/i);
+            const matOcPeriodo = cleanText.match(/Ocorr[eêẽ]ncia:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:no\s+per[ií]odo\s+)?(Pela\s+manh[aã]|Pela\s+tarde|Pela\s+noite|manh[aã]|tarde|noite)/i);
             if (matOcPeriodo) {
-                // Pega a hora do campo Comunicação (que tem hora precisa)
-                const matCom = cleanText.match(/Comunica[cç][aã]o:\s*\n?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
-                if (matCom) {
-                    dataHoraStr = matOcPeriodo[1] + ' às ' + matCom[2];
-                } else {
-                    // Não achou hora na Comunicação — usa data da Ocorrência + período
-                    const periodo = matOcPeriodo[2].replace(/\s+/g, ' ').trim();
-                    dataHoraStr = matOcPeriodo[1] + ' — ' + periodo;
-                }
+                // Usar apenas data e período da Ocorrência — NÃO buscar hora em Comunicação
+                const periodo = matOcPeriodo[2].replace(/\s+/g, ' ').trim();
+                dataHoraStr = matOcPeriodo[1] + ' no período ' + periodo;
             } else {
-                // Formato 3: SP newlines — "Ocorrência:\nComunicação:\nDATA às HH:MM"
-                const matComunNewline = cleanText.match(/Comunica[cç][aã]o:\s*\n?(\d{2}\/\d{2}\/\d{4})\s+[aà]s?\s*(\d{2}:\d{2})/i);
-                if (matComunNewline) {
-                    dataHoraStr = matComunNewline[1] + ' às ' + matComunNewline[2];
-                } else {
-                    // Fallback agressivo: primeira data+hora encontrada no texto
-                    const matFallback = cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i);
-                    if (matFallback) dataHoraStr = matFallback[1] + ' às ' + matFallback[2];
-                }
+                // Fallback: primeira data+hora encontrada no texto
+                const matFallback = cleanText.match(/(\d{2}\/\d{2}\/\d{4})\s*.*?(\d{2}:\d{2})/i);
+                if (matFallback) dataHoraStr = matFallback[1] + ' às ' + matFallback[2];
             }
         }
 
         // Natureza
+        // Prioridade 1: extrair o que vem depois de "Não Criminal - " (ex: "Colisão")
         let natureza = '';
-        // Captura o que vem logo após Naturezas da ocorrência... até encontrar Dados da ocorrência ou Crime Consumado
-        const matN = cleanText.match(/Naturezas? da Ocorr[e??]ncia\s*(.*?)(?:Dados da|Crime|\d+\s*-)/i);
-        if (matN && matN[1].trim().length > 3) {
-            natureza = matN[1].trim();
+        const matNaoCriminal = cleanText.match(/N[aã]o\s+Criminal\s*[-–]\s*([^\s][^C\n]{2,40})(?:\s+Crime|\s+Dados|\s+Circunscri|$)/i);
+        if (matNaoCriminal) {
+            natureza = matNaoCriminal[1].trim();
         } else {
-            const matN2 = cleanText.match(/(Crime Consumado.*?)(?:Dados da Ocorr[e??]ncia)/i);
-            if (matN2) natureza = matN2[1].trim();
+            // Prioridade 2: bloco entre "Naturezas da Ocorrência" e "Dados da Ocorrência"
+            const matN = cleanText.match(/Naturezas?\s+da\s+Ocorr[\w\W]{0,5}ncia\s+(.*?)(?:Dados\s+da\s+Ocorr)/i);
+            if (matN && matN[1].trim().length > 3) {
+                // Strip de prefixos indesejados
+                natureza = matN[1].trim()
+                    .replace(/Crime\s+Consumado\s*/gi, '')
+                    .replace(/N[aã]o\s+Criminal\s*[-–]\s*/gi, '')
+                    .trim();
+            }
         }
 
         // Marca/Modelo: "Marca/Modelo: IVECO/DAILY 35CS"
