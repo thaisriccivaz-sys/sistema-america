@@ -133,7 +133,12 @@ window._renderSinistroCard = function(s, colabId, container) {
             }
             let label = s.documento_html ? 'Continuar Finalização' : 'Finalizar Sinistro';
             if (s.status === 'assinado_testemunhas') label = 'Assinar Condutor';
-            actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> ${label}</button>`;
+            // Botão de assinatura: só aparece se a logística liberou para o RH, OU se processo já iniciado (continuar)
+            const liberadoParaRH = s.situacao_sinistro === 'Finalizado - Passar para RH';
+            if (liberadoParaRH || s.status === 'assinado_testemunhas' || s.documento_html) {
+                actionsHtml += `<button class="btn btn-sm" onclick="window.abrirFinalizarSinistro(${s.id}, ${colabId})" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:600;padding:6px 14px;"><i class="ph ph-flag-checkered"></i> ${label}</button>`;
+            }
+
         }
         if (s.documento_html) {
             actionsHtml += `<button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#64748b;background:#f1f5f9;border:none;"><i class="ph ph-eye"></i> Preview</button>`;
@@ -207,6 +212,8 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <p style="margin:0 0 6px 0;"><i class="ph ph-info"></i> ${aberturaTxt}</p>
                     <p style="margin:0 0 6px 0;"><i class="ph ph-clock"></i> Registrado no sistema: ${dataCriacao}</p>
                     <p style="margin:0 0 6px 0;"><i class="ph ph-pen"></i> Assinatura do Colaborador: ${assinCondutorTxt}</p>
+                    ${(s.valor_total && parseFloat(s.valor_total) > 0) ? `<p style="margin:0 0 6px 0;"><i class="ph ph-currency-dollar"></i> Valor Total: <strong>R$ ${parseFloat(s.valor_total).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>&nbsp;&nbsp;<i class="ph ph-list-numbers"></i> Parcelado em <strong>${s.parcelas || 1}x</strong></p>` : ''}
+
                 </div>
                 <div>
                     <p style="margin:0 0 6px 0;"><strong>Anexos:</strong></p>

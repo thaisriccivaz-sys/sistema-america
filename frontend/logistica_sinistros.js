@@ -1542,6 +1542,21 @@ window.logSinSalvarEdicao = async function() {
 
         showMsg('Sinistro atualizado com sucesso!', true);
 
+        // Toast especial quando liberado para o RH
+        var _novaSituacaoEl = document.getElementById('edit-sin-situacao');
+        if (_novaSituacaoEl && _novaSituacaoEl.value === 'Finalizado - Passar para RH') {
+            if (typeof Toastify === 'function') {
+                Toastify({
+                    text: '✅ Sinistro finalizado e liberado para o RH! O colaborador será notificado no prontuário e o e-mail foi enviado.',
+                    backgroundColor: '#059669',
+                    duration: 7000,
+                    gravity: 'top',
+                    position: 'right',
+                    stopOnFocus: true
+                }).showToast();
+            }
+        }
+
         // Limpar campo de nova observação e recarregar histórico
         var obsField = document.getElementById('edit-sin-nova-obs');
         if (obsField) obsField.value = '';
