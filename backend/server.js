@@ -6580,6 +6580,52 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
 
 
 // Upload multer de media com limite maior
+// ═══════════════════════════════════════════════════════════════
+// POST /api/sinistros/:id/comentario
+// Adiciona comentário ao histórico de observações do sinistro.
+// Não exige status específico — funciona mesmo após assinado.
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/sinistros/:id/comentario', authenticateToken, async (req, res) => {
+    try {
+        const sinId = req.params.id;
+        const { nova_observacao, autor_observacao } = req.body;
+
+        if (!nova_observacao || !nova_observacao.trim()) {
+            return res.status(400).json({ error: 'Comentário não pode ser vazio.' });
+        }
+
+        const sinistro = await new Promise((resolve, reject) => {
+            db.get('SELECT id, observacoes_historico FROM sinistros WHERE id = ?', [sinId], (err, row) =>
+                err ? reject(err) : resolve(row));
+        });
+        if (!sinistro) return res.status(404).json({ error: 'Sinistro não encontrado.' });
+
+        let historico = [];
+        try {
+            if (sinistro.observacoes_historico) historico = JSON.parse(sinistro.observacoes_historico);
+        } catch(e) {}
+
+        const agora = new Date();
+        const tzOpts = { timeZone: 'America/Sao_Paulo' };
+        const dataBR = agora.toLocaleDateString('pt-BR', tzOpts) + ' às ' + agora.toLocaleTimeString('pt-BR', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
+
+        const autor = autor_observacao || (req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema');
+        historico.push({ autor, data: dataBR, texto: nova_observacao.trim() });
+
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE sinistros SET observacoes_historico = ? WHERE id = ?',
+                [JSON.stringify(historico), sinId],
+                err => err ? reject(err) : resolve());
+        });
+
+        res.json({ sucesso: true, historico });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Upload multer de media com limite maior
+
 const multerMediaStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const tmpDir = require('os').tmpdir();

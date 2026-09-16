@@ -109,12 +109,17 @@ window._renderSinistroCard = function(s, colabId, container) {
 
     let actionsHtml = '';
     if (s.status === 'assinado') {
+        // Sinistro assinado: apenas leitura — sem edição, sem exclusão
         actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">
-            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;"><i class="ph ph-eye"></i> Ver Documento</button>`;
-        if (isRH) {
-            actionsHtml += `<button class="btn btn-sm btn-outline-danger" onclick="window.excluirSinistro(${s.id}, ${colabId})" style="color:#ef4444; border:1px solid #ef4444; background:transparent;"><i class="ph ph-trash"></i> Excluir</button>`;
-        }
-        actionsHtml += `</div>`;
+            <span style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:4px;"><i class="ph ph-lock"></i> Assinado — edição bloqueada</span>
+            <button class="btn btn-sm" onclick="window.sinAbrirDetalhes(${s.id}, ${colabId})"
+                style="background:#f0fdf4; border:1.5px solid #86efac; color:#166534; font-weight:700; padding:5px 12px;">
+                <i class="ph ph-list-magnifying-glass"></i> Ver Detalhes
+            </button>
+            <button class="btn btn-sm" onclick="window.verDocumentoSinistro(${s.id}, ${colabId})" style="color:#0284c7; background:#e0f2fe; border:none;">
+                <i class="ph ph-eye"></i> Ver Documento
+            </button>
+        </div>`;
     } else {
         actionsHtml = `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;width:100%;">`;
         if (isRH) {
@@ -222,6 +227,221 @@ window._renderSinistroCard = function(s, colabId, container) {
     `;
 
     container.appendChild(card);
+};
+
+// =========================================================
+// MODAL: VER DETALHES (read-only para sinistros assinados)
+// =========================================================
+
+window.sinAbrirDetalhes = async function(sinId, colabId) {
+    // Buscar sinistro atualizado
+    let sinistro = null;
+    try {
+        const lista = await apiGet('/colaboradores/' + colabId + '/sinistros');
+        sinistro = (lista || []).find(function(s) { return s.id == sinId; });
+    } catch(e) { return alert('Erro ao carregar sinistro.'); }
+    if (!sinistro) return alert('Sinistro não encontrado.');
+
+    // --- Montar links de mídias (view-only) ---
+    let mids = [];
+    try { mids = JSON.parse(sinistro.midias_paths || '[]'); } catch(e) {}
+
+    let midiasHtml = '';
+    if (mids.length > 0) {
+        midiasHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+        mids.forEach(function(m, i) {
+            const url = typeof m === 'string' ? m : m.url;
+            const tipo = m.tipo || '';
+            const isVideo = tipo.startsWith('video/') || ['mp4','mov','avi','webm'].includes((url||'').split('.').pop().toLowerCase().split('?')[0]);
+            if (!isVideo) {
+                midiasHtml += '<a href="' + url + '" target="_blank" title="Foto do dano ' + (i+1) + '" style="display:block;width:88px;height:88px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;"><img src="' + url + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></a>';
+            } else {
+                midiasHtml += '<a href="' + url + '" target="_blank" title="Vídeo do dano ' + (i+1) + '" style="width:88px;height:88px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#1e293b;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;"><i class="ph ph-video" style="font-size:2rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:4px;">Vídeo ' + (i+1) + '</span></a>';
+            }
+        });
+        midiasHtml += '</div>';
+    } else {
+        midiasHtml = '<p style="font-size:0.8rem;color:#94a3b8;margin:4px 0 0;">Nenhuma mídia anexada.</p>';
+    }
+
+    // --- Histórico de observações ---
+    let historico = [];
+    try { historico = JSON.parse(sinistro.observacoes_historico || '[]'); } catch(e) {}
+
+    function _buildHistoricoHtml(hist) {
+        if (!hist.length) return '<p style="font-size:0.8rem;color:#94a3b8;margin:0;">Nenhum comentário ainda.</p>';
+        return hist.map(function(h) {
+            return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
+                '<p style="margin:0 0 4px;font-size:0.75rem;font-weight:700;color:#475569;">' +
+                '<i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') +
+                ' <span style="font-weight:400;color:#94a3b8;">— ' + (h.data || '') + '</span></p>' +
+                '<p style="margin:0;font-size:0.85rem;color:#1e293b;">' + (h.texto || '') + '</p>' +
+                '</div>';
+        }).join('');
+    }
+
+    // --- BO: extrair nome do arquivo do path ---
+    let boHtml = '';
+    if (sinistro.boletim_path) {
+        const boNome = sinistro.boletim_path.split('/').pop() || 'Boletim de Ocorrência.pdf';
+        boHtml = '<div style="margin-top:12px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 12px;">' +
+            '<p style="margin:0 0 6px;font-weight:700;font-size:0.8rem;color:#713f12;"><i class="ph ph-file-pdf"></i> Boletim de Ocorrência Anexado</p>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<i class="ph ph-file-pdf" style="font-size:1.4rem;color:#dc2626;flex-shrink:0;"></i>' +
+            '<span style="font-size:0.82rem;color:#334155;word-break:break-all;flex:1;">' + boNome + '</span>' +
+            '<button onclick="window.abrirArquivoOneDrive(\'' + sinistro.boletim_path + '\')" ' +
+            'style="background:#d97706;border:none;color:#fff;border-radius:6px;padding:5px 12px;font-size:0.8rem;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">' +
+            '<i class="ph ph-eye"></i> Ver BO</button>' +
+            '</div></div>';
+    }
+
+    // --- Natureza limpa ---
+    const naturezaDisplay = (sinistro.natureza || '').replace(/Crime\s+Consumado[^\-]*\-?\s*/gi, '').trim() || sinistro.natureza || '—';
+
+    // --- Criar/resetar modal ---
+    let modal = document.getElementById('modal-sin-detalhes');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-sin-detalhes';
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = '<div class="modal-content" style="max-width:100vw;width:100vw;height:100vh;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column;overflow:hidden;">' +
+        '<div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b);z-index:10;flex-shrink:0;">' +
+        '<h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">' +
+        '<i class="ph ph-list-magnifying-glass" style="color:#86efac;"></i> Detalhes do Sinistro #' + sinId +
+        '<span style="font-size:0.72rem;background:#10b981;color:#fff;border-radius:12px;padding:2px 10px;font-weight:700;margin-left:4px;">ASSINADO</span></h3>' +
+        '<button onclick="document.getElementById(\'modal-sin-detalhes\').style.display=\'none\'" class="btn-close" style="background:rgba(255,255,255,0.15);color:#fff;"><i class="ph ph-x"></i></button>' +
+        '</div>' +
+
+        '<div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;flex:1;overflow-y:auto;padding:1.5rem;">' +
+
+        // Coluna esquerda
+        '<div style="display:flex;flex-direction:column;gap:1rem;">' +
+
+        // Aviso read-only
+        '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:0.6rem 0.85rem;font-size:0.82rem;color:#166534;display:flex;align-items:center;gap:6px;">' +
+        '<i class="ph ph-lock"></i> Sinistro finalizado e assinado. Edição bloqueada. Comentários ainda são permitidos.</div>' +
+
+        // Dados do Boletim
+        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;">' +
+        '<p style="font-weight:700;font-size:0.82rem;color:#475569;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-file-text" style="color:#d97706;"></i> Dados do Boletim</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.6rem;margin-bottom:0.6rem;">' +
+        '<div><label style="font-size:0.72rem;color:#94a3b8;display:block;">Boletim Nº</label><p style="margin:2px 0;font-weight:600;font-size:0.9rem;color:#0f172a;">' + (sinistro.numero_boletim || '—') + '</p></div>' +
+        '<div><label style="font-size:0.72rem;color:#94a3b8;display:block;">Data e Hora</label><p style="margin:2px 0;font-size:0.85rem;color:#334155;">' + (sinistro.data_hora || '—') + '</p></div>' +
+        '<div><label style="font-size:0.72rem;color:#94a3b8;display:block;">Natureza</label><p style="margin:2px 0;font-size:0.85rem;color:#334155;">' + naturezaDisplay + '</p></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">' +
+        '<div><label style="font-size:0.72rem;color:#94a3b8;display:block;">Veículo</label><p style="margin:2px 0;font-size:0.85rem;color:#334155;">' + (sinistro.veiculo || '—') + '</p></div>' +
+        '<div><label style="font-size:0.72rem;color:#94a3b8;display:block;">Placa</label><p style="margin:2px 0;font-weight:700;font-size:0.9rem;color:#0f172a;">' + (sinistro.placa || '—') + '</p></div>' +
+        '</div>' +
+        '</div>' +
+
+        // Tipo e Situação
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">' +
+        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">' +
+        '<label style="font-size:0.72rem;color:#94a3b8;display:block;text-transform:uppercase;">Tipo de Sinistro</label>' +
+        '<p style="margin:4px 0 0;font-weight:700;font-size:0.9rem;color:#0f172a;">' + (sinistro.tipo_sinistro || '—') + '</p></div>' +
+        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">' +
+        '<label style="font-size:0.72rem;color:#94a3b8;display:block;text-transform:uppercase;">Situação</label>' +
+        '<p style="margin:4px 0 0;font-weight:700;font-size:0.9rem;color:#0f172a;">' + (sinistro.situacao_sinistro || 'Novo') + '</p></div>' +
+        '</div>' +
+
+        // BO
+        boHtml +
+
+        // Fotos e Vídeos
+        '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:1rem;">' +
+        '<p style="font-weight:700;font-size:0.82rem;color:#0369a1;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-camera"></i> Fotos e Vídeos (' + mids.length + ')</p>' +
+        midiasHtml +
+        '</div>' +
+
+        '</div>' + // fim coluna esquerda
+
+        // Coluna direita — Histórico + Novo Comentário
+        '<div style="display:flex;flex-direction:column;gap:1rem;">' +
+
+        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;flex:1;display:flex;flex-direction:column;">' +
+        '<p style="font-weight:700;font-size:0.82rem;color:#475569;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.5px;"><i class="ph ph-chat-dots"></i> Histórico de Observações</p>' +
+
+        // Observação inicial
+        (sinistro.observacoes ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:8px;">' +
+            '<p style="margin:0 0 2px;font-size:0.72rem;color:#92400e;font-weight:700;">Observação inicial</p>' +
+            '<p style="margin:0;font-size:0.85rem;color:#334155;">' + sinistro.observacoes + '</p></div>' : '') +
+
+        '<div id="sin-det-historico-' + sinId + '" style="flex:1;overflow-y:auto;max-height:300px;">' +
+        _buildHistoricoHtml(historico) +
+        '</div>' +
+
+        // Novo comentário
+        '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:12px;">' +
+        '<p style="font-weight:700;font-size:0.82rem;color:#475569;margin:0 0 8px;"><i class="ph ph-plus-circle"></i> Nova Observação</p>' +
+        '<textarea id="sin-det-novo-comentario-' + sinId + '" rows="3" class="form-control" placeholder="Escreva uma nova observação aqui..." style="resize:vertical;font-size:0.85rem;"></textarea>' +
+        '<button onclick="window._sinAdicionarComentario(' + sinId + ')" ' +
+        'style="margin-top:8px;background:#0f172a;color:#fff;border:none;border-radius:8px;padding:8px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">' +
+        '<i class="ph ph-paper-plane-tilt"></i> Salvar Observação</button>' +
+        '</div>' +
+
+        '</div>' + // fim card histórico
+        '</div>' + // fim coluna direita
+        '</div>' + // fim modal-body
+        '</div>'; // fim modal-content
+
+    modal.style.display = 'flex';
+};
+
+// Adiciona comentário via rota dedicada (funciona mesmo após assinado)
+window._sinAdicionarComentario = async function(sinId) {
+    const textarea = document.getElementById('sin-det-novo-comentario-' + sinId);
+    if (!textarea) return;
+    const texto = textarea.value.trim();
+    if (!texto) { alert('Digite um comentário antes de salvar.'); return; }
+
+    let autor = 'Sistema';
+    try {
+        const u = JSON.parse(localStorage.getItem('erp_user') || '{}');
+        autor = u.nome || u.username || 'Sistema';
+    } catch(e) {}
+
+    try {
+        const res = await fetch(API_URL + '/sinistros/' + sinId + '/comentario', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('erp_token')
+            },
+            body: JSON.stringify({ nova_observacao: texto, autor_observacao: autor })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao salvar.');
+
+        // Atualizar o bloco de histórico na tela sem fechar o modal
+        const div = document.getElementById('sin-det-historico-' + sinId);
+        if (div && Array.isArray(data.historico)) {
+            div.innerHTML = data.historico.map(function(h) {
+                return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
+                    '<p style="margin:0 0 4px;font-size:0.75rem;font-weight:700;color:#475569;">' +
+                    '<i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') +
+                    ' <span style="font-weight:400;color:#94a3b8;">— ' + (h.data || '') + '</span></p>' +
+                    '<p style="margin:0;font-size:0.85rem;color:#1e293b;">' + (h.texto || '') + '</p>' +
+                    '</div>';
+            }).join('');
+            div.scrollTop = div.scrollHeight;
+        }
+        textarea.value = '';
+
+        // Feedback visual
+        const btn = textarea.nextElementSibling;
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="ph ph-check"></i> Salvo!';
+            btn.style.background = '#059669';
+            setTimeout(function() { btn.innerHTML = orig; btn.style.background = '#0f172a'; }, 2000);
+        }
+    } catch(e) {
+        alert('Erro: ' + e.message);
+    }
 };
 
 // =========================================================
