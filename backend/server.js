@@ -6202,7 +6202,9 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
         // Boletim No: "FR6269-1/2026" ou "FR 6269-1/2026"
         let boletim = '';
         const matBO = cleanText.match(/([A-Z]{2}\s*\d+[-]\d+\/\d{4})/i)
-            || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i);
+            || cleanText.match(/Boletim[^\d]*(\d+[-]\d+\/\d{4})/i)
+            || cleanText.match(/Boletim[^\d]*([A-Z0-9-]+\/\d{4})/i)
+            || cleanText.match(/Protocolo[^\d]*(\d+\/\d{4})/i);
         if (matBO) boletim = matBO[1].replace(/\s/g, '').toUpperCase();
 
         // ── Extração da Data/Hora da Ocorrência ───────────────────────────────
