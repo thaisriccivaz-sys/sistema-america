@@ -337,8 +337,8 @@ window._fechamento = (function () {
                     marcacoes = dia.listAfdtManutencao.map(function(m) {
                         let suf = '';
                         if (m.isManual || m._typeRegister === 'I') suf += ' (I)';
-                        if (m.isPreAssigned) suf += ' (P)';
-                        if (m._typeRegister === 'M') suf += ' (M)';
+                        if (m.isPreAssigned || m.preAssigned || m._typeRegister === 'P') suf += ' (P)';
+                        if (m._typeRegister === 'M' || m._typeRegister === 'W') suf += ' (M)';
                         if (m._typeRegister === 'C') suf += ' (C)';
                         return fmtHHMM(m.hora) + suf;
                     });
@@ -536,6 +536,12 @@ window._fechamento = (function () {
             <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;border-radius:2px;margin-right:4px;"></span> Extra 60%</span>
             <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fbcfe8;border:1px solid #f472b6;border-radius:2px;margin-right:4px;"></span> Noturno</span>
             <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fde047;border:1px solid #eab308;border-radius:2px;margin-right:4px;"></span> Atraso</span>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin:4px 20px 8px;font-size:10px;color:#334155;line-height:14px;font-weight:600;">
+            <span>(I) = Incluído</span>
+            <span>(P) = Pré-assinalado</span>
+            <span>(M) = Coletor REP-P Mobile/Web</span>
+            <span>(C) = Coletor REP-P (iDFace/iDFlex)</span>
         </div>`;
 
         const fullHtml = `<!DOCTYPE html><html><head>
