@@ -686,6 +686,19 @@
       _tickets.forEach(ticket => {
         const pendingType = localStorage.getItem('sac_pending_popup_' + ticket.id);
         if (!pendingType) return;
+
+        // ── CORREÇÃO BUG CARD VOLTANDO: verificar se o stage ainda corresponde
+        // ao tipo de popup pendente. Se o chamado já avançou, limpar o localStorage
+        // e não reabrir o popup (evita mover o card ao justificar).
+        const stageOk = (pendingType === 'followup' && ticket.stage === 'execucao') ||
+                        (pendingType === 'aguard' && ticket.stage === 'aguardando_setores') ||
+                        (pendingType === 'sla'); // SLA pode aparecer em qualquer stage
+        if (!stageOk) {
+          localStorage.removeItem('sac_pending_popup_' + ticket.id);
+          localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
+          return;
+        }
+
         const guardSet = pendingType === 'sla' ? _slaPendingShown : pendingType === 'followup' ? _followupShown : _aguardShown;
         if (guardSet.has(ticket.id)) return;
         guardSet.add(ticket.id);
@@ -3579,17 +3592,27 @@
 
           if (pendingTipo === 'followup') {
               isHandled = true;
-              t.stage = 'triagem';
-              t.slaFrozenAt = null;
               t.followUpDeadline = null;
               t.followUpPendingJustification = false;
-              
-              t.isUrgent = true;
-              if (!t.tags) t.tags = [];
-              if (!t.tags.includes('Reagendamento')) t.tags.push('Reagendamento');
 
-              t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno autom\u00e1tico: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+              // ── CORREÇÃO BUG CARD VOLTANDO ──────────────────────────────────────────
+              // Só volta para triagem se o chamado AINDA estiver em execucao.
+              // Se já avançou (respondido, acompanhamento, concluido, etc.),
+              // apenas registra a justificativa na timeline SEM mover o card.
+              if (t.stage === 'execucao') {
+                  t.stage = 'triagem';
+                  t.slaFrozenAt = null;
+                  t.isUrgent = true;
+                  if (!t.tags) t.tags = [];
+                  if (!t.tags.includes('Reagendamento')) t.tags.push('Reagendamento');
+                  t.timeline.push({ stage: 'triagem', time: justTimestamp, notes: 'Retorno automático: prazo de acompanhamento vencido. Justificativa registrada.', user: null });
+              } else {
+                  // Chamado já avançou — registrar justificativa sem alterar o stage atual
+                  t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de acompanhamento (chamado já avançado para ' + t.stage + '): "' + text + '"', user });
+              }
+
               localStorage.removeItem('sac_pending_popup_' + t.id);
+              await updateTicket(t);
               showToast('Justificativa registrada com sucesso.', 'success');
               setTimeout(() => { SAC.closeModal(); }, 100);
           } else if (pendingTipo === 'aguard') {
@@ -4863,6 +4886,16 @@
       if (ticket.followUpDeadline) {
         const prazo = new Date(ticket.followUpDeadline).getTime();
         if (!isNaN(prazo) && prazo < now) {
+          // ── CORREÇÃO BUG CARD VOLTANDO: se o chamado já saiu de execucao,
+          // limpar os flags de followup SEM disparar popup NEM mover card.
+          if (ticket.followUpPendingJustification && ticket.stage !== 'execucao') {
+            ticket.followUpPendingJustification = false;
+            ticket.followUpDeadline = null;
+            ticket.followUpNotified = true;
+            localStorage.removeItem('sac_pending_popup_' + ticket.id);
+            updateTicketAuto(ticket);
+            return;
+          }
           if (!ticket.followUpNotified && ticket.stage === 'execucao') {
             ticket.followUpNotified = true;
             if (!ticket.comments) ticket.comments = [];
@@ -4875,7 +4908,8 @@
               body: JSON.stringify({ ticketId:ticket.id, protocol:ticket.protocol, clientName:ticket.clientName, followUpDeadline:ticket.followUpDeadline })
             }).catch(e => console.error('[SAC] notificar-acompanhamento:', e));
           }
-          if (ticket.followUpPendingJustification === true && !_followupShown.has(ticket.id)) {
+          // ── CORREÇÃO: popup só aparece se ainda estiver em execucao
+          if (ticket.followUpPendingJustification === true && ticket.stage === 'execucao' && !_followupShown.has(ticket.id)) {
             _followupShown.add(ticket.id);
             showMandatoryJustificationPopup(ticket, 'followup');
           }
