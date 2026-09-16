@@ -240,9 +240,16 @@ window._logSinRenderCardGeral = function(s, container) {
                     <i class="ph ph-pencil-simple"></i> Editar
                 </button>
             </div>` : `
-            <span style="font-size:0.72rem; color:#94a3b8; display:flex; align-items:center; gap:4px;">
-                <i class="ph ph-lock"></i> Assinado — edição bloqueada
-            </span>`}
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-size:0.72rem; color:#94a3b8; display:flex; align-items:center; gap:4px; margin-right:8px;">
+                    <i class="ph ph-lock"></i> Assinado — edição bloqueada
+                </span>
+                <button onclick="if(window.sinAbrirDetalhes) { window.sinAbrirDetalhes(${s.id}, ${s.colaborador_id}); } else { alert('Função de detalhes não carregada.'); }" title="Ver Detalhes"
+                    style="background:#f0fdf4; border:1px solid #86efac; color:#166534; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
+                    onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
+                    <i class="ph ph-list-magnifying-glass"></i> Ver Detalhes
+                </button>
+            </div>`}
         </div>
     `;
 
