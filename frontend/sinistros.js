@@ -520,10 +520,13 @@ window.abrirModalNovoSinistro = function() {
                             <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
                             <div style="display:flex;gap:0.5rem;align-items:flex-end;">
                                 <div style="flex:1;">
-                                    <input type="file" id="sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;">
+                                    <input type="file" id="sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;" onchange="document.getElementById('sin-btn-ver-bo-novo').style.display = this.files.length ? 'inline-block' : 'none';">
                                 </div>
                                 <button type="button" class="btn btn-secondary" onclick="window.processarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
                                     <i class="ph ph-scan"></i> Analisar BO
+                                </button>
+                                <button type="button" class="btn btn-info" id="sin-btn-ver-bo-novo" style="display:none; white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;" onclick="window.verPdfLocal('sinistro-file-bo')">
+                                    <i class="ph ph-eye"></i>
                                 </button>
                             </div>
                         </div>
@@ -2058,9 +2061,12 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                 <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-top:0.5rem; margin-bottom:0.25rem;">
                     <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
                     <div style="display:flex; gap:0.5rem; align-items:center;">
-                        <input type="file" id="rh-edit-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
+                        <input type="file" id="rh-edit-file-bo" accept="application/pdf" class="form-control" style="flex:1;" onchange="document.getElementById('rh-edit-btn-ver-bo').style.display = 'inline-block';">
                         <button type="button" class="btn btn-secondary" onclick="window.rhSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
                             <i class="ph ph-scan"></i> Analisar BO
+                        </button>
+                        <button type="button" class="btn btn-info" id="rh-edit-btn-ver-bo" style="${sinistro.boletim_path ? '' : 'display:none;'} white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;" onclick="window.verPdfLocal('rh-edit-file-bo', '${sinistro.boletim_path || ''}')">
+                            <i class="ph ph-eye"></i>
                         </button>
                     </div>
                 </div>
@@ -2475,3 +2481,4 @@ window.rhSinSalvar = async function() {
         if (btn) { btn.disabled = false; btn.innerHTML = oldTxt; }
     }
 };
+window.verPdfLocal = function(inputId, existingUrl) { const inp = document.getElementById(inputId); if (inp && inp.files && inp.files.length > 0) { const file = inp.files[0]; const url = URL.createObjectURL(file); window.open(url, '_blank'); } else if (existingUrl) { window.abrirArquivoOneDrive(existingUrl); } else { alert('Nenhum arquivo selecionado.'); } };

@@ -329,15 +329,16 @@ window.logSinAbrirModalNovo = function() {
                     <div id="log-sinistro-step-2" style="display:none;">
                         <div style="display:flex; gap:1.5rem; align-items:flex-start; min-height:calc(100vh - 160px);">
                             <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
-                            <div style="flex:1.1; min-width:0; display:flex; flex-direction:column; gap:0.85rem;">
+                            <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
                                 <div id="log-sin-bo-notif" style="display:none; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.85rem;"></div>
 
                                 <!-- BO Upload -->
                                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem 1rem;">
                                     <p style="margin:0 0 0.5rem;font-weight:600;font-size:0.85rem;color:#334155;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF)</p>
                                     <div style="display:flex;gap:0.5rem;align-items:flex-end;">
-                                        <div style="flex:1;"><input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;"></div>
+                                        <div style="flex:1;"><input type="file" id="log-sinistro-file-bo" accept=".pdf,image/*" class="form-control" style="font-size:0.82rem;" onchange="document.getElementById('log-sin-btn-ver-bo-novo').style.display = this.files.length ? 'inline-block' : 'none';"></div>
                                         <button type="button" class="btn btn-secondary" onclick="window.logSinProcessarLeituraBO()" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;"><i class="ph ph-scan"></i> Analisar BO</button>
+                                        <button type="button" class="btn btn-info" id="log-sin-btn-ver-bo-novo" style="display:none; white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;" onclick="window.verPdfLocal('log-sinistro-file-bo')"><i class="ph ph-eye"></i></button>
                                     </div>
                                 </div>
 
@@ -393,7 +394,7 @@ window.logSinAbrirModalNovo = function() {
                             </div>
 
                             <!-- COLUNA DIREITA: Tipo de Sinistro + Observações -->
-                            <div style="width:380px; flex-shrink:0; display:flex; flex-direction:column; gap:0.85rem; position:sticky; top:0;">
+                            <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem; position:sticky; top:0;">
                                 <!-- Descrição da Ocorrência -->
                                 <div class="input-group" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;">
                                     <label style="color:#15803d;font-weight:700;"><i class="ph ph-file-text"></i> Descrição da Ocorrência <span style="font-size:0.75rem;color:#94a3b8;font-weight:400;">(preenchido automaticamente pelo BO)</span></label>
@@ -990,7 +991,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                 <!-- COLUNA ESQUERDA: Dados do BO e Arquivos -->
                 <div style="width:calc(50% - 0.75rem); flex-shrink:0; min-width:0; display:flex; flex-direction:column; gap:0.9rem;">
 
-                    <div style="background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; display:flex; align-items:center; gap:6px;">
+                    <div style="display:none; background:#fef9c3; border:1px solid #fde047; border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem; color:#713f12; align-items:center; gap:6px;">
                         <i class="ph ph-warning"></i>
                         Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
                     </div>
@@ -1001,9 +1002,12 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                     <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
                         <label style="color:#0f172a; margin-bottom:6px;"><i class="ph ph-file-pdf" style="color:#dc2626;"></i> Boletim de Ocorrência (PDF) - <span style="color:#64748b;font-weight:normal;">Opcional (Extrair Dados)</span></label>
                         <div style="display:flex; gap:0.5rem; align-items:center;">
-                            <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;">
+                            <input type="file" id="edit-sin-file-bo" accept="application/pdf" class="form-control" style="flex:1;" onchange="document.getElementById('edit-sin-btn-ver-bo').style.display = 'inline-block';">
                             <button type="button" class="btn btn-secondary" onclick="window.logSinEditProcessarLeituraBO(this)" style="white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;">
                                 <i class="ph ph-scan"></i> Analisar BO
+                            </button>
+                            <button type="button" class="btn btn-info" id="edit-sin-btn-ver-bo" style="${sinistro.boletim_path ? '' : 'display:none;'} white-space:nowrap;font-size:0.82rem;padding:0.45rem 0.8rem;" onclick="window.verPdfLocal('edit-sin-file-bo', '${sinistro.boletim_path || ''}')">
+                                <i class="ph ph-eye"></i>
                             </button>
                         </div>
                     </div>
@@ -1650,4 +1654,4 @@ window.abrirModalVideoLogistica = function() {
     m.style.display = 'flex';
     const video = document.getElementById('logistica-video-player');
     if (video) video.play();
-};
+};window.verPdfLocal = function(inputId, existingUrl) { const inp = document.getElementById(inputId); if (inp && inp.files && inp.files.length > 0) { const file = inp.files[0]; const url = URL.createObjectURL(file); window.open(url, '_blank'); } else if (existingUrl) { window.abrirArquivoOneDrive(existingUrl); } else { alert('Nenhum arquivo selecionado.'); } };
