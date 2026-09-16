@@ -335,19 +335,13 @@ window._fechamento = (function () {
                 let marcacoes = [];
                 if (dia.listAfdtManutencao && dia.listAfdtManutencao.length > 0) {
                     marcacoes = dia.listAfdtManutencao.map(function(m) {
-                        if (dia.date && String(dia.date).includes('-03-') || dia.date && String(dia.date).includes('-08-')) {
-                             // log apenas para ajudar no debug (agosto)
-                             console.log('AFDT Debug:', m);
-                        }
                         let suf = '';
                         if (m.isManual || m._typeRegister === 'I') suf += ' (I)';
                         else if (m.isPreAssigned || m.preAssigned || m._typeRegister === 'P') suf += ' (P)';
                         else if (m._typeRegister === 'M' || m._typeRegister === 'W' || m.isMobile || (m._typeRegister === 'O' && !m.pis)) suf += ' (M)';
                         else if (m._typeRegister === 'C' || m.isIdFace) suf += ' (C)';
                         
-                        // Envolver em um span com title para debug
-                        const debugData = JSON.stringify(m).replace(/"/g, '&quot;');
-                        return `<span title="${debugData}">${fmtHHMM(m.hora)}${suf}</span>`;
+                        return fmtHHMM(m.hora) + suf;
                     });
                 } else if (dia.marcacoes && Array.isArray(dia.marcacoes)) {
                     marcacoes = dia.marcacoes.map(function(m) { return m.hora || m.time || m; });
