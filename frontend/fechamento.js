@@ -524,35 +524,58 @@ window._fechamento = (function () {
             </div>`;
         });
 
-        // Legenda de cores atualizada
-        const legenda = `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 20px 0;font-size:10px;color:#475569;line-height:14px;">
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fe7884;border:1px solid #dc2626;border-radius:2px;margin-right:4px;"></span> Falta Integral</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:2px;margin-right:4px;"></span> Justificado</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fef9c3;border:1px solid #fde047;border-radius:2px;margin-right:4px;"></span> Férias</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#cdd1d4;border:1px solid #94a3b8;border-radius:2px;margin-right:4px;"></span> Folga</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#feae67;border:1px solid #f97316;border-radius:2px;margin-right:4px;"></span> Apont. Manual</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#cb79ff;border:1px solid #a855f7;border-radius:2px;margin-right:4px;"></span> > 12h Seguidas</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#93c5fd;border:1px solid #3b82f6;border-radius:2px;margin-right:4px;"></span> Extra 100%</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;border-radius:2px;margin-right:4px;"></span> Extra 60%</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fbcfe8;border:1px solid #f472b6;border-radius:2px;margin-right:4px;"></span> Noturno</span>
-            <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:10px;height:10px;background:#fde047;border:1px solid #eab308;border-radius:2px;margin-right:4px;"></span> Atraso</span>
+        // Legenda de cores atualizada (Modal)
+        const legenda = `
+<div id="modalLegenda" class="no-print" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+    <div style="background:#fff; border-radius:12px; width:480px; max-width:90%; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
+            <h3 style="margin:0; font-size:16px; color:#1e293b; display:flex; align-items:center; gap:8px;">💡 Legenda do Ponto</h3>
+            <button onclick="document.getElementById('modalLegenda').style.display='none'" style="background:none; border:none; font-size:24px; color:#64748b; cursor:pointer; padding:0 4px; line-height:1; transition:0.2s;">&times;</button>
         </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin:4px 20px 8px;font-size:10px;color:#334155;line-height:14px;font-weight:600;">
-            <span>(I) = Incluído</span>
-            <span>(P) = Pré-assinalado</span>
-            <span>(M) = Coletor REP-P Mobile/Web</span>
-            <span>(C) = Coletor REP-P (iDFace/iDFlex)</span>
-        </div>`;
+        
+        <div style="margin-bottom:20px;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Cores da Tabela</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:12px; color:#334155;">
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#fe7884;border:1px solid #dc2626;border-radius:3px;margin-right:8px;"></span> Falta Integral</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border:1px solid #fca5a5;border-radius:3px;margin-right:8px;"></span> Justificado</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#fef9c3;border:1px solid #fde047;border-radius:3px;margin-right:8px;"></span> Férias</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#cdd1d4;border:1px solid #94a3b8;border-radius:3px;margin-right:8px;"></span> Folga</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#feae67;border:1px solid #f97316;border-radius:3px;margin-right:8px;"></span> Apont. Manual</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#cb79ff;border:1px solid #a855f7;border-radius:3px;margin-right:8px;"></span> > 12h Seguidas</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#93c5fd;border:1px solid #3b82f6;border-radius:3px;margin-right:8px;"></span> Extra 100%</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#dbeafe;border:1px solid #93c5fd;border-radius:3px;margin-right:8px;"></span> Extra 60%</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#fbcfe8;border:1px solid #f472b6;border-radius:3px;margin-right:8px;"></span> Noturno</span>
+                <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:12px;height:12px;background:#fde047;border:1px solid #eab308;border-radius:3px;margin-right:8px;"></span> Atraso</span>
+            </div>
+        </div>
+
+        <div>
+            <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Nomenclaturas de Marcação</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px; color:#334155; font-weight:600;">
+                <span>(I) = Incluído</span>
+                <span>(P) = Pré-assinalado</span>
+                <span>(M) = Coletor REP-P Mobile/Web</span>
+                <span>(C) = Coletor REP-P (iDFace/iDFlex)</span>
+            </div>
+        </div>
+    </div>
+</div>
+`;
 
         const fullHtml = `<!DOCTYPE html><html><head>
-            <title>Conferência de Ponto — ${mesNome}/${_ano}</title>
+            <title>Conferência de Ponto - ${mesNome}/${_ano}</title>
             <style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;}@media print{.no-print{display:none!important;}}</style>
         </head><body>
-        <div class="no-print" style="background:#1e293b;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:999;flex-wrap:wrap;gap:8px;">
-            <span style="font-weight:700;font-size:14px;">Conferência de Ponto — ${mesNome}/${_ano}</span>
-            <button onclick="window.print()" style="background:#fff;color:#1e293b;border:none;padding:8px 20px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;">🖨 Imprimir / Salvar PDF</button>
-        </div>
         ${legenda}
+        <div class="no-print" style="background:#1e293b;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:999;flex-wrap:wrap;gap:8px;">
+            <span style="font-weight:700;font-size:14px;">Conferência de Ponto - ${mesNome}/${_ano}</span>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <button onclick="document.getElementById('modalLegenda').style.display='flex'" style="background:#334155;color:#f8fafc;border:1px solid #475569;padding:8px 16px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">
+                    💡 Ver Legenda
+                </button>
+                <button onclick="window.print()" style="background:#fff;color:#1e293b;border:none;padding:8px 20px;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px;">🖨️ Imprimir / Salvar PDF</button>
+            </div>
+        </div>
         ${achou ? corpo : '<div style="padding:40px;text-align:center;color:#64748b;font-size:14px;">Nenhum detalhe de ponto diário disponível.<br>Os dados de apuração diária não foram encontrados na resposta do RHID.</div>'}
         </body></html>`;
 
