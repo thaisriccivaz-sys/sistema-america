@@ -341,9 +341,9 @@ window._fechamento = (function () {
                         }
                         let suf = '';
                         if (m.isManual || m._typeRegister === 'I') suf += ' (I)';
-                        if (m.isPreAssigned || m.preAssigned || m._typeRegister === 'P') suf += ' (P)';
-                        if (m._typeRegister === 'M' || m._typeRegister === 'W' || m.isMobile) suf += ' (M)';
-                        if (m._typeRegister === 'C' || m.isIdFace) suf += ' (C)';
+                        else if (m.isPreAssigned || m.preAssigned || m._typeRegister === 'P') suf += ' (P)';
+                        else if (m._typeRegister === 'M' || m._typeRegister === 'W' || m.isMobile || (m._typeRegister === 'O' && !m.pis)) suf += ' (M)';
+                        else if (m._typeRegister === 'C' || m.isIdFace) suf += ' (C)';
                         
                         // Envolver em um span com title para debug
                         const debugData = JSON.stringify(m).replace(/"/g, '&quot;');
