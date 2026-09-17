@@ -941,6 +941,21 @@ _multasMigCols.forEach(sql => {
     });
 });
 
+// MIGRATION: Tabela de histórico de cobranças de multas (controle de parcelas por mês)
+db.run(`CREATE TABLE IF NOT EXISTS multas_cobranca_historico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    multa_id INTEGER NOT NULL,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    parcela_num INTEGER NOT NULL,
+    valor_parcela REAL NOT NULL,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(multa_id, mes, ano)
+)`, err => {
+    if (err && !err.message.includes('already exists')) console.error('[MIGRATION] Erro ao criar multas_cobranca_historico:', err.message);
+    else if (!err) console.log('[MIGRATION] Tabela multas_cobranca_historico criada.');
+});
+
 // MIGRATION: Coluna data_limite na tabela multas_logistica
 db.run("ALTER TABLE multas_logistica ADD COLUMN data_limite TEXT", err => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration data_limite multas_logistica:', err.message);
@@ -10464,43 +10479,104 @@ document.getElementById('frm').onsubmit = async function(e) {
 // ETAPA 2 - NOVAS ROTAS DE FECHAMENTO
 // ==========================================
 
-app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, (req, res) => {
-    const { ano, mes } = req.params;
-    // Busca multas com desconto em folha e com parcelas
-    db.all(`SELECT m.*, c.cpf FROM multas m
-            JOIN colaboradores c ON m.colaborador_id = c.id
-            WHERE m.tipo_resolucao = 'desconto_folha'
-            AND m.valor_multa IS NOT NULL
-            AND m.status NOT IN ('Cancelada', 'cancelada', 'Rejeitada', 'rejeitada', 'Negada', 'negada')`, [],
-    (err, multas) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const mesAtualNum = parseInt(ano) * 100 + parseInt(mes);
-        const grupos = {}; // colaborador_id -> { valor_total, detalhes }
+app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async (req, res) => {
+    const mesNum = parseInt(req.params.mes);
+    const anoNum = parseInt(req.params.ano);
+
+    // Regra de data de corte 26-25:
+    // Período do mês X = dia 26 do mês anterior até dia 25 do mês X.
+    // Multa inserida até dia 25 do mês M: 1ª parcela no mês M+1.
+    // Multa inserida no dia 26+ do mês M: 1ª parcela no mês M+2.
+    // Para o fechamento do mês X, elegíveis são multas com criado_em <= dia 25 do mês anterior.
+    let anoAnt = anoNum, mesAnt = mesNum - 1;
+    if (mesAnt < 1) { mesAnt = 12; anoAnt--; }
+    const corteStr = anoAnt + '-' + String(mesAnt).padStart(2,'0') + '-25';
+
+    // Status elegíveis para desconto em folha
+    const STATUS_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const placeholders = STATUS_ELEGIVEIS.map(() => '?').join(',');
+
+    try {
+        const multas = await new Promise((resolve, reject) => {
+            db.all(
+                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\' AND date(ml.criado_em) <= ?',
+                [...STATUS_ELEGIVEIS, corteStr],
+                (err, rows) => err ? reject(err) : resolve(rows || [])
+            );
+        });
+
+        const grupos = {};
+
         for (const m of multas) {
-            const valorTotal = parseFloat(m.valor_multa) || 0;
+            const valorTotal = parseFloat((m.valor_multa || '0').toString().replace(',', '.')) || 0;
+            if (valorTotal <= 0) continue;
             const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
-            // Parcela 1 começa no mês seguinte ao created_at
-            const dtBase = new Date(m.created_at);
-            let mIni = dtBase.getMonth() + 2; // +1 para próximo mês, +1 porque getMonth é 0-indexed
-            let aIni = dtBase.getFullYear();
-            if (mIni > 12) { mIni -= 12; aIni += 1; }
-            const inicioNum = aIni * 100 + mIni;
-            // Calcular fim: início + (parcelas - 1) meses
-            let mFim = mIni + numParcelas - 1;
-            let aFim = aIni + Math.floor((mFim - 1) / 12);
-            mFim = ((mFim - 1) % 12) + 1;
-            const fimNum = aFim * 100 + mFim;
-            if (mesAtualNum >= inicioNum && mesAtualNum <= fimNum) {
-                const colId = m.colaborador_id;
-                if (!grupos[colId]) grupos[colId] = { colaborador_id: colId, valor_total: 0, detalhes: [] };
-                grupos[colId].valor_total = Math.round((grupos[colId].valor_total + valorParcela) * 100) / 100;
-                grupos[colId].detalhes.push({ multa_id: m.id, descricao: m.descricao_infracao || 'Multa', valor_parcela: valorParcela, total_parcelas: numParcelas });
+
+            // Calcular mês de início da 1ª parcela
+            const dtStr = m.created_at || '';
+            const dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr + 'T12:00:00Z');
+            const diaCriado = dtCriado.getUTCDate();
+            let mIni = dtCriado.getUTCMonth() + 1; // 1-12
+            let aIni = dtCriado.getUTCFullYear();
+            if (diaCriado <= 25) {
+                // 1ª parcela no mês seguinte ao mês de criação
+                mIni += 1;
+            } else {
+                // 1ª parcela em dois meses
+                mIni += 2;
             }
+            if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+
+            // Número da parcela para o mês atual
+            const parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
+            if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
+
+            // Idempotência: não cobrar 2x no mesmo mês
+            const existing = await new Promise((resolve, reject) => {
+                db.get('SELECT id, valor_parcela FROM multas_cobranca_historico WHERE multa_id = ? AND mes = ? AND ano = ?',
+                    [m.id, mesNum, anoNum],
+                    (err, row) => err ? reject(err) : resolve(row));
+            });
+
+            let valorFinal = valorParcela;
+            if (!existing) {
+                await new Promise((resolve) => {
+                    db.run('INSERT INTO multas_cobranca_historico (multa_id, mes, ano, parcela_num, valor_parcela) VALUES (?, ?, ?, ?, ?)',
+                        [m.id, mesNum, anoNum, parcelaNum, valorParcela],
+                        () => resolve());
+                });
+            } else {
+                valorFinal = existing.valor_parcela;
+            }
+
+            const colId = m.colaborador_id;
+            if (!grupos[colId]) grupos[colId] = { colaborador_id: colId, valor_total: 0, detalhes: [] };
+            grupos[colId].valor_total = Math.round((grupos[colId].valor_total + valorFinal) * 100) / 100;
+            grupos[colId].detalhes.push({
+                multa_id: m.id,
+                descricao: m.motivo || m.numero_ait || 'Multa',
+                parcela_num: parcelaNum,
+                total_parcelas: numParcelas,
+                valor_parcela: valorFinal
+            });
         }
+
         res.json(Object.values(grupos));
-    });
+    } catch(e) {
+        console.error('[multas-prontuario]', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
+
+// GET histórico de cobranças de uma multa específica
+app.get('/api/multas/:multaId/historico-cobranca', authenticateToken, (req, res) => {
+    db.all('SELECT mes, ano, parcela_num, valor_parcela, criado_em FROM multas_cobranca_historico WHERE multa_id = ? ORDER BY ano, mes',
+        [req.params.multaId],
+        (err, rows) => err ? res.status(500).json({ error: err.message }) : res.json(rows || [])
+    );
+});
+
 
 app.get('/api/fechamento/plr/:ano/:mes', authenticateToken, (req, res) => {
     const mesNum = parseInt(req.params.mes);

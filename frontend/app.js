@@ -21479,6 +21479,38 @@ window._recarregarListaMultas = async function (colabId) {
     }
 };
 
+window._carregarHistoricoMulta = async function(uid, multaId) {
+    var el = document.getElementById(uid + '-hist');
+    if (!el) return;
+    el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Carregando...</span>';
+    try {
+        var token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        var resp = await fetch('/api/multas/' + multaId + '/historico-cobranca', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        var hist = await resp.json();
+        if (!hist || hist.length === 0) {
+            el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Nenhuma cobrança registrada ainda.</span>';
+            return;
+        }
+        var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        var html = '';
+        hist.forEach(function(h) {
+            var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
+            var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                + '<span style="color:#16a34a;font-size:1rem;">&#10003;</span>'
+                + '<span style="font-weight:600;">Parcela ' + h.parcela_num + '</span>'
+                + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
+                + '<span style="margin-left:auto;font-weight:700;color:#dc2626;">' + val + '</span>'
+                + '</div>';
+        });
+        el.innerHTML = html;
+    } catch(e) {
+        el.innerHTML = '<span style="color:#dc2626;">Erro: ' + e.message + '</span>';
+    }
+};
+
 window.renderMultasMotoristaTab = async function (container) {
     const colab = viewedColaborador;
     if (!colab) return;
@@ -21673,6 +21705,16 @@ window.renderMultasMotoristaTab = async function (container) {
                             ${botoes}
                         </div>`;
                     })()}
+                    <!-- Histórico de cobranças de parcelas -->
+                    <div style='grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;'>
+                        <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>
+                            <span style='font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;'>Parcelas em Folha</span>
+                            <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
+                        </div>
+                        <div id='${uid}-hist' style='font-size:0.8rem;color:#475569;'>
+                            <span style='color:#94a3b8;font-style:italic;'>Clique em Atualizar para ver as parcelas cobradas em folha.</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;

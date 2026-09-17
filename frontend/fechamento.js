@@ -1323,10 +1323,12 @@ function abrirLegenda() {
                 if (idx >= 0) {
                     _dados[idx].multas = item.valor_total;
                     const cell = document.getElementById(`fech-cell-multas-${idx}`);
-                    if (cell) cell.querySelector('input').value = item.valor_total;
+                    if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = parseFloat(item.valor_total).toFixed(2); }
                     atualizar(idx, 'multas', item.valor_total);
                 }
             });
+            // Rule 21: auto-save após carregar multas para persistência
+            salvarSilencioso();
             Swal.fire({ icon: 'success', title: 'Multas carregadas!', text: `${json.length} colaborador(es) com desconto de multas.`, timer: 2500, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro ao carregar multas', text: e.message });
