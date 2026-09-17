@@ -1182,6 +1182,8 @@ function abrirLegenda() {
             _stateArquivos.consignado = true;
             var _btnEC = document.getElementById('fech-btn-eye-consignado');
             if (_btnEC) _btnEC.style.display = 'inline-flex';
+            // Rule 21: auto-save obrigatorio apos upload para persistencia
+            salvarSilencioso();
             Swal.fire({ icon: 'success', title: 'Consignado processado!', text: `${atualizados} colaboradores com desconto.`, timer: 3000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no XLSX de Consignado', text: e.message });
@@ -1257,6 +1259,8 @@ function abrirLegenda() {
             if (_btnEM) _btnEM.style.display = 'inline-flex';
             // Resultado
             var totalPdfs = _dadosMercado.length;
+            // Rule 21: auto-save obrigatorio apos upload para persistencia
+            salvarSilencioso();
             Swal.fire({ icon: 'success', title: 'Mercado processado!', text: totalPdfs + ' PDF(s) importados. ' + atualizados + ' colaboradores com valor preenchido.', timer: 4000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no Mercado', text: e.message });
@@ -1301,6 +1305,8 @@ function abrirLegenda() {
         fecharModalMercado();
         let msg = `${atualizados} colaboradores atualizados.`;
         if (naoEncontrados.length) msg += `\n\nNão encontrados:\n• ${naoEncontrados.join('\n• ')}`;
+        // Rule 21: auto-save obrigatorio apos input manual de mercado
+        if (atualizados > 0) salvarSilencioso();
         Swal.fire({ icon: atualizados > 0 ? 'success' : 'warning', title: 'Mercado processado', text: msg });
     }
 
@@ -1804,21 +1810,21 @@ function abrirLegenda() {
     }
 
     function verFarmacia() {
-        if (!_stateArquivos.farmacia) {
-            Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum arquivo carregado nesta sessão.' });
+        var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
+        if (resumoFarm.length === 0) {
+            Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum desconto de farmácia lançado para este mês.' });
             return;
         }
-        var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
         var linhas = resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>');
         var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
         Swal.fire({ icon: 'info', title: 'Farmácia — ' + resumoFarm.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhas + '</div><br><strong>Total: R$ ' + total.toFixed(2) + '</strong>', width: 500 });
     }
     function verConsignado() {
-        if (!_stateArquivos.consignado) {
-            Swal.fire({ icon: 'info', title: 'Consignado', text: 'Nenhum arquivo carregado nesta sessão.' });
+        var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
+        if (resumoCons.length === 0) {
+            Swal.fire({ icon: 'info', title: 'Consignado', text: 'Nenhum desconto de consignado lançado para este mês.' });
             return;
         }
-        var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
         var linhasCons = resumoCons.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.consignado).toFixed(2); }).join('<br>');
         var totalCons = resumoCons.reduce(function(s, r) { return s + parseFloat(r.consignado); }, 0);
         Swal.fire({ icon: 'info', title: 'Consignado — ' + resumoCons.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhasCons + '</div><br><strong>Total: R$ ' + totalCons.toFixed(2) + '</strong>', width: 500 });
