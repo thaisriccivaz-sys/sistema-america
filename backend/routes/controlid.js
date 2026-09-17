@@ -562,6 +562,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let diasTrabalhados = null; // TODOS os dias com presença (base para VT)
     let diasVR          = null; // Dias com >6h trabalhadas (base para VR)
     let faltas          = null;
+    let dataFaltas      = [];    // Dias do mês com falta inteira (ex: [15, 20])
     let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
     let minutosNoturnos  = 0;   // Total de minutos em horário noturno (22h-5h) no mês
     let minutosNormais   = 0;   // H. Normais (diurnas não-extra, em minutos)
@@ -646,7 +647,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         }).length;
 
         
-        let dataFaltas = data.filter(d => (parseInt(d.faltasDiasInteiro) || 0) > 0).map(d => {
+        dataFaltas = data.filter(d => (parseInt(d.faltasDiasInteiro) || 0) > 0).map(d => {
             const str = String(d.date || d.dateTimeStr || '').substring(0, 10);
             if (!str) return null;
             const parts = str.split('-');
