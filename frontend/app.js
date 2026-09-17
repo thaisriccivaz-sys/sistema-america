@@ -764,6 +764,7 @@ const BREADCRUMB_MAP = {
     'rh-logistica-sinistros': { path: 'RH → Logística → Sinistros', code: 'RHLOG01' },
     'rh-logistica-multas': { path: 'RH → Logística → Multas', code: 'RHLOG02' },
     'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
+    'fechamento': { path: 'RH → Pagamentos → Fechamento Mensal', code: 'RHPAG02' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
@@ -1082,7 +1083,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1133,6 +1134,7 @@ const TAB_META = {
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
+    'fechamento': { color: '#f503c5', icon: 'ph-calculator', title: 'Fechamento Mensal' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
@@ -18075,7 +18077,7 @@ window.renderBookmarks = function () {
         if (!obj) return ''; // entrada não mapeada - ignorar com segurança
 
         // Ignorar tabs ou caminhos com setas, a menos que seja exceções
-        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm' && key !== 'satisfacao-rh') || key.startsWith('tab:')) return '';
+        if ((obj.path.includes('→') && key !== 'usuarios-permissoes' && key !== 'form-usuario' && key !== 'logistica-videos-os' && key !== 'logistica-rota-redonda' && key !== 'logistica-pipeline' && key !== 'logistica-resumo-rota' && key !== 'rh-logistica-sinistros' && key !== 'rh-logistica-multas' && key !== 'assinaturas-adm' && key !== 'satisfacao-rh' && key !== 'fechamento') || key.startsWith('tab:')) return '';
 
         // Detecta a cor certa com base no TAB_META
         const tabMeta = TAB_META[key];

@@ -21,6 +21,7 @@ const TELAS_SISTEMA = [
     { modulo: 'RH', pagina_id: 'pagamentos-massa',       pagina_nome: 'Docs. em Massa', icone: 'ph-files' },
     { modulo: 'RH', pagina_id: 'rh-logistica-sinistros', pagina_nome: 'Sinistros (RH)', icone: 'ph-warning-circle' },
     { modulo: 'RH', pagina_id: 'rh-logistica-multas',    pagina_nome: 'Multas (RH)', icone: 'ph-receipt' },
+    { modulo: 'RH', pagina_id: 'fechamento',              pagina_nome: 'Fechamento Mensal', icone: 'ph-calculator' },
     { modulo: 'RH', pagina_id: 'testes-candidatos',        pagina_nome: 'Candidatos (RH)', icone: 'ph-clipboard-text' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-ajudantes',   pagina_nome: 'RS - Ajudantes',  icone: 'ph-rocket' },
     { modulo: 'RH', pagina_id: 'rota-sucesso-motoristas',  pagina_nome: 'RS - Motoristas', icone: 'ph-rocket' },
