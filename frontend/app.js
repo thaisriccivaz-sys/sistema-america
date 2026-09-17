@@ -8329,16 +8329,16 @@ window.renderPagamentosCompetencia = function () {
 
         // Lista
         var lista = document.createElement('div');
-        lista.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.75rem;';
+        lista.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem;width:100%;';
         if (recibosAvulsosMes.length === 0) {
-            lista.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;margin:0;">Nenhum recibo avulso para este mês. Clique em "+ Novo Recibo" para criar.</p>';
+            lista.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;margin:0;">Nenhum recibo avulso para este m\u00eas. Clique em "+ Novo Recibo" para criar.</p>';
         } else {
             recibosAvulsosMes.forEach(function(d) {
                 var st = d.assinafy_status || 'PENDENTE';
                 var isAssinado = (st === 'Assinado' || st.indexOf('Testemunhas') !== -1);
                 var showAss = st !== 'NAO_EXIGE' && st !== 'Nenhum';
                 var card = document.createElement('div');
-                card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;min-width:220px;';
+                card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;width:100%;box-sizing:border-box;';
 
                 var icon = document.createElement('span');
                 icon.innerHTML = '&#128196;';
@@ -8347,19 +8347,22 @@ window.renderPagamentosCompetencia = function () {
 
                 var info = document.createElement('div');
                 info.style.cssText = 'flex:1;min-width:0;';
+                
+                var dateStr = d.upload_date ? new Date(d.upload_date).toLocaleDateString('pt-BR') : '';
+                if (isAssinado && d.assinafy_signed_at) {
+                    dateStr = 'Assinado em: ' + new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0, 16);
+                } else if (showAss && d.assinafy_sent_at) {
+                    dateStr = 'Enviado em: ' + new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0, 16);
+                }
+                
                 info.innerHTML = '<div style="font-weight:600;font-size:0.85rem;color:#15803d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.file_name || 'Recibo Avulso') + '</div>' +
-                    '<div style="font-size:0.75rem;color:#64748b;">' + (d.upload_date ? new Date(d.upload_date).toLocaleDateString('pt-BR') : '') + '</div>';
+                    '<div style="font-size:0.75rem;color:#64748b;">' + dateStr + '</div>';
                 card.appendChild(info);
 
                 var btns = document.createElement('div');
                 btns.style.cssText = 'display:flex;align-items:center;gap:4px;';
 
                 if (showAss && !isAssinado) {
-                    var sentStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
-                    var envInfo = document.createElement('div');
-                    envInfo.style.cssText = 'display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:0.65rem;color:#64748b;margin-right:4px;text-align:right;';
-                    envInfo.innerHTML = '<span>Env: ' + sentStr + '</span>';
-                    btns.appendChild(envInfo);
                     var btnSol = document.createElement('button');
                     btnSol.style.cssText = 'height:34px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:0 8px;cursor:pointer;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;';
                     btnSol.innerHTML = '&#9998; Solicitar';
@@ -8367,12 +8370,6 @@ window.renderPagamentosCompetencia = function () {
                     (function(did, btn) { btn.onclick = function() { window.iniciarAssinafy(did, btn); }; })(d.id, btnSol);
                     btns.appendChild(btnSol);
                 } else if (showAss && isAssinado) {
-                    var sentStr2 = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
-                    var signStr2 = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
-                    var envInfo2 = document.createElement('div');
-                    envInfo2.style.cssText = 'display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:0.65rem;color:#64748b;margin-right:4px;text-align:right;';
-                    envInfo2.innerHTML = '<span>Env: ' + sentStr2 + '</span><span style="color:#15803d;font-weight:700;">Ass: ' + signStr2 + '</span>';
-                    btns.appendChild(envInfo2);
                     var btnAss = document.createElement('button');
                     btnAss.style.cssText = 'height:34px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 8px;cursor:pointer;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;';
                     btnAss.innerHTML = '&#128196; Assinado';
