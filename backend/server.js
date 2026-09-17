@@ -4262,6 +4262,20 @@ db.run(`CREATE TABLE IF NOT EXISTS fechamento_consignado (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(mes, ano, cpf)
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_consignado:', err.message);
+// Auto-migration: Tabela fechamento_farmacia_uploads (r2 do PDF da farmacia)
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_farmacia_uploads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    nome_arquivo TEXT,
+    r2_key TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_farmacia_uploads:', err.message); });
+// Migration: r2_key no consignado
+db.run('ALTER TABLE fechamento_consignado ADD COLUMN r2_key TEXT', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
+});
+
 // Auto-migration: Tabela fechamento_mercado_uploads
 db.run(`CREATE TABLE IF NOT EXISTS fechamento_mercado_uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -10170,7 +10184,28 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
         const debug_nomes = debug_cpfs.map(cpf => `${result[cpf].nome} (${cpf})`);
         console.log('[upload-farmacia] Encontrados:', debug_nomes.join(' | ') || 'NENHUM');
         console.log('[upload-farmacia] Texto bruto (primeiros 500 chars):', text.substring(0, 500).replace(/\n/g, '\\n'));
-        res.json({ ok: true, farmacia: result, debug_cpfs, debug_nomes });
+        // Salvar PDF no R2
+        let farmR2Key = null;
+        let farmUploadId = null;
+        try {
+            const r2 = require('./utils/r2');
+            if (r2.isReady()) {
+                const { mes, ano } = req.body;
+                const nomeSeguro = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+                farmR2Key = `fechamento/${ano}/${String(mes).padStart(2,'0')}/farmacia/${Date.now()}_${nomeSeguro}`;
+                await r2.uploadToR2(farmR2Key, req.file.buffer, 'application/pdf');
+                farmUploadId = await new Promise((resolve, reject) => {
+                    db.run(
+                        'INSERT INTO fechamento_farmacia_uploads (mes, ano, nome_arquivo, r2_key) VALUES (?, ?, ?, ?)',
+                        [mes, ano, req.file.originalname, farmR2Key],
+                        function(err) { if (err) reject(err); else resolve(this.lastID); }
+                    );
+                });
+            }
+        } catch (r2Err) {
+            console.warn('[upload-farmacia] Aviso R2:', r2Err.message);
+        }
+        res.json({ ok: true, farmacia: result, debug_cpfs, debug_nomes, upload_id: farmUploadId });
     } catch (e) {
         console.error('[upload-farmacia] Erro:', e.message);
         res.status(500).json({ error: e.message });
@@ -10384,7 +10419,24 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
         });
         const debug_cpfs = Object.keys(grouped);
         console.log('[upload-consignado] CPFs encontrados no XLSX:', debug_cpfs.join(', ').substring(0, 500));
-        res.json({ ok: true, consignado: grouped, debug_cpfs });
+        // Salvar XLSX no R2 e armazenar r2_key
+        let consigR2Key = null;
+        try {
+            const r2 = require('./utils/r2');
+            if (r2.isReady()) {
+                const nomeSeguro = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+                consigR2Key = `fechamento/${ano}/${String(mes).padStart(2,'0')}/consignado/${Date.now()}_${nomeSeguro}`;
+                await r2.uploadToR2(consigR2Key, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                // Atualizar todos os registros do consignado deste mes com a r2_key
+                await new Promise((resolve, reject) => {
+                    db.run('UPDATE fechamento_consignado SET r2_key = ? WHERE mes = ? AND ano = ?',
+                        [consigR2Key, mes, ano], (err) => err ? reject(err) : resolve());
+                });
+            }
+        } catch (r2Err) {
+            console.warn('[upload-consignado] Aviso R2:', r2Err.message);
+        }
+        res.json({ ok: true, consignado: grouped, debug_cpfs, r2_key: consigR2Key });
     } catch(e) {
         res.status(500).json({ error: e.message });
     }
@@ -10396,6 +10448,68 @@ app.get('/api/fechamento/consignado/:ano/:mes', authenticateToken, (req, res) =>
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
+});
+
+// GET: Stream do PDF de Farmácia via R2
+app.get('/api/fechamento/farmacia-pdf/:id', async (req, res) => {
+    const tokenQuery = req.query.token;
+    if (tokenQuery) {
+        const jwt = require('jsonwebtoken');
+        try { jwt.verify(tokenQuery, process.env.JWT_SECRET || 'america2024'); }
+        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    } else {
+        const authHeader = req.headers['authorization'];
+        if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
+        const jwt = require('jsonwebtoken');
+        try { jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'america2024'); }
+        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
+    }
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get('SELECT r2_key, nome_arquivo FROM fechamento_farmacia_uploads WHERE id = ?', [req.params.id], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado');
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(500).send('R2 não configurado');
+        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${row.nome_arquivo || 'farmacia.pdf'}"`);
+        stream.pipe(res);
+    } catch (e) {
+        console.error('[farmacia-pdf] Erro:', e.message);
+        res.status(500).send('Erro ao baixar arquivo');
+    }
+});
+
+// GET: Listar uploads de farmácia por mes/ano
+app.get('/api/fechamento/farmacia-pdfs/:ano/:mes', authenticateToken, (req, res) => {
+    const { ano, mes } = req.params;
+    db.all('SELECT id, nome_arquivo, r2_key FROM fechamento_farmacia_uploads WHERE ano = ? AND mes = ? ORDER BY id DESC LIMIT 1',
+        [parseInt(ano), parseInt(mes)], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+// GET: Download do XLSX de Consignado via R2
+app.get('/api/fechamento/consignado-xlsx/:ano/:mes', authenticateToken, async (req, res) => {
+    try {
+        const { ano, mes } = req.params;
+        const row = await new Promise((resolve, reject) => {
+            db.get('SELECT r2_key FROM fechamento_consignado WHERE ano = ? AND mes = ? AND r2_key IS NOT NULL ORDER BY id DESC LIMIT 1',
+                [parseInt(ano), parseInt(mes)], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!row || !row.r2_key) return res.status(404).json({ error: 'Arquivo não encontrado para este mês' });
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(500).json({ error: 'R2 não configurado' });
+        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="consignado_${String(mes).padStart(2,'0')}_${ano}.xlsx"`);
+        stream.pipe(res);
+    } catch (e) {
+        console.error('[consignado-xlsx] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // POST: Salvar e-mail da contabilidade para o fechamento

@@ -1809,25 +1809,76 @@ function abrirLegenda() {
         }
     }
 
-    function verFarmacia() {
-        var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
-        if (resumoFarm.length === 0) {
-            Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum desconto de farmácia lançado para este mês.' });
+    async function verFarmacia() {
+        // Buscar o PDF mais recente da farmacia para este mes no banco
+        if (!_mes || !_ano) {
+            Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Selecione um mês primeiro.' });
             return;
         }
-        var linhas = resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>');
-        var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
-        Swal.fire({ icon: 'info', title: 'Farmácia — ' + resumoFarm.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhas + '</div><br><strong>Total: R$ ' + total.toFixed(2) + '</strong>', width: 500 });
+        try {
+            var resp = await fetch('/api/fechamento/farmacia-pdfs/' + _ano + '/' + _mes, {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            var lista = await resp.json();
+            if (!Array.isArray(lista) || lista.length === 0) {
+                // Fallback: mostrar lista de valores do _dados
+                var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
+                if (resumoFarm.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum PDF de farmácia encontrado para este mês.' });
+                    return;
+                }
+                var linhas = resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>');
+                var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
+                Swal.fire({ icon: 'info', title: 'Farmácia — ' + resumoFarm.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhas + '</div><br><strong>Total: R$ ' + total.toFixed(2) + '</strong>', width: 500 });
+                return;
+            }
+            // Exibir o PDF via iframe (mais recente)
+            var row = lista[0];
+            var url = '/api/fechamento/farmacia-pdf/' + row.id + '?token=' + encodeURIComponent(getToken());
+            Swal.fire({
+                title: 'PDF Farmácia — ' + (row.nome_arquivo || 'farmacia.pdf'),
+                html: '<iframe src="' + url + '" style="width:100%;height:70vh;border:none;border-radius:.5rem;" title="PDF Farmácia"></iframe>',
+                width: '90vw',
+                showCloseButton: true,
+                showConfirmButton: false
+            });
+        } catch(e) {
+            Swal.fire({ icon: 'error', title: 'Erro ao buscar PDF', text: e.message });
+        }
     }
-    function verConsignado() {
-        var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
-        if (resumoCons.length === 0) {
-            Swal.fire({ icon: 'info', title: 'Consignado', text: 'Nenhum desconto de consignado lançado para este mês.' });
+    async function verConsignado() {
+        if (!_mes || !_ano) {
+            Swal.fire({ icon: 'info', title: 'Consignado', text: 'Selecione um mês primeiro.' });
             return;
         }
-        var linhasCons = resumoCons.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.consignado).toFixed(2); }).join('<br>');
+        // Montar lista de colaboradores com valores
+        var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
+        var linhasCons = resumoCons.length > 0
+            ? resumoCons.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.consignado).toFixed(2); }).join('<br>')
+            : '<em style="color:#6b7280">Nenhum colaborador com desconto neste mês.</em>';
         var totalCons = resumoCons.reduce(function(s, r) { return s + parseFloat(r.consignado); }, 0);
-        Swal.fire({ icon: 'info', title: 'Consignado — ' + resumoCons.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhasCons + '</div><br><strong>Total: R$ ' + totalCons.toFixed(2) + '</strong>', width: 500 });
+        // Verificar se existe XLSX no R2
+        var downloadBtn = '';
+        try {
+            var chkResp = await fetch('/api/fechamento/consignado-xlsx/' + _ano + '/' + _mes, {
+                method: 'HEAD',
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            if (chkResp.ok) {
+                var xlsxUrl = '/api/fechamento/consignado-xlsx/' + _ano + '/' + _mes + '?token=' + encodeURIComponent(getToken());
+                downloadBtn = '<div style="margin-top:1rem;text-align:center;">'
+                    + '<a href="' + xlsxUrl + '" download style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.2rem;background:#16a34a;color:#fff;border-radius:.5rem;font-weight:600;font-size:.85rem;text-decoration:none;">'
+                    + '<i class="ph ph-file-xls"></i> Baixar XLSX do Consignado</a></div>';
+            }
+        } catch(e) { /* sem arquivo no R2 */ }
+        Swal.fire({
+            icon: 'info',
+            title: 'Consignado — ' + resumoCons.length + ' colaboradores',
+            html: '<div style="text-align:left;font-size:.8rem;max-height:250px;overflow:auto;">' + linhasCons + '</div>'
+                + '<br><strong>Total: R$ ' + totalCons.toFixed(2) + '</strong>'
+                + downloadBtn,
+            width: 520
+        });
     }
     async function verMercado() {
         // Se não tem dados na sessão, buscar do banco
