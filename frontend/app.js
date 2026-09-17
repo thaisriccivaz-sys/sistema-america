@@ -8783,10 +8783,7 @@ window.gerarReciboAvulso = async function() {
         '<style>body{font-family:Arial,sans-serif;margin:0;padding:0;}*{box-sizing:border-box;}</style></head><body>',
         '<div style="width:100%;padding:0;margin:0 auto;">',
         // Header azul
-        '<div style="background:linear-gradient(135deg,#1a3a6b 0%,#0f2755 100%);padding:20px 30px;display:flex;align-items:center;justify-content:space-between;">',
-        '<img src="' + logoUrl + '" style="height:55px;max-width:180px;object-fit:contain;">',
-        '<div style="display:flex;gap:6px;"><div style="width:12px;height:50px;background:#e8b800;border-radius:2px;"></div><div style="width:8px;height:50px;background:#fff;opacity:0.3;border-radius:2px;"></div><div style="width:5px;height:50px;background:#e8b800;opacity:0.6;border-radius:2px;"></div></div>',
-        '</div>',
+        '<div style="margin:0;padding:0;line-height:0;"><img src="' + logoUrl + '" style="width:100%;display:block;margin:0;padding:0;"></div>',
         // Dados do colaborador
         '<div style="margin:20px 30px 0;border:1.5px solid #1a3a6b;border-radius:6px;overflow:hidden;">',
         '<div style="background:#1a3a6b;color:#fff;padding:6px 14px;font-size:0.8rem;font-weight:700;letter-spacing:1px;">DADOS DO COLABORADOR</div>',
