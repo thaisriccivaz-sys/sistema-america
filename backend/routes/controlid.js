@@ -787,6 +787,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         diasTrabalhados,
         diasVR,
         faltas,
+        data_faltas: JSON.stringify(dataFaltas),
         diasComHoraExtra,
         minutosNoturnos,
         minutosNormais,
