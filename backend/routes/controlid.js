@@ -645,6 +645,14 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return true;
         }).length;
 
+        
+        let dataFaltas = data.filter(d => (parseInt(d.faltasDiasInteiro) || 0) > 0).map(d => {
+            const str = String(d.date || d.dateTimeStr || '').substring(0, 10);
+            if (!str) return null;
+            const parts = str.split('-');
+            return parseInt(parts.length === 3 && parts[0].length === 4 ? parts[2] : parts[0], 10);
+        }).filter(Boolean);
+        
         faltas = data.reduce(function(acc, d) {
             return acc + (parseInt(d.faltasDiasInteiro) || 0); // DIA FALTA do PDF
         }, 0);

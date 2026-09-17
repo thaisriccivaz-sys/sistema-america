@@ -992,8 +992,11 @@ function abrirLegenda() {
     
     function inpText(idx, campo, val, width) {
         var v = val || '';
-        if (typeof v === 'string' && v.startsWith('"') && v.endsWith('"')) {
-            try { v = JSON.parse(v); } catch(e){}
+        if (typeof v === 'string') {
+            try { 
+                var p = JSON.parse(v); 
+                v = Array.isArray(p) ? p.join(', ') : (p === null ? '' : String(p));
+            } catch(e) { }
         }
         if (Array.isArray(v)) v = v.join(', ');
         var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
@@ -1885,6 +1888,7 @@ function abrirLegenda() {
         // Atualizar _dados em memória
         if (htrab) _dados[idx].horas_trabalhadas = htrab;
         if (faltas !== null && faltas !== undefined) _dados[idx].dias_falta = faltas;
+        if (dados.data_faltas !== undefined) _dados[idx].data_faltas = dados.data_faltas;
 
         // Atualizar DOM: encontrar tr por data-idx
         var trEls = document.querySelectorAll('#fech-tbody tr');
@@ -1898,6 +1902,14 @@ function abrirLegenda() {
                 var oi = inp.getAttribute('oninput') || '';
                 if (htrab && oi.indexOf('horas_trabalhadas') !== -1) inp.value = htrab;
                 if (faltas !== null && faltas !== undefined && oi.indexOf('dias_falta') !== -1) inp.value = faltas;
+                if (dados.data_faltas !== undefined && oi.indexOf('data_faltas') !== -1) {
+                    try {
+                        var p = JSON.parse(dados.data_faltas);
+                        inp.value = Array.isArray(p) ? p.join(', ') : String(p || '');
+                    } catch(e) {
+                        inp.value = dados.data_faltas || '';
+                    }
+                }
             }
             break;
         }
