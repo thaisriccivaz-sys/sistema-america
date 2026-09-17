@@ -10055,7 +10055,7 @@ app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
 // ═══════════════════════════════════════════════════════════════════
 
 // GET: Buscar dados do fechamento de um mês/ano
-app.get('/api/fechamento/:ano/:mes', authenticateToken, (req, res) => {
+app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) => {
     const { ano, mes } = req.params;
     db.all(
         `SELECT fm.*, c.id as colaborador_id, c.nome_completo, c.salario, c.cargo, c.departamento, c.status as colab_status,
