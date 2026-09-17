@@ -687,14 +687,30 @@
         const pendingType = localStorage.getItem('sac_pending_popup_' + ticket.id);
         if (!pendingType) return;
 
-        // ── CORREÇÃO BUG CARD VOLTANDO: verificar se o stage ainda corresponde
-        // ao tipo de popup pendente. Se o chamado já avançou, limpar o localStorage
-        // e não reabrir o popup (evita mover o card ao justificar).
-        const stageOk = (pendingType === 'followup' && ticket.stage === 'execucao') ||
-                        (pendingType === 'aguard' && ticket.stage === 'aguardando_setores') ||
-                        (pendingType === 'sla'); // SLA pode aparecer em qualquer stage
+        const now = Date.now();
+        const FINAL_STAGES_RESTORE    = ['concluido','encerrado'];
+        const ADVANCED_STAGES_RESTORE = ['execucao','respondido','acompanhamento'];
+
+        // Tickets finalizados nunca devem ter popup
+        if (FINAL_STAGES_RESTORE.includes(ticket.stage)) {
+          localStorage.removeItem('sac_pending_popup_'         + ticket.id);
+          localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
+          return;
+        }
+
+        // ── Verificar se estágio E prazo ainda correspondem ao tipo de popup ──
+        const followupExpired = ticket.followUpDeadline && new Date(ticket.followUpDeadline).getTime() < now;
+        const aguardExpired   = ticket.aguardDeadline   && new Date(ticket.aguardDeadline).getTime()   < now;
+        // SLA: flag deve estar true no banco E ticket em estágio ativo (não avançado)
+        const slaValid = ticket.slaOverduePendingJustification === true &&
+                         !ADVANCED_STAGES_RESTORE.includes(ticket.stage);
+
+        const stageOk = (pendingType === 'followup' && ticket.stage === 'execucao'          && followupExpired) ||
+                        (pendingType === 'aguard'   && ticket.stage === 'aguardando_setores' && aguardExpired)   ||
+                        (pendingType === 'sla'      && slaValid);
+
         if (!stageOk) {
-          localStorage.removeItem('sac_pending_popup_' + ticket.id);
+          localStorage.removeItem('sac_pending_popup_'         + ticket.id);
           localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
           return;
         }
@@ -3316,14 +3332,18 @@
           openedByFromOS: _wiz._openedBy || ''  // usuário que criou a OS
         };
 
+        const _createCtrl    = new AbortController();
+        const _createTimeout = setTimeout(() => _createCtrl.abort(), 20000); // 20s timeout
         const res = await fetch('/api/sac/tickets', {
           method: 'POST',
+          signal: _createCtrl.signal,
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
           },
           body: JSON.stringify(newTicket)
         });
+        clearTimeout(_createTimeout);
         if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
 
         // O protocolo é gerado pelo backend para evitar conflitos
@@ -3714,7 +3734,10 @@
              t.aguardDeadline = null;
              t.aguardNotified = false;
              t.aguardPendingJustification = false;
-             localStorage.removeItem('sac_pending_popup_' + t.id);
+             // Limpar flag de SLA pendente (evita popup fantasma em outras sessões/usuários)
+             t.slaOverduePendingJustification = false;
+             localStorage.removeItem('sac_pending_popup_'         + t.id);
+             localStorage.removeItem('sac_popup_gestor_required_' + t.id);
              t.timeline.push({ stage: 'respondido', time: nowTs, notes: 'Respondido via comentário: "' + text + '"', user });
              // Comentário inserido no bloco roxo, removemos a duplicação no quadro branco
              ['logisticsTask','commercialTask','financialTask'].forEach(k => {
@@ -3761,7 +3784,10 @@
         t.aguardDeadline = null;
         t.aguardNotified = false;
         t.aguardPendingJustification = false;
-        localStorage.removeItem('sac_pending_popup_' + t.id);
+        // Limpar flag de SLA pendente (evita popup fantasma em outras sessões/usuários)
+        t.slaOverduePendingJustification = false;
+        localStorage.removeItem('sac_pending_popup_'         + t.id);
+        localStorage.removeItem('sac_popup_gestor_required_' + t.id);
         t.timeline.push({ stage:'respondido', time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}". OS movida para Respondido.`, user });
       } else { t.timeline.push({ stage:t.stage, time:new Date().toISOString(), notes:`Pendência ${taskName} resolvida: "${feedback}"`, user }); }
       updateTicket(t);
@@ -4257,6 +4283,15 @@
         ticket.aguardNotified = false;
         ticket.aguardPendingJustification = false;
         localStorage.removeItem('sac_pending_popup_' + ticket.id);
+      }
+      // ── BUG FIX: ao avançar para estágios avançados/finais, limpar flag de SLA pendente
+      // Isso evita que o popup de SLA apareça para gestores após o chamado já ter sido respondido/avançado
+      if (['respondido','execucao','concluido','encerrado'].includes(pt.targetStageId)) {
+        if (ticket.slaOverduePendingJustification) {
+          ticket.slaOverduePendingJustification = false;
+        }
+        localStorage.removeItem('sac_pending_popup_'         + ticket.id);
+        localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
       }
       ticket.nextSteps = isClosing ? 'Encerrado: ' + closeReason : nextSteps;
       if (isClosing) { ticket.closeDate = new Date().toISOString(); ticket.checklistJustification = clJust||null; }
@@ -4954,17 +4989,42 @@
   // CHECK SLA OVERDUE — roda a cada 1 minuto
   // ══════════════════════════════════════════════════════
   function checkSLAOverdue() {
+    const FINAL_STAGES    = ['concluido','encerrado'];
+    const ADVANCED_STAGES = ['execucao','respondido','acompanhamento'];
     _tickets.forEach(ticket => {
-      // Forçar popup apenas se pendente E não foi exibido nesta sessão ainda
-      if (ticket.slaOverduePendingJustification === true && !_slaPendingShown.has(ticket.id)) {
-        _slaPendingShown.add(ticket.id);
-        showMandatoryJustificationPopup(ticket, 'sla');
+      // ── Auto-heal silencioso: ticket finalizado não deve ter flags pendentes ──
+      if (FINAL_STAGES.includes(ticket.stage)) {
+        if (ticket.slaOverduePendingJustification || ticket.aguardPendingJustification || ticket.followUpPendingJustification) {
+          ticket.slaOverduePendingJustification = false;
+          ticket.aguardPendingJustification     = false;
+          ticket.followUpPendingJustification   = false;
+          ticket.aguardDeadline                 = null;
+          ticket.followUpDeadline               = null;
+          localStorage.removeItem('sac_pending_popup_'         + ticket.id);
+          localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
+          updateTicketAuto(ticket);
+        }
+        return; // tickets finalizados nunca disparam popup
       }
 
-      // Evita recalcular SLA/notificar se já está em colunas finais ou se já foi notificado
-      if (['concluido','encerrado','execucao','respondido','acompanhamento'].includes(ticket.stage)) {
-        return;
+      // ── Popup de SLA: só disparar se ainda em estágio ativo (não avançado) ──
+      if (ticket.slaOverduePendingJustification === true && !_slaPendingShown.has(ticket.id)) {
+        if (!ADVANCED_STAGES.includes(ticket.stage)) {
+          // Estágio ativo (triagem/abertura/aguardando_setores) → mostrar popup
+          _slaPendingShown.add(ticket.id);
+          showMandatoryJustificationPopup(ticket, 'sla');
+        } else {
+          // Estágio avançado → flag ficou preso, limpar silenciosamente
+          _slaPendingShown.add(ticket.id); // evitar re-processar a cada minuto
+          ticket.slaOverduePendingJustification = false;
+          localStorage.removeItem('sac_pending_popup_'         + ticket.id);
+          localStorage.removeItem('sac_popup_gestor_required_' + ticket.id);
+          updateTicketAuto(ticket);
+        }
       }
+
+      // Evita recalcular SLA/notificar se já está em colunas avançadas/finais
+      if (ADVANCED_STAGES.includes(ticket.stage)) return;
       
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
