@@ -8307,6 +8307,103 @@ window.renderPagamentosCompetencia = function () {
 
 
     // ── Seção sazonal: Férias (por ano, sem vínculo de mês) ───────────────────
+
+    // ── Seção: Recibos Avulsos ──────────────────────────────────────────────────
+    (function() {
+        var recibosAvulsosMes = currentDocs.filter(function(d) {
+            return d.tab_name === 'Pagamentos' && d.document_type === 'ReciboAvulso' && String(d.year) === String(y) && String(d.month) === String(m);
+        });
+        var secRA = document.createElement('div');
+        secRA.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #d1fae5; padding-top:1.25rem;';
+
+        // Header
+        var hdr = document.createElement('div');
+        hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;';
+        hdr.innerHTML = '<h5 style="margin:0;color:#15803d;display:flex;align-items:center;gap:0.5rem;">&#128196; Recibos Avulsos <span style="font-size:0.8rem;font-weight:400;color:#64748b;margin-left:4px;">(' + m + '/' + y + ')</span></h5>';
+        var btnNovo = document.createElement('button');
+        btnNovo.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.85rem;font-weight:600;cursor:pointer;';
+        btnNovo.textContent = '+ Novo Recibo';
+        btnNovo.onclick = function() { window.criarReciboAvulso(); };
+        hdr.appendChild(btnNovo);
+        secRA.appendChild(hdr);
+
+        // Lista
+        var lista = document.createElement('div');
+        lista.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.75rem;';
+        if (recibosAvulsosMes.length === 0) {
+            lista.innerHTML = '<p style="color:#94a3b8;font-size:0.85rem;margin:0;">Nenhum recibo avulso para este mês. Clique em "+ Novo Recibo" para criar.</p>';
+        } else {
+            recibosAvulsosMes.forEach(function(d) {
+                var st = d.assinafy_status || 'PENDENTE';
+                var isAssinado = (st === 'Assinado' || st.indexOf('Testemunhas') !== -1);
+                var showAss = st !== 'NAO_EXIGE' && st !== 'Nenhum';
+                var card = document.createElement('div');
+                card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.75rem;min-width:220px;';
+
+                var icon = document.createElement('span');
+                icon.innerHTML = '&#128196;';
+                icon.style.cssText = 'color:#16a34a;font-size:1.4rem;';
+                card.appendChild(icon);
+
+                var info = document.createElement('div');
+                info.style.cssText = 'flex:1;min-width:0;';
+                info.innerHTML = '<div style="font-weight:600;font-size:0.85rem;color:#15803d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.file_name || 'Recibo Avulso') + '</div>' +
+                    '<div style="font-size:0.75rem;color:#64748b;">' + (d.upload_date ? new Date(d.upload_date).toLocaleDateString('pt-BR') : '') + '</div>';
+                card.appendChild(info);
+
+                var btns = document.createElement('div');
+                btns.style.cssText = 'display:flex;align-items:center;gap:4px;';
+
+                if (showAss && !isAssinado) {
+                    var sentStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
+                    var envInfo = document.createElement('div');
+                    envInfo.style.cssText = 'display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:0.65rem;color:#64748b;margin-right:4px;text-align:right;';
+                    envInfo.innerHTML = '<span>Env: ' + sentStr + '</span>';
+                    btns.appendChild(envInfo);
+                    var btnSol = document.createElement('button');
+                    btnSol.style.cssText = 'height:34px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:0 8px;cursor:pointer;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;';
+                    btnSol.innerHTML = '&#9998; Solicitar';
+                    btnSol.title = 'Solicitar Assinatura';
+                    (function(did, btn) { btn.onclick = function() { window.iniciarAssinafy(did, btn); }; })(d.id, btnSol);
+                    btns.appendChild(btnSol);
+                } else if (showAss && isAssinado) {
+                    var sentStr2 = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
+                    var signStr2 = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
+                    var envInfo2 = document.createElement('div');
+                    envInfo2.style.cssText = 'display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:0.65rem;color:#64748b;margin-right:4px;text-align:right;';
+                    envInfo2.innerHTML = '<span>Env: ' + sentStr2 + '</span><span style="color:#15803d;font-weight:700;">Ass: ' + signStr2 + '</span>';
+                    btns.appendChild(envInfo2);
+                    var btnAss = document.createElement('button');
+                    btnAss.style.cssText = 'height:34px;background:#2f9e44;color:#fff;border:none;border-radius:6px;padding:0 8px;cursor:pointer;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap;';
+                    btnAss.innerHTML = '&#128196; Assinado';
+                    (function(did) { btnAss.onclick = function() { window.openSignedDocPopupDocumento(did, 'ReciboAvulso'); }; })(d.id);
+                    btns.appendChild(btnAss);
+                }
+
+                var btnVer = document.createElement('button');
+                btnVer.style.cssText = 'height:34px;background:#dcfce7;color:#16a34a;border:none;border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+                btnVer.innerHTML = '&#128065;';
+                btnVer.title = 'Visualizar';
+                (function(did) { btnVer.onclick = function() { viewDoc(did); }; })(d.id);
+                btns.appendChild(btnVer);
+
+                if (!isAssinado) {
+                    var btnDel = document.createElement('button');
+                    btnDel.style.cssText = 'height:34px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+                    btnDel.innerHTML = '&#128465;';
+                    btnDel.title = 'Excluir';
+                    (function(did) { btnDel.onclick = function() { deleteDoc(did); }; })(d.id);
+                    btns.appendChild(btnDel);
+                }
+
+                card.appendChild(btns);
+                lista.appendChild(card);
+            });
+        }
+        secRA.appendChild(lista);
+        subContainer.appendChild(secRA);
+    })();
+
     const feriasDoAno = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Férias' && d.year == y);
 
     const secFerias = document.createElement('div');
@@ -8473,6 +8570,295 @@ window.renderPagamentosCompetencia = function () {
         </div>
     `;
     subContainer.appendChild(secOutros);
+};
+
+
+// =============================================================
+// RECIBOS AVULSOS — criarReciboAvulso / gerarReciboAvulso
+// =============================================================
+
+window.criarReciboAvulso = function() {
+    if (!viewedColaborador) { alert('Selecione um colaborador primeiro.'); return; }
+    var yEl = document.getElementById('pag_year');
+    var mEl = document.getElementById('pag_month');
+    var ano = yEl ? yEl.value : String(new Date().getFullYear());
+    var mesNum = mEl ? mEl.value : String(new Date().getMonth()+1).padStart(2,'0');
+    var meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+    var mesNome = meses[parseInt(mesNum,10)-1] || 'JANEIRO';
+    var refStr = mesNome + ' / ' + ano;
+
+    var old = document.getElementById('modal-recibo-avulso');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'modal-recibo-avulso';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:14px;padding:2rem;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+    // Header
+    var header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;';
+    var h4 = document.createElement('h4');
+    h4.style.cssText = 'margin:0;color:#15803d;';
+    h4.textContent = 'Novo Recibo Avulso';
+    var btnClose = document.createElement('button');
+    btnClose.style.cssText = 'background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;';
+    btnClose.innerHTML = '&times;';
+    btnClose.onclick = function() { document.getElementById('modal-recibo-avulso').remove(); };
+    header.appendChild(h4);
+    header.appendChild(btnClose);
+    box.appendChild(header);
+
+    // Grid titulo + referencia
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;';
+    
+    var divTit = document.createElement('div');
+    divTit.innerHTML = '<label style="font-size:0.8rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Título do Recibo</label>';
+    var inpTit = document.createElement('input');
+    inpTit.type = 'text'; inpTit.id = 'rav-titulo'; inpTit.value = 'RECIBO DE VALE REFEIÇÃO';
+    inpTit.style.cssText = 'width:100%;padding:0.5rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;box-sizing:border-box;';
+    divTit.appendChild(inpTit);
+
+    var divRef = document.createElement('div');
+    divRef.innerHTML = '<label style="font-size:0.8rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Referência</label>';
+    var inpRef = document.createElement('input');
+    inpRef.type = 'text'; inpRef.id = 'rav-referencia'; inpRef.value = refStr; inpRef.readOnly = true;
+    inpRef.style.cssText = 'width:100%;padding:0.5rem;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;box-sizing:border-box;';
+    divRef.appendChild(inpRef);
+
+    grid.appendChild(divTit);
+    grid.appendChild(divRef);
+    box.appendChild(grid);
+
+    // Assinatura
+    var assDiv = document.createElement('div');
+    assDiv.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1rem;';
+    assDiv.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#374151;">Exige Assinatura?</span>' +
+        '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="rav-assin" value="PENDENTE" checked> Sim</label>' +
+        '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85rem;"><input type="radio" name="rav-assin" value="NAO_EXIGE"> Não</label>';
+    box.appendChild(assDiv);
+
+    // Label tabela
+    var lblTab = document.createElement('label');
+    lblTab.style.cssText = 'font-size:0.8rem;font-weight:700;color:#374151;display:block;margin-bottom:8px;';
+    lblTab.textContent = 'Itens do Recibo';
+    box.appendChild(lblTab);
+
+    // Tabela
+    var table = document.createElement('table');
+    table.id = 'rav-tabela';
+    table.style.cssText = 'width:100%;border-collapse:collapse;margin-bottom:0.75rem;';
+    table.innerHTML = '<thead><tr style="background:#f1f5f9;">' +
+        '<th style="padding:8px;border:1px solid #e2e8f0;font-size:0.8rem;font-weight:700;text-align:left;width:55%;">Descrição</th>' +
+        '<th style="padding:8px;border:1px solid #e2e8f0;font-size:0.8rem;font-weight:700;text-align:center;width:20%;">Quantidade</th>' +
+        '<th style="padding:8px;border:1px solid #e2e8f0;font-size:0.8rem;font-weight:700;text-align:right;width:20%;">Valor (R$)</th>' +
+        '<th style="padding:8px;border:1px solid #e2e8f0;width:5%;"></th>' +
+        '</tr></thead>';
+    var tbody = document.createElement('tbody');
+    tbody.id = 'rav-tbody';
+    table.appendChild(tbody);
+    box.appendChild(table);
+
+    window._ravAdicionarLinha(); // primeira linha
+
+    // Rodapé tabela
+    var tabFoot = document.createElement('div');
+    tabFoot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;';
+    var btnAddLinha = document.createElement('button');
+    btnAddLinha.style.cssText = 'background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;padding:6px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;';
+    btnAddLinha.textContent = '+ Adicionar Linha';
+    btnAddLinha.onclick = function() { window._ravAdicionarLinha(); };
+    var totalDiv = document.createElement('div');
+    totalDiv.style.cssText = 'font-weight:700;font-size:0.9rem;color:#15803d;';
+    totalDiv.innerHTML = 'TOTAL: R$ <span id="rav-total">0,00</span>';
+    tabFoot.appendChild(btnAddLinha);
+    tabFoot.appendChild(totalDiv);
+    box.appendChild(tabFoot);
+
+    // Botões ação
+    var actDiv = document.createElement('div');
+    actDiv.style.cssText = 'display:flex;gap:1rem;justify-content:flex-end;';
+    var btnCancelar = document.createElement('button');
+    btnCancelar.style.cssText = 'background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:10px 20px;font-size:0.9rem;font-weight:600;cursor:pointer;';
+    btnCancelar.textContent = 'Cancelar';
+    btnCancelar.onclick = function() { document.getElementById('modal-recibo-avulso').remove(); };
+    var btnGerar = document.createElement('button');
+    btnGerar.id = 'rav-btn-gerar';
+    btnGerar.style.cssText = 'background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:0.9rem;font-weight:700;cursor:pointer;';
+    btnGerar.textContent = 'Gerar Recibo';
+    btnGerar.onclick = function() { window.gerarReciboAvulso(); };
+    actDiv.appendChild(btnCancelar);
+    actDiv.appendChild(btnGerar);
+    box.appendChild(actDiv);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+};
+
+window._ravAdicionarLinha = function() {
+    var tbody = document.getElementById('rav-tbody');
+    if (!tbody) return;
+    var tr = document.createElement('tr');
+    var tdDesc = document.createElement('td'); tdDesc.style.cssText = 'padding:4px;border:1px solid #e2e8f0;';
+    var inpDesc = document.createElement('input'); inpDesc.type = 'text'; inpDesc.style.cssText = 'width:100%;border:none;outline:none;padding:4px;font-size:0.85rem;';
+    tdDesc.appendChild(inpDesc);
+    var tdQtd = document.createElement('td'); tdQtd.style.cssText = 'padding:4px;border:1px solid #e2e8f0;';
+    var inpQtd = document.createElement('input'); inpQtd.type = 'text'; inpQtd.style.cssText = 'width:100%;border:none;outline:none;padding:4px;font-size:0.85rem;text-align:center;';
+    tdQtd.appendChild(inpQtd);
+    var tdVal = document.createElement('td'); tdVal.style.cssText = 'padding:4px;border:1px solid #e2e8f0;';
+    var inpVal = document.createElement('input'); inpVal.type = 'number'; inpVal.step = '0.01'; inpVal.min = '0';
+    inpVal.style.cssText = 'width:100%;border:none;outline:none;padding:4px;font-size:0.85rem;text-align:right;';
+    inpVal.oninput = function() { window._ravAtualizarTotal(); };
+    tdVal.appendChild(inpVal);
+    var tdDel = document.createElement('td'); tdDel.style.cssText = 'padding:4px;border:1px solid #e2e8f0;text-align:center;';
+    var btnDel = document.createElement('button');
+    btnDel.innerHTML = '&times;'; btnDel.title = 'Remover';
+    btnDel.style.cssText = 'background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;';
+    btnDel.onclick = function() { tr.remove(); window._ravAtualizarTotal(); };
+    tdDel.appendChild(btnDel);
+    tr.appendChild(tdDesc); tr.appendChild(tdQtd); tr.appendChild(tdVal); tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+};
+
+window._ravAtualizarTotal = function() {
+    var tbody = document.getElementById('rav-tbody');
+    if (!tbody) return;
+    var total = 0;
+    var rows = tbody.querySelectorAll('tr');
+    for (var i = 0; i < rows.length; i++) {
+        var inputs = rows[i].querySelectorAll('input');
+        if (inputs.length >= 3) total += parseFloat(inputs[2].value) || 0;
+    }
+    var el = document.getElementById('rav-total');
+    if (el) el.textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+};
+
+window.gerarReciboAvulso = async function() {
+    if (!viewedColaborador) { alert('Colaborador não selecionado.'); return; }
+    var tituloEl = document.getElementById('rav-titulo');
+    var refEl = document.getElementById('rav-referencia');
+    var titulo = (tituloEl ? tituloEl.value : 'RECIBO AVULSO').toUpperCase();
+    var referencia = refEl ? refEl.value : '';
+    var assinRadio = document.querySelector('input[name="rav-assin"]:checked');
+    var exige_assinatura = assinRadio ? assinRadio.value : 'NAO_EXIGE';
+
+    var yEl = document.getElementById('pag_year');
+    var mEl = document.getElementById('pag_month');
+    var ano = yEl ? yEl.value : String(new Date().getFullYear());
+    var mes = mEl ? mEl.value : String(new Date().getMonth()+1).padStart(2,'0');
+
+    var tbody = document.getElementById('rav-tbody');
+    var itens = [];
+    var total = 0;
+    var rows = tbody ? tbody.querySelectorAll('tr') : [];
+    for (var ri = 0; ri < rows.length; ri++) {
+        var inputs = rows[ri].querySelectorAll('input');
+        if (inputs.length >= 3) {
+            var desc = inputs[0].value.trim();
+            var qtd  = inputs[1].value.trim();
+            var val  = parseFloat(inputs[2].value) || 0;
+            if (desc || qtd || val) { itens.push({descricao:desc, quantidade:qtd, valor:val}); total += val; }
+        }
+    }
+    if (itens.length === 0) { alert('Adicione ao menos um item ao recibo.'); return; }
+
+    var totalStr = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    var c = viewedColaborador;
+    var logoUrl = '/assets/logo-header.png';
+
+    var linhasHtml = itens.map(function(it) {
+        var valStr = it.valor.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+        return '<tr><td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;">' + (it.descricao || '') + '</td>' +
+               '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:center;">' + (it.quantidade || '') + '</td>' +
+               '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:right;">R$ ' + valStr + '</td></tr>';
+    }).join('');
+
+    var htmlContent = [
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+        '<style>body{font-family:Arial,sans-serif;margin:0;padding:0;}*{box-sizing:border-box;}</style></head><body>',
+        '<div style="width:210mm;min-height:297mm;padding:0;margin:0 auto;">',
+        // Header azul
+        '<div style="background:linear-gradient(135deg,#1a3a6b 0%,#0f2755 100%);padding:20px 30px;display:flex;align-items:center;justify-content:space-between;">',
+        '<img src="' + logoUrl + '" style="height:55px;max-width:180px;object-fit:contain;">',
+        '<div style="display:flex;gap:6px;"><div style="width:12px;height:50px;background:#e8b800;border-radius:2px;"></div><div style="width:8px;height:50px;background:#fff;opacity:0.3;border-radius:2px;"></div><div style="width:5px;height:50px;background:#e8b800;opacity:0.6;border-radius:2px;"></div></div>',
+        '</div>',
+        // Dados do colaborador
+        '<div style="margin:20px 30px 0;border:1.5px solid #1a3a6b;border-radius:6px;overflow:hidden;">',
+        '<div style="background:#1a3a6b;color:#fff;padding:6px 14px;font-size:0.8rem;font-weight:700;letter-spacing:1px;">DADOS DO COLABORADOR</div>',
+        '<div style="padding:12px 14px;"><table style="width:100%;font-size:0.82rem;border-collapse:collapse;">',
+        '<tr><td style="padding:3px 0;width:50%;"><strong>Empresa:</strong> AMERICA RENTAL TRANSPORTES LTDA</td><td style="padding:3px 0;"><strong>CNPJ:</strong> 03.434.882/0001-05</td></tr>',
+        '<tr><td style="padding:3px 0;"><strong>Colaborador:</strong> ' + (c.nome_completo || '') + '</td><td style="padding:3px 0;"><strong>CPF:</strong> ' + (c.cpf || '-') + '</td></tr>',
+        '<tr><td style="padding:3px 0;"><strong>Cargo:</strong> ' + (c.cargo || '-') + '</td><td style="padding:3px 0;"><strong>Departamento:</strong> ' + (c.departamento || '-') + '</td></tr>',
+        '<tr><td style="padding:3px 0;"><strong>Referência:</strong> ' + referencia + '</td><td style="padding:3px 0;"><strong>Matrícula:</strong> ' + (c.numero_registro || c.matricula_esocial || '-') + '</td></tr>',
+        '</table></div></div>',
+        // Título
+        '<div style="margin:16px 30px 0;background:#1a3a6b;color:#fff;padding:10px 14px;font-size:1rem;font-weight:700;letter-spacing:2px;text-align:center;border-radius:4px;">' + titulo + '</div>',
+        // Tabela itens
+        '<div style="margin:16px 30px 0;"><table style="width:100%;border-collapse:collapse;">',
+        '<thead><tr style="background:#f1f5f9;">',
+        '<th style="padding:10px 12px;border:1px solid #ccc;font-size:0.82rem;font-weight:700;text-align:left;width:55%;">DESCRIÇÃO</th>',
+        '<th style="padding:10px 12px;border:1px solid #ccc;font-size:0.82rem;font-weight:700;text-align:center;width:20%;">QUANTIDADE</th>',
+        '<th style="padding:10px 12px;border:1px solid #ccc;font-size:0.82rem;font-weight:700;text-align:right;width:25%;">VALOR</th>',
+        '</tr></thead><tbody>',
+        linhasHtml,
+        '<tr style="background:#f8fafc;"><td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;font-weight:600;">Total</td>',
+        '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:center;">—</td>',
+        '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:right;font-weight:600;">R$ ' + totalStr + '</td></tr>',
+        '</tbody></table></div>',
+        // Total recebido
+        '<div style="margin:0 30px;background:#1a3a6b;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-radius:0 0 4px 4px;font-weight:700;font-size:0.9rem;">',
+        '<span>TOTAL RECEBIDO:</span><span>R$ ' + totalStr + '</span></div>',
+        // Assinaturas
+        '<div style="margin:40px 30px 20px;display:flex;justify-content:space-around;">',
+        '<div style="text-align:center;"><div style="border-top:1.5px solid #333;width:200px;margin:0 auto 6px;"></div><div style="font-size:0.78rem;">Assinatura do Colaborador</div></div>',
+        '<div style="text-align:center;"><div style="border-top:1.5px solid #333;width:200px;margin:0 auto 6px;"></div><div style="font-size:0.78rem;">Assinatura do Responsável</div></div>',
+        '</div>',
+        '</div></body></html>'
+    ].join('');
+
+    var btn = document.getElementById('rav-btn-gerar');
+    var origTxt = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+
+    try {
+        var resp = await apiPost('/recibos/avulso/gerar', {
+            htmlContent: htmlContent,
+            colaborador_id: viewedColaborador.id,
+            mes: mes,
+            ano: ano,
+            titulo: titulo,
+            exige_assinatura: exige_assinatura
+        });
+
+        if (!resp || !resp.ok) throw new Error(resp ? (resp.error || 'Erro') : 'Sem resposta do servidor');
+
+        var modal = document.getElementById('modal-recibo-avulso');
+        if (modal) modal.remove();
+
+        if (viewedColaborador) {
+            try {
+                var docs = await apiGet('/colaboradores/' + viewedColaborador.id + '/documentos');
+                if (docs) {
+                    currentDocs = docs;
+                    var activeTab = document.querySelector('#tabs-list li.active');
+                    if (activeTab) renderTabContent(activeTab.dataset.tab, activeTab.textContent, true);
+                }
+            } catch(e2) { console.warn('[RECIBO-AVULSO] Falha ao recarregar docs:', e2); }
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'success', title: 'Recibo criado!', text: 'Recibo avulso gerado e salvo com sucesso.', timer: 2500, showConfirmButton: false });
+        } else {
+            alert('Recibo avulso gerado com sucesso!');
+        }
+    } catch(err) {
+        console.error('[RECIBO-AVULSO] Erro:', err);
+        alert('Erro ao gerar recibo: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = origTxt; }
+    }
 };
 
 window.uploadDocument = async function (inputEl, tabId, docType, year = null, month = null, vencimento = null, reqAssin = null) {

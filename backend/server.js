@@ -11163,6 +11163,82 @@ app.post('/api/recibos/anexar-massa', authenticateToken, async (req, res) => {
     }
 });
 
+
+// POST: Gerar Recibo Avulso no Prontuario Digital
+app.post('/api/recibos/avulso/gerar', authenticateToken, async (req, res) => {
+    const { htmlContent, colaborador_id, mes, ano, titulo, exige_assinatura } = req.body;
+    if (!htmlContent || !colaborador_id || !mes || !ano) {
+        return res.status(400).json({ error: 'Parametros obrigatorios: htmlContent, colaborador_id, mes, ano' });
+    }
+    try {
+        const htmlPdf = require('html-pdf-node');
+        const r2Mod   = require('./utils/r2');
+        const fsLocal = require('fs');
+        const pathLocal = require('path');
+
+        const colab = await new Promise((resolve, reject) =>
+            db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
+        );
+        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado' });
+
+        const bufferPDF = await htmlPdf.generatePdf(
+            { content: htmlContent },
+            {
+                format: 'A4',
+                margin: { top: '0', bottom: '0', left: '0', right: '0' },
+                printBackground: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            }
+        );
+
+        const normStr = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').trim();
+        const tituloSafe    = normStr(titulo || 'ReciboAvulso').slice(0, 40);
+        const nomeColabSafe = normStr(colab.nome_completo || 'Colaborador').slice(0, 60);
+        const mesPad = String(mes).padStart(2, '0');
+        const nomeArquivo = 'ReciboAvulso_' + tituloSafe + '_' + nomeColabSafe + '_' + mesPad + ano + '.pdf';
+
+        let r2Key = null;
+        if (r2Mod.isReady()) {
+            try {
+                r2Key = 'Colaboradores/' + nomeColabSafe + '/Documentos/RecibosAvulsos/' + ano + '/' + mesPad + '_' + tituloSafe + '_' + Date.now().toString(36) + '.pdf';
+                await r2Mod.uploadToR2(r2Key, Buffer.from(bufferPDF), 'application/pdf');
+                console.log('[RECIBO-AVULSO] Enviado ao R2:', r2Key);
+            } catch (r2Err) {
+                console.warn('[RECIBO-AVULSO] Falha R2:', r2Err.message);
+                r2Key = null;
+            }
+        }
+
+        let filePathLocal = null;
+        try {
+            const colabDir = pathLocal.join(BASE_UPLOAD_PATH, 'colab_' + colaborador_id);
+            if (!fsLocal.existsSync(colabDir)) fsLocal.mkdirSync(colabDir, { recursive: true });
+            filePathLocal = pathLocal.join(colabDir, nomeArquivo);
+            fsLocal.writeFileSync(filePathLocal, bufferPDF);
+        } catch(_) {}
+
+        const assinafyStatus = (exige_assinatura === 'PENDENTE') ? 'PENDENTE' : 'NAO_EXIGE';
+        const docId = await new Promise((resolve, reject) =>
+            db.run(
+                "INSERT INTO documentos (colaborador_id, tab_name, document_type, file_path, file_name, year, month, assinafy_status, upload_date, r2_key) VALUES (?, 'Pagamentos', 'ReciboAvulso', ?, ?, ?, ?, ?, datetime('now'), ?)",
+                [colaborador_id, filePathLocal, nomeArquivo, ano, mesPad, assinafyStatus, r2Key],
+                function(err) { if (err) reject(err); else resolve(this.lastID); }
+            )
+        );
+
+        console.log('[RECIBO-AVULSO] Criado docId=' + docId + ' titulo=' + titulo + ' colab=' + colaborador_id);
+
+        if (assinafyStatus === 'NAO_EXIGE') {
+            setImmediate(() => uploadDocToOneDrive(docId).catch(() => {}));
+        }
+
+        res.json({ ok: true, docId, r2Key });
+    } catch (e) {
+        console.error('[RECIBO-AVULSO] Erro:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // POST: Anexar recibos em lote otimizado (usa uma única inst??ncia do navegador)
 // ????????? Upload de PDF gerado pelo browser (sem Chromium no servidor) ??????????????????????????????????????????
 app.post('/api/recibos/upload-pdf-colab',
