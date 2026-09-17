@@ -1,3 +1,14 @@
+
+function formatUtcDateTime(ds) {
+    if (!ds) return '';
+    const d = new Date(ds.replace(' ', 'T') + (ds.endsWith('Z') ? '' : 'Z'));
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function formatUtcDate(ds) {
+    if (!ds) return '';
+    const d = new Date(ds.replace(' ', 'T') + (ds.endsWith('Z') ? '' : 'Z'));
+    return d.toLocaleDateString('pt-BR');
+}
 const API_URL = '/api';
 window.API_URL = API_URL;
 
@@ -8348,11 +8359,11 @@ window.renderPagamentosCompetencia = function () {
                 var info = document.createElement('div');
                 info.style.cssText = 'flex:1;min-width:0;';
                 
-                var dateStr = d.upload_date ? new Date(d.upload_date).toLocaleDateString('pt-BR') : '';
+                var dateStr = d.upload_date ? formatUtcDate(d.upload_date) : '';
                 if (isAssinado && d.assinafy_signed_at) {
-                    dateStr = 'Assinado em: ' + new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0, 16);
+                    dateStr = 'Assinado em: ' + formatUtcDateTime(d.assinafy_signed_at);
                 } else if (showAss && d.assinafy_sent_at) {
-                    dateStr = 'Enviado em: ' + new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0, 16);
+                    dateStr = 'Enviado em: ' + formatUtcDateTime(d.assinafy_sent_at);
                 }
                 
                 info.innerHTML = '<div style="font-weight:600;font-size:0.85rem;color:#15803d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.file_name || 'Recibo Avulso') + '</div>' +
@@ -8436,8 +8447,8 @@ window.renderPagamentosCompetencia = function () {
                     const showAssinafy = st !== 'NAO_EXIGE' && st !== 'Nenhum';
                     let assInfo = '';
                     if (showAssinafy) {
-                        const sentDateStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
-                        const signedDateStr = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        const sentDateStr = d.assinafy_sent_at ? formatUtcDateTime(d.assinafy_sent_at) : '';
+                        const signedDateStr = d.assinafy_signed_at ? formatUtcDateTime(d.assinafy_signed_at) : '';
                         if (isAssinado) {
                             assInfo = `
                                 <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
@@ -8520,8 +8531,8 @@ window.renderPagamentosCompetencia = function () {
                     const showAssinafy = st !== 'NAO_EXIGE' && st !== 'Nenhum';
                     let assInfo = '';
                     if (showAssinafy) {
-                        const sentDateStr = d.assinafy_sent_at ? new Date(d.assinafy_sent_at).toLocaleString('pt-BR').substring(0,16) : '';
-                        const signedDateStr = d.assinafy_signed_at ? new Date(d.assinafy_signed_at).toLocaleString('pt-BR').substring(0,16) : '';
+                        const sentDateStr = d.assinafy_sent_at ? formatUtcDateTime(d.assinafy_sent_at) : '';
+                        const signedDateStr = d.assinafy_signed_at ? formatUtcDateTime(d.assinafy_signed_at) : '';
                         if (isAssinado) {
                             assInfo = `
                                 <div style="display:flex; flex-direction:column; justify-content:center; gap:2px; font-size:0.65rem; color:#64748b; margin-right:4px; text-align:right;">
