@@ -1890,6 +1890,14 @@ function abrirLegenda() {
         if (htrab) _dados[idx].horas_trabalhadas = htrab;
         if (faltas !== null && faltas !== undefined) _dados[idx].dias_falta = faltas;
         if (dados.data_faltas !== undefined) _dados[idx].data_faltas = dados.data_faltas;
+        // VT: preencher 6% do salário apenas para colaboradores com Vale Transporte
+        var meioTransp = (_dados[idx].meio_transporte || '').toLowerCase();
+        var temVT = meioTransp.indexOf('vt') !== -1 || meioTransp.indexOf('vale transporte') !== -1;
+        if (temVT) {
+            var salBruto = parseFloat(_dados[idx].salario) || 0;
+            var descVT = parseFloat((salBruto * 0.06).toFixed(2));
+            _dados[idx].vt = descVT;
+        }
 
         // Atualizar DOM: encontrar tr por data-idx
         var trEls = document.querySelectorAll('#fech-tbody tr');
