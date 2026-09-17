@@ -753,7 +753,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.100%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">200</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8792</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8792</span></th>\n            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Dias Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Atrasos</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8060</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>VT</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">48</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Farm&aacute;cia</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">238</span></th>
@@ -961,7 +961,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
 <td style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>
+<td style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>\n<td style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'vt',_dados[idx].vt,'0','1')}</td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
@@ -989,6 +989,18 @@ function abrirLegenda() {
         }, 100);
     }
 
+    
+    function inpText(idx, campo, val, width) {
+        var v = val || '';
+        if (typeof v === 'string' && v.startsWith('"') && v.endsWith('"')) {
+            try { v = JSON.parse(v); } catch(e){}
+        }
+        if (Array.isArray(v)) v = v.join(', ');
+        var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
+        return '<input type=\'text\' value=\'' + v.replace(/'/g, "&apos;") + '\''
+            + ' style=\'width:' + (width || '70px') + ';padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:left;font-size:.8rem;\' '
+            + ' oninput=\'' + oi + '\'>';
+    }
     function inpHora(idx, campo, val) {
         var v = (val && val !== '00:00' && val !== '0:00' && val !== '0') ? val : '';
         var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
