@@ -8708,10 +8708,12 @@ window._ravAdicionarLinha = function() {
     var tdQtd = document.createElement('td'); tdQtd.style.cssText = 'padding:4px;border:1px solid #e2e8f0;';
     var inpQtd = document.createElement('input'); inpQtd.type = 'text'; inpQtd.style.cssText = 'width:100%;border:none;outline:none;padding:4px;font-size:0.85rem;text-align:center;';
     tdQtd.appendChild(inpQtd);
-    var tdVal = document.createElement('td'); tdVal.style.cssText = 'padding:4px;border:1px solid #e2e8f0;';
+    var tdVal = document.createElement('td'); tdVal.style.cssText = 'padding:4px;border:1px solid #e2e8f0; display:flex; align-items:center;';
+    var spanRs = document.createElement('span'); spanRs.textContent = 'R$ '; spanRs.style.cssText = 'font-size:0.85rem;color:#64748b;font-weight:600;padding-left:4px;white-space:nowrap;';
     var inpVal = document.createElement('input'); inpVal.type = 'number'; inpVal.step = '0.01'; inpVal.min = '0';
-    inpVal.style.cssText = 'width:100%;border:none;outline:none;padding:4px;font-size:0.85rem;text-align:right;';
+    inpVal.style.cssText = 'flex:1;border:none;outline:none;padding:4px;font-size:0.85rem;text-align:right;';
     inpVal.oninput = function() { window._ravAtualizarTotal(); };
+    tdVal.appendChild(spanRs);
     tdVal.appendChild(inpVal);
     var tdDel = document.createElement('td'); tdDel.style.cssText = 'padding:4px;border:1px solid #e2e8f0;text-align:center;';
     var btnDel = document.createElement('button');
@@ -8767,7 +8769,7 @@ window.gerarReciboAvulso = async function() {
 
     var totalStr = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     var c = viewedColaborador;
-    var logoUrl = '/assets/logo-header.png';
+    var logoUrl = window.location.origin + '/assets/logo-header.png';
 
     var linhasHtml = itens.map(function(it) {
         var valStr = it.valor.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -8779,7 +8781,7 @@ window.gerarReciboAvulso = async function() {
     var htmlContent = [
         '<!DOCTYPE html><html><head><meta charset="UTF-8">',
         '<style>body{font-family:Arial,sans-serif;margin:0;padding:0;}*{box-sizing:border-box;}</style></head><body>',
-        '<div style="width:210mm;min-height:297mm;padding:0;margin:0 auto;">',
+        '<div style="width:100%;padding:0;margin:0 auto;">',
         // Header azul
         '<div style="background:linear-gradient(135deg,#1a3a6b 0%,#0f2755 100%);padding:20px 30px;display:flex;align-items:center;justify-content:space-between;">',
         '<img src="' + logoUrl + '" style="height:55px;max-width:180px;object-fit:contain;">',
@@ -8804,18 +8806,12 @@ window.gerarReciboAvulso = async function() {
         '<th style="padding:10px 12px;border:1px solid #ccc;font-size:0.82rem;font-weight:700;text-align:right;width:25%;">VALOR</th>',
         '</tr></thead><tbody>',
         linhasHtml,
-        '<tr style="background:#f8fafc;"><td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;font-weight:600;">Total</td>',
-        '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:center;">—</td>',
-        '<td style="padding:8px 12px;border:1px solid #ccc;font-size:0.85rem;text-align:right;font-weight:600;">R$ ' + totalStr + '</td></tr>',
+        
         '</tbody></table></div>',
         // Total recebido
         '<div style="margin:0 30px;background:#1a3a6b;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-radius:0 0 4px 4px;font-weight:700;font-size:0.9rem;">',
         '<span>TOTAL RECEBIDO:</span><span>R$ ' + totalStr + '</span></div>',
-        // Assinaturas
-        '<div style="margin:40px 30px 20px;display:flex;justify-content:space-around;">',
-        '<div style="text-align:center;"><div style="border-top:1.5px solid #333;width:200px;margin:0 auto 6px;"></div><div style="font-size:0.78rem;">Assinatura do Colaborador</div></div>',
-        '<div style="text-align:center;"><div style="border-top:1.5px solid #333;width:200px;margin:0 auto 6px;"></div><div style="font-size:0.78rem;">Assinatura do Responsável</div></div>',
-        '</div>',
+        // Fim do container
         '</div></body></html>'
     ].join('');
 
