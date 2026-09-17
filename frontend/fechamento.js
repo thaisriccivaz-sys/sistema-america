@@ -1078,6 +1078,8 @@ function abrirLegenda() {
         if (!input.files[0]) return;
         const formData = new FormData();
         formData.append('pdf', input.files[0]);
+        formData.append('mes', _mes);
+        formData.append('ano', _ano);
         try {
             Swal.fire({ title: 'Processando PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const resp = await fetch('/api/fechamento/upload-farmacia', {
@@ -1860,11 +1862,11 @@ function abrirLegenda() {
         // Verificar se existe XLSX no R2
         var downloadBtn = '';
         try {
-            var chkResp = await fetch('/api/fechamento/consignado-xlsx/' + _ano + '/' + _mes, {
-                method: 'HEAD',
+            var chkResp = await fetch('/api/fechamento/check-consignado-xlsx/' + _ano + '/' + _mes, {
                 headers: { 'Authorization': 'Bearer ' + getToken() }
             });
-            if (chkResp.ok) {
+            var chkJson = await chkResp.json();
+            if (chkJson.existe) {
                 var xlsxUrl = '/api/fechamento/consignado-xlsx/' + _ano + '/' + _mes + '?token=' + encodeURIComponent(getToken());
                 downloadBtn = '<div style="margin-top:1rem;text-align:center;">'
                     + '<a href="' + xlsxUrl + '" download style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.2rem;background:#16a34a;color:#fff;border-radius:.5rem;font-weight:600;font-size:.85rem;text-decoration:none;">'

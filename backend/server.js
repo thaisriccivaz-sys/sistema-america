@@ -10491,6 +10491,17 @@ app.get('/api/fechamento/farmacia-pdfs/:ano/:mes', authenticateToken, (req, res)
     });
 });
 
+// GET: Checar existencia do XLSX de Consignado
+app.get('/api/fechamento/check-consignado-xlsx/:ano/:mes', authenticateToken, async (req, res) => {
+    try {
+        const row = await new Promise((resolve) => {
+            db.get('SELECT r2_key FROM fechamento_consignado WHERE ano = ? AND mes = ? AND r2_key IS NOT NULL ORDER BY id DESC LIMIT 1',
+                [parseInt(req.params.ano), parseInt(req.params.mes)], (err, row) => resolve(row));
+        });
+        res.json({ existe: !!row });
+    } catch(e) { res.json({ existe: false }); }
+});
+
 // GET: Download do XLSX de Consignado via R2
 app.get('/api/fechamento/consignado-xlsx/:ano/:mes', authenticateToken, async (req, res) => {
     try {
