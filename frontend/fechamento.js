@@ -1812,41 +1812,61 @@ function abrirLegenda() {
     }
 
     async function verFarmacia() {
-        // Buscar o PDF mais recente da farmacia para este mes no banco
         if (!_mes || !_ano) {
             Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Selecione um mês primeiro.' });
             return;
         }
+        // Lista de colaboradores com desconto
+        var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
+        var linhas = resumoFarm.length > 0
+            ? resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>')
+            : '<em style="color:#6b7280">Nenhum colaborador com desconto neste mês.</em>';
+        var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
+        // Verificar se existe PDF no banco
+        var downloadBtn = '';
+        var farmPdfId = null;
+        var farmPdfNome = 'farmacia.pdf';
         try {
-            var resp = await fetch('/api/fechamento/farmacia-pdfs/' + _ano + '/' + _mes, {
+            var chkResp = await fetch('/api/fechamento/farmacia-pdfs/' + _ano + '/' + _mes, {
                 headers: { 'Authorization': 'Bearer ' + getToken() }
             });
-            var lista = await resp.json();
-            if (!Array.isArray(lista) || lista.length === 0) {
-                // Fallback: mostrar lista de valores do _dados
-                var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
-                if (resumoFarm.length === 0) {
-                    Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Nenhum PDF de farmácia encontrado para este mês.' });
-                    return;
-                }
-                var linhas = resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>');
-                var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
-                Swal.fire({ icon: 'info', title: 'Farmácia — ' + resumoFarm.length + ' colaboradores', html: '<div style="text-align:left;font-size:.8rem;max-height:300px;overflow:auto;">' + linhas + '</div><br><strong>Total: R$ ' + total.toFixed(2) + '</strong>', width: 500 });
-                return;
+            var chkLista = await chkResp.json();
+            if (Array.isArray(chkLista) && chkLista.length > 0) {
+                farmPdfId = chkLista[0].id;
+                farmPdfNome = chkLista[0].nome_arquivo || 'farmacia.pdf';
+                downloadBtn = '<div style="margin-top:1rem;text-align:center;">'
+                    + '<button id="btn-dl-farmacia" style="display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.2rem;background:#dc2626;color:#fff;border:none;border-radius:.5rem;font-weight:600;font-size:.85rem;cursor:pointer;">'
+                    + '<i class="ph ph-file-pdf"></i> Baixar PDF da Farmácia</button></div>';
             }
-            // Exibir o PDF via iframe (mais recente)
-            var row = lista[0];
-            var url = '/api/fechamento/farmacia-pdf/' + row.id + '?token=' + encodeURIComponent(getToken());
-            Swal.fire({
-                title: 'PDF Farmácia — ' + (row.nome_arquivo || 'farmacia.pdf'),
-                html: '<iframe src="' + url + '" style="width:100%;height:70vh;border:none;border-radius:.5rem;" title="PDF Farmácia"></iframe>',
-                width: '90vw',
-                showCloseButton: true,
-                showConfirmButton: false
-            });
-        } catch(e) {
-            Swal.fire({ icon: 'error', title: 'Erro ao buscar PDF', text: e.message });
-        }
+        } catch(e) { /* sem arquivo */ }
+        Swal.fire({
+            icon: 'info',
+            title: 'Farmácia — ' + resumoFarm.length + ' colaboradores',
+            html: '<div style="text-align:left;font-size:.8rem;max-height:250px;overflow:auto;">' + linhas + '</div>'
+                + (resumoFarm.length > 0 ? '<br><strong>Total: R$ ' + total.toFixed(2) + '</strong>' : '')
+                + downloadBtn,
+            width: 520,
+            didOpen: function() {
+                var btnDl = document.getElementById('btn-dl-farmacia');
+                if (btnDl && farmPdfId) {
+                    btnDl.addEventListener('click', async function() {
+                        btnDl.disabled = true;
+                        btnDl.textContent = 'Baixando...';
+                        try {
+                            var r = await fetch('/api/fechamento/farmacia-pdf/' + farmPdfId, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+                            if (!r.ok) throw new Error('Erro ' + r.status);
+                            var blob = await r.blob();
+                            var url = URL.createObjectURL(blob);
+                            var a = document.createElement('a');
+                            a.href = url; a.download = farmPdfNome; a.click();
+                            setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+                        } catch(e) { alert('Erro ao baixar: ' + e.message); }
+                        btnDl.disabled = false;
+                        btnDl.innerHTML = '<i class="ph ph-file-pdf"></i> Baixar PDF da Farmácia';
+                    });
+                }
+            }
+        });
     }
     async function verConsignado() {
         if (!_mes || !_ano) {
@@ -1903,20 +1923,47 @@ function abrirLegenda() {
             Swal.fire({ icon: 'info', title: 'Mercado', text: 'Nenhum PDF de mercado encontrado para este mês.' });
             return;
         }
-        var iframesHtml = _dadosMercado.map(function(r) {
-            var url = '/api/fechamento/mercado-pdf/' + r.id + '?token=' + encodeURIComponent(getToken());
+        var totalMercado = _dadosMercado.reduce(function(s, r) { return s + (parseFloat(r.valor) || 0); }, 0);
+        var mercadoItens = _dadosMercado.map(function(r, idx) {
             var nomeLabel = r.nome + (r.valor ? ' — R$ ' + parseFloat(r.valor).toFixed(2).replace('.', ',') : '');
-            return '<div style="margin-bottom:1rem;">'
-                + '<div style="font-size:.75rem;font-weight:600;color:#374151;padding:.25rem .5rem;background:#f3f4f6;border-radius:.25rem .25rem 0 0;border:1px solid #d1d5db;">' + nomeLabel + '</div>'
-                + '<iframe src="' + url + '" style="width:100%;height:500px;border:1px solid #d1d5db;border-top:none;border-radius:0 0 .25rem .25rem;" title="' + r.nome + '"></iframe>'
-                + '</div>';
+            var btnId = 'btn-dl-mercado-' + idx;
+            var btnHtml = r.id
+                ? '<button id="' + btnId + '" data-id="' + r.id + '" data-nome="' + (r.nome || 'mercado').replace(/"/g,'') + '.pdf" '
+                    + 'style="padding:.2rem .6rem;background:#16a34a;color:#fff;border:none;border-radius:.3rem;font-size:.7rem;cursor:pointer;font-weight:600;white-space:nowrap;">'
+                    + '<i class="ph ph-download"></i> Baixar</button>'
+                : '';
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .5rem;border-bottom:1px solid #f3f4f6;font-size:.82rem;">'
+                + '<span style="flex:1">' + nomeLabel + '</span>' + btnHtml + '</div>';
         }).join('');
         Swal.fire({
             title: 'PDFs do Mercado (' + _dadosMercado.length + ')',
-            html: '<div style="max-height:70vh;overflow-y:auto;padding:.5rem;">' + iframesHtml + '</div>',
-            width: '90vw',
+            html: '<div style="max-height:60vh;overflow-y:auto;">' + mercadoItens + '</div>'
+                + '<div style="padding:.75rem .5rem;font-weight:700;font-size:.9rem;border-top:2px solid #e5e7eb;margin-top:.25rem;">Total: R$ ' + totalMercado.toFixed(2).replace('.', ',') + '</div>',
+            width: 640,
             showCloseButton: true,
-            showConfirmButton: false
+            showConfirmButton: false,
+            didOpen: function() {
+                _dadosMercado.forEach(function(r, idx) {
+                    if (!r.id) return;
+                    var btn = document.getElementById('btn-dl-mercado-' + idx);
+                    if (!btn) return;
+                    btn.addEventListener('click', async function() {
+                        btn.disabled = true;
+                        btn.textContent = '...';
+                        try {
+                            var res = await fetch('/api/fechamento/mercado-pdf/' + r.id, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+                            if (!res.ok) throw new Error('Erro ' + res.status);
+                            var blob = await res.blob();
+                            var url = URL.createObjectURL(blob);
+                            var a = document.createElement('a');
+                            a.href = url; a.download = (r.nome || 'mercado') + '.pdf'; a.click();
+                            setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+                        } catch(e) { alert('Erro ao baixar: ' + e.message); }
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="ph ph-download"></i> Baixar';
+                    });
+                });
+            }
         });
     }
 
