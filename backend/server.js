@@ -10610,46 +10610,59 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
 
-            // Calcular mês de início da 1ª parcela
-            const dtStr = m.status_updated_at || m.atualizado_em || m.created_at || '';
-            let dtCriado;
-            if (dtStr.includes('/') && dtStr.includes('-')) {
-                const parts = dtStr.split(' - ');
-                const dateParts = parts[0].split('/');
-                if (dateParts.length === 3) {
-                    dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`);
-                }
-            }
-            if (!dtCriado || isNaN(dtCriado.getTime())) {
-                dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
-            }
-            if (isNaN(dtCriado.getTime())) dtCriado = new Date();
-
-            const corteDate = new Date(corteStr + 'T23:59:59-03:00');
-            if (dtCriado.getTime() > corteDate.getTime()) continue;
-
-            const diaCriado = dtCriado.getDate();
-            let mIni = dtCriado.getMonth() + 1; // 1-12
-            let aIni = dtCriado.getFullYear();
-            if (diaCriado <= 25) {
-                // 1ª parcela no mês seguinte ao mês de criação
-                mIni += 1;
-            } else {
-                // 1ª parcela em dois meses
-                mIni += 2;
-            }
-            if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
-
-            // Número da parcela para o mês atual
-            const parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
-            if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
-
-            // Idempotência: upsert — insere ou atualiza o valor (corrige registros com valor desatualizado)
-            const existing = await new Promise((resolve, reject) => {
-                db.get('SELECT id, valor_parcela FROM multas_cobranca_historico WHERE multa_id = ? AND mes = ? AND ano = ?',
-                    [m.id, mesNum, anoNum],
-                    (err, row) => err ? reject(err) : resolve(row));
+            const historico = await new Promise((resolve) => {
+                db.all('SELECT id, mes, ano, parcela_num, valor_parcela FROM multas_cobranca_historico WHERE multa_id = ? ORDER BY ano ASC, mes ASC',
+                    [m.id],
+                    (err, rows) => resolve(rows || []));
             });
+
+            let parcelaNum;
+            if (historico.length > 0) {
+                // Já iniciou cobrança antes, manter o cronograma original
+                const primeira = historico.find(h => h.parcela_num === 1) || historico[0];
+                let aIni = primeira.ano;
+                let mIni = primeira.mes;
+                if (primeira.parcela_num > 1) {
+                    mIni -= (primeira.parcela_num - 1);
+                    while (mIni < 1) { mIni += 12; aIni--; }
+                }
+                parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
+                if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
+            } else {
+                // Calcular mês de início da 1ª parcela
+                const dtStr = m.status_updated_at || m.atualizado_em || m.created_at || '';
+                let dtCriado;
+                if (dtStr.includes('/') && dtStr.includes('-')) {
+                    const parts = dtStr.split(' - ');
+                    const dateParts = parts[0].split('/');
+                    if (dateParts.length === 3) {
+                        dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`);
+                    }
+                }
+                if (!dtCriado || isNaN(dtCriado.getTime())) {
+                    dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+                }
+                if (isNaN(dtCriado.getTime())) dtCriado = new Date();
+
+                const corteDate = new Date(corteStr + 'T23:59:59-03:00');
+                if (dtCriado.getTime() > corteDate.getTime()) continue;
+
+                const diaCriado = dtCriado.getDate();
+                let mIni = dtCriado.getMonth() + 1; // 1-12
+                let aIni = dtCriado.getFullYear();
+                if (diaCriado <= 25) {
+                    mIni += 1;
+                } else {
+                    mIni += 2;
+                }
+                if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+
+                parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
+                if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
+            }
+
+            // Idempotência: upsert — insere ou atualiza o valor
+            const existing = historico.find(h => h.mes === mesNum && h.ano === anoNum);
 
             let valorFinal = valorParcela;
             if (!existing) {
