@@ -10593,8 +10593,8 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
     try {
         const multas = await new Promise((resolve, reject) => {
             db.all(
-                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\' AND date(ml.criado_em) <= ?',
-                [...STATUS_ELEGIVEIS, corteStr],
+                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at, ml.status_updated_at, ml.atualizado_em FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\'',
+                [...STATUS_ELEGIVEIS],
                 (err, rows) => err ? reject(err) : resolve(rows || [])
             );
         });
@@ -10608,11 +10608,26 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
 
             // Calcular mês de início da 1ª parcela
-            const dtStr = m.created_at || '';
-            const dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr + 'T12:00:00Z');
-            const diaCriado = dtCriado.getUTCDate();
-            let mIni = dtCriado.getUTCMonth() + 1; // 1-12
-            let aIni = dtCriado.getUTCFullYear();
+            const dtStr = m.status_updated_at || m.atualizado_em || m.created_at || '';
+            let dtCriado;
+            if (dtStr.includes('/') && dtStr.includes('-')) {
+                const parts = dtStr.split(' - ');
+                const dateParts = parts[0].split('/');
+                if (dateParts.length === 3) {
+                    dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`);
+                }
+            }
+            if (!dtCriado || isNaN(dtCriado.getTime())) {
+                dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+            }
+            if (isNaN(dtCriado.getTime())) dtCriado = new Date();
+
+            const corteDate = new Date(corteStr + 'T23:59:59-03:00');
+            if (dtCriado.getTime() > corteDate.getTime()) continue;
+
+            const diaCriado = dtCriado.getDate();
+            let mIni = dtCriado.getMonth() + 1; // 1-12
+            let aIni = dtCriado.getFullYear();
             if (diaCriado <= 25) {
                 // 1ª parcela no mês seguinte ao mês de criação
                 mIni += 1;
@@ -10643,6 +10658,12 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             } else {
                 valorFinal = existing.valor_parcela;
             }
+
+            // Automacao Status RH
+            const novoStatusRh = (parcelaNum >= numParcelas) ? 'Cobrado' : 'Cobrado Parcela';
+            await new Promise(resolve => {
+                db.run("UPDATE multas_logistica SET status_rh = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [novoStatusRh, m.id], () => resolve());
+            });
 
             const colId = m.colaborador_id;
             if (!grupos[colId]) grupos[colId] = { colaborador_id: colId, valor_total: 0, detalhes: [] };
