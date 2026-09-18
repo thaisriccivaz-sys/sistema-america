@@ -21674,7 +21674,10 @@ window.renderMultasMotoristaTab = async function (container) {
                     det.style.display = open ? 'none' : 'block';
                     ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
                     if (!open && typeof window._carregarHistoricoMulta === 'function') {
-                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, '${m.valor_multa || 0}', '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}');
+                        var isNic = ('${m.status}' === 'Multa NIC' || '${m.status}' === 'Multa Nic');
+                        var v = parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
+                        if (isNic) v = v * 3;
+                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}');
                     }
                 })()" 
                 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"

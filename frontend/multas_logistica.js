@@ -288,7 +288,7 @@ function _buildMultaRow(m) {
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
                 <div style="display:flex; align-items:flex-start;">
-                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="window._toggleRhMultaDetails(${m.id}, ${m.parcelas || 1}, '${m.valor_multa || 0}', '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}')" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
+                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="var isNic=('${m.status}'==='Multa NIC'||'${m.status}'==='Multa Nic');var v=parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.'))||0;if(isNic)v*=3;window._toggleRhMultaDetails(${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}')" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
                     <div>
                         <div style="display:inline-block;">
                             ${window._ultimoIdMultaEditada === m.id 
