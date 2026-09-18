@@ -10128,7 +10128,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             stmt.run([
                 mes, ano, item.colaborador_id,
                 item.horas_normais || null, item.horas_trabalhadas || null, item.horas_noturnas || null,
-                item.dias_falta || 0, JSON.stringify(item.data_faltas || []), item.horas_atraso || null,
+                item.dias_falta || 0, (function(df){ var arr = Array.isArray(df) ? df : (typeof df === 'string' ? (function(){ try { var p = JSON.parse(df); return Array.isArray(p) ? p : []; } catch(e){ return []; } })() : []); return JSON.stringify(arr); })(item.data_faltas), item.horas_atraso || null,
                 item.extra_60 || null, item.extra_100 || null, item.dsr || null,
                 item.vt || 0, item.farmacia || 0, item.mercado || 0, item.outros || 0,
                 item.multas || 0, item.academia || 0, item.consignado || 0,
