@@ -90,8 +90,8 @@ function _statusRHColor(status) {
 
 function _statusRhBadge(statusRh) {
     if (!statusRh) return '<span style="color:#cbd5e1;font-size:0.85rem;">\u2014</span>';
-    const cor = statusRh === 'Cobrado' ? '#16a34a' : '#d97706'; // verde = Cobrado, amarelo = Recebido
-    const bg  = statusRh === 'Cobrado' ? '#dcfce7' : '#fef9c3';
+    const cor = statusRh === 'Cobrado' ? '#16a34a' : statusRh === 'Cobrado Parcela' ? '#2563eb' : '#d97706'; // verde = Cobrado, amarelo = Recebido
+    const bg  = statusRh === 'Cobrado' ? '#dcfce7' : statusRh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3';
     return `<span style="background:${bg}; color:${cor}; padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:700; white-space:nowrap;">${statusRh}</span>`;
 }
 
@@ -190,8 +190,8 @@ function _csdSelect(containerId, selectId, value) {
 }
 
 function _csdRhSelect(value) {
-    const bg  = value === 'Cobrado' ? '#dcfce7' : value === 'Recebido' ? '#fef9c3' : '#f1f5f9';
-    const fg  = value === 'Cobrado' ? '#16a34a' : value === 'Recebido' ? '#d97706' : '#64748b';
+    const bg  = value === 'Cobrado' ? '#dcfce7' : value === 'Cobrado Parcela' ? '#dbeafe' : value === 'Recebido' ? '#fef9c3' : '#f1f5f9';
+    const fg  = value === 'Cobrado' ? '#16a34a' : value === 'Cobrado Parcela' ? '#2563eb' : value === 'Recebido' ? '#d97706' : '#64748b';
     const badge = document.getElementById('csd-gm-status-rh-badge');
     if (badge) { badge.textContent = value || '-- Sem Status --'; badge.style.background = bg; badge.style.color = fg; }
     const hidden = document.getElementById('gm-status-rh');
@@ -1166,6 +1166,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                                         <div class="csd-list">
                                             <div class="csd-item" data-val="" onclick="_csdRhSelect('')"><span class="csd-badge" style="background:#f1f5f9;color:#64748b;">-- Sem Status --</span></div>
                                             <div class="csd-item" data-val="Recebido" onclick="_csdRhSelect('Recebido')"><span class="csd-badge" style="background:#fef9c3;color:#d97706;font-weight:700;">Recebido</span></div>
+                                            <div class="csd-item" data-val="Cobrado Parcela" onclick="_csdRhSelect('Cobrado Parcela')"><span class="csd-badge" style="background:#dbeafe;color:#2563eb;font-weight:700;">Cobrado Parcela</span></div>
                                             <div class="csd-item" data-val="Cobrado" onclick="_csdRhSelect('Cobrado')"><span class="csd-badge" style="background:#dcfce7;color:#16a34a;font-weight:700;">Cobrado</span></div>
                                         </div>
                                     </div>
@@ -1756,8 +1757,8 @@ async function salvarGerenciamentoMulta(e, id) {
                     const badge = document.getElementById('csd-gm-status-rh-badge');
                     if (badge) {
                         badge.textContent = updated.status_rh || '-- Sem Status --';
-                        const cor = updated.status_rh === 'Cobrado' ? '#16a34a' : updated.status_rh === 'Recebido' ? '#d97706' : '#64748b';
-                        const bg = updated.status_rh === 'Cobrado' ? '#dcfce7' : updated.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9';
+                        const cor = updated.status_rh === 'Cobrado' ? '#16a34a' : updated.status_rh === 'Cobrado Parcela' ? '#2563eb' : updated.status_rh === 'Recebido' ? '#d97706' : '#64748b';
+                        const bg = updated.status_rh === 'Cobrado' ? '#dcfce7' : updated.status_rh === 'Cobrado Parcela' ? '#dbeafe' : updated.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9';
                         badge.style.background = bg;
                         badge.style.color = cor;
                     }

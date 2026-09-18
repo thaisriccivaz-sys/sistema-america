@@ -21481,7 +21481,7 @@ window._recarregarListaMultas = async function (colabId) {
     }
 };
 
-window._carregarHistoricoMulta = async function(uid, multaId) {
+window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal) {
     var el = document.getElementById(uid + '-hist');
     if (!el) return;
     el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Carregando...</span>';
@@ -21754,7 +21754,7 @@ window.renderMultasMotoristaTab = async function (container) {
                     <div style='grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;'>
                         <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>
                             <span style='font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;'>Parcelas em Folha</span>
-                            <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
+                            <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, ${m.valor_multa})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
                         </div>
                         <div id='${uid}-hist' style='font-size:0.8rem;color:#475569;'>
                             <span style='color:#94a3b8;font-style:italic;'>Clique em Atualizar para ver as parcelas cobradas em folha.</span>
