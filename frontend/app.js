@@ -17891,7 +17891,7 @@ window._carregarAuditoria = async function () {
             : (aud.tipo_documento && (aud.tipo_documento.startsWith('Treinamento') || aud.tipo_documento.startsWith('Terapia') || aud.tipo_documento.startsWith('Palestra') || aud.tipo_documento.startsWith('Lista de Presença')) && aud.documento_id)
             ? `<button onclick="window.verComprovantePresenca(${aud.documento_id})" title="Ver Comprovante" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>`
             : (aud.tipo_documento && aud.tipo_documento.startsWith('Multa — Declaração') && aud.documento_id)
-            ? `<button onclick="window.open('${API_URL.replace('/api','')}/api/logistica/multas/${aud.documento_id}/pdf', '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>`
+            ? `<button onclick="window.open(`${API_URL.replace('/api','')}/api/logistica/multas/${aud.documento_id}/pdf?token=${currentToken}`, '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>`
             : (aud.tipo_documento && aud.documento_id) 
             ? `<button onclick="window.open('${API_URL}/documentos/download/${aud.documento_id}?token=${currentToken}', '_blank')" title="Ver Documento" style="background:#e0f2fe;border:none;color:#0369a1;cursor:pointer;font-size:1.2rem;display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,0.05);"><i class="ph ph-eye"></i></button>` 
             : ''}
@@ -21637,7 +21637,7 @@ window.renderMultasMotoristaTab = async function (container) {
                         <span style="font-weight:600;">${m.pontuacao || '—'} pt(s)</span>
                     </div>
                     ${(() => {
-                        const valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\\d,.]/g, '').replace(',', '.')) || 0;
+                        const valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
                         const qtdParc = parseInt(m.parcelas) || 1;
                         const valParc = (valFloat / qtdParc).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
                         const labelParcelas = m.parcelas ? `${m.parcelas}x (${valParc})` : `1x (${valParc})`;
@@ -21687,7 +21687,7 @@ window.renderMultasMotoristaTab = async function (container) {
 
                         let botoes = '';
                         if (hasDeclaracao) {
-                            botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/pdf', '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Declaração Assinada</button>`;
+                            botoes += `<button onclick="window.open(`${baseApi}/api/logistica/multas/${m.id || idx}/pdf?token=${tokenUrl}`, '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Declaração Assinada</button>`;
                         }
                         if (hasTermoFisico) {
                             botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/termo-desconto?token=${tokenUrl}', '_blank')" style="background:#fff;color:#d97706;border:1px solid #fde68a;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-text" style="font-size:1rem;"></i> Termo Físico (Mônaco)</button>`;
