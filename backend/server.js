@@ -8392,7 +8392,7 @@ p{line-height:1.5;margin:5px 0}
   <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICAÇÃO DO CONDUTOR (NIC)</div>
   <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que será aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
   <p><strong>Valor da Multa Originária:</strong> ${fmtMoney(valorOriginal)}</p>
-  <p><strong>Valor da Multa NIC</strong> (2x a originária): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <p><strong>Valor da Multa NIC</strong> (2x a originária): ${fmtMoney(valorNIC)}</p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
   <br>
   <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou a empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, 8o, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
