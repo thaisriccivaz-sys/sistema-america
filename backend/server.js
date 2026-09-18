@@ -8186,7 +8186,16 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 placa !== undefined ? placa : oldData.placa,
                 local_infracao !== undefined ? local_infracao : oldData.local_infracao,
                 data_limite !== undefined ? data_limite : oldData.data_limite,
-                status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh,
+                (() => {
+                    const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
+                    let finalStatusRh = status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh;
+                    
+                    // Se estiver mudando para um status de RH e não tem status_rh, força para Recebido
+                    if (status && autoRhStatuses.includes(status) && (!finalStatusRh || finalStatusRh === '')) {
+                        finalStatusRh = 'Recebido';
+                    }
+                    return finalStatusRh;
+                })(),
                 req.params.id
             ],
             function (errUpdate) {
@@ -8223,11 +8232,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 }
 
 
-                // Auto-definir status_rh = 'Recebido' quando status muda para Indicado, Multa NIC ou Cobrada - Pz. Perdido
-                const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
-                if (status && autoRhStatuses.includes(status) && oldData.status !== status && !oldData.status_rh) {
-                    db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [req.params.id]);
-                }
+                // Auto-definir status_rh transferido para a query principal.
 
                 // Envia email ao RH apenas quando o status MUDA para Indicado, Multa NIC ou Cobrada - Pz. Perdido
                 if (status && (status === 'Indicado' || status === 'Multa NIC' || status === 'Cobrada - Pz. Perdido') && oldData.status !== status) {
@@ -8252,6 +8257,11 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                         const pontuacaoInt = parseInt(multaExtra.pontuacao) || 0;
                         const tipoRes = (multaExtra.motivo || status).substring(0, 50);
                         const tipoResolucaoDb = status === 'Indicado' ? 'indicacao' : 'nic';
+                        
+                        let valorCobrado = valorOriginal;
+                        if (status === 'Multa NIC') {
+                            valorCobrado = valorOriginal * 3;
+                        }
 
                         db.run(
                             `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
@@ -8266,7 +8276,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 multaExtra.local_infracao || '',
                                 finalAit || '',
                                 pontuacaoInt,
-                                valorOriginal,
+                                valorCobrado,
                                 tipoResolucaoDb, // 'nic' ou 'indicacao'
                                 finalParcelas
                             ],
@@ -8452,15 +8462,11 @@ p{line-height:1.5;margin:5px 0}
                                  : 'Multa NIC';
                 const oldStatus = m.status;
 
-                db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?`,
+                db.run(`UPDATE multas_logistica SET status = ?, status_updated_at = ?, parcelas = ?, atualizado_em = CURRENT_TIMESTAMP, status_rh = COALESCE(NULLIF(status_rh, ''), 'Recebido') WHERE id = ?`,
                     [novoStatus, getNowBR(), numParcelas, multaId], (errStatus) => {
                         if (errStatus) return res.status(500).json({ error: 'Erro ao atualizar status.' });
 
-                        // Auto status_rh = Recebido se ainda nao definido
-                        const autoRhStatuses = ['Indicado', 'Multa NIC', 'Cobrada - Pz. Perdido'];
-                        if (autoRhStatuses.includes(novoStatus)) {
-                            db.run("UPDATE multas_logistica SET status_rh = 'Recebido' WHERE id = ? AND (status_rh IS NULL OR status_rh = '')", [multaId]);
-                        }
+                        // Auto status_rh = Recebido inserido no UPDATE principal.
 
                         if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
                             const val2 = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
