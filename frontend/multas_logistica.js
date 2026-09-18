@@ -1723,6 +1723,10 @@ async function salvarGerenciamentoMulta(e, id) {
             const rhContainer = document.getElementById('gm-status-rh-container');
             if (rhContainer) {
                 if (window._isRhContext) {
+                    // Recarrega a lista do prontuário por trás do modal para já mostrar a multa no topo
+                    if (typeof window._recarregarListaMultas === 'function') {
+                        window._recarregarListaMultas(updated.motorista_id);
+                    }
                     const badge = document.getElementById('csd-gm-status-rh-badge');
                     if (badge) {
                         badge.textContent = updated.status_rh || '-- Sem Status --';
