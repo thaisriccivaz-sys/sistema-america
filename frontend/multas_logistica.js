@@ -377,7 +377,7 @@ async function carregarMultasLogistica() {
     const container = document.getElementById('multas-logistica-container');
     if (!container) return;
 
-    const RH_STATUS_PERMITIDOS = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const RH_STATUS_PERMITIDOS = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Cobrada - Pz. Perdido'];
 
     try {
         const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -408,7 +408,7 @@ async function carregarMultasLogistica() {
 
 function renderMultasLogistica(container) {
     const ALL_STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido', 'Não Se Aplica', 'Antiga'];
-    const RH_STATUS_OPTS  = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const RH_STATUS_OPTS  = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Cobrada - Pz. Perdido'];
     const STATUS_OPTS = window._isRhContext ? RH_STATUS_OPTS : ALL_STATUS_OPTS;
     const optsStatus = STATUS_OPTS.map(s => `<option value="${s}">${s}</option>`).join('');
 
