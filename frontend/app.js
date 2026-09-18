@@ -21601,8 +21601,7 @@ window.renderMultasMotoristaTab = async function (container) {
         'Não Se Aplica': '#e2e8f0',
     };
 
-    multas.forEach((m, idx) => {
-        if (!PRONTUARIO_STATUS_VISIVEIS.includes(m.status)) return; // só exibe visíveis
+    multasVisiveis.forEach((m, idx) => { // só exibe visíveis
         const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
         const bgStatus = STATUS_COLOR[m.status] || '#e2e8f0';
         const uid = `multa-det-${m.id || idx}`;
