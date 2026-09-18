@@ -21544,6 +21544,18 @@ window.renderMultasMotoristaTab = async function (container) {
     // ── Apenas multas com status relevantes aparecem no prontuário ──
     const PRONTUARIO_STATUS_VISIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
     const multasVisiveis = multas.filter(m => PRONTUARIO_STATUS_VISIVEIS.includes(m.status));
+    
+    // Ordenar multas pela data de lançamento/atualização no RH (mais novas primeiro)
+    multasVisiveis.sort((a, b) => {
+        const safeDate = (dt) => {
+            if (!dt) return 0;
+            const d = dt.replace(' ', 'T'); // Fix Safari parse issue with YYYY-MM-DD HH:MM:SS
+            return new Date(d).getTime() || 0;
+        };
+        const dataA = safeDate(a.status_updated_at || a.atualizado_em || a.criado_em);
+        const dataB = safeDate(b.status_updated_at || b.atualizado_em || b.criado_em);
+        return dataB - dataA;
+    });
 
     container.innerHTML = '';
     container.appendChild(aviso);
