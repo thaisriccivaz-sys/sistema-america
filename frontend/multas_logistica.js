@@ -288,7 +288,7 @@ function _buildMultaRow(m) {
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
                 <div style="display:flex; align-items:flex-start;">
-                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="window._toggleRhMultaDetails(${m.id})" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
+                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="window._toggleRhMultaDetails(${m.id}, ${m.parcelas || 1}, '${m.valor_multa || 0}', '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}')" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
                     <div>
                         <div style="display:inline-block;">
                             ${window._ultimoIdMultaEditada === m.id 
@@ -2767,13 +2767,17 @@ window.abrirFluxoAssinatura = function(multaId) {
 };
 
 
-window._toggleRhMultaDetails = function(id) {
+window._toggleRhMultaDetails = function(id, parcelas = 1, valor_multa = 0, dataRef = '') {
     const det = document.getElementById('multa-rh-details-' + id);
     const ico = document.getElementById('multa-rh-ico-' + id);
     if (!det || !ico) return;
     const open = det.style.display !== 'none';
     det.style.display = open ? 'none' : 'table-row';
     ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+    
+    if (!open && typeof window._carregarHistoricoMulta === 'function') {
+        window._carregarHistoricoMulta('multa-rh-det-' + id, id, parcelas, valor_multa, dataRef);
+    }
 };
 
 function _buildRhMultaDetailsRow(m) {
@@ -2877,10 +2881,9 @@ function _buildRhMultaDetailsRow(m) {
                         <div style='grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;'>
                             <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>
                                 <span style='font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;'>Parcelas em Folha</span>
-                                <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, ${m.valor_multa})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
                             </div>
                             <div id='${uid}-hist' style='font-size:0.8rem;color:#475569;'>
-                                <span style='color:#94a3b8;font-style:italic;'>Clique em Atualizar para ver as parcelas cobradas em folha.</span>
+                                <span style='color:#94a3b8;font-style:italic;'>Carregando parcelas...</span>
                             </div>
                         </div>
                     </div>

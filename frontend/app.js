@@ -21481,7 +21481,7 @@ window._recarregarListaMultas = async function (colabId) {
     }
 };
 
-window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal) {
+window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal, dataRef = '') {
     var el = document.getElementById(uid + '-hist');
     if (!el) return;
     el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Carregando...</span>';
@@ -21490,23 +21490,72 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         var resp = await fetch('/api/multas/' + multaId + '/historico-cobranca', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
-        var hist = await resp.json();
-        if (!hist || hist.length === 0) {
-            el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Nenhuma cobrança registrada ainda.</span>';
-            return;
-        }
+        var hist = await resp.json() || [];
+        
         var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
         var html = '';
-        hist.forEach(function(h) {
-            var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
-            var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                + '<span style="color:#16a34a;font-size:1rem;">&#10003;</span>'
-                + '<span style="font-weight:600;">Parcela ' + h.parcela_num + '</span>'
-                + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
-                + '<span style="margin-left:auto;font-weight:700;color:#dc2626;">' + val + '</span>'
-                + '</div>';
-        });
+        var parcelasCobradas = {};
+        var maxAno = 0;
+        var maxMes = 0;
+        
+        if (Array.isArray(hist)) {
+            hist.forEach(function(h) {
+                parcelasCobradas[h.parcela_num] = h;
+                if (h.ano > maxAno || (h.ano === maxAno && h.mes > maxMes)) {
+                    maxAno = h.ano;
+                    maxMes = h.mes;
+                }
+            });
+        }
+        
+        var baseDate = new Date();
+        if (maxAno > 0) {
+            baseDate = new Date(maxAno, maxMes - 1, 1);
+        } else if (dataRef) {
+            if (dataRef.includes('/')) {
+                let parts = dataRef.split(' - ')[0].split('/');
+                if (parts.length === 3) baseDate = new Date(parts[2], parseInt(parts[1])-1, parts[0]);
+            } else {
+                let d = dataRef.replace(' ', 'T');
+                if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
+                baseDate = new Date(d);
+            }
+        }
+        
+        var currentMonthBase = new Date(baseDate);
+        if (maxAno > 0) currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
+        else currentMonthBase.setMonth(currentMonthBase.getMonth() + 1); // se não tem histórico, começa a cobrar no mês seguinte
+        
+        var numParcelas = parseInt(totalParcelas) || 1;
+        var valorTot = parseFloat(String(valorTotal).replace(/[^0-9,.-]/g, '').replace(',', '.')) || parseFloat(valorTotal) || 0;
+        var valorPorParcela = numParcelas > 0 ? (valorTot / numParcelas) : 0;
+        var valorFormatado = valorPorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        for (let i = 1; i <= numParcelas; i++) {
+            if (parcelasCobradas[i]) {
+                var h = parcelasCobradas[i];
+                var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
+                var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                    + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
+                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                    + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
+                    + '</div>';
+            } else {
+                var m = currentMonthBase.getMonth();
+                var y = currentMonthBase.getFullYear();
+                var mesNome = MESES[m];
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;opacity:0.6;">'
+                    + '<span style="color:#64748b;font-size:1rem;width:16px;"><i class="ph ph-clock"></i></span>'
+                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                    + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + ' (Aguardando)</span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#64748b;">' + valorFormatado + '</span>'
+                    + '</div>';
+                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
+            }
+        }
+        
         el.innerHTML = html;
     } catch(e) {
         el.innerHTML = '<span style="color:#dc2626;">Erro: ' + e.message + '</span>';
@@ -21624,6 +21673,9 @@ window.renderMultasMotoristaTab = async function (container) {
                     var open = det.style.display !== 'none';
                     det.style.display = open ? 'none' : 'block';
                     ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+                    if (!open && typeof window._carregarHistoricoMulta === 'function') {
+                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, '${m.valor_multa || 0}', '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}');
+                    }
                 })()" 
                 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"
                 onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -21754,10 +21806,9 @@ window.renderMultasMotoristaTab = async function (container) {
                     <div style='grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;'>
                         <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>
                             <span style='font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;'>Parcelas em Folha</span>
-                            <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, ${m.valor_multa})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
                         </div>
                         <div id='${uid}-hist' style='font-size:0.8rem;color:#475569;'>
-                            <span style='color:#94a3b8;font-style:italic;'>Clique em Atualizar para ver as parcelas cobradas em folha.</span>
+                            <span style='color:#94a3b8;font-style:italic;'>Carregando parcelas...</span>
                         </div>
                     </div>
                 </div>
