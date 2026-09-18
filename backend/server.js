@@ -10644,7 +10644,7 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
             if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
 
-            // Idempotência: nao cobrar 2x no mesmo mês
+            // Idempotência: upsert — insere ou atualiza o valor (corrige registros com valor desatualizado)
             const existing = await new Promise((resolve, reject) => {
                 db.get('SELECT id, valor_parcela FROM multas_cobranca_historico WHERE multa_id = ? AND mes = ? AND ano = ?',
                     [m.id, mesNum, anoNum],
@@ -10658,8 +10658,13 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                         [m.id, mesNum, anoNum, parcelaNum, valorParcela],
                         () => resolve());
                 });
-            } else {
-                valorFinal = existing.valor_parcela;
+            } else if (Math.abs(existing.valor_parcela - valorParcela) > 0.001) {
+                // Valor mudou (ex: correção de NIC x3) — atualizar registro existente
+                await new Promise((resolve) => {
+                    db.run('UPDATE multas_cobranca_historico SET valor_parcela = ?, parcela_num = ? WHERE id = ?',
+                        [valorParcela, parcelaNum, existing.id],
+                        () => resolve());
+                });
             }
 
             // Automacao Status RH
