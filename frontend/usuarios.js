@@ -721,16 +721,16 @@ function renderArvorePermissoesForm() {
                     const allActive = grp.telas.length > 0 && grp.telas.every(tid => _permissoesFormAtivas[tid] && _permissoesFormAtivas[tid].visualizar);
                     tituloHTML = `
                     <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;margin:0 0 0.75rem 0;cursor:pointer;" onclick="(function(el){ const panel=el.nextElementSibling; const isOpen=panel.style.display!=='none'; panel.style.display=isOpen?'none':'grid'; const icon=el.querySelector('.perm-caret'); if(icon) icon.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)'; })(this)">
-                        <h5 style="margin:0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;">
+                        <h5 style="margin:0;font-size:0.8rem;color:${mod.cor};text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;">
                             <i class="ph ph-caret-down perm-caret" style="transition:transform 0.2s;transform:rotate(${anyActive ? '0' : '-90'}deg);font-size:0.9rem;"></i>
-                            <i class="ph ph-file-text" style="color:#d9480f;"></i> ${grp.titulo}
+                            <i class="ph ph-file-text" style="color:${mod.cor};"></i> ${grp.titulo}
                         </h5>
                         <label style="font-size:0.75rem;color:#1971c2;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">
                             <input type="checkbox" id="cb-todas-${groupIdSafe}" onchange="window.setTodasTelasGrupoForm(this, '${groupIdSafe}')" ${allActive ? 'checked' : ''} style="accent-color:#1971c2;vertical-align:middle;"> Selecionar Todas
                         </label>
                     </div>`;
                 } else {
-                    tituloHTML = `<h5 style="margin:0 0 0.75rem 0;font-size:0.8rem;color:#d9480f;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">${grp.titulo}</h5>`;
+                    tituloHTML = `<h5 style="margin:0 0 0.75rem 0;font-size:0.8rem;color:${mod.cor};text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #f1f5f9;padding-bottom:0.25rem;">${grp.titulo}</h5>`;
                 }
             }
 
@@ -745,7 +745,7 @@ function renderArvorePermissoesForm() {
                 html += `
                         <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.75rem;background:#f8fafc;border-radius:6px;border:1px solid #f1f5f9;">
                             <span style="font-size:0.85rem;font-weight:600;color:#334155;display:flex;align-items:center;gap:6px;">
-                                <i class="ph ${telaInfo && telaInfo.icone ? telaInfo.icone : 'ph-app-window'}" style="font-size:1.1rem;color:#f37021;"></i> ${nomeTela}
+                                <i class="ph ${telaInfo && telaInfo.icone ? telaInfo.icone : 'ph-app-window'}" style="font-size:1.1rem;color:${mod.cor};"></i> ${nomeTela}
                             </span>
                             <div style="display:flex;gap:1.5rem;">
                                 <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;cursor:pointer;color:#1971c2;font-weight:600;">
