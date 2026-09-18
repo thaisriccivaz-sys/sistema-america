@@ -8168,6 +8168,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 local_infracao = ?,
                 data_limite = ?,
                 status_rh = ?,
+                config_parcelas = ?,
                 atualizado_em = CURRENT_TIMESTAMP
              WHERE id = ?`,
             [
