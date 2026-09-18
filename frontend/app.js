@@ -21569,8 +21569,7 @@ window.renderMultasMotoristaTab = async function (container) {
         const dB = b.status_updated_at || b.atualizado_em || b.criado_em;
         const dataA = safeDate(dA);
         const dataB = safeDate(dB);
-        console.log(`[DEBUG SORT] A=${a.numero_ait} (${dA}) => ${dataA} | B=${b.numero_ait} (${dB}) => ${dataB} | DIFF=${dataB - dataA}`);
-        return dataB - dataA;
+                return dataB - dataA;
     });
 
     container.innerHTML = '';
@@ -21638,7 +21637,21 @@ window.renderMultasMotoristaTab = async function (container) {
                             🚦 AIT: ${m.numero_ait || '—'}
                             ${m.placa ? `<span style="margin-left:8px;font-size:0.8rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:1px 8px;border-radius:10px;">${m.placa}</span>` : ''}
                         </div>
-                        <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">${dataFmt}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</div>
+                        <div style="font-size:0.75rem;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span style="color:#2563eb;font-weight:600;display:flex;align-items:center;gap:3px;"><i class="ph ph-police-car"></i> Infração: ${dataFmt}${m.hora_infracao ? ' às ' + m.hora_infracao : ''}</span>
+                            <span style="color:#cbd5e1;font-size:0.7rem;">|</span>
+                            <span style="color:#16a34a;font-weight:600;display:flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Inclusão: ${(() => {
+                                const dt = m.status_updated_at || m.atualizado_em || m.criado_em;
+                                if (!dt) return '—';
+                                if (dt.includes('/') && dt.includes('-')) return dt.split(' - ').join(' às ');
+                                let dStr = dt.replace(' ', 'T'); if (!dStr.includes('Z')) dStr += 'Z';
+                                try {
+                                    const dObj = new Date(dStr);
+                                    if (isNaN(dObj.getTime())) return '—';
+                                    return String(dObj.getDate()).padStart(2,'0')+'/'+String(dObj.getMonth()+1).padStart(2,'0')+'/'+dObj.getFullYear()+' às '+String(dObj.getHours()).padStart(2,'0')+':'+String(dObj.getMinutes()).padStart(2,'0');
+                                } catch(e){ return '—'; }
+                            })()}</span>
+                        </div>
                     </div>
                 </div>
                 <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${m.status || '—'}</span>
