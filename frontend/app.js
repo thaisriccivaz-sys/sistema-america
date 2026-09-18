@@ -21549,7 +21549,19 @@ window.renderMultasMotoristaTab = async function (container) {
     multasVisiveis.sort((a, b) => {
         const safeDate = (dt) => {
             if (!dt) return 0;
-            const d = dt.replace(' ', 'T'); // Fix Safari parse issue with YYYY-MM-DD HH:MM:SS
+            // Handle DD/MM/YYYY - HH:MM format from getNowBR()
+            if (dt.includes('/') && dt.includes('-')) {
+                try {
+                    const parts = dt.split(' - ');
+                    const dateParts = parts[0].split('/');
+                    if (dateParts.length === 3) {
+                        const isoStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00`;
+                        return new Date(isoStr).getTime() || 0;
+                    }
+                } catch(e) {}
+            }
+            // Handle YYYY-MM-DD HH:MM:SS format from CURRENT_TIMESTAMP
+            const d = dt.replace(' ', 'T');
             return new Date(d).getTime() || 0;
         };
         const dataA = safeDate(a.status_updated_at || a.atualizado_em || a.criado_em);
