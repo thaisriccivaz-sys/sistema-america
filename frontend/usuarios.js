@@ -596,6 +596,18 @@ const MENU_HIERARQUIA = [
                 ]
             },
             {
+                titulo: 'Pagamentos',
+                telas: [
+                    'fechamento', 'recibos', 'pagamentos-massa'
+                ]
+            },
+            {
+                titulo: 'Rota de Sucesso',
+                telas: [
+                    'rota-sucesso-motoristas', 'rota-sucesso-ajudantes'
+                ]
+            },
+            {
                 titulo: 'Avaliações',
                 telas: [
                     'satisfacao-rh', 'desempenho-rh'
@@ -615,7 +627,21 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
-        grupos: [{ titulo: 'Telas', telas: ['logistica-dashboard', 'logistica-pipeline', 'logistica-rota-redonda', 'logistica-videos-os', 'logistica-resumo-rota', 'logistica-frota', 'logistica-multas', 'logistica-credenciamento', 'logistica-senhas', 'logistica-itinerantes', 'logistica-sinistros', 'logistica-agenda', 'logistica-epi', 'logistica-equipes'] }]
+        grupos: [{ titulo: 'Telas', telas: [
+                    'logistica-dashboard', 'logistica-agenda', 'logistica-epi', 
+                    'logistica-multas', 'logistica-equipes', 'logistica-frota', 
+                    'logistica-credenciamento', 'logistica-senhas', 
+                    'logistica-itinerantes', 'logistica-sinistros'
+                ]
+            },
+            {
+                titulo: 'Rota Redonda',
+                telas: [
+                    'logistica-pipeline', 'logistica-resumo-rota', 
+                    'logistica-rota-redonda', 'logistica-videos-os'
+                ]
+            }
+        ]
     },
     {
         modulo: 'Financeiro', icone: 'ph-currency-dollar', cor: '#1864ab',
