@@ -2217,6 +2217,19 @@ document.addEventListener('click', function(e) {
 window.abrirFluxoAssinatura = function(multaId) {
     const multa = multasLogistica.find(x => x.id === multaId);
     if (!multa) { alert('Multa não encontrada.'); return; }
+    
+    if (!multa.motorista_id) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Atenção',
+                text: 'Para poder assinar uma multa, você deve primeiro vincular um colaborador a ela. Use o botão "Gerenciar Multa" para adicionar o motorista.',
+                icon: 'warning'
+            });
+        } else {
+            alert('Para poder assinar uma multa, você deve primeiro vincular um colaborador a ela.\nUse o botão "Gerenciar Multa" para adicionar o motorista.');
+        }
+        return;
+    }
 
     const fmtMoney = v => {
         const n = parseFloat((v||'0').toString().replace(/[^\d,.]/g,'').replace(',','.')) || 0;
