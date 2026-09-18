@@ -8452,7 +8452,7 @@ p{line-height:1.5;margin:5px 0}
   <div class="opcao-titulo">OPÇÃO 1 - INDICAÇÃO DO CONDUTOR</div>
   <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificacao junto ao órgão competente, evitando a aplicação de multa por Nao Identificação de Condutor (NIC).</p>
   <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto a pontuação em minha CNH.</p>
-  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuação || '-'} pontos</span></p>
+  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '-'} pontos</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
   <div class="opcao-titulo">OPCAO 2 - NÃO INDICACAO DO CONDUTOR (NIC)</div>
