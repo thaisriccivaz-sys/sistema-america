@@ -10593,7 +10593,7 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
     try {
         const multas = await new Promise((resolve, reject) => {
             db.all(
-                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at, ml.status_updated_at, ml.atualizado_em FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\'',
+                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.status, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at, ml.status_updated_at, ml.atualizado_em FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\'',
                 [...STATUS_ELEGIVEIS],
                 (err, rows) => err ? reject(err) : resolve(rows || [])
             );
@@ -10602,7 +10602,10 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
         const grupos = {};
 
         for (const m of multas) {
-            const valorTotal = parseFloat((m.valor_multa || '0').toString().replace(',', '.')) || 0;
+            let valorTotal = parseFloat((m.valor_multa || '0').toString().replace(',', '.')) || 0;
+            if (m.status === 'Multa NIC' || m.status === 'Multa Nic') {
+                valorTotal = valorTotal * 3;
+            }
             if (valorTotal <= 0) continue;
             const numParcelas = parseInt(m.parcelas) > 0 ? parseInt(m.parcelas) : 1;
             const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;

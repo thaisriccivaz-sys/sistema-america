@@ -287,12 +287,17 @@ function _buildMultaRow(m) {
     return `
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
-                <div style="display:inline-block;">
-                    ${window._ultimoIdMultaEditada === m.id 
-                        ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '\u2014'}</strong>` 
-                        : `<span style="font-size:0.82rem;">${m.numero_ait || '\u2014'}</span>`}
+                <div style="display:flex; align-items:flex-start;">
+                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="window._toggleRhMultaDetails(${m.id})" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
+                    <div>
+                        <div style="display:inline-block;">
+                            ${window._ultimoIdMultaEditada === m.id 
+                                ? `<strong style="font-weight:900; font-size:0.82rem;">${m.numero_ait || '\u2014'}</strong>` 
+                                : `<span style="font-size:0.82rem;">${m.numero_ait || '\u2014'}</span>`}
+                        </div>
+                        ${criadoEmHtml}
+                    </div>
                 </div>
-                ${criadoEmHtml}
             </td>
             <td style="padding:0.6rem 0.75rem; font-weight:600; color:#334155; white-space:nowrap; font-size:0.82rem;">${m.placa || '\u2014'}</td>
             <td style="padding:0.6rem 0.75rem; font-size:0.82rem;">${dataInfracao}<br><span style="color:#64748b; font-size:0.75rem;">${m.hora_infracao || '\u2014'}</span></td>
@@ -311,7 +316,8 @@ function _buildMultaRow(m) {
             <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap;">
                 ${btnEditar}${btnAssinar}${olhoVerde}${olhoAzul}${btnDoc}${btnLink}
             </td>
-        </tr>`;
+        </tr>
+        ${window._isRhContext ? _buildRhMultaDetailsRow(m) : ''}`;
 }
 
 // Ordenação da tabela
@@ -2759,3 +2765,127 @@ window.abrirFluxoAssinatura = function(multaId) {
     // Inicia na etapa 1
     renderEtapa1();
 };
+
+
+window._toggleRhMultaDetails = function(id) {
+    const det = document.getElementById('multa-rh-details-' + id);
+    const ico = document.getElementById('multa-rh-ico-' + id);
+    if (!det || !ico) return;
+    const open = det.style.display !== 'none';
+    det.style.display = open ? 'none' : 'table-row';
+    ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+};
+
+function _buildRhMultaDetailsRow(m) {
+    const dataFmt = m.data_infracao ? m.data_infracao.split('-').reverse().join('/') : '—';
+    const prazoFmt = m.data_limite ? m.data_limite.split('-').reverse().join('/') : '—';
+    const uid = 'multa-rh-det-' + m.id;
+    const quemIncluiu = m.created_by_nome || m.created_by || '—';
+
+    let docsExtrasList = [];
+    try { docsExtrasList = JSON.parse(m.documentos_extras || '[]'); } catch(e){}
+    const tokenUrl = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const baseApi = (window.API_URL || '').replace('/api','');
+    
+    const hasDocExtra0 = !!docsExtrasList[0];
+    const hasDocExtra1 = !!docsExtrasList[1];
+    const hasDocBase = (m.documento_base64 || m.documento_path);
+    const hasDeclaracao = (m.status === 'Indicado' || m.status === 'Multa NIC' || m.status === 'Concluído' || m.status === 'Assinado');
+    const hasTermoFisico = !!m.termo_desconto_base64;
+
+    let botoes = '';
+    if (hasDeclaracao) {
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/pdf?token=${tokenUrl}', '_blank')" style="background:#fff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> Declaração Assinada</button>`;
+    }
+    if (hasTermoFisico) {
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/termo-desconto?token=${tokenUrl}', '_blank')" style="background:#fff;color:#d97706;border:1px solid #fde68a;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-text" style="font-size:1rem;"></i> Termo Físico (Mônaco)</button>`;
+    }
+    if (hasDocBase) {
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento?token=${tokenUrl}', '_blank')" style="background:#fff;color:#10b981;border:1px solid #a7f3d0;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> PDF da Multa Original</button>`;
+    }
+    if (hasDocExtra0) {
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/0?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#3b82f6;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 1</button>`;
+    }
+    if (hasDocExtra1) {
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/1?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 2</button>`;
+    }
+
+    let valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+    if (m.status === 'Multa NIC' || m.status === 'Multa Nic') {
+        valFloat = valFloat * 3;
+    }
+    const qtdParc = parseInt(m.parcelas) || 1;
+    const valParc = (valFloat / qtdParc).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+    const labelParcelas = m.parcelas ? `${m.parcelas}x (${valParc})` : `1x (${valParc})`;
+
+    const valDisplay = (m.status === 'Multa NIC' || m.status === 'Multa Nic') ? ((parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0) * 3).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : (m.valor_multa || '—');
+
+    return `
+        <tr id="multa-rh-details-${m.id}" style="display:none; background:#fafafa; border-bottom:2px solid #e2e8f0;">
+            <td colspan="9" style="padding:0;">
+                <div style="padding:1rem 1.25rem; border-left:4px solid #3b82f6;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Placa</span>
+                            <span style="font-weight:600;">${m.placa || '—'}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Data e Hora</span>
+                            <span style="font-weight:600;">${dataFmt}${m.hora_infracao ? ' — ' + m.hora_infracao : ''}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Valor da Multa</span>
+                            <span style="font-weight:700;color:#dc2626;">R$ ${valDisplay}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Pontuação</span>
+                            <span style="font-weight:600;">${m.pontuacao || '—'} pt(s)</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Parcelas</span>
+                            <span style="font-weight:600;">${labelParcelas}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Prazo Indicação</span>
+                            <span style="font-weight:600;${m.data_limite ? 'color:#d97706;' : ''}">${prazoFmt}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Local da Infração</span>
+                            <span style="font-weight:500;">${m.local_infracao || '—'}</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Infração / Motivo</span>
+                            <span style="font-weight:500;">${m.motivo || '—'}</span>
+                        </div>
+                        ${(quemIncluiu.toLowerCase().includes('mônaco') || quemIncluiu.toLowerCase().includes('monaco')) ? '' : `
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Incluído por</span>
+                            <span style="font-weight:600;">${quemIncluiu}</span>
+                        </div>`}
+                        ${m.observacao ? `
+                        <div style="display:flex;flex-direction:column;gap:2px;grid-column:1/-1;">
+                            <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Observação</span>
+                            <span style="font-style:italic;color:#475569;">${m.observacao}</span>
+                        </div>` : ''}
+                        
+                        ${botoes ? `
+                        <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px; flex-wrap:wrap;">
+                            ${botoes}
+                        </div>` : ''}
+                        
+                        <!-- Histórico de cobranças de parcelas -->
+                        <div style='grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed #e2e8f0;'>
+                            <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;'>
+                                <span style='font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;'>Parcelas em Folha</span>
+                                <button onclick="window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, ${m.valor_multa})" style='background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.72rem;font-weight:600;padding:2px 10px;border-radius:6px;cursor:pointer;'>Atualizar</button>
+                            </div>
+                            <div id='${uid}-hist' style='font-size:0.8rem;color:#475569;'>
+                                <span style='color:#94a3b8;font-style:italic;'>Clique em Atualizar para ver as parcelas cobradas em folha.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+}
