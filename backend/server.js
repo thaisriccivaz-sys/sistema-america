@@ -7961,12 +7961,39 @@ app.delete('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
 
 // GET /api/logistica/multas ??? lista todas as multas
 app.get('/api/logistica/multas', authenticateToken, (req, res) => {
-    db.all(`SELECT ml.*, c.nome_completo as motorista_nome_colab, c.cpf as motorista_cpf, c.cnh_numero as motorista_habilitacao
+    db.all(`SELECT 
+                ml.id, ml.motorista_id, ml.motorista_nome, ml.data_infracao, ml.hora_infracao, 
+                ml.numero_ait, ml.motivo, ml.valor_multa, ml.pontuacao, ml.status, ml.observacao, 
+                ml.link_formulario, ml.documento_path, ml.documento_nome, ml.parcelas, ml.placa, 
+                ml.local_infracao, ml.criado_em, ml.atualizado_em, ml.data_limite, 
+                CASE WHEN ml.documento_base64 IS NOT NULL THEN '1' ELSE NULL END as documento_base64,
+                CASE WHEN ml.termo_desconto_base64 IS NOT NULL THEN '1' ELSE NULL END as termo_desconto_base64,
+                ml.documentos_extras, ml.created_by_nome, ml.monaco_uuid, ml.status_monaco, 
+                ml.termo_desconto_nome, ml.created_by_id, ml.status_rh, ml.status_updated_at, 
+                ml.obs_historico, ml.termo_desconto_url, ml.documento_url,
+                c.nome_completo as motorista_nome_colab, c.cpf as motorista_cpf, c.cnh_numero as motorista_habilitacao
             FROM multas_logistica ml
             LEFT JOIN colaboradores c ON ml.motorista_id = c.id
             ORDER BY ml.criado_em DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows || []);
+        
+        const multas = (rows || []).map(row => {
+            if (row.documentos_extras) {
+                try {
+                    let extras = JSON.parse(row.documentos_extras);
+                    if (Array.isArray(extras)) {
+                        extras = extras.map(doc => {
+                            if (doc) delete doc.base64;
+                            return doc;
+                        });
+                        row.documentos_extras = JSON.stringify(extras);
+                    }
+                } catch(e) {}
+            }
+            return row;
+        });
+
+        res.json(multas);
     });
 });
 
