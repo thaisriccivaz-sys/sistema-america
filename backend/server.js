@@ -340,7 +340,7 @@ db.run("UPDATE geradores SET nome = 'Autorização de Desconto em Folha' WHERE n
 // Excluir permanentemente ORDEM DE SERVI??O NR01
 db.run("DELETE FROM geradores WHERE nome = 'ORDEM DE SERVI??O NR01'");
 
-// Registrar exclusoes permanentes para que o seed nao recrie
+// Registrar exclusoes permanentes para que o seed não recrie
 db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('Termo de Responsabilidade de Chaves')");
     db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES ('AUTORIZACAO DE DESCONTO EM FOLHA DE PAGAMENTO')");
@@ -507,7 +507,7 @@ db.run(`CREATE TABLE IF NOT EXISTS resumo_rota_auditoria (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     data_rota TEXT,
     nome_resumo TEXT,
-    veiculo TEXT,
+    veículo TEXT,
     campo TEXT,
     valor_anterior TEXT,
     valor_atual TEXT,
@@ -864,7 +864,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
     data_hora TEXT,
     natureza TEXT,
     placa TEXT,
-    veiculo TEXT,
+    veículo TEXT,
     desconto TEXT,
     parcelas INTEGER DEFAULT 1,
     valor_parcela TEXT,
@@ -903,15 +903,15 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
 db.run(`CREATE TABLE IF NOT EXISTS multas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     colaborador_id INTEGER NOT NULL,
-    codigo_infracao TEXT,
-    descricao_infracao TEXT,
+    codigo_infração TEXT,
+    descricao_infração TEXT,
     placa TEXT,
-    veiculo TEXT,
-    data_infracao TEXT,
-    hora_infracao TEXT,
-    local_infracao TEXT,
+    veículo TEXT,
+    data_infração TEXT,
+    hora_infração TEXT,
+    local_infração TEXT,
     numero_ait TEXT,
-    pontuacao INTEGER,
+    pontuação INTEGER,
     valor_multa TEXT,
     tipo_resolucao TEXT,
     parcelas INTEGER DEFAULT 1,
@@ -1119,13 +1119,13 @@ db.get("SELECT * FROM geradores WHERE nome = 'NR1'", (err, row) => {
     }
 });
 
-// MIGRATION: Adicionar coluna docs_exigidos na tabela credenciamentos (se nao existir)
+// MIGRATION: Adicionar coluna docs_exigidos na tabela credenciamentos (se não existir)
 db.run("ALTER TABLE credenciamentos ADD COLUMN docs_exigidos TEXT DEFAULT '[]'", (err) => {
     if (!err) console.log('[MIGRATION] Coluna docs_exigidos adicionada na tabela credenciamentos.');
     // Ignora erro de coluna ja existente (expected)
 });
 
-// MIGRATION: Adicionar coluna 'os' na tabela credenciamentos (se nao existir)
+// MIGRATION: Adicionar coluna 'os' na tabela credenciamentos (se não existir)
 db.run("ALTER TABLE credenciamentos ADD COLUMN os TEXT DEFAULT ''", (err) => {
     if (!err) console.log('[MIGRATION] Coluna os adicionada na tabela credenciamentos.');
     // Ignora erro de coluna ja existente (expected)
@@ -1136,8 +1136,8 @@ db.run("ALTER TABLE credenciamentos ADD COLUMN observacoes TEXT DEFAULT ''", (er
     if (!err) console.log('[MIGRATION] Coluna observacoes adicionada na tabela credenciamentos.');
 });
 
-// MIGRATION: Adicionar colunas qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status na tabela credenciamentos
-['qtd_max_colaboradores INTEGER DEFAULT 0', 'qtd_max_veiculos INTEGER DEFAULT 0', 'data_limite_envio TEXT', 'status TEXT DEFAULT \'solicitado\'', 'licencas_ids TEXT DEFAULT \'[]\''].forEach(col => {
+// MIGRATION: Adicionar colunas qtd_max_colaboradores, qtd_max_veículos, data_limite_envio, status na tabela credenciamentos
+['qtd_max_colaboradores INTEGER DEFAULT 0', 'qtd_max_veículos INTEGER DEFAULT 0', 'data_limite_envio TEXT', 'status TEXT DEFAULT \'solicitado\'', 'licencas_ids TEXT DEFAULT \'[]\''].forEach(col => {
     const colName = col.split(' ')[0];
     db.run(`ALTER TABLE credenciamentos ADD COLUMN ${col}`, (err) => {
         if (!err) console.log(`[MIGRATION] Coluna ${colName} adicionada na tabela credenciamentos.`);
@@ -1176,7 +1176,7 @@ db.run(`DELETE FROM geradores WHERE UPPER(TRIM(nome)) LIKE '%ORDEM DE SERVI%'`, 
 });
 db.run(`DELETE FROM documentos WHERE UPPER(TRIM(document_type)) LIKE '%ORDEM DE SERVI%' AND tab_name = 'CONTRATOS_AVULSOS'`, (err) => {
     if (err) console.error('[MIGRATION] Erro ao excluir docs Ordem de Servico:', err.message);
-    else console.log('[MIGRATION] Docs Ordem de Servico removidos dos prontuarios.');
+    else console.log('[MIGRATION] Docs Ordem de Servico removidos dos prontuários.');
 });
 
 // MIGRATION: Remover " - Total" dos grupos de permissão
@@ -1321,7 +1321,7 @@ GERADORES_PERFIL.forEach(nome => {
       <td style="border:1px solid #000;padding:5px 8px;" colspan="3">à</td>
     </tr>
     <tr>
-      <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Empresa:</b> AMERICA RENTAL EQUIPAMENTOS LTDA</td>
+      <td style="border:1px solid #000;padding:5px 8px;" colspan="3"><b>Empresa:</b> AMÉRICA RENTAL EQUIPAMENTOS LTDA</td>
     </tr>
     <tr>
       <td style="border:1px solid #000;padding:5px 8px;" colspan="2"><b>Endereço:</b> SALTO DA DIVISA, 97</td>
@@ -1535,7 +1535,7 @@ cargosDeptosSync.forEach(([cNome, cDepto]) => {
     // Pula se foi excluido manualmente pelo usuario
     db.get("SELECT nome FROM cargos_excluidos WHERE nome = ?", [cNome], (err, excluido) => {
         if (excluido) return;
-        // Garante que o departamento existe (se nao foi excluido)
+        // Garante que o departamento existe (se não foi excluido)
         db.get("SELECT nome FROM departamentos_excluidos WHERE nome = ?", [cDepto], (e2, dexcluido) => {
             if (!dexcluido) db.run("INSERT OR IGNORE INTO departamentos (nome) VALUES (?)", [cDepto]);
         });
@@ -1690,7 +1690,7 @@ e) deixe de atender aos requisitos previstos no Regulamento do Programa.<br><br>
 [ASSINATURAS]
 </div>`;
 
-// Cleanup old lowercase seeded generators to prevent duplicates
+// Cleanup old lowercase seeded generators to prevênt duplicates
 db.run("DELETE FROM geradores WHERE nome IN ('habilitação categoria b', 'habilitação categoria d')");
 
 // db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ? WHERE nome = 'Habilitação Categoria B'", [habBHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_b=Sim","departamentos":null,"tipos_departamento":null}']);
@@ -1770,7 +1770,7 @@ async function uploadDocToOneDrive(docId) {
         });
 
         if (!doc) { console.error(`[OD-AUTO] Doc ${docId} não encontrado no DB`); return; }
-        // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se nao exige assinatura (NAO_EXIGE)
+        // CONTRATOS_AVULSOS: sincroniza ao OneDrive se assinado OU se não exige assinatura (NAO_EXIGE)
         if (false && doc.tab_name === 'CONTRATOS_AVULSOS' && doc.assinafy_status !== 'Assinado') { // removed restriction - always sync to OneDrive
             console.log(`[OD-AUTO] Bloqueando sync OneDrive para doc ${docId} (CONTRATOS_AVULSOS pendente: ${doc.assinafy_status})`);
             return;
@@ -1874,14 +1874,14 @@ async function uploadDocToR2(docId, bufferOverride) {
                     JOIN colaboradores c ON c.id = d.colaborador_id
                     WHERE d.id = ?`, [docId], (err, row) => { if (err) reject(err); else resolve(row); });
         });
-        if (!doc) { console.error(`[R2-AUTO] Doc ${docId} nao encontrado`); return null; }
+        if (!doc) { console.error(`[R2-AUTO] Doc ${docId} não encontrado`); return null; }
 
         let fileBuffer = bufferOverride || null;
         if (!fileBuffer) {
             const localPath = (doc.signed_file_path && require('fs').existsSync(doc.signed_file_path))
                 ? doc.signed_file_path
                 : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
-            if (!localPath) { console.warn(`[R2-AUTO] Arquivo nao encontrado no disco para doc ${docId}`); return null; }
+            if (!localPath) { console.warn(`[R2-AUTO] Arquivo não encontrado no disco para doc ${docId}`); return null; }
             fileBuffer = require('fs').readFileSync(localPath);
         }
 
@@ -2178,7 +2178,7 @@ const uploadFileFilter = (req, file, cb) => {
 };
 
 const upload = multer({ storage: storage, fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } }); // Limite de 30MB por arquivo
-// Upload em memoria para documentos do prontuario (envia direto para R2)
+// Upload em memoria para documentos do prontuário (envia direto para R2)
 const uploadMemoriaDoc = multer({ storage: multer.memoryStorage(), fileFilter: uploadFileFilter, limits: { fileSize: 30 * 1024 * 1024 } });
 
 const storageFoto = multer.memoryStorage();
@@ -2401,7 +2401,7 @@ async function pollAdmissaoAssinaturas() {
         const initialOccurrences = {
                     'manutencao': ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
                     'avaria_funcional': ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
-                    'avaria_nao_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+                    'avaria_não_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
                     'entrega': ['Endereço incorreto', 'Equipe não localizou o ponto exato', 'Cliente ausente ou local fechado', 'Produto entregue errado', 'Atraso na entrega', 'Faltou Observação da localização exata'],
                     'retirada': ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
                     'contrato': ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
@@ -2547,7 +2547,7 @@ async function pollAdmissaoAssinaturas() {
                                 // Ambos v??o para pasta CONTRATOS/ no OneDrive
                                 targetDir = `${onedriveBasePath}/${safeColab}/CONTRATOS`;
                                 if (isContratosAvulso) {
-                                    // Contratos Avulsos: sufixo _ASSINADO para nao sobrepor o original pendente
+                                    // Contratos Avulsos: sufixo _ASSINADO para não sobrepor o original pendente
                                     const ext = doc.file_name ? (doc.file_name.match(/\.[^.]+$/) || [''])[0] : '.pdf';
                                     const baseName = doc.file_name ? doc.file_name.replace(/\.[^.]+$/, '') : `Contrato_${safeColab}`;
                                     cloudName = `${baseName}_ASSINADO${ext}`;
@@ -2838,7 +2838,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     `;
 
                     await sendMailHelper({
-                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                         to: destEmail,
                         subject: `Lembrete de Assinatura - ${doc.nome_documento || 'Documento'}`,
                         html: html
@@ -2847,7 +2847,7 @@ app.post('/api/assinaturas/reenviar', authenticateToken, async (req, res) => {
                     return res.json({ success: true, messsage: 'E-mail enviado com sucesso.', link: signLink });
                 }
             }
-            // Se nao enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend far?? fallback ou dir?? q o e-mail não foi encontrado)
+            // Se não enviou e-mail (por falta de email cadastrado), devolve apenas o success (frontend far?? fallback ou dir?? q o e-mail não foi encontrado)
             res.json({ success: true, warn: 'Colaborador sem e-mail cadastrado. URL recuperada, mas não enviada via sistema.', link: signLink });
         } else {
             res.status(400).json({ error: 'Não foi poss??vel detectar o link do documento na nuvem.' });
@@ -3589,7 +3589,7 @@ app.post('/api/assinafy/upload', async (req, res) => {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                 to: 'americasistema48@gmail.com',
                 subject: `?? Assinatura solicitada: ${resultado?.docType?.split('###')[0] || 'Documento'} - ${resultado?.nomeColab}`,
                 html: `
@@ -4203,8 +4203,8 @@ db.run(`CREATE TABLE IF NOT EXISTS fechamento_mensal (
     multas REAL DEFAULT 0,
     academia REAL DEFAULT 0,
     consignado REAL DEFAULT 0,
-    comissao REAL DEFAULT 0,
-    bonus_comissao REAL DEFAULT 0,
+    comissão REAL DEFAULT 0,
+    bonus_comissão REAL DEFAULT 0,
     premio REAL DEFAULT 0,
     insalubridade REAL DEFAULT 0,
     periculosidade REAL DEFAULT 0,
@@ -4234,13 +4234,13 @@ db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Não'", function(e)
     else if (this && this.changes > 0) console.log('[Migration] DSR limpado para NULL em', this.changes, 'registros');
 });
 
-// Auto-migration: Tabela fechamento_comissao
-db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
+// Auto-migration: Tabela fechamento_comissão
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissão (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mes INTEGER NOT NULL,
     ano INTEGER NOT NULL,
     colaborador_id INTEGER NOT NULL,
-    valor_comissao REAL DEFAULT 0,
+    valor_comissão REAL DEFAULT 0,
     contratos_fechados INTEGER DEFAULT 0,
     bonus_primeiro_lugar INTEGER DEFAULT 0,
     valor_bonus REAL DEFAULT 0,
@@ -4248,7 +4248,7 @@ db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
     link_token TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(mes, ano, colaborador_id)
-)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_comissao:', err.message); });
+)`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] fechamento_comissão:', err.message); });
 
 // Auto-migration: Tabela fechamento_consignado
 db.run(`CREATE TABLE IF NOT EXISTS fechamento_consignado (
@@ -4669,7 +4669,7 @@ app.get('/api/colaboradores', authenticateToken, (req, res) => {
 });
 
 // GET - lista leve de colaboradores com foto (usada pelo Resumo de Rota)
-// IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para nao ser capturada como id='resumo'
+// IMPORTANTE: deve ficar ANTES de /api/colaboradores/:id para não ser capturada como id='resumo'
 app.get('/api/colaboradores/resumo', authenticateToken, (req, res) => {
     db.all("SELECT id, nome_completo, departamento, motorista_avaliador, habilidades_equipe FROM colaboradores WHERE status != 'Desligado' ORDER BY nome_completo ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -4734,11 +4734,11 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'contato_emergencia_nome', 'contato_emergencia_telefone',
         'contato_emergencia2_nome', 'contato_emergencia2_telefone',
         'cnh_numero', 'cnh_vencimento', 'cnh_categoria',
-        'matricula_esocial', 'numero_registro', 'local_nascimento', 'rg_orgao', 'rg_data_emissao', 'rg_tipo',
+        'matricula_esocial', 'numero_registro', 'local_nascimento', 'rg_órgão', 'rg_data_emissao', 'rg_tipo',
         'titulo_eleitoral', 'titulo_zona', 'titulo_secao',
         'ctps_numero', 'ctps_serie', 'ctps_uf', 'ctps_data_expedicao',
         'pis', 'cor_raca', 'sexo', 'grau_instrucao', 'cbo',
-        'certificado_militar', 'militar_categoria', 'deficiencia',
+        'certificado_militar', 'militar_categoria', 'deficiência',
         'horario_entrada', 'horario_saida', 'intervalo_entrada', 'intervalo_saida',
         'sabado_entrada', 'sabado_saida',
         'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta',
@@ -4893,7 +4893,7 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
             const _fsLocal = require('fs');
             const _pathLocal = require('path');
             const LOCAL_ONEDRIVE_BASE = process.env.LOCAL_ONEDRIVE_PATH ||
-                'C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema';
+                'C:\\A\\OneDrive - AMÉRICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema';
             const PASTAS_PADRAO = [
                 '00_CHECKLIST', '01_FICHA_CADASTRAL', 'ASO', 'ATESTADOS',
                 'AVALIACAO', 'CERTIFICADOS', 'CONTRATOS', 'DEPENDENTES',
@@ -5221,7 +5221,7 @@ async function checkColaboradorDesligado(colaboradorId) {
             + '</tr></thead><tbody>' + deptosRows + '</tbody></table>'
             + '<p style="margin-top:20px;color:#334155;">Acesse o sistema e defina um novo responsável para cada departamento acima, garantindo a continuidade do fluxo de comunicação.</p>'
             + '<div style="text-align:center;margin:24px 0;">'
-            + '<a href="https://sistema-america.onrender.com/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestao de Departamentos</a>'
+            + '<a href="https://sistema-america.onrender.com/?target=departamentos" style="display:inline-block;padding:12px 28px;background:#c92a2a;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:0.95rem;">Acessar Gestão de Departamentos</a>'
             + '</div>'
             + '<p style="margin-top:30px;font-size:0.9em;color:#7f8c8d;">Atenciosamente,<br>Equipe de RH - America Rental</p>'
             + '<p style="margin-top:10px;font-size:0.8em;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;">Este e um e-mail automatico do sistema America Rental. Nao responda diretamente.</p>'
@@ -5233,7 +5233,7 @@ async function checkColaboradorDesligado(colaboradorId) {
         }
 
         await sendMailHelper({
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: emailsUnicos.join(', '),
             subject: 'Ação necessária: ' + colab.nome_completo + ' foi desligado(a) e era responsável por departamento(s)',
             html: htmlContent,
@@ -5258,7 +5258,7 @@ app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT id, nome_completo, cargo, departamento FROM colaboradores WHERE id = ?', [id], (e, r) => e ? reject(e) : resolve(r)));
         log.push({ step: '1_colab', data: colab });
-        if (!colab) return res.json({ ok: false, log, error: 'Colaborador nao encontrado' });
+        if (!colab) return res.json({ ok: false, log, error: 'Colaborador não encontrado' });
         const deptos = await new Promise((resolve, reject) =>
             db.all('SELECT id, nome, tipo, responsavel_id FROM departamentos WHERE responsavel_id = ?', [id], (e, r) => e ? reject(e) : resolve(r || [])));
         log.push({ step: '2_deptos_como_responsavel', count: deptos.length, data: deptos });
@@ -5277,7 +5277,7 @@ app.get('/api/test-desligado/:id', authenticateToken, async (req, res) => {
         const destinos = emailsUnicos.length ? emailsUnicos : ['americasistema48@gmail.com'];
         try {
             await sendMailHelper({
-                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                 to: destinos.join(', '),
                 subject: '[TESTE] Desligado-Depto: ' + colab.nome_completo,
                 html: '<p><b>TESTE</b> - Colaborador: ' + colab.nome_completo + ' | Deptos: ' + deptos.length + '</p>'
@@ -5329,11 +5329,11 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'contato_emergencia_nome', 'contato_emergencia_telefone',
         'contato_emergencia2_nome', 'contato_emergencia2_telefone',
         'cnh_numero', 'cnh_vencimento', 'cnh_categoria',
-        'matricula_esocial', 'numero_registro', 'local_nascimento', 'rg_orgao', 'rg_data_emissao', 'rg_tipo',
+        'matricula_esocial', 'numero_registro', 'local_nascimento', 'rg_órgão', 'rg_data_emissao', 'rg_tipo',
         'titulo_eleitoral', 'titulo_zona', 'titulo_secao',
         'ctps_numero', 'ctps_serie', 'ctps_uf', 'ctps_data_expedicao',
         'pis', 'cor_raca', 'sexo', 'grau_instrucao', 'cbo',
-        'certificado_militar', 'militar_categoria', 'deficiencia',
+        'certificado_militar', 'militar_categoria', 'deficiência',
         'horario_entrada', 'horario_saida', 'intervalo_entrada', 'intervalo_saida',
         'sabado_entrada', 'sabado_saida',
         'fgts_opcao', 'banco_nome', 'banco_agencia', 'banco_conta',
@@ -5921,7 +5921,7 @@ app.get('/api/colaboradores/foto/:id', (req, res) => {
             const lib = row.foto_path.startsWith('https://') ? https : http;
             lib.get(row.foto_path, (imgRes) => {
                 if (imgRes.statusCode !== 200) {
-                    return res.status(404).json({ error: 'Foto R2 nao encontrada' });
+                    return res.status(404).json({ error: 'Foto R2 não encontrada' });
                 }
                 res.set('Content-Type', imgRes.headers['content-type'] || 'image/jpeg');
                 res.set('Cache-Control', 'public, max-age=86400');
@@ -6198,7 +6198,7 @@ const multerUploadMemoria = require('multer')({ storage: require('multer').memor
 
 app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
-        if (!req.file) throw new Error('BO nao enviado.');
+        if (!req.file) throw new Error('BO não enviado.');
         const { PDFParse } = require('pdf-parse');
         const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
         const pdfData = await parser.getText();
@@ -6310,7 +6310,7 @@ app.delete('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, (r
     // Nao deixamos excluir se ja estiver assinado, por seguranca da assinatura digital, a menos que a senha de exclusao seja fornecida
     const senha = req.headers['x-delete-password'];
     db.get('SELECT status FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Sinistro nao encontrado' });
+        if (err || !row) return res.status(404).json({ error: 'Sinistro não encontrado' });
         
         if ((row.status === 'assinado' || row.status === 'assinado_testemunhas') && senha !== 'EXL2499!') {
             return res.status(403).json({ error: 'Nao eh possivel excluir um sinistro ja assinado sem a senha de exclusao correta.' });
@@ -6331,7 +6331,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const colab = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
-        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
         const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
             .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -6351,7 +6351,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
             targetDir += '_' + (qtdNoDia + 1);
         }
 
-        const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
+        const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veículo,
             desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes, situacao_sinistro, descricao_ocorrencia)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
@@ -6361,7 +6361,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
         const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
-        db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
+        db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veículo,
             body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null, 'Novo', body.descricao_ocorrencia || null],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -6437,7 +6437,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         // EXCETO quando só está atualizando situacao_sinistro ou observações (ação da Logística).
         // O frontend sempre envia todos os campos mas eles podem chegar vazios — verificar se
         // algum campo crítico tem conteúdo antes de bloquear.
-        const camposEdicao = ['numero_boletim', 'data_hora', 'natureza', 'veiculo', 'placa', 'tipo_sinistro',
+        const camposEdicao = ['numero_boletim', 'data_hora', 'natureza', 'veículo', 'placa', 'tipo_sinistro',
                               'desconto', 'parcelas', 'valor_parcela', 'valor_total', 'observacoes', 'descricao_ocorrencia'];
         const temEdicaoDeDados = camposEdicao.some(k => body[k] && String(body[k]).trim() !== '');
         if (temEdicaoDeDados && sinistro.status !== 'pendente' && sinistro.status !== 'iniciado') {
@@ -6471,7 +6471,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     numero_boletim   = COALESCE(?, numero_boletim),
                     data_hora        = COALESCE(?, data_hora),
                     natureza         = COALESCE(?, natureza),
-                    veiculo          = COALESCE(?, veiculo),
+                    veículo          = COALESCE(?, veículo),
                     placa            = COALESCE(?, placa),
                     tipo_sinistro    = COALESCE(?, tipo_sinistro),
                     situacao_sinistro = COALESCE(?, situacao_sinistro),
@@ -6489,7 +6489,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     body.numero_boletim || null,
                     body.data_hora      || null,
                     body.natureza       || null,
-                    body.veiculo        || null,
+                    body.veículo        || null,
                     body.placa          || null,
                     body.tipo_sinistro  || null,
                     body.situacao_sinistro || null,
@@ -6600,7 +6600,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                                             <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:8px;padding:16px;margin:16px 0;">
                                                 <p style="margin:4px 0;"><strong>Boletim:</strong> ${sinistro.numero_boletim || body.numero_boletim || 'N/A'}</p>
                                                 <p style="margin:4px 0;"><strong>Data da ocorrência:</strong> ${sinistro.data_hora || body.data_hora || 'N/A'}</p>
-                                                <p style="margin:4px 0;"><strong>Veículo:</strong> ${sinistro.veiculo || body.veiculo || 'N/A'}</p>
+                                                <p style="margin:4px 0;"><strong>Veículo:</strong> ${sinistro.veículo || body.veículo || 'N/A'}</p>
                                                 <p style="margin:4px 0;"><strong>Placa:</strong> ${sinistro.placa || body.placa || 'N/A'}</p>
                                             </div>
                                             <p style="color:#64748b;font-size:0.9em;">Acesse o sistema no prontuário do colaborador para mais detalhes e visualização dos anexos.</p>
@@ -6611,7 +6611,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                                     for (const eAddr of emailsArr) {
                                         try {
                                             await sendMailHelper({
-                                                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                                                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                                                 to: eAddr,
                                                 subject: `[Sinistro] Liberado para o RH: ${colab.nome_completo || 'Colaborador'}`,
                                                 html,
@@ -6814,7 +6814,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
                 + "<p><strong>Colaborador:</strong> {NOME_COMPLETO}</p>"
                 + "<p><strong>Tipo de Sinistro:</strong> " + sin.tipo_sinistro + "</p>"
                 + "<p><strong>BO:</strong> " + sin.numero_boletim + " - " + sin.data_hora + "</p>"
-                + "<p><strong>Placa/Veículo:</strong> " + sin.placa + " / " + sin.veiculo + "</p>"
+                + "<p><strong>Placa/Veículo:</strong> " + sin.placa + " / " + sin.veículo + "</p>"
                 + "<p><strong>Condi????es de Desconto:</strong> " + sin.parcelas + "x de " + (sin.valor_parcela || '0,00') + "</p>"
                 + "<br/><br/><br/>";
         } else {
@@ -6890,7 +6890,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{SINISTRO_DATA\}|\{DATA_BO\}|\{DATA_OCORRENCIA\}/gi, sin.data_hora || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_NATUREZA\}|\{NATUREZA\}/gi, sin.natureza || '');
         htmlFinal = htmlFinal.replace(/\{SINISTRO_PLACA\}|\{PLACA\}/gi, sin.placa || '');
-        htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veiculo || '');
+        htmlFinal = htmlFinal.replace(/\{SINISTRO_VEICULO\}|\{VEICULO\}|\{MARCA_MODELO\}/gi, sin.veículo || '');
         const isIsento = (sin.valor_total === '0,00' || sin.valor_total === '0' || sin.valor_total === 0);
         const condicoesTexto = isIsento ? 'ISENTO DE COBRANºA' : `${sin.parcelas || 1}x de ${sin.valor_parcela || ''}`;
         
@@ -6906,7 +6906,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         htmlFinal = htmlFinal.replace(/\{\{BO_NUMERO\}\}|\{\{NUMERO_BO\}\}/gi, sin.numero_boletim || '');
         htmlFinal = htmlFinal.replace(/\{\{SINISTRO_TIPO\}\}|\{\{TIPO_SINISTRO\}\}/gi, sin.tipo_sinistro || '');
         htmlFinal = htmlFinal.replace(/\{\{PLACA\}\}/gi, sin.placa || '');
-        htmlFinal = htmlFinal.replace(/\{\{VEICULO\}\}|\{\{MARCA_MODELO\}\}/gi, sin.veiculo || '');
+        htmlFinal = htmlFinal.replace(/\{\{VEICULO\}\}|\{\{MARCA_MODELO\}\}/gi, sin.veículo || '');
         htmlFinal = htmlFinal.replace(/\{\{VALOR_PARCELA\}\}/gi, sin.valor_parcela || '');
         htmlFinal = htmlFinal.replace(/\{\{QTDE_PARCELAS\}\}/gi, String(sin.parcelas || 1));
 
@@ -6956,7 +6956,7 @@ app.post('/api/colaboradores/:id/sinistros/:sinistroId/gerar-documento', authent
         // 4. Marca / Modelo
         htmlFinal = htmlFinal.replace(
             /(Marca[^:]*:[\s\S]{0,80}?)_{3,}/gi,
-            `$1<strong>${sin.veiculo || ''}</strong>`
+            `$1<strong>${sin.veículo || ''}</strong>`
         );
 
         // 5. Placa
@@ -7962,10 +7962,10 @@ app.delete('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
 // GET /api/logistica/multas ??? lista todas as multas
 app.get('/api/logistica/multas', authenticateToken, (req, res) => {
     db.all(`SELECT 
-                ml.id, ml.motorista_id, ml.motorista_nome, ml.data_infracao, ml.hora_infracao, 
-                ml.numero_ait, ml.motivo, ml.valor_multa, ml.pontuacao, ml.status, ml.observacao, 
+                ml.id, ml.motorista_id, ml.motorista_nome, ml.data_infração, ml.hora_infração, 
+                ml.numero_ait, ml.motivo, ml.valor_multa, ml.pontuação, ml.status, ml.observacao, 
                 ml.link_formulario, ml.documento_path, ml.documento_nome, ml.parcelas, ml.placa, 
-                ml.local_infracao, ml.criado_em, ml.atualizado_em, ml.data_limite, 
+                ml.local_infração, ml.criado_em, ml.atualizado_em, ml.data_limite, 
                 CASE WHEN ml.documento_base64 IS NOT NULL THEN '1' ELSE NULL END as documento_base64,
                 CASE WHEN ml.termo_desconto_base64 IS NOT NULL THEN '1' ELSE NULL END as termo_desconto_base64,
                 ml.documentos_extras, ml.created_by_nome, ml.monaco_uuid, ml.status_monaco, 
@@ -7999,14 +7999,14 @@ app.get('/api/logistica/multas', authenticateToken, (req, res) => {
 
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_base64 TEXT", (err) => {
 });
-db.run("ALTER TABLE frota_veiculos ADD COLUMN foto_base64 TEXT", (err) => {
+db.run("ALTER TABLE frota_veículos ADD COLUMN foto_base64 TEXT", (err) => {
     if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION multas_logistica documento_base64]', err.message);
 });
 
 // POST /api/logistica/multas ??? cria nova multa
 const multaUploadMiddleware = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.single('documento'), async (req, res) => {
-    const { data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, motorista_id, motorista_nome, status, parcelas } = req.body;
+    const { data_infração, hora_infração, numero_ait, motivo, valor_multa, pontuação, placa, local_infração, data_limite, motorista_id, motorista_nome, status, parcelas } = req.body;
 
     let documento_base64 = null;
     let documento_nome = null;
@@ -8046,9 +8046,9 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
     const createdByNome = req.user ? (req.user.nome || req.user.username || null) : null;
 
     db.run(
-        `INSERT INTO multas_logistica (data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, placa, local_infracao, data_limite, status, status_updated_at, documento_nome, documento_base64, documento_url, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
+        `INSERT INTO multas_logistica (data_infração, hora_infração, numero_ait, motivo, valor_multa, pontuação, placa, local_infração, data_limite, status, status_updated_at, documento_nome, documento_base64, documento_url, motorista_id, motorista_nome, parcelas, created_by_id, created_by_nome)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [data_infracao || null, hora_infracao || null, numero_ait || null, motivo || null, valor_multa || null, pontuacao || 0, placa || null, local_infracao || null, data_limite || null, finalStatus, statusUpdatedAt, documento_nome, documento_base64, documento_url, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
+        [data_infração || null, hora_infração || null, numero_ait || null, motivo || null, valor_multa || null, pontuação || 0, placa || null, local_infração || null, data_limite || null, finalStatus, statusUpdatedAt, documento_nome, documento_base64, documento_url, motorista_id || null, motorista_nome || null, parcelas || 1, createdById, createdByNome],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, ok: true });
@@ -8111,7 +8111,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
                 </div>
             `;
             try {
-                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuario'", [], (err, rowsC) => {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuário'", [], (err, rowsC) => {
                     if (!err && rowsC && rowsC.length > 0) {
                         const msg = `Multa alterada para ${status}: Colaborador ${colab.nome_completo || colab.nome} (AIT ${numAit || 'S/N'})`;
                         const dados = JSON.stringify({ ait: numAit, motorista: colab.nome_completo || colab.nome, status: status });
@@ -8119,17 +8119,17 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
                         // Envia popup para cada usuário configurado
                         rowsC.forEach(c => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                                [c.usuario_id, 'nova_multa_prontuario', msg, dados]);
+                                [c.usuario_id, 'nova_multa_prontuário', msg, dados]);
                         });
 
                         // Dispara o e-mail para todos configurados (que tenham e-mail)
-                        sendEmailParaNotificados('nova_multa_prontuario', {
+                        sendEmailParaNotificados('nova_multa_prontuário', {
                             subject: `Desconto de Multa - ${colab.nome_completo || colab.nome}`,
                             html: htmlContent,
                             attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
                         });
                     } else {
-                        console.log('[NotificarRHAuto] Nenhum usuário configurado para nova_multa_prontuario');
+                        console.log('[NotificarRHAuto] Nenhum usuário configurado para nova_multa_prontuário');
                     }
                     resolve();
                 });
@@ -8142,7 +8142,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id ??? atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infração, hora_infração, numero_ait, motivo, valor_multa, pontuação, parcelas, placa, local_infração, data_limite, status_rh, novo_comentario } = req.body;
     const autorComentario = req.user?.username || req.user?.nome || req.user?.login || 'Usuário';
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
@@ -8160,15 +8160,15 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 status_updated_at = ?,
                 observacao = ?,
                 link_formulario = ?,
-                data_infracao = ?,
-                hora_infracao = ?,
+                data_infração = ?,
+                hora_infração = ?,
                 numero_ait = ?,
                 motivo = ?,
                 valor_multa = ?,
-                pontuacao = ?,
+                pontuação = ?,
                 parcelas = ?,
                 placa = ?,
-                local_infracao = ?,
+                local_infração = ?,
                 data_limite = ?,
                 status_rh = ?,
                 atualizado_em = CURRENT_TIMESTAMP
@@ -8180,15 +8180,15 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 novoStatusUpdatedAt,
                 observacao !== undefined ? observacao : oldData.observacao,
                 link_formulario !== undefined ? link_formulario : oldData.link_formulario,
-                data_infracao !== undefined ? data_infracao : oldData.data_infracao,
-                hora_infracao !== undefined ? hora_infracao : oldData.hora_infracao,
+                data_infração !== undefined ? data_infração : oldData.data_infração,
+                hora_infração !== undefined ? hora_infração : oldData.hora_infração,
                 numero_ait !== undefined ? numero_ait : oldData.numero_ait,
                 motivo !== undefined ? motivo : oldData.motivo,
                 valor_multa !== undefined ? valor_multa : oldData.valor_multa,
-                pontuacao !== undefined ? pontuacao : oldData.pontuacao,
+                pontuação !== undefined ? pontuação : oldData.pontuação,
                 parcelas !== undefined ? parcelas : oldData.parcelas,
                 placa !== undefined ? placa : oldData.placa,
-                local_infracao !== undefined ? local_infracao : oldData.local_infracao,
+                local_infração !== undefined ? local_infração : oldData.local_infração,
                 data_limite !== undefined ? data_limite : oldData.data_limite,
                 status_rh !== undefined ? (status_rh === '' ? null : status_rh) : oldData.status_rh,
                 req.params.id
@@ -8237,15 +8237,15 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 if (status && (status === 'Indicado' || status === 'Multa NIC' || status === 'Cobrada - Pz. Perdido') && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
-                    const finalData = data_infracao || oldData.data_infracao;
+                    const finalData = data_infração || oldData.data_infração;
                     const finalAit = numero_ait || oldData.numero_ait;
                     const finalParcelas = parcelas || oldData.parcelas || 1;
                     const multaExtra = {
                         placa: placa || oldData.placa,
-                        hora_infracao: hora_infracao || oldData.hora_infracao,
-                        local_infracao: local_infracao || oldData.local_infracao,
+                        hora_infração: hora_infração || oldData.hora_infração,
+                        local_infração: local_infração || oldData.local_infração,
                         motivo: motivo || oldData.motivo,
-                        pontuacao: pontuacao || oldData.pontuacao,
+                        pontuação: pontuação || oldData.pontuação,
                         data_limite: data_limite || oldData.data_limite,
                     };
 
@@ -8253,22 +8253,22 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     if (status === 'Cobrada - Pz. Perdido' && finalMotorista && finalMotorista != -1) {
                         const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
                         const valorOriginal = parseFloat(numericStr) || 0;
-                        const pontuacaoInt = parseInt(multaExtra.pontuacao) || 0;
+                        const pontuaçãoInt = parseInt(multaExtra.pontuação) || 0;
                         const tipoRes = (multaExtra.motivo || 'Cobrada - Pz. Perdido').substring(0, 50);
 
                         db.run(
-                            `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                            `INSERT INTO multas (colaborador_id, codigo_infração, descricao_infração, placa, veículo, data_infração, hora_infração, local_infração, numero_ait, pontuação, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
                             [
                                 finalMotorista, 
-                                'S/C', // codigo_infracao
-                                tipoRes, // descricao_infracao
+                                'S/C', // codigo_infração
+                                tipoRes, // descricao_infração
                                 multaExtra.placa || '',
-                                '', // veiculo
+                                '', // veículo
                                 finalData || '',
-                                multaExtra.hora_infracao || '',
-                                multaExtra.local_infracao || '',
+                                multaExtra.hora_infração || '',
+                                multaExtra.local_infração || '',
                                 finalAit || '',
-                                pontuacaoInt,
+                                pontuaçãoInt,
                                 valorOriginal,
                                 'nic', // Para forçar cobranºa
                                 finalParcelas
@@ -8288,24 +8288,24 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                 } else if (status && status === 'Rec. Indeferida' && oldData.status !== status) {
                     const finalMotorista = motorista_id || oldData.motorista_id;
                     const finalValor = valor_multa || oldData.valor_multa;
-                    const finalData = data_infracao || oldData.data_infracao;
+                    const finalData = data_infração || oldData.data_infração;
                     const finalAit = numero_ait || oldData.numero_ait;
                     const finalParcelas = parcelas || oldData.parcelas || 1;
                     const finalPlaca = placa || oldData.placa;
                     const finalMotivo = motivo || oldData.motivo;
-                    const finalPontuacao = pontuacao || oldData.pontuacao;
-                    const finalHora = hora_infracao || oldData.hora_infracao;
-                    const finalLocal = local_infracao || oldData.local_infracao;
+                    const finalPontuacao = pontuação || oldData.pontuação;
+                    const finalHora = hora_infração || oldData.hora_infração;
+                    const finalLocal = local_infração || oldData.local_infração;
 
                     // 1. Insere no prontuário (tabela multas) se motorista válido
                     if (finalMotorista && finalMotorista != -1) {
                         const numericStr = (finalValor || '0').toString().replace(/[^\d,-]/g, '').replace(',', '.');
                         const valorOriginal = parseFloat(numericStr) || 0;
-                        const pontuacaoInt = parseInt(finalPontuacao) || 0;
+                        const pontuaçãoInt = parseInt(finalPontuacao) || 0;
                         const tipoRes = (finalMotivo || 'Rec. Indeferida').substring(0, 50);
 
                         db.run(
-                            `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo, data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
+                            `INSERT INTO multas (colaborador_id, codigo_infração, descricao_infração, placa, veículo, data_infração, hora_infração, local_infração, numero_ait, pontuação, valor_multa, tipo_resolucao, parcelas, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente')`,
                             [
                                 finalMotorista,
                                 'S/C',
@@ -8316,7 +8316,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                                 finalHora || '',
                                 finalLocal || '',
                                 finalAit || '',
-                                pontuacaoInt,
+                                pontuaçãoInt,
                                 valorOriginal,
                                 'nic',
                                 finalParcelas
@@ -8388,9 +8388,9 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
         const valorBase = (opcao === 'nic') ? valorTotal : valorOriginal;
         const valorParcela = valorBase / numParcelas;
 
-        const checkInd  = opcao === 'indicacao'    ? '???' : '&nbsp;';
-        const checkNic  = opcao === 'nic'           ? '???' : '&nbsp;';
-        const checkPraz = opcao === 'prazo_perdido' ? '???' : '&nbsp;';
+        const checkInd  = opcao === 'indicacao'    ? 'X' : '&nbsp;';
+        const checkNic  = opcao === 'nic'           ? 'X' : '&nbsp;';
+        const checkPraz = opcao === 'prazo_perdido' ? 'X' : '&nbsp;';
 
         const now = new Date();
         const dataDeclFmt = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
@@ -8410,7 +8410,7 @@ app.post('/api/logistica/multas/:id/salvar-declaracao', authenticateToken, async
             : `<div style="text-align:center;"><div style="border-bottom:1px solid #000;width:280px;height:60px;margin:0 auto;"></div><p style="margin-top:6px;font-size:12px;">${m.colab_nome || m.motorista_nome || '???'}</p></div>`;
 
         const termoHTML = `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaracao de Responsabilidade por Infracao</title>
+<html lang="pt-BR"><head><meta charset="UTF-8"><title>Declaração de Responsabilidade por Infração</title>
 <style>
 body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:0;padding:20px}
 .logo{text-align:center;margin-bottom:16px}.logo img{max-width:280px}
@@ -8428,52 +8428,52 @@ table.dados td:first-child{font-weight:600;width:170px}
 .rodape{font-size:11px;color:#64748b;text-align:center;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:10px}
 p{line-height:1.5;margin:5px 0}
 </style></head><body>
-<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="America Rental">` : '<h3>AMERICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
-<h1>Declaracao de Responsabilidade por Infracao de Transito</h1>
+<div class="logo">${logoBase64 ? `<img src="${logoBase64}" alt="America Rental">` : '<h3>AMÉRICA RENTAL EQUIPAMENTOS LTDA</h3>'}</div>
+<h1>Declaração de Responsabilidade por Infração de Trânsito</h1>
 <h2>CNPJ no 03.434.448/0001-01 - Rua Salto da Divisa, no 97, Parque Alvorada - Guarulhos/SP</h2>
 <div class="bloco">
   <div class="bloco-title">Dados do Colaborador</div>
   <table class="dados">
     <tr><td>Nome:</td><td>${m.colab_nome || m.motorista_nome || '-'}</td></tr>
     <tr><td>CPF:</td><td>${m.colab_cpf || '-'}</td></tr>
-    <tr><td>Data da Declaracao:</td><td>${dataDeclFmt}</td></tr>
+    <tr><td>Data da Declaração:</td><td>${dataDeclFmt}</td></tr>
   </table>
 </div>
 <div class="bloco">
-  <div class="bloco-title">Dados da Infracao</div>
-  <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veiculo e unico responsavel pela infracao de transito abaixo:</p>
+  <div class="bloco-title">Dados da Infração</div>
+  <p>Pelo presente instrumento, DECLARO, para os devidos fins de direito, ser o condutor do veículo e único responsável pela infração de trânsito abaixo:</p>
   <table class="dados">
     <tr><td>PLACA:</td><td>${m.placa || '-'}</td></tr>
-    <tr><td>AUTO DE INFRACAO (AIT):</td><td>${m.numero_ait || '-'}</td></tr>
-    <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infracao)}${m.hora_infracao ? ' as ' + m.hora_infracao : ''}</td></tr>
-    <tr><td>ENDERECO:</td><td>${m.local_infracao || '-'}</td></tr>
-    <tr><td>DESCRICAO:</td><td>${m.motivo || '-'}</td></tr>
+    <tr><td>AUTO DE INFRAÇÃO (AIT):</td><td>${m.numero_ait || '-'}</td></tr>
+    <tr><td>DATA / HORA:</td><td>${fmtData(m.data_infração)}${m.hora_infração ? ' as ' + m.hora_infração : ''}</td></tr>
+    <tr><td>ENDEREÇO:</td><td>${m.local_infração || '-'}</td></tr>
+    <tr><td>DESCRIÇÃO:</td><td>${m.motivo || '-'}</td></tr>
   </table>
-  <p>Neste ato me responsabilizo pelo cometimento da aludida infracao, requerendo a este respeitavel orgao que a pontuacao seja lancada em meu prontuario, nos termos do artigo 257, paragrafo 7o do Codigo de Transito Brasileiro e da Resolucao do Contran no 918, de 28 de marco de 2022, em todos os orgaos que se fizer necessario.</p>
-  <p style="font-size:11px;color:#475569;">Resolucao CONTRAN no 918, de 28 de marco de 2022 - Secao I - Da Identificacao do Condutor Infrator - Art. 5 ao 1. [...] Declaro ciencia quanto aos termos do artigo 257, paragrafo 8o do CTB, que preve que em caso de nao identificacao do condutor infrator e, em sendo o veiculo de propriedade de pessoa juridica, sera lavrada nova multa, cujo valor sera o dobro da multa originaria. Declaro, ainda, que sou responsavel penal, civel e administrativamente pela veracidade das informacoes e dos documentos fornecidos.</p>
+  <p>Neste ato me responsabilizo pelo cometimento da aludida infração, requerendo a este respeitavel órgão que a pontuação seja lançada em meu prontuário, nos termos do artigo 257, paragrafo 7o do Código de Trânsito Brasileiro e da Resolucao do Contran no 918, de 28 de março de 2022, em todos os órgãos que se fizer necessario.</p>
+  <p style="font-size:11px;color:#475569;">Resolução CONTRAN no 918, de 28 de março de 2022 - Seção I - Da Identificação do Condutor Infrator - Art. 5 ao 1. [...] Declaro ciência quanto aos termos do artigo 257, paragrafo 8o do CTB, que prevê que em caso de não identificacao do condutor infrator e, em sendo o veículo de propriedade de pessoa jurídica, será lavrada nova multa, cujo valor será o dobro da multa originária. Declaro, ainda, que sou responsável penal, cível e administrativamente pela veracidade das informações e dos documentos fornecidos.</p>
 </div>
 <div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPCAO 1 - INDICACAO DO CONDUTOR</div>
-  <p>(${checkInd}) Declaro que opto pela indicacao como condutor infrator, autorizando a empresa a realizar a devida identificacao junto ao orgao competente, evitando a aplicacao de multa por Nao Identificacao de Condutor (NIC).</p>
-  <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infracao, inclusive quanto a pontuacao em minha CNH.</p>
-  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuacao:</strong> <span class="vd">${m.pontuacao || '-'} pontos</span></p>
+  <div class="opcao-titulo">OPÇÃO 1 - INDICAÇÃO DO CONDUTOR</div>
+  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificacao junto ao órgão competente, evitando a aplicação de multa por Nao Identificação de Condutor (NIC).</p>
+  <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto a pontuação em minha CNH.</p>
+  <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuação || '-'} pontos</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPCAO 2 - NAO INDICACAO DO CONDUTOR (NIC)</div>
-  <p>(${checkNic}) Declaro que opto por nao realizar a indicacao do condutor, estando ciente de que sera aplicada a multa por Nao Identificacao de Condutor (NIC), conforme legislacao vigente.</p>
-  <p><strong>Valor da Multa Originaria:</strong> ${fmtMoney(valorOriginal)}</p>
-  <p><strong>Valor da Multa NIC</strong> (2x a originaria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
+  <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICAÇÃO DO CONDUTOR (NIC)</div>
+  <p>(${checkNic}) Declaro que opto por não realizar a indicacao do condutor, estando ciente de que será aplicada a multa por Nao Identificação de Condutor (NIC), conforme legislacao vigente.</p>
+  <p><strong>Valor da Multa Originária:</strong> ${fmtMoney(valorOriginal)}</p>
+  <p><strong>Valor da Multa NIC</strong> (2x a originária): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <p>Estou ciente de que minha omissao na entrega tempestiva dos documentos gerou a empresa a aplicacao da multa acessoria por Nao Identificacao do Condutor (NIC), nos termos do art. 257, 8o, do Codigo de Transito Brasileiro, no valor correspondente ao dobro da multa originaria.</p>
-  <p>Autorizo a empresa AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ no 03.434.448/0001-01, com sede na Rua Salto da Divisa, no 97, CEP 07242-300, Parque Alvorada - Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
+  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou a empresa a aplicação da multa acessória por Nao Identificação do Condutor (NIC), nos termos do art. 257, 8o, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
+  <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ no 03.434.448/0001-01, com sede na Rua Salto da Divisa, no 97, CEP 07242-300, Parque Alvorada - Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x &nbsp; (${numParcelas>3?'X':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
 <div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
-  <div class="opcao-titulo">OPCAO 3 - COBRANCA DE MULTA, PRAZO DE INDICACAO PERDIDO</div>
-  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Alem disso, estou ciente de que nao sera feita nenhuma indicacao de pontuacao na minha carteira de habilitacao, porem assumo integralmente as responsabilidades legais.</p>
+  <div class="opcao-titulo">OPÇÃO 3 - COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</div>
+  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicacao de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
   <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
@@ -8487,7 +8487,7 @@ p{line-height:1.5;margin:5px 0}
     ${selfieHtml}
   </div>` : ''}
 </div>
-<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestao - America Rental Equipamentos Ltda.</div>
+<div class="rodape">Documento gerado em ${dataDeclFmt} pelo Sistema de Gestão - America Rental Equipamentos Ltda.</div>
 </body></html>`;
 
         const termoBase64 = Buffer.from(termoHTML).toString('base64');
@@ -8540,10 +8540,10 @@ p{line-height:1.5;margin:5px 0}
 
                         if (oldStatus !== novoStatus && m.motorista_id && m.motorista_id != -1) {
                             const val2 = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
-                            notificarRHAuto(m.motorista_id, novoStatus, numParcelas, val2, m.data_infracao, m.numero_ait, {
-                                placa: m.placa, hora_infracao: m.hora_infracao,
-                                local_infracao: m.local_infracao, motivo: m.motivo,
-                                pontuacao: m.pontuacao, data_limite: m.data_limite
+                            notificarRHAuto(m.motorista_id, novoStatus, numParcelas, val2, m.data_infração, m.numero_ait, {
+                                placa: m.placa, hora_infração: m.hora_infração,
+                                local_infração: m.local_infração, motivo: m.motivo,
+                                pontuação: m.pontuação, data_limite: m.data_limite
                             }).catch(e => console.error('[salvar-declaracao] Notif error:', e.message));
                         }
 
@@ -9888,7 +9888,7 @@ app.delete('/api/departamentos/:id', authenticateToken, (req, res) => {
             if (count && count.total > 0) {
                 return res.status(409).json({ error: `Não à poss??vel excluir o departamento "${row.nome}" pois h?? ${count.total} colaborador(es) cadastrado(s) nele.` });
             }
-            // Registra na blacklist para que o seed nao recrie
+            // Registra na blacklist para que o seed não recrie
             db.run("INSERT OR IGNORE INTO departamentos_excluidos (nome) VALUES (?)", [row.nome]);
             db.run("DELETE FROM departamentos WHERE id = ?", [req.params.id], function (delErr) {
                 if (delErr) return res.status(500).json({ error: delErr.message });
@@ -10135,7 +10135,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
         (mes, ano, colaborador_id, horas_normais, horas_trabalhadas, horas_noturnas,
          dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
          vt, farmacia, mercado, outros, multas, academia, consignado,
-         comissao, bonus_comissao, premio, insalubridade, periculosidade,
+         comissão, bonus_comissão, premio, insalubridade, periculosidade,
          plr, pensao, dias_intermitente, status, email_contabilidade, adicional_noturno)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
@@ -10145,8 +10145,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             extra_60=excluded.extra_60, extra_100=excluded.extra_100, dsr=excluded.dsr,
             vt=excluded.vt, farmacia=excluded.farmacia, mercado=excluded.mercado,
             outros=excluded.outros, multas=excluded.multas, academia=excluded.academia,
-            consignado=excluded.consignado, comissao=excluded.comissao,
-            bonus_comissao=excluded.bonus_comissao, premio=excluded.premio,
+            consignado=excluded.consignado, comissão=excluded.comissão,
+            bonus_comissão=excluded.bonus_comissão, premio=excluded.premio,
             insalubridade=excluded.insalubridade, periculosidade=excluded.periculosidade,
             plr=excluded.plr, pensao=excluded.pensao, dias_intermitente=excluded.dias_intermitente,
             status=excluded.status, email_contabilidade=excluded.email_contabilidade,
@@ -10161,7 +10161,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.extra_60 || null, item.extra_100 || null, item.dsr || null,
                 item.vt || 0, item.farmacia || 0, item.mercado || 0, item.outros || 0,
                 item.multas || 0, item.academia || 0, item.consignado || 0,
-                item.comissao || 0, item.bonus_comissao || 0, item.premio || 0,
+                item.comissão || 0, item.bonus_comissão || 0, item.premio || 0,
                 item.insalubridade || 0, item.periculosidade || 0,
                 item.plr || 0, item.pensao || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
@@ -10572,12 +10572,12 @@ app.post('/api/fechamento/email-contabilidade', authenticateToken, (req, res) =>
 });
 
 // POST: Salvar link de comissão preenchido (público — sem auth)
-app.post('/api/fechamento/comissao-submit', (req, res) => {
-    const { token, colaborador_id, mes, ano, valor_comissao, contratos_fechados, bonus_primeiro_lugar, valor_bonus } = req.body;
-    db.get('SELECT id FROM fechamento_comissao WHERE link_token=? AND mes=? AND ano=?', [token, mes, ano], (err, row) => {
+app.post('/api/fechamento/comissão-submit', (req, res) => {
+    const { token, colaborador_id, mes, ano, valor_comissão, contratos_fechados, bonus_primeiro_lugar, valor_bonus } = req.body;
+    db.get('SELECT id FROM fechamento_comissão WHERE link_token=? AND mes=? AND ano=?', [token, mes, ano], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Link inválido ou expirado' });
-        db.run(`UPDATE fechamento_comissao SET valor_comissao=?, contratos_fechados=?, bonus_primeiro_lugar=?, valor_bonus=?, preenchido_em=CURRENT_TIMESTAMP WHERE link_token=?`,
-            [valor_comissao||0, contratos_fechados||0, bonus_primeiro_lugar?1:0, valor_bonus||0, token],
+        db.run(`UPDATE fechamento_comissão SET valor_comissão=?, contratos_fechados=?, bonus_primeiro_lugar=?, valor_bonus=?, preenchido_em=CURRENT_TIMESTAMP WHERE link_token=?`,
+            [valor_comissão||0, contratos_fechados||0, bonus_primeiro_lugar?1:0, valor_bonus||0, token],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ ok: true });
@@ -10586,9 +10586,9 @@ app.post('/api/fechamento/comissao-submit', (req, res) => {
 });
 
 // GET: Formulário público de comissão
-app.get('/comissao/:token', (req, res) => {
+app.get('/comissão/:token', (req, res) => {
     const { token } = req.params;
-    db.get(`SELECT fc.*, c.nome_completo FROM fechamento_comissao fc
+    db.get(`SELECT fc.*, c.nome_completo FROM fechamento_comissão fc
             JOIN colaboradores c ON fc.colaborador_id = c.id
             WHERE fc.link_token=?`, [token], (err, row) => {
         if (err || !row) return res.status(404).send('<h2>Link inválido ou expirado.</h2>');
@@ -10607,7 +10607,7 @@ button{background:#1e40af;color:#fff;border:none;padding:.8rem 2rem;border-radiu
 <div class="colab">Colaborador: <strong>${row.nome_completo}</strong></div>
 <form id="frm">
 <div class="form-group"><label>Valor Total da Comissão (R$)</label>
-<input type="number" step="0.01" name="valor_comissao" value="${row.valor_comissao||''}" required></div>
+<input type="number" step="0.01" name="valor_comissão" value="${row.valor_comissão||''}" required></div>
 <div class="form-group"><label>Quantidade de Contratos Fechados</label>
 <input type="number" name="contratos_fechados" value="${row.contratos_fechados||0}" required></div>
 <div class="form-group"><label>Bônus 1º Lugar?</label>
@@ -10625,12 +10625,12 @@ document.querySelector('[name=bonus_primeiro_lugar]').onchange = function() {
     document.getElementById('bonus-val-group').style.display = this.value==='1'?'block':'none';
 };
 document.getElementById('frm').onsubmit = async function(e) {
-    e.preventDefault();
+    e.prevêntDefault();
     const data = Object.fromEntries(new FormData(this));
     data.token = '${token}';
     data.mes = ${row.mes};
     data.ano = ${row.ano};
-    const r = await fetch('/api/fechamento/comissao-submit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const r = await fetch('/api/fechamento/comissão-submit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     const j = await r.json();
     if (j.ok) { document.querySelector('.card').innerHTML = '<h2 style="color:#059669">✅ Comissão salva com sucesso!</h2><p>Obrigado, ${row.nome_completo.split(' ')[0]}!</p>'; }
     else { alert('Erro: ' + j.error); }
@@ -10643,7 +10643,7 @@ document.getElementById('frm').onsubmit = async function(e) {
 // ETAPA 2 - NOVAS ROTAS DE FECHAMENTO
 // ==========================================
 
-app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async (req, res) => {
+app.get('/api/fechamento/multas-prontuário/:ano/:mes', authenticateToken, async (req, res) => {
     const mesNum = parseInt(req.params.mes);
     const anoNum = parseInt(req.params.ano);
 
@@ -10728,7 +10728,7 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
 
         res.json(Object.values(grupos));
     } catch(e) {
-        console.error('[multas-prontuario]', e.message);
+        console.error('[multas-prontuário]', e.message);
         res.status(500).json({ error: e.message });
     }
 });
@@ -10798,13 +10798,13 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                            fm.horas_normais, fm.horas_trabalhadas, fm.horas_noturnas,
                            fm.extra_60, fm.extra_100, fm.dias_falta, fm.data_faltas,
                            fm.dsr, fm.horas_atraso, fm.vt, fm.farmacia, fm.mercado,
-                           fm.outros, fm.multas, fm.comissao, fm.bonus_comissao, fm.academia,
+                           fm.outros, fm.multas, fm.comissão, fm.bonus_comissão, fm.academia,
                            fm.plr, fm.consignado, fm.dias_intermitente,
-                           fc_com.valor_comissao, fc_com.valor_bonus,
+                           fc_com.valor_comissão, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
                     FROM colaboradores c
                     LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
-                    LEFT JOIN fechamento_comissao fc_com ON fc_com.colaborador_id = c.id AND fc_com.mes = ? AND fc_com.ano = ?
+                    LEFT JOIN fechamento_comissão fc_com ON fc_com.colaborador_id = c.id AND fc_com.mes = ? AND fc_com.ano = ?
                     LEFT JOIN fechamento_consignado fcons ON fcons.cpf = c.cpf AND fcons.mes = ? AND fcons.ano = ?
                     WHERE c.status != 'Desligado'
                     ORDER BY c.nome_completo ASC`,
@@ -10822,7 +10822,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         const aoa = [];
         aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
         aoa.push([]);
-        aoa.push(['AMERICA RENTAL']);
+        aoa.push(['AMÉRICA RENTAL']);
         aoa.push([]);
         // Linha 5: códigos de rubricas
         aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750']);
@@ -10830,7 +10830,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissão', 'Academia', 'PLR', 'Consignado']);
         // Linhas de dados
         for (const r of rows) {
-            const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
+            const comissão = (parseFloat(r.valor_comissão) || parseFloat(r.comissão) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissão) || 0);
             const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
             const isIntermitente = (r.tipo_contrato || '').toLowerCase().includes('intermitente');
             aoa.push([
@@ -10847,7 +10847,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 parseFloat(r.mercado) || '',
                 parseFloat(r.outros) || '',
                 parseFloat(r.multas) || '',
-                comissao || '',
+                comissão || '',
                 parseFloat(r.academia) || '',
                 parseFloat(r.plr) || '',
                 consig || ''
@@ -10882,13 +10882,13 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                            fm.horas_normais, fm.horas_trabalhadas, fm.horas_noturnas,
                            fm.extra_60, fm.extra_100, fm.dias_falta, fm.data_faltas,
                            fm.dsr, fm.horas_atraso, fm.vt, fm.farmacia, fm.mercado,
-                           fm.outros, fm.multas, fm.comissao, fm.bonus_comissao, fm.academia,
+                           fm.outros, fm.multas, fm.comissão, fm.bonus_comissão, fm.academia,
                            fm.plr, fm.consignado, fm.dias_intermitente,
-                           fc_com.valor_comissao, fc_com.valor_bonus,
+                           fc_com.valor_comissão, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
                     FROM colaboradores c
                     LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
-                    LEFT JOIN fechamento_comissao fc_com ON fc_com.colaborador_id = c.id AND fc_com.mes = ? AND fc_com.ano = ?
+                    LEFT JOIN fechamento_comissão fc_com ON fc_com.colaborador_id = c.id AND fc_com.mes = ? AND fc_com.ano = ?
                     LEFT JOIN fechamento_consignado fcons ON fcons.cpf = c.cpf AND fcons.mes = ? AND fcons.ano = ?
                     WHERE c.status != 'Desligado'
                     ORDER BY c.nome_completo ASC`,
@@ -10900,12 +10900,12 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         const aoa = [];
         aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
         aoa.push([]);
-        aoa.push(['AMERICA RENTAL']);
+        aoa.push(['AMÉRICA RENTAL']);
         aoa.push([]);
         aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750']);
         aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissão', 'Academia', 'PLR', 'Consignado']);
         for (const r of rows) {
-            const comissao = (parseFloat(r.valor_comissao)||parseFloat(r.comissao)||0)+(parseFloat(r.valor_bonus)||parseFloat(r.bonus_comissao)||0);
+            const comissão = (parseFloat(r.valor_comissão)||parseFloat(r.comissão)||0)+(parseFloat(r.valor_bonus)||parseFloat(r.bonus_comissão)||0);
             const consig = parseFloat(r.consig_total)||parseFloat(r.consignado)||0;
             const isIntermitente = (r.tipo_contrato||'').toLowerCase().includes('intermitente');
             aoa.push([
@@ -10915,7 +10915,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                 r.dias_falta||'', r.data_faltas||'', horasDec(r.horas_atraso),
                 r.meio_transporte==='Vale Transporte'||r.vt?'Sim':'',
                 parseFloat(r.farmacia)||'', parseFloat(r.mercado)||'', parseFloat(r.outros)||'',
-                parseFloat(r.multas)||'', comissao||'', parseFloat(r.academia)||'',
+                parseFloat(r.multas)||'', comissão||'', parseFloat(r.academia)||'',
                 parseFloat(r.plr)||'', consig||''
             ]);
         }
@@ -10958,9 +10958,9 @@ db.run(`CREATE TABLE IF NOT EXISTS fechamento_email_config (
 )`, () => {});
 
 // ── POST: Gerar links de comissão para o mês ────────────────────
-// Busca colaboradores do depto Comercial, cria registro em fechamento_comissao
+// Busca colaboradores do depto Comercial, cria registro em fechamento_comissão
 // e gera link único. Retorna os links para exibição/envio.
-app.post('/api/fechamento/gerar-links-comissao', authenticateToken, async (req, res) => {
+app.post('/api/fechamento/gerar-links-comissão', authenticateToken, async (req, res) => {
     const { mes, ano } = req.body;
     if (!mes || !ano) return res.status(400).json({ error: 'mes e ano obrigatórios' });
     try {
@@ -10979,7 +10979,7 @@ app.post('/api/fechamento/gerar-links-comissao', authenticateToken, async (req, 
             const token = require('crypto').randomBytes(16).toString('hex');
             const emailColab = c.email_corporativo || c.email || null;
             await new Promise((resolve) => {
-                db.run(`INSERT INTO fechamento_comissao (mes, ano, colaborador_id, link_token)
+                db.run(`INSERT INTO fechamento_comissão (mes, ano, colaborador_id, link_token)
                         VALUES (?, ?, ?, ?)
                         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
                             link_token = COALESCE(link_token, excluded.link_token)`,
@@ -10988,7 +10988,7 @@ app.post('/api/fechamento/gerar-links-comissao', authenticateToken, async (req, 
             });
             // Buscar o token atual (pode já existir)
             const row = await new Promise((resolve) => {
-                db.get('SELECT link_token FROM fechamento_comissao WHERE mes=? AND ano=? AND colaborador_id=?',
+                db.get('SELECT link_token FROM fechamento_comissão WHERE mes=? AND ano=? AND colaborador_id=?',
                     [mes, ano, c.id], (e, r) => resolve(r));
             });
             const linkToken = row ? row.link_token : token;
@@ -10996,7 +10996,7 @@ app.post('/api/fechamento/gerar-links-comissao', authenticateToken, async (req, 
                 colaborador_id: c.id,
                 nome: c.nome_completo,
                 email: emailColab,
-                link: `${process.env.APP_URL || ''}/comissao/${linkToken}`,
+                link: `${process.env.APP_URL || ''}/comissão/${linkToken}`,
                 token: linkToken
             });
         }
@@ -11007,9 +11007,9 @@ app.post('/api/fechamento/gerar-links-comissao', authenticateToken, async (req, 
 });
 
 // ── GET: Status das comissões de um mês ────────────────────────
-app.get('/api/fechamento/comissao-status/:ano/:mes', authenticateToken, (req, res) => {
+app.get('/api/fechamento/comissão-status/:ano/:mes', authenticateToken, (req, res) => {
     db.all(`SELECT fc.*, c.nome_completo, c.email_corporativo, c.email
-            FROM fechamento_comissao fc
+            FROM fechamento_comissão fc
             JOIN colaboradores c ON fc.colaborador_id = c.id
             WHERE fc.mes = ? AND fc.ano = ?`,
         [req.params.mes, req.params.ano],
@@ -11021,12 +11021,12 @@ app.get('/api/fechamento/comissao-status/:ano/:mes', authenticateToken, (req, re
 });
 
 // ── POST: Enviar emails de comissão manualmente ─────────────────
-app.post('/api/fechamento/enviar-emails-comissao', authenticateToken, async (req, res) => {
+app.post('/api/fechamento/enviar-emails-comissão', authenticateToken, async (req, res) => {
     const { mes, ano, link_tokens } = req.body; // link_tokens: array opcional para reenvio específico
     if (!mes || !ano) return res.status(400).json({ error: 'mes e ano obrigatórios' });
     try {
         let query = `SELECT fc.*, c.nome_completo, c.email_corporativo, c.email
-                     FROM fechamento_comissao fc
+                     FROM fechamento_comissão fc
                      JOIN colaboradores c ON fc.colaborador_id = c.id
                      WHERE fc.mes = ? AND fc.ano = ? AND fc.link_token IS NOT NULL`;
         const params = [mes, ano];
@@ -11054,7 +11054,7 @@ app.post('/api/fechamento/enviar-emails-comissao', authenticateToken, async (req
             const emailDest = row.email_corporativo || row.email;
             if (!emailDest) { erros.push(`${row.nome_completo}: sem email`); continue; }
             const appUrl = process.env.APP_URL || '';
-            const link = `${appUrl}/comissao/${row.link_token}`;
+            const link = `${appUrl}/comissão/${row.link_token}`;
             try {
                 await transporter.sendMail({
                     from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -11150,7 +11150,7 @@ app.post('/api/fechamento/conferir', authenticateToken, async (req, res) => {
             db.all(`SELECT c.nome_completo, c.salario, c.cpf,
                            fm.extra_60, fm.extra_100, fm.farmacia, fm.academia,
                            fm.consignado, fm.vt, fm.multas, fm.mercado, fm.outros,
-                           fm.dias_falta, fm.horas_atraso, fm.plr, fm.comissao
+                           fm.dias_falta, fm.horas_atraso, fm.plr, fm.comissão
                     FROM colaboradores c
                     LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes=? AND fm.ano=?
                     WHERE c.status != 'Desligado'`,
@@ -11397,7 +11397,7 @@ app.post('/api/recibos/avulso/gerar', authenticateToken, async (req, res) => {
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id = ?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
         );
-        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado' });
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
 
         const bufferPDF = await htmlPdf.generatePdf(
             { content: htmlContent },
@@ -12018,7 +12018,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             } else if (rowOld && rowOld.r2_key) {
                                 // R2 fallback
                                 const r2ModFA = require('./utils/r2');
-                                if (!r2ModFA.isReady()) throw new Error('Arquivo base nao encontrado e R2 nao configurado');
+                                if (!r2ModFA.isReady()) throw new Error('Arquivo base não encontrado e R2 não configurado');
                                 const { stream: r2StFA } = await r2ModFA.downloadStreamFromR2(rowOld.r2_key);
                                 const r2ChFA = []; await new Promise((rr,rx) => { r2StFA.on('data',c=>r2ChFA.push(c)); r2StFA.on('end',rr); r2StFA.on('error',rx); });
                                 baseBytes = Buffer.concat(r2ChFA);
@@ -12185,7 +12185,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             } else if (rowBase && rowBase.r2_key) {
                                 // R2 fallback
                                 const r2ModMG = require('./utils/r2');
-                                if (!r2ModMG.isReady()) throw new Error('Arquivo base nao encontrado e R2 nao configurado');
+                                if (!r2ModMG.isReady()) throw new Error('Arquivo base não encontrado e R2 não configurado');
                                 const { stream: r2StMG } = await r2ModMG.downloadStreamFromR2(rowBase.r2_key);
                                 const r2ChMG = []; await new Promise((rr,rx) => { r2StMG.on('data',c=>r2ChMG.push(c)); r2StMG.on('end',rr); r2StMG.on('error',rx); });
                                 baseBytes = Buffer.concat(r2ChMG);
@@ -12398,13 +12398,13 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
         BASE_URL: baseUrl,
         NOME_COMPLETO: colaborador.nome_completo || '',
         CPF: colaborador.cpf || '',
-        RG: (colaborador.rg || '') + (colaborador.rg_orgao ? ` ${colaborador.rg_orgao}` : ''),
+        RG: (colaborador.rg || '') + (colaborador.rg_órgão ? ` ${colaborador.rg_órgão}` : ''),
         RG_NUM: colaborador.rg || '',
         NACIONALIDADE: colaborador.nacionalidade || 'Brasileiro(a)',
         ESTADO_CIVIL: colaborador.estado_civil || '',
         CARGO: colaborador.cargo || '',
         DEPARTAMENTO: colaborador.departamento || '',
-        ENDERECO: colaborador.endereco || '',
+        ENDEREÇO: colaborador.endereco || '',
         DATA_ADMISSAO: colaborador.data_admissao ? new Date(colaborador.data_admissao + 'T12:00:00').toLocaleDateString('pt-BR') : '',
         PIS: colaborador.pis || '',
         CTPS: colaborador.ctps_numero || '',
@@ -12429,7 +12429,7 @@ function buildGeradoresHtml(gerador, colaborador, baseUrl) {
     const dataFormatada = `Guarulhos, ${String(dataAtual.getDate()).padStart(2, '0')} de ${meses[dataAtual.getMonth()]} de ${dataAtual.getFullYear()}.`;
     conteudo = conteudo
         .replace(/Guarulhos,\s*_{3,}.*?de\s*_{3,}.*?de\s*202_{3,}\.?/g, dataFormatada)
-        .replace(/AMERICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>');
+        .replace(/AMÉRICA RENTAL EQUIPAMENTOS LTDA/g, '<b>AMÉRICA RENTAL EQUIPAMENTOS LTDA</b>');
 
     // Usar logo em Base64 para garantir que apareça no PDF gerado no servidor (igual ao sinistro)
     const logoB64 = getLogoBase64DataUri();
@@ -12935,7 +12935,7 @@ app.patch('/api/geradores/:id/regra', authenticateToken, (req, res) => {
     const regraStr = typeof visibilidade_regra === 'string' ? visibilidade_regra : JSON.stringify(visibilidade_regra);
     db.run('UPDATE geradores SET visibilidade_regra = ? WHERE id = ?', [regraStr, req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Gerador nao encontrado' });
+        if (this.changes === 0) return res.status(404).json({ error: 'Gerador não encontrado' });
         console.log('[PATCH REGRA] Gerador id=' + req.params.id + ' atualizado');
         res.json({ ok: true, message: 'Regra atualizada', changes: this.changes });
     });
@@ -13005,7 +13005,7 @@ app.delete('/api/geradores/:id', authenticateToken, (req, res) => {
         }
         db.run("DELETE FROM geradores WHERE id = ?", [req.params.id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Registra na lista de excluidos para que o seed nao recrie ao reiniciar
+            // Registra na lista de excluidos para que o seed não recrie ao reiniciar
             db.run("CREATE TABLE IF NOT EXISTS geradores_excluidos (nome TEXT PRIMARY KEY)", () => {
                 db.run("INSERT OR IGNORE INTO geradores_excluidos (nome) VALUES (?)", [originalName]);
             });
@@ -13111,7 +13111,7 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     'ID': colaborador.id,
                     'NOME_COMPLETO': colaborador.nome_completo || '',
                     'CPF': colaborador.cpf || '',
-                    'RG': (colaborador.rg || '') + (colaborador.rg_orgao ? ` ${colaborador.rg_orgao}` : ''),
+                    'RG': (colaborador.rg || '') + (colaborador.rg_órgão ? ` ${colaborador.rg_órgão}` : ''),
                     'RG_NUM': colaborador.rg || '',
                     'NACIONALIDADE': colaborador.nacionalidade || 'Brasileiro(a)',
                     'ESTADO_CIVIL': colaborador.estado_civil || '',
@@ -13150,9 +13150,9 @@ app.post(['/api/geradores/:id/gerar', '/api/geradores/:id/gerar/:colaborador_id'
                     mapping['PARCELA_3'] = p === 3 ? 'X' : '&nbsp;&nbsp;';
 
                     // ?????? Vari??veis para Solicitação de VT ??????????????????????????????????????????????????????????????????????????????
-                    const vtOpcao = (req.body.vt_opcao || '').toLowerCase(); // 'sim' | 'nao'
+                    const vtOpcao = (req.body.vt_opcao || '').toLowerCase(); // 'sim' | 'não'
                     mapping['VT_OPTA_SIM'] = vtOpcao === 'sim' ? '&#10003;' : '&nbsp;&nbsp;';
-                    mapping['VT_OPTA_NAO'] = vtOpcao === 'nao' ? '&#10003;' : '&nbsp;&nbsp;';
+                    mapping['VT_OPTA_NAO'] = vtOpcao === 'não' ? '&#10003;' : '&nbsp;&nbsp;';
 
                     // Linhas de transporte: array [{empresa, tarifa}] x2 (residencia_trabalho + trabalho_residencia)
                     let vtLinhasRT = [];
@@ -13709,9 +13709,9 @@ app.get('/api/avaliacoes/:tipo/colaboradores', authenticateToken, (req, res) => 
                                     const _mesInicioMap = { 1: 1, 2: 4, 3: 7, 4: 9 };
                                     const mesInicio = _mesInicioMap[p.trimestre] || ((p.trimestre - 1) * 3 + 1);
                                     const dataPesquisa = new Date(p.ano, mesInicio - 1, 1);
-                                    const naoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
-                                    pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, nao_admitido: naoAdmitido };
-                                    if (naoAdmitido) pesquisas[key].nao_admitido = true;
+                                    const nãoAdmitido = dataAdmissao && dataAdmissao > dataPesquisa;
+                                    pesquisas[key] = avalMap[c.id]?.[key] || { media: null, respondido: false, não_admitido: nãoAdmitido };
+                                    if (nãoAdmitido) pesquisas[key].não_admitido = true;
                                 });
                                 const todasMedias = Object.values(pesquisas).filter(p2 => p2.respondido && p2.media !== null).map(p2 => p2.media);
                                 const mediaGeral = todasMedias.length > 0 ? parseFloat((todasMedias.reduce((a, b) => a + b, 0) / todasMedias.length).toFixed(2)) : null;
@@ -13792,7 +13792,7 @@ app.post('/api/send-aso-email', authenticateToken, (req, res) => {
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         const mailOptions = {
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: email_to,
             cc: cc || [],
             subject: `Solicitação de Exame ${tipoExameStr}`,
@@ -13979,7 +13979,7 @@ app.post('/api/send-atestado-contabilidade', authenticateToken, async (req, res)
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: emailSubject,
             html: htmlContent,
@@ -14099,7 +14099,7 @@ app.post('/api/send-boleto-financeiro', authenticateToken, async (req, res) => {
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
         await sendMailHelper({
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: `[BOLETO] Boleto Faculdade - ${colab.nome_completo}`,
             html: htmlContent,
@@ -14233,7 +14233,7 @@ app.post('/api/send-suspensao-contabilidade', authenticateToken, async (req, res
 
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
         await sendMailHelper({
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: email_to,
             subject: `[DISCIPLINAR] Documento para Folha - ${colab.nome_completo} (${tipoDocumento})`,
             html: htmlContent,
@@ -14264,7 +14264,7 @@ const salvarLinkAssinatura = async (assinafyId, link) => {
         // Tenta atualizar em admissao
         db.run(`UPDATE admissao_assinaturas SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function (err) {
             if (this.changes > 0) return resolve(true);
-            // Se nao mudou, tenta em documentos
+            // Se não mudou, tenta em documentos
             db.run(`UPDATE documentos SET assinafy_url = ? WHERE assinafy_id = ?`, [link, assinafyId], function () {
                 resolve(true);
             });
@@ -14793,7 +14793,7 @@ app.post('/api/maintenance/reset', authenticateToken, (req, res) => {
 
 // FORCE SYNC: Reenviar TODOS os CONTRATOS_AVULSOS sem assinatura para o OneDrive
 app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res) => {
-    if (!onedrive) return res.status(503).json({ error: 'OneDrive nao configurado' });
+    if (!onedrive) return res.status(503).json({ error: 'OneDrive não configurado' });
 
     db.all("SELECT d.*, c.nome_completo FROM documentos d LEFT JOIN colaboradores c ON d.colaborador_id = c.id WHERE d.tab_name = 'CONTRATOS_AVULSOS' AND (d.assinafy_status IS NULL OR d.assinafy_status = 'Nenhum' OR d.assinafy_status = 'NAO_EXIGE') ORDER BY d.id DESC", [], async (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -14806,7 +14806,7 @@ app.post('/api/force-sync-contratos-avulsos', authenticateToken, async (req, res
                 const locPath = doc.signed_file_path && require('fs').existsSync(doc.signed_file_path)
                     ? doc.signed_file_path
                     : (doc.file_path && require('fs').existsSync(doc.file_path) ? doc.file_path : null);
-                if (!locPath) { console.log(`[SYNC-CA] Doc ${doc.id}: arquivo nao encontrado no disco`); fail++; continue; }
+                if (!locPath) { console.log(`[SYNC-CA] Doc ${doc.id}: arquivo não encontrado no disco`); fail++; continue; }
 
                 const colabNome = doc.nome_completo || 'DESCONHECIDO';
                 const safeColab = formatarNome(colabNome);
@@ -15527,12 +15527,12 @@ app.post('/api/epi-fichas/:id/save-onedrive', authenticateToken, async (req, res
     const fichaId = req.params.id;
     const { pdf_base64, colaborador_id } = req.body;
     if (!pdf_base64 || !colaborador_id) return res.status(400).json({ error: 'Dados incompletos.' });
-    if (!process.env.ONEDRIVE_CLIENT_ID) return res.json({ success: false, msg: 'OneDrive nao configurado.' });
+    if (!process.env.ONEDRIVE_CLIENT_ID) return res.json({ success: false, msg: 'OneDrive não configurado.' });
     try {
         const colab = await new Promise((resolve, reject) =>
             db.get('SELECT * FROM colaboradores WHERE id=?', [colaborador_id], (e, r) => e ? reject(e) : resolve(r))
         );
-        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
         const safeNome = formatarNome(colab.nome_completo || 'Colaborador');
         const base64Data = pdf_base64.includes('base64,') ? pdf_base64.split('base64,')[1] : pdf_base64;
         const pdfBuffer = Buffer.from(base64Data, 'base64');
@@ -15872,7 +15872,7 @@ app.post('/api/config-notificacoes', authenticateToken, (req, res) => {
 app.post('/api/config-notificacoes/batch', authenticateToken, (req, res) => {
     const { configuracoes } = req.body;
     if (!Array.isArray(configuracoes) || configuracoes.length === 0) {
-        return res.status(400).json({ error: 'configuracoes deve ser array nao vazio' });
+        return res.status(400).json({ error: 'configuracoes deve ser array não vazio' });
     }
     db.serialize(() => {
         db.run('BEGIN TRANSACTION', (errBegin) => {
@@ -16967,7 +16967,7 @@ app.post('/api/colaboradores/:id/enviar-ficha-contabilidade', authenticateToken,
 
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                 to: email,
                 subject: `Processo Admissional - ${row.nome_completo || row.nome}`,
                 html: htmlMessage,
@@ -17013,27 +17013,27 @@ process.on('unhandledRejection', (reason, promise) => {
 // MULTAS DE TR??NSITO
 // ============================================================
 
-// Tabela CTB: código ? { pontuacao, valor }
+// Tabela CTB: código ? { pontuação, valor }
 const CTB_TABLE = {
-    '5185': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do semáforo' },
-    '5169': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicação ao volante' },
-    '5460': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de segurança' },
-    '5550': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em até 20%' },
-    '5556': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
-    '5553': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
-    '7455': { pontuacao: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à máxima permitida em até 20%' },
-    '7456': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à máxima entre 20% e 50%' },
-    '7457': { pontuacao: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à máxima em mais de 50%' },
-    '6050': { pontuacao: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
-    '6010': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
-    '5681': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Avanºar sobre cal??ada' },
-    '6730': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Circular com o veículo sujo' },
-    '5736': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influ??ncia de ??lcool' },
-    '5854': { pontuacao: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emerg??ncia' },
-    '5762': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Trafegar em acostamento' },
-    '5974': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Não sinalizar redu????o de velocidade' },
-    '5312': { pontuacao: 5, valor: 'R$ 195,23', descricao: 'Executar conversão proibida' },
-    '6289': { pontuacao: 3, valor: 'R$ 130,16', descricao: 'Usar buzina em local proibido' },
+    '5185': { pontuação: 7, valor: 'R$ 293,47', descricao: 'Ultrapassar sinal vermelho do semáforo' },
+    '5169': { pontuação: 7, valor: 'R$ 293,47', descricao: 'Usar aparelho de comunicação ao volante' },
+    '5460': { pontuação: 7, valor: 'R$ 293,47', descricao: 'Conduzir sem cinto de segurança' },
+    '5550': { pontuação: 5, valor: 'R$ 130,16', descricao: 'Velocidade superior ao limite em até 20%' },
+    '5556': { pontuação: 7, valor: 'R$ 880,41', descricao: 'Velocidade superior ao limite em mais de 50%' },
+    '5553': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Velocidade superior ao limite entre 20% e 50%' },
+    '7455': { pontuação: 5, valor: 'R$ 130,16', descricao: 'Transitar em velocidade superior à máxima permitida em até 20%' },
+    '7456': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Transitar em velocidade superior à máxima entre 20% e 50%' },
+    '7457': { pontuação: 7, valor: 'R$ 880,41', descricao: 'Transitar em velocidade superior à máxima em mais de 50%' },
+    '6050': { pontuação: 3, valor: 'R$ 195,23', descricao: 'Estacionar em local proibido' },
+    '6010': { pontuação: 3, valor: 'R$ 130,16', descricao: 'Parar em local proibido' },
+    '5681': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Avanºar sobre cal??ada' },
+    '6730': { pontuação: 3, valor: 'R$ 130,16', descricao: 'Circular com o veículo sujo' },
+    '5736': { pontuação: 7, valor: 'R$ 293,47', descricao: 'Dirigir sob influ??ncia de ??lcool' },
+    '5854': { pontuação: 7, valor: 'R$ 293,47', descricao: 'Deixar de dar passagem a veículo de emerg??ncia' },
+    '5762': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Trafegar em acostamento' },
+    '5974': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Não sinalizar redu????o de velocidade' },
+    '5312': { pontuação: 5, valor: 'R$ 195,23', descricao: 'Executar conversão proibida' },
+    '6289': { pontuação: 3, valor: 'R$ 130,16', descricao: 'Usar buzina em local proibido' },
 };
 
 // Upload multerista exclusiva para notificações de multa (salva em /tmp para extração)
@@ -17053,7 +17053,7 @@ app.get('/api/ctb/:codigo', authenticateToken, (req, res) => {
     const { codigo } = req.params;
     const entry = CTB_TABLE[codigo];
     if (entry) return res.json({ codigo, ...entry });
-    res.json({ codigo, pontuacao: null, valor: null, descricao: null, found: false });
+    res.json({ codigo, pontuação: null, valor: null, descricao: null, found: false });
 });
 
 // POST /api/colaboradores/:id/multas/upload-notificacao ??? extrai dados do PDF
@@ -17073,7 +17073,7 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
 
         // Regex adaptados para o layout SENATRAN
         const placa = extract(/PLACA\s*\n([A-Z0-9]{7})/i) || extract(/PLACA\s+([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/i);
-        const veiculo = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
+        const veículo = extract(/MARCA\/MODELO\/VERS[ÃA]O\s*\n(.+)/i);
         const codigoInfracao = extract(/C[??O]DIGO DA INFRA[ÇC][ÃA]O\s*\n(\d{4,6})/i);
         const descricao = extract(/DESCRI[??C][??A]O DA INFRA[ÇC][ÃA]O\s*\n(.+)/i);
         const dataInfracao = extract(/\bDATA\b\s*\n(\d{2}\/\d{2}\/\d{4})/i);
@@ -17088,14 +17088,14 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
 
         res.json({
             placa,
-            veiculo,
-            codigo_infracao: codigoInfracao,
-            descricao_infracao: descricao || ctb.descricao || '',
-            data_infracao: dataInfracao,
-            hora_infracao: horaInfracao,
-            local_infracao: localInfracao,
+            veículo,
+            codigo_infração: codigoInfracao,
+            descricao_infração: descricao || ctb.descricao || '',
+            data_infração: dataInfracao,
+            hora_infração: horaInfracao,
+            local_infração: localInfracao,
             valor_multa: ctb.valor || (valorMulta ? `R$ ${valorMulta}` : ''),
-            pontuacao: ctb.pontuacao || null,
+            pontuação: ctb.pontuação || null,
             numero_ait: numeroAit,
             texto_completo: texto.substring(0, 500) // debug
         });
@@ -17114,37 +17114,37 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
         const colab = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
         });
-        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+        if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
         const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
             .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
 
-        const codigo = (body.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+        const codigo = (body.codigo_infração || 'MULTA').replace(/[^A-Z0-9]/gi, '');
 
         // Inserir no banco primeiro para obter o ID
-        const stmt = `INSERT INTO multas (colaborador_id, codigo_infracao, descricao_infracao, placa, veiculo,
-            data_infracao, hora_infracao, local_infracao, numero_ait, pontuacao, valor_multa,
+        const stmt = `INSERT INTO multas (colaborador_id, codigo_infração, descricao_infração, placa, veículo,
+            data_infração, hora_infração, local_infração, numero_ait, pontuação, valor_multa,
             notificacao_path, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pendente')`;
-        db.run(stmt, [id, body.codigo_infracao, body.descricao_infracao, body.placa, body.veiculo,
-            body.data_infracao, body.hora_infracao, body.local_infracao, body.numero_ait,
-            body.pontuacao, body.valor_multa, null],
+        db.run(stmt, [id, body.codigo_infração, body.descricao_infração, body.placa, body.veículo,
+            body.data_infração, body.hora_infração, body.local_infração, body.numero_ait,
+            body.pontuação, body.valor_multa, null],
             function (insertErr) {
                 if (insertErr) return res.status(500).json({ error: insertErr.message });
                 const multaId = this.lastID;
 
                 // Pasta unica: CODIGO_DDMMYYYY_ID
-                const dataInf = body.data_infracao
-                    ? (body.data_infracao.includes('-')
-                        ? body.data_infracao.split('-').reverse().join('')
-                        : body.data_infracao.replace(/\D/g, ''))
+                const dataInf = body.data_infração
+                    ? (body.data_infração.includes('-')
+                        ? body.data_infração.split('-').reverse().join('')
+                        : body.data_infração.replace(/\D/g, ''))
                     : String(new Date().getDate()).padStart(2, '0') + String(new Date().getMonth() + 1).padStart(2, '0') + new Date().getFullYear();
                 const pastaNome = codigo + '_' + dataInf + '_' + multaId;
 
                 res.json({ sucesso: true, id: multaId, pasta: pastaNome });
 
                 // Notificação de Nova Multa no prontuário
-                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuario'", [], (err, rowsC) => {
+                db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_prontuário'", [], (err, rowsC) => {
                     if (!err && rowsC && rowsC.length > 0) {
                         const colabNome = colab.nome_completo || colab.nome || 'Colaborador';
                         const msg = `Nova multa incluída no prontuário de ${colabNome} (AIT ${body.numero_ait || 'S/N'})`;
@@ -17152,7 +17152,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                         
                         rowsC.forEach(c => {
                             db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
-                                [c.usuario_id, 'nova_multa_prontuario', msg, dados]);
+                                [c.usuario_id, 'nova_multa_prontuário', msg, dados]);
                         });
 
                         const fmt = v => {
@@ -17171,8 +17171,8 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                                         <p><strong>Colaborador:</strong> ${colabNome}</p>
                                         <p><strong>Nº do AIT:</strong> ${body.numero_ait || 'Não informado'}</p>
                                         <p><strong>Placa:</strong> ${body.placa || 'Não informada'}</p>
-                                        <p><strong>Data da Infração:</strong> ${body.data_infracao ? body.data_infracao.split('-').reverse().join('/') : 'Não informada'}</p>
-                                        <p><strong>Infração:</strong> ${body.codigo_infracao || 'S/C'} - ${body.descricao_infracao || ''}</p>
+                                        <p><strong>Data da Infração:</strong> ${body.data_infração ? body.data_infração.split('-').reverse().join('/') : 'Não informada'}</p>
+                                        <p><strong>Infração:</strong> ${body.codigo_infração || 'S/C'} - ${body.descricao_infração || ''}</p>
                                         <p><strong>Valor:</strong> ${fmt(body.valor_multa)}</p>
                                     </div>
                                     <p style="margin-top: 30px; font-size: 0.9rem; color: #7f8c8d; text-align: center;">E-mail gerado automaticamente pelo Sistema RH & Logística</p>
@@ -17180,7 +17180,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                             </div>
                         `;
 
-                        sendEmailParaNotificados('nova_multa_prontuario', {
+                        sendEmailParaNotificados('nova_multa_prontuário', {
                             subject: `Nova Multa Incluída - ${colabNome}`,
                             html: htmlContent
                         });
@@ -17196,7 +17196,7 @@ app.post('/api/colaboradores/:id/multas', authenticateToken, multaUpload.single(
                             await onedrive.ensurePath(onedriveBasePath + '/' + nomeFormatado);
                             await onedrive.ensurePath(onedriveBasePath + '/' + nomeFormatado + '/MULTAS');
                             await onedrive.ensurePath(targetDir);
-                            // Nome fixo da notificacao (nao e sobreposto)
+                            // Nome fixo da notificacao (não e sobreposto)
                             const nomeNotif = 'Notificacao_' + codigo + '_' + nomeFormatado + '.pdf';
                             await onedrive.uploadToOneDrive(targetDir, nomeNotif, req.file.buffer);
                             db.run('UPDATE multas SET notificacao_path = ? WHERE id = ?', [targetDir + '/' + nomeNotif, multaId]);
@@ -17336,20 +17336,20 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         <table class="info">
             <tr>
                 <td><b>PLACA:</b> ${multa.placa || ''}</td>
-                <td><b>VE??CULO:</b> ${multa.veiculo || ''}</td>
+                <td><b>VE??CULO:</b> ${multa.veículo || ''}</td>
             </tr>
             <tr>
-                <td><b>C??DIGO INFRAÇÃO:</b> ${multa.codigo_infracao || ''}</td>
-                <td><b>INFRAÇÃO:</b> ${multa.descricao_infracao || ''}</td>
+                <td><b>C??DIGO INFRAÇÃO:</b> ${multa.codigo_infração || ''}</td>
+                <td><b>INFRAÇÃO:</b> ${multa.descricao_infração || ''}</td>
             </tr>
             <tr>
-                <td colspan="2"><b>DATA E HORA:</b> ${multa.data_infracao || ''} ${multa.hora_infracao || ''}</td>
+                <td colspan="2"><b>DATA E HORA:</b> ${multa.data_infração || ''} ${multa.hora_infração || ''}</td>
             </tr>
             <tr>
-                <td colspan="2"><b>LOCAL DA INFRAÇÃO:</b> ${multa.local_infracao || ''}</td>
+                <td colspan="2"><b>LOCAL DA INFRAÇÃO:</b> ${multa.local_infração || ''}</td>
             </tr>
             <tr>
-                <td><b>PONTUA????O:</b> ${multa.pontuacao || ''}</td>
+                <td><b>PONTUA????O:</b> ${multa.pontuação || ''}</td>
                 <td><b>VALOR DA MULTA:</b> ${multa.valor_multa || ''}</td>
             </tr>
         </table>
@@ -17361,7 +17361,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/gerar-documento', authenticateT
         </p>
         ${(function () {
                 var meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-                var d = multa.data_infracao ? new Date(multa.data_infracao + 'T12:00:00') : new Date();
+                var d = multa.data_infração ? new Date(multa.data_infração + 'T12:00:00') : new Date();
                 var hoje = new Date();
                 var dia = hoje.getDate();
                 var mes = meses[hoje.getMonth()];
@@ -17426,18 +17426,18 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
                 ; (async () => {
                     try {
                         const colab = await new Promise((resolve, reject) => db.get(
-                            'SELECT c.nome_completo, m.codigo_infracao, m.data_infracao, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
+                            'SELECT c.nome_completo, m.codigo_infração, m.data_infração, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
                             [multaId], (e, r) => e ? reject(e) : resolve(r)
                         ));
                         if (!colab) return;
                         const safeColab = formatarNome(colab.nome_completo || 'DESCONHECIDO');
-                        const codigo = (colab.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+                        const codigo = (colab.codigo_infração || 'MULTA').replace(/[^A-Z0-9]/gi, '');
                         // Montar data no formato DDMMYYYY
                         let dataStr = '';
-                        if (colab.data_infracao) {
-                            const d = colab.data_infracao.includes('-')
-                                ? colab.data_infracao.split('-').reverse().join('')
-                                : colab.data_infracao.replace(/\D/g, '');
+                        if (colab.data_infração) {
+                            const d = colab.data_infração.includes('-')
+                                ? colab.data_infração.split('-').reverse().join('')
+                                : colab.data_infração.replace(/\D/g, '');
                             dataStr = '_' + d;
                         }
                         const pastaNome = codigo + dataStr + '_' + colab.id;
@@ -17448,7 +17448,7 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-testemunhas', authentic
                         await onedrive.ensurePath(targetDir);
                         const pdf = require('html-pdf-node');
                         const pdfBuffer = await pdf.generatePdf({ content: documento_html }, { format: 'A4', margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' } });
-                        // Nome fixo: Termo_CODIGO_DDMMYYYY.pdf ??? mesmo nome que sera sobreposto pelo condutor
+                        // Nome fixo: Termo_CODIGO_DDMMYYYY.pdf ??? mesmo nome que será sobreposto pelo condutor
                         const nomeArquivo = 'Termo_' + codigo + (dataStr ? '_' + dataStr.replace(/^_/, '') : '') + '.pdf';
                         await onedrive.uploadToOneDrive(targetDir, nomeArquivo, pdfBuffer);
                         console.log('[MULTA-TESTEMUNHAS] PDF salvo: ' + targetDir + '/' + nomeArquivo);
@@ -17488,17 +17488,17 @@ app.post('/api/colaboradores/:id/multas/:multaId/assinar-condutor', authenticate
             ; (async () => {
                 try {
                     const colab = await new Promise((resolve, reject) => db.get(
-                        'SELECT c.nome_completo, m.codigo_infracao, m.data_infracao, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
+                        'SELECT c.nome_completo, m.codigo_infração, m.data_infração, m.id FROM multas m JOIN colaboradores c ON c.id = m.colaborador_id WHERE m.id = ?',
                         [multaId], (e, r) => e ? reject(e) : resolve(r)
                     ));
                     if (!colab) return;
                     const safeColab = formatarNome(colab.nome_completo || 'DESCONHECIDO');
-                    const codigo = (colab.codigo_infracao || 'MULTA').replace(/[^A-Z0-9]/gi, '');
+                    const codigo = (colab.codigo_infração || 'MULTA').replace(/[^A-Z0-9]/gi, '');
                     let dataStr = '';
-                    if (colab.data_infracao) {
-                        const d = colab.data_infracao.includes('-')
-                            ? colab.data_infracao.split('-').reverse().join('')
-                            : colab.data_infracao.replace(/\D/g, '');
+                    if (colab.data_infração) {
+                        const d = colab.data_infração.includes('-')
+                            ? colab.data_infração.split('-').reverse().join('')
+                            : colab.data_infração.replace(/\D/g, '');
                         dataStr = '_' + d;
                     }
                     const pastaNome = codigo + dataStr + '_' + colab.id;
@@ -17732,7 +17732,7 @@ db.run(`CREATE TABLE IF NOT EXISTS experiencia_formularios (
     colaborador_id INTEGER NOT NULL,
     responsavel_nome TEXT,
     respostas TEXT,
-    pontuacao REAL DEFAULT 0,
+    pontuação REAL DEFAULT 0,
     situacao_avaliacao TEXT,
     comentarios TEXT,
     situacao TEXT DEFAULT 'pendente',
@@ -17880,7 +17880,7 @@ app.get('/api/experiencia/publico/info', (req, res) => {
     }
 });
 
-async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios) {
+async function gerarESalvarPDFExperiencia(colab, respostas, pontuação, situacao_avaliacao, comentarios) {
     try {
         const htmlPdf = require('html-pdf-node');
         const fs = require('fs');
@@ -17914,7 +17914,7 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
             <h2>Resultado da Avaliação</h2>
             <div class="info">
                 <p><strong>Situação:</strong> ${situacao_avaliacao || 'Pendente'}</p>
-                <p><strong>Pontuação Total:</strong> ${pontuacao || 0}</p>
+                <p><strong>Pontuação Total:</strong> ${pontuação || 0}</p>
             </div>
             <h2>Coment??rios Adicionais</h2>
             <p>${comentarios || 'Nenhum comentário adicionado.'}</p>
@@ -17928,7 +17928,7 @@ async function gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_
         const fileBuffer = await htmlPdf.generatePdf({ content: html }, options);
 
         const safeFolder = formatarNome(colab.nome_completo);
-        const baseDrivePath = "C:\\A\\OneDrive - AMERICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
+        const baseDrivePath = "C:\\A\\OneDrive - AMÉRICA RENTAL EQUIPAMENTOS LTDA\\Documentos - America Rental\\RH\\1.Colaboradores\\Sistema";
         const targetDir = path.join(baseDrivePath, safeFolder, "AVALIACAO");
 
         if (!fs.existsSync(targetDir)) {
@@ -17949,20 +17949,20 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
 
-        const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
+        const { respostas, pontuação, situacao_avaliacao, comentarios } = req.body;
 
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
 
             db.get(`SELECT id FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, exist) => {
                 if (exist) {
-                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'finalizado', atualizado_em = datetime('now') WHERE id = ?`,
-                        [JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
+                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuação = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'finalizado', atualizado_em = datetime('now') WHERE id = ?`,
+                        [JSON.stringify(respostas), pontuação, situacao_avaliacao, comentarios, colab.responsavel_nome, exist.id], (err3) => {
                             if (err3) return res.status(500).json({ error: err3.message });
                             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                                 if (!errC && rowsC && rowsC.length > 0) {
                                     const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: colab.responsavel_nome });
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuação, responsavel_nome: colab.responsavel_nome });
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
                                     });
@@ -17983,13 +17983,13 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                             <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
                                             <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuação || '???'}</p>
                                         </div>
                                         <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                     </div>
                                 </div>`
                             });
-                            gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            gerarESalvarPDFExperiencia(colab, respostas, pontuação, situacao_avaliacao, comentarios);
                             if (situacao_avaliacao === 'Aprovado') {
                                 db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
                                     if(err) console.error("Erro ao liberar integracao de experiencia:", err);
@@ -17998,13 +17998,13 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                             res.json({ ok: true, responsavel_nome: colab.responsavel_nome, colaborador_nome: colab.nome_completo });
                         });
                 } else {
-                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'finalizado')`,
-                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao, situacao_avaliacao, comentarios], function (err3) {
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuação, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'finalizado')`,
+                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuação, situacao_avaliacao, comentarios], function (err3) {
                             if (err3) return res.status(500).json({ error: err3.message });
                             db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                                 if (!errC && rowsC && rowsC.length > 0) {
                                     const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: colab.responsavel_nome });
+                                    const dados = JSON.stringify({ colaborador_nome: colab.nome_completo, departamento: colab.departamento, resultado: situacao_avaliacao, pontuação, responsavel_nome: colab.responsavel_nome });
                                     rowsC.forEach(c => {
                                         db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [c.usuario_id, 'formulario_experiencia', msg, dados]);
                                     });
@@ -18025,13 +18025,13 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
                                             <p style="margin:4px 0;"><strong>Colaborador:</strong> ${colab.nome_completo}</p>
                                             <p style="margin:4px 0;"><strong>Departamento:</strong> ${colab.departamento || '???'}</p>
                                             <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit2}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuação || '???'}</p>
                                         </div>
                                         <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                     </div>
                                 </div>`
                             });
-                            gerarESalvarPDFExperiencia(colab, respostas, pontuacao, situacao_avaliacao, comentarios);
+                            gerarESalvarPDFExperiencia(colab, respostas, pontuação, situacao_avaliacao, comentarios);
                             if (situacao_avaliacao === 'Aprovado') {
                                 db.run(`UPDATE integracao_passos_status SET status = 'pendente' WHERE status = 'aguardando_experiencia' AND processo_id IN (SELECT id FROM integracao_processos WHERE colaborador_id = ?)`, [colab.id], (err) => {
                                     if(err) console.error("Erro ao liberar integracao de experiencia:", err);
@@ -18051,20 +18051,20 @@ app.post('/api/experiencia/publico/submit', (req, res) => {
 app.post('/api/experiencia/publico/rascunho', (req, res) => {
     try {
         const payload = jwt.verify(req.query.token, SECRET_KEY);
-        const { respostas, pontuacao, situacao_avaliacao, comentarios } = req.body;
+        const { respostas, pontuação, situacao_avaliacao, comentarios } = req.body;
         db.get(`SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?`, [payload.colab_id], (err, colab) => {
             if (err || !colab) return res.status(404).json({ error: 'Colaborador não encontrado.' });
             db.get(`SELECT id, situacao FROM experiencia_formularios WHERE colaborador_id = ? ORDER BY criado_em DESC LIMIT 1`, [colab.id], (err2, exist) => {
                 if (exist) {
                     if (exist.situacao === 'finalizado') return res.status(400).json({ error: 'O formulário já foi finalizado.' });
-                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuacao = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'iniciado', atualizado_em = datetime('now') WHERE id = ?`,
-                        [JSON.stringify(respostas), pontuacao || 0, situacao_avaliacao || '', comentarios || '', colab.responsavel_nome, exist.id], (err3) => {
+                    db.run(`UPDATE experiencia_formularios SET respostas = ?, pontuação = ?, situacao_avaliacao = ?, comentarios = ?, responsavel_nome = ?, situacao = 'iniciado', atualizado_em = datetime('now') WHERE id = ?`,
+                        [JSON.stringify(respostas), pontuação || 0, situacao_avaliacao || '', comentarios || '', colab.responsavel_nome, exist.id], (err3) => {
                             if (err3) return res.status(500).json({ error: err3.message });
                             res.json({ ok: true, message: 'Progresso salvo com sucesso.' });
                         });
                 } else {
-                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'iniciado')`,
-                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuacao || 0, situacao_avaliacao || '', comentarios || ''], function(err3) {
+                    db.run(`INSERT INTO experiencia_formularios (colaborador_id, responsavel_nome, respostas, pontuação, situacao_avaliacao, comentarios, situacao) VALUES (?, ?, ?, ?, ?, ?, 'iniciado')`,
+                        [colab.id, colab.responsavel_nome, JSON.stringify(respostas), pontuação || 0, situacao_avaliacao || '', comentarios || ''], function(err3) {
                             if (err3) return res.status(500).json({ error: err3.message });
                             res.json({ ok: true, form_id: this.lastID, message: 'Progresso salvo com sucesso.' });
                         });
@@ -18085,7 +18085,7 @@ app.get('/api/experiencia', authenticateToken, (req, res) => {
         SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.data_admissao,
                c.foto_base64,
                ef.id as form_id, ef.situacao, ef.situacao_avaliacao as formulario_resultado,
-               ef.pontuacao, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
+               ef.pontuação, ef.notificacao_15d_enviada, ef.data_envio_email, ef.atualizado_em,
                (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome
         FROM colaboradores c
         LEFT JOIN experiencia_formularios ef ON ef.id = (
@@ -18190,16 +18190,16 @@ app.get('/api/experiencia/:colaborador_id', authenticateToken, (req, res) => {
 
 // POST /api/experiencia/formulario - Cria formulário
 app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
-    const { colaborador_id, respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
+    const { colaborador_id, respostas, pontuação, situacao_avaliacao, comentarios, situacao } = req.body;
     if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatório.' });
 
     const respostasJson = JSON.stringify(respostas || {});
     const now = new Date().toISOString();
 
     db.run(`INSERT INTO experiencia_formularios 
-            (colaborador_id, responsavel_nome, respostas, pontuacao, situacao_avaliacao, comentarios, situacao, criado_em, atualizado_em)
+            (colaborador_id, responsavel_nome, respostas, pontuação, situacao_avaliacao, comentarios, situacao, criado_em, atualizado_em)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [colaborador_id, req.user?.nome || '', respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, now],
+        [colaborador_id, req.user?.nome || '', respostasJson, pontuação || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, now],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
 
@@ -18208,12 +18208,12 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
-                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuação })]);
                         
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                             if (!errC && rowsC && rowsC.length > 0) {
                                 const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuação, responsavel_nome: c.responsavel_nome });
                                 rowsC.forEach(row => {
                                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
                                 });
@@ -18233,20 +18233,20 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
                                         <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuação || '???'}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                 </div>
                             </div>`
                         });
 
-                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuação, situacao_avaliacao, comentarios);
                     }
                 });
             } else {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM colaboradores c LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE c.id = ?', [colaborador_id], (e, c) => {
                     if (!e && c) {
-                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuação, situacao_avaliacao, comentarios);
                     }
                 });
             }
@@ -18259,13 +18259,13 @@ app.post('/api/experiencia/formulario', authenticateToken, (req, res) => {
 // PUT /api/experiencia/formulario/:id - Atualiza formulário
 app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
-    const { respostas, pontuacao, situacao_avaliacao, comentarios, situacao } = req.body;
+    const { respostas, pontuação, situacao_avaliacao, comentarios, situacao } = req.body;
     const respostasJson = JSON.stringify(respostas || {});
     const now = new Date().toISOString();
 
-    db.run(`UPDATE experiencia_formularios SET respostas=?, pontuacao=?, situacao_avaliacao=?, comentarios=?, situacao=?, atualizado_em=?
+    db.run(`UPDATE experiencia_formularios SET respostas=?, pontuação=?, situacao_avaliacao=?, comentarios=?, situacao=?, atualizado_em=?
             WHERE id=?`,
-        [respostasJson, pontuacao || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, id],
+        [respostasJson, pontuação || 0, situacao_avaliacao || '', comentarios || '', situacao || 'rascunho', now, id],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
 
@@ -18273,12 +18273,12 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
                     if (!e && c) {
                         db.run(`INSERT INTO experiencia_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
-                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao })]);
+                            ['formulario_finalizado', JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuação })]);
                         
                         db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'formulario_experiencia'", [], (errC, rowsC) => {
                             if (!errC && rowsC && rowsC.length > 0) {
                                 const msg = `O gestor enviou o formulário de experiência finalizado.`;
-                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuacao, responsavel_nome: c.responsavel_nome });
+                                const dados = JSON.stringify({ colaborador_nome: c.nome_completo, departamento: c.departamento, resultado: situacao_avaliacao, pontuação, responsavel_nome: c.responsavel_nome });
                                 rowsC.forEach(row => {
                                     db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [row.usuario_id, 'formulario_experiencia', msg, dados]);
                                 });
@@ -18298,20 +18298,20 @@ app.put('/api/experiencia/formulario/:id', authenticateToken, (req, res) => {
                                         <p style="margin:4px 0;"><strong>Colaborador:</strong> ${c.nome_completo}</p>
                                         <p style="margin:4px 0;"><strong>Departamento:</strong> ${c.departamento || '???'}</p>
                                         <p style="margin:4px 0;"><strong>Resultado:</strong> ${_resSit}</p>
-                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuacao || '???'}</p>
+                                        <p style="margin:4px 0;"><strong>Pontuação:</strong> ${pontuação || '???'}</p>
                                     </div>
                                     <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para revisar o formulário completo.</i></p>
                                 </div>
                             </div>`
                         });
 
-                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuação, situacao_avaliacao, comentarios);
                     }
                 });
             } else {
                 db.get('SELECT c.*, (SELECT nome_completo FROM colaboradores WHERE id = d.responsavel_id) as responsavel_nome FROM experiencia_formularios ef JOIN colaboradores c ON c.id = ef.colaborador_id LEFT JOIN departamentos d ON LOWER(TRIM(d.nome)) = LOWER(TRIM(c.departamento)) WHERE ef.id = ?', [id], (e, c) => {
                     if (!e && c) {
-                        gerarESalvarPDFExperiencia(c, respostas, pontuacao, situacao_avaliacao, comentarios);
+                        gerarESalvarPDFExperiencia(c, respostas, pontuação, situacao_avaliacao, comentarios);
                     }
                 });
             }
@@ -18596,7 +18596,7 @@ async function notificarResponsaveisEquipes(mensagem, titulo, icone = 'ph-users-
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport(SMTP_CONFIG);
                     sendMailHelper({
-                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                         to: emails,
                         subject: isUrgente ? `[URGENTE] ${titulo}` : titulo,
                         html: htmlContent,
@@ -18726,14 +18726,14 @@ function verificarAtestadosVencidos() {
 // CRON JOB - Verificar CRLV Vencido (Logística)
 function verificarCRLVVencidoCron() {
     console.log('[CRON] Verificando vencimento de CRLV...');
-    db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
+    db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veículos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veículos) => {
         if (err) { console.error('[CRON CRLV]', err.message); return; }
 
         const now = new Date();
         const anoAtual = now.getFullYear();
         const mesAtual = now.getMonth(); // 0 a 11
 
-        veiculos.forEach(v => {
+        veículos.forEach(v => {
             if (v.crlv_alerta_enviado) return; // Ja enviou alerta
 
             let p = v.placa.replace(/[^a-zA-Z0-9]/g, '');
@@ -18804,7 +18804,7 @@ function enviarEmailAlertaCRLV(v) {
         try {
             const transporter = nodemailer.createTransport(SMTP_CONFIG);
             await sendMailHelper({
-                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                 to: emailDestino,
                 subject: `Aviso de CRLV Vencido - Veículo ${v.placa}`,
                 html: htmlContent,
@@ -18817,7 +18817,7 @@ function enviarEmailAlertaCRLV(v) {
                 ]
             });
 
-            db.run("UPDATE frota_veiculos SET crlv_alerta_enviado = 1 WHERE id = ?", [v.id]);
+            db.run("UPDATE frota_veículos SET crlv_alerta_enviado = 1 WHERE id = ?", [v.id]);
             console.log(`[CRON CRLV] E-mail de alerta enviado para ${emailDestino} (Placa: ${v.placa})`);
         } catch (e) {
             console.error('[CRON CRLV] Erro ao enviar e-mail:', e.message);
@@ -19201,21 +19201,21 @@ cron.schedule('0 8 26 * *', async () => {
             // Criar/garantir registro e link
             const token = require('crypto').randomBytes(16).toString('hex');
             await new Promise(resolve => {
-                db.run(`INSERT INTO fechamento_comissao (mes, ano, colaborador_id, link_token)
+                db.run(`INSERT INTO fechamento_comissão (mes, ano, colaborador_id, link_token)
                         VALUES (?,?,?,?)
                         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
                             link_token = COALESCE(link_token, excluded.link_token)`,
                     [mes, ano, c.id, token], resolve);
             });
             const row = await new Promise(resolve => {
-                db.get('SELECT link_token, preenchido_em FROM fechamento_comissao WHERE mes=? AND ano=? AND colaborador_id=?',
+                db.get('SELECT link_token, preenchido_em FROM fechamento_comissão WHERE mes=? AND ano=? AND colaborador_id=?',
                     [mes, ano, c.id], (e, r) => resolve(r));
             });
             if (row && row.preenchido_em) continue; // já preenchido, não reenviar
             const emailDest = c.email_corporativo || c.email;
             if (!emailDest) continue;
             const appUrl = process.env.APP_URL || '';
-            const link = `${appUrl}/comissao/${row ? row.link_token : token}`;
+            const link = `${appUrl}/comissão/${row ? row.link_token : token}`;
             try {
                 await transporter.sendMail({
                     from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -19255,7 +19255,7 @@ cron.schedule('30 8 * * *', async () => {
     try {
         const pendentes = await new Promise((resolve, reject) => {
             db.all(`SELECT fc.link_token, c.nome_completo, c.email_corporativo, c.email
-                    FROM fechamento_comissao fc
+                    FROM fechamento_comissão fc
                     JOIN colaboradores c ON fc.colaborador_id = c.id
                     WHERE fc.mes=? AND fc.ano=? AND fc.preenchido_em IS NULL AND fc.link_token IS NOT NULL`,
                 [mes, ano], (err, rows) => err ? reject(err) : resolve(rows || [])
@@ -19272,7 +19272,7 @@ cron.schedule('30 8 * * *', async () => {
         for (const p of pendentes) {
             const emailDest = p.email_corporativo || p.email;
             if (!emailDest) continue;
-            const link = `${appUrl}/comissao/${p.link_token}`;
+            const link = `${appUrl}/comissão/${p.link_token}`;
             try {
                 await transporter.sendMail({
                     from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -19351,7 +19351,7 @@ app.get('/api/desempenho/test-email', async (req, res) => {
             }
 
             if (pending.length === 0) {
-                return res.json({ ok: true, msg: 'Voce nao tem colaboradores pendentes de avaliacao de desempenho no sistema.' });
+                return res.json({ ok: true, msg: 'Voce não tem colaboradores pendentes de avaliacao de desempenho no sistema.' });
             }
 
             const baseUrl = req.protocol + '://' + req.get('host');
@@ -20204,17 +20204,17 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
                 try { habs = JSON.parse(r.habilidades || '[]'); } catch (e) { habs = []; }
                 let diasSemana = [];
                 try { diasSemana = JSON.parse(r.dias_semana || '[]'); } catch (e) { diasSemana = []; }
-                const veiculo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VE??CULO';
-                if (!result[veiculo]) result[veiculo] = { rotas: [], totalQtd: 0, servicosContagem: {}, produtosContagem: {} };
-                result[veiculo].rotas.push({ ...r, produtos: prods, variaveis: vars, habilidades: habs, dias_semana: diasSemana });
+                const veículo = r.patrimonio && r.patrimonio.trim() ? r.patrimonio.trim().toUpperCase() : 'SEM VE??CULO';
+                if (!result[veículo]) result[veículo] = { rotas: [], totalQtd: 0, servicosContagem: {}, produtosContagem: {} };
+                result[veículo].rotas.push({ ...r, produtos: prods, variaveis: vars, habilidades: habs, dias_semana: diasSemana });
                 prods.forEach(p => {
                     const k = (p.desc || '').toUpperCase();
                     const q = parseInt(p.qtd) || 1;
-                    result[veiculo].produtosContagem[k] = (result[veiculo].produtosContagem[k] || 0) + q;
-                    result[veiculo].totalQtd += q;
+                    result[veículo].produtosContagem[k] = (result[veículo].produtosContagem[k] || 0) + q;
+                    result[veículo].totalQtd += q;
                 });
                 const serv = (r.tipo_servico || 'NÃO INFORMADO').toUpperCase();
-                result[veiculo].servicosContagem[serv] = (result[veiculo].servicosContagem[serv] || 0) + 1;
+                result[veículo].servicosContagem[serv] = (result[veículo].servicosContagem[serv] || 0) + 1;
             });
             res.json(result);
         }
@@ -20280,7 +20280,7 @@ app.post('/api/logistica/importar-excel', authenticateToken, multerMemory.single
     // Agrupa linhas por ID de referencia
     const uniqueMap = {};
     data.forEach(r => {
-        const idRaw = r['Identificação de refer??ncia'] || r['Identificacao de referencia'] || r['ID'] || '';
+        const idRaw = r['Identificação de refer??ncia'] || r['Identificação de referencia'] || r['ID'] || '';
         const id = String(idRaw).trim();
         if (id && id !== 'undefined') {
             if (!uniqueMap[id]) uniqueMap[id] = [];
@@ -20572,21 +20572,21 @@ db.serialize(() => {
 
 
 // GET - listar todos os veículos da frota
-app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
+app.get('/api/frota/veículos', authenticateToken, (req, res) => {
     db.all(`
         SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.cor_predominante, fv.ano_fabricacao, fv.ano_modelo,
-               fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
+               fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veículo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
                fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
                fv.created_at, fv.updated_at, fv.km_atual, fv.em_manutencao,
                (
                    SELECT fm.status FROM frota_manutencoes fm
-                   WHERE fm.veiculo_id = fv.id
+                   WHERE fm.veículo_id = fv.id
                      AND fm.status IN ('agendada','em_andamento')
                    ORDER BY CASE fm.status WHEN 'em_andamento' THEN 1 ELSE 2 END, fm.created_at DESC
                    LIMIT 1
                ) as status_manutencao_ativo
-        FROM frota_veiculos fv
+        FROM frota_veículos fv
         ORDER BY fv.placa ASC
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -20595,8 +20595,8 @@ app.get('/api/frota/veiculos', authenticateToken, (req, res) => {
 });
 
 // GET - buscar veículo por id
-app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+app.get('/api/frota/veículos/:id', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM frota_veículos WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Veículo não encontrado' });
         res.json(row);
@@ -20604,8 +20604,8 @@ app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
 });
 
 // GET - visualizar CRLV (PDF em base64)
-app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
-    db.get('SELECT crlv_base64, crlv_filename, crlv_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+app.get('/api/frota/veículos/:id/crlv', authenticateToken, (req, res) => {
+    db.get('SELECT crlv_base64, crlv_filename, crlv_url FROM frota_veículos WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row || (!row.crlv_base64 && !row.crlv_url)) return res.status(404).json({ error: 'CRLV não encontrado' });
         res.json({ crlv_base64: row.crlv_base64, crlv_filename: row.crlv_filename, crlv_url: row.crlv_url });
@@ -20613,8 +20613,8 @@ app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
 });
 
 // POST - cadastrar novo veículo
-app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
+app.post('/api/frota/veículos', authenticateToken, async (req, res) => {
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veículo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
     if (!placa) return res.status(400).json({ error: 'Placa à obrigatéria' });
 
     let crlv_url = null;
@@ -20654,9 +20654,9 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
     }
 
     db.run(
-        `INSERT INTO frota_veiculos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, updated_at)
+        `INSERT INTO frota_veículos (placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veículo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, crlv_url, foto_base64, foto_url, updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
-        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url],
+        [placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veículo || 'caminh??o', capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_salvar || null, crlv_filename || null, crlv_url, foto_salvar || null, foto_url],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Veículo cadastrado com sucesso' });
@@ -20665,20 +20665,20 @@ app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {
 });
 
 // PUT - atualizar veículo (incluindo novo CRLV)
-app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
-    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veiculo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
+app.put('/api/frota/veículos/:id', authenticateToken, async (req, res) => {
+    const { placa, marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo, exercicio, renavam, motor, chassi, tipo_veículo, capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro, largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro, crlv_base64, crlv_filename, foto_base64 } = req.body;
 
     let fields = [
         placa?.toUpperCase(), marca_modelo_versao, cor_predominante, ano_fabricacao, ano_modelo,
-        exercicio, renavam, motor, chassi, tipo_veiculo,
+        exercicio, renavam, motor, chassi, tipo_veículo,
         capacidade_tanque, capacidade_carga, altura_com_banheiro, altura_sem_banheiro,
         largura_com_banheiro, largura_sem_banheiro, profundidade_com_banheiro, profundidade_sem_banheiro
     ];
 
-    let query = `UPDATE frota_veiculos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veiculo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?`;
+    let query = `UPDATE frota_veículos SET placa=?, marca_modelo_versao=?, cor_predominante=?, ano_fabricacao=?, ano_modelo=?, exercicio=?, renavam=?, motor=?, chassi=?, tipo_veículo=?, capacidade_tanque=?, capacidade_carga=?, altura_com_banheiro=?, altura_sem_banheiro=?, largura_com_banheiro=?, largura_sem_banheiro=?, profundidade_com_banheiro=?, profundidade_sem_banheiro=?`;
 
     const oldRow = await new Promise((resolve) => {
-        db.get('SELECT crlv_url, foto_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => resolve(row));
+        db.get('SELECT crlv_url, foto_url FROM frota_veículos WHERE id = ?', [req.params.id], (err, row) => resolve(row));
     });
 
     const r2 = require('./utils/r2');
@@ -20742,20 +20742,20 @@ app.put('/api/frota/veiculos/:id', authenticateToken, async (req, res) => {
 
 
 // PUT - atualizar apenas CRLV do veículo
-app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
+app.put('/api/frota/veículos/:id/crlv', authenticateToken, async (req, res) => {
     const { exercicio, crlv_base64, crlv_filename } = req.body;
     if (!exercicio) return res.status(400).json({ error: 'Exercício é obrigatório' });
     if (!crlv_base64) return res.status(400).json({ error: 'PDF do CRLV é obrigatório' });
 
-    db.get('SELECT placa, marca_modelo_versao FROM frota_veiculos WHERE id = ?', [req.params.id], async (err, veiculo) => {
+    db.get('SELECT placa, marca_modelo_versao FROM frota_veículos WHERE id = ?', [req.params.id], async (err, veículo) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!veiculo) return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (!veículo) return res.status(404).json({ error: 'Veículo não encontrado' });
 
         const r2 = require('./utils/r2');
         let crlv_url = null;
         
         const safePut = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').slice(0, 40);
-        const frotaPastaPut = `Frota/${safePut(veiculo.placa)}_${safePut(veiculo.marca_modelo_versao)}`;
+        const frotaPastaPut = `Frota/${safePut(veículo.placa)}_${safePut(veículo.marca_modelo_versao)}`;
         const frotaHashPut = Date.now().toString(36);
 
         if (r2.isReady()) {
@@ -20764,9 +20764,9 @@ app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
                     const bData = crlv_base64.split(',')[1];
                     const mimeMatch = crlv_base64.match(/^data:([^;]+);base64,/);
                     const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
-                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veiculo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(bData, 'base64'), mime);
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veículo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(bData, 'base64'), mime);
                 } else if (!crlv_base64.startsWith('http')) {
-                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veiculo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
+                    crlv_url = await r2.uploadToR2(`${frotaPastaPut}/CRLV/${safePut(veículo.placa)}_CRLV_${frotaHashPut}.pdf`, Buffer.from(crlv_base64, 'base64'), 'application/pdf');
                 }
             } catch(e) {
                 console.error('[FROTA] Erro upload R2 CRLV update:', e.message);
@@ -20775,7 +20775,7 @@ app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
 
         const b64_to_store = crlv_base64.startsWith('http') ? crlv_base64 : crlv_base64;
         
-        db.run(`UPDATE frota_veiculos SET exercicio=?, crlv_base64=?, crlv_filename=?, crlv_url=?, crlv_alerta_enviado=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`, 
+        db.run(`UPDATE frota_veículos SET exercicio=?, crlv_base64=?, crlv_filename=?, crlv_url=?, crlv_alerta_enviado=0, updated_at=CURRENT_TIMESTAMP WHERE id=?`, 
             [exercicio, b64_to_store, crlv_filename || null, crlv_url, req.params.id], 
             function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
@@ -20785,9 +20785,9 @@ app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
 });
 
 // PUT - alternar status de manutenção
-app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, res) => {
+app.put('/api/frota/veículos/:id/toggle-manutencao', authenticateToken, (req, res) => {
     const { status } = req.body;
-    db.run('UPDATE frota_veiculos SET em_manutencao=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [status ? 1 : 0, req.params.id], function(err) {
+    db.run('UPDATE frota_veículos SET em_manutencao=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [status ? 1 : 0, req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true, message: 'Status de manutenção atualizado' });
     });
@@ -20795,7 +20795,7 @@ app.put('/api/frota/veiculos/:id/toggle-manutencao', authenticateToken, (req, re
 
 
 // POST - finalizar manutenção com dados de conclusão (km, custo, fornecedor, obs)
-app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, async (req, res) => {
+app.post('/api/frota/veículos/:id/finalizar-manutencao', authenticateToken, async (req, res) => {
     const vid = req.params.id;
     const { km_na_manutencao, custo, fornecedor, observacoes } = req.body;
     const now = new Date().toISOString().split('T')[0];
@@ -20810,14 +20810,14 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
                      fornecedor=COALESCE(?,fornecedor),
                      observacoes=COALESCE(?,observacoes),
                      updated_at=CURRENT_TIMESTAMP
-                 WHERE veiculo_id=? AND status IN ('agendada','em_andamento')`,
+                 WHERE veículo_id=? AND status IN ('agendada','em_andamento')`,
                 [now, km_na_manutencao||null, custo||null, fornecedor||null, observacoes||null, vid],
                 err => err ? reject(err) : resolve()
             );
         });
         // Marcar veículo como fora de manutenção
         await new Promise((resolve, reject) => {
-            db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [vid],
+            db.run('UPDATE frota_veículos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [vid],
                 err => err ? reject(err) : resolve());
         });
         res.json({ ok: true, message: 'Manutenção finalizada com sucesso' });
@@ -20827,9 +20827,9 @@ app.post('/api/frota/veiculos/:id/finalizar-manutencao', authenticateToken, asyn
 });
 
 // GET - veículos em manutenção (para banner de aviso no resumo de rota)
-app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
+app.get('/api/frota/veículos/em-manutencao', authenticateToken, (req, res) => {
     db.all(`
-        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo, fv.em_manutencao,
+        SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.tipo_veículo, fv.em_manutencao,
                fm.descricao as motivo, fm.tipo as tipo_manutencao,
                fm.data_inicio, fm.status as status_manutencao,
                CASE
@@ -20837,11 +20837,11 @@ app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
                        CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
                    ELSE 0
                END as dias_parado
-        FROM frota_veiculos fv
-        LEFT JOIN frota_manutencoes fm ON fm.veiculo_id = fv.id
+        FROM frota_veículos fv
+        LEFT JOIN frota_manutencoes fm ON fm.veículo_id = fv.id
             AND fm.status IN ('agendada','em_andamento')
             AND fm.id = (SELECT id FROM frota_manutencoes fm2
-                         WHERE fm2.veiculo_id = fv.id
+                         WHERE fm2.veículo_id = fv.id
                            AND fm2.status IN ('agendada','em_andamento')
                          ORDER BY fm2.created_at DESC LIMIT 1)
         WHERE fv.em_manutencao = 1
@@ -20854,8 +20854,8 @@ app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
 
 // POST - agendar manutenção diretamente do card do veículo (popup)
 app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, res) => {
-    const { veiculo_id, tipo, data_inicio, descricao_corretiva, servicos_preventivos } = req.body;
-    if (!veiculo_id || !tipo) return res.status(400).json({ error: 'veiculo_id e tipo são obrigatórios' });
+    const { veículo_id, tipo, data_inicio, descricao_corretiva, servicos_prevêntivos } = req.body;
+    if (!veículo_id || !tipo) return res.status(400).json({ error: 'veículo_id e tipo são obrigatórios' });
     const usuarioNome = req.user?.username || req.user?.nome || 'Sistema';
     const now = new Date().toISOString();
 
@@ -20865,22 +20865,22 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
             await new Promise((resolve, reject) => {
                 db.run(
                     `INSERT INTO frota_manutencoes
-                     (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, created_at, updated_at)
+                     (veículo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, created_at, updated_at)
                      VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                    [veiculo_id, descricao_corretiva || 'Manutenção Corretiva', data_inicio || null, data_inicio || null, usuarioNome],
+                    [veículo_id, descricao_corretiva || 'Manutenção Corretiva', data_inicio || null, data_inicio || null, usuarioNome],
                     function(err) { err ? reject(err) : resolve(this.lastID); }
                 );
             });
         } else {
-            // Registra manutenº??es preventivas (uma por servi??o selecionado)
-            const servicos = Array.isArray(servicos_preventivos) ? servicos_preventivos : [];
+            // Registra manutenº??es prevêntivas (uma por servi??o selecionado)
+            const servicos = Array.isArray(servicos_prevêntivos) ? servicos_prevêntivos : [];
             for (const s of servicos) {
                 await new Promise((resolve, reject) => {
                     db.run(
                         `INSERT INTO frota_manutencoes
-                         (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, servico_catalogo_id, usuario_nome, created_at, updated_at)
-                         VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                        [veiculo_id, s.nome || 'Preventiva', data_inicio || null, data_inicio || null, s.id || null, usuarioNome],
+                         (veículo_id, tipo, descricao, status, data_agendamento, data_inicio, servico_catalogo_id, usuario_nome, created_at, updated_at)
+                         VALUES (?, 'prevêntiva', ?, 'agendada', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                        [veículo_id, s.nome || 'Preventiva', data_inicio || null, data_inicio || null, s.id || null, usuarioNome],
                         function(err) { err ? reject(err) : resolve(this.lastID); }
                     );
                 });
@@ -20888,8 +20888,8 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
         }
         // Marca veículo em manutenção
         await new Promise((resolve, reject) => {
-            db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-                [veiculo_id], err => err ? reject(err) : resolve());
+            db.run('UPDATE frota_veículos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                [veículo_id], err => err ? reject(err) : resolve());
         });
         res.json({ ok: true, message: 'Manutenção agendada com sucesso' });
     } catch (e) {
@@ -20899,9 +20899,9 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
 
 // GET - listar manutenº??es corretivas com dias parado calculado
 app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
-    const { status, veiculo_id } = req.query;
+    const { status, veículo_id } = req.query;
     let sql = `
-        SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veiculo,
+        SELECT fm.*, fv.placa, fv.marca_modelo_versao, fv.tipo_veículo,
                CASE
                    WHEN fm.data_inicio IS NOT NULL AND fm.status NOT IN ('concluida','cancelada') THEN
                        CAST((julianday('now') - julianday(fm.data_inicio)) AS INTEGER)
@@ -20910,12 +20910,12 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
                    ELSE 0
                END as dias_parado
         FROM frota_manutencoes fm
-        LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id
+        LEFT JOIN frota_veículos fv ON fv.id = fm.veículo_id
         WHERE fm.tipo = 'corretiva'
     `;
     const params = [];
     if (status) { sql += ' AND fm.status = ?'; params.push(status); }
-    if (veiculo_id) { sql += ' AND fm.veiculo_id = ?'; params.push(veiculo_id); }
+    if (veículo_id) { sql += ' AND fm.veículo_id = ?'; params.push(veículo_id); }
     sql += ' ORDER BY CASE fm.status WHEN \'em_andamento\' THEN 1 WHEN \'agendada\' THEN 2 WHEN \'concluida\' THEN 3 ELSE 4 END, fm.created_at DESC';
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -20950,14 +20950,14 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
         // Se concluída ou cancelada, verificar se o veículo ainda tem manutenº??es ativas
         if (status === 'concluida' || status === 'cancelada') {
             db.get(
-                `SELECT fm.veiculo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
+                `SELECT fm.veículo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
                 (e2, row) => {
                     if (!row) return res.json({ ok: true });
                     db.get(
-                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veiculo_id=? AND status IN ('agendada','em_andamento')`,
-                        [row.veiculo_id], (e3, cnt) => {
+                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veículo_id=? AND status IN ('agendada','em_andamento')`,
+                        [row.veículo_id], (e3, cnt) => {
                             if ((cnt?.n || 0) === 0) {
-                                db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                                db.run('UPDATE frota_veículos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veículo_id]);
                             }
                             res.json({ ok: true });
                         }
@@ -20966,8 +20966,8 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
             );
         } else {
             if (status === 'em_andamento') {
-                db.get('SELECT veiculo_id FROM frota_manutencoes WHERE id=?', [req.params.id], (e2, row) => {
-                    if (row) db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                db.get('SELECT veículo_id FROM frota_manutencoes WHERE id=?', [req.params.id], (e2, row) => {
+                    if (row) db.run('UPDATE frota_veículos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veículo_id]);
                 });
             }
             res.json({ ok: true });
@@ -20977,16 +20977,16 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
 
 
 // DELETE - excluir veículo
-app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
+app.delete('/api/frota/veículos/:id', authenticateToken, (req, res) => {
+    db.run('DELETE FROM frota_veículos WHERE id = ?', [req.params.id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ message: 'Veículo excluído com sucesso' });
     });
 });
 
 // GET - veículos com CRLV vencendo em 30 dias (para popup de alerta)
-app.get('/api/frota/veiculos/alertas/vencimento', authenticateToken, (req, res) => {
-    db.all('SELECT id, placa, exercicio FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != \'\'', [], (err, rows) => {
+app.get('/api/frota/veículos/alertas/vencimento', authenticateToken, (req, res) => {
+    db.all('SELECT id, placa, exercicio FROM frota_veículos WHERE exercicio IS NOT NULL AND exercicio != \'\'', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const hoje = new Date();
         const alertas = (rows || []).filter(v => {
@@ -21057,22 +21057,22 @@ app.delete('/api/frota/catalogo/:id', authenticateToken, (req, res) => {
 
 // DEBUG - ver últimas manutenº??es (tempor??rio)
 app.get('/api/frota/debug/manutencoes', authenticateToken, (req, res) => {
-    db.all(`SELECT id, veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, created_at 
+    db.all(`SELECT id, veículo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, created_at 
             FROM frota_manutencoes ORDER BY id DESC LIMIT 30`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
-// GET - preventivo por veiculo usando catélogo (plano ou padrão)
-app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req, res) => {
-    const vid = req.params.veiculo_id;
-    db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, v) => {
-        // Se o veículo não estiver cadastrado em frota_veiculos, ainda assim tenta buscar manutenº??es
+// GET - prevêntivo por veículo usando catélogo (plano ou padrão)
+app.get('/api/frota/manutencoes/prevêntivo/:veículo_id', authenticateToken, (req, res) => {
+    const vid = req.params.veículo_id;
+    db.get('SELECT km_atual, em_manutencao FROM frota_veículos WHERE id=?', [vid], (err, v) => {
+        // Se o veículo não estiver cadastrado em frota_veículos, ainda assim tenta buscar manutenº??es
         const kmAtual = v?.km_atual || 0;
         const emManutencao = v?.em_manutencao || 0;
 
-        // Apenas servi??os registrados para este veículo (preventiva, concluída ou não)
+        // Apenas servi??os registrados para este veículo (prevêntiva, concluída ou não)
         db.all(`
             SELECT
                 m.id,
@@ -21098,13 +21098,13 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
                 OR (m.servico_catalogo_id IS NULL AND s.nome = m.descricao)
             )
             LEFT JOIN frota_categorias_manutencao c ON c.id = s.categoria_id
-            WHERE m.veiculo_id = ? AND m.tipo = 'preventiva'
+            WHERE m.veículo_id = ? AND m.tipo = 'prevêntiva'
             GROUP BY m.id
             ORDER BY m.km_na_manutencao DESC, m.created_at DESC
         `, [vid], (err2, rows) => {
             if (err2) { console.error('[PREV ERROR]', err2.message); return res.status(500).json({ error: err2.message }); }
 
-            console.log(`[PREV] veiculo_id=${vid} ??? ${(rows||[]).length} registros encontrados`);
+            console.log(`[PREV] veículo_id=${vid} ??? ${(rows||[]).length} registros encontrados`);
 
             // Para cada servi??o distinto, guardar tanto o ??ltimo concluído (km, data) quanto o agendado
             const porDescricao = {};
@@ -21191,13 +21191,13 @@ app.get('/api/frota/manutencoes/preventivo/:veiculo_id', authenticateToken, (req
 
 
 app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
-    const { veiculo_id } = req.query;
+    const { veículo_id } = req.query;
     let sql = `SELECT m.*, v.placa, v.marca_modelo_versao FROM frota_manutencoes m
-                JOIN frota_veiculos v ON v.id = m.veiculo_id`;
+                JOIN frota_veículos v ON v.id = m.veículo_id`;
     const params = [];
-    if (veiculo_id) {
-        sql += ' WHERE m.veiculo_id = ?';
-        params.push(veiculo_id);
+    if (veículo_id) {
+        sql += ' WHERE m.veículo_id = ?';
+        params.push(veículo_id);
     }
     sql += ' ORDER BY m.created_at DESC';
     db.all(sql, params, (err, rows) => {
@@ -21208,19 +21208,19 @@ app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
 
 // POST - registrar manutenção
 app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
-    const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao } = req.body;
-    if (!veiculo_id || !descricao) return res.status(400).json({ error: 'veiculo_id e descricao são obrigatórios' });
+    const { veículo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao } = req.body;
+    if (!veículo_id || !descricao) return res.status(400).json({ error: 'veículo_id e descricao são obrigatórios' });
     const usuario_nome = req.user?.username || 'sistema';
 
     db.run(
-        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao)
+        `INSERT INTO frota_manutencoes (veículo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [veiculo_id, tipo||'preventiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null],
+        [veículo_id, tipo||'prevêntiva', descricao, status||'programada', km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             // Se status à 'em_andamento', marcar veículo como em manutenção
             if (status === 'em_andamento') {
-                db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [veiculo_id]);
+                db.run('UPDATE frota_veículos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [veículo_id]);
             }
             res.json({ id: this.lastID, message: 'Manutenção registrada' });
         }
@@ -21229,8 +21229,8 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
 
 // PUT - editar em massa (catélogo e histórico)
 app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
-    const { veiculo_id, itens } = req.body;
-    if (!veiculo_id || !Array.isArray(itens)) return res.status(400).json({ error: 'veiculo_id e itens são obrigatórios' });
+    const { veículo_id, itens } = req.body;
+    if (!veículo_id || !Array.isArray(itens)) return res.status(400).json({ error: 'veículo_id e itens são obrigatórios' });
     const usuario_nome = req.user?.username || 'sistema';
 
     db.serialize(() => {
@@ -21253,9 +21253,9 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
             // 2. Inserir histórico de manutenção concluída se km_ultima ou data_ultima foi informado
             if (item.km_ultima || item.data_ultima) {
                 db.run(
-                    `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, data_conclusao, usuario_nome, servico_catalogo_id, criticidade)
-                     VALUES (?, 'preventiva', ?, 'concluida', ?, ?, ?, ?, ?)`,
-                    [veiculo_id, item.nome, item.km_ultima || null, item.data_ultima || null, usuario_nome, item.servico_id || null, item.criticidade || 'Media'],
+                    `INSERT INTO frota_manutencoes (veículo_id, tipo, descricao, status, km_na_manutencao, data_conclusao, usuario_nome, servico_catalogo_id, criticidade)
+                     VALUES (?, 'prevêntiva', ?, 'concluida', ?, ?, ?, ?, ?)`,
+                    [veículo_id, item.nome, item.km_ultima || null, item.data_ultima || null, usuario_nome, item.servico_id || null, item.criticidade || 'Media'],
                     err => { if (err) { console.error('Erro inserir historico', err); errorOccurred = true; } }
                 );
             }
@@ -21272,8 +21272,8 @@ app.put('/api/frota/manutencoes/em-massa', authenticateToken, (req, res) => {
 });
 
 app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req, res) => {
-    const { veiculo_id, servicos_ids, intervalo, observacoes } = req.body;
-    if (!veiculo_id || !Array.isArray(servicos_ids)) return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
+    const { veículo_id, servicos_ids, intervalo, observacoes } = req.body;
+    if (!veículo_id || !Array.isArray(servicos_ids)) return res.status(400).json({ error: 'veículo_id e servicos_ids são obrigatórios' });
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
@@ -21296,8 +21296,8 @@ app.put('/api/frota/manutencoes/em-massa-intervalo-obs', authenticateToken, (req
                     if (errSrv) { console.error(errSrv); errorOccurred = errSrv.message; return; }
                     if (srv && srv.nome) {
                         db.get(
-                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
-                            [veiculo_id, srv.nome],
+                            `SELECT id FROM frota_manutencoes WHERE veículo_id=? AND descricao=? AND status='concluida' ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
+                            [veículo_id, srv.nome],
                             (err, row) => {
                                 if (err) { console.error(err); errorOccurred = err.message; return; }
                                 if (row && row.id) {
@@ -21349,15 +21349,15 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
                     if (err2) return res.status(500).json({ error: err2.message });
 
                     // Se este registro à agendado, também atualiza o ??ltimo concluído do mesmo veículo/descri????o
-                    // para que o plano preventivo exiba o novo intervalo imediatamente
+                    // para que o plano prevêntivo exiba o novo intervalo imediatamente
                     if (row.status === 'agendada' && intervalo_km) {
                         db.run(
                             `UPDATE frota_manutencoes
                              SET km_proxima_manutencao=?, updated_at=CURRENT_TIMESTAMP
-                             WHERE veiculo_id=? AND (descricao=? OR servico_catalogo_id=?)
+                             WHERE veículo_id=? AND (descricao=? OR servico_catalogo_id=?)
                                AND status='concluida'
                                ORDER BY COALESCE(km_na_manutencao,0) DESC LIMIT 1`,
-                            [novoKmProx, row.veiculo_id, row.descricao, row.servico_catalogo_id],
+                            [novoKmProx, row.veículo_id, row.descricao, row.servico_catalogo_id],
                             () => {} // ignora erro, não à crítico
                         );
                     }
@@ -21403,16 +21403,16 @@ app.put('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
 
                 // Sincronizar status do veículo
                 if (status === 'em_andamento') {
-                    db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                    db.run('UPDATE frota_veículos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veículo_id]);
                 } else if (status === 'concluida' || status === 'cancelada') {
-                    db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?",
-                        [row.veiculo_id, mId], (e3, r3) => {
+                    db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veículo_id=? AND status='em_andamento' AND id!=?",
+                        [row.veículo_id, mId], (e3, r3) => {
                         if (!r3 || r3.cnt === 0) {
-                            db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                            db.run('UPDATE frota_veículos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veículo_id]);
                         }
                     });
                     if (status === 'concluida' && km_na_manutencao) {
-                        db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_na_manutencao, row.veiculo_id]);
+                        db.run('UPDATE frota_veículos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_na_manutencao, row.veículo_id]);
                     }
                 }
                 res.json({ message: 'Manutenção atualizada' });
@@ -21429,21 +21429,21 @@ app.delete('/api/frota/manutencoes/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET - plano preventivo (itens de manutenção preventiva com status por veículo)
-app.get('/api/frota/preventivo/:veiculo_id', authenticateToken, (req, res) => {
-    const vId = req.params.veiculo_id;
-    db.get('SELECT km_atual FROM frota_veiculos WHERE id=?', [vId], (err, veiculo) => {
-        if (err || !veiculo) return res.status(404).json({ error: 'Veículo não encontrado' });
-        const kmAtual = veiculo.km_atual || 0;
+// GET - plano prevêntivo (itens de manutenção prevêntiva com status por veículo)
+app.get('/api/frota/prevêntivo/:veículo_id', authenticateToken, (req, res) => {
+    const vId = req.params.veículo_id;
+    db.get('SELECT km_atual FROM frota_veículos WHERE id=?', [vId], (err, veículo) => {
+        if (err || !veículo) return res.status(404).json({ error: 'Veículo não encontrado' });
+        const kmAtual = veículo.km_atual || 0;
 
-        db.all('SELECT * FROM frota_plano_preventivo WHERE ativo=1', [], (err2, plano) => {
+        db.all('SELECT * FROM frota_plano_prevêntivo WHERE ativo=1', [], (err2, plano) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
-            // Para cada item preventivo, buscar a ??ltima manutenção concluída desse tipo
+            // Para cada item prevêntivo, buscar a ??ltima manutenção concluída desse tipo
             const promises = (plano || []).map(item => new Promise(resolve => {
                 db.get(
                     `SELECT km_na_manutencao FROM frota_manutencoes
-                     WHERE veiculo_id=? AND descricao LIKE ? AND status='concluida'
+                     WHERE veículo_id=? AND descricao LIKE ? AND status='concluida'
                      ORDER BY km_na_manutencao DESC LIMIT 1`,
                     [vId, '%' + item.nome + '%'],
                     (e, ultima) => {
@@ -21465,20 +21465,20 @@ app.get('/api/frota/preventivo/:veiculo_id', authenticateToken, (req, res) => {
 
 
 // GET - verificar alertas de manutenção de um veículo (por km e data)
-app.get('/api/frota/veiculos/:id/alertas', authenticateToken, (req, res) => {
+app.get('/api/frota/veículos/:id/alertas', authenticateToken, (req, res) => {
     const vid = req.params.id;
-    db.get('SELECT km_atual, em_manutencao FROM frota_veiculos WHERE id=?', [vid], (err, veiculo) => {
-        if (err || !veiculo) return res.status(404).json({ error: 'Veículo não encontrado' });
-        const kmAtual = veiculo.km_atual || 0;
+    db.get('SELECT km_atual, em_manutencao FROM frota_veículos WHERE id=?', [vid], (err, veículo) => {
+        if (err || !veículo) return res.status(404).json({ error: 'Veículo não encontrado' });
+        const kmAtual = veículo.km_atual || 0;
         const hoje = new Date();
 
-        db.all('SELECT * FROM frota_plano_preventivo WHERE ativo=1', [], (err2, plano) => {
+        db.all('SELECT * FROM frota_plano_prevêntivo WHERE ativo=1', [], (err2, plano) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
             const checks = (plano || []).map(item => new Promise(resolve => {
                 db.get(
                     `SELECT km_na_manutencao, data_conclusao FROM frota_manutencoes
-                     WHERE veiculo_id=? AND descricao LIKE ? AND status='concluida'
+                     WHERE veículo_id=? AND descricao LIKE ? AND status='concluida'
                      ORDER BY km_na_manutencao DESC LIMIT 1`,
                     [vid, '%' + item.nome + '%'],
                     (e, ultima) => {
@@ -21525,7 +21525,7 @@ app.get('/api/frota/veiculos/:id/alertas', authenticateToken, (req, res) => {
 
             Promise.all(checks).then(result => {
                 const temAlerta = result.some(r => r.status_item === 'vencida' || r.status_item === 'proxima');
-                res.json({ km_atual: kmAtual, em_manutencao: veiculo.em_manutencao, tem_alerta: temAlerta, plano: result });
+                res.json({ km_atual: kmAtual, em_manutencao: veículo.em_manutencao, tem_alerta: temAlerta, plano: result });
             });
         });
     });
@@ -21533,19 +21533,19 @@ app.get('/api/frota/veiculos/:id/alertas', authenticateToken, (req, res) => {
 
 // GET - status de alerta de todos os veículos (para os cards)
 app.get('/api/frota/alertas-todos', authenticateToken, (req, res) => {
-    db.all('SELECT id, km_atual, em_manutencao FROM frota_veiculos', [], (err, veiculos) => {
+    db.all('SELECT id, km_atual, em_manutencao FROM frota_veículos', [], (err, veículos) => {
         if (err) return res.status(500).json({ error: err.message });
         const hoje = new Date();
 
-        db.all('SELECT * FROM frota_plano_preventivo WHERE ativo=1', [], (err2, plano) => {
+        db.all('SELECT * FROM frota_plano_prevêntivo WHERE ativo=1', [], (err2, plano) => {
             if (err2) return res.status(500).json({ error: err2.message });
 
-            const checks = (veiculos || []).map(v => new Promise(resolve => {
+            const checks = (veículos || []).map(v => new Promise(resolve => {
                 const kmAtual = v.km_atual || 0;
                 const itemChecks = (plano || []).map(item => new Promise(resolve2 => {
                     db.get(
                         `SELECT km_na_manutencao, data_conclusao FROM frota_manutencoes
-                         WHERE veiculo_id=? AND descricao LIKE ? AND status='concluida'
+                         WHERE veículo_id=? AND descricao LIKE ? AND status='concluida'
                          ORDER BY km_na_manutencao DESC LIMIT 1`,
                         [v.id, '%' + item.nome + '%'],
                         (e, ultima) => {
@@ -21589,17 +21589,17 @@ app.get('/api/frota/alertas-todos', authenticateToken, (req, res) => {
 });
 
 // PUT - atualizar km do veículo
-app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
+app.put('/api/frota/veículos/:id/km', authenticateToken, (req, res) => {
     const { km_atual } = req.body;
     if (!km_atual) return res.status(400).json({ error: 'km_atual é obrigatório' });
     const vid = req.params.id;
     const hoje = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    db.run('UPDATE frota_veiculos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, vid], (err) => {
+    db.run('UPDATE frota_veículos SET km_atual=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [km_atual, vid], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         // Salvar no histórico di??rio usando INSERT OR REPLACE (mais compatével)
-        db.run('DELETE FROM frota_km_historico WHERE veiculo_id=? AND data=?', [vid, hoje], () => {
+        db.run('DELETE FROM frota_km_historico WHERE veículo_id=? AND data=?', [vid, hoje], () => {
             db.run(
-                'INSERT INTO frota_km_historico(veiculo_id, km, data) VALUES(?,?,?)',
+                'INSERT INTO frota_km_historico(veículo_id, km, data) VALUES(?,?,?)',
                 [vid, km_atual, hoje],
                 (err2) => { if (err2) console.error('[FROTA KM HIST]', err2.message); }
             );
@@ -21608,11 +21608,11 @@ app.put('/api/frota/veiculos/:id/km', authenticateToken, (req, res) => {
     });
 });
 
-// POST - agendar manutenº??es preventivas em massa (atualiza registros existentes)
+// POST - agendar manutenº??es prevêntivas em massa (atualiza registros existentes)
 app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async (req, res) => {
-    const { veiculo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
-    if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
-        return res.status(400).json({ error: 'veiculo_id e servicos_ids são obrigatórios' });
+    const { veículo_id, servicos_ids, fornecedor, data_agendamento, observacoes } = req.body;
+    if (!veículo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0) {
+        return res.status(400).json({ error: 'veículo_id e servicos_ids são obrigatórios' });
     }
     if (!data_agendamento) {
         return res.status(400).json({ error: 'data_agendamento à obrigatéria' });
@@ -21628,11 +21628,11 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
                     if (row.status === 'concluida') {
                         db.run(
                             `INSERT INTO frota_manutencoes (
-                                veiculo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
+                                veículo_id, tipo, descricao, status, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
                                 servico_catalogo_id, usuario_nome, created_at, updated_at
-                            ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                            ) VALUES (?, 'prevêntiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                             [
-                                row.veiculo_id, row.descricao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
+                                row.veículo_id, row.descricao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
                                 row.servico_catalogo_id, usuario_nome
                             ],
                             (err2) => { if (err2) return reject(err2); resolve(); }
@@ -21645,11 +21645,11 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
                                 if (errU) return reject(errU);
                                 db.run(
                                     `INSERT INTO frota_manutencoes (
-                                        veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
+                                        veículo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, fornecedor, observacoes_agendamento, observacoes, 
                                         servico_catalogo_id, usuario_nome, created_at, updated_at
-                                    ) VALUES (?, 'preventiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                                    ) VALUES (?, 'prevêntiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                                     [
-                                        row.veiculo_id, row.descricao, row.km_na_manutencao, row.km_proxima_manutencao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
+                                        row.veículo_id, row.descricao, row.km_na_manutencao, row.km_proxima_manutencao, data_agendamento, fornecedor || '', observacoes || '', row.observacoes || '',
                                         row.servico_catalogo_id, usuario_nome
                                     ],
                                     (err2) => { if (err2) return reject(err2); resolve(); }
@@ -21677,14 +21677,14 @@ app.post('/api/frota/manutencoes/agendar-selecionados', authenticateToken, async
 });
 
 // GET - histórico de KM do veículo em uma data
-app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
+app.get('/api/frota/veículos/:id/km-em-data', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { data } = req.query;
     if (!data) return res.status(400).json({ error: 'data à obrigatéria' });
     
     // TEMPOR??RIO HOMOLOGA????O: Força o retorno de 500 para teste
     if (data === '2026-05-25') {
-        db.get("SELECT placa FROM frota_veiculos WHERE id = ?", [id], (e, v) => {
+        db.get("SELECT placa FROM frota_veículos WHERE id = ?", [id], (e, v) => {
             if (v && v.placa && v.placa.includes('BXR4663')) {
                 return res.json({ km: 500 });
             } else {
@@ -21697,7 +21697,7 @@ app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
 
     function continueNormalKmSearch() {
         db.get(
-            'SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
+            'SELECT km FROM frota_km_historico WHERE veículo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
             [id, data],
             (err, row) => {
                 if (err) return res.status(500).json({ error: err.message });
@@ -21710,10 +21710,10 @@ app.get('/api/frota/veiculos/:id/km-em-data', authenticateToken, (req, res) => {
 // GET - histórico de manutenº??es realizadas (Drawer)
 app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
     db.all(`
-        SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veiculo,
+        SELECT m.*, v.placa, v.marca_modelo_versao, v.tipo_veículo,
                COALESCE(cat.nome, '') as categoria_nome
         FROM frota_manutencoes m
-        JOIN frota_veiculos v ON v.id = m.veiculo_id
+        JOIN frota_veículos v ON v.id = m.veículo_id
         LEFT JOIN frota_servicos_catalogo s ON s.id = m.servico_catalogo_id
         LEFT JOIN frota_categorias_manutencao cat ON cat.id = s.categoria_id
         WHERE m.status IN ('concluida', 'agendada', 'em_andamento', 'cancelada', 'reagendada')
@@ -21727,9 +21727,9 @@ app.get('/api/frota/manutencoes/historico', authenticateToken, (req, res) => {
 
 // POST - finalizar manutenº??es agendadas em massa
 app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, res) => {
-    const { veiculo_id, servicos_ids, data_conclusao, observacoes, km_realizado } = req.body;
-    if (!veiculo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
-        return res.status(400).json({ error: 'veiculo_id, servicos_ids e data_conclusao são obrigatórios' });
+    const { veículo_id, servicos_ids, data_conclusao, observacoes, km_realizado } = req.body;
+    if (!veículo_id || !Array.isArray(servicos_ids) || servicos_ids.length === 0 || !data_conclusao) {
+        return res.status(400).json({ error: 'veículo_id, servicos_ids e data_conclusao são obrigatórios' });
     }
 
     // 1. Buscar KM do veículo na data informada ou usar km_realizado
@@ -21738,11 +21738,11 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
             return callback(km_realizado);
         }
         db.get(
-            'SELECT km FROM frota_km_historico WHERE veiculo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
-            [veiculo_id, data_conclusao],
+            'SELECT km FROM frota_km_historico WHERE veículo_id=? AND data <= ? ORDER BY data DESC LIMIT 1',
+            [veículo_id, data_conclusao],
             (err, histRow) => {
                 if (histRow && histRow.km != null) return callback(histRow.km);
-                db.get('SELECT km_atual FROM frota_veiculos WHERE id=?', [veiculo_id], (e, v) => {
+                db.get('SELECT km_atual FROM frota_veículos WHERE id=?', [veículo_id], (e, v) => {
                     callback(v ? v.km_atual : 0);
                 });
             }
@@ -21770,8 +21770,8 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
 
                         // Buscar manutenção agendada ou em andamento existente para este veículo/servi??o
                         db.get(
-                            `SELECT id FROM frota_manutencoes WHERE veiculo_id=? AND descricao=? AND status IN ('agendada', 'em_andamento') ORDER BY id DESC LIMIT 1`,
-                            [veiculo_id, nomeServico],
+                            `SELECT id FROM frota_manutencoes WHERE veículo_id=? AND descricao=? AND status IN ('agendada', 'em_andamento') ORDER BY id DESC LIMIT 1`,
+                            [veículo_id, nomeServico],
                             (errFind, existing) => {
                                 if (existing) {
                                     // Atualizar registro agendado existente
@@ -21797,9 +21797,9 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
                                     // Criar novo registro concluído
                                     const usuario_nome = req.user?.username || 'sistema';
                                     db.run(
-                                        `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome, tipo_conclusao, servico_catalogo_id)
+                                        `INSERT INTO frota_manutencoes (veículo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_conclusao, observacoes, usuario_nome, tipo_conclusao, servico_catalogo_id)
                                          VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-                                        [veiculo_id, 'preventiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome, req.body.tipo_conclusao || 'realizada', servico_id],
+                                        [veículo_id, 'prevêntiva', nomeServico, 'concluida', km, kmProxima, data_conclusao, observacoes || null, usuario_nome, req.body.tipo_conclusao || 'realizada', servico_id],
                                         (errIns) => {
                                             if (errIns) errorMsg = errIns.message;
                                             count++;
@@ -21822,9 +21822,9 @@ app.post('/api/frota/manutencoes/finalizar-agendado', authenticateToken, (req, r
 app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {
     db.all(`
         SELECT v.id, v.placa, v.km_atual, v.em_manutencao,
-        (SELECT COUNT(*) FROM frota_manutencoes m WHERE m.veiculo_id=v.id AND m.status='em_andamento') as manutencoes_ativas,
-        (SELECT COUNT(*) FROM frota_manutencoes m WHERE m.veiculo_id=v.id AND m.status='agendada') as manutencoes_agendadas
-        FROM frota_veiculos v
+        (SELECT COUNT(*) FROM frota_manutencoes m WHERE m.veículo_id=v.id AND m.status='em_andamento') as manutencoes_ativas,
+        (SELECT COUNT(*) FROM frota_manutencoes m WHERE m.veículo_id=v.id AND m.status='agendada') as manutencoes_agendadas
+        FROM frota_veículos v
     `, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -21841,7 +21841,7 @@ app.get('/api/frota/status-manutencao', authenticateToken, (req, res) => {
 // =====================================================================
 
 app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veículos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
     if (!cliente_nome || (!cliente_email && !cliente_whatsapp)) return res.status(400).json({ error: 'Nome e E-mail ou WhatsApp são obrigatórios.' });
 
     // Token placeholder ??nico para satisfazer a constraint NOT NULL + UNIQUE
@@ -21849,7 +21849,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
     const crypto = require('crypto');
     const tokenPlaceholder = 'SOLIC-' + crypto.randomBytes(12).toString('hex');
 
-    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
+    db.run(`INSERT INTO credenciamentos (cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veículos, data_limite_envio, docs_exigidos, licencas_ids, observacoes, status, token, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'solicitado', ?, ?)`,
         [
             cliente_nome,
             os || '',
@@ -21859,7 +21859,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
             apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
-            qtd_max_veiculos || 0,
+            qtd_max_veículos || 0,
             data_limite_envio || null,
             JSON.stringify(docs_exigidos || []),
             JSON.stringify(licencas || []),
@@ -21910,7 +21910,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                             ${os ? `<p style="margin:4px 0;"><strong>OS:</strong> ${os}</p>` : ''}
                             ${endereco_instalacao ? `<p style="margin:4px 0;"><strong>Endereço:</strong> ${endereco_instalacao}</p>` : ''}
                             <p style="margin:4px 0;"><strong>Data Limite:</strong> ${dtLimiteCred}</p>
-                            <p style="margin:4px 0;"><strong>Máx. Colaboradores:</strong> ${qtd_max_colaboradores || 0} | <strong>Máx. Veículos:</strong> ${qtd_max_veiculos || 0}</p>
+                            <p style="margin:4px 0;"><strong>Máx. Colaboradores:</strong> ${qtd_max_colaboradores || 0} | <strong>Máx. Veículos:</strong> ${qtd_max_veículos || 0}</p>
                         </div>
                         <p style="font-size:12px;color:#999;text-align:center;"><i>Acesse o sistema para processar o credenciamento.</i></p>
                     </div>
@@ -21985,7 +21985,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">E-mail do Cliente:</td><td style="padding:4px 8px;">${cliente_email}</td></tr>
                                         ${endereco_instalacao ? `<tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Endereço:</td><td style="padding:4px 8px;">${endereco_instalacao}</td></tr>` : ''}
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Colaboradores:</td><td style="padding:4px 8px;">${qtd_max_colaboradores || 0}</td></tr>
-                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Veículos:</td><td style="padding:4px 8px;">${qtd_max_veiculos || 0}</td></tr>
+                                        <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Máx. Veículos:</td><td style="padding:4px 8px;">${qtd_max_veículos || 0}</td></tr>
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Data Limite:</td><td style="padding:4px 8px;">${dtLimite}</td></tr>
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569; vertical-align: top;">Licenças Exigidas:</td><td style="padding:4px 8px;">${licNames}</td></tr>
                                         <tr><td style="padding:4px 8px; font-weight:bold; color:#475569;">Documentos Exigidos:</td><td style="padding:4px 8px;">${docsList}</td></tr>
@@ -22090,9 +22090,9 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
 
 app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
+    const { cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, qtd_max_colaboradores, qtd_max_veículos, data_limite_envio, docs_exigidos, licencas, observacoes } = req.body;
 
-    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, cliente_whatsapp = ?, tipo_envio = ?, apenas_dados = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veiculos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
+    db.run(`UPDATE credenciamentos SET cliente_nome = ?, os = ?, cliente_email = ?, cliente_whatsapp = ?, tipo_envio = ?, apenas_dados = ?, endereco_instalacao = ?, qtd_max_colaboradores = ?, qtd_max_veículos = ?, data_limite_envio = ?, docs_exigidos = ?, licencas_ids = ?, observacoes = ? WHERE id = ? AND status = 'solicitado'`,
         [
             cliente_nome,
             os || '',
@@ -22102,7 +22102,7 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
             apenas_dados ? 1 : 0,
             endereco_instalacao || '',
             qtd_max_colaboradores || 0,
-            qtd_max_veiculos || 0,
+            qtd_max_veículos || 0,
             data_limite_envio || null,
             JSON.stringify(docs_exigidos || []),
             JSON.stringify(licencas || []),
@@ -22117,9 +22117,9 @@ app.put('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
 });
 
 app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, res) => {
-    const { colaboradores, veiculos, tipo_envio, cliente_whatsapp, licencas } = req.body;
+    const { colaboradores, veículos, tipo_envio, cliente_whatsapp, licencas } = req.body;
     const colabIds = (colaboradores || []).map(c => c.id).filter(id => !isNaN(id) && id > 0);
-    const veicIds = (veiculos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
+    const veicIds = (veículos || []).map(v => v.id).filter(id => !isNaN(id) && id > 0);
 
     const crypto = require('crypto');
     const token = crypto.randomBytes(16).toString('hex');
@@ -22153,8 +22153,8 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
         const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
         const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, licencas_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
-            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(licencas || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veículos_ids = ?, licencas_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
+            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veículos || []), JSON.stringify(licencas || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -22166,7 +22166,7 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n\nSeguem dados dos colaboradores para credenciamento, em anexo documentos solicitados.\n`;
                 if (colabsEnriquecidos && colabsEnriquecidos.length > 0) {
                     textoCopia += `\n*Veículos:*\n`;
-                    veiculos.forEach(v => {
+                    veículos.forEach(v => {
                         textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
                     });
                 }
@@ -22200,7 +22200,7 @@ const _handleDownloadZip = async (req, res) => {
         let licencasSolicitadas = [];
 
         try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
-        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
+        try { veicIds = JSON.parse(cred.veículos_ids || '[]').map(v => v.id); } catch (e) {}
         try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
 
         // Prioridade 1: licencas no body do POST
@@ -22253,7 +22253,7 @@ const _handleDownloadZip = async (req, res) => {
                 zip.addLocalFile(absolutePath, folderPath, fileName);
                 hasFiles = true;
             } else {
-                console.warn('[ZIP] Arquivo nao encontrado:', filePath, '->', absolutePath);
+                console.warn('[ZIP] Arquivo não encontrado:', filePath, '->', absolutePath);
             }
         };
 
@@ -22321,7 +22321,7 @@ const _handleDownloadZip = async (req, res) => {
 
         // 2. Veículos (CRLV)
         if (veicIds.length > 0) {
-            const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veiculos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veículos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
             veics.forEach(v => {
                 addBase64IfExists(v.crlv_base64, `Veiculos/${v.placa}_${v.crlv_filename || 'CRLV.pdf'}`);
             });
@@ -22440,7 +22440,7 @@ app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _ha
 app.post('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
 
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
-    const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
+    const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veículos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome) return res.status(400).json({ error: 'Nome é obrigatório.' });
     if ((tipo_envio === 'email' || !tipo_envio) && !cliente_email) return res.status(400).json({ error: 'E-mail é obrigatório para envio por e-mail.' });
     if (tipo_envio === 'whatsapp' && !cliente_whatsapp) return res.status(400).json({ error: 'WhatsApp é obrigatório para envio via WhatsApp.' });
@@ -22526,8 +22526,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             };
         });
 
-        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, token, colaboradores_ids, veiculos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
-            [cliente_nome, cliente_email || '', cliente_whatsapp || '', tipo_envio || 'email', apenas_dados ? 1 : 0, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradoresEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
+        db.run(`INSERT INTO credenciamentos (cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, token, colaboradores_ids, veículos_ids, docs_exigidos, licencas_ids, valid_until, enviado_em, enviado_por_id, status, solicitado_por_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?)`,
+            [cliente_nome, cliente_email || '', cliente_whatsapp || '', tipo_envio || 'email', apenas_dados ? 1 : 0, endereco_instalacao || '', os || null, token, JSON.stringify(colaboradoresEnriquecidos), JSON.stringify(veículos || []), JSON.stringify(docs_exigidos || []), JSON.stringify(licencas || []), validUntil.toISOString(), req.user.id, req.user.id],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
 
@@ -22550,7 +22550,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     return `<li style="margin-bottom:8px;"><b>${nome}</b>${detalhe}</li>`;
                 }).join('');
                 let htmlCols = buildHtmlColabs(colaboradores || []);
-                let htmlVeic = (veiculos || []).map(v => `<li>${v.placa} - ${v.modelo || ''}</li>`).join('');
+                let htmlVeic = (veículos || []).map(v => `<li>${v.placa} - ${v.modelo || ''}</li>`).join('');
 
                 // Montar bloco de licenças para o e-mail
                 let htmlLicencas = '';
@@ -22643,7 +22643,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                     return txt.trim();
                 };
 
-                const texto_copia = buildTextoCopia(colaboradores, veiculos, licencas);
+                const texto_copia = buildTextoCopia(colaboradores, veículos, licencas);
 
                 if (envTipo === 'whatsapp') {
                     // WhatsApp: s?? envia dados copiados, sem link (documentos PDF apenas por e-mail)
@@ -22711,11 +22711,11 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
+    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veículos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veículos, c.created_at, c.enviado_em, c.observacoes, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without 'os' and optional new columns in case migration hasn't run
-            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status
+            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veículos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veículos, data_limite_envio, status
                     FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 const mapped = (rows2 || []).map(r => ({ ...r, status: r.status || 'enviado' }));
@@ -22831,7 +22831,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         let colabs = [];
         try { colabs = JSON.parse(cred.colaboradores_ids || '[]'); } catch (e) { }
         let veics = [];
-        try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
+        try { veics = JSON.parse(cred.veículos_ids || '[]'); } catch (e) { }
 
         // Buscar documentos dos colaboradores
         const colabIds = colabs.map(c => c.id).filter(id => id);
@@ -22874,7 +22874,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const veicDocsPromise = new Promise((resolve) => {
             if (veicIds.length === 0) return resolve([]);
             const placeholders = veicIds.map(() => '?').join(',');
-            db.all(`SELECT id, placa, crlv_filename, crlv_base64 FROM frota_veiculos WHERE id IN (${placeholders})`, veicIds, (err, frotas) => {
+            db.all(`SELECT id, placa, crlv_filename, crlv_base64 FROM frota_veículos WHERE id IN (${placeholders})`, veicIds, (err, frotas) => {
                 resolve(frotas || []);
             });
         });
@@ -22978,7 +22978,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                         })()
                     };
                 }),
-                veiculos: veics.map(v => {
+                veículos: veics.map(v => {
                     const f = frotas.find(fr => fr.id === v.id);
                     return {
                         ...v,
@@ -23027,11 +23027,11 @@ app.get('/api/publico/credenciamento/:token/crlv/:veicId', (req, res) => {
     db.get('SELECT * FROM credenciamentos WHERE token = ?', [req.params.token], (err, cred) => {
         if (!cred || new Date() > new Date(cred.valid_until)) return res.status(403).send('Link inválido/expirado');
 
-        db.get('SELECT crlv_base64, crlv_filename FROM frota_veiculos WHERE id = ?', [req.params.veicId], (err, row) => {
+        db.get('SELECT crlv_base64, crlv_filename FROM frota_veículos WHERE id = ?', [req.params.veicId], (err, row) => {
             if (!row || !row.crlv_base64) return res.status(404).send('CRLV não encontrado');
 
             let veics = [];
-            try { veics = JSON.parse(cred.veiculos_ids || '[]'); } catch (e) { }
+            try { veics = JSON.parse(cred.veículos_ids || '[]'); } catch (e) { }
             // Nota: JSON parsing converte nºmeros para int/string. Vamos comparar como string.
             if (!veics.find(v => String(v.id) === String(req.params.veicId))) return res.status(403).send('Acesso negado a este veículo');
 
@@ -24365,12 +24365,12 @@ app.get('/api/logistica/resumo-rota-auditoria', authenticateToken, (req, res) =>
 // POST ??? registrar auditoria de alteração no Resumo de Rota
 app.post('/api/logistica/resumo-rota-auditoria', authenticateToken, express.json(), (req, res) => {
     console.log('[AUDITORIA] POST recebido:', req.body);
-    const { data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual } = req.body;
+    const { data_rota, nome_resumo, veículo, campo, valor_anterior, valor_atual } = req.body;
     const usuario = req.user ? (req.user.nome || req.user.username || '') : '';
     db.run(
-        `INSERT INTO resumo_rota_auditoria (data_rota, nome_resumo, veiculo, campo, valor_anterior, valor_atual, usuario_nome)
+        `INSERT INTO resumo_rota_auditoria (data_rota, nome_resumo, veículo, campo, valor_anterior, valor_atual, usuario_nome)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [data_rota || '', nome_resumo || '', veiculo || '', campo || '', valor_anterior || '', valor_atual || '', usuario],
+        [data_rota || '', nome_resumo || '', veículo || '', campo || '', valor_anterior || '', valor_atual || '', usuario],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ ok: true, id: this.lastID });
@@ -24490,7 +24490,7 @@ async function dispararAcoesAgenda(card) {
                 </div>`;
                 try {
                     await sendMailHelper({
-                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                        from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                         to: c.email_corporativo,
                         subject: `[Agenda ${dataFmt}] ${card.titulo || tipo_label}`,
                         html,
@@ -24510,7 +24510,7 @@ async function dispararAcoesAgenda(card) {
 // CONTROLE DE ESTOQUE
 // ============================================================================
 
-// Auto-criacao das tabelas de estoque (caso nao existam no banco)
+// Auto-criacao das tabelas de estoque (caso não existam no banco)
 db.run(`CREATE TABLE IF NOT EXISTS estoque (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     nome            TEXT NOT NULL,
@@ -24526,9 +24526,9 @@ db.run(`CREATE TABLE IF NOT EXISTS estoque (
     atualizado_em   DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[ESTOQUE] Erro ao criar tabela:', err.message); });
 
-// Migration: adicionar coluna foto_url se nao existir (upgrade de banco antigo)
+// Migration: adicionar coluna foto_url se não existir (upgrade de banco antigo)
 db.run("ALTER TABLE estoque ADD COLUMN foto_url TEXT", (err) => { /* ignorar se ja existe */ });
-// Migration: adicionar coluna placas_vinculadas se nao existir
+// Migration: adicionar coluna placas_vinculadas se não existir
 db.run("ALTER TABLE estoque ADD COLUMN placas_vinculadas TEXT", (err) => { /* ignorar se ja existe */ });
 
 db.run(`CREATE TABLE IF NOT EXISTS estoque_historico (
@@ -24651,7 +24651,7 @@ app.post('/api/estoque/testar-email', authenticateToken, async (req, res) => {
         }
 
         const mailOpts = {
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: emailDestino,
             subject: '[TESTE] ALERTA DE ESTOQUE MÍNIMO - América Rental',
             html: `<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">
@@ -25803,7 +25803,7 @@ app.post('/api/public/pesquisa-treinamento/:token', (req, res) => {
                       const emailsParaEnviar = configs.map(c => c.email).filter(e => e && e.trim() !== '');
                       if (emailsParaEnviar.length > 0) {
                           const mailOptions = {
-                              from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+                              from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
                               to: emailsParaEnviar,
                               subject: `Pesquisa Respondida: ${info.treinamento_nome}`,
                               html: `
@@ -26041,8 +26041,8 @@ function _extrairPublicId(url) {
 console.log('[TREINAMENTO] Módulo de treinamentos carregado.');
 
 // ?????? MIGRA????O: colunas de assinatura/selfie na tabela treinamento_presenca ????????????
-['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome', 'optou_nao_participar'].forEach(col => {
-  const type = col === 'colaborador_id' ? 'INTEGER' : (col === 'optou_nao_participar' ? 'INTEGER DEFAULT 0' : "TEXT DEFAULT ''");
+['assinatura_base64', 'selfie_base64', 'data_conclusao', 'colaborador_id', 'instrutor_nome', 'optou_não_participar'].forEach(col => {
+  const type = col === 'colaborador_id' ? 'INTEGER' : (col === 'optou_não_participar' ? 'INTEGER DEFAULT 0' : "TEXT DEFAULT ''");
   db.run(`ALTER TABLE treinamento_presenca ADD COLUMN ${col} ${type}`, err => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error(`[PRESENÇA] Migração (${col}):`, err.message);
@@ -26136,7 +26136,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req
       SELECT tp.colaborador_id, tp.treinamento_id,
              ${has(presencaCols, 'data_conclusao')       ? 'tp.data_conclusao'                         : 'NULL'} AS data_conclusao,
              ${has(presencaCols, 'data_presenca')        ? 'tp.data_presenca'                          : 'NULL'} AS data_presenca,
-             ${has(presencaCols, 'optou_nao_participar') ? 'IFNULL(tp.optou_nao_participar, 0)'        : '0'   } AS optou_nao_participar,
+             ${has(presencaCols, 'optou_não_participar') ? 'IFNULL(tp.optou_não_participar, 0)'        : '0'   } AS optou_não_participar,
              pr.respondido_em
       FROM treinamento_presenca tp
       LEFT JOIN treinamento_pesquisa_respostas pr
@@ -26213,7 +26213,7 @@ app.get('/api/treinamento-presenca/colaboradores', authenticateToken, async (req
           vencido,
           data_conclusao: dataConclusao,
           respondido_em: presenca ? presenca.respondido_em : null,
-          optou_nao_participar: presenca ? presenca.optou_nao_participar : 0
+          optou_não_participar: presenca ? presenca.optou_não_participar : 0
         };
       });
 
@@ -26426,7 +26426,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
     </div>` : ''}
 
     <div class="rodape">
-      Gerado em ${dtFormatada} | Sistema de Gestao ??? America Rental Equipamentos Ltda.
+      Gerado em ${dtFormatada} | Sistema de Gestão ??? America Rental Equipamentos Ltda.
     </div>
   </div>
 </div>
@@ -26452,7 +26452,7 @@ app.get('/api/treinamento-presenca/auditoria/:id/pdf', authenticateToken, async 
 app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
   const {
     colaborador_id, treinamento_id, assinatura_base64, selfie_base64, instrutor_nome,
-    gps_lat, gps_lon, dispositivo, optou_nao_participar
+    gps_lat, gps_lon, dispositivo, optou_não_participar
   } = req.body;
 
   if (!colaborador_id || !treinamento_id) {
@@ -26606,18 +26606,18 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
         // Insere novo registro usando INSERT OR REPLACE para lidar com a UNIQUE constraint
         db.run(
           `INSERT INTO treinamento_presenca
-             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_nao_participar, assinatura_url, selfie_url)
+             (treinamento_id, colaborador_id, usuario_id, assinatura_base64, selfie_base64, data_conclusao, instrutor_nome, optou_não_participar, assinatura_url, selfie_url)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [treinamento_id, colaborador_id, usuarioId, b64Ass, b64Selfie, now, instrutorNome, optou_nao_participar ? 1 : 0, assUrl, selfieUrl],
+          [treinamento_id, colaborador_id, usuarioId, b64Ass, b64Selfie, now, instrutorNome, optou_não_participar ? 1 : 0, assUrl, selfieUrl],
           function(err2) {
             if (err2) {
               // UNIQUE conflict em (treinamento_id, usuario_id): atualiza pelo usuario_id
               db.run(
                 `UPDATE treinamento_presenca
                  SET colaborador_id = ?, assinatura_base64 = ?, selfie_base64 = ?,
-                     data_conclusao = ?, instrutor_nome = ?, optou_nao_participar = ?, assinatura_url = COALESCE(?, assinatura_url), selfie_url = COALESCE(?, selfie_url)
+                     data_conclusao = ?, instrutor_nome = ?, optou_não_participar = ?, assinatura_url = COALESCE(?, assinatura_url), selfie_url = COALESCE(?, selfie_url)
                  WHERE treinamento_id = ? AND usuario_id = ?`,
-                [colaborador_id, b64Ass, b64Selfie, now, instrutorNome, optou_nao_participar ? 1 : 0, assUrl, selfieUrl, treinamento_id, usuarioId],
+                [colaborador_id, b64Ass, b64Selfie, now, instrutorNome, optou_não_participar ? 1 : 0, assUrl, selfieUrl, treinamento_id, usuarioId],
                 function(err3) {
                   if (err3) return res.status(500).json({ error: err3.message });
                   db.get(
@@ -26645,7 +26645,7 @@ app.post('/api/treinamento-presenca/assinar', authenticateToken, (req, res) => {
 // Busca registro completo (assinatura + selfie) para exibição pós-assinatura
 app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, instrutor_nome, optou_nao_participar
+    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, instrutor_nome, optou_não_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -26673,7 +26673,7 @@ app.get('/api/treinamento-presenca/registro/:colaboradorId/:treinamentoId', auth
 // Verifica se um colaborador já concluiu um treinamento específico
 app.get('/api/treinamento-presenca/:colaboradorId/:treinamentoId', authenticateToken, (req, res) => {
   db.get(
-    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, optou_nao_participar
+    `SELECT id, data_conclusao, data_presenca, COALESCE(assinatura_url, assinatura_base64) AS assinatura_base64, COALESCE(selfie_url, selfie_base64) AS selfie_base64, optou_não_participar
      FROM treinamento_presenca
      WHERE colaborador_id = ? AND treinamento_id = ?`,
     [req.params.colaboradorId, req.params.treinamentoId],
@@ -27671,8 +27671,8 @@ app.get('/api/integracao/processos/:id', authenticateToken, (req, res) => {
 // ── API: Atualizar status de um passo ────────────────────────────────────────
 app.put('/api/integracao/passos-status/:id', authenticateToken, (req, res) => {
     const { status, obs } = req.body;
-    if (!['pendente', 'feito', 'nao_aplica'].includes(status)) {
-        return res.status(400).json({ error: 'Status inválido. Use: pendente, feito, nao_aplica' });
+    if (!['pendente', 'feito', 'não_aplica'].includes(status)) {
+        return res.status(400).json({ error: 'Status inválido. Use: pendente, feito, não_aplica' });
     }
     const feito_em = status === 'feito' ? new Date().toISOString() : null;
     db.run(`UPDATE integracao_passos_status SET status=?, feito_em=?, obs=? WHERE id=?`,
@@ -28394,7 +28394,7 @@ app.post('/api/admin/inativar-cargos-inativos', (req, res) => {
         total_inativados: this.changes,
         inativados_agora: paraInativar.map(r => r.nome).sort(),
         ja_inativos_antes: jaInativos.map(r => r.nome).sort(),
-        protegidos_nao_alterados: protegidos.map(r => r.nome).sort(),
+        protegidos_não_alterados: protegidos.map(r => r.nome).sort(),
         cargos_ativos_mantidos: cargosAtivos.sort()
       });
     });
@@ -28570,11 +28570,11 @@ app.listen(PORT, () => {
     console.log(`Caminho de Armazenamento Local: ${BASE_UPLOAD_PATH}`);
 
     // --- TEMPOR??RIO: Inserir KM fict??cia para BXR no dia 2026-05-25 ---
-    db.get("SELECT id FROM frota_veiculos WHERE placa LIKE '%BXR4663%' LIMIT 1", [], (err, row) => {
+    db.get("SELECT id FROM frota_veículos WHERE placa LIKE '%BXR4663%' LIMIT 1", [], (err, row) => {
         if (row && row.id) {
-            db.get("SELECT id FROM frota_km_historico WHERE veiculo_id = ? AND data = '2026-05-25'", [row.id], (err2, hist) => {
+            db.get("SELECT id FROM frota_km_historico WHERE veículo_id = ? AND data = '2026-05-25'", [row.id], (err2, hist) => {
                 if (!hist) {
-                    db.run("INSERT INTO frota_km_historico (veiculo_id, km, data) VALUES (?, ?, ?)", [row.id, 500, '2026-05-25'], (err3) => {
+                    db.run("INSERT INTO frota_km_historico (veículo_id, km, data) VALUES (?, ?, ?)", [row.id, 500, '2026-05-25'], (err3) => {
                         if (!err3) console.log("[TESTE] KM fict??cio (500) inserido para o veículo BXR4663 na data 2026-05-25.");
                     });
                 }
@@ -28666,7 +28666,7 @@ app.listen(PORT, () => {
             [9,'Verificação de v??lvulas','Inspecao',100,'horas','Alta',0.5,0,0,0,1],
             [9,'Verificação do sistema hidr??ulico do tanque','Inspecao',100,'horas','Alta',1,0,0,0,1],
             [10,'Inspe????o estrutural','Tempo',6,'meses','Alta',2,0,0,0,1],
-            [10,'Pintura preventiva','Tempo',24,'meses','Baixa',8,0,0,0,1],
+            [10,'Pintura prevêntiva','Tempo',24,'meses','Baixa',8,0,0,0,1],
             [10,'Verificação de ferrugem','Inspecao',3,'meses','Media',0.5,0,0,0,1],
             [11,'Extintor','Validade',12,'meses','Critica',0.25,0,1,1,1],
             [11,'Tacógrafo','Tempo',12,'meses','Critica',1,0,1,0,1],
@@ -28847,7 +28847,7 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
 app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res) => {
     const id = req.params.id;
     db.get('SELECT * FROM licencas WHERE id = ?', [id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
+        if (err || !row) return res.status(404).json({ error: 'Licenca não encontrada.' });
         const validade = req.body.validade !== undefined ? req.body.validade : row.validade;
         let filePath = row.file_path; let fileName = row.file_name;
         if (req.file) {
@@ -28873,7 +28873,7 @@ app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res
 
 app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
+        if (err || !row) return res.status(404).json({ error: 'Licenca não encontrada.' });
         if (row.file_path) {
             const absPath = path.resolve(__dirname, '..', '..', row.file_path);
             if (fs.existsSync(absPath)) { try { fs.unlinkSync(absPath); } catch (e) { } }
@@ -28887,8 +28887,8 @@ app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
 
 app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
     db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
-        if (err || !row) return res.status(404).send('Licenca nao encontrada.');
-        if (!row.file_path && !row.file_name) return res.status(404).send('Arquivo nao anexado.');
+        if (err || !row) return res.status(404).send('Licenca não encontrada.');
+        if (!row.file_path && !row.file_name) return res.status(404).send('Arquivo não anexado.');
 
         let absPath = '';
         if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
@@ -28908,7 +28908,7 @@ app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
             if (fs.existsSync(finalPath)) absPath = finalPath;
         }
 
-        if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico nao encontrado.');
+        if (!absPath || !fs.existsSync(absPath)) return res.status(404).send('Arquivo fisico não encontrado.');
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'inline; filename="' + row.file_name + '"');
@@ -29100,7 +29100,7 @@ function verificarLicencasVencimentoCron() {
 
             const emailDestino = (rowD && rowD.email) ? rowD.email : 'roberta@americarental.com.br'; // Fallback
             if (!emailDestino) {
-                console.log('[CRON Licencas] Email do Administrativo nao encontrado.');
+                console.log('[CRON Licencas] Email do Administrativo não encontrado.');
                 return;
             }
 
@@ -29207,7 +29207,7 @@ async function dispararEmailLicenca(lic, diffDias, emailDestino) {
 
     try {
         await sendMailHelper({
-            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
+            from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "nãoresponder@americarental.com.br"}>`,
             to: emailDestino,
             subject: `[Aviso] Vencimento: ${lic.nome} - ${lic.empresa}`,
             html: htmlContent,
@@ -29233,7 +29233,7 @@ setTimeout(() => {
             "ALTER TABLE credenciamentos ADD COLUMN acessado_em DATETIME;",
             "ALTER TABLE credenciamentos ADD COLUMN status TEXT DEFAULT 'enviado';",
             "ALTER TABLE credenciamentos ADD COLUMN qtd_max_colaboradores INTEGER DEFAULT 0;",
-            "ALTER TABLE credenciamentos ADD COLUMN qtd_max_veiculos INTEGER DEFAULT 0;",
+            "ALTER TABLE credenciamentos ADD COLUMN qtd_max_veículos INTEGER DEFAULT 0;",
             "ALTER TABLE credenciamentos ADD COLUMN data_limite_envio DATETIME;"
         ];
 
@@ -29280,13 +29280,13 @@ db.run(`CREATE TABLE IF NOT EXISTS multas_monaco (
     pontos                      INTEGER,
     gravidade                   TEXT,
     artigo_ctb                  TEXT,
-    cod_orgao                   TEXT,
-    orgao_autuador              TEXT,
-    data_da_infracao            TEXT,
-    hora_da_infracao            TEXT,
-    local_infracao              TEXT,
+    cod_órgão                   TEXT,
+    órgão_autuador              TEXT,
+    data_da_infração            TEXT,
+    hora_da_infração            TEXT,
+    local_infração              TEXT,
     cidade                      TEXT,
-    valor_da_infracao           REAL,
+    valor_da_infração           REAL,
     valor_com_desconto          REAL,
     valor_pago                  REAL,
     data_emissao                TEXT,
@@ -29300,10 +29300,10 @@ db.run(`CREATE TABLE IF NOT EXISTS multas_monaco (
     velocidade_permitida        REAL,
     velocidade_aferida          REAL,
     velocidade_considerada      REAL,
-    multa_originaria_enquadramento TEXT,
+    multa_originária_enquadramento TEXT,
     fator_multiplicador         INTEGER,
-    ait_originaria              TEXT,
-    data_multa_originaria       TEXT,
+    ait_originária              TEXT,
+    data_multa_originária       TEXT,
     arquivos_json               TEXT DEFAULT '[]',
     visualizada                 INTEGER DEFAULT 0,
     observacao_interna          TEXT,
@@ -29385,7 +29385,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
                     docBase64 = arq.base64;
                     docNome = nomeArq || 'extrato_monaco.pdf';
                 } else if (!isFormulario && !docBase64 && arq.base64) {
-                    // Fallback: qualquer outro que nao seja formulario
+                    // Fallback: qualquer outro que não seja formulario
                     docBase64 = arq.base64;
                     docNome = nomeArq || 'anexo_monaco.pdf';
                 } else if (isFormulario) {
@@ -29395,7 +29395,7 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         }
 
         const dataLimite = payload.prazo_identificacao_condutor || payload.vencimento_multa || null;
-        const localInfracao = payload.local || payload.local_infracao || payload.cidade || null;
+        const localInfracao = payload.local || payload.local_infração || payload.cidade || null;
         const statusMonaco = payload.status_notificacao || tipoEvento;
         // Busca exaustiva do link de indicação - a Mônaco pode enviar com nomes variados
         let linkFormulario =
@@ -29462,12 +29462,12 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         if (row) {
             // Atualizar multa existente
             let updateSql = `UPDATE multas_logistica SET
-                monaco_uuid = ?, placa = ?, data_infracao = ?, hora_infracao = ?,
-                motivo = ?, valor_multa = ?, pontuacao = ?, local_infracao = ?, data_limite = ?, status_monaco = ?,
+                monaco_uuid = ?, placa = ?, data_infração = ?, hora_infração = ?,
+                motivo = ?, valor_multa = ?, pontuação = ?, local_infração = ?, data_limite = ?, status_monaco = ?,
                 link_formulario = COALESCE(?, link_formulario)`;
             let params = [
-                uuid, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
-                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite, statusMonaco,
+                uuid, payload.placa, payload.data_da_infração, payload.hora_da_infração,
+                payload.descricao, payload.valor_da_infração, payload.pontos, localInfracao, dataLimite, statusMonaco,
                 linkFormulario
             ];
 
@@ -29492,12 +29492,12 @@ function syncToLogistica(uuid, tipoEvento, payload) {
         } else {
             // Inserir nova multa
             db.run(`INSERT INTO multas_logistica (
-                monaco_uuid, numero_ait, placa, data_infracao, hora_infracao,
-                motivo, valor_multa, pontuacao, local_infracao, data_limite,
+                monaco_uuid, numero_ait, placa, data_infração, hora_infração,
+                motivo, valor_multa, pontuação, local_infração, data_limite,
                 status, created_by_nome, observacao, documento_base64, documento_nome, status_monaco, link_formulario, termo_desconto_base64, termo_desconto_nome, termo_desconto_url
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Integração Mônaco', NULL, ?, ?, ?, ?, ?, ?, ?)`, [
-                uuid, payload.numero_ait, payload.placa, payload.data_da_infracao, payload.hora_da_infracao,
-                payload.descricao, payload.valor_da_infracao, payload.pontos, localInfracao, dataLimite,
+                uuid, payload.numero_ait, payload.placa, payload.data_da_infração, payload.hora_da_infração,
+                payload.descricao, payload.valor_da_infração, payload.pontos, localInfracao, dataLimite,
                 isAitAntiga(payload.numero_ait) ? 'Antiga' : 'Conferência',
                 docBase64, docNome, statusMonaco, linkFormulario, termoBase64, termoNome, termoUrl
             ], function (errInsert) {
@@ -29518,7 +29518,7 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
     db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'nova_multa_monaco'", [], (err, rowsC) => {
         if (!err && rowsC && rowsC.length > 0) {
             const msg = `Nova Multa Mônaco: AIT ${payload.numero_ait} - Placa ${payload.placa}`;
-            const dados = JSON.stringify({ ait: payload.numero_ait, placa: payload.placa, data: payload.data_da_infracao, id: logisticaId });
+            const dados = JSON.stringify({ ait: payload.numero_ait, placa: payload.placa, data: payload.data_da_infração, id: logisticaId });
             
             // Notificação no sininho do sistema
             rowsC.forEach(c => {
@@ -29539,9 +29539,9 @@ function enviarNotificacaoNovaMultaMonaco(payload, logisticaId) {
                         <div style="background:#fef2f2;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #c0392b;">
                             <p style="margin:4px 0;"><strong>AIT:</strong> ${payload.numero_ait || 'N/A'}</p>
                             <p style="margin:4px 0;"><strong>Placa:</strong> ${payload.placa || 'N/A'}</p>
-                            <p style="margin:4px 0;"><strong>Data da Infração:</strong> ${payload.data_da_infracao || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Data da Infração:</strong> ${payload.data_da_infração || 'N/A'}</p>
                             <p style="margin:4px 0;"><strong>Descrição:</strong> ${payload.descricao || 'N/A'}</p>
-                            <p style="margin:4px 0;"><strong>Valor:</strong> R$ ${payload.valor_da_infracao || 'N/A'}</p>
+                            <p style="margin:4px 0;"><strong>Valor:</strong> R$ ${payload.valor_da_infração || 'N/A'}</p>
                             ${payload.local ? `<p style="margin:4px 0;"><strong>Local:</strong> ${payload.local}</p>` : ''}
                         </div>
                         <div style="text-align:center;margin-top:20px;">
@@ -29575,27 +29575,27 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
             db.run(`UPDATE multas_monaco SET
                 tipo_evento = ?, placa = ?, renavam = ?, fleet_id = ?, numero_frota = ?,
                 gestor = ?, condutor = ?, enquadramento = ?, descricao = ?, numero_ait = ?,
-                pontos = ?, gravidade = ?, artigo_ctb = ?, cod_orgao = ?, orgao_autuador = ?,
-                data_da_infracao = ?, hora_da_infracao = ?, local_infracao = ?, cidade = ?,
-                valor_da_infracao = ?, valor_com_desconto = ?, valor_pago = ?,
+                pontos = ?, gravidade = ?, artigo_ctb = ?, cod_órgão = ?, órgão_autuador = ?,
+                data_da_infração = ?, hora_da_infração = ?, local_infração = ?, cidade = ?,
+                valor_da_infração = ?, valor_com_desconto = ?, valor_pago = ?,
                 data_emissao = ?, vencimento_multa = ?, data_pagamento_da_multa = ?,
                 prazo_identificacao_condutor = ?, controle_notificacao = ?, controle_da_multa = ?,
                 status_notificacao = ?, velocidade_permitida = ?, velocidade_aferida = ?,
-                velocidade_considerada = ?, multa_originaria_enquadramento = ?,
-                fator_multiplicador = ?, ait_originaria = ?, data_multa_originaria = ?,
+                velocidade_considerada = ?, multa_originária_enquadramento = ?,
+                fator_multiplicador = ?, ait_originária = ?, data_multa_originária = ?,
                 arquivos_json = ?, visualizada = 0, status_visualizacao = 'atualizado', updated_at = ?
                 WHERE uuid = ?`,
                 [
                     tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
                     payload.gestor, payload.condutor, payload.enquadramento, payload.descricao, payload.numero_ait,
-                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_orgao, payload.orgao_autuador,
-                    payload.data_da_infracao, payload.hora_da_infracao, payload.local || payload.local_infracao, payload.cidade,
-                    payload.valor_da_infracao, payload.valor_com_desconto, payload.valor_pago,
+                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_órgão, payload.órgão_autuador,
+                    payload.data_da_infração, payload.hora_da_infração, payload.local || payload.local_infração, payload.cidade,
+                    payload.valor_da_infração, payload.valor_com_desconto, payload.valor_pago,
                     payload.data_emissao, payload.vencimento_multa, payload.data_pagamento_da_multa,
                     payload.prazo_identificacao_condutor, payload.controle_notificacao, payload.controle_da_multa,
                     payload.status_notificacao, payload.velocidade_permitida, payload.velocidade_aferida,
-                    payload.velocidade_considerada, payload.multa_originaria_enquadramento,
-                    payload.fator_multiplicador, payload.ait_originaria, payload.data_multa_originaria,
+                    payload.velocidade_considerada, payload.multa_originária_enquadramento,
+                    payload.fator_multiplicador, payload.ait_originária, payload.data_multa_originária,
                     arquivosJson, now, uuid
                 ], (err2) => {
                     if (err2) {
@@ -29611,27 +29611,27 @@ function upsertMonaco(uuid, tipoEvento, payload, res) {
             db.run(`INSERT INTO multas_monaco (
                 uuid, tipo_evento, placa, renavam, fleet_id, numero_frota,
                 gestor, condutor, enquadramento, descricao, numero_ait,
-                pontos, gravidade, artigo_ctb, cod_orgao, orgao_autuador,
-                data_da_infracao, hora_da_infracao, local_infracao, cidade,
-                valor_da_infracao, valor_com_desconto, valor_pago,
+                pontos, gravidade, artigo_ctb, cod_órgão, órgão_autuador,
+                data_da_infração, hora_da_infração, local_infração, cidade,
+                valor_da_infração, valor_com_desconto, valor_pago,
                 data_emissao, vencimento_multa, data_pagamento_da_multa,
                 prazo_identificacao_condutor, controle_notificacao, controle_da_multa,
                 status_notificacao, velocidade_permitida, velocidade_aferida,
-                velocidade_considerada, multa_originaria_enquadramento,
-                fator_multiplicador, ait_originaria, data_multa_originaria,
+                velocidade_considerada, multa_originária_enquadramento,
+                fator_multiplicador, ait_originária, data_multa_originária,
                 arquivos_json, visualizada, status_visualizacao, created_at, updated_at
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'nova',?,?)`,
                 [
                     uuid, tipoEvento, payload.placa, payload.renavam, payload.fleet_id, payload.numero_frota,
                     payload.gestor, payload.condutor, payload.enquadramento, payload.descricao, payload.numero_ait,
-                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_orgao, payload.orgao_autuador,
-                    payload.data_da_infracao, payload.hora_da_infracao, payload.local || payload.local_infracao, payload.cidade,
-                    payload.valor_da_infracao, payload.valor_com_desconto, payload.valor_pago,
+                    payload.pontos, payload.gravidade, payload.artigo_ctb, payload.cod_órgão, payload.órgão_autuador,
+                    payload.data_da_infração, payload.hora_da_infração, payload.local || payload.local_infração, payload.cidade,
+                    payload.valor_da_infração, payload.valor_com_desconto, payload.valor_pago,
                     payload.data_emissao, payload.vencimento_multa, payload.data_pagamento_da_multa,
                     payload.prazo_identificacao_condutor, payload.controle_notificacao, payload.controle_da_multa,
                     payload.status_notificacao, payload.velocidade_permitida, payload.velocidade_aferida,
-                    payload.velocidade_considerada, payload.multa_originaria_enquadramento,
-                    payload.fator_multiplicador, payload.ait_originaria, payload.data_multa_originaria,
+                    payload.velocidade_considerada, payload.multa_originária_enquadramento,
+                    payload.fator_multiplicador, payload.ait_originária, payload.data_multa_originária,
                     arquivosJson, now, now
                 ], function (err2) {
                     if (err2) {
@@ -30099,11 +30099,11 @@ app.get('/api/mtr/tabelas', authenticateToken, async (req, res) => {
       sigorHomReq('/retornaListaUnidade')
     ]);
     res.json({
-      residuos: (residuos.objetoResposta || []).map(r => ({ codigo: r.resCodigoIbama, descricao: r.resDescricao })),
-      acondicionamentos: (acondicionamentos.objetoResposta || []).map(a => ({ codigo: a.tiaCodigo, descricao: a.tiaDescricao })),
-      estadosFisicos: (estadosFisicos.objetoResposta || []).map(e => ({ codigo: e.tieCodigo, descricao: e.tieDescricao })),
-      tratamentos: (tratamentos.objetoResposta || []).map(t => ({ codigo: t.traCodigo, descricao: t.traDescricao })),
-      unidades: (unidades.objetoResposta || []).map(u => ({ codigo: u.uniSigla || u.uniCodigo, descricao: u.uniDescricao + ' (' + (u.uniSigla || u.uniCodigo) + ')' }))
+      residuos: (residuos.objetoResposta || []).map(r => ({ codigo: r.resCódigoIbama, descricao: r.resDescricao })),
+      acondicionamentos: (acondicionamentos.objetoResposta || []).map(a => ({ codigo: a.tiaCódigo, descricao: a.tiaDescricao })),
+      estadosFisicos: (estadosFisicos.objetoResposta || []).map(e => ({ codigo: e.tieCódigo, descricao: e.tieDescricao })),
+      tratamentos: (tratamentos.objetoResposta || []).map(t => ({ codigo: t.traCódigo, descricao: t.traDescricao })),
+      unidades: (unidades.objetoResposta || []).map(u => ({ codigo: u.uniSigla || u.uniCódigo, descricao: u.uniDescricao + ' (' + (u.uniSigla || u.uniCódigo) + ')' }))
     });
   } catch (e) {
     console.error('[MTR] Erro tabelas:', e);
@@ -30122,8 +30122,8 @@ app.delete('/api/mtr/limpar-invalidos', authenticateToken, (req, res) => {
 
 // ?????? POST /api/mtr/gerar ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
-  const { geradorNome, geradorCnpj, residuoCodigo, quantidade, unidade,
-          acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
+  const { geradorNome, geradorCnpj, residuoCódigo, quantidade, unidade,
+          acondicionamentoCódigo, estadoFisicoCódigo, tratamentoCódigo,
           observacao, complementarDeId,
           destinadorCnpj, destinadorUnidade, motorista, placa, dataExpedicao } = req.body;
 
@@ -30137,7 +30137,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     
     // De/Para de unidades bàsicas
     const mapaUnidade = { 'TON': 3, 'KG': 1, 'L': 21, 'M3': 2 };
-    const uniCodigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
+    const uniCódigo = mapaUnidade[unidade] || parseInt(unidade) || 3;
     
     // America Rental CNPJ
     const transpCnpj = '03434448000101';
@@ -30150,7 +30150,7 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
     }
 
     const payload = [{
-      seuCodigo: 'AR-' + Date.now().toString().slice(-8),
+      seuCódigo: 'AR-' + Date.now().toString().slice(-8),
       nomeResponsavel: 'América Rental',
       nomeMotorista: motorista || 'MÁRCIO JORGE VILAR DA SILVA',
       placaVeiculo: (placa || 'DPE5A75').replace(/[^a-zA-Z0-9]/g, ''),
@@ -30160,13 +30160,13 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
       gerador: { cpfCnpj: (geradorCnpj || '').replace(/\D/g, ''), razaoSocial: geradorNome },
       observacoes: observacao || '',
       listaManifestoResiduos: [{
-        resCodigoIbama: residuoCodigo,
+        resCódigoIbama: residuoCódigo,
         marQuantidade: parseFloat(quantidade),
-        uniCodigo: uniCodigo,
-        tiaCodigo: parseInt(acondicionamentoCodigo),
-        tieCodigo: parseInt(estadoFisicoCodigo),
-        traCodigo: parseInt(tratamentoCodigo),
-        claCodigo: req.body.claCodigo ? parseInt(req.body.claCodigo) : 43
+        uniCódigo: uniCódigo,
+        tiaCódigo: parseInt(acondicionamentoCódigo),
+        tieCódigo: parseInt(estadoFisicoCódigo),
+        traCódigo: parseInt(tratamentoCódigo),
+        claCódigo: req.body.claCódigo ? parseInt(req.body.claCódigo) : 43
       }]
     }];
 
@@ -30210,8 +30210,8 @@ app.post('/api/mtr/gerar', authenticateToken, async (req, res) => {
         quantidade, unidade, acondicionamento_codigo, estado_fisico_codigo, tratamento_codigo,
         observacao, payload_json, complementar_de_id)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [numeroMTR, 'Salvo', geradorNome, geradorCnpj, residuoCodigo,
-       quantidade, unidade, acondicionamentoCodigo, estadoFisicoCodigo, tratamentoCodigo,
+      [numeroMTR, 'Salvo', geradorNome, geradorCnpj, residuoCódigo,
+       quantidade, unidade, acondicionamentoCódigo, estadoFisicoCódigo, tratamentoCódigo,
        observacao, JSON.stringify({ ...data, _destinadorNome: req.body.destinadorNome || 'BRK AMBIENTAL - MAU?? S.A.' }), complementarDeId || null],
       function (errIns) {
         if (errIns) console.error('[MTR] Erro insert:', errIns);
@@ -30418,7 +30418,7 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
 });
 
 // Gerar código único para proposta
-function gerarCodigoProposta(cb) {
+function gerarCódigoProposta(cb) {
   const ano = new Date().getFullYear();
   db.get(`SELECT MAX(CAST(SUBSTR(codigo, 6) AS INTEGER)) as max_seq FROM propostas WHERE codigo LIKE 'PR${ano}%'`, [], (err, row) => {
     const seq = (row && row.max_seq ? row.max_seq : 0) + 1;
@@ -30446,7 +30446,7 @@ app.get('/api/propostas/:id', authenticateToken, (req, res) => {
 // POST /api/propostas - Criar nova proposta
 app.post('/api/propostas', authenticateToken, (req, res) => {
   const d = req.body;
-  gerarCodigoProposta((codigo) => {
+  gerarCódigoProposta((codigo) => {
     const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
     db.run(`INSERT INTO propostas (
       codigo, local, tipo, atendente, data_cadastro, previsao_fechamento,
@@ -32275,7 +32275,7 @@ db.run(`
                 const initialOccurrences = {
                     'manutencao': ['Manutenção não realizada', 'Reclamação de limpeza', 'Manutenção suspensa por falta de pagamento'],
                     'avaria_funcional': ['Caixa de Dejetos', 'Teto', 'Porta', 'Bomba da Descarga', 'Bomba do Lavatório', 'Caixa de Descarga', 'Chuveiro', 'Mictório Interno', 'Puxador', 'Vaso Sanitário', 'Vidro da Guarita'],
-                    'avaria_nao_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
+                    'avaria_não_funcional': ['Assento Sanitário', 'Chapa Piso Preta', 'Pintura Danificada', 'Suporte Papel Toalha', 'Limitador de Porta', 'Equipamento Antigo'],
                     'entrega': ['Endereço incorreto', 'Equipe não localizou o ponto exato', 'Cliente ausente ou local fechado', 'Produto entregue errado', 'Atraso na entrega', 'Faltou Observação da localização exata'],
                     'retirada': ['Fim de contrato indesejada', 'Retirada Infrutífera', 'Desmontagem'],
                     'contrato': ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
@@ -32367,7 +32367,7 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Retornar imediatamente — nao esperar emails (fire-and-forget)
+        // Retornar imediatamente — não esperar emails (fire-and-forget)
         res.json({ success: true, id: t.id, protocol });
 
         // Notificar usuários com permissão Ver Todos no SAC
@@ -33662,8 +33662,8 @@ app.get('/api/admin/restore-from-r2-v2', async (req, res) => {
         fileData.stream.on('end', () => {
             const buffer = Buffer.concat(chunks);
             // Apaga arquivos WAL e SHM corrompidos
-            try { fs.unlinkSync(walPath); console.log('[RESTORE-V2] WAL removido'); } catch(e) { console.log('[RESTORE-V2] WAL nao encontrado (ok)'); }
-            try { fs.unlinkSync(shmPath); console.log('[RESTORE-V2] SHM removido'); } catch(e) { console.log('[RESTORE-V2] SHM nao encontrado (ok)'); }
+            try { fs.unlinkSync(walPath); console.log('[RESTORE-V2] WAL removido'); } catch(e) { console.log('[RESTORE-V2] WAL não encontrado (ok)'); }
+            try { fs.unlinkSync(shmPath); console.log('[RESTORE-V2] SHM removido'); } catch(e) { console.log('[RESTORE-V2] SHM não encontrado (ok)'); }
             // Grava o banco limpo
             fs.writeFileSync(dbPath, buffer);
             console.log('[RESTORE-V2] Banco restaurado! Tamanho:', buffer.length, 'bytes');
