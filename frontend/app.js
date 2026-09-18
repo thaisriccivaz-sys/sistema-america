@@ -702,7 +702,7 @@ const BREADCRUMB_MAP = {
     'integracao': { path: 'Integração', code: 'RHAD06' },
     'conf-integracao': { path: 'Diretoria → Conf. Integração', code: 'DIR007' },
     'assinaturas-digitais': { path: 'Assinaturas Digitais', code: 'RHAD07' },
-    'pagamentos-massa': { path: 'Envio de Documentos em Massa', code: 'RHPG01' },
+    'pagamentos-massa': { path: 'RH → Pagamentos → Docs. em Massa', code: 'RHPG01' },
     'dashboard': { path: 'Dashboard', code: 'RH001' },
     'colaboradores': { path: 'Colaboradores', code: 'RHCL00' },
     'form-colaborador': { path: 'Colaboradores → Cadastro / Edição' },
@@ -760,11 +760,11 @@ const BREADCRUMB_MAP = {
     'tab:Prontuário Digital': { path: 'Colaboradores → Prontuário Digital', },
     // Módulos adicionais
     'dissidio': { path: 'Dissídio', code: 'RHDIS01' },
-    'recibos': { path: 'Recibos de Benefícios', code: 'RHREC01' },
+    'recibos': { path: 'RH → Pagamentos → Recibos', code: 'RHREC01' },
     'rh-logistica-sinistros': { path: 'RH → Logística → Sinistros', code: 'RHLOG01' },
     'rh-logistica-multas': { path: 'RH → Logística → Multas', code: 'RHLOG02' },
     'ferias': { path: 'Controle de Férias', code: 'RHFER01' },
-    'fechamento': { path: 'RH → Pagamentos → Fechamento Mensal', code: 'RHPAG02' },
+    'fechamento': { path: 'RH → Pagamentos → Fechamento', code: 'RHPAG02' },
     // Logística
     'logistica-dashboard': { path: 'Dashboard Logística', code: 'LOG000' },
     'logistica-sinistros': { path: 'Sinistros', code: 'LOG010' },
@@ -796,8 +796,8 @@ const BREADCRUMB_MAP = {
     'administrativo-protocolos': { path: 'Protocolos', code: 'ADM006' },
     // Processos
     'sac': { path: 'SAC — Portal de Ocorrências', code: 'SAC001' },
-    'rota-sucesso-ajudantes':  { path: 'rh - Rota de Sucesso - Ajudantes',  code: 'RHRS01' },
-    'rota-sucesso-motoristas': { path: 'rh - Rota de Sucesso - Motoristas', code: 'RHRS02' },
+    'rota-sucesso-ajudantes':  { path: 'RH → Rota de Sucesso → Ajudantes',  code: 'RHRS01' },
+    'rota-sucesso-motoristas': { path: 'RH → Rota de Sucesso → Motoristas', code: 'RHRS02' },
 };
 
 /* ── PERMISSÕES DO PRONTUÁRIO DIGITAL ──────────────────────────────────── */
@@ -1134,7 +1134,7 @@ const TAB_META = {
     'recibos': { color: '#f503c5', icon: 'ph-receipt', title: 'Recibos' },
     'ferias': { color: '#f503c5', icon: 'ph-airplane-tilt', title: 'Férias' },
     'experiencia': { color: '#f503c5', icon: 'ph-user-check', title: 'Experiência' },
-    'fechamento': { color: '#f503c5', icon: 'ph-calculator', title: 'Fechamento Mensal' },
+    'fechamento': { color: '#f503c5', icon: 'ph-calculator', title: 'Fechamento' },
     'testes-candidatos': { color: '#f503c5', icon: 'ph-clipboard-text', title: 'Candidatos' },
     'treinamento-materiais': { color: '#0e7490', icon: 'ph-books', title: 'Materiais de treinamento' },
     'treinamento-presenca': { color: '#0e7490', icon: 'ph-check-square', title: 'Presença Treinamento' },
@@ -1190,8 +1190,8 @@ const TAB_META = {
     'gestao-departamentos': { color: '#4b5563', icon: 'ph-users-three', title: 'Gestão' },
     'feedback-gestor': { color: '#4b5563', icon: 'ph-chat-circle-text', title: 'Feedback' },
     'sac': { color: '#ef4444', icon: 'ph-headset', title: 'SAC — Portal de Ocorrências' },
-    'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'RS - Ajudantes' },
-    'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'RS - Motoristas' },
+    'rota-sucesso-ajudantes':  { color: '#f503c5', icon: 'ph-rocket', title: 'Ajudantes' },
+    'rota-sucesso-motoristas': { color: '#f503c5', icon: 'ph-rocket', title: 'Motoristas' },
 };
 
 
