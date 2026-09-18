@@ -10310,21 +10310,8 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
 });
 
 // GET: Stream do PDF do mercado via R2
-app.get('/api/fechamento/mercado-pdf/:id', async (req, res) => {
-    // Aceita token via query string (para usar em iframe/src) ou via header
-    const tokenQuery = req.query.token;
-    if (tokenQuery) {
-        const jwt = require('jsonwebtoken');
-        try { jwt.verify(tokenQuery, process.env.JWT_SECRET || 'america2024'); }
-        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
-    } else {
-        // Validar via header Authorization
-        const authHeader = req.headers['authorization'];
-        if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
-        const jwt = require('jsonwebtoken');
-        try { jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'america2024'); }
-        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
-    }
+// GET: Download do PDF do mercado via R2
+app.get('/api/fechamento/mercado-pdf/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const row = await new Promise((resolve, reject) => {
@@ -10333,15 +10320,12 @@ app.get('/api/fechamento/mercado-pdf/:id', async (req, res) => {
                 else resolve(row);
             });
         });
-        
         if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado ou R2 não configurado');
-        
         const r2 = require('./utils/r2');
         if (!r2.isReady()) return res.status(500).send('R2 Storage não configurado');
-        
-        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        const { stream } = await r2.downloadStreamFromR2(row.r2_key);
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${row.nome_arquivo || 'mercado.pdf'}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${row.nome_arquivo || 'mercado.pdf'}"`);
         stream.pipe(res);
     } catch (e) {
         console.error('[mercado-pdf] Erro:', e.message);
@@ -10359,7 +10343,45 @@ app.get('/api/fechamento/mercado-pdfs/:ano/:mes', authenticateToken, (req, res) 
     });
 });
 
-// POST: Upload e parse da planilha de consignado (.xlsx)
+// GET: Download ZIP com todos os PDFs do Mercado de um mes/ano
+app.get('/api/fechamento/mercado-pdfs-zip/:ano/:mes', authenticateToken, async (req, res) => {
+    const { ano, mes } = req.params;
+    try {
+        const rows = await new Promise((resolve, reject) => {
+            db.all('SELECT id, nome_arquivo, r2_key FROM fechamento_mercado_uploads WHERE ano = ? AND mes = ? ORDER BY id ASC',
+                [parseInt(ano), parseInt(mes)], (err, rows) => {
+                if (err) reject(err); else resolve(rows || []);
+            });
+        });
+        if (!rows || rows.length === 0) return res.status(404).json({ error: 'Nenhum PDF encontrado para este mês' });
+        const r2 = require('./utils/r2');
+        if (!r2.isReady()) return res.status(500).send('R2 Storage não configurado');
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip();
+        for (const row of rows) {
+            if (!row.r2_key) continue;
+            const chunks = [];
+            const { stream } = await r2.downloadStreamFromR2(row.r2_key);
+            await new Promise((resolve, reject) => {
+                stream.on('data', chunk => chunks.push(chunk));
+                stream.on('end', resolve);
+                stream.on('error', reject);
+            });
+            const buf = Buffer.concat(chunks);
+            zip.addFile(row.nome_arquivo || `mercado_${row.id}.pdf`, buf);
+        }
+        const zipBuf = zip.toBuffer();
+        const nomeMes = String(mes).padStart(2, '0');
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="mercado_${nomeMes}_${ano}.zip"`);
+        res.send(zipBuf);
+    } catch (e) {
+        console.error('[mercado-pdfs-zip] Erro:', e.message);
+        res.status(500).send('Erro ao gerar ZIP');
+    }
+});
+
+
 app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.single('xlsx'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
@@ -10450,20 +10472,8 @@ app.get('/api/fechamento/consignado/:ano/:mes', authenticateToken, (req, res) =>
     });
 });
 
-// GET: Stream do PDF de Farmácia via R2
-app.get('/api/fechamento/farmacia-pdf/:id', async (req, res) => {
-    const tokenQuery = req.query.token;
-    if (tokenQuery) {
-        const jwt = require('jsonwebtoken');
-        try { jwt.verify(tokenQuery, process.env.JWT_SECRET || 'america2024'); }
-        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
-    } else {
-        const authHeader = req.headers['authorization'];
-        if (!authHeader) return res.status(401).json({ error: 'Não autorizado' });
-        const jwt = require('jsonwebtoken');
-        try { jwt.verify(authHeader.replace('Bearer ', ''), process.env.JWT_SECRET || 'america2024'); }
-        catch(e) { return res.status(401).json({ error: 'Token inválido' }); }
-    }
+// GET: Download do PDF de Farmácia via R2
+app.get('/api/fechamento/farmacia-pdf/:id', authenticateToken, async (req, res) => {
     try {
         const row = await new Promise((resolve, reject) => {
             db.get('SELECT r2_key, nome_arquivo FROM fechamento_farmacia_uploads WHERE id = ?', [req.params.id], (err, row) => err ? reject(err) : resolve(row));
@@ -10471,9 +10481,9 @@ app.get('/api/fechamento/farmacia-pdf/:id', async (req, res) => {
         if (!row || !row.r2_key) return res.status(404).send('Arquivo não encontrado');
         const r2 = require('./utils/r2');
         if (!r2.isReady()) return res.status(500).send('R2 não configurado');
-        const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+        const { stream } = await r2.downloadStreamFromR2(row.r2_key);
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${row.nome_arquivo || 'farmacia.pdf'}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${row.nome_arquivo || 'farmacia.pdf'}"`);
         stream.pipe(res);
     } catch (e) {
         console.error('[farmacia-pdf] Erro:', e.message);

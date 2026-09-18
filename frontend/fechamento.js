@@ -620,6 +620,9 @@ function abrirLegenda() {
     function getToken() {
         return window.currentToken || localStorage.getItem('erp_token') || '';
     }
+    function fmtBRL(valor) {
+        return 'R$ ' + parseFloat(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     // ─────────────────────────────────────────────────────────────────
     // RENDERIZAR CONTAINER PRINCIPAL
@@ -1821,13 +1824,11 @@ function abrirLegenda() {
             Swal.fire({ icon: 'info', title: 'Farmácia', text: 'Selecione um mês primeiro.' });
             return;
         }
-        // Lista de colaboradores com desconto
         var resumoFarm = _dados.filter(function(r) { return parseFloat(r.farmacia) > 0; });
         var linhas = resumoFarm.length > 0
-            ? resumoFarm.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.farmacia).toFixed(2); }).join('<br>')
+            ? resumoFarm.map(function(r) { return r.nome_completo + ': ' + fmtBRL(r.farmacia); }).join('<br>')
             : '<em style="color:#6b7280">Nenhum colaborador com desconto neste mês.</em>';
         var total = resumoFarm.reduce(function(s, r) { return s + parseFloat(r.farmacia); }, 0);
-        // Verificar se existe PDF no banco
         var downloadBtn = '';
         var farmPdfId = null;
         var farmPdfNome = 'farmacia.pdf';
@@ -1848,7 +1849,7 @@ function abrirLegenda() {
             icon: 'info',
             title: 'Farmácia — ' + resumoFarm.length + ' colaboradores',
             html: '<div style="text-align:left;font-size:.8rem;max-height:250px;overflow:auto;">' + linhas + '</div>'
-                + (resumoFarm.length > 0 ? '<br><strong>Total: R$ ' + total.toFixed(2) + '</strong>' : '')
+                + (resumoFarm.length > 0 ? '<br><strong>Total: ' + fmtBRL(total) + '</strong>' : '')
                 + downloadBtn,
             width: 520,
             didOpen: function() {
@@ -1881,7 +1882,7 @@ function abrirLegenda() {
         // Montar lista de colaboradores com valores
         var resumoCons = _dados.filter(function(r) { return parseFloat(r.consignado) > 0; });
         var linhasCons = resumoCons.length > 0
-            ? resumoCons.map(function(r) { return r.nome_completo + ': R$ ' + parseFloat(r.consignado).toFixed(2); }).join('<br>')
+            ? resumoCons.map(function(r) { return r.nome_completo + ': ' + fmtBRL(r.consignado); }).join('<br>')
             : '<em style="color:#6b7280">Nenhum colaborador com desconto neste mês.</em>';
         var totalCons = resumoCons.reduce(function(s, r) { return s + parseFloat(r.consignado); }, 0);
         // Verificar se existe XLSX no R2
@@ -1902,7 +1903,7 @@ function abrirLegenda() {
             icon: 'info',
             title: 'Consignado — ' + resumoCons.length + ' colaboradores',
             html: '<div style="text-align:left;font-size:.8rem;max-height:250px;overflow:auto;">' + linhasCons + '</div>'
-                + '<br><strong>Total: R$ ' + totalCons.toFixed(2) + '</strong>'
+                + '<br><strong>Total: ' + fmtBRL(totalCons) + '</strong>'
                 + downloadBtn,
             width: 520
         });
@@ -1930,20 +1931,26 @@ function abrirLegenda() {
         }
         var totalMercado = _dadosMercado.reduce(function(s, r) { return s + (parseFloat(r.valor) || 0); }, 0);
         var mercadoItens = _dadosMercado.map(function(r, idx) {
-            var nomeLabel = r.nome + (r.valor ? ' — R$ ' + parseFloat(r.valor).toFixed(2).replace('.', ',') : '');
+            var nomeRaw = (r.nome || '');
+            var nomeFmt = nomeRaw.length > 0 ? nomeRaw.charAt(0).toUpperCase() + nomeRaw.slice(1).toLowerCase() : '';
+            var nomeLabel = nomeFmt + (r.valor ? ' — ' + fmtBRL(r.valor) : '');
             var btnId = 'btn-dl-mercado-' + idx;
             var btnHtml = r.id
                 ? '<button id="' + btnId + '" data-id="' + r.id + '" data-nome="' + (r.nome || 'mercado').replace(/"/g,'') + '.pdf" '
                     + 'style="padding:.2rem .6rem;background:#16a34a;color:#fff;border:none;border-radius:.3rem;font-size:.7rem;cursor:pointer;font-weight:600;white-space:nowrap;">'
                     + '<i class="ph ph-download"></i> Baixar</button>'
                 : '';
-            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.45rem .5rem;border-bottom:1px solid #f3f4f6;font-size:.82rem;">'
-                + '<span style="flex:1">' + nomeLabel + '</span>' + btnHtml + '</div>';
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .5rem;border-bottom:1px solid #f3f4f6;font-size:.8rem;text-align:left;">'
+                + '<span style="flex:1;text-align:left;">' + nomeLabel + '</span>' + btnHtml + '</div>';
         }).join('');
+        var zipBtn = '<div style="margin-top:.75rem;text-align:center;">'
+            + '<button id="btn-dl-mercado-zip" style="display:inline-flex;align-items:center;gap:.4rem;padding:.45rem 1rem;background:#7c3aed;color:#fff;border:none;border-radius:.5rem;font-weight:600;font-size:.8rem;cursor:pointer;">'
+            + '<i class="ph ph-archive-box"></i> Baixar Todos (ZIP)</button></div>';
         Swal.fire({
             title: 'PDFs do Mercado (' + _dadosMercado.length + ')',
-            html: '<div style="max-height:60vh;overflow-y:auto;">' + mercadoItens + '</div>'
-                + '<div style="padding:.75rem .5rem;font-weight:700;font-size:.9rem;border-top:2px solid #e5e7eb;margin-top:.25rem;">Total: R$ ' + totalMercado.toFixed(2).replace('.', ',') + '</div>',
+            html: '<div style="max-height:55vh;overflow-y:auto;">' + mercadoItens + '</div>'
+                + '<div style="padding:.6rem .5rem;font-weight:700;font-size:.85rem;border-top:2px solid #e5e7eb;margin-top:.25rem;text-align:left;">Total: ' + fmtBRL(totalMercado) + '</div>'
+                + zipBtn,
             width: 640,
             showCloseButton: true,
             showConfirmButton: false,
@@ -1968,6 +1975,24 @@ function abrirLegenda() {
                         btn.innerHTML = '<i class="ph ph-download"></i> Baixar';
                     });
                 });
+                var btnZip = document.getElementById('btn-dl-mercado-zip');
+                if (btnZip) {
+                    btnZip.addEventListener('click', async function() {
+                        btnZip.disabled = true;
+                        btnZip.innerHTML = '<i class="ph ph-spinner"></i> Gerando ZIP...';
+                        try {
+                            var res = await fetch('/api/fechamento/mercado-pdfs-zip/' + _ano + '/' + _mes, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+                            if (!res.ok) throw new Error('Erro ' + res.status);
+                            var blob = await res.blob();
+                            var url = URL.createObjectURL(blob);
+                            var a = document.createElement('a');
+                            a.href = url; a.download = 'mercado_' + String(_mes).padStart(2,'0') + '_' + _ano + '.zip'; a.click();
+                            setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
+                        } catch(e) { alert('Erro ao gerar ZIP: ' + e.message); }
+                        btnZip.disabled = false;
+                        btnZip.innerHTML = '<i class="ph ph-archive-box"></i> Baixar Todos (ZIP)';
+                    });
+                }
             }
         });
     }
