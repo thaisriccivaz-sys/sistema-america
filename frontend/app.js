@@ -21642,14 +21642,17 @@ window.renderMultasMotoristaTab = async function (container) {
                     </div>
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Valor da Multa</span>
-                        <span style="font-weight:700;color:#dc2626;">R$ ${m.valor_multa || '—'}</span>
+                        <span style="font-weight:700;color:#dc2626;">R$ ${(m.status === 'Multa NIC' || m.status === 'Multa Nic') ? ((parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0) * 3).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : (m.valor_multa || '—')}</span>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Pontuação</span>
                         <span style="font-weight:600;">${m.pontuacao || '—'} pt(s)</span>
                     </div>
                     ${(() => {
-                        const valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+                        let valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
+                        if (m.status === 'Multa NIC' || m.status === 'Multa Nic') {
+                            valFloat = valFloat * 3;
+                        }
                         const qtdParc = parseInt(m.parcelas) || 1;
                         const valParc = (valFloat / qtdParc).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
                         const labelParcelas = m.parcelas ? `${m.parcelas}x (${valParc})` : `1x (${valParc})`;
