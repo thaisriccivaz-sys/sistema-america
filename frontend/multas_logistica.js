@@ -1499,7 +1499,11 @@ function atualizarValoresMultaModal(mudouDropdown = false) {
                 if (existingConfig.length >= i) v = existingConfig[i-1].valor;
                 html += `<div style="flex:1; min-width:90px;">
                     <label style="font-size:0.7rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
-                    <input type="number" step="0.01" class="gm-cp-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem;" onchange="atualizarValoresMultaModal(false)">
+                    <input type="number" step="0.01" class="gm-cp-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; ${existingConfig.length >= i && existingConfig[i-1].alert ? 'border-color:#f59e0b; background:#fffbeb;' : ''}" onchange="atualizarValoresMultaModal(false)">
+                    <div style="font-size:0.6rem; margin-top:3px; display:flex; align-items:center; gap:2px;">
+                        <input type="checkbox" class="gm-cp-alert" data-idx="${i}" ${existingConfig.length >= i && existingConfig[i-1].alert ? 'checked' : ''} id="gm-cp-alert-${i}">
+                        <label for="gm-cp-alert-${i}" style="color:#d97706; cursor:pointer;" title="Avisar no prontuário que foi editado após cobrado">Aviso</label>
+                    </div>
                 </div>`;
             }
             customDiv.innerHTML = html;
@@ -1873,7 +1877,11 @@ async function salvarGerenciamentoMulta(e, id) {
                     const inputs = document.querySelectorAll('#gm-custom-parcelas input.gm-cp-val');
                     if (inputs.length === 0) return null;
                     const arr = [];
-                    inputs.forEach(inp => arr.push({ num: parseInt(inp.getAttribute('data-idx')), valor: parseFloat(inp.value)||0 }));
+                    inputs.forEach(inp => {
+                        const idx = parseInt(inp.getAttribute('data-idx'));
+                        const al = document.querySelector(`.gm-cp-alert[data-idx="${idx}"]`).checked;
+                        arr.push({ num: idx, valor: parseFloat(inp.value)||0, alert: al });
+                    });
                     return JSON.stringify(arr);
                 })()
             })

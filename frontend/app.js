@@ -21481,6 +21481,142 @@ window._recarregarListaMultas = async function (colabId) {
     }
 };
 
+
+window.abrirModalEditarParcelasProntuario = function(multaId, parcelasAtual, configStr, valorTotal, status) {
+    let modal = document.getElementById('modal-editar-parcelas-multa');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'modal-editar-parcelas-multa';
+    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    let configArr = [];
+    try { if (configStr) configArr = JSON.parse(configStr); } catch(e){}
+
+    const multiplicador = (status === 'Multa NIC' || status === 'Multa Nic') ? 3 : 1;
+    const vTotal = (parseFloat(valorTotal) || 0) * multiplicador;
+
+    let html = `
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">📝 Editar Parcelas em Folha</h3>
+                <button onclick="document.getElementById('modal-editar-parcelas-multa').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button>
+            </div>
+            
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Quantidade de Parcelas</label>
+                <select id="mep-parcelas" style="width:100%; padding:0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-weight:600;" onchange="window._atualizarMepInputs()">
+                    ${[1,2,3,4,5,6,7,8,9,10].map(i => `<option value="${i}" ${parcelasAtual == i ? 'selected' : ''}>${i}x</option>`).join('')}
+                </select>
+            </div>
+            
+            <div id="mep-inputs-container" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; padding:1rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+                <!-- Preenchido via JS -->
+            </div>
+            
+            <div id="mep-aviso-soma" style="margin-bottom:1.5rem; font-size:0.85rem; font-weight:600;"></div>
+            
+            <button onclick="window._salvarMep(${multaId})" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;">
+                <i class="ph ph-floppy-disk"></i> Salvar Alterações
+            </button>
+        </div>
+    `;
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+
+    window._mepConfigArr = configArr;
+    window._mepValorTotal = vTotal;
+    window._atualizarMepInputs(true);
+};
+
+window._atualizarMepInputs = function(isInitial = false) {
+    const num = parseInt(document.getElementById('mep-parcelas').value) || 1;
+    const cont = document.getElementById('mep-inputs-container');
+    const vTotal = window._mepValorTotal;
+    const defVal = vTotal / num;
+    const cfg = window._mepConfigArr;
+    
+    // Se for inicial, usa os valores que já vieram. Se mudou o select, reseta pro default dividido igual.
+    let html = '';
+    for (let i = 1; i <= num; i++) {
+        let v = defVal;
+        let isAlert = false;
+        if (isInitial && cfg.length >= i) {
+            v = cfg[i-1].valor;
+            if (cfg[i-1].alert) isAlert = true;
+        }
+        
+        html += `
+            <div style="flex:1; min-width:100px;">
+                <label style="font-size:0.75rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
+                <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; ${isAlert ? 'border-color:#f59e0b; background:#fffbeb;' : ''}" onchange="window._calcularSomaMep()">
+                <div style="font-size:0.65rem; margin-top:3px; display:flex; align-items:center; gap:3px;">
+                    <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} id="mep-alert-${i}"> 
+                    <label for="mep-alert-${i}" style="color:#d97706; cursor:pointer;">Já cobrada (Alertar)</label>
+                </div>
+            </div>
+        `;
+    }
+    cont.innerHTML = html;
+    window._calcularSomaMep();
+};
+
+window._calcularSomaMep = function() {
+    let soma = 0;
+    document.querySelectorAll('.mep-val').forEach(i => soma += (parseFloat(i.value) || 0));
+    const vTotal = window._mepValorTotal;
+    const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    
+    const aviso = document.getElementById('mep-aviso-soma');
+    if (Math.abs(soma - vTotal) > 0.02) {
+        aviso.innerHTML = `<span style="color:#dc2626;">Aviso: A soma das parcelas (${fmt(soma)}) difere do total da multa (${fmt(vTotal)})</span>`;
+    } else {
+        aviso.innerHTML = `<span style="color:#16a34a;">Soma correta (${fmt(soma)})</span>`;
+    }
+};
+
+window._salvarMep = async function(multaId) {
+    const btn = document.querySelector('#modal-editar-parcelas-multa button');
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+    btn.disabled = true;
+    
+    const num = parseInt(document.getElementById('mep-parcelas').value) || 1;
+    const arr = [];
+    document.querySelectorAll('.mep-val').forEach(inp => {
+        const idx = parseInt(inp.getAttribute('data-idx'));
+        const val = parseFloat(inp.value) || 0;
+        const al = document.querySelector(`.mep-alert[data-idx="${idx}"]`).checked;
+        arr.push({ num: idx, valor: val, alert: al });
+    });
+    
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const res = await fetch(`/api/logistica/multas/${multaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+                parcelas: num,
+                config_parcelas: JSON.stringify(arr)
+            })
+        });
+        if (!res.ok) throw new Error('Falha ao atualizar');
+        
+        document.getElementById('modal-editar-parcelas-multa').remove();
+        if (typeof showToast === 'function') showToast('Parcelas atualizadas!', 'success');
+        
+        // Recarregar os dados do prontuário
+        const colabId = new URLSearchParams(window.location.search).get('id') || (window.getColaboradorId && window.getColaboradorId());
+        if (colabId && typeof window._recarregarListaMultas === 'function') {
+            await window._recarregarListaMultas(colabId);
+        } else {
+            window.location.reload();
+        }
+    } catch(e) {
+        alert(e.message);
+        btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+        btn.disabled = false;
+    }
+};
+
 window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal, dataRef = '', configParcelasStr = '') {
     var el = document.getElementById(uid + '-hist');
     if (!el) return;
@@ -21543,12 +21679,22 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 var h = parcelasCobradas[i];
                 var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
                 var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                    + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
-                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
-                    + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
-                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
-                    + '</div>';
+                
+                if (cfg && cfg.alert) {
+                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                        + '<span style="color:#d97706;font-size:1rem;width:16px;" title="Atenção: parcela editada após cobrança"><i class="ph-fill ph-warning-circle"></i></span>'
+                        + '<span style="font-weight:600;color:#d97706;">Parcela ' + i + '</span>'
+                        + '<span style="color:#b45309;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
+                        + '<span style="margin-left:auto;font-weight:700;color:#d97706;">' + val + ' <span style="font-size:0.7rem;">(Editada)</span></span>'
+                        + '</div>';
+                } else {
+                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                        + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
+                        + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                        + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
+                        + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
+                        + '</div>';
+                }
             } else {
                 var m = currentMonthBase.getMonth();
                 var y = currentMonthBase.getFullYear();
@@ -21807,6 +21953,10 @@ window.renderMultasMotoristaTab = async function (container) {
                         if (hasDocExtra1) {
                             botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/documento-extra/1?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento assinado</button>`;
                         }
+                        
+                        // Botão Editar Parcelas
+                        const cleanConfig = (m.config_parcelas || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+                        botoes += `<button onclick="window.abrirModalEditarParcelasProntuario(${m.id}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>`;
 
                         return `
                         <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px; flex-wrap:wrap;">
