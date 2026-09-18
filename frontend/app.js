@@ -21555,13 +21555,14 @@ window.renderMultasMotoristaTab = async function (container) {
                     const parts = dt.split(' - ');
                     const dateParts = parts[0].split('/');
                     if (dateParts.length === 3) {
-                        const isoStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00`;
+                        const isoStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`;
                         return new Date(isoStr).getTime() || 0;
                     }
                 } catch(e) {}
             }
-            // Handle YYYY-MM-DD HH:MM:SS format from CURRENT_TIMESTAMP
-            const d = dt.replace(' ', 'T');
+            // Handle YYYY-MM-DD HH:MM:SS format from CURRENT_TIMESTAMP (SQLite saves in UTC)
+            let d = dt.replace(' ', 'T');
+            if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
             return new Date(d).getTime() || 0;
         };
         const dataA = safeDate(a.status_updated_at || a.atualizado_em || a.criado_em);
