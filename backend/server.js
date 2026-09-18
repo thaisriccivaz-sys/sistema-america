@@ -8450,25 +8450,24 @@ p{line-height:1.5;margin:5px 0}
 </div>
 <div class="opcao ${opcao === 'indicacao' ? 'selecionada' : ''}">
   <div class="opcao-titulo">OPÇÃO 1 - INDICAÇÃO DO CONDUTOR</div>
-  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificacao junto ao órgão competente, evitando a aplicação de multa por Nao Identificação de Condutor (NIC).</p>
+  <p>(${checkInd}) Declaro que opto pela indicação como condutor infrator, autorizando a empresa a realizar a devida identificação junto ao órgão competente, evitando a aplicação de multa por Não Identificação de Condutor (NIC).</p>
   <p>Estou ciente de que assumo integralmente as responsabilidades legais decorrentes da infração, inclusive quanto a pontuação em minha CNH.</p>
   <p><strong>Valor da Multa:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span> &nbsp;&nbsp; <strong>Pontuação:</strong> <span class="vd">${m.pontuacao || '-'} pontos</span></p>
 </div>
 <div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <div class="opcao-titulo">OPCAO 2 - NÃO INDICACAO DO CONDUTOR (NIC)</div>
-  <p>(${checkNic}) Declaro que opto por não realizar a indicacao do condutor, estando ciente de que será aplicada a multa por Nao Identificação de Condutor (NIC), conforme legislacao vigente.</p>
+  <div class="opcao-titulo">OPÇÃO 2 - NÃO INDICAÇÃO DO CONDUTOR (NIC)</div>
+  <p>(${checkNic}) Declaro que opto por não realizar a indicação do condutor, estando ciente de que será aplicada a multa por Não Identificação de Condutor (NIC), conforme legislação vigente.</p>
   <p><strong>Valor da Multa Originária:</strong> ${fmtMoney(valorOriginal)}</p>
   <p><strong>Valor da Multa NIC</strong> (2x a originária): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
+  <br>
+  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou a empresa a aplicação da multa acessória por Não Identificação do Condutor (NIC), nos termos do art. 257, 8o, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
 </div>
-<div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
-  <p>Estou ciente de que minha omissão na entrega tempestiva dos documentos gerou a empresa a aplicação da multa acessória por Nao Identificação do Condutor (NIC), nos termos do art. 257, 8o, do Código de Trânsito Brasileiro, no valor correspondente ao dobro da multa originária.</p>
+<div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}" style="border:none; padding:0;">
   <p>Autorizo a empresa AMÉRICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ no 03.434.448/0001-01, com sede na Rua Salto da Divisa, no 97, CEP 07242-300, Parque Alvorada - Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x &nbsp; (${numParcelas>3?'X':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
-<div class="opcao ${opcao === 'prazo_perdido' ? 'selecionada' : ''}" style="${opcao === 'prazo_perdido' ? 'border-color:#d97706;background:#fffbeb;' : ''}">
-  <div class="opcao-titulo">OPÇÃO 3 - COBRANÇA DE MULTA, PRAZO DE INDICAÇÃO PERDIDO</div>
   <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicacao de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
   <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x</p>
