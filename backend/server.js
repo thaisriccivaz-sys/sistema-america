@@ -8464,6 +8464,8 @@ p{line-height:1.5;margin:5px 0}
   <p><strong>Valor da Multa Originaria:</strong> ${fmtMoney(valorOriginal)}</p>
   <p><strong>Valor da Multa NIC</strong> (2x a originaria): <span class="vd">${fmtMoney(valorNIC)}</span></p>
   <p><strong>Valor Total a Descontar:</strong> <span class="vd">${fmtMoney(valorTotal)}</span></p>
+</div>
+<div class="opcao ${opcao === 'nic' ? 'selecionada' : ''}">
   <p>Estou ciente de que minha omissao na entrega tempestiva dos documentos gerou a empresa a aplicacao da multa acessoria por Nao Identificacao do Condutor (NIC), nos termos do art. 257, 8o, do Codigo de Transito Brasileiro, no valor correspondente ao dobro da multa originaria.</p>
   <p>Autorizo a empresa AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ no 03.434.448/0001-01, com sede na Rua Salto da Divisa, no 97, CEP 07242-300, Parque Alvorada - Guarulhos/SP, a efetuar o desconto em folha de pagamento conforme abaixo:</p>
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x &nbsp; (${numParcelas>3?'X':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
