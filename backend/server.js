@@ -8468,11 +8468,6 @@ p{line-height:1.5;margin:5px 0}
   <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x &nbsp; (${numParcelas>3?'X':' '}) Outro: ${numParcelas>3?numParcelas+'x':''}</p>
   <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
 </div>
-  <p>(${checkPraz}) Declaro que estou ciente e autorizo o desconto em folha referente ao pagamento da multa, conforme acordado. Além disso, estou ciente de que não será feita nenhuma indicacao de pontuação na minha carteira de habilitação, porém assumo integralmente as responsabilidades legais.</p>
-  <p><strong>Valor:</strong> <span class="vd">${fmtMoney(valorOriginal)}</span></p>
-  <p><strong>Forma de Pagamento:</strong> (${numParcelas===1?'X':' '}) 1x &nbsp; (${numParcelas===2?'X':' '}) 2x &nbsp; (${numParcelas===3?'X':' '}) 3x</p>
-  <p><strong>Valor da Parcela:</strong> <span class="vd">${fmtMoney(valorParcela)}</span></p>
-</div>
 <div style="margin-top:30px; display:flex; justify-content:space-around; align-items:end;">
   <div style="flex:1; text-align:center;">
     <p style="margin-bottom:14px; font-weight:bold;">Assinatura do Colaborador</p>
