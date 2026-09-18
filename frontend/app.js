@@ -21565,8 +21565,11 @@ window.renderMultasMotoristaTab = async function (container) {
             if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
             return new Date(d).getTime() || 0;
         };
-        const dataA = safeDate(a.status_updated_at || a.atualizado_em || a.criado_em);
-        const dataB = safeDate(b.status_updated_at || b.atualizado_em || b.criado_em);
+        const dA = a.status_updated_at || a.atualizado_em || a.criado_em;
+        const dB = b.status_updated_at || b.atualizado_em || b.criado_em;
+        const dataA = safeDate(dA);
+        const dataB = safeDate(dB);
+        console.log(`[DEBUG SORT] A=${a.numero_ait} (${dA}) => ${dataA} | B=${b.numero_ait} (${dB}) => ${dataB} | DIFF=${dataB - dataA}`);
         return dataB - dataA;
     });
 
