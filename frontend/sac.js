@@ -1023,7 +1023,8 @@
       <div style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-size:0.7rem;font-weight:700;color:#64748b;font-family:monospace;">Nº ${ticket.protocol}${ticket.osNumber ? ' · OS ' + ticket.osNumber : ''}</span>
-          ${ticket.isUrgent ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Urgente"><i class="ph-fill ph-warning-circle"></i></span>' : ''}
+          <span style="font-size:0.65rem;color:#94a3b8;font-weight:600;background:#f1f5f9;padding:1px 6px;border-radius:4px;">Aberto: ${formatDateShort(ticket.openDate)}</span>
+          ${(ticket.isUrgent || sla.isOverdue) ? '<span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 4px;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="'+(sla.isOverdue?'SLA Vencido':'Urgente')+'"><i class="ph-fill ph-warning-circle"></i></span>' : ''}
           ${(ticket.tags || []).includes('Reagendamento') ? `<span style="background:#ffedd5;color:#ea580c;border-radius:4px;padding:2px 6px;font-size:0.65rem;font-weight:700;">Reagendamento</span>` : ''}
         </div>
         <div style="font-weight:700;font-size:0.8rem;color:#1e293b;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cleanClientName}">${clientShort}</div>
@@ -1046,7 +1047,7 @@
       </div>` : ''}
       <div class="sac-sla-bar"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
       <div style="font-size:0.68rem;margin-top:4px;display:flex;justify-content:space-between;">
-        <span style="color:#94a3b8;">${formatDateShort(ticket.openDate)}</span>
+        <span style="color:#94a3b8;">Aberto em: ${formatDateShort(ticket.openDate)}</span>
         <span style="color:${slaColor};font-weight:700;">${sla.label}</span>
       </div>
       ${(() => {
@@ -2743,6 +2744,7 @@
         `<div class="sac-field"><label>Motivo de Encerramento <span style="color:#dc2626">*</span></label><select id="trans-closing-reason" style="padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;width:100%;"><option>Concluído</option><option>Improcedente</option><option>Cancelado pelo cliente</option><option>Outro</option></select></div>
         <div class="sac-field"><label>Resumo do Encerramento <span style="color:#dc2626">*</span></label><textarea id="trans-obs" rows="3" placeholder="Descreva como o chamado foi resolvido..." style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` +
         (showChecklistInStage(ticket?.stage||'') && hasUnchecked ? `<div class="sac-field" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;"><label style="color:#c2410c;">Justificativa checklist <span style="color:#dc2626">*</span></label><textarea id="trans-cl-just" rows="2" placeholder="Explique por que itens do checklist não foram concluídos..." style="width:100%;padding:8px 10px;border:1.5px solid #fed7aa;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') :
+        (pt.targetStageId === 'concluido' || isClosing ? (ticket && getSLADetails(ticket).isOverdue ? `<div class="sac-field" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-top:8px;"><label style="color:#dc2626;font-weight:700;">Justificativa SLA Vencido <span style="color:#dc2626">*</span></label><textarea id="trans-sla-just" rows="2" placeholder="Explique por que o chamado estourou o prazo..." style="width:100%;padding:8px 10px;border:1.5px solid #fca5a5;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;outline:none;"></textarea></div>` : '') : '') +
         (pt.targetStageId === 'concluido' ? 
           `<div class="sac-field" style="margin-bottom:0;"><label>Ocorrências <span style="color:#dc2626">*</span></label></div>
            <div id="trans-concluido-occs"></div>
@@ -4236,6 +4238,8 @@
       let sector     = document.getElementById('trans-sector')?.value || 'Logística';
       let closeReason= document.getElementById('trans-closing-reason')?.value || 'Concluído';
       let clJust     = (document.getElementById('trans-cl-just')?.value||'').trim();
+      let slaJust    = (document.getElementById('trans-sla-just')?.value||'').trim();
+      const isSlaOverdue = ticket ? getSLADetails(ticket).isOverdue : false;
 
       if (pt.targetStageId === 'concluido') {
         const state = window._transOccsState || [];
@@ -4245,6 +4249,11 @@
           return;
         }
         nextSteps = state.map(o => `**${o.name}** - ${o.note.trim()}`).join('\n');
+      }
+
+      if (pt.targetStageId === 'concluido' || isClosing) {
+        if (isSlaOverdue && !slaJust) { showToast('Justificativa de SLA vencido é obrigatória.','warning'); return; }
+        if (isSlaOverdue && slaJust.length < 10) { showToast('Justificativa de SLA muito curta (mín. 10 caracteres).','warning'); return; }
       }
 
       if (isClosing) {
@@ -4259,12 +4268,12 @@
       const isExecucao = pt.targetStageId === 'execucao';
       let logNotes;
       if (isClosing) {
-        logNotes = 'Encerramento: ' + closeReason + '. Resumo: "' + obs + '"' + (hasUnchecked ? ' | Justificativa checklist: "' + clJust + '"' : '');
+        logNotes = 'Encerramento: ' + closeReason + '. Resumo: "' + obs + '"' + (hasUnchecked ? ' | Justificativa checklist: "' + clJust + '"' : '') + (isSlaOverdue ? ' | Justificativa SLA Vencido: "' + slaJust + '"' : '');
       } else if (isExecucao) {
         // Will be completed after deadline is set below
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName;
       } else if (pt.targetStageId === 'concluido') {
-        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Informações de conclusão: \n' + nextSteps;
+        logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Informações de conclusão: \n' + nextSteps + (isSlaOverdue ? '\n\nJustificativa SLA Vencido: "' + slaJust + '"' : '');
       } else {
         logNotes = pt.srcName + ' \u2192 ' + pt.tgtName + '. Pr\u00f3ximos passos: "' + nextSteps + '"' + (obs ? ' | Obs: "' + obs + '"' : '');
       }
@@ -5023,8 +5032,7 @@
         }
       }
 
-      // Evita recalcular SLA/notificar se já está em colunas avançadas/finais
-      if (ADVANCED_STAGES.includes(ticket.stage)) return;
+      // Removido bloqueio de ADVANCED_STAGES para atualizar isUrgent de chamados em acompanhamento
       
       const sla = getSLADetails(ticket);
       if (!sla.isOverdue) return;
@@ -5039,8 +5047,8 @@
         changed = true;
       }
 
-      // Notificar configurados (uma vez)
-      if (!ticket.slaOverdueNotified) {
+      // Notificar configurados (uma vez) - Apenas se não estiver em estágio avançado
+      if (!ticket.slaOverdueNotified && !ADVANCED_STAGES.includes(ticket.stage)) {
         ticket.slaOverdueNotified = true;
         ticket.slaOverduePendingJustification = true;
         if (!ticket.comments) ticket.comments = [];

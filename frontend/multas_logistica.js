@@ -1192,12 +1192,21 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Pontuação</label>
                                 <input type="number" id="gm-pontos" value="${multa.pontuacao || ''}" style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
                             </div>
-                            ${isAssinada ? `
+                            <div style="flex:2; min-width:140px;">
+                                <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Parcelas em Folha</label>
+                                <select id="gm-parcelas" style="width:100%; padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; font-size:0.85rem;" onchange="atualizarValoresMultaModal()">
+                                    <option value="1" ${(multa.parcelas || 1) == 1 ? 'selected' : ''}>1x</option>
+                                    <option value="2" ${multa.parcelas == 2 ? 'selected' : ''}>2x</option>
+                                    <option value="3" ${multa.parcelas == 3 ? 'selected' : ''}>3x</option>
+                                    <option value="4" ${multa.parcelas == 4 ? 'selected' : ''}>4x</option>
+                                    <option value="5" ${multa.parcelas == 5 ? 'selected' : ''}>5x</option>
+                                    <option value="6" ${multa.parcelas == 6 ? 'selected' : ''}>6x</option>
+                                </select>
+                            </div>
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Valor a Descontar</label>
                                 <div id="gm-valor-info" style="padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; min-height:36px; display:flex; align-items:center; font-size:0.85rem;">R$ 0,00</div>
                             </div>
-                            <input type="hidden" id="gm-parcelas" value="${multa.parcelas || 1}">` : '<input type="hidden" id="gm-parcelas" value="1">'}
                         </div>
 
                         <!-- DATA + HORA + AIT -->
@@ -2808,10 +2817,10 @@ function _buildRhMultaDetailsRow(m) {
         botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento?token=${tokenUrl}', '_blank')" style="background:#fff;color:#10b981;border:1px solid #a7f3d0;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf" style="font-size:1rem;"></i> PDF da Multa Original</button>`;
     }
     if (hasDocExtra0) {
-        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/0?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#3b82f6;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 1</button>`;
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/0?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#3b82f6;border:1px solid #bfdbfe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Comprovante de rota</button>`;
     }
     if (hasDocExtra1) {
-        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/1?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento Anexo 2</button>`;
+        botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id}/documento-extra/1?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento assinado</button>`;
     }
 
     let valFloat = parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;

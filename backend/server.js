@@ -8201,6 +8201,22 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
             function (errUpdate) {
                 if (errUpdate) return res.status(500).json({ error: errUpdate.message });
                 if (this.changes === 0) return res.status(404).json({ error: 'Multa nao atualizada' });
+                
+                // --- PATCH ALDECI PARCELAS ---
+                if (parcelas !== undefined || valor_multa !== undefined || status !== undefined) {
+                    const finalParcelas = parcelas !== undefined ? parcelas : oldData.parcelas;
+                    const finalValor = valor_multa !== undefined ? valor_multa : oldData.valor_multa;
+                    const finalStatus = status !== undefined ? status : oldData.status;
+                    
+                    const numParcelas = parseInt(finalParcelas) || 1;
+                    const valorNumeric = parseFloat(String(finalValor || '0').replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
+                    const isNic = (finalStatus === 'Multa NIC' || finalStatus === 'Multa Nic');
+                    const valorBase = isNic ? (valorNumeric * 3) : valorNumeric;
+                    const newValorParcela = numParcelas > 0 ? (valorBase / numParcelas) : 0;
+                    
+                    db.run('UPDATE multas_cobranca_historico SET valor_parcela = ? WHERE multa_id = ?', [newValorParcela, req.params.id], () => {});
+                }
+                // -----------------------------
 
                 // Append novo comentário ao obs_historico se fornecido
                 // E também registra mudança de status automaticamente
