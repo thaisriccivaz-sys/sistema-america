@@ -10573,6 +10573,12 @@ document.getElementById('frm').onsubmit = async function(e) {
 // ETAPA 2 - NOVAS ROTAS DE FECHAMENTO
 // ==========================================
 
+app.get('/api/test-thais-multas', async (req, res) => {
+    const rows = await new Promise(resolve => db.all(`SELECT * FROM multas_logistica WHERE motorista_id = (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci%')`, [], (e,r)=>resolve(r)));
+    const hist = await new Promise(resolve => db.all(`SELECT h.* FROM multas_cobranca_historico h JOIN multas_logistica m ON h.multa_id = m.id WHERE m.motorista_id = (SELECT id FROM colaboradores WHERE nome_completo LIKE '%Thais Ricci%')`, [], (e,r)=>resolve(r)));
+    res.json({ rows, hist });
+});
+
 app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async (req, res) => {
     const mesNum = parseInt(req.params.mes);
     const anoNum = parseInt(req.params.ano);
