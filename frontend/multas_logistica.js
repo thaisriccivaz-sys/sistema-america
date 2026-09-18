@@ -352,6 +352,9 @@ function mostrarToastErro(msg)    { _toastMulta(msg, '#fef2f2', '#fca5a5', '#991
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function initMultasLogistica() {
+    window._isRhContext = false;
+    _multasSortCol = 'criado_em';
+    _multasSortDir = 'desc';
     await carregarColaboradoresMultas();
     await carregarMultasLogistica();
 }

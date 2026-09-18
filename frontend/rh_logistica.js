@@ -295,6 +295,8 @@ window.initRhLogisticaMultas = async function() {
     // Troca o ID temporariamente para o esperado pelo módulo multas_logistica
     container.id = 'multas-logistica-container';
     window._isRhContext = true;
+    _multasSortCol = 'data_inclusao';
+    _multasSortDir = 'desc';
     if (typeof renderMultasLogistica === 'function') {
         renderMultasLogistica(container);
     } else {
