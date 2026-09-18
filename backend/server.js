@@ -10629,8 +10629,9 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                 parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
                 if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
             } else {
-                // Calcular mês de início da 1ª parcela
-                const dtStr = m.status_updated_at || m.atualizado_em || m.created_at || '';
+                // Calcular mês de início da 1ª parcela usando a DATA DE CRIAÇÃO ORIGINAL (inclusão no RH)
+                // Se usarmos status_updated_at, a multa será empurrada para o futuro a cada edição!
+                const dtStr = m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || '';
                 let dtCriado;
                 if (dtStr.includes('/') && dtStr.includes('-')) {
                     const parts = dtStr.split(' - ');

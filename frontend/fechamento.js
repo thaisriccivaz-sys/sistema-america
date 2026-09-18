@@ -662,9 +662,6 @@ function abrirLegenda() {
       <button onclick="window._fechamento.buscar()" style="background:#1e40af;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;">
         <i class="ph ph-magnifying-glass"></i> Buscar
       </button>
-      <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;">
-        <i class="ph ph-warning"></i> Carregar Multas
-      </button>
     </div>
   </div>
 
