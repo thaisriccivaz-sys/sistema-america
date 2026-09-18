@@ -662,6 +662,9 @@ function abrirLegenda() {
       <button onclick="window._fechamento.buscar()" style="background:#1e40af;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;">
         <i class="ph ph-magnifying-glass"></i> Buscar
       </button>
+      <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;">
+        <i class="ph ph-warning"></i> Carregar Multas
+      </button>
     </div>
   </div>
 
@@ -1319,6 +1322,34 @@ function abrirLegenda() {
     // CARREGAR MULTAS DO PRONTUÁRIO
     // ─────────────────────────────────────────────────────────────────
     async function carregarMultas() {
+        // Garantir que _mes e _ano estejam definidos a partir dos selects
+        _mes = parseInt(document.getElementById('fech-select-mes').value);
+        _ano = parseInt(document.getElementById('fech-select-ano').value);
+
+        // Se _dados ainda está vazio, buscar do banco primeiro (sem precisar de Buscar Ponto)
+        if (!_dados || _dados.length === 0) {
+            try {
+                const resp = await fetch(`/api/fechamento/${_ano}/${_mes}`, {
+                    headers: { 'Authorization': 'Bearer ' + getToken() }
+                });
+                if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
+                _dados = await resp.json();
+                renderizarTabela(_dados);
+                // Mostrar toolbar e tabela
+                var wrap = document.getElementById('fech-tabela-wrap');
+                var toolbar = document.getElementById('fech-toolbar');
+                var filtroWrap = document.getElementById('fech-filtro-wrap');
+                var msg = document.getElementById('fech-msg');
+                if (wrap) wrap.style.display = 'block';
+                if (toolbar) toolbar.style.display = 'flex';
+                if (filtroWrap) filtroWrap.style.display = 'block';
+                if (msg) msg.style.display = 'none';
+            } catch(e) {
+                Swal.fire({ icon: 'error', title: 'Erro ao carregar fechamento', text: e.message });
+                return;
+            }
+        }
+
         try {
             const resp = await fetch(`/api/fechamento/multas-prontuario/${_ano}/${_mes}`, {
                 headers: { 'Authorization': 'Bearer ' + getToken() }
