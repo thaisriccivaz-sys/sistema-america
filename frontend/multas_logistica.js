@@ -1194,19 +1194,18 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             </div>
                             <div style="flex:2; min-width:140px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Parcelas em Folha</label>
-                                <select id="gm-parcelas" style="width:100%; padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; font-size:0.85rem;" onchange="atualizarValoresMultaModal()">
-                                    <option value="1" ${(multa.parcelas || 1) == 1 ? 'selected' : ''}>1x</option>
-                                    <option value="2" ${multa.parcelas == 2 ? 'selected' : ''}>2x</option>
-                                    <option value="3" ${multa.parcelas == 3 ? 'selected' : ''}>3x</option>
-                                    <option value="4" ${multa.parcelas == 4 ? 'selected' : ''}>4x</option>
-                                    <option value="5" ${multa.parcelas == 5 ? 'selected' : ''}>5x</option>
-                                    <option value="6" ${multa.parcelas == 6 ? 'selected' : ''}>6x</option>
-                                </select>
+                                <select id="gm-parcelas" style="width:100%; padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; font-size:0.85rem;" onchange="atualizarValoresMultaModal(true)">
+    ${[1,2,3,4,5,6,7,8,9,10].map(i => `<option value="${i}" ${(multa.parcelas || 1) == i ? 'selected' : ''}>${i}x</option>`).join('')}
+</select>
                             </div>
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Valor a Descontar</label>
                                 <div id="gm-valor-info" style="padding:0.55rem; background:#fff; border:1px solid #cbd5e1; border-radius:6px; font-weight:600; color:#0f172a; min-height:36px; display:flex; align-items:center; font-size:0.85rem;">R$ 0,00</div>
                             </div>
+                        </div>
+                        <div id="gm-custom-parcelas-container" style="margin-bottom:1rem; display:none;">
+                            <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Configuração de Parcelas (Opcional)</label>
+                            <div id="gm-custom-parcelas" style="display:flex; flex-wrap:wrap; gap:0.5rem; padding:0.8rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;"></div>
                         </div>
 
                         <!-- DATA + HORA + AIT -->
@@ -1447,7 +1446,7 @@ function _renderHistItem(hist) {
 
 
 
-function atualizarValoresMultaModal() {
+function atualizarValoresMultaModal(mudouDropdown = false) {
     const form = document.getElementById('form-gerenciar-multa');
     if (!form) return;
     
@@ -1457,29 +1456,77 @@ function atualizarValoresMultaModal() {
     const status = document.getElementById('gm-status').value;
     const parcelas = parseInt(document.getElementById('gm-parcelas').value) || 1;
     
-    // Parse value (e.g. "R$ 130,16" or "130.16")
     let valorOriginal = 0;
     if (valorOriginalStr) {
         let str = String(valorOriginalStr).trim();
-        if (str.includes(',')) {
-            str = str.replace(/\./g, '').replace(',', '.');
-        }
+        if (str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
         const numeric = str.replace(/[^\d.-]/g, '');
         valorOriginal = parseFloat(numeric) || 0;
     }
 
     let multiplicador = (status === 'Multa NIC') ? 3 : 1;
     let valorTotal = valorOriginal * multiplicador;
-    let valorParcela = valorTotal / parcelas;
+    let valorParcelaDef = valorTotal / parcelas;
 
     const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     
+    const customContainer = document.getElementById('gm-custom-parcelas-container');
+    const customDiv = document.getElementById('gm-custom-parcelas');
+    
+    let customSum = 0;
+    let isCustom = false;
+    
+    if (customContainer && customDiv) {
+        customContainer.style.display = 'block';
+        
+        // Initial load check
+        let existingConfig = [];
+        if (!mudouDropdown && !customDiv.hasAttribute('data-loaded')) {
+            const rawConfig = form.getAttribute('data-config');
+            if (rawConfig) {
+                try { existingConfig = JSON.parse(rawConfig); } catch(e) {}
+            }
+            customDiv.setAttribute('data-loaded', 'true');
+        }
+        
+        const currInputs = customDiv.querySelectorAll('input.gm-cp-val');
+        
+        if (currInputs.length !== parcelas || (existingConfig.length > 0 && !mudouDropdown)) {
+            // Re-render
+            let html = '';
+            for(let i=1; i<=parcelas; i++) {
+                let v = valorParcelaDef;
+                if (existingConfig.length >= i) v = existingConfig[i-1].valor;
+                html += `<div style="flex:1; min-width:90px;">
+                    <label style="font-size:0.7rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
+                    <input type="number" step="0.01" class="gm-cp-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem;" onchange="atualizarValoresMultaModal(false)">
+                </div>`;
+            }
+            customDiv.innerHTML = html;
+        }
+        
+        // Recalculate sum
+        const newInputs = customDiv.querySelectorAll('input.gm-cp-val');
+        newInputs.forEach(inp => {
+            const v = parseFloat(inp.value) || 0;
+            customSum += v;
+            if (Math.abs(v - valorParcelaDef) > 0.01) isCustom = true;
+        });
+    }
+
     const infoDiv = document.getElementById('gm-valor-info');
     if (infoDiv) {
-        if (parcelas === 1) {
-            infoDiv.innerHTML = `${fmt(valorTotal)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+        let diffHTML = '';
+        if (Math.abs(customSum - valorTotal) > 0.02) {
+            diffHTML = `<span style="color:#dc2626; font-size:0.75rem; margin-left:8px; background:#fee2e2; padding:2px 4px; border-radius:4px;">Aviso: Soma = ${fmt(customSum)}</span>`;
         } else {
-            infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x de ${fmt(valorParcela)}</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x valor original)</span>' : ''}`;
+            diffHTML = `<span style="color:#16a34a; font-size:0.75rem; margin-left:8px; background:#dcfce7; padding:2px 4px; border-radius:4px;">Soma Ok</span>`;
+        }
+
+        if (parcelas === 1) {
+            infoDiv.innerHTML = `${fmt(customSum)}${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x original)</span>' : ''}${diffHTML}`;
+        } else {
+            infoDiv.innerHTML = `<span style="color:#2563eb;">${parcelas}x Configurado</span> <span style="color:#64748b; font-size:0.85rem; margin-left:8px;">(Total Original: ${fmt(valorTotal)})</span>${status === 'Multa NIC' ? ' <span style="color:#d97706; font-size:0.8rem; margin-left:8px;">(3x orig)</span>' : ''}${diffHTML}`;
         }
     }
 }
@@ -1821,7 +1868,14 @@ async function salvarGerenciamentoMulta(e, id) {
                 valor_multa: valorMulta,
                 pontuacao: pontuacao,
                 data_limite: dataLimite,
-                status_rh: statusRh
+                status_rh: statusRh,
+                config_parcelas: (() => {
+                    const inputs = document.querySelectorAll('#gm-custom-parcelas input.gm-cp-val');
+                    if (inputs.length === 0) return null;
+                    const arr = [];
+                    inputs.forEach(inp => arr.push({ num: parseInt(inp.getAttribute('data-idx')), valor: parseFloat(inp.value)||0 }));
+                    return JSON.stringify(arr);
+                })()
             })
         });
         clearTimeout(timeoutId);

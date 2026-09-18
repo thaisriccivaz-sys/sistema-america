@@ -21481,7 +21481,7 @@ window._recarregarListaMultas = async function (colabId) {
     }
 };
 
-window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal, dataRef = '') {
+window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, valorTotal, dataRef = '', configParcelasStr = '') {
     var el = document.getElementById(uid + '-hist');
     if (!el) return;
     el.innerHTML = '<span style="color:#94a3b8;font-style:italic;">Carregando...</span>';
@@ -21529,9 +21529,16 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         var numParcelas = parseInt(totalParcelas) || 1;
         var valorTot = parseFloat(String(valorTotal).replace(/[^0-9,.-]/g, '').replace(',', '.')) || parseFloat(valorTotal) || 0;
         var valorPorParcela = numParcelas > 0 ? (valorTot / numParcelas) : 0;
-        var valorFormatado = valorPorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        var customConfig = [];
+        try { if (configParcelasStr) customConfig = JSON.parse(configParcelasStr); } catch(e) {}
         
         for (let i = 1; i <= numParcelas; i++) {
+            var vParcelaDef = valorPorParcela;
+            var cfg = customConfig.find(c => parseInt(c.num) === i);
+            if (cfg) vParcelaDef = parseFloat(cfg.valor) || 0;
+            var valorFormatado = vParcelaDef.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
             if (parcelasCobradas[i]) {
                 var h = parcelasCobradas[i];
                 var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
@@ -21677,7 +21684,8 @@ window.renderMultasMotoristaTab = async function (container) {
                         var isNic = ('${m.status}' === 'Multa NIC' || '${m.status}' === 'Multa Nic');
                         var v = parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0;
                         if (isNic) v = v * 3;
-                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}');
+                        var cfg = det.getAttribute('data-config') || '';
+                        window._carregarHistoricoMulta('${uid}', ${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}', cfg);
                     }
                 })()" 
                 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;"
@@ -21713,7 +21721,7 @@ window.renderMultasMotoristaTab = async function (container) {
             </div>
 
             <!-- Painel de detalhes (expansível) -->
-            <div id="${uid}" style="display:none;border-top:1px solid #f1f5f9;padding:1rem 1.25rem;background:#fafafa;">
+            <div id="${uid}" data-config='${(m.config_parcelas || "").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}' style="display:none;border-top:1px solid #f1f5f9;padding:1rem 1.25rem;background:#fafafa;">
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <span style="font-size:0.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Placa</span>
@@ -22011,8 +22019,8 @@ window.abrirPopupIniciarProcesso = function (m, colabId) {
             </div>
 
             <h4 style="color:#475569;font-size:0.9rem;margin:0 0 0.75rem;">­ƒÆ░ Parcelamento do Desconto</h4>
-            <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
-                ${[1, 2, 3].map(n => `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1.5rem;">
+                ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<button id="parc-${n}" onclick="window.selecionarParcelas(${n})"
                     style="flex:1;padding:0.6rem;border-radius:8px;border:2px solid ${parcAtual === n ? '#8b5cf6' : '#e2e8f0'};background:${parcAtual === n ? '#f5f3ff' : '#fff'};cursor:pointer;font-weight:700;color:${parcAtual === n ? '#8b5cf6' : '#334155'};">${n}x</button>`).join('')}
             </div>
 

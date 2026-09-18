@@ -957,6 +957,7 @@ db.run(`CREATE TABLE IF NOT EXISTS multas_cobranca_historico (
 });
 
 // MIGRATION: Coluna data_limite na tabela multas_logistica
+db.run("ALTER TABLE multas_logistica ADD COLUMN config_parcelas TEXT", err => {});
 db.run("ALTER TABLE multas_logistica ADD COLUMN data_limite TEXT", err => {
     if (err && !err.message.includes('duplicate column')) console.error('Migration data_limite multas_logistica:', err.message);
     else if (!err) console.log('[MIGRATION] Coluna data_limite adicionada em multas_logistica.');
@@ -8138,7 +8139,7 @@ async function notificarRHAuto(motoristaId, status, parcelas, valorMultaStr, dat
 
 // PUT /api/logistica/multas/:id ??? atualiza campos da multa (motorista, status, obs, link)
 app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
-    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario } = req.body;
+    const { motorista_id, motorista_nome, status, observacao, link_formulario, data_infracao, hora_infracao, numero_ait, motivo, valor_multa, pontuacao, parcelas, placa, local_infracao, data_limite, status_rh, novo_comentario, config_parcelas } = req.body;
     const autorComentario = req.user?.username || req.user?.nome || req.user?.login || 'Usuário';
 
     db.get('SELECT * FROM multas_logistica WHERE id = ?', [req.params.id], (err, oldData) => {
@@ -8196,6 +8197,7 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     }
                     return finalStatusRh;
                 })(),
+                config_parcelas !== undefined ? config_parcelas : oldData.config_parcelas,
                 req.params.id
             ],
             function (errUpdate) {
@@ -8212,9 +8214,18 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
                     const valorNumeric = parseFloat(String(finalValor || '0').replace(/[^\d,.]/g, '').replace(',', '.')) || 0;
                     const isNic = (finalStatus === 'Multa NIC' || finalStatus === 'Multa Nic');
                     const valorBase = isNic ? (valorNumeric * 3) : valorNumeric;
-                    const newValorParcela = numParcelas > 0 ? (valorBase / numParcelas) : 0;
+                    let configArr = [];
+                    const finalConfig = config_parcelas !== undefined ? config_parcelas : oldData.config_parcelas;
+                    try { if (finalConfig) configArr = JSON.parse(finalConfig); } catch(e) {}
                     
-                    db.run('UPDATE multas_cobranca_historico SET valor_parcela = ? WHERE multa_id = ?', [newValorParcela, req.params.id], () => {});
+                    if (configArr.length > 0) {
+                        for (const c of configArr) {
+                            db.run('UPDATE multas_cobranca_historico SET valor_parcela = ? WHERE multa_id = ? AND parcela_num = ?', [c.valor, req.params.id, c.num], () => {});
+                        }
+                    } else {
+                        const newValorParcela = numParcelas > 0 ? (valorBase / numParcelas) : 0;
+                        db.run('UPDATE multas_cobranca_historico SET valor_parcela = ? WHERE multa_id = ?', [newValorParcela, req.params.id], () => {});
+                    }
                 }
                 // -----------------------------
 
@@ -10615,7 +10626,7 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
     try {
         const multas = await new Promise((resolve, reject) => {
             db.all(
-                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.status, ml.valor_multa, ml.parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at, ml.status_updated_at, ml.atualizado_em FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\'',
+                'SELECT ml.id, ml.motorista_id as colaborador_id, ml.status, ml.valor_multa, ml.parcelas, ml.config_parcelas, ml.motivo, ml.numero_ait, ml.criado_em as created_at, ml.status_updated_at, ml.atualizado_em FROM multas_logistica ml WHERE ml.status IN (' + placeholders + ') AND ml.motorista_id IS NOT NULL AND ml.motorista_id > 0 AND ml.valor_multa IS NOT NULL AND ml.valor_multa != \'\' AND ml.valor_multa != \'0\'',
                 [...STATUS_ELEGIVEIS],
                 (err, rows) => err ? reject(err) : resolve(rows || [])
             );
@@ -10688,17 +10699,25 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const existing = historico.find(h => h.mes === mesNum && h.ano === anoNum);
 
             let valorFinal = valorParcela;
+            if (m.config_parcelas) {
+                try {
+                    const parsed = JSON.parse(m.config_parcelas);
+                    const customConfig = parsed.find(c => parseInt(c.num) === parcelaNum);
+                    if (customConfig) valorFinal = parseFloat(customConfig.valor) || 0;
+                } catch(e){}
+            }
+
             if (!existing) {
                 await new Promise((resolve) => {
                     db.run('INSERT INTO multas_cobranca_historico (multa_id, mes, ano, parcela_num, valor_parcela) VALUES (?, ?, ?, ?, ?)',
-                        [m.id, mesNum, anoNum, parcelaNum, valorParcela],
+                        [m.id, mesNum, anoNum, parcelaNum, valorFinal],
                         () => resolve());
                 });
             } else if (Math.abs(existing.valor_parcela - valorParcela) > 0.001) {
                 // Valor mudou (ex: correção de NIC x3) — atualizar registro existente
                 await new Promise((resolve) => {
                     db.run('UPDATE multas_cobranca_historico SET valor_parcela = ?, parcela_num = ? WHERE id = ?',
-                        [valorParcela, parcelaNum, existing.id],
+                        [valorFinal, parcelaNum, existing.id],
                         () => resolve());
                 });
             }
