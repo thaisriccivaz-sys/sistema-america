@@ -1718,6 +1718,25 @@ async function salvarGerenciamentoMulta(e, id) {
             // Limpa o campo de novo comentário para não re-enviar
             const textarea = document.getElementById('gm-novo-comentario');
             if (textarea) textarea.value = '';
+            
+            // Atualiza o visual do Status RH no modal
+            const rhContainer = document.getElementById('gm-status-rh-container');
+            if (rhContainer) {
+                if (window._isRhContext) {
+                    const badge = document.getElementById('csd-gm-status-rh-badge');
+                    if (badge) {
+                        badge.textContent = updated.status_rh || '-- Sem Status --';
+                        const cor = updated.status_rh === 'Cobrado' ? '#16a34a' : updated.status_rh === 'Recebido' ? '#d97706' : '#64748b';
+                        const bg = updated.status_rh === 'Cobrado' ? '#dcfce7' : updated.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9';
+                        badge.style.background = bg;
+                        badge.style.color = cor;
+                    }
+                    const hidden = document.getElementById('gm-status-rh');
+                    if (hidden) hidden.value = updated.status_rh || '';
+                } else {
+                    rhContainer.innerHTML = `<label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status RH</label><div style="padding:0.55rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; min-height:36px; display:flex; align-items:center;">${_statusRhBadge(updated.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${updated.status_rh || ''}">`;
+                }
+            }
         }
         
         if (tipo === 'sucesso') mostrarToastSucesso(msg);
