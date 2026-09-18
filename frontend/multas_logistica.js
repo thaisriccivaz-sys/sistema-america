@@ -2,7 +2,7 @@
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
-let _multasSortCol = 'data_limite';
+let _multasSortCol = 'data_inclusao';
 let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 
 // Helper: badge de data limite
@@ -320,7 +320,7 @@ function ordenarMultas(col) {
         _multasSortDir = _multasSortDir === 'asc' ? 'desc' : 'asc';
     } else {
         _multasSortCol = col;
-        _multasSortDir = col === 'data_infracao' ? 'desc' : 'asc';
+        _multasSortDir = (col === 'data_infracao' || col === 'data_inclusao') ? 'desc' : 'asc';
     }
     filtrarMultasLogistica();
     // Atualizar icones no thead
@@ -453,11 +453,11 @@ function renderMultasLogistica(container) {
                         <tr style="text-align:left;">
                             <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:0.75rem; font-weight:600; color:#475569;">Placa</th>
-                            <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th style="padding:0.75rem; font-weight:600; color:#475569; white-space:nowrap;">Status RH</th>
+                            <th class="multa-th-sort" data-col="data_inclusao" onclick="ordenarMultas('data_inclusao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status RH <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:0.75rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
@@ -532,6 +532,28 @@ function filtrarMultasLogistica() {
     };
 
     listaFiltrada.sort((a, b) => {
+        if (_multasSortCol === 'data_inclusao') {
+            const safeDate = (dt) => {
+                if (!dt) return 0;
+                if (dt.includes('/') && dt.includes('-')) {
+                    try {
+                        const parts = dt.split(' - ');
+                        const dateParts = parts[0].split('/');
+                        if (dateParts.length === 3) {
+                            const isoStr = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`;
+                            return new Date(isoStr).getTime() || 0;
+                        }
+                    } catch(e) {}
+                }
+                let d = dt.replace(' ', 'T');
+                if (!d.includes('Z') && !d.includes('-03:00')) d += 'Z';
+                return new Date(d).getTime() || 0;
+            };
+            const dA = safeDate(a.status_updated_at || a.atualizado_em || a.criado_em);
+            const dB = safeDate(b.status_updated_at || b.atualizado_em || b.criado_em);
+            return _multasSortDir === 'desc' ? dB - dA : dA - dB;
+        }
+
         const isDate = DATE_COLS.includes(_multasSortCol);
         let va, vb;
 
