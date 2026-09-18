@@ -2,7 +2,7 @@
 
 let multasLogistica = [];
 let colaboradoresMultas = [];
-let _multasSortCol = 'data_inclusao';
+let _multasSortCol = null;
 let _multasSortDir = 'desc'; // mais novo primeiro por padrão
 
 // Helper: badge de data limite
@@ -320,7 +320,7 @@ function ordenarMultas(col) {
         _multasSortDir = _multasSortDir === 'asc' ? 'desc' : 'asc';
     } else {
         _multasSortCol = col;
-        _multasSortDir = (col === 'data_infracao' || col === 'data_inclusao') ? 'desc' : 'asc';
+        _multasSortDir = (col === 'data_infracao' || col === 'data_inclusao' || col === 'criado_em') ? 'desc' : 'asc';
     }
     filtrarMultasLogistica();
     // Atualizar icones no thead
@@ -407,6 +407,7 @@ async function carregarMultasLogistica() {
 }
 
 function renderMultasLogistica(container) {
+    if (!_multasSortCol) { _multasSortCol = window._isRhContext ? 'data_inclusao' : 'criado_em'; }
     const ALL_STATUS_OPTS = ['Conferência', 'Em Andamento', 'Indicado', 'Multa NIC', 'Id. Deferida', 'Id. Indeferida', 'Recorrida', 'Rec. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido', 'Não Se Aplica', 'Antiga'];
     const RH_STATUS_OPTS  = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Cobrada - Pz. Perdido'];
     const STATUS_OPTS = window._isRhContext ? RH_STATUS_OPTS : ALL_STATUS_OPTS;
@@ -451,7 +452,7 @@ function renderMultasLogistica(container) {
                 <table style="width:100%; border-collapse:collapse; min-width:820px; font-size:0.82rem;">
                     <thead style="position:sticky; top:0; z-index:2; background:#f8fafc; outline:1px solid #e2e8f0;">
                         <tr style="text-align:left;">
-                            <th class="multa-th-sort" data-col="numero_ait" onclick="ordenarMultas('numero_ait')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="criado_em" onclick="ordenarMultas('criado_em')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;" title="Ordenar por Data de Inserção no Sistema">AIT <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:0.75rem; font-weight:600; color:#475569;">Placa</th>
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
