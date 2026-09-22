@@ -8550,6 +8550,14 @@ p{line-height:1.5;margin:5px 0}
 });
 
 // DELETE /api/logistica/multas/:id
+
+app.delete('/api/logistica/multas/:id/historico/:parcela', authenticateToken, (req, res) => {
+    db.run('DELETE FROM multas_cobranca_historico WHERE multa_id = ? AND parcela_num = ?', [req.params.id, req.params.parcela], (err) => {
+        if(err) res.status(500).json({error: err.message});
+        else res.json({ok:true});
+    });
+});
+
 app.delete('/api/logistica/multas/:id', authenticateToken, (req, res) => {
 
     db.get('SELECT status FROM multas_logistica WHERE id = ?', [req.params.id], (err, row) => {

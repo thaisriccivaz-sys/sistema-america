@@ -21477,9 +21477,9 @@ window._recarregarListaMultas = async function (colabId) {
     var tabContent = document.getElementById('tab-dynamic-content');
     if (tabContent && typeof window.renderMultasMotoristaTab === 'function') {
         // Guardar as multas que estao abertas
-        const openDivs = Array.from(tabContent.querySelectorAll('div[id$="-hist"]'))
-            .filter(d => d.style.display !== 'none' && d.style.display !== '')
-            .map(d => d.id.replace('-hist', ''));
+        const openDivs = Array.from(tabContent.querySelectorAll('div[id^="multa-det-"]'))
+            .filter(d => d.style.display !== 'none')
+            .map(d => d.id);
             
         tabContent.innerHTML = '';
         await window.renderMultasMotoristaTab(tabContent);
@@ -21751,7 +21751,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                         + '<span style="color:#64748b;font-size:1rem;width:16px;"><i class="ph ph-clock"></i></span>'
                         + '<span style="font-weight:600;">Parcela ' + i + '</span>'
                         + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + ' (Aguardando)</span>'
-                        + '<span style="margin-left:auto;font-weight:700;color:#64748b;">' + valorFormatado + '</span>'
+                        + '<span style="margin-left:auto;font-weight:700;color:#d97706;">' + valorFormatado + '</span>'
                         + toggleHtml
                         + '</div>';
                 }
@@ -23266,11 +23266,20 @@ window._toggleCobradoManualmente = async function(multaId, numParcela, isChecked
         const newCfgStr = JSON.stringify(cfg);
 
         // Save
+        
+        if (!isChecked) {
+            // Se desmarcou, também deletar do histórico para tirar o check verde
+            await fetch(`/api/logistica/multas/${multaId}/historico/${numParcela}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        }
         const r2 = await fetch(`/api/logistica/multas/${multaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ config_parcelas: newCfgStr })
         });
+
         if (!r2.ok) throw new Error('Falha ao atualizar status');
         
         if (typeof showToast === 'function') showToast('Status atualizado!', 'success');

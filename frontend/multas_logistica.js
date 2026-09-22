@@ -609,7 +609,7 @@ function filtrarMultasLogistica() {
 
     // Remember open details
     const openDivs = Array.from(tbody.querySelectorAll('tr[id^="multa-rh-details-"]'))
-        .filter(tr => tr.style.display !== 'none' && tr.style.display !== '')
+        .filter(tr => tr.style.display !== 'none')
         .map(tr => tr.id.replace('multa-rh-details-', ''));
 
     tbody.innerHTML = listaFiltrada.map(m => _buildMultaRow(m)).join('');
