@@ -10658,21 +10658,18 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                     (err, rows) => resolve(rows || []));
             });
 
-            let parcelaNum;
+            let mIni, aIni;
+            let blockedByCorte = false;
+
             if (historico.length > 0) {
-                // Já iniciou cobrança antes, manter o cronograma original
                 const primeira = historico.find(h => h.parcela_num === 1) || historico[0];
-                let aIni = primeira.ano;
-                let mIni = primeira.mes;
+                aIni = primeira.ano;
+                mIni = primeira.mes;
                 if (primeira.parcela_num > 1) {
                     mIni -= (primeira.parcela_num - 1);
                     while (mIni < 1) { mIni += 12; aIni--; }
                 }
-                parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
-                if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
             } else {
-                // Calcular mês de início da 1ª parcela usando a DATA DE CRIAÇÃO ORIGINAL (inclusão no RH)
-                // Se usarmos status_updated_at, a multa será empurrada para o futuro a cada edição!
                 const dtStr = m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || '';
                 let dtCriado;
                 if (dtStr.includes('/') && dtStr.includes('-')) {
@@ -10688,36 +10685,62 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                 if (isNaN(dtCriado.getTime())) dtCriado = new Date();
 
                 const corteDate = new Date(corteStr + 'T23:59:59-03:00');
-                if (dtCriado.getTime() > corteDate.getTime()) continue;
+                if (dtCriado.getTime() > corteDate.getTime()) {
+                    blockedByCorte = true;
+                }
 
                 const diaCriado = dtCriado.getDate();
-                let mIni = dtCriado.getMonth() + 1; // 1-12
-                let aIni = dtCriado.getFullYear();
+                mIni = dtCriado.getMonth() + 1; // 1-12
+                aIni = dtCriado.getFullYear();
                 if (diaCriado <= 25) {
                     mIni += 1;
                 } else {
                     mIni += 2;
                 }
                 if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
-
-                parcelaNum = (anoNum - aIni) * 12 + (mesNum - mIni) + 1;
-                if (parcelaNum < 1 || parcelaNum > numParcelas) continue;
             }
 
-            // Idempotência: upsert — insere ou atualiza o valor
+            let parsedConfig = [];
+            if (m.config_parcelas) {
+                try { parsedConfig = JSON.parse(m.config_parcelas); } catch(e){}
+            }
+
+            let parcelaNum = null;
+            let customConfigForParcela = null;
+
+            for (let p = 1; p <= numParcelas; p++) {
+                let expectedMes = mIni + (p - 1);
+                let expectedAno = aIni;
+                while (expectedMes > 12) { expectedAno++; expectedMes -= 12; }
+                
+                const cfg = parsedConfig.find(c => parseInt(c.num) === p);
+                let isOverridden = false;
+                if (cfg && cfg.mes && cfg.ano) {
+                    expectedMes = parseInt(cfg.mes);
+                    expectedAno = parseInt(cfg.ano);
+                    isOverridden = true;
+                }
+                
+                if (expectedMes === mesNum && expectedAno === anoNum) {
+                    if (blockedByCorte && !isOverridden) {
+                        continue; 
+                    }
+                    parcelaNum = p;
+                    customConfigForParcela = cfg;
+                    break;
+                }
+            }
+
+            if (!parcelaNum) continue;
+
             const existing = historico.find(h => h.mes === mesNum && h.ano === anoNum);
 
             let valorFinal = valorParcela;
             let isManuallyCobrada = false;
-            if (m.config_parcelas) {
-                try {
-                    const parsed = JSON.parse(m.config_parcelas);
-                    const customConfig = parsed.find(c => parseInt(c.num) === parcelaNum);
-                    if (customConfig) {
-                        valorFinal = parseFloat(customConfig.valor) || 0;
-                        if (customConfig.alert) isManuallyCobrada = true;
-                    }
-                } catch(e){}
+            
+            if (customConfigForParcela) {
+                valorFinal = parseFloat(customConfigForParcela.valor) || 0;
+                if (customConfigForParcela.alert) isManuallyCobrada = true;
             }
 
             if (!existing && !isManuallyCobrada) {

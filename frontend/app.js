@@ -21608,9 +21608,23 @@ window._recarregarListaMultas = async function (colabId) {
 };
 
 
-window.abrirModalEditarParcelasProntuario = function(multaId, parcelasAtual, configStr, valorTotal, status) {
+window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtual, configStr, valorTotal, status) {
     let modal = document.getElementById('modal-editar-parcelas-multa');
     if (modal) modal.remove();
+    
+    if(window.Swal) Swal.fire({ title: 'Carregando histórico...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    let systemHistorico = [];
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    try {
+        const hRes = await fetch(`/api/multas/${multaId}/historico-cobranca`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (hRes.ok) {
+            systemHistorico = await hRes.json();
+        }
+    } catch(e) {}
+    
+    if(window.Swal) Swal.close();
+
     modal = document.createElement('div');
     modal.id = 'modal-editar-parcelas-multa';
     modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -21622,7 +21636,7 @@ window.abrirModalEditarParcelasProntuario = function(multaId, parcelasAtual, con
     const vTotal = (parseFloat(valorTotal) || 0) * multiplicador;
 
     let html = `
-        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:550px;box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">📝 Editar Parcelas em Folha</h3>
                 <button onclick="document.getElementById('modal-editar-parcelas-multa').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button>
@@ -21651,8 +21665,11 @@ window.abrirModalEditarParcelasProntuario = function(multaId, parcelasAtual, con
 
     window._mepConfigArr = configArr;
     window._mepValorTotal = vTotal;
+    window._mepHistorico = systemHistorico;
     window._atualizarMepInputs(true);
 };
+
+window._MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 window._atualizarMepInputs = function(isInitial = false) {
     const num = parseInt(document.getElementById('mep-parcelas').value) || 1;
@@ -21660,29 +21677,63 @@ window._atualizarMepInputs = function(isInitial = false) {
     const vTotal = window._mepValorTotal;
     const defVal = vTotal / num;
     const cfg = window._mepConfigArr;
+    const historico = window._mepHistorico || [];
+    const anoAtual = new Date().getFullYear();
     
-    // Se for inicial, usa os valores que já vieram. Se mudou o select, reseta pro default dividido igual.
     let html = '';
     for (let i = 1; i <= num; i++) {
         let v = defVal;
         let isAlert = false;
+        let pMes = '';
+        let pAno = '';
+
         if (isInitial && cfg.length >= i) {
             v = cfg[i-1].valor;
             if (cfg[i-1].alert) isAlert = true;
+            if (cfg[i-1].mes) pMes = cfg[i-1].mes;
+            if (cfg[i-1].ano) pAno = cfg[i-1].ano;
+        }
+
+        const systemCharge = historico.find(h => parseInt(h.parcela_num) === i);
+        if (systemCharge) {
+            isAlert = true;
+            if (!pMes) pMes = systemCharge.mes;
+            if (!pAno) pAno = systemCharge.ano;
+        }
+
+        let mesOptions = '<option value="">Mês Auto</option>';
+        for(let m = 1; m <= 12; m++) {
+            mesOptions += `<option value="${m}" ${pMes == m ? 'selected' : ''}>${window._MESES_NOME[m-1]}</option>`;
+        }
+
+        let anoOptions = '<option value="">Ano Auto</option>';
+        for(let a = anoAtual - 1; a <= anoAtual + 2; a++) {
+            anoOptions += `<option value="${a}" ${pAno == a ? 'selected' : ''}>${a}</option>`;
         }
         
                 html += `
-            <div style="flex:1; min-width:110px;">
-                <label style="font-size:0.75rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
-                <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem;" onchange="window._calcularSomaMep()">
-                <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+            <div style="flex:1; min-width:145px; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+                <label style="font-size:0.75rem; color:#475569; font-weight:700; display:block; margin-bottom:4px;">Parcela ${i}</label>
+                
+                <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; margin-bottom:8px; font-weight:600;" onchange="window._calcularSomaMep()">
+                
+                <div style="display:flex; gap:4px; margin-bottom:8px;">
+                    <select class="mep-mes" data-idx="${i}" style="flex:1; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem;">
+                        ${mesOptions}
+                    </select>
+                    <select class="mep-ano" data-idx="${i}" style="width:55px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem;">
+                        ${anoOptions}
+                    </select>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:6px;">
                     <label style="position:relative; display:inline-block; width:34px; height:20px; margin:0;">
-                        <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
-                        <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; transition:.3s; border-radius:20px;">
+                        <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} ${systemCharge ? 'disabled' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
+                        <div style="position:absolute; cursor:${systemCharge ? 'not-allowed' : 'pointer'}; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; opacity:${systemCharge ? '0.6' : '1'}; transition:.3s; border-radius:20px;">
                             <span style="position:absolute; content:''; height:14px; width:14px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${isAlert ? 'translateX(14px)' : 'translateX(0)'};"></span>
                         </div>
                     </label>
-                    <span style="font-size:0.7rem; font-weight:700; color:#475569;">Cobrado</span>
+                    <span style="font-size:0.7rem; font-weight:700; color:#475569;">${systemCharge ? 'Cobrado sist.' : 'Cobrado'}</span>
                 </div>
             </div>
         `;
@@ -21716,7 +21767,15 @@ window._salvarMep = async function(multaId) {
         const idx = parseInt(inp.getAttribute('data-idx'));
         const val = parseFloat(inp.value) || 0;
         const al = document.querySelector(`.mep-alert[data-idx="${idx}"]`).checked;
-        arr.push({ num: idx, valor: val, alert: al });
+        const mMes = document.querySelector(`.mep-mes[data-idx="${idx}"]`).value;
+        const mAno = document.querySelector(`.mep-ano[data-idx="${idx}"]`).value;
+        
+        const obj = { num: idx, valor: val, alert: al };
+        if (mMes && mAno) {
+            obj.mes = parseInt(mMes);
+            obj.ano = parseInt(mAno);
+        }
+        arr.push(obj);
     });
     
     try {
