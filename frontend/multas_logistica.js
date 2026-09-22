@@ -306,12 +306,16 @@ function _buildMultaRow(m) {
             </td>
             <td style="padding:0.6rem 0.75rem; max-width:130px; font-size:0.82rem;">${motoristaHtml}</td>
             <td style="padding:0.6rem 0.75rem;">
-                <div style="display:inline-block; margin-bottom:${m.status_updated_at ? '4px' : '0'};">
-                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '\u2014'}</span>
+                <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">Logística: ${m.status || '\u2014'}</span>
+                    ${m.status_rh ? (() => {
+                        const cor = m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706';
+                        const bg  = m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3';
+                        return `<span style="background:${bg}; color:${cor}; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">RH: ${m.status_rh}</span>`;
+                    })() : ''}
+                    ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.7rem; font-weight:400; white-space:nowrap; margin-top:2px;">Atualizado: ${m.status_updated_at}</div>` : ''}
                 </div>
-                ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.75rem; font-weight:400; white-space:nowrap;">${m.status_updated_at}</div>` : ''}
             </td>
-            <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_statusRhBadge(m.status_rh)}</td>
             <td style="padding:0.6rem 0.75rem; white-space:nowrap;">${_dataLimiteBadge(m.data_limite, m.motivo)}</td>
             <td style="padding:0.6rem 0.75rem; text-align:center; white-space:nowrap;">
                 ${btnEditar}${btnAssinar}${olhoVerde}${olhoAzul}${btnDoc}${btnLink}
@@ -466,8 +470,7 @@ function renderMultasLogistica(container) {
                             <th class="multa-th-sort" data-col="data_infracao" onclick="ordenarMultas('data_infracao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data/Hora <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motivo" onclick="ordenarMultas('motivo')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motivo <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="motorista_nome" onclick="ordenarMultas('motorista_nome')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Motorista <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status Logística <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
-                            <th class="multa-th-sort" data-col="data_inclusao" onclick="ordenarMultas('data_inclusao')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status RH <i class="sort-ico ph ph-arrow-down" style="color:#2563eb;font-size:0.8rem;"></i></th>
+                            <th class="multa-th-sort" data-col="status" onclick="ordenarMultas('status')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Status <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th class="multa-th-sort" data-col="data_limite" onclick="ordenarMultas('data_limite')" style="padding:0.75rem; font-weight:600; color:#475569; cursor:pointer; user-select:none; white-space:nowrap;">Data Limite <i class="sort-ico ph ph-arrows-down-up" style="color:#cbd5e1;font-size:0.8rem;"></i></th>
                             <th style="padding:0.75rem; font-weight:600; color:#475569; text-align:center;">Ações</th>
                         </tr>
@@ -603,7 +606,7 @@ function filtrarMultasLogistica() {
     });
 
     if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="padding:2rem; text-align:center; color:#64748b;">Nenhuma multa encontrada com esses filtros.</td></tr>`;
         return;
     }
 
@@ -2922,7 +2925,7 @@ function _buildRhMultaDetailsRow(m) {
 
     return `
         <tr id="multa-rh-details-${m.id}" data-config='${(m.config_parcelas || "").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}' style="display:none; background:#fafafa; border-bottom:2px solid #e2e8f0;">
-            <td colspan="9" style="padding:0;">
+            <td colspan="8" style="padding:0;">
                 <div style="padding:1rem 1.25rem; border-left:4px solid #3b82f6;">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
                         <div style="display:flex;flex-direction:column;gap:2px;">

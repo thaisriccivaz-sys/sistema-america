@@ -21922,7 +21922,10 @@ window.renderMultasMotoristaTab = async function (container) {
                         </div>
                     </div>
                 </div>
-                <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">${m.status || '—'}</span>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+                    <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">Logística: ${m.status || '-'}</span>
+                    ${m.status_rh ? `<span style="background:${m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3'};color:${m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706'};font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">RH: ${m.status_rh}</span>` : ''}
+                </div>
             </div>
 
             <!-- Painel de detalhes (expansível) -->
