@@ -21687,7 +21687,14 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
         
         var currentMonthBase = new Date(baseDate);
         if (maxAno > 0) currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
-        else currentMonthBase.setMonth(currentMonthBase.getMonth() + 1); // se não tem histórico, começa a cobrar no mês seguinte
+        else {
+            // Aplica a regra de corte (dia 25)
+            if (currentMonthBase.getDate() <= 25) {
+                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
+            } else {
+                currentMonthBase.setMonth(currentMonthBase.getMonth() + 2);
+            }
+        }
         
         var numParcelas = parseInt(totalParcelas) || 1;
         var valorTot = parseFloat(String(valorTotal).replace(/[^0-9,.-]/g, '').replace(',', '.')) || parseFloat(valorTotal) || 0;
