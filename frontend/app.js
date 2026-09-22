@@ -21608,7 +21608,7 @@ window._recarregarListaMultas = async function (colabId) {
 };
 
 
-window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtual, configStr, valorTotal, status) {
+window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtual, configStr, valorTotal, status, dtStr) {
     let modal = document.getElementById('modal-editar-parcelas-multa');
     if (modal) modal.remove();
     
@@ -21625,6 +21625,37 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     
     if(window.Swal) Swal.close();
 
+    let mIni = new Date().getMonth() + 1;
+    let aIni = new Date().getFullYear();
+    if (systemHistorico && systemHistorico.length > 0) {
+        const primeira = systemHistorico.find(h => parseInt(h.parcela_num) === 1) || systemHistorico[0];
+        aIni = primeira.ano;
+        mIni = primeira.mes;
+        if (primeira.parcela_num > 1) {
+            mIni -= (primeira.parcela_num - 1);
+            while (mIni < 1) { mIni += 12; aIni--; }
+        }
+    } else if (dtStr) {
+        let dtCriado;
+        if (dtStr.includes('/') && dtStr.includes('-')) {
+            const parts = dtStr.split(' - ');
+            const dateParts = parts[0].split('/');
+            if (dateParts.length === 3) {
+                dtCriado = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1] || '00:00'}:00-03:00`);
+            }
+        }
+        if (!dtCriado || isNaN(dtCriado.getTime())) {
+            dtCriado = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+        }
+        if (!isNaN(dtCriado.getTime())) {
+            const diaCriado = dtCriado.getDate();
+            mIni = dtCriado.getMonth() + 1;
+            aIni = dtCriado.getFullYear();
+            if (diaCriado <= 25) { mIni += 1; } else { mIni += 2; }
+            if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+        }
+    }
+
     modal = document.createElement('div');
     modal.id = 'modal-editar-parcelas-multa';
     modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -21636,7 +21667,7 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     const vTotal = (parseFloat(valorTotal) || 0) * multiplicador;
 
     let html = `
-        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:550px;box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
+        <div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:800px;box-shadow:0 20px 60px rgba(0,0,0,0.3); max-height:90vh; overflow-y:auto;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">📝 Editar Parcelas em Folha</h3>
                 <button onclick="document.getElementById('modal-editar-parcelas-multa').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button>
@@ -21666,6 +21697,8 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     window._mepConfigArr = configArr;
     window._mepValorTotal = vTotal;
     window._mepHistorico = systemHistorico;
+    window._mep_mIni = mIni;
+    window._mep_aIni = aIni;
     window._atualizarMepInputs(true);
 };
 
@@ -21701,18 +21734,24 @@ window._atualizarMepInputs = function(isInitial = false) {
             if (!pAno) pAno = systemCharge.ano;
         }
 
-        let mesOptions = '<option value="">Mês Auto</option>';
+        let expectedMes = window._mep_mIni + (i - 1);
+        let expectedAno = window._mep_aIni;
+        while (expectedMes > 12) { expectedAno++; expectedMes -= 12; }
+        
+        let autoLabel = `Auto (${window._MESES_NOME[expectedMes-1]} ${expectedAno})`;
+
+        let mesOptions = `<option value="">${autoLabel}</option>`;
         for(let m = 1; m <= 12; m++) {
             mesOptions += `<option value="${m}" ${pMes == m ? 'selected' : ''}>${window._MESES_NOME[m-1]}</option>`;
         }
 
-        let anoOptions = '<option value="">Ano Auto</option>';
+        let anoOptions = '<option value="">Ano</option>';
         for(let a = anoAtual - 1; a <= anoAtual + 2; a++) {
             anoOptions += `<option value="${a}" ${pAno == a ? 'selected' : ''}>${a}</option>`;
         }
         
                 html += `
-            <div style="flex:1; min-width:145px; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
+            <div style="flex:1; min-width:180px; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff;">
                 <label style="font-size:0.75rem; color:#475569; font-weight:700; display:block; margin-bottom:4px;">Parcela ${i}</label>
                 
                 <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; margin-bottom:8px; font-weight:600;" onchange="window._calcularSomaMep()">
@@ -21721,7 +21760,7 @@ window._atualizarMepInputs = function(isInitial = false) {
                     <select class="mep-mes" data-idx="${i}" style="flex:1; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem;">
                         ${mesOptions}
                     </select>
-                    <select class="mep-ano" data-idx="${i}" style="width:55px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem;">
+                    <select class="mep-ano" data-idx="${i}" style="width:60px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.75rem;">
                         ${anoOptions}
                     </select>
                 </div>
@@ -22193,7 +22232,8 @@ window.renderMultasMotoristaTab = async function (container) {
                         
                         // Botão Editar Parcelas
                         const cleanConfig = (m.config_parcelas || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-                        botoes += `<button onclick="window.abrirModalEditarParcelasProntuario(${m.id}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>`;
+                        const safeDataCriado = (m.criado_em || m.created_at || m.atualizado_em || m.status_updated_at || '').replace(/'/g, '');
+                        botoes += `<button onclick="window.abrirModalEditarParcelasProntuario(${m.id}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}', '${safeDataCriado}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>`;
 
                         return `
                         <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px; flex-wrap:wrap;">
