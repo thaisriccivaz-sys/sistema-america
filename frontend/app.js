@@ -21717,19 +21717,13 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 <span style="font-size:0.65rem; font-weight:700; color:${toggleColor};">Cobrado</span>
             </div>`;
 
-            if (cfg && cfg.alert) {
-                // Manually Cobrada
-                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                    + '<span style="color:#16a34a;font-size:1rem;width:16px;" title="Cobrado Manualmente (Ignorado no Fechamento)"><i class="ph-fill ph-check-circle"></i></span>'
-                    + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
-                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + '</span>'
-                    + toggleHtml
-                    + '</div>';
-            } else if (parcelasCobradas[i]) {
+            if (parcelasCobradas[i]) {
                 var h = parcelasCobradas[i];
                 var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
                 var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 
+                // Se a parcela já foi cobrada via sistema normal, a gente desativa o toggle ou deixa?
+                // Deixa, mas o layout de "cobrado automático" prevalece se existir histórico.
                 html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
                     + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
                     + '<span style="font-weight:600;">Parcela ' + i + '</span>'
@@ -21741,13 +21735,27 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 var m = currentMonthBase.getMonth();
                 var y = currentMonthBase.getFullYear();
                 var mesNome = MESES[m];
-                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;opacity:0.6;">'
-                    + '<span style="color:#64748b;font-size:1rem;width:16px;"><i class="ph ph-clock"></i></span>'
-                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
-                    + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + ' (Aguardando)</span>'
-                    + '<span style="margin-left:auto;font-weight:700;color:#64748b;">' + valorFormatado + '</span>'
-                    + toggleHtml
-                    + '</div>';
+                
+                if (cfg && cfg.alert) {
+                    // Manually Cobrada
+                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                        + '<span style="color:#16a34a;font-size:1rem;width:16px;" title="Cobrado Manualmente (Ignorado no Fechamento)"><i class="ph-fill ph-check-circle"></i></span>'
+                        + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
+                        + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + '</span>'
+                        + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>'
+                        + toggleHtml
+                        + '</div>';
+                } else {
+                    // Aguardando
+                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;opacity:0.6;">'
+                        + '<span style="color:#64748b;font-size:1rem;width:16px;"><i class="ph ph-clock"></i></span>'
+                        + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                        + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + ' (Aguardando)</span>'
+                        + '<span style="margin-left:auto;font-weight:700;color:#64748b;">' + valorFormatado + '</span>'
+                        + toggleHtml
+                        + '</div>';
+                }
+                
                 currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
             }
         }

@@ -288,7 +288,7 @@ function _buildMultaRow(m) {
         <tr style="border-bottom:1px solid #e2e8f0; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
             <td style="padding:0.6rem 0.75rem;">
                 <div style="display:flex; align-items:flex-start;">
-                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="var isNic=('${m.status}'==='Multa NIC'||'${m.status}'==='Multa Nic');var v=parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.'))||0;if(isNic)v*=3;window._toggleRhMultaDetails(${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}')" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
+                    ${window._isRhContext ? `<i id="multa-rh-ico-${m.id}" onclick="var isNic=('${m.status}'==='Multa NIC'||'${m.status}'==='Multa Nic');var v=parseFloat('${m.valor_multa || 0}'.replace(/[^0-9,.-]/g, '').replace(',', '.'))||0;if(isNic)v*=3;var cfg = document.getElementById('multa-rh-details-' + ${m.id}).getAttribute('data-config') || '';window._toggleRhMultaDetails(${m.id}, ${m.parcelas || 1}, v, '${m.created_at || m.criado_em || m.atualizado_em || m.status_updated_at || ''}', cfg)" class="ph ph-caret-right" style="cursor:pointer; margin-right:6px; margin-top:2px; color:#64748b; font-size:1.1rem; transition:transform 0.2s;" title="Ver detalhes da multa"></i>` : ''}
                     <div>
                         <div style="display:inline-block;">
                             ${window._ultimoIdMultaEditada === m.id 
@@ -607,7 +607,27 @@ function filtrarMultasLogistica() {
         return;
     }
 
+    // Remember open details
+    const openDivs = Array.from(tbody.querySelectorAll('tr[id^="multa-rh-details-"]'))
+        .filter(tr => tr.style.display !== 'none' && tr.style.display !== '')
+        .map(tr => tr.id.replace('multa-rh-details-', ''));
+
     tbody.innerHTML = listaFiltrada.map(m => _buildMultaRow(m)).join('');
+    
+    // Restore open details
+    setTimeout(() => {
+        openDivs.forEach(id => {
+            const tr = document.getElementById('multa-rh-details-' + id);
+            if (tr) {
+                const prevRow = tr.previousElementSibling;
+                if (prevRow) {
+                    const caret = prevRow.querySelector('i.ph-caret-right');
+                    if (caret && typeof caret.click === 'function') caret.click();
+                    else if (caret && caret.onclick) caret.onclick();
+                }
+            }
+        });
+    }, 200);
 }
 
 function limparFiltrosMultas() {
@@ -2843,7 +2863,7 @@ window.abrirFluxoAssinatura = function(multaId) {
 };
 
 
-window._toggleRhMultaDetails = function(id, parcelas = 1, valor_multa = 0, dataRef = '') {
+window._toggleRhMultaDetails = function(id, parcelas = 1, valor_multa = 0, dataRef = '', configStr = '') {
     const det = document.getElementById('multa-rh-details-' + id);
     const ico = document.getElementById('multa-rh-ico-' + id);
     if (!det || !ico) return;
@@ -2852,7 +2872,7 @@ window._toggleRhMultaDetails = function(id, parcelas = 1, valor_multa = 0, dataR
     ico.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
     
     if (!open && typeof window._carregarHistoricoMulta === 'function') {
-        window._carregarHistoricoMulta('multa-rh-det-' + id, id, parcelas, valor_multa, dataRef);
+        window._carregarHistoricoMulta('multa-rh-det-' + id, id, parcelas, valor_multa, dataRef, configStr);
     }
 };
 
@@ -2901,7 +2921,7 @@ function _buildRhMultaDetailsRow(m) {
     const valDisplay = (m.status === 'Multa NIC' || m.status === 'Multa Nic') ? ((parseFloat((m.valor_multa || '0').toString().replace(/[^\d,.-]/g, '').replace(',', '.')) || 0) * 3).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) : (m.valor_multa || '—');
 
     return `
-        <tr id="multa-rh-details-${m.id}" style="display:none; background:#fafafa; border-bottom:2px solid #e2e8f0;">
+        <tr id="multa-rh-details-${m.id}" data-config='${(m.config_parcelas || "").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}' style="display:none; background:#fafafa; border-bottom:2px solid #e2e8f0;">
             <td colspan="9" style="padding:0;">
                 <div style="padding:1rem 1.25rem; border-left:4px solid #3b82f6;">
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:0.83rem;color:#334155;">
@@ -2968,3 +2988,5 @@ function _buildRhMultaDetailsRow(m) {
         </tr>
     `;
 }
+
+window._recarregarAbaMultas = carregarMultasLogistica;
