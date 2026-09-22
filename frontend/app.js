@@ -21709,14 +21709,15 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             if (cfg) vParcelaDef = parseFloat(cfg.valor) || 0;
             var valorFormatado = vParcelaDef.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             
-            var isChecked = (cfg && cfg.alert) ? 'checked' : '';
+            var isSystemCobrado = !!parcelasCobradas[i];
+            var isChecked = (cfg && cfg.alert) || isSystemCobrado ? 'checked' : '';
             var bgColor = isChecked ? '#16a34a' : '#cbd5e1';
             var tX = isChecked ? 'translateX(12px)' : 'translateX(0)';
             var toggleColor = isChecked ? '#16a34a' : '#94a3b8';
 
             var toggleHtml = `<div style="display:flex; align-items:center; gap:4px; margin-left:12px;" onclick="event.stopPropagation()">
                 <label style="position:relative; display:inline-block; width:28px; height:16px; margin:0;" onclick="event.stopPropagation()">
-                    <input type="checkbox" ${isChecked} style="opacity:0; width:0; height:0;" onchange="window._toggleCobradoManualmente(${multaId}, ${i}, this.checked)">
+                    <input type="checkbox" ${isChecked} style="opacity:0; width:0; height:0;" onchange="this.disabled=true; this.nextElementSibling.style.opacity='0.5'; window._toggleCobradoManualmente(${multaId}, ${i}, this.checked)">
                     <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${bgColor}; transition:.3s; border-radius:16px;" onclick="this.previousElementSibling.click()">
                         <span style="position:absolute; content:''; height:12px; width:12px; left:2px; bottom:2px; background-color:white; transition:.3s; border-radius:50%; transform:${tX}; pointer-events:none;"></span>
                     </div>
@@ -21733,9 +21734,9 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 // Deixa, mas o layout de "cobrado automático" prevalece se existir histórico.
                 html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
                     + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
-                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                    + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
                     + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
-                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>'
                     + toggleHtml
                     + '</div>';
             } else {
@@ -21746,7 +21747,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                 if (cfg && cfg.alert) {
                     // Manually Cobrada
                     html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                        + '<span style="color:#16a34a;font-size:1rem;width:16px;" title="Cobrado Manualmente (Ignorado no Fechamento)"><i class="ph-fill ph-check-circle"></i></span>'
+                        + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
                         + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
                         + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + '</span>'
                         + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>'
