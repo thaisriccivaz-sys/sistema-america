@@ -21476,8 +21476,28 @@ if (typeof window._recalculateAdmissaoFinalProg !== 'function') {
 window._recarregarListaMultas = async function (colabId) {
     var tabContent = document.getElementById('tab-dynamic-content');
     if (tabContent && typeof window.renderMultasMotoristaTab === 'function') {
+        // Guardar as multas que estao abertas
+        const openDivs = Array.from(tabContent.querySelectorAll('div[id$="-hist"]'))
+            .filter(d => d.style.display !== 'none' && d.style.display !== '')
+            .map(d => d.id.replace('-hist', ''));
+            
         tabContent.innerHTML = '';
         await window.renderMultasMotoristaTab(tabContent);
+        
+        // Restaurar estado aberto
+        setTimeout(() => {
+            openDivs.forEach(uid => {
+                const det = document.getElementById(uid);
+                if (det) {
+                    const parentLine = det.previousElementSibling;
+                    if (parentLine && typeof parentLine.click === 'function') {
+                        parentLine.click();
+                    } else if (parentLine && parentLine.onclick) {
+                        parentLine.onclick();
+                    }
+                }
+            });
+        }, 200);
     }
 };
 
@@ -21609,9 +21629,11 @@ window._salvarMep = async function(multaId) {
         if (typeof showToast === 'function') showToast('Parcelas atualizadas!', 'success');
         
         // Recarregar os dados do prontuário
-        const colabId = new URLSearchParams(window.location.search).get('id') || (window.getColaboradorId && window.getColaboradorId());
+        const colabId = (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : new URLSearchParams(window.location.search).get('id');
         if (colabId && typeof window._recarregarListaMultas === 'function') {
             await window._recarregarListaMultas(colabId);
+        } else if (typeof _recarregarAbaMultas === 'function') {
+            _recarregarAbaMultas(); // fallback if defined
         } else {
             window.location.reload();
         }
@@ -21680,12 +21702,28 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             if (cfg) vParcelaDef = parseFloat(cfg.valor) || 0;
             var valorFormatado = vParcelaDef.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             
+            var isChecked = (cfg && cfg.alert) ? 'checked' : '';
+            var bgColor = isChecked ? '#16a34a' : '#cbd5e1';
+            var tX = isChecked ? 'translateX(12px)' : 'translateX(0)';
+            var toggleColor = isChecked ? '#16a34a' : '#94a3b8';
+
+            var toggleHtml = `<div style="display:flex; align-items:center; gap:4px; margin-left:12px;" onclick="event.stopPropagation()">
+                <label style="position:relative; display:inline-block; width:28px; height:16px; margin:0;" onclick="event.stopPropagation()">
+                    <input type="checkbox" ${isChecked} style="opacity:0; width:0; height:0;" onchange="window._toggleCobradoManualmente(${multaId}, ${i}, this.checked)">
+                    <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${bgColor}; transition:.3s; border-radius:16px;" onclick="this.previousElementSibling.click()">
+                        <span style="position:absolute; content:''; height:12px; width:12px; left:2px; bottom:2px; background-color:white; transition:.3s; border-radius:50%; transform:${tX}; pointer-events:none;"></span>
+                    </div>
+                </label>
+                <span style="font-size:0.65rem; font-weight:700; color:${toggleColor};">Cobrado</span>
+            </div>`;
+
             if (cfg && cfg.alert) {
                 // Manually Cobrada
                 html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
                     + '<span style="color:#16a34a;font-size:1rem;width:16px;" title="Cobrado Manualmente (Ignorado no Fechamento)"><i class="ph-fill ph-check-circle"></i></span>'
                     + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
-                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + '</span>'
+                    + toggleHtml
                     + '</div>';
             } else if (parcelasCobradas[i]) {
                 var h = parcelasCobradas[i];
@@ -21697,6 +21735,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                     + '<span style="font-weight:600;">Parcela ' + i + '</span>'
                     + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
                     + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
+                    + toggleHtml
                     + '</div>';
             } else {
                 var m = currentMonthBase.getMonth();
@@ -21707,6 +21746,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
                     + '<span style="font-weight:600;">Parcela ' + i + '</span>'
                     + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + y + ' (Aguardando)</span>'
                     + '<span style="margin-left:auto;font-weight:700;color:#64748b;">' + valorFormatado + '</span>'
+                    + toggleHtml
                     + '</div>';
                 currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
             }
@@ -23188,3 +23228,53 @@ document.addEventListener('click', function(e) {
         window.whkFecharEditorManual();
     }
 });
+
+window._toggleCobradoManualmente = async function(multaId, numParcela, isChecked) {
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        
+        // Fetch full multas list for this driver (we know colabId because we are in prontuario)
+        const colabId = (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : new URLSearchParams(window.location.search).get('id');
+        const r1 = await fetch('/api/logistica/multas?motorista_id=' + colabId, { headers: { 'Authorization': 'Bearer ' + token } });
+        const list = await r1.json();
+        const m = list.find(x => x.id === multaId);
+        if (!m) throw new Error('Multa não encontrada');
+
+        let cfg = [];
+        try { if (m.config_parcelas) cfg = JSON.parse(m.config_parcelas); } catch(e){}
+        
+        let p = cfg.find(c => parseInt(c.num) === numParcela);
+        if (!p) {
+            // Need to compute default value if not set
+            const multiplicador = (m.status === 'Multa NIC' || m.status === 'Multa Nic') ? 3 : 1;
+            const vTotal = (parseFloat(m.valor_multa) || 0) * multiplicador;
+            const parcelasNum = parseInt(m.parcelas) || 1;
+            p = { num: numParcela, valor: (vTotal / parcelasNum), alert: isChecked };
+            cfg.push(p);
+        } else {
+            p.alert = isChecked;
+        }
+
+        const newCfgStr = JSON.stringify(cfg);
+
+        // Save
+        const r2 = await fetch(`/api/logistica/multas/${multaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ config_parcelas: newCfgStr })
+        });
+        if (!r2.ok) throw new Error('Falha ao atualizar status');
+        
+        if (typeof showToast === 'function') showToast('Status atualizado!', 'success');
+        
+        if (colabId && typeof window._recarregarListaMultas === 'function') {
+            await window._recarregarListaMultas(colabId);
+        } else {
+            window.location.reload();
+        }
+    } catch(e) {
+        alert(e.message);
+        const colabId = (typeof viewedColaborador !== 'undefined' && viewedColaborador && viewedColaborador.id) ? viewedColaborador.id : new URLSearchParams(window.location.search).get('id');
+        if (colabId && typeof window._recarregarListaMultas === 'function') window._recarregarListaMultas(colabId);
+    }
+};
