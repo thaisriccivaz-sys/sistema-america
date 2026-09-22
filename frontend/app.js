@@ -21545,13 +21545,18 @@ window._atualizarMepInputs = function(isInitial = false) {
             if (cfg[i-1].alert) isAlert = true;
         }
         
-        html += `
-            <div style="flex:1; min-width:100px;">
+                html += `
+            <div style="flex:1; min-width:110px;">
                 <label style="font-size:0.75rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
-                <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; ${isAlert ? 'border-color:#f59e0b; background:#fffbeb;' : ''}" onchange="window._calcularSomaMep()">
-                <div style="font-size:0.65rem; margin-top:3px; display:flex; align-items:center; gap:3px;">
-                    <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} id="mep-alert-${i}"> 
-                    <label for="mep-alert-${i}" style="color:#d97706; cursor:pointer;">Já cobrada (Alertar)</label>
+                <input type="number" step="0.01" class="mep-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem;" onchange="window._calcularSomaMep()">
+                <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+                    <label style="position:relative; display:inline-block; width:34px; height:20px; margin:0;">
+                        <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
+                        <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; transition:.3s; border-radius:20px;">
+                            <span style="position:absolute; content:''; height:14px; width:14px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${isAlert ? 'translateX(14px)' : 'translateX(0)'};"></span>
+                        </div>
+                    </label>
+                    <span style="font-size:0.7rem; font-weight:700; color:#475569;">Cobrado</span>
                 </div>
             </div>
         `;
@@ -21675,26 +21680,24 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             if (cfg) vParcelaDef = parseFloat(cfg.valor) || 0;
             var valorFormatado = vParcelaDef.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             
-            if (parcelasCobradas[i]) {
+            if (cfg && cfg.alert) {
+                // Manually Cobrada
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                    + '<span style="color:#16a34a;font-size:1rem;width:16px;" title="Cobrado Manualmente (Ignorado no Fechamento)"><i class="ph-fill ph-check-circle"></i></span>'
+                    + '<span style="font-weight:600;color:#16a34a;">Parcela ' + i + '</span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + valorFormatado + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>'
+                    + '</div>';
+            } else if (parcelasCobradas[i]) {
                 var h = parcelasCobradas[i];
                 var mesNome = MESES[(h.mes || 1) - 1] || h.mes;
                 var val = parseFloat(h.valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 
-                if (cfg && cfg.alert) {
-                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                        + '<span style="color:#d97706;font-size:1rem;width:16px;" title="Atenção: parcela editada após cobrança"><i class="ph-fill ph-warning-circle"></i></span>'
-                        + '<span style="font-weight:600;color:#d97706;">Parcela ' + i + '</span>'
-                        + '<span style="color:#b45309;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
-                        + '<span style="margin-left:auto;font-weight:700;color:#d97706;">' + val + ' <span style="font-size:0.7rem;">(Editada)</span></span>'
-                        + '</div>';
-                } else {
-                    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
-                        + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
-                        + '<span style="font-weight:600;">Parcela ' + i + '</span>'
-                        + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
-                        + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
-                        + '</div>';
-                }
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'
+                    + '<span style="color:#16a34a;font-size:1rem;width:16px;">&#10003;</span>'
+                    + '<span style="font-weight:600;">Parcela ' + i + '</span>'
+                    + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + h.ano + '</span>'
+                    + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + val + '</span>'
+                    + '</div>';
             } else {
                 var m = currentMonthBase.getMonth();
                 var y = currentMonthBase.getFullYear();

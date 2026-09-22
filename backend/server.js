@@ -10700,27 +10700,32 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             const existing = historico.find(h => h.mes === mesNum && h.ano === anoNum);
 
             let valorFinal = valorParcela;
+            let isManuallyCobrada = false;
             if (m.config_parcelas) {
                 try {
                     const parsed = JSON.parse(m.config_parcelas);
                     const customConfig = parsed.find(c => parseInt(c.num) === parcelaNum);
-                    if (customConfig) valorFinal = parseFloat(customConfig.valor) || 0;
+                    if (customConfig) {
+                        valorFinal = parseFloat(customConfig.valor) || 0;
+                        if (customConfig.alert) isManuallyCobrada = true;
+                    }
                 } catch(e){}
             }
 
-            if (!existing) {
+            if (!existing && !isManuallyCobrada) {
                 await new Promise((resolve) => {
                     db.run('INSERT INTO multas_cobranca_historico (multa_id, mes, ano, parcela_num, valor_parcela) VALUES (?, ?, ?, ?, ?)',
                         [m.id, mesNum, anoNum, parcelaNum, valorFinal],
                         () => resolve());
                 });
-            } else if (Math.abs(existing.valor_parcela - valorParcela) > 0.001) {
-                // Valor mudou (ex: correção de NIC x3) — atualizar registro existente
+            } else if (existing && !isManuallyCobrada && Math.abs(existing.valor_parcela - valorFinal) > 0.001) {
                 await new Promise((resolve) => {
                     db.run('UPDATE multas_cobranca_historico SET valor_parcela = ?, parcela_num = ? WHERE id = ?',
                         [valorFinal, parcelaNum, existing.id],
                         () => resolve());
                 });
+            } else if (existing && isManuallyCobrada) {
+                await new Promise(resolve => db.run('DELETE FROM multas_cobranca_historico WHERE id = ?', [existing.id], () => resolve()));
             }
 
             // Automacao Status RH
@@ -10728,6 +10733,10 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
             await new Promise(resolve => {
                 db.run("UPDATE multas_logistica SET status_rh = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [novoStatusRh, m.id], () => resolve());
             });
+
+            if (isManuallyCobrada) {
+                continue; // Skip adding to fechamento display
+            }
 
             const colId = m.colaborador_id;
             if (!grupos[colId]) grupos[colId] = { colaborador_id: colId, valor_total: 0, detalhes: [] };

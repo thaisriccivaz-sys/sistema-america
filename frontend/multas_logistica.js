@@ -1497,12 +1497,17 @@ function atualizarValoresMultaModal(mudouDropdown = false) {
             for(let i=1; i<=parcelas; i++) {
                 let v = valorParcelaDef;
                 if (existingConfig.length >= i) v = existingConfig[i-1].valor;
-                html += `<div style="flex:1; min-width:90px;">
+                                html += `<div style="flex:1; min-width:110px;">
                     <label style="font-size:0.7rem; color:#64748b; font-weight:700;">Parcela ${i}</label>
-                    <input type="number" step="0.01" class="gm-cp-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; ${existingConfig.length >= i && existingConfig[i-1].alert ? 'border-color:#f59e0b; background:#fffbeb;' : ''}" onchange="atualizarValoresMultaModal(false)">
-                    <div style="font-size:0.6rem; margin-top:3px; display:flex; align-items:center; gap:2px;">
-                        <input type="checkbox" class="gm-cp-alert" data-idx="${i}" ${existingConfig.length >= i && existingConfig[i-1].alert ? 'checked' : ''} id="gm-cp-alert-${i}">
-                        <label for="gm-cp-alert-${i}" style="color:#d97706; cursor:pointer;" title="Avisar no prontuário que foi editado após cobrado">Aviso</label>
+                    <input type="number" step="0.01" class="gm-cp-val" data-idx="${i}" value="${v.toFixed(2)}" style="width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem;" onchange="atualizarValoresMultaModal(false)">
+                    <div style="margin-top:8px; display:flex; align-items:center; gap:6px;">
+                        <label style="position:relative; display:inline-block; width:34px; height:20px; margin:0;">
+                            <input type="checkbox" class="gm-cp-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
+                            <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; transition:.3s; border-radius:20px;">
+                                <span style="position:absolute; content:''; height:14px; width:14px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${isAlert ? 'translateX(14px)' : 'translateX(0)'};"></span>
+                            </div>
+                        </label>
+                        <span style="font-size:0.7rem; font-weight:700; color:#475569;">Cobrado</span>
                     </div>
                 </div>`;
             }
