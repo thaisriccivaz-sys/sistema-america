@@ -3741,17 +3741,36 @@ window.exportarColaboradoresXLSX = async function () {
     worksheet.addRow([]);
 
     const headerRow = worksheet.addRow([
-        "Status", "Nome Completo", "CPF", "RG", "Data Nascimento", "Nome da Mãe", "Nome do Pai",
-        "Estado Civil", "Sexo", "E-mail", "Telefone", "Contato Emergência",
-        "CEP", "Rua", "Nº", "Complemento", "Bairro", "Cidade", "Estado",
-        "Banco", "Agência", "Conta", "Tipo Conta", "PIX",
-        "Departamento", "Cargo", "Data Admissão", "Salário", "Escala Trabalho",
-        "PIS", "CTPS", "Título Eleitor", "Certificado Militar",
-        "CNH", "Cat CNH", "Emissão CNH", "Validade CNH", "CID",
-        "Férias Início", "Férias Fim", "Férias Retorno", "Possui Dependentes",
-        "Faculdade", "Academia", "Terapia", "Celular", "Chaves",
-        "Habilitação B", "Habilitação D",
-        "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado"
+        "Status", "Nome Completo", "CPF", "RG", "RG Órgão", "RG Emissão", "RG Tipo", "Data Nascimento", "Local Nascimento", 
+        "Nome da Mãe", "Nome do Pai", "Estado Civil", "Sexo", "Cor/Raça", "Grau de Instrução", "Nacionalidade", "Deficiência (PCD)",
+        "E-mail Pessoal", "E-mail Corporativo", "Telefone Pessoal", "Telefone Corporativo", 
+        "Nome Emergência 1", "Tel Emergência 1", "Nome Emergência 2", "Tel Emergência 2", 
+        "Endereço Completo",
+        "Matrícula eSocial", "Número de Registro", "Departamento", "Cargo", "CBO", "Data Admissão", "Tipo de Contrato", "Salário Base", 
+        "Faz Apontamento (Ponto)?", "Opção FGTS", 
+        "Horário Entrada", "Horário Saída", "Intervalo Entrada", "Intervalo Saída", "Sábado Entrada", "Sábado Saída", 
+        "Escala Tipo", "Escala Folgas", "Escala Início Ciclo",
+        "PIS", "CTPS Número", "CTPS Série", "CTPS UF", "CTPS Expedição", 
+        "Título Eleitoral", "Título Zona", "Título Seção", "Certificado Militar", "Categoria Militar",
+        "CNH Número", "Categoria CNH", "Emissão CNH", "Validade CNH", "Autorizado CNH B", "Autorizado CNH D", "Motorista Avaliador",
+        "Vale Transporte Meio", "Vale Transporte Valor", "Vale Transporte Placa", 
+        "Desconto VR", "VR Valor", "Desconto VA", "VA Valor", 
+        "Faz Faculdade", "Curso ID Faculdade", "Início Faculdade", "Fim Faculdade",
+        "Faz Academia", "Início Academia", "Termo Academia Anexado?",
+        "Faz Terapia", "Início Terapia",
+        "Termo Celular", "Data Celular", 
+        "Termo Chaves", "Data Chaves", 
+        "Brigadista", "Validade Brigadista",
+        "Adiantamento Salarial", "Valor Adiantamento", 
+        "Insalubridade Folha", "Valor Insalubridade", 
+        "Periculosidade Folha", "Valor Periculosidade", 
+        "Mensalidade Sindical", "Valor Mensalidade", 
+        "Pensão Alimentícia", "% Pensão", 
+        "PLR", "Valor PLR", "Meses PLR",
+        "Banco", "Agência", "Conta", "PIX",
+        "Data ASO", "Alergias", "Tamanho Camiseta", "Tamanho Calça", "Tamanho Calçado",
+        "Férias Programadas Início", "Férias Programadas Fim", 
+        "Férias Fracionadas", "Fracionadas Tipo", "Fracionadas Início 2", "Fracionadas Fim 2"
     ]);
 
     headerRow.eachCell(cell => {
@@ -3761,6 +3780,7 @@ window.exportarColaboradoresXLSX = async function () {
     });
 
     const safeDate = (dt) => dt ? new Date(dt.includes('T') ? dt : dt + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+    const yesNo = (val) => (val == 1 || val == '1' || val == 'Sim' || val === true || val === 'true') ? 'Sim' : 'Não';
 
     colaboradores.forEach(c => {
         const row = worksheet.addRow([
@@ -3768,54 +3788,140 @@ window.exportarColaboradoresXLSX = async function () {
             c.nome_completo || '',
             c.cpf || '',
             c.rg || '',
+            c.rg_orgao || '',
+            safeDate(c.rg_data_emissao),
+            c.rg_tipo || '',
             safeDate(c.data_nascimento),
+            c.local_nascimento || '',
             c.nome_mae || '',
             c.nome_pai || '',
             c.estado_civil || '',
             c.sexo || '',
+            c.cor_raca || '',
+            c.grau_instrucao || '',
+            c.nacionalidade || '',
+            c.deficiencia || '',
+
             c.email || '',
+            c.email_corporativo || '',
             c.telefone || '',
-            c.telefone_emergencia || '',
-            c.endereco_cep || '',
-            c.endereco_rua || '',
-            c.endereco_numero || '',
-            c.endereco_complemento || '',
-            c.endereco_bairro || '',
-            c.endereco_cidade || '',
-            c.endereco_estado || '',
-            c.dados_bancarios_banco || '',
-            c.dados_bancarios_agencia || '',
-            c.dados_bancarios_conta || '',
-            c.dados_bancarios_tipo_conta || '',
-            c.dados_bancarios_pix || '',
+            c.telefone_corporativo || '',
+            
+            c.contato_emergencia_nome || '',
+            c.contato_emergencia_telefone || '',
+            c.contato_emergencia2_nome || '',
+            c.contato_emergencia2_telefone || '',
+
+            c.endereco || '',
+
+            c.matricula_esocial || '',
+            c.numero_registro || '',
             c.departamento || '',
             c.cargo || '',
+            c.cbo || '',
             safeDate(c.data_admissao),
+            c.tipo_contrato || '',
             c.salario ? 'R$ ' + c.salario : '',
+
+            yesNo(c.faz_apontamento),
+            c.fgts_opcao || '',
+
+            c.horario_entrada || '',
+            c.horario_saida || '',
+            c.intervalo_entrada || '',
+            c.intervalo_saida || '',
+            c.sabado_entrada || '',
+            c.sabado_saida || '',
+
             c.escala_tipo || '',
+            c.escala_folgas || '',
+            safeDate(c.escala_ciclo_inicio),
+
             c.pis || '',
             c.ctps_numero || '',
-            c.titulo_eleitor_numero || '',
+            c.ctps_serie || '',
+            c.ctps_uf || '',
+            safeDate(c.ctps_data_expedicao),
+            c.titulo_eleitoral || '',
+            c.titulo_zona || '',
+            c.titulo_secao || '',
             c.certificado_militar || '',
+            c.militar_categoria || '',
+
             c.cnh_numero || '',
             c.cnh_categoria || '',
             safeDate(c.cnh_emissao),
-            safeDate(c.cnh_validade),
-            c.cid || '',
-            safeDate(c.ferias_inicio),
-            safeDate(c.ferias_fim),
-            safeDate(c.ferias_retorno),
-            c.tem_dependentes ? 'Sim' : 'Não',
-            c.faculdade_participa === 'Sim' ? 'Sim' : 'Não',
-            c.academia_participa === 'Sim' ? 'Sim' : 'Não',
-            c.terapia_participa === 'Sim' ? 'Sim' : 'Não',
-            c.celular_participa === 'Sim' ? 'Sim' : 'Não',
-            c.chaves_participa === 'Sim' ? 'Sim' : 'Não',
-            c.habilitacao_b === 'Sim' ? 'Sim' : 'Não',
-            c.habilitacao_d === 'Sim' ? 'Sim' : 'Não',
+            safeDate(c.cnh_validade || c.cnh_vencimento),
+            yesNo(c.habilitacao_b),
+            yesNo(c.habilitacao_d),
+            yesNo(c.motorista_avaliador),
+
+            c.meio_transporte || '',
+            c.valor_transporte || '',
+            c.transporte_placa || '',
+
+            yesNo(c.folha_vr),
+            c.folha_vr_valor || '',
+            yesNo(c.folha_va),
+            c.folha_va_valor || '',
+
+            yesNo(c.faculdade_participa),
+            c.faculdade_curso_id || '',
+            safeDate(c.faculdade_data_inicio),
+            safeDate(c.faculdade_data_termino),
+
+            yesNo(c.academia_participa),
+            safeDate(c.academia_data_inicio),
+            yesNo(c.academia_desconto_assinado),
+
+            yesNo(c.terapia_participa),
+            safeDate(c.terapia_data_inicio),
+
+            yesNo(c.celular_participa),
+            safeDate(c.celular_data),
+
+            yesNo(c.chaves_participa),
+            safeDate(c.chaves_data),
+
+            yesNo(c.brigadista_participa),
+            safeDate(c.brigadista_validade),
+
+            yesNo(c.adiantamento_salarial),
+            c.adiantamento_valor || '',
+
+            yesNo(c.folha_insalubridade),
+            c.folha_insalubridade_valor || '',
+
+            yesNo(c.folha_periculosidade),
+            c.folha_periculosidade_valor || '',
+
+            yesNo(c.folha_mensalidade_sindical),
+            c.folha_mensalidade_sindical_valor || '',
+
+            c.folha_pensao_tipo || '',
+            c.folha_pensao_pct || '',
+
+            yesNo(c.folha_plr),
+            c.folha_plr_valor || '',
+            c.folha_plr_meses || '',
+
+            c.banco_nome || '',
+            c.banco_agencia || '',
+            c.banco_conta || '',
+            c.banco_pix || '',
+
+            safeDate(c.aso_exame_data),
+            c.alergias || '',
             c.tamanho_camiseta || '',
             c.tamanho_calca || '',
-            c.tamanho_calcado || ''
+            c.tamanho_calcado || '',
+
+            safeDate(c.ferias_programadas_inicio),
+            safeDate(c.ferias_programadas_fim),
+            yesNo(c.ferias_fracionadas),
+            c.ferias_fracionadas_tipo || '',
+            safeDate(c.ferias_fracionadas_inicio2),
+            safeDate(c.ferias_fracionadas_fim2)
         ]);
 
         row.eachCell({ includeEmpty: true }, (cell) => {
