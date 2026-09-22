@@ -21923,8 +21923,18 @@ window.renderMultasMotoristaTab = async function (container) {
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
-                    <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">Logística: ${m.status || '-'}</span>
-                    ${m.status_rh ? `<span style="background:${m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3'};color:${m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706'};font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">RH: ${m.status_rh}</span>` : ''}
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="color:#94a3b8;font-size:0.75rem;font-weight:500;">Logística:</span>
+                        <span style="background:${bgStatus};color:#0f172a;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">${m.status || '-'}</span>
+                    </div>
+                    ${m.status_rh ? (() => {
+                        const cor = m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706';
+                        const bg  = m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3';
+                        return `<div style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#94a3b8;font-size:0.75rem;font-weight:500;">RH:</span>
+                            <span style="background:${bg};color:${cor};font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:20px;white-space:nowrap;">${m.status_rh}</span>
+                        </div>`;
+                    })() : ''}
                 </div>
             </div>
 
@@ -23279,16 +23289,41 @@ window._toggleCobradoManualmente = async function(multaId, numParcela, isChecked
         // Save
         
         if (!isChecked) {
-            // Se desmarcou, também deletar do histórico para tirar o check verde
+            // Se desmarcou, também deletar do historico para tirar o check verde
             await fetch(`/api/logistica/multas/${multaId}/historico/${numParcela}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
         }
+
+        let chargedSet = new Set();
+        try {
+            const hRes = await fetch(`/api/multas/${multaId}/historico-cobranca`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (hRes.ok) {
+                const histList = await hRes.json();
+                histList.forEach(h => chargedSet.add(parseInt(h.parcela_num)));
+            }
+        } catch(e){}
+        
+        cfg.forEach(c => {
+            if (c.alert) chargedSet.add(parseInt(c.num));
+            else chargedSet.delete(parseInt(c.num));
+        });
+        
+        const parcelasTotais = parseInt(m.parcelas) || 1;
+        let newStatusRh = m.status_rh || 'Recebido';
+        if (chargedSet.size >= parcelasTotais) {
+            newStatusRh = 'Cobrado';
+        } else if (chargedSet.size > 0) {
+            newStatusRh = 'Cobrado Parcela';
+        } else {
+            newStatusRh = 'Recebido';
+        }
+
         const r2 = await fetch(`/api/logistica/multas/${multaId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ config_parcelas: newCfgStr })
+            body: JSON.stringify({ config_parcelas: newCfgStr, status_rh: newStatusRh })
         });
 
         if (!r2.ok) throw new Error('Falha ao atualizar status');

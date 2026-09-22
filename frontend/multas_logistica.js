@@ -307,11 +307,17 @@ function _buildMultaRow(m) {
             <td style="padding:0.6rem 0.75rem; max-width:130px; font-size:0.82rem;">${motoristaHtml}</td>
             <td style="padding:0.6rem 0.75rem;">
                 <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
-                    <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">Logística: ${m.status || '\u2014'}</span>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="color:#94a3b8;font-size:0.75rem;font-weight:500;">Logística:</span>
+                        <span style="background:${statusColor}; color:#0f172a; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap;">${m.status || '\u2014'}</span>
+                    </div>
                     ${m.status_rh ? (() => {
                         const cor = m.status_rh === 'Cobrado' ? '#16a34a' : m.status_rh === 'Cobrado Parcela' ? '#2563eb' : '#d97706';
                         const bg  = m.status_rh === 'Cobrado' ? '#dcfce7' : m.status_rh === 'Cobrado Parcela' ? '#dbeafe' : '#fef9c3';
-                        return `<span style="background:${bg}; color:${cor}; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">RH: ${m.status_rh}</span>`;
+                        return `<div style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#94a3b8;font-size:0.75rem;font-weight:500;">RH:</span>
+                            <span style="background:${bg}; color:${cor}; padding:3px 7px; border-radius:12px; font-size:0.78rem; font-weight:700; white-space:nowrap;">${m.status_rh}</span>
+                        </div>`;
                     })() : ''}
                     ${m.status_updated_at ? `<div style="color:#64748b; font-size:0.7rem; font-weight:400; white-space:nowrap; margin-top:2px;">Atualizado: ${m.status_updated_at}</div>` : ''}
                 </div>
