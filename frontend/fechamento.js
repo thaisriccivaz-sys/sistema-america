@@ -1353,10 +1353,21 @@ function abrirLegenda() {
             });
             const json = await resp.json();
             if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
+            
+            // LIMPAR DADOS ANTIGOS ANTES DE PREENCHER OS NOVOS
+            _dados.forEach((r, idx) => {
+                _dados[idx].multas = 0;
+                const cell = document.getElementById(`fech-cell-multas-${idx}`);
+                if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = ''; }
+                atualizar(idx, 'multas', 0);
+            });
+
             if (json.length === 0) {
-                Swal.fire({ icon: 'info', title: 'Sem multas', text: 'Nenhuma multa com desconto em folha para este mês.' });
+                salvarSilencioso();
+                Swal.fire({ icon: 'info', title: 'Sem multas', text: 'Nenhuma multa com desconto em folha para este m\u00eas.' });
                 return;
             }
+        
             json.forEach(item => {
                 const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
                 if (idx >= 0) {
