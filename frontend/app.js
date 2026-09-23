@@ -21720,11 +21720,15 @@ window._atualizarMepInputs = function(isInitial = false) {
         let pMes = '';
         let pAno = '';
 
-        if (isInitial && cfg.length >= i) {
-            v = cfg[i-1].valor;
-            if (cfg[i-1].alert) isAlert = true;
-            if (cfg[i-1].mes) pMes = cfg[i-1].mes;
-            if (cfg[i-1].ano) pAno = cfg[i-1].ano;
+        let cfgParcela = null;
+        if (isInitial && cfg.length > 0) {
+            cfgParcela = cfg.find(c => parseInt(c.num) === i);
+            if (cfgParcela) {
+                v = parseFloat(cfgParcela.valor) || defVal;
+                if (cfgParcela.alert) isAlert = true;
+                if (cfgParcela.mes) pMes = cfgParcela.mes;
+                if (cfgParcela.ano) pAno = cfgParcela.ano;
+            }
         }
 
         const systemCharge = historico.find(h => parseInt(h.parcela_num) === i);
@@ -21738,15 +21742,17 @@ window._atualizarMepInputs = function(isInitial = false) {
         let expectedAno = window._mep_aIni;
         while (expectedMes > 12) { expectedAno++; expectedMes -= 12; }
         
-        let autoLabel = `Auto (${window._MESES_NOME[expectedMes-1]} ${expectedAno})`;
+        // Se pMes e pAno nao estiverem definidos na config ou historico, usar o esperado padrao do sistema
+        if (!pMes) pMes = expectedMes;
+        if (!pAno) pAno = expectedAno;
 
-        let mesOptions = `<option value="">${autoLabel}</option>`;
+        let mesOptions = '';
         for(let m = 1; m <= 12; m++) {
             mesOptions += `<option value="${m}" ${pMes == m ? 'selected' : ''}>${window._MESES_NOME[m-1]}</option>`;
         }
 
-        let anoOptions = '<option value="">Ano</option>';
-        for(let a = anoAtual - 1; a <= anoAtual + 2; a++) {
+        let anoOptions = '';
+        for(let a = anoAtual - 1; a <= anoAtual + 3; a++) {
             anoOptions += `<option value="${a}" ${pAno == a ? 'selected' : ''}>${a}</option>`;
         }
         
