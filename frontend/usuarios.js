@@ -602,18 +602,6 @@ const MENU_HIERARQUIA = [
                 ]
             },
             {
-                titulo: 'Pagamentos',
-                telas: [
-                    'fechamento', 'recibos', 'pagamentos-massa'
-                ]
-            },
-            {
-                titulo: 'Rota de Sucesso',
-                telas: [
-                    'rota-sucesso-motoristas', 'rota-sucesso-ajudantes'
-                ]
-            },
-            {
                 titulo: 'Avaliações',
                 telas: [
                     'satisfacao-rh', 'desempenho-rh'
