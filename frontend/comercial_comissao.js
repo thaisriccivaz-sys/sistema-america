@@ -219,7 +219,7 @@
         _mes = mes; _ano = ano;
         _spinner(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes, { headers: { 'Authorization': 'Bearer ' + token } });
             const d = await r.json();
             _spinner(false);
@@ -352,7 +352,7 @@
         fd.append('ano', ano);
         input.value = '';
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const r = await fetch('/api/comercial/comissao/upload-comissao', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
             const d = await r.json();
             _spinner(false);
@@ -378,7 +378,7 @@
         fd.append('ano', ano);
         input.value = '';
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const r = await fetch('/api/comercial/comissao/upload-propostas', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
             const d = await r.json();
             _spinner(false);
@@ -406,7 +406,7 @@
         modal.style.display = 'flex';
 
         try {
-            const token = localStorage.getItem('token');
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
             const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/detalhe/' + nomeEnc, { headers: { 'Authorization': 'Bearer ' + token } });
             const d = await r.json();
             if (!d.ok) { body.innerHTML = '<p style="color:#dc2626;text-align:center;">Erro ao carregar dados.</p>'; return; }
