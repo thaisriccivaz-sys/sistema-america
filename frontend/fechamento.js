@@ -2246,6 +2246,59 @@ function abrirLegenda() {
         Swal.fire({ icon: msgTipo, title: "Ponto " + mesFmt, text: msgTxt, timer: 5000, showConfirmButton: ok === 0 });
     }
 
+    // -- Observacao no Fechamento ---------------------------------------
+    window.abrirObsFechamento = function(idx) {
+        var trEl = document.querySelector('#fech-tbody tr[data-idx="' + idx + '"]');
+        var nome = trEl ? (trEl.dataset.nome || '') : '';
+        var obsAtual = (_dados[idx] || {}).observacao || '';
+        var modal = document.getElementById('modal-obs-fechamento');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-obs-fechamento';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
+            document.body.appendChild(modal);
+        }
+        var excluirBtn = obsAtual
+            ? '<button onclick="window.salvarObsFechamento(' + idx + ', true)" style="padding:8px 15px;border:none;background:#ef4444;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Excluir</button>'
+            : '';
+        modal.innerHTML = '<div style="background:#fff;border-radius:12px;width:440px;max-width:93%;box-shadow:0 10px 25px rgba(0,0,0,0.2);overflow:hidden;">'
+            + '<div style="padding:15px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;">'
+            + '<h3 style="margin:0;font-size:1.05rem;color:#0f172a;font-weight:700;">Observacao &mdash; ' + _mes + '/' + _ano + '</h3>'
+            + '<button onclick="document.getElementById(\'modal-obs-fechamento\').style.display=\'none\'" style="background:none;border:none;font-size:1.5rem;color:#94a3b8;cursor:pointer;padding:0;">&times;</button>'
+            + '</div>'
+            + '<div style="padding:20px;">'
+            + '<p style="margin:0 0 10px 0;font-size:0.9rem;color:#64748b;">Colaborador: <strong>' + nome + '</strong></p>'
+            + '<textarea id="obs-fech-texto" rows="4" style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;" placeholder="Digite a observacao...">' + obsAtual + '</textarea>'
+            + '</div>'
+            + '<div style="padding:15px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px;">'
+            + '<button onclick="document.getElementById(\'modal-obs-fechamento\').style.display=\'none\'" style="padding:8px 15px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;font-weight:600;color:#64748b;">Cancelar</button>'
+            + excluirBtn
+            + '<button onclick="window.salvarObsFechamento(' + idx + ', false)" style="padding:8px 15px;border:none;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Salvar</button>'
+            + '</div>'
+            + '</div>';
+        modal.style.display = 'flex';
+        setTimeout(function() { var ta = document.getElementById('obs-fech-texto'); if (ta) ta.focus(); }, 100);
+    };
+
+    window.salvarObsFechamento = function(idx, excluir) {
+        var texto = excluir ? '' : ((document.getElementById('obs-fech-texto').value || '').trim());
+        if (_dados[idx]) _dados[idx].observacao = texto || null;
+        document.getElementById('modal-obs-fechamento').style.display = 'none';
+        var trEl = document.querySelector('#fech-tbody tr[data-idx="' + idx + '"]');
+        if (trEl) {
+            var btn = trEl.querySelector('td:first-child button');
+            if (btn) {
+                var cor = texto ? '#2563eb' : '#9ca3af';
+                btn.style.borderColor = cor;
+                btn.style.color = cor;
+                btn.title = texto ? 'Obs: ' + texto : 'Adicionar observacao';
+            }
+        }
+        salvarSilencioso();
+        if (typeof showToast !== 'undefined') showToast(texto ? 'Observacao salva!' : 'Observacao removida', 'success');
+    };
+
     return {
         init, buscar, atualizar, filtrar, salvarTudo,
         abrirConferenciaPonto,
