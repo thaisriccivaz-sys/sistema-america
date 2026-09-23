@@ -60,6 +60,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Financeiro', pagina_id: 'financeiro-em-breve', pagina_nome: 'Financeiro (Em breve)', icone: 'ph-currency-dollar' },
     // Módulo Comercial
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
+    { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
+    { modulo: 'Comercial', pagina_id: 'comercial-comissao', pagina_nome: 'Comissão', icone: 'ph-currency-circle-dollar' },
     // Módulo Administrativo
     { modulo: 'Administrativo', pagina_id: 'licencas', pagina_nome: 'Licenças', icone: 'ph-certificate' },
     { modulo: 'Administrativo', pagina_id: 'estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
@@ -643,7 +645,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento'] }]
+        grupos: [{ titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-comissao'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',

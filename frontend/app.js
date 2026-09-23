@@ -1484,6 +1484,8 @@ function navigateTo(target) {
         if (typeof window.carregarHistoricoComCred === 'function') setTimeout(() => window.carregarHistoricoComCred(), 80);
     } else if (target === 'comercial-proposta') {
         if (typeof window.inicializarPropostas === 'function') setTimeout(() => window.inicializarPropostas(), 80);
+    } else if (target === 'comercial-comissao') {
+        if (typeof window._comercialComissao !== 'undefined') setTimeout(() => window._comercialComissao.init(), 80);
     } else if (target === 'administrativo-senhas') {
         if (typeof window.initAdministrativoSenhas === 'function') setTimeout(() => window.initAdministrativoSenhas(), 80);
     } else if (target === 'administrativo-protocolos') {
