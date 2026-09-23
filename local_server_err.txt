@@ -1,0 +1,16 @@
+Falha ao carregar modulo onedrive: ClientAuthError: invalid_client_credential: See https://aka.ms/msal.js.errors#invalid_client_credential for details
+    at createClientAuthError (C:\Users\thais\.gemini\antigravity\scratch\sistema-america\node_modules\@azure\msal-node\lib\msal-node.cjs:605:12)
+    at new ConfidentialClientApplication (C:\Users\thais\.gemini\antigravity\scratch\sistema-america\node_modules\@azure\msal-node\lib\msal-node.cjs:10714:19)
+    at Object.<anonymous> (C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\utils\onedrive.js:14:13)
+    at Module._compile (node:internal/modules/cjs/loader:1871:14)
+    at Object..js (node:internal/modules/cjs/loader:2002:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1617:12)
+    at require (node:internal/modules/helpers:153:16) {
+  errorCode: 'invalid_client_credential',
+  errorMessage: 'See https://aka.ms/msal.js.errors#invalid_client_credential for details',
+  subError: ''
+}
+🚨 ATENÇÃO: COFRE_ENCRYPTION_KEY não configurada! Usando chave de fallback insegura. Configure a variável de ambiente.

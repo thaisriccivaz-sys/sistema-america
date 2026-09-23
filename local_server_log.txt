@@ -1,0 +1,77 @@
+?  DATABASE_PATH configurado: C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\data\hr_system_v2.sqlite
+[R2 Storage] Variáveis de ambiente incompletas. R2 desativado.
+[POLL-ADMISSAO] Job de polling configurado (a cada 3 minutos).
+[Migration] Pensão Aliment??cia encoding fix applied
+[EQUIPES] Endpoints registrados.
+[PAGAMENTOS-MASSA] Módulo carregado com sucesso.
+[CERT] Diret??rio do certificado: C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\data\_certificados
+[ControlID] Rotas registradas com sucesso.
+[TREINAMENTO] Módulo de treinamentos carregado.
+[INTEGRAÇÃO] Templates por Departamento carregado.
+[INTEGRAÇÃO] Módulo de Integração de Colaboradores carregado.
+[INTEG] Módulo Templates de Integração carregado.
+[INTEG] Módulo Categorias/Ações carregado.
+[RotaSucesso] Rotas registradas com sucesso
+[Candidatos] Rotas de Testes de Candidatos registradas.
+[MTR SIGOR] Endpoints registrados: /lista /tabelas /gerar /:id/receber /:id/pdf
+[MONACO] Endpoints webhook registrados: /token /notificacao /multa /remulta /multa-paga /retornoCondutor
+[PROPOSTAS] Módulo de propostas comerciais carregado.
+[CELULARES] Módulo de celulares corporativos carregado.
+Rescuing database (V2) at: C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\data\hr_system_v2.sqlite
+[COMPUTADORES] Módulo de computadores corporativos carregado (com notificações).
+[EMAILS] Módulo de E-mails Corporativos carregado.
+[SAC] Migração de colunas concluída.
+[dotenv@17.3.1] injecting env (1) from backend\.env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Servidor rodando na porta 10000
+Versão do Servidor: V31_OS_LOGISTICA_MODULE
+Caminho de Armazenamento Local: C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\data\Colaboradores
+--------------------------------------------------
+Banco SQLite carregado: backend/data/hr_system_v2.sqlite
+Caminho Real: C:\Users\thais\.gemini\antigravity\scratch\sistema-america\backend\data\hr_system_v2.sqlite
+--------------------------------------------------
+[DB] PRAGMAs aplicados: WAL + synchronous=FULL (durabilidade garantida).
+Tabelas do sistema RH verificadas/criadas com sucesso.
+[CRON-ADMISSAO] Verificando colaboradores com admissao <= 2026-09-09...
+[SAC] Tabela sac_tickets OK.
+[DB] Tabela candidatos_teste OK.
+[DB] Tabela candidatos_teste_comentarios OK.
+[DB] Tabela candidatos_teste_rota OK.
+Tabela resumo_rota_auditoria OK.
+[MIGRATION-FIX1A] Desistência Combustível corrigida em 1 registro(s).
+[MIGRATION-FIX2A] Desistência VT corrigida em 1 registro(s).
+[FROTA] Tabela frota_km_historico OK.
+[SISTEMA] Configurações de certificado carregadas com sucesso.
+Migration 'ASO Padrão -> ASO Periódico' executada (se houver registros).
+Migration 'Audiometria -> Exames Complementares' executada (se houver registros).
+Tabela multas OK.
+[CRON-ADMISSAO] Nenhum colaborador para ativar.
+[AUTO-FIX] Removidos 1 cargos com nomes corrompidos: [ 54 ]
+[DEPT FIX] Removido duplicado corrompido id=501: "Ajudante Geral" → "Ajudante Pátio"
+MIGRATION: ORDEM NR01 maiúsculo renomeado (se existia).
+MIGRATION: Duplicatas NR01 removidas (se existiam).
+MIGRATION: AUTORIZACAO DESCONTO PAGAMENTO maiúsculo removido (se existia).
+MIGRATION: Geradores all-caps extras removidos.
+[MIGRATION] Tabela licencas verificada/criada.
+[MIGRATION] Gerador Ordem de Servico excluido.
+[MIGRATION] Docs Ordem de Servico removidos dos prontuarios.
+[EQUIPES] Tabela equipes OK.
+[EQUIPES] Tabela equipes_membros OK.
+[Migration] Tipos de notificacao celular unificados em celular_controle com sucesso.
+[MIGRATION] Equipes duplicadas removidas (se existiam).
+Migração V2 concluída.
+[Migration] Tabela dissidios OK
+[Config] valor_vr seed OK
+[OS Logística] Tabela os_logistica OK
+[OS V??deos] Tabela os_videos OK
+[RotaSucesso] Tabela rota_sucesso_respostas OK
+[MONACO] Tabela multas_monaco OK.
+[PROPOSTAS] Tabela propostas OK.
+[DB] Limpeza de departamentos com caracteres especiais (?) concluída.
+[FEEDBACK_DOC] Tabela feedback_documentos OK.
+Tabela cargo_documentos OK.
+[MIGRAÇÃO] Colaborador de teste (CPF 555.555.555-55) excluído permanentemente.
+[EPI migration] Removida ficha duplicada Ajudante Pátio, Liderança (se existia).
+[EQUIPES] Membros desligados/iniciados removidos das equipes.
+[CERT] à  Nenhum certificado configurado. Configure em Diretoria ? Certificado Digital.
+[SAC enc-fix] Corrigidos 0 ticket(s) com encoding quebrado.
