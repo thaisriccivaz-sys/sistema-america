@@ -785,9 +785,9 @@ const BREADCRUMB_MAP = {
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
     // Comercial
-    'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
-    'comercial-proposta': { path: 'Proposta', code: 'COM002' },
-    'comercial-comissao': { path: 'Comissão', code: 'COM003' },
+    'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
+    'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
+    'comercial-comissao': { path: 'Comercial → Comissão', code: 'COM003' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
