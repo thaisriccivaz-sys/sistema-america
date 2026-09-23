@@ -28620,6 +28620,13 @@ try {
     console.error('[Candidatos] Falha ao registrar rotas:', eCand.message);
 }
 
+try {
+    const multerComissao = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+    require('./routes_comercial_comissao')(app, db, authenticateToken, multerComissao);
+} catch (eComissao) {
+    console.error('[ComissaoComercial] Falha ao registrar rotas:', eComissao.message);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 
 app.listen(PORT, () => {
