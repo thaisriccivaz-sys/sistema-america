@@ -21702,7 +21702,7 @@ window.abrirModalEditarParcelasProntuario = async function(multaId, parcelasAtua
     window._atualizarMepInputs(true);
 };
 
-window._MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+window._MESES_NOME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 window._atualizarMepInputs = function(isInitial = false) {
     const num = parseInt(document.getElementById('mep-parcelas').value) || 1;
