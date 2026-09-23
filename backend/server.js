@@ -4228,6 +4228,10 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN apuracao_ponto TEXT', function(
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
     // coluna ja existe — OK silencioso
 });
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN observacao TEXT', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
+    // coluna ja existe — OK silencioso
+});
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
@@ -10102,8 +10106,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
-         plr, pensao, dias_intermitente, status, email_contabilidade, adicional_noturno)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         plr, pensao, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10117,6 +10121,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             plr=excluded.plr, pensao=excluded.pensao, dias_intermitente=excluded.dias_intermitente,
             status=excluded.status, email_contabilidade=excluded.email_contabilidade,
             adicional_noturno=excluded.adicional_noturno,
+            observacao=excluded.observacao,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10131,7 +10136,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.insalubridade || 0, item.periculosidade || 0,
                 item.plr || 0, item.pensao || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
-                item.adicional_noturno || 0
+                item.adicional_noturno || 0, item.observacao || null
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
