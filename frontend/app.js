@@ -21739,15 +21739,18 @@ window._atualizarMepInputs = function(isInitial = false) {
         const systemCharge = historico.find(h => parseInt(h.parcela_num) === i);
         if (systemCharge) {
             if (!cfgParcela) isAlert = true;
-            pMes = parseInt(systemCharge.mes);
-            pAno = parseInt(systemCharge.ano);
+            // Só usa o mês/ano do histórico se o config_parcelas NÃO tiver mês explícito salvo pelo usuário
+            if (!pMes || !pAno) {
+                pMes = parseInt(systemCharge.mes);
+                pAno = parseInt(systemCharge.ano);
+            }
         }
 
         if (!pMes || !pAno) {
             pMes = currentCursor.getMonth() + 1;
             pAno = currentCursor.getFullYear();
             currentCursor.setMonth(currentCursor.getMonth() + 1);
-        } else if (!systemCharge) {
+        } else {
             currentCursor.setMonth(currentCursor.getMonth() + 1);
         }
 
