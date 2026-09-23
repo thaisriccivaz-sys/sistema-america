@@ -21949,16 +21949,22 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             </div>`;
 
             // Determinar Mês e Ano a exibir
+            // Regra de precedência: cfg.mes/cfg.ano (editado pelo usuário) > historico mes/ano > cursor automático
+            // O valor (valFormatadoRow) ainda vem do historico quando cobrado
             var mObj, yObj, valFormatadoRow;
-            if (parcelasCobradas[i]) {
+            if (cfg && cfg.mes && cfg.ano) {
+                // Usuário editou explicitamente: mês do cfg prevalece
+                mObj = parseInt(cfg.mes) - 1;
+                yObj = parseInt(cfg.ano);
+                valFormatadoRow = parcelasCobradas[i]
+                    ? parseFloat(parcelasCobradas[i].valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                    : valorFormatado;
+                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1);
+            } else if (parcelasCobradas[i]) {
+                // Sem edição manual: usa o mês que o sistema cobrou
                 mObj = (parcelasCobradas[i].mes || 1) - 1;
                 yObj = parcelasCobradas[i].ano;
                 valFormatadoRow = parseFloat(parcelasCobradas[i].valor_parcela || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            } else if (cfg && cfg.mes && cfg.ano) {
-                mObj = parseInt(cfg.mes) - 1;
-                yObj = parseInt(cfg.ano);
-                valFormatadoRow = valorFormatado;
-                currentMonthBase.setMonth(currentMonthBase.getMonth() + 1); // avança o cursor pra nao perder a conta
             } else {
                 mObj = currentMonthBase.getMonth();
                 yObj = currentMonthBase.getFullYear();
