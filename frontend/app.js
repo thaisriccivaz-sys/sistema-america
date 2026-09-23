@@ -21733,7 +21733,7 @@ window._atualizarMepInputs = function(isInitial = false) {
 
         const systemCharge = historico.find(h => parseInt(h.parcela_num) === i);
         if (systemCharge) {
-            isAlert = true;
+            if (!cfgParcela) isAlert = true;
             if (!pMes) pMes = systemCharge.mes;
             if (!pAno) pAno = systemCharge.ano;
         }
@@ -21920,7 +21920,12 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             var valorFormatado = vParcelaDef.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             
             var isSystemCobrado = !!parcelasCobradas[i];
-            var isChecked = (cfg && cfg.alert) || isSystemCobrado ? 'checked' : '';
+            var isChecked = '';
+            if (cfg && cfg.hasOwnProperty('alert')) {
+                isChecked = cfg.alert ? 'checked' : '';
+            } else {
+                isChecked = isSystemCobrado ? 'checked' : '';
+            }
             var bgColor = isChecked ? '#16a34a' : '#cbd5e1';
             var tX = isChecked ? 'translateX(12px)' : 'translateX(0)';
             var toggleColor = isChecked ? '#16a34a' : '#94a3b8';
