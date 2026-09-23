@@ -21773,12 +21773,12 @@ window._atualizarMepInputs = function(isInitial = false) {
 
                 <div style="display:flex; align-items:center; gap:6px;">
                     <label style="position:relative; display:inline-block; width:34px; height:20px; margin:0;">
-                        <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} ${systemCharge ? 'disabled' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
-                        <div style="position:absolute; cursor:${systemCharge ? 'not-allowed' : 'pointer'}; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; opacity:${systemCharge ? '0.6' : '1'}; transition:.3s; border-radius:20px;">
+                        <input type="checkbox" class="mep-alert" data-idx="${i}" ${isAlert ? 'checked' : ''} style="opacity:0; width:0; height:0;" onchange="this.nextElementSibling.style.backgroundColor = this.checked ? '#16a34a' : '#cbd5e1'; this.nextElementSibling.querySelector('span').style.transform = this.checked ? 'translateX(14px)' : 'translateX(0)';">
+                        <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${isAlert ? '#16a34a' : '#cbd5e1'}; transition:.3s; border-radius:20px;">
                             <span style="position:absolute; content:''; height:14px; width:14px; left:3px; bottom:3px; background-color:white; transition:.3s; border-radius:50%; transform:${isAlert ? 'translateX(14px)' : 'translateX(0)'};"></span>
                         </div>
                     </label>
-                    <span style="font-size:0.7rem; font-weight:700; color:#475569;">${systemCharge ? 'Cobrado sist.' : 'Cobrado'}</span>
+                    <span style="font-size:0.7rem; font-weight:700; color:#475569;">Cobrado</span>
                 </div>
             </div>
         `;
