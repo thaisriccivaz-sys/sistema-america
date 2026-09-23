@@ -787,6 +787,7 @@ const BREADCRUMB_MAP = {
     // Comercial
     'comercial-credenciamento': { path: 'Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Proposta', code: 'COM002' },
+    'comercial-comissao': { path: 'Comissão', code: 'COM003' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
     'estoque': { path: 'Estoque', code: 'ADM002' },
@@ -1083,7 +1084,7 @@ function updateBreadcrumb(key) {
     const starBtn = document.getElementById('btn-star-page');
     if (starBtn && entryObj) {
         starBtn.style.color = pageColor;
-        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento';
+        const isSimplePage = (!entryObj.path.includes('→') && !key.startsWith('tab:')) || key === 'usuarios-permissoes' || key === 'form-usuario' || key === 'logistica-rota-redonda' || key === 'logistica-multas' || key === 'logistica-multas-monaco' || key === 'logistica-equipes' || key === 'logistica-pipeline' || key === 'logistica-frota' || key === 'logistica-credenciamento' || key === 'logistica-senhas' || key === 'comercial-credenciamento' || key === 'comercial-proposta' || key === 'comercial-comissao' || key === 'departamentos' || key === 'logistica-agenda' || key === 'logistica-epi' || key === 'rh-agenda' || key === 'estoque' || key === 'licencas' || key === 'treinamento-presenca' || key === 'treinamento-materiais' || key === 'treinamento-materiais-terapia' || key === 'treinamento-presenca-terapia' || key === 'logistica-videos-os' || key === 'logistica-resumo-rota' || key === 'rh-logistica-sinistros' || key === 'rh-logistica-multas' || key === 'assinaturas-adm' || key === 'administrativo-senhas' || key === 'administrativo-protocolos' || key === 'satisfacao-rh' || key === 'desempenho-rh' || key === 'sac' || key === 'fechamento';
         if (isSimplePage) {
             starBtn.style.display = 'flex';
         } else {
@@ -1173,6 +1174,7 @@ const TAB_META = {
     // Comercial - Roxo
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'comercial-comissao': { color: '#7048e8', icon: 'ph-currency-circle-dollar', title: 'Comissão' },
     'comercial-em-breve': { color: '#7048e8', icon: 'ph-handshake', title: 'Comercial' },
     // Administrativo - Amarelo
     'admin-em-breve': { color: '#e67700', icon: 'ph-gear', title: 'Administrativo' },
