@@ -479,13 +479,12 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         } catch (err) { res.status(500).json({ error: 'Erro ao buscar propostas.', detalhe: err.message }); }
     });
 
-    // GET /:ano/:mes/detalhe/:nome
-    app.get('/api/comercial/comissao/:ano/:mes/detalhe/:nome', authenticateToken, async (req, res) => {
+    // GET /:ano/:mes/detalhe-id/:id
+    app.get('/api/comercial/comissao/:ano/:mes/detalhe-id/:id', authenticateToken, async (req, res) => {
         try {
             const row = await new Promise((resolve, reject) => {
-                const searchName = decodeURIComponent(req.params.nome);
-                db.get('SELECT c.* FROM comissao_comercial c LEFT JOIN colaboradores colab ON colab.id = c.colaborador_id WHERE c.mes=? AND c.ano=? AND (c.colaborador_nome=? OR colab.nome_completo=?)',
-                    [parseInt(req.params.mes), parseInt(req.params.ano), searchName, searchName],
+                db.get('SELECT c.* FROM comissao_comercial c WHERE c.id=?',
+                    [parseInt(req.params.id)],
                     (err, row) => err ? reject(err) : resolve(row));
             });
             if (!row) return res.status(404).json({ error: 'Colaborador nao encontrado.' });

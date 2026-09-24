@@ -343,7 +343,7 @@
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_total != null ? c.propostas_total : '—') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_aprovadas != null ? c.propostas_aprovadas : '—') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:600;color:#7c3aed;">' + taxa + '</td>' +
-                '<td style="padding:10px 8px;text-align:center;"><button onclick="window._comercialComissao._abrirDetalhe(decodeURIComponent(this.dataset.nome))" data-nome="' + nomeEsc + '" style="background:none;border:1px solid #d1d5db;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;color:#374151;">🔍 Detalhe</button></td>';
+                '<td style="padding:10px 8px;text-align:center;"><button onclick="window._comercialComissao._abrirDetalhe(' + c.id + ', decodeURIComponent(this.dataset.nome))" data-nome="' + nomeEsc + '" style="background:none;border:1px solid #d1d5db;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;color:#374151;">🔍 Detalhe</button></td>';
             return tr.outerHTML;
         }).join('');
 
@@ -479,8 +479,7 @@
         }
     }
 
-    async function _abrirDetalhe(nomeEnc) {
-        const nome = decodeURIComponent(nomeEnc);
+    async function _abrirDetalhe(id, nome) {
         const { mes, ano } = _getMesAno();
         const modal = document.getElementById('cc-modal');
         const titulo = document.getElementById('cc-modal-titulo');
@@ -491,7 +490,7 @@
 
         try {
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/detalhe/' + nomeEnc, { headers: { 'Authorization': 'Bearer ' + token } });
+            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/detalhe-id/' + id, { headers: { 'Authorization': 'Bearer ' + token } });
             const d = await r.json();
             if (!d.ok) { body.innerHTML = '<p style="color:#dc2626;text-align:center;">Erro ao carregar dados.</p>'; return; }
 
