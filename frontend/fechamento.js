@@ -706,6 +706,11 @@ function abrirLegenda() {
       <i class="ph ph-trophy"></i> Calcular PLR
     </button>
 
+    <!-- Buscar Comissão Comercial -->
+    <button id="fech-btn-buscar-comissao" onclick="window._fechamento.buscarComissao()" style="background:#7c3aed;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+      <i class="ph ph-money"></i> Buscar Comissão
+    </button>
+
     <!-- Buscar Ponto RHID -->
     <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
       <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
@@ -974,8 +979,8 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'bonus_comissao',row.bonus_comissao||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-bonus-comissao-${idx}">${inpNum(idx,'bonus_comissao',row.bonus_comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
@@ -1387,6 +1392,90 @@ function abrirLegenda() {
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // BUSCAR COMISSÃO COMERCIAL
+    // ─────────────────────────────────────────────────────────────────
+    async function buscarComissao() {
+        if (!_mes || !_ano) {
+            Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Selecione o mês e o ano antes de buscar a comissão.' });
+            return;
+        }
+        const btn = document.getElementById('fech-btn-buscar-comissao');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner"></i> Buscando...'; }
+        try {
+            const resp = await fetch('/api/comercial/comissao/' + _ano + '/' + _mes, {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            const json = await resp.json();
+            if (!json.ok) throw new Error(json.error || 'Erro ao buscar comissão');
+
+            const colaboradores = json.colaboradores || [];
+            const gestor = json.gestor || null;
+
+            let atualizados = 0;
+
+            // Preencher comissão dos colaboradores (somente se atingiu meta mínima)
+            colaboradores.forEach(function(c) {
+                if (!c.metrica) return; // sem meta = não preenche
+                const idx = _dados.findIndex(function(r) {
+                    return r.colaborador_id === c.colaborador_id || r.id === c.colaborador_id;
+                });
+                if (idx < 0) return;
+                const val = parseFloat(c.liquido) || 0;
+                _dados[idx].comissao = val;
+                _dados[idx].bonus_comissao = 0; // vendedores: comissão vai em comissao, bonus zerado aqui
+                const cell = document.getElementById('fech-cell-comissao-' + idx);
+                if (cell) {
+                    const inp = cell.querySelector('input');
+                    if (inp) inp.value = val.toFixed(2);
+                }
+                const cellB = document.getElementById('fech-cell-bonus-comissao-' + idx);
+                if (cellB) {
+                    const inp = cellB.querySelector('input');
+                    if (inp) inp.value = '0.00';
+                }
+                atualizar(idx, 'comissao', val);
+                atualizar(idx, 'bonus_comissao', 0);
+                atualizados++;
+            });
+
+            // Preencher comissão do gestor (bonus_equipe + bonus_meta220, somente se atingiu meta mínima)
+            if (gestor && gestor.meta && gestor.nome) {
+                // Valor do gestor vai em bonus_comissao (já que é bônus de supervisão)
+                const valGestor = (parseFloat(gestor.bonus_equipe) || 0) + (parseFloat(gestor.bonus_meta220) || 0);
+                // Encontrar gestor pelo nome
+                const nomeGestor = (gestor.nome || '').toLowerCase().trim();
+                const idxGestor = _dados.findIndex(function(r) {
+                    return (r.nome_completo || r.nome || '').toLowerCase().trim().includes(nomeGestor.split(' ')[0]);
+                });
+                if (idxGestor >= 0) {
+                    _dados[idxGestor].bonus_comissao = valGestor;
+                    const cellB = document.getElementById('fech-cell-bonus-comissao-' + idxGestor);
+                    if (cellB) {
+                        const inp = cellB.querySelector('input');
+                        if (inp) inp.value = valGestor.toFixed(2);
+                    }
+                    atualizar(idxGestor, 'bonus_comissao', valGestor);
+                    atualizados++;
+                }
+            }
+
+            salvarSilencioso();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Comissão importada!',
+                text: atualizados + ' colaborador(es) atualizado(s) com dados da Comissão Comercial.',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } catch(e) {
+            Swal.fire({ icon: 'error', title: 'Erro ao buscar comissão', text: e.message });
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-money"></i> Buscar Comissão'; }
+        }
+    }
+
+        // ─────────────────────────────────────────────────────────────────
     // CALCULAR PLR
     // ─────────────────────────────────────────────────────────────────
     async function carregarPLR() {
@@ -2304,7 +2393,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR,
+        carregarMultas, carregarPLR, buscarComissao,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
