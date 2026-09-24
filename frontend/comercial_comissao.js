@@ -370,7 +370,7 @@
             var trG = document.createElement('tr');
             trG.style.cssText = 'background:#f0f4ff;border-top:3px solid #6366f1;';
             trG.innerHTML =
-                '<td style="padding:10px 12px;font-weight:700;color:#3730a3;">\uD83D\uDC51 Gestor (equipe)</td>' +
+                '<td style="padding:10px 12px;font-weight:700;color:#3730a3;" title="Gestor(a) do Comercial">\uD83D\uDC51 ' + (g.nome || 'Gestor (equipe)') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-weight:700;">' + g.contratos_estornos_gestor + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_liquidos + '</td>' +

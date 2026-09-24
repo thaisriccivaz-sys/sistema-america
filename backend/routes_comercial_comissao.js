@@ -445,6 +445,14 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             const metricasGestor = await carregarMetricasGestor(db);
             const gestor = calcularGestor(comissoes, metricasGestor);
+            
+            // Buscar nome do gestor comercial
+            const gestorInfo = await new Promise((resolve) => {
+                db.get("SELECT COALESCE(c.nome_completo, d.responsavel_nome, 'Gestor (equipe)') as gestor_nome FROM departamentos d LEFT JOIN colaboradores c ON c.id = d.responsavel_id WHERE LOWER(TRIM(d.nome)) = 'comercial'", [], (err, row) => {
+                    resolve(row || { gestor_nome: 'Gestor (equipe)' });
+                });
+            });
+            gestor.nome = gestorInfo.gestor_nome;
 
             res.json({ ok: true, mes: parseInt(mes), ano: parseInt(ano), colaboradores: enriq, gestor, totais: {
                 total_bruto:   comissoes.reduce((s,c)=>s+c.comissao_bruta,0),
