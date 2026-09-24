@@ -324,8 +324,14 @@
             tr.addEventListener('mouseover', function(){ this.style.background='#f8fafc'; });
             tr.addEventListener('mouseout', function(){ this.style.background=''; });
             var nomeEsc = encodeURIComponent(c.colaborador_nome);
+            var fotoHtml = c.foto_url 
+                ? '<img src="' + c.foto_url + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;border:1px solid #e2e8f0;flex-shrink:0;">' 
+                : '<div style="width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;font-size:.8rem;font-weight:700;color:#64748b;flex-shrink:0;">' + (c.colaborador_nome[0] || '').toUpperCase() + '</div>';
+
             tr.innerHTML =
-                '<td style="padding:10px 12px;font-weight:600;color:#1e293b;">' + prim + c.colaborador_nome + '</td>' +
+                '<td style="padding:10px 12px;font-weight:600;color:#1e293b;">' +
+                    '<div style="display:flex;align-items:center;">' + prim + fotoHtml + '<span>' + c.colaborador_nome + '</span></div>' +
+                '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + c.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + c.contratos_liquidos + '</td>' +
@@ -367,10 +373,17 @@
                 ' &nbsp;|&nbsp; ' +
                 (g.meta_220_atingida ? '&#10003; 220+ contratos' : '&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bonus 220');
 
+            var nomeG = g.nome || 'Gestor (equipe)';
+            var fotoGHtml = g.foto_url 
+                ? '<img src="' + g.foto_url + '" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;border:1px solid #c7d2fe;flex-shrink:0;">' 
+                : '<div style="width:28px;height:28px;border-radius:50%;background:#e0e7ff;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;font-size:.8rem;font-weight:700;color:#3730a3;flex-shrink:0;">' + (nomeG[0] || '').toUpperCase() + '</div>';
+
             var trG = document.createElement('tr');
             trG.style.cssText = 'background:#f0f4ff;border-top:3px solid #6366f1;';
             trG.innerHTML =
-                '<td style="padding:10px 12px;font-weight:700;color:#3730a3;" title="Gestor(a) do Comercial">\uD83D\uDC51 ' + (g.nome || 'Gestor (equipe)') + '</td>' +
+                '<td style="padding:10px 12px;font-weight:700;color:#3730a3;" title="Gestor(a) do Comercial">' +
+                    '<div style="display:flex;align-items:center;"><span style="margin-right:4px;">\uD83D\uDC51</span>' + fotoGHtml + '<span>' + nomeG + '</span></div>' +
+                '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-weight:700;">' + g.contratos_estornos_gestor + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_liquidos + '</td>' +

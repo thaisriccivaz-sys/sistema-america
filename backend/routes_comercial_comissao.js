@@ -421,7 +421,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         try {
             const { ano, mes } = req.params;
             const comissoes = await new Promise((resolve, reject) => {
-                db.all('SELECT c.*, colab.nome_completo as nome_completo_db FROM comissao_comercial c LEFT JOIN colaboradores colab ON colab.id = c.colaborador_id WHERE mes=? AND ano=? ORDER BY contratos_liquidos DESC',
+                db.all('SELECT c.*, colab.nome_completo as nome_completo_db, colab.foto_base64, colab.foto_path FROM comissao_comercial c LEFT JOIN colaboradores colab ON colab.id = c.colaborador_id WHERE mes=? AND ano=? ORDER BY contratos_liquidos DESC',
                     [parseInt(mes), parseInt(ano)], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
             const propStats = await new Promise((resolve, reject) => {
@@ -439,21 +439,23 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 for (const [rep, t] of Object.entries(taxaMap)) {
                     if (normName(rep).startsWith(pn)) { taxa = t; break; }
                 }
-                const { detalhe_contratos, detalhe_estornos, nome_completo_db, ...pub } = c;
+                const { detalhe_contratos, detalhe_estornos, nome_completo_db, foto_base64, foto_path, ...pub } = c;
                 pub.colaborador_nome = nome_completo_db || pub.colaborador_nome;
+                pub.foto_url = foto_base64 || (foto_path ? '/api/colaboradores/foto/' + pub.colaborador_id : null);
                 return { ...pub, propostas_total: taxa ? taxa.total : null, propostas_aprovadas: taxa ? taxa.aprovadas : null, taxa_conversao: taxa && taxa.total > 0 ? ((taxa.aprovadas / taxa.total) * 100).toFixed(1) + '%' : null };
             });
 
             const metricasGestor = await carregarMetricasGestor(db);
             const gestor = calcularGestor(comissoes, metricasGestor);
             
-            // Buscar nome do gestor comercial
+            // Buscar nome e foto do gestor comercial
             const gestorInfo = await new Promise((resolve) => {
-                db.get("SELECT COALESCE(c.nome_completo, d.responsavel_nome, 'Gestor (equipe)') as gestor_nome FROM departamentos d LEFT JOIN colaboradores c ON c.id = d.responsavel_id WHERE LOWER(TRIM(d.nome)) = 'comercial'", [], (err, row) => {
+                db.get("SELECT COALESCE(c.nome_completo, d.responsavel_nome, 'Gestor (equipe)') as gestor_nome, c.foto_base64, c.foto_path, c.id as gestor_id FROM departamentos d LEFT JOIN colaboradores c ON c.id = d.responsavel_id WHERE LOWER(TRIM(d.nome)) = 'comercial'", [], (err, row) => {
                     resolve(row || { gestor_nome: 'Gestor (equipe)' });
                 });
             });
             gestor.nome = gestorInfo.gestor_nome;
+            gestor.foto_url = gestorInfo.foto_base64 || (gestorInfo.foto_path ? '/api/colaboradores/foto/' + gestorInfo.gestor_id : null);
 
             res.json({ ok: true, mes: parseInt(mes), ano: parseInt(ano), colaboradores: enriq, gestor, totais: {
                 total_bruto:   comissoes.reduce((s,c)=>s+c.comissao_bruta,0),
