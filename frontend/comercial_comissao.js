@@ -445,9 +445,15 @@
             const d = await r.json();
             _spinner(false);
             if (d.ok) {
-                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Planilha importada!', text: d.colaboradores.length + ' colaborador(es) processado(s).', timer: 2500, showConfirmButton: false });
-                buscar();
                 setTimeout(_carregarBotoesPlanilhas, 1000);
+                const dups = d.duplicatas || { intra: [], inter: [] };
+                const temDup = dups.intra.length > 0 || dups.inter.length > 0;
+                if (temDup) {
+                    _abrirModalDuplicatas(dups, d.mes, d.ano, d.colaboradores.length);
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Planilha importada!', text: d.colaboradores.length + ' colaborador(es) processado(s). Nenhum contrato duplicado encontrado.', timer: 3000, showConfirmButton: false });
+                    buscar();
+                }
             } else {
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: d.error || 'Erro ao processar planilha.' });
             }
@@ -526,11 +532,19 @@
             html += '</div>';
 
             // Tabela contratos
-            html += '<h4 style="margin:0 0 8px;font-size:.9rem;color:#374151;">Contratos Entregues (' + contratos.length + ')</h4>';
+            const contratosValidos = contratos.filter(c => !c.excluido);
+            html += '<h4 style="margin:0 0 8px;font-size:.9rem;color:#374151;">Contratos Entregues (' + contratosValidos.length + (contratos.length !== contratosValidos.length ? ' <span style=\'font-size:.75rem;color:#9ca3af;font-weight:400;\'>(+' + (contratos.length - contratosValidos.length) + ' excluído(s))</span>' : '') + ')</h4>';
             if (contratos.length) {
                 html += '<div style="overflow-x:auto;margin-bottom:20px;"><table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
                 html += '<thead><tr style="background:#f1f5f9;"><th style="padding:8px 10px;text-align:left;">Nº</th><th style="padding:8px 10px;">Data</th><th style="padding:8px 10px;">Contrato</th><th style="padding:8px 10px;text-align:right;">Valor</th></tr></thead><tbody>';
-                html += contratos.map(c => '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (c.numero||'—') + '</td><td style="padding:7px 10px;text-align:right;">' + FMT2(c.valor) + '</td></tr>').join('');
+                html += contratos.map(c => {
+                    const excluido = c.excluido;
+                    const aditivo = c.aditivo;
+                    const numDisplay = (aditivo ? '<span style="color:#6d28d9;font-weight:700;">(A)</span> ' : '') + (c.numero||'—');
+                    const style = excluido ? 'color:#9ca3af;text-decoration:line-through;background:#f9fafb;' : '';
+                    const tag = excluido ? '<span style="font-size:.7rem;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px;margin-left:4px;">excluído</span>' : (aditivo ? '<span style="font-size:.7rem;background:#ede9fe;color:#5b21b6;padding:1px 5px;border-radius:4px;margin-left:4px;">' + (c.aditivo_texto || 'Adtivo') + '</span>' : '');
+                    return '<tr style="border-bottom:1px solid #f1f5f9;' + style + '"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + numDisplay + tag + '</td><td style="padding:7px 10px;text-align:right;">' + (excluido ? '<span style=\"color:#9ca3af;\">' + FMT2(c.valor) + '</span>' : FMT2(c.valor)) + '</td></tr>';
+                }).join('');
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum contrato.</p>'; }
 
@@ -798,6 +812,132 @@
         }
     }
 
+    // ─── Modal de Duplicatas ─────────────────────────────────────────────
+    function _abrirModalDuplicatas(dups, mes, ano, totalColabs) {
+        let modal = document.getElementById('cc-modal-duplicatas');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'cc-modal-duplicatas';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;';
+            document.body.appendChild(modal);
+        }
+
+        let rowsHtml = '';
+        let rowIdx = 0;
+
+        // Seção 1 — Intra-colaborador (amarelo)
+        if (dups.intra.length > 0) {
+            rowsHtml += '<div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:10px;padding:16px;margin-bottom:16px;">';
+            rowsHtml += '<h3 style="margin:0 0 12px;font-size:.95rem;color:#92400e;font-weight:700;">⚠️ Contratos duplicados no mesmo colaborador</h3>';
+            rowsHtml += '<p style="margin:0 0 10px;font-size:.82rem;color:#78350f;">O mesmo número de contrato aparece mais de uma vez na aba do colaborador.</p>';
+            rowsHtml += '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">';
+            rowsHtml += '<thead><tr style="background:#fef3c7;"><th style="padding:7px 8px;text-align:left;">Colaborador</th><th style="padding:7px 8px;text-align:left;">Nº Contrato</th><th style="padding:7px 8px;text-align:center;">Qtd</th><th style="padding:7px 8px;text-align:center;">Ação</th><th style="padding:7px 8px;text-align:left;">Justificativa</th></tr></thead><tbody>';
+            dups.intra.forEach(function(d) {
+                const ri = rowIdx++;
+                rowsHtml += '<tr style="border-bottom:1px solid #fde68a;">';
+                rowsHtml += '<td style="padding:7px 8px;font-weight:600;">' + d.colaborador_nome + '</td>';
+                rowsHtml += '<td style="padding:7px 8px;font-family:monospace;">' + d.numero + '</td>';
+                rowsHtml += '<td style="padding:7px 8px;text-align:center;color:#dc2626;font-weight:700;">' + d.count + 'x</td>';
+                rowsHtml += '<td style="padding:7px 8px;text-align:center;">';
+                rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-colab="' + d.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
+                rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Aditivo</option></select>';
+                rowsHtml += '</td>';
+                rowsHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
+                rowsHtml += '</tr>';
+            });
+            rowsHtml += '</tbody></table></div>';
+        }
+
+        // Seção 2 — Inter-colaboradores (laranja)
+        if (dups.inter.length > 0) {
+            rowsHtml += '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:10px;padding:16px;margin-bottom:16px;">';
+            rowsHtml += '<h3 style="margin:0 0 12px;font-size:.95rem;color:#9a3412;font-weight:700;">🔴 Contratos duplicados entre colaboradores</h3>';
+            rowsHtml += '<p style="margin:0 0 10px;font-size:.82rem;color:#7c2d12;">O mesmo número de contrato aparece em abas de colaboradores diferentes. Decida para cada colaborador separadamente.</p>';
+            dups.inter.forEach(function(d) {
+                rowsHtml += '<div style="background:#ffedd5;border-radius:8px;padding:10px 12px;margin-bottom:10px;">';
+                rowsHtml += '<div style="font-size:.85rem;font-weight:700;color:#9a3412;margin-bottom:8px;">📄 Contrato nº <span style="font-family:monospace;">' + d.numero + '</span> — aparece em ' + d.colaboradores.length + ' colaboradores</div>';
+                rowsHtml += '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">';
+                rowsHtml += '<thead><tr style="background:#fed7aa;"><th style="padding:6px 8px;text-align:left;">Colaborador</th><th style="padding:6px 8px;text-align:center;">Ação</th><th style="padding:6px 8px;text-align:left;">Justificativa</th></tr></thead><tbody>';
+                d.colaboradores.forEach(function(colab) {
+                    const ri = rowIdx++;
+                    rowsHtml += '<tr style="border-bottom:1px solid #fdba74;">';
+                    rowsHtml += '<td style="padding:6px 8px;font-weight:600;">' + colab + '</td>';
+                    rowsHtml += '<td style="padding:6px 8px;text-align:center;">';
+                    rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-colab="' + colab.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
+                    rowsHtml += '<option value="manter">✅ Manter</option><option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Aditivo</option></select>';
+                    rowsHtml += '</td>';
+                    rowsHtml += '<td style="padding:6px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
+                    rowsHtml += '</tr>';
+                });
+                rowsHtml += '</tbody></table></div>';
+            });
+            rowsHtml += '</div>';
+        }
+
+        const totalRows = rowIdx;
+        modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:28px;max-width:780px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18);">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
+            '<h2 style="margin:0;font-size:1.1rem;color:#1e293b;">⚠️ Contratos Duplicados Detectados</h2>' +
+            '<span style="font-size:.82rem;color:#6b7280;">' + totalColabs + ' colaborador(es) processado(s)</span>' +
+            '</div>' +
+            rowsHtml +
+            '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button id="cc-dup-btn-ignorar" style="padding:9px 20px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;">Ignorar e carregar assim</button>' +
+            '<button id="cc-dup-btn-confirmar" style="padding:9px 22px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;">✅ Confirmar decisões</button>' +
+            '</div>' +
+            '</div>';
+        modal.style.display = 'flex';
+        // Delegação de eventos — mostrar/ocultar input de justificativa ao mudar select
+        modal.querySelectorAll('select.cc-dup-sel').forEach(function(sel) {
+            sel.addEventListener('change', function() {
+                const ri = this.dataset.ri;
+                const txtEl = document.getElementById('cc-dup-txt-' + ri);
+                if (txtEl) txtEl.style.display = this.value === 'aditivo' ? 'block' : 'none';
+            });
+        });
+        // Botões do rodapé
+        var btnIgnorar = document.getElementById('cc-dup-btn-ignorar');
+        if (btnIgnorar) btnIgnorar.onclick = function() { modal.style.display = 'none'; buscar(); };
+        var btnConfirmar = document.getElementById('cc-dup-btn-confirmar');
+        var _capMes = mes; var _capAno = ano; var _capRows = totalRows;
+        if (btnConfirmar) btnConfirmar.onclick = function() { _confirmarDuplicatas(_capMes, _capAno, _capRows); };
+    }
+
+    async function _confirmarDuplicatas(mes, ano, totalRows) {
+        const resolucoes = [];
+        for (let i = 0; i < totalRows; i++) {
+            const sel = document.getElementById('cc-dup-acao-' + i);
+            if (!sel) continue;
+            const acao = sel.value;
+            if (acao === 'manter') continue; // sem decisão necessária
+            const colaborador_nome = sel.dataset.colab;
+            const numero = sel.dataset.numero;
+            const txtEl = document.getElementById('cc-dup-txt-' + i);
+            const texto = (txtEl ? txtEl.value : '') || 'Adtivo';
+            resolucoes.push({ colaborador_nome, numero, acao, texto });
+        }
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const modal = document.getElementById('cc-modal-duplicatas');
+        try {
+            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/resolver-duplicatas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ resolucoes })
+            });
+            const d = await r.json();
+            if (modal) modal.style.display = 'none';
+            if (d.ok) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Duplicatas resolvidas!', text: 'Os dados foram atualizados com suas decisões.', timer: 2500, showConfirmButton: false });
+                buscar();
+            } else {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: d.error || 'Erro ao resolver duplicatas.' });
+            }
+        } catch(e) {
+            if (modal) modal.style.display = 'none';
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha na comunicação com o servidor.' });
+        }
+    }
+
     function _controlarBotaoMetricas() {
         const btn = document.getElementById('cc-btn-metricas');
         if (!btn) return;
@@ -815,7 +955,7 @@
         }
     }
 
-    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia };
+    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia, _abrirModalDuplicatas, _confirmarDuplicatas };
 
     // Hook de navegação
     if (window.navigateTo) {

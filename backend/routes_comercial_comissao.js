@@ -369,6 +369,42 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             const resumo = resultados.map(({ _estCount, _liquidos, _bonusVal, detalhe_contratos, detalhe_estornos, ...pub }) => pub);
 
+            // ── Detectar duplicatas ──────────────────────────────────────────
+            // 1) Intra-colaborador: mesmo numero aparece 2+ vezes na mesma aba
+            const intraDups = [];
+            for (const r of resultados) {
+                const cts = JSON.parse(r.detalhe_contratos || '[]');
+                const numCount = {};
+                cts.forEach(c => {
+                    const n = String(c.numero || '').trim();
+                    if (n) numCount[n] = (numCount[n] || 0) + 1;
+                });
+                for (const [numero, count] of Object.entries(numCount)) {
+                    if (count > 1) {
+                        intraDups.push({ colaborador_nome: r.colaborador_nome, numero, count });
+                    }
+                }
+            }
+            // 2) Inter-colaboradores: mesmo numero em abas diferentes
+            const allNums = {}; // numero -> [colab_nomes]
+            for (const r of resultados) {
+                const cts = JSON.parse(r.detalhe_contratos || '[]');
+                const seen = new Set();
+                cts.forEach(c => {
+                    const n = String(c.numero || '').trim();
+                    if (n && !seen.has(n)) {
+                        seen.add(n);
+                        if (!allNums[n]) allNums[n] = [];
+                        allNums[n].push(r.colaborador_nome);
+                    }
+                });
+            }
+            const interDups = [];
+            for (const [numero, colabs] of Object.entries(allNums)) {
+                if (colabs.length > 1) interDups.push({ numero, colaboradores: colabs });
+            }
+            const duplicatas = { intra: intraDups, inter: interDups };
+
             // Salvar planilha no R2
             let planilhaComissaoKey = null;
             try {
@@ -388,7 +424,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 console.warn('[Comissao] Falha ao salvar planilha no R2:', r2Err.message);
             }
 
-            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo, planilha_r2_key: planilhaComissaoKey });
+            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo, planilha_r2_key: planilhaComissaoKey, duplicatas });
         } catch (err) {
             console.error('[Comissao] upload-comissao:', err);
             res.status(500).json({ error: 'Erro ao processar planilha de comissao.', detalhe: err.message });
@@ -551,6 +587,76 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         } catch (err) { res.status(500).json({ error: 'Erro ao buscar detalhe.', detalhe: err.message }); }
     });
 
+    // POST /:ano/:mes/resolver-duplicatas — aplicar decisões sobre contratos duplicados
+    app.post('/api/comercial/comissao/:ano/:mes/resolver-duplicatas', authenticateToken, async (req, res) => {
+        try {
+            const mes = parseInt(req.params.mes);
+            const ano = parseInt(req.params.ano);
+            const { resolucoes } = req.body; // [{colaborador_nome, numero, acao:'excluir'|'aditivo', texto}]
+            if (!Array.isArray(resolucoes) || resolucoes.length === 0) return res.json({ ok: true });
+
+            const metricasArr = await carregarMetricas(db);
+
+            // Agrupar por colaborador
+            const byColab = {};
+            for (const r of resolucoes) {
+                if (!byColab[r.colaborador_nome]) byColab[r.colaborador_nome] = [];
+                byColab[r.colaborador_nome].push(r);
+            }
+
+            for (const [nomeColab, resolList] of Object.entries(byColab)) {
+                const row = await new Promise((resolve, reject) => {
+                    db.get('SELECT * FROM comissao_comercial WHERE mes=? AND ano=? AND colaborador_nome=?',
+                        [mes, ano, nomeColab], (err, r) => err ? reject(err) : resolve(r));
+                });
+                if (!row) continue;
+
+                let contratos = JSON.parse(row.detalhe_contratos || '[]');
+                const estornos = JSON.parse(row.detalhe_estornos || '[]');
+
+                for (const resol of resolList) {
+                    const numStr = String(resol.numero || '').trim();
+                    // Aplicar na primeira ocorrência ainda não marcada (para intra-duplicatas escolher qual excluir)
+                    // Para simplicidade: aplica em TODAS as ocorrências do mesmo numero neste colab
+                    contratos = contratos.map(c => {
+                        if (String(c.numero || '').trim() !== numStr) return c;
+                        if (resol.acao === 'excluir') {
+                            return Object.assign({}, c, { excluido: true, aditivo: false, aditivo_texto: '' });
+                        }
+                        if (resol.acao === 'aditivo') {
+                            return Object.assign({}, c, { excluido: false, aditivo: true, aditivo_texto: resol.texto || 'Adtivo' });
+                        }
+                        return c;
+                    });
+                }
+
+                // Recalcular metricas sem os excluidos
+                const validContratos = contratos.filter(c => !c.excluido);
+                const brutos = validContratos.length;
+                const estCount = estornos.length;
+                const liquidos = Math.max(0, brutos - estCount);
+                const met = aplicarMetrica(liquidos, metricasArr);
+                const comBruta = liquidos * met.valor;
+                const totEst = estornos.reduce((s, e) => s + e.valor, 0);
+
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        'UPDATE comissao_comercial SET contratos_brutos=?, contratos_estorno=?, contratos_liquidos=?, metrica=?, valor_unitario=?, comissao_bruta=?, total_estorno=?, liquido=?, detalhe_contratos=? WHERE mes=? AND ano=? AND colaborador_nome=?',
+                        [brutos, estCount, liquidos, met.label, met.valor, comBruta, totEst, comBruta, JSON.stringify(contratos), mes, ano, nomeColab],
+                        err => err ? reject(err) : resolve()
+                    );
+                });
+            }
+
+            // Recalcular 1o lugar
+            await recalcularPrimeiroLugar(db, mes, ano, null);
+            res.json({ ok: true });
+        } catch (err) {
+            console.error('[Comissao] resolver-duplicatas:', err.message);
+            res.status(500).json({ error: 'Erro ao resolver duplicatas.', detalhe: err.message });
+        }
+    });
+
     // DELETE /:ano/:mes
     app.delete('/api/comercial/comissao/:ano/:mes', authenticateToken, async (req, res) => {
         try {
@@ -680,11 +786,11 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 '</td></tr>' +
                 // (tabela de valores removida a pedido)
                 // Tabela contratos
-                (contratos.length > 0 ? '<tr><td style="padding:0 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#374151;font-weight:700;">Contratos Entregues (' + contratos.length + ')</h4>' +
+                (contratos.length > 0 ? '<tr><td style="padding:0 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#374151;font-weight:700;">Contratos Entregues (' + contratos.filter(c => !c.excluido).length + ')</h4>' +
                 '<table width="100%" cellpadding="8" style="border-collapse:collapse;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;">' +
                 '<thead><tr style="background:#f1f5f9;"><th style="text-align:left;color:#6b7280;font-weight:600;">Nº</th><th style="color:#6b7280;font-weight:600;">Data</th><th style="color:#6b7280;font-weight:600;">Contrato</th></tr></thead>' +
                 '<tbody>' +
-                contratos.map((c, i) => '<tr style="border-top:1px solid #f1f5f9;background:' + (i % 2 === 1 ? '#f8fafc' : '#fff') + ';"><td>' + (c.seq || i + 1) + '</td><td style="text-align:center;">' + fmtData(c.data) + '</td><td style="text-align:center;font-family:monospace;">' + (c.numero || '—') + '</td></tr>').join('') +
+                contratos.filter(c => !c.excluido).map((c, i) => '<tr style="border-top:1px solid #f1f5f9;background:' + (i % 2 === 1 ? '#f8fafc' : '#fff') + ';"><td>' + (c.seq || i + 1) + '</td><td style="text-align:center;">' + fmtData(c.data) + '</td><td style="text-align:center;font-family:monospace;">' + (c.aditivo ? '(A) ' : '') + (c.numero || '—') + '</td></tr>').join('') +
                 '</tbody></table></td></tr>' : '') +
                 // Tabela estornos
                 (estornos.length > 0 ? '<tr><td style="padding:16px 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#dc2626;font-weight:700;">Estornos (' + estornos.length + ')</h4>' +
