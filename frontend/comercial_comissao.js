@@ -502,6 +502,12 @@
 
             const contratos = d.detalhe_contratos || [];
             const estornos  = d.detalhe_estornos  || [];
+            const _fmtDataHora = (iso) => {
+                if (!iso) return '';
+                const d = new Date(iso);
+                const pad = (n) => String(n).padStart(2, '0');
+                return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + String(d.getFullYear()).slice(2) + ' às ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+            };
             const FMT2 = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             // Formata data para DD/MM/AA
             const fmtData = (d) => {
