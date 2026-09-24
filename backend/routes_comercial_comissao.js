@@ -16,12 +16,36 @@ const MOTIVOS_ESTORNO = {
 
 const ABAS_IGNORAR = ['fechamento comercial', 'fechamento sup', 'sheet1', 'plan1'];
 
-function getMetrica(liquidos) {
-    if (liquidos >= 75) return { label: 'maxima', valor: 15, bonus: 375 };
-    if (liquidos >= 55) return { label: 'media',  valor: 12, bonus: 210 };
-    if (liquidos >= 40) return { label: 'minima', valor: 10, bonus: 100 };
+
+const DEFAULT_METRICAS = [
+    { label: 'maxima', qtd: 75, valor: 15, bonus: 375 },
+    { label: 'media',  qtd: 55, valor: 12, bonus: 210 },
+    { label: 'minima', qtd: 40, valor: 10, bonus: 100 }
+];
+
+async function carregarMetricas(db) {
+    return new Promise(resolve => {
+        db.get("SELECT valor FROM configuracoes_sistema WHERE chave='comissao_metricas'", [], (err, row) => {
+            if (row && row.valor) {
+                try { resolve(JSON.parse(row.valor)); return; } catch (e) {}
+            }
+            resolve(DEFAULT_METRICAS);
+        });
+    });
+}
+
+function aplicarMetrica(liquidos, metricas) {
+    const mSorted = [...metricas].sort((a, b) => b.qtd - a.qtd);
+    for (const m of mSorted) {
+        if (liquidos >= m.qtd) return { label: m.label, valor: m.valor, bonus: m.bonus };
+    }
     return { label: null, valor: 0, bonus: 0 };
 }
+
+function normName(str) {
+    return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
+}
+
 
 function parseComissaoAba(ws) {
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
