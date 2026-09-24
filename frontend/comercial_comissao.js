@@ -347,7 +347,7 @@
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_total != null ? c.propostas_total : '—') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_aprovadas != null ? c.propostas_aprovadas : '—') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:600;color:#7c3aed;">' + taxa + '</td>' +
-                '<td style="padding:10px 8px;text-align:center;"><button onclick="window._comercialComissao._abrirDetalhe(' + c.id + ', decodeURIComponent(this.dataset.nome))" data-nome="' + nomeEsc + '" style="background:none;border:1px solid #d1d5db;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;color:#374151;">🔍 Detalhe</button></td>';
+                '<td style="padding:10px 8px;text-align:center;"><button id="cc-btn-detalhe-' + c.id + '" onclick="window._comercialComissao._abrirDetalhe(' + c.id + ', decodeURIComponent(this.dataset.nome))" data-nome="' + nomeEsc + '" style="' + (c.email_enviado_em ? 'background:#dcfce7;border:1px solid #22c55e;color:#15803d;' : 'background:none;border:1px solid #d1d5db;color:#374151;') + 'padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;">🔍 Detalhe</button></td>';
             return tr.outerHTML;
         }).join('');
 
@@ -766,6 +766,20 @@
                     if (!_infoEl) { _infoEl = document.createElement('div'); _infoEl.className = 'cc-email-info'; _infoEl.style.cssText = 'margin-top:8px;font-size:.8rem;color:#6b7280;text-align:center;'; _divBtn.appendChild(_infoEl); }
                     const _dS = new Date(d.email_enviado_em); const _pad = (n) => String(n).padStart(2,'0');
                     _infoEl.textContent = 'Enviado em: ' + _pad(_dS.getDate())+'/'+_pad(_dS.getMonth()+1)+'/'+String(_dS.getFullYear()).slice(2)+' às '+_pad(_dS.getHours())+':'+_pad(_dS.getMinutes());
+                }
+                
+                // Atualizar botão Detalhe na tabela principal
+                const btnDetalhe = document.getElementById('cc-btn-detalhe-' + colaboradorId);
+                if (btnDetalhe) {
+                    btnDetalhe.style.background = '#dcfce7';
+                    btnDetalhe.style.borderColor = '#22c55e';
+                    btnDetalhe.style.color = '#15803d';
+                }
+                
+                // Atualizar _dadosComissao em memoria para persistir no re-render
+                if (typeof _dadosComissao !== 'undefined') {
+                    const idx = _dadosComissao.findIndex(x => x.id === colaboradorId);
+                    if (idx !== -1) _dadosComissao[idx].email_enviado_em = d.email_enviado_em;
                 }
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'E-mail enviado!', text: 'Enviado para: ' + d.enviado_para, timer: 3000, showConfirmButton: false });
             } else {
