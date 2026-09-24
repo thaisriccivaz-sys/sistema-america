@@ -700,6 +700,7 @@
             const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/planilhas', { headers: { 'Authorization': 'Bearer ' + token } });
             const d = await r.json();
             if (d.ok && d.planilhas) {
+                window._ccPlanilhasInfo = d.planilhas;
                 if (d.planilhas.comissao && d.planilhas.comissao.r2_key) btnC.style.display = 'inline-flex';
                 if (d.planilhas.propostas && d.planilhas.propostas.r2_key) btnP.style.display = 'inline-flex';
             }
@@ -714,7 +715,15 @@
         // Abre download com token via link temporário
         const a = document.createElement('a');
         a.href = url;
-        a.setAttribute('download', '');
+        let ext = 'xlsx';
+        if (window._ccPlanilhasInfo && window._ccPlanilhasInfo[tipo] && window._ccPlanilhasInfo[tipo].nome_arquivo) {
+            const parts = window._ccPlanilhasInfo[tipo].nome_arquivo.split('.');
+            if (parts.length > 1) ext = parts.pop();
+        }
+        const hj = new Date();
+        const dma = String(hj.getDate()).padStart(2, '0') + '_' + String(hj.getMonth()+1).padStart(2, '0') + '_' + hj.getFullYear();
+        const fname = tipo === 'comissao' ? 'Planilha_Comissão_' + dma + '.' + ext : 'Relatório_Propostas_' + dma + '.' + ext;
+        a.setAttribute('download', fname);
         // Para endpoints autenticados, precisamos de fetch + blob
         fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
             .then(function(r) { return r.blob(); })
