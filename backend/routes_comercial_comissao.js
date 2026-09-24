@@ -70,7 +70,8 @@ function parseComissaoAba(ws) {
     return { contratos, estornos };
 }
 
-async function recalcularPrimeiroLugar(db, mes, ano, taxaMap) {
+async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
+    if (!metricasArr) metricasArr = await carregarMetricas(db);
     const todos = await new Promise((resolve, reject) => {
         db.all('SELECT * FROM comissao_comercial WHERE mes=? AND ano=?',
             [mes, ano], (err, rows) => err ? reject(err) : resolve(rows || []));
@@ -89,9 +90,9 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap) {
 
     if (candidatos.length > 1 && taxaMap) {
         const getTaxa = (nome) => {
-            const pn = (nome || '').split(/\s+/)[0].toLowerCase();
+            const pn = normName((nome || '').split(/\s+/)[0]);
             for (const [rep, t] of Object.entries(taxaMap)) {
-                if (rep.split(/\s+/)[0].toLowerCase() === pn)
+                if (normName(rep).startsWith(pn))
                     return t.total > 0 ? t.aprovadas / t.total : 0;
             }
             return 0;
@@ -108,7 +109,7 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap) {
 
     // Dar bonus aos vencedores
     for (const cand of candidatos) {
-        const met = getMetrica(cand.contratos_liquidos);
+        const met = aplicarMetrica(cand.contratos_liquidos, metricasArr);
         await new Promise((resolve, reject) => {
             db.run('UPDATE comissao_comercial SET bonus_primeiro=?, liquido=comissao_bruta+?, primeiro_lugar=1, updated_at=CURRENT_TIMESTAMP WHERE mes=? AND ano=? AND colaborador_nome=?',
                 [met.bonus, met.bonus, mes, ano, cand.colaborador_nome],
@@ -145,6 +146,27 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] comissao_propostas:', err.message); });
 
+    
+    // GET /api/comercial/comissao/metricas
+    app.get('/api/comercial/comissao/metricas', authenticateToken, async (req, res) => {
+        try {
+            const metricas = await carregarMetricas(db);
+            res.json({ ok: true, metricas });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // PUT /api/comercial/comissao/metricas
+    app.put('/api/comercial/comissao/metricas', authenticateToken, async (req, res) => {
+        try {
+            const { metricas } = req.body;
+            if (!Array.isArray(metricas)) return res.status(400).json({ error: 'metricas deve ser array' });
+            await new Promise((resolve, reject) => {
+                db.run("INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('comissao_metricas', ?)", [JSON.stringify(metricas)], err => err ? reject(err) : resolve());
+            });
+            res.json({ ok: true });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
     // POST upload-comissao
     app.post('/api/comercial/comissao/upload-comissao', authenticateToken, multerMemory.single('arquivo'), async (req, res) => {
         try {
@@ -153,6 +175,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             const mesNum = parseInt(mes), anoNum = parseInt(ano);
 
             const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: false });
+            const metricasArr = await carregarMetricas(db);
             const abasColab = wb.SheetNames.filter(n => !ABAS_IGNORAR.includes(n.toLowerCase().trim()));
             if (!abasColab.length) return res.status(400).json({ error: 'Nenhuma aba de colaborador encontrada.' });
 
@@ -170,7 +193,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const brutos   = contratos.length;
                 const estCount = estornos.length;
                 const liquidos = Math.max(0, brutos - estCount);
-                const met      = getMetrica(liquidos);
+                const met      = aplicarMetrica(liquidos, metricasArr);
                 const comBruta = liquidos * met.valor;
                 const totEst   = estornos.reduce((s, e) => s + e.valor, 0);
 
@@ -256,7 +279,8 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 if (l.fase.toUpperCase() === 'PROPOSTA APROVADA') taxas[rep].aprovadas++;
             }
 
-            await recalcularPrimeiroLugar(db, mesNum, anoNum, taxas);
+            const metricasArr = await carregarMetricas(db);
+            await recalcularPrimeiroLugar(db, mesNum, anoNum, taxas, metricasArr);
 
             const totalG  = linhas.length;
             const aprovG  = linhas.filter(l => l.fase.toUpperCase() === 'PROPOSTA APROVADA').length;
@@ -292,10 +316,10 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             for (const p of propStats) { taxaMap[p.representante] = p; tpg += p.total; tag += p.aprovadas; }
 
             const enriq = comissoes.map(c => {
-                const pn = (c.colaborador_nome || '').split(/\s+/)[0].toLowerCase();
+                const pn = normName((c.colaborador_nome || '').split(/\s+/)[0]);
                 let taxa = null;
                 for (const [rep, t] of Object.entries(taxaMap)) {
-                    if (rep.split(/\s+/)[0].toLowerCase() === pn) { taxa = t; break; }
+                    if (normName(rep).startsWith(pn)) { taxa = t; break; }
                 }
                 const { detalhe_contratos, detalhe_estornos, ...pub } = c;
                 return { ...pub, propostas_total: taxa ? taxa.total : null, propostas_aprovadas: taxa ? taxa.aprovadas : null, taxa_conversao: taxa && taxa.total > 0 ? ((taxa.aprovadas / taxa.total) * 100).toFixed(1) + '%' : null };

@@ -40,8 +40,11 @@
       </select>
       <input id="cc-inp-ano" type="number" value="${_ano}" min="2020" max="2099"
              style="width:80px;padding:6px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem;">
-      <button id="cc-btn-buscar" style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;">
+            <button id="cc-btn-buscar" style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;">
         <i class="ph ph-magnifying-glass"></i> Buscar
+      </button>
+      <button id="cc-btn-metricas" style="padding:6px 12px;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;" onclick="window._comercialComissao._abrirMetricas()">
+        <i class="ph ph-sliders"></i> Alterar Métricas
       </button>
     </div>
   </div>
@@ -177,6 +180,24 @@
 .cc-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
 #cc-tab-comissao, #cc-tab-propostas { transition: color .2s, border-color .2s; }
 </style>
+
+<!-- Modal Métricas -->
+<div id="cc-modal-metricas" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;width:440px;max-width:95%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="padding:18px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+      <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#1e293b;">Métricas de Comissão</h3>
+      <button onclick="document.getElementById('cc-modal-metricas').style.display='none'"
+              style="background:none;border:none;font-size:1.4rem;color:#9ca3af;cursor:pointer;">×</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <div id="cc-metricas-form" style="display:flex;flex-direction:column;gap:12px;"></div>
+      <div style="margin-top:24px;text-align:right;">
+        <button id="cc-btn-salvar-metricas" onclick="window._comercialComissao._salvarMetricas()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;">Salvar e Recalcular</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 `;
     }
 
