@@ -502,6 +502,16 @@
             const contratos = d.detalhe_contratos || [];
             const estornos  = d.detalhe_estornos  || [];
             const FMT2 = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            // Formata data para DD/MM/AA
+            const fmtData = (d) => {
+                if (!d || d === '—') return '—';
+                const s = String(d).trim();
+                const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (isoMatch) return isoMatch[3] + '/' + isoMatch[2] + '/' + isoMatch[1].slice(2);
+                const parts = s.split('/');
+                if (parts.length === 3) return parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + (parts[2].length === 4 ? parts[2].slice(2) : parts[2]);
+                return s;
+            };
 
             let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">';
             html += '<div style="background:#f8fafc;border-radius:10px;padding:14px;"><div style="font-size:.75rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Contratos Líquidos</div><div style="font-size:1.5rem;font-weight:700;color:#1e293b;">' + d.contratos_liquidos + '</div></div>';
@@ -513,7 +523,7 @@
             if (contratos.length) {
                 html += '<div style="overflow-x:auto;margin-bottom:20px;"><table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
                 html += '<thead><tr style="background:#f1f5f9;"><th style="padding:8px 10px;text-align:left;">Nº</th><th style="padding:8px 10px;">Data</th><th style="padding:8px 10px;">Contrato</th><th style="padding:8px 10px;text-align:right;">Valor</th></tr></thead><tbody>';
-                html += contratos.map(c => '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + (c.data||'—') + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (c.numero||'—') + '</td><td style="padding:7px 10px;text-align:right;">' + FMT2(c.valor) + '</td></tr>').join('');
+                html += contratos.map(c => '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (c.numero||'—') + '</td><td style="padding:7px 10px;text-align:right;">' + FMT2(c.valor) + '</td></tr>').join('');
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum contrato.</p>'; }
 
@@ -522,7 +532,7 @@
             if (estornos.length) {
                 html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
                 html += '<thead><tr style="background:#fef2f2;"><th style="padding:8px 10px;text-align:left;">Nº</th><th style="padding:8px 10px;">Data</th><th style="padding:8px 10px;">Contrato</th><th style="padding:8px 10px;">Motivo</th><th style="padding:8px 10px;text-align:right;">Valor</th></tr></thead><tbody>';
-                html += estornos.map(e => '<tr style="border-bottom:1px solid #fee2e2;"><td style="padding:7px 10px;">' + e.seq + '</td><td style="padding:7px 10px;text-align:center;">' + (e.data||'—') + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (e.numero||'—') + '</td><td style="padding:7px 10px;color:#dc2626;">' + (e.motivo_nome||'—') + '</td><td style="padding:7px 10px;text-align:right;color:#dc2626;">' + FMT2(e.valor) + '</td></tr>').join('');
+                html += estornos.map(e => '<tr style="border-bottom:1px solid #fee2e2;"><td style="padding:7px 10px;">' + e.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(e.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (e.numero||'—') + '</td><td style="padding:7px 10px;color:#dc2626;">' + (e.motivo_nome||'—') + '</td><td style="padding:7px 10px;text-align:right;color:#dc2626;">' + FMT2(e.valor) + '</td></tr>').join('');
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum estorno.</p>'; }
 

@@ -652,7 +652,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 // Saudacao
                 '<tr><td style="padding:0 32px 16px;">' +
                 '<p style="margin:0;font-size:15px;color:#374151;">Olá <strong>' + nomeColab.split(' ')[0] + '</strong>,</p>' +
-                '<p style="margin:8px 0 0;font-size:14px;color:#6b7280;">Segue abaixo o resumo da conferência de comissão referente ao mês de <strong>' + mesNome + ' de ' + ano + '</strong>. Por favor, verifique as informações e em caso de divergência, entre em contato com o departamento de RH.</p>' +
+                '<p style="margin:8px 0 0;font-size:14px;color:#6b7280;">Segue abaixo o resumo da conferência de comissão referente ao mês de <strong>' + mesNome + ' de ' + ano + '</strong>. Por favor, verifique as informações e em caso de divergência, entre em contato com o gestor(a) Nome do gestor.</p>' +
                 '</td></tr>' +
                 // Resumo cards
                 '<tr><td style="padding:0 32px 24px;">' +
@@ -690,7 +690,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 '</tbody></table></td></tr>' : '') +
                 // Rodape
                 '<tr><td style="padding:32px;text-align:center;border-top:1px solid #f1f5f9;margin-top:24px;">' +
-                '<p style="margin:0;font-size:12px;color:#9ca3af;">Este é um e-mail automático enviado pelo Sistema América Rental.<br>Em caso de dúvidas, entre em contato com o departamento de RH.</p>' +
+                '<p style="margin:0;font-size:12px;color:#9ca3af;">Este é um e-mail automático enviado pelo Sistema América Rental.<br>Em caso de dúvidas, entre em contato com o gestor(a) Nome do gestor.</p>' +
                 '</td></tr>' +
                 '</table>' +
                 '</td></tr></table>' +
