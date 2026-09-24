@@ -483,8 +483,9 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
     app.get('/api/comercial/comissao/:ano/:mes/detalhe/:nome', authenticateToken, async (req, res) => {
         try {
             const row = await new Promise((resolve, reject) => {
-                db.get('SELECT * FROM comissao_comercial WHERE mes=? AND ano=? AND colaborador_nome=?',
-                    [parseInt(req.params.mes), parseInt(req.params.ano), decodeURIComponent(req.params.nome)],
+                const searchName = decodeURIComponent(req.params.nome);
+                db.get('SELECT c.* FROM comissao_comercial c LEFT JOIN colaboradores colab ON colab.id = c.colaborador_id WHERE c.mes=? AND c.ano=? AND (c.colaborador_nome=? OR colab.nome_completo=?)',
+                    [parseInt(req.params.mes), parseInt(req.params.ano), searchName, searchName],
                     (err, row) => err ? reject(err) : resolve(row));
             });
             if (!row) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
