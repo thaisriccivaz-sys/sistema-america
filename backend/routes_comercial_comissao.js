@@ -616,20 +616,32 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             const fmtBrl = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+            // Formata data para DD/MM/AA (suporta 'd/m/yy', 'd/m/yyyy', 'yyyy-mm-dd', 'mm/dd/yy', etc.)
+            const fmtData = (d) => {
+                if (!d || d === '—') return '—';
+                const s = String(d).trim();
+                // Formato yyyy-mm-dd
+                const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (isoMatch) {
+                    const yy = isoMatch[1].slice(2);
+                    return isoMatch[3] + '/' + isoMatch[2] + '/' + yy;
+                }
+                // Formato d/m/yyyy ou d/m/yy ou m/d/yyyy
+                const parts = s.split('/');
+                if (parts.length === 3) {
+                    const y = parts[2].length === 4 ? parts[2].slice(2) : parts[2];
+                    return parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + y;
+                }
+                return s;
+            };
             // HTML do e-mail — padrao America Rental com logo cid:empresa-logo
             const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5;">' +
                 '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px 0;">' +
                 '<tr><td align="center">' +
                 '<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">' +
                 // Header com logo
-                '<tr><td style="background:linear-gradient(135deg,#0d6efd 0%,#0a4abf 100%);padding:0;">' +
-                '<table width="100%" cellpadding="0" cellspacing="0">' +
-                '<tr>' +
-                '<td style="padding:24px 32px;">' +
-                '<img src="cid:empresa-logo" alt="América Rental" style="height:50px;max-width:200px;" />' +
-                '</td>' +
-                '<td style="text-align:right;padding:24px 32px;color:rgba(255,255,255,.6);font-size:12px;">Desde 1999</td>' +
-                '</tr></table>' +
+                '<tr><td style="padding:0;">' +
+                '<img src="cid:empresa-logo" alt="América Rental" width="620" style="display:block;width:100%;max-width:620px;height:auto;" />' +
                 '</td></tr>' +
                 // Titulo
                 '<tr><td style="padding:32px 32px 16px;text-align:center;">' +
@@ -661,29 +673,20 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 '</tr>' +
                 '</table>' +
                 '</td></tr>' +
-                // Metrica e valor
-                '<tr><td style="padding:0 32px 24px;">' +
-                '<table width="100%" cellpadding="12" style="background:#f8fafc;border-radius:8px;border-collapse:collapse;font-size:14px;">' +
-                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;width:50%;">Métrica atingida</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + (row.metrica || 'Sem meta') + '</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Valor por contrato</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + fmtBrl(row.valor_unitario) + '</td></tr>' +
-                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Comissão bruta</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + fmtBrl(row.comissao_bruta) + '</td></tr>' +
-                (row.bonus_primeiro > 0 ? '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Bônus 1º lugar</td><td style="font-weight:600;color:#16a34a;text-align:right;">+' + fmtBrl(row.bonus_primeiro) + '</td></tr>' : '') +
-                '<tr><td style="color:#6b7280;font-weight:700;">Total líquido</td><td style="font-weight:700;color:#1d4ed8;text-align:right;font-size:16px;">' + fmtBrl(row.liquido) + '</td></tr>' +
-                '</table>' +
-                '</td></tr>' +
+                // (tabela de valores removida a pedido)
                 // Tabela contratos
                 (contratos.length > 0 ? '<tr><td style="padding:0 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#374151;font-weight:700;">Contratos Entregues (' + contratos.length + ')</h4>' +
                 '<table width="100%" cellpadding="8" style="border-collapse:collapse;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;">' +
                 '<thead><tr style="background:#f1f5f9;"><th style="text-align:left;color:#6b7280;font-weight:600;">Nº</th><th style="color:#6b7280;font-weight:600;">Data</th><th style="color:#6b7280;font-weight:600;">Contrato</th></tr></thead>' +
                 '<tbody>' +
-                contratos.map((c, i) => '<tr style="border-top:1px solid #f1f5f9;background:' + (i % 2 === 1 ? '#f8fafc' : '#fff') + ';"><td>' + (c.seq || i + 1) + '</td><td style="text-align:center;">' + (c.data || '—') + '</td><td style="text-align:center;font-family:monospace;">' + (c.numero || '—') + '</td></tr>').join('') +
+                contratos.map((c, i) => '<tr style="border-top:1px solid #f1f5f9;background:' + (i % 2 === 1 ? '#f8fafc' : '#fff') + ';"><td>' + (c.seq || i + 1) + '</td><td style="text-align:center;">' + fmtData(c.data) + '</td><td style="text-align:center;font-family:monospace;">' + (c.numero || '—') + '</td></tr>').join('') +
                 '</tbody></table></td></tr>' : '') +
                 // Tabela estornos
                 (estornos.length > 0 ? '<tr><td style="padding:16px 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#dc2626;font-weight:700;">Estornos (' + estornos.length + ')</h4>' +
                 '<table width="100%" cellpadding="8" style="border-collapse:collapse;font-size:12px;border:1px solid #fee2e2;border-radius:6px;">' +
                 '<thead><tr style="background:#fef2f2;"><th style="text-align:left;color:#6b7280;font-weight:600;">Nº</th><th style="color:#6b7280;font-weight:600;">Data</th><th style="color:#6b7280;font-weight:600;">Contrato</th><th style="color:#6b7280;font-weight:600;">Motivo</th></tr></thead>' +
                 '<tbody>' +
-                estornos.map((e, i) => '<tr style="border-top:1px solid #fee2e2;background:' + (i % 2 === 1 ? '#fff5f5' : '#fff') + ';"><td>' + (e.seq || i + 1) + '</td><td style="text-align:center;">' + (e.data || '—') + '</td><td style="text-align:center;font-family:monospace;">' + (e.numero || '—') + '</td><td style="text-align:center;font-weight:600;color:#dc2626;">' + (e.motivo_cod || e.motivo || '—') + '</td></tr>').join('') +
+                estornos.map((e, i) => '<tr style="border-top:1px solid #fee2e2;background:' + (i % 2 === 1 ? '#fff5f5' : '#fff') + ';"><td>' + (e.seq || i + 1) + '</td><td style="text-align:center;">' + fmtData(e.data) + '</td><td style="text-align:center;font-family:monospace;">' + (e.numero || '—') + '</td><td style="text-align:center;font-weight:600;color:#dc2626;">' + (e.motivo_cod || e.motivo || '—') + '</td></tr>').join('') +
                 '</tbody></table></td></tr>' : '') +
                 // Rodape
                 '<tr><td style="padding:32px;text-align:center;border-top:1px solid #f1f5f9;margin-top:24px;">' +
