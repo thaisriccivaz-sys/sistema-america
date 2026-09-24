@@ -45,6 +45,79 @@ function aplicarMetrica(liquidos, metricas) {
 function normName(str) {
     return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
 }
+const DEFAULT_METRICAS_GESTOR = {
+    minima: { label: 'minima', qtd: 140, valor: 300 },
+    media:  { label: 'media',  qtd: 180, valor: 600 },
+    alta:   { label: 'alta',   qtd: 200, valor: 800 },
+    bonus_equipe_max:   { valor: 250, descricao: 'Todos na meta maxima individual' },
+    bonus_meta_equipe:  { valor: 350, qtd: 220, descricao: 'Equipe com 220+ contratos' }
+};
+
+async function carregarMetricasGestor(db) {
+    return new Promise(resolve => {
+        db.get("SELECT valor FROM configuracoes_sistema WHERE chave='comissao_metricas_gestor'", [], (err, row) => {
+            if (row && row.valor) {
+                try { resolve(JSON.parse(row.valor)); return; } catch (e) {}
+            }
+            resolve(DEFAULT_METRICAS_GESTOR);
+        });
+    });
+}
+
+function calcularGestor(comissoes, metricasGestor) {
+    // Contagem bruta = soma dos brutos de todos os vendedores
+    const totalBrutos = comissoes.reduce((s, c) => s + (c.contratos_brutos || 0), 0);
+
+    // Estornos do gestor: todos exceto motivo 7 (ERRO PREVENTIVO)
+    let totalEstornosGestor = 0;
+    for (const c of comissoes) {
+        let estornos = [];
+        try { estornos = JSON.parse(c.detalhe_estornos || '[]'); } catch (e) {}
+        for (const e of estornos) {
+            const cod = String(e.motivo_cod || '').trim();
+            if (cod === '07' || cod === '7') continue; // pula erro preventivo
+            totalEstornosGestor++;
+        }
+    }
+
+    const liquidos = Math.max(0, totalBrutos - totalEstornosGestor);
+
+    // Aplicar meta do gestor
+    let metaLabel = null;
+    let valorMeta = 0;
+    const mets = [
+        { label: 'alta',   qtd: metricasGestor.alta?.qtd   || 200, valor: metricasGestor.alta?.valor   || 800  },
+        { label: 'media',  qtd: metricasGestor.media?.qtd  || 180, valor: metricasGestor.media?.valor  || 600  },
+        { label: 'minima', qtd: metricasGestor.minima?.qtd || 140, valor: metricasGestor.minima?.valor || 300  },
+    ];
+    for (const m of mets) {
+        if (liquidos >= m.qtd) { metaLabel = m.label; valorMeta = m.valor; break; }
+    }
+
+    // Bônus: todos na meta máxima individual?
+    const metMaxIndividualQtd = metricasGestor.bonus_equipe_max?.qtd_individual || 0; // não usado, verificamos via metrica
+    const todosNaMaxima = comissoes.length > 0 && comissoes.every(c => c.metrica === 'maxima');
+    const bonusEquipe = todosNaMaxima ? (metricasGestor.bonus_equipe_max?.valor || 250) : 0;
+
+    // Bônus: equipe >= 220 contratos líquidos do gestor?
+    const qtdBonus = metricasGestor.bonus_meta_equipe?.qtd || 220;
+    const bonusMeta220 = liquidos >= qtdBonus ? (metricasGestor.bonus_meta_equipe?.valor || 350) : 0;
+
+    const totalGestor = valorMeta + bonusEquipe + bonusMeta220;
+
+    return {
+        contratos_brutos: totalBrutos,
+        contratos_estornos_gestor: totalEstornosGestor,
+        contratos_liquidos: liquidos,
+        meta: metaLabel,
+        valor_meta: valorMeta,
+        bonus_equipe: bonusEquipe,
+        bonus_meta220: bonusMeta220,
+        total: totalGestor,
+        todos_na_maxima: todosNaMaxima,
+        meta_220_atingida: liquidos >= qtdBonus,
+    };
+}
 
 
 function parseComissaoAba(ws) {
@@ -186,6 +259,27 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             if (!Array.isArray(metricas)) return res.status(400).json({ error: 'metricas deve ser array' });
             await new Promise((resolve, reject) => {
                 db.run("INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('comissao_metricas', ?)", [JSON.stringify(metricas)], err => err ? reject(err) : resolve());
+            });
+            res.json({ ok: true });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    
+    // GET /api/comercial/comissao/metricas-gestor
+    app.get('/api/comercial/comissao/metricas-gestor', authenticateToken, async (req, res) => {
+        try {
+            const mg = await carregarMetricasGestor(db);
+            res.json({ ok: true, metricas: mg });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // PUT /api/comercial/comissao/metricas-gestor
+    app.put('/api/comercial/comissao/metricas-gestor', authenticateToken, async (req, res) => {
+        try {
+            const { metricas } = req.body;
+            if (!metricas || typeof metricas !== 'object') return res.status(400).json({ error: 'metricas invalido' });
+            await new Promise((resolve, reject) => {
+                db.run("INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('comissao_metricas_gestor', ?)", [JSON.stringify(metricas)], err => err ? reject(err) : resolve());
             });
             res.json({ ok: true });
         } catch (err) { res.status(500).json({ error: err.message }); }
@@ -349,7 +443,10 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 return { ...pub, propostas_total: taxa ? taxa.total : null, propostas_aprovadas: taxa ? taxa.aprovadas : null, taxa_conversao: taxa && taxa.total > 0 ? ((taxa.aprovadas / taxa.total) * 100).toFixed(1) + '%' : null };
             });
 
-            res.json({ ok: true, mes: parseInt(mes), ano: parseInt(ano), colaboradores: enriq, totais: {
+            const metricasGestor = await carregarMetricasGestor(db);
+            const gestor = calcularGestor(comissoes, metricasGestor);
+
+            res.json({ ok: true, mes: parseInt(mes), ano: parseInt(ano), colaboradores: enriq, gestor, totais: {
                 total_bruto:   comissoes.reduce((s,c)=>s+c.comissao_bruta,0),
                 total_bonus:   comissoes.reduce((s,c)=>s+c.bonus_primeiro,0),
                 total_estorno: comissoes.reduce((s,c)=>s+c.total_estorno,0),

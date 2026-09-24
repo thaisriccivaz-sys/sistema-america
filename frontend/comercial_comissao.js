@@ -8,6 +8,8 @@
     let _dadosComissao = [];
     let _dadosPropostas = [];
     let _totais = {};
+    let _dadosGestor = null;
+    let _metricasGestor = {};
     let _abaAtiva = 'comissao'; // 'comissao' | 'propostas'
 
     const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -183,15 +185,20 @@
 
 <!-- Modal Métricas -->
 <div id="cc-modal-metricas" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;width:440px;max-width:95%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
-    <div style="padding:18px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+  <div style="background:#fff;border-radius:16px;width:520px;max-width:96%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="padding:18px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#1e293b;">Métricas de Comissão</h3>
       <button onclick="document.getElementById('cc-modal-metricas').style.display='none'"
               style="background:none;border:none;font-size:1.4rem;color:#9ca3af;cursor:pointer;">×</button>
     </div>
-    <div style="padding:20px 24px;">
+    <div style="padding:20px 24px;overflow-y:auto;flex:1;">
+      <div style="font-size:.8rem;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Vendedores</div>
       <div id="cc-metricas-form" style="display:flex;flex-direction:column;gap:12px;"></div>
-      <div style="margin-top:24px;text-align:right;">
+      <div style="margin-top:20px;padding-top:16px;border-top:2px solid #e2e8f0;">
+        <div style="font-size:.8rem;font-weight:700;color:#3730a3;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">&#128081; Gestor</div>
+        <div id="cc-metricas-gestor-form" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+      <div style="margin-top:24px;text-align:right;flex-shrink:0;">
         <button id="cc-btn-salvar-metricas" onclick="window._comercialComissao._salvarMetricas()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;">Salvar e Recalcular</button>
       </div>
     </div>
@@ -246,6 +253,7 @@
             _spinner(false);
             if (!d.ok) { _mostrarVazioComissao(); _mostrarVazioPropostas(); return; }
             _dadosComissao  = d.colaboradores || [];
+            _dadosGestor    = d.gestor || null;
             _totais         = d.totais || {};
             _renderizarResumoCom();
             _renderizarTabelaCom();
@@ -332,6 +340,48 @@
                 '<td style="padding:10px 8px;text-align:center;"><button onclick="window._comercialComissao._abrirDetalhe(decodeURIComponent(this.dataset.nome))" data-nome="' + nomeEsc + '" style="background:none;border:1px solid #d1d5db;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8rem;color:#374151;">🔍 Detalhe</button></td>';
             return tr.outerHTML;
         }).join('');
+
+        // ── Linha do Gestor ──────────────────────────────────────────────
+        if (_dadosGestor) {
+            var g = _dadosGestor;
+            var mapMetaG = {
+                alta:   { label: 'Meta Alta',   bg: '#dcfce7', color: '#15803d' },
+                media:  { label: 'Meta Media',  bg: '#dbeafe', color: '#1d4ed8' },
+                minima: { label: 'Meta Minima', bg: '#fef9c3', color: '#854d0e' }
+            };
+            var metaGData = g.meta ? (mapMetaG[g.meta] || null) : null;
+            var badgeGestor = metaGData
+                ? '<span style="background:' + metaGData.bg + ';color:' + metaGData.color + ';padding:3px 8px;border-radius:6px;font-size:.75rem;font-weight:600;">' + metaGData.label + '</span>'
+                : '<span style="background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:.75rem;font-weight:600;">Sem meta</span>';
+
+            var bonusPartes = [];
+            if (g.bonus_equipe > 0) bonusPartes.push('Bonus equipe: ' + FMT(g.bonus_equipe));
+            if (g.bonus_meta220 > 0) bonusPartes.push('Meta 220: ' + FMT(g.bonus_meta220));
+            var totalBonus = (g.bonus_equipe || 0) + (g.bonus_meta220 || 0);
+            var bonusCelula = totalBonus > 0
+                ? '<span title="' + bonusPartes.join(' + ') + '" style="color:#16a34a;font-weight:600;">' + FMT(totalBonus) + '</span>'
+                : '<span style="color:#9ca3af;">—</span>';
+
+            var infoEquipe =
+                (g.todos_na_maxima ? '&#10003; Todos na maxima' : '&#10007; Equipe nao unanime') +
+                ' &nbsp;|&nbsp; ' +
+                (g.meta_220_atingida ? '&#10003; 220+ contratos' : '&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bonus 220');
+
+            var trG = document.createElement('tr');
+            trG.style.cssText = 'background:#f0f4ff;border-top:3px solid #6366f1;';
+            trG.innerHTML =
+                '<td style="padding:10px 12px;font-weight:700;color:#3730a3;">\uD83D\uDC51 Gestor (equipe)</td>' +
+                '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_brutos + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-weight:700;">' + g.contratos_estornos_gestor + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_liquidos + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;">' + badgeGestor + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;color:#64748b;">—</td>' +
+                '<td style="padding:10px 8px;text-align:right;font-weight:700;">' + FMT(g.valor_meta) + '</td>' +
+                '<td style="padding:10px 8px;text-align:right;">' + bonusCelula + '</td>' +
+                '<td style="padding:10px 8px;text-align:right;font-weight:700;color:#3730a3;">' + FMT(g.total) + '</td>' +
+                '<td colspan="4" style="padding:10px 8px;text-align:center;font-size:.78rem;color:#6b7280;">' + infoEquipe + '</td>';
+            tbody.innerHTML += trG.outerHTML;
+        }
     }
 
     function _renderizarTabelaProp() {
@@ -513,6 +563,51 @@
             `).join('');
             
             document.getElementById('cc-metricas-form').innerHTML = mHtml;
+
+            // Carregar e renderizar métricas do gestor
+            const rG = await fetch('/api/comercial/comissao/metricas-gestor', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (rG.ok) { const dG = await rG.json(); _metricasGestor = dG.metricas || {}; }
+            const mg = _metricasGestor;
+            const gHtml =
+                '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;">' +
+                    '<div style="font-weight:600;color:#1e40af;margin-bottom:8px;">Meta M\u00ednima</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Contratos</label>' +
+                        '<input type="number" id="gest-min-qtd" value="' + (mg.minima ? mg.minima.qtd : 140) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Pr\u00eamio (R\u0024)</label>' +
+                        '<input type="number" id="gest-min-val" value="' + (mg.minima ? mg.minima.valor : 300) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                    '</div></div>' +
+                '<div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:12px;">' +
+                    '<div style="font-weight:600;color:#713f12;margin-bottom:8px;">Meta M\u00e9dia</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Contratos</label>' +
+                        '<input type="number" id="gest-med-qtd" value="' + (mg.media ? mg.media.qtd : 180) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Pr\u00eamio (R\u0024)</label>' +
+                        '<input type="number" id="gest-med-val" value="' + (mg.media ? mg.media.valor : 600) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                    '</div></div>' +
+                '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;">' +
+                    '<div style="font-weight:600;color:#166534;margin-bottom:8px;">Meta Alta</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Contratos</label>' +
+                        '<input type="number" id="gest-alt-qtd" value="' + (mg.alta ? mg.alta.qtd : 200) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Pr\u00eamio (R\u0024)</label>' +
+                        '<input type="number" id="gest-alt-val" value="' + (mg.alta ? mg.alta.valor : 800) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                    '</div></div>' +
+                '<div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:8px;padding:12px;">' +
+                    '<div style="font-weight:600;color:#6b21a8;margin-bottom:8px;">B\u00f4nus Equipe toda na M\u00e1xima</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Pr\u00eamio (R\u0024)</label>' +
+                        '<input type="number" id="gest-beq-val" value="' + (mg.bonus_equipe_max ? mg.bonus_equipe_max.valor : 250) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                    '</div></div>' +
+                '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;">' +
+                    '<div style="font-weight:600;color:#c2410c;margin-bottom:8px;">B\u00f4nus Meta Equipe</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">M\u00edn. Contratos</label>' +
+                        '<input type="number" id="gest-b220-qtd" value="' + (mg.bonus_meta_equipe ? mg.bonus_meta_equipe.qtd : 220) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                        '<div style="flex:1;"><label style="font-size:.75rem;color:#64748b;display:block;margin-bottom:2px;">Pr\u00eamio (R\u0024)</label>' +
+                        '<input type="number" id="gest-b220-val" value="' + (mg.bonus_meta_equipe ? mg.bonus_meta_equipe.valor : 350) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></div>' +
+                    '</div></div>';
+            document.getElementById('cc-metricas-gestor-form').innerHTML = gHtml;
             document.getElementById('cc-modal-metricas').style.display = 'flex';
         } catch (e) { console.error(e); }
     }
@@ -524,17 +619,30 @@
         
         const novas = _metricas.map((m, i) => ({
             label: m.label,
-            qtd: parseInt(document.getElementById(`met-qtd-${i}`).value) || 0,
-            valor: parseFloat(document.getElementById(`met-val-${i}`).value) || 0,
-            bonus: parseFloat(document.getElementById(`met-bon-${i}`).value) || 0
+            qtd: parseInt(document.getElementById('met-qtd-' + i).value) || 0,
+            valor: parseFloat(document.getElementById('met-val-' + i).value) || 0,
+            bonus: parseFloat(document.getElementById('met-bon-' + i).value) || 0
         }));
-        
+
+        const novasGestor = {
+            minima: { label: 'minima', qtd: parseInt(document.getElementById('gest-min-qtd').value) || 140, valor: parseFloat(document.getElementById('gest-min-val').value) || 300 },
+            media:  { label: 'media',  qtd: parseInt(document.getElementById('gest-med-qtd').value) || 180, valor: parseFloat(document.getElementById('gest-med-val').value) || 600 },
+            alta:   { label: 'alta',   qtd: parseInt(document.getElementById('gest-alt-qtd').value) || 200, valor: parseFloat(document.getElementById('gest-alt-val').value) || 800 },
+            bonus_equipe_max:   { valor: parseFloat(document.getElementById('gest-beq-val').value) || 250 },
+            bonus_meta_equipe:  { qtd: parseInt(document.getElementById('gest-b220-qtd').value) || 220, valor: parseFloat(document.getElementById('gest-b220-val').value) || 350 }
+        };
+
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         try {
             await fetch('/api/comercial/comissao/metricas', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ metricas: novas })
+            });
+            await fetch('/api/comercial/comissao/metricas-gestor', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ metricas: novasGestor })
             });
             document.getElementById('cc-modal-metricas').style.display = 'none';
             if (typeof _dadosComissao !== 'undefined' && _dadosComissao && _dadosComissao.length > 0) {
