@@ -488,21 +488,25 @@
             _metricas = d.metricas || [];
             
             const mapL = { maxima: 'Máxima', media: 'Média', minima: 'Mínima' };
+            const bgMap = { maxima: '#f0fdf4', media: '#fefce8', minima: '#eff6ff' };
+            const borderMap = { maxima: '#bbf7d0', media: '#fef08a', minima: '#bfdbfe' };
+            const colorMap = { maxima: '#166534', media: '#713f12', minima: '#1e40af' };
+            
             const mHtml = _metricas.map((m, i) => `
-                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
-                    <div style="font-weight:600;margin-bottom:8px;color:#1e293b;">Meta ${mapL[m.label] || m.label}</div>
+                <div style="background:${bgMap[m.label] || '#fff'};border:1px solid ${borderMap[m.label] || '#e2e8f0'};border-radius:8px;padding:12px;">
+                    <div style="font-weight:600;margin-bottom:8px;color:${colorMap[m.label] || '#1e293b'};">Meta ${mapL[m.label] || m.label}</div>
                     <div style="display:flex;gap:8px;">
                         <div style="flex:1;">
                             <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">Contratos</label>
-                            <input type="number" id="met-qtd-${i}" value="${m.qtd}" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                            <input type="number" id="met-qtd-${i}" value="${m.qtd}" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                         </div>
                         <div style="flex:1;">
                             <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">R$/Contrato</label>
-                            <input type="number" id="met-val-${i}" value="${m.valor}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                            <input type="number" id="met-val-${i}" value="${m.valor}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                         </div>
                         <div style="flex:1;">
                             <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">Bônus 1º (R$)</label>
-                            <input type="number" id="met-bon-${i}" value="${m.bonus}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                            <input type="number" id="met-bon-${i}" value="${m.bonus}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                         </div>
                     </div>
                 </div>
