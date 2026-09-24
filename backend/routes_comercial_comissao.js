@@ -421,7 +421,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         try {
             const { ano, mes } = req.params;
             const comissoes = await new Promise((resolve, reject) => {
-                db.all('SELECT * FROM comissao_comercial WHERE mes=? AND ano=? ORDER BY contratos_liquidos DESC',
+                db.all('SELECT c.*, colab.nome_completo as nome_completo_db FROM comissao_comercial c LEFT JOIN colaboradores colab ON colab.id = c.colaborador_id WHERE mes=? AND ano=? ORDER BY contratos_liquidos DESC',
                     [parseInt(mes), parseInt(ano)], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
             const propStats = await new Promise((resolve, reject) => {
@@ -439,7 +439,8 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 for (const [rep, t] of Object.entries(taxaMap)) {
                     if (normName(rep).startsWith(pn)) { taxa = t; break; }
                 }
-                const { detalhe_contratos, detalhe_estornos, ...pub } = c;
+                const { detalhe_contratos, detalhe_estornos, nome_completo_db, ...pub } = c;
+                pub.colaborador_nome = nome_completo_db || pub.colaborador_nome;
                 return { ...pub, propostas_total: taxa ? taxa.total : null, propostas_aprovadas: taxa ? taxa.aprovadas : null, taxa_conversao: taxa && taxa.total > 0 ? ((taxa.aprovadas / taxa.total) * 100).toFixed(1) + '%' : null };
             });
 

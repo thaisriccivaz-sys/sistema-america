@@ -330,9 +330,9 @@
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + c.contratos_liquidos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + _badgeMetrica(c.metrica) + '</td>' +
-                '<td style="padding:10px 8px;text-align:center;">' + (c.valor_unitario > 0 ? FMT(c.valor_unitario) : '—') + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;">' + (c.valor_unitario > 0 ? FMT(c.valor_unitario) : '<span style="color:#9ca3af;">—</span>') + '</td>' +
                 '<td style="padding:10px 8px;text-align:right;">' + FMT(c.comissao_bruta) + '</td>' +
-                '<td style="padding:10px 8px;text-align:right;color:#16a34a;font-weight:600;">' + (c.bonus_primeiro > 0 ? FMT(c.bonus_primeiro) : '—') + '</td>' +
+                '<td style="padding:10px 8px;text-align:' + (c.bonus_primeiro > 0 ? 'right' : 'center') + ';color:#16a34a;font-weight:600;">' + (c.bonus_primeiro > 0 ? FMT(c.bonus_primeiro) : '<span style="color:#9ca3af;">—</span>') + '</td>' +
                 '<td style="padding:10px 8px;text-align:right;font-weight:700;color:#1d4ed8;">' + FMT(c.liquido) + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_total != null ? c.propostas_total : '—') + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + (c.propostas_aprovadas != null ? c.propostas_aprovadas : '—') + '</td>' +
@@ -360,7 +360,7 @@
             var totalBonus = (g.bonus_equipe || 0) + (g.bonus_meta220 || 0);
             var bonusCelula = totalBonus > 0
                 ? '<span title="' + bonusPartes.join(' + ') + '" style="color:#16a34a;font-weight:600;">' + FMT(totalBonus) + '</span>'
-                : '<span style="color:#9ca3af;">—</span>';
+                : '<span style="color:#9ca3af;display:block;text-align:center;">—</span>';
 
             var infoEquipe =
                 (g.todos_na_maxima ? '&#10003; Todos na maxima' : '&#10007; Equipe nao unanime') +
@@ -375,7 +375,7 @@
                 '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-weight:700;">' + g.contratos_estornos_gestor + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_liquidos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + badgeGestor + '</td>' +
-                '<td style="padding:10px 8px;text-align:center;color:#64748b;">—</td>' +
+                '<td style="padding:10px 8px;text-align:center;color:#9ca3af;">—</td>' +
                 '<td style="padding:10px 8px;text-align:right;font-weight:700;">' + FMT(g.valor_meta) + '</td>' +
                 '<td style="padding:10px 8px;text-align:right;">' + bonusCelula + '</td>' +
                 '<td style="padding:10px 8px;text-align:right;font-weight:700;color:#3730a3;">' + FMT(g.total) + '</td>' +
