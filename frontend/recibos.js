@@ -2519,6 +2519,26 @@ window._recBuscarVT = async function () {
                 }
                 okVT++;
 
+                // Popular apuracaoDiaria com os dias da janela VT (26→25)
+                // para que a conferência de ponto funcione sem depender do buscar VR/VC
+                if (todosDias.length > 0) {
+                    const diasJanelaVT = todosDias.filter(d => {
+                        const ds = d.data || d.date || d.dia || d;
+                        if (typeof ds !== 'string') return false;
+                        const dt = new Date(ds.split('T')[0] + 'T12:00:00');
+                        if (isNaN(dt)) return false;
+                        if (admissaoColab && dt < admissaoColab) return false;
+                        return dt >= janelaVTIni && dt <= janelaVTFim;
+                    }).sort((a, b) => {
+                        const da = a.data || a.date || a.dia || '';
+                        const db2 = b.data || b.date || b.dia || '';
+                        return String(da).localeCompare(String(db2));
+                    });
+                    if (diasJanelaVT.length > 0) {
+                        s.apuracaoDiaria = diasJanelaVT;
+                    }
+                }
+
                 // Manter editados VT: restaurar campos da tabela VT — ponto já foi atualizado
                 if (_snapshotVT) Object.assign(s, _snapshotVT);
 
