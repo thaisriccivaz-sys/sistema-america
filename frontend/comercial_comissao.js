@@ -264,6 +264,7 @@
             const d2 = await r2.json();
             _dadosPropostas = d2.propostas || [];
             _renderizarTabelaProp();
+            _carregarBotoesPlanilhas();
         } catch (e) {
             _spinner(false);
             console.error('[Comissao] buscar:', e);
@@ -445,6 +446,7 @@
             if (d.ok) {
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Planilha importada!', text: d.colaboradores.length + ' colaborador(es) processado(s).', timer: 2500, showConfirmButton: false });
                 buscar();
+                setTimeout(_carregarBotoesPlanilhas, 1000);
             } else {
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: d.error || 'Erro ao processar planilha.' });
             }
@@ -472,6 +474,7 @@
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Relatório importado!', text: d.total_linhas + ' propostas | Taxa geral: ' + d.taxa_geral, timer: 2500, showConfirmButton: false });
                 buscar();
                 _setAba('propostas');
+                setTimeout(_carregarBotoesPlanilhas, 1000);
             } else {
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: d.error || 'Erro ao processar planilha.' });
             }
