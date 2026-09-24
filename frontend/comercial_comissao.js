@@ -284,11 +284,11 @@
 
     function _badgeMetrica(met) {
         const map = {
-            maxima: { label: 'Máxima', bg: '#dcfce7', color: '#15803d' },
-            media:  { label: 'Média',  bg: '#fef9c3', color: '#854d0e' },
-            minima: { label: 'Mínima', bg: '#dbeafe', color: '#1d4ed8' },
+            maxima: { label: 'Máxima', bg: '#dcfce7', color: '#15803d' }, // Verde
+            media:  { label: 'Média',  bg: '#dbeafe', color: '#1d4ed8' }, // Azul
+            minima: { label: 'Mínima', bg: '#fef9c3', color: '#854d0e' }, // Amarelo
         };
-        if (!met || !map[met]) return '<span style="background:#f1f5f9;color:#64748b;padding:3px 8px;border-radius:6px;font-size:.75rem;">Sem meta</span>';
+        if (!met || !map[met]) return '<span style="background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:6px;font-size:.75rem;font-weight:600;">Sem meta</span>'; // Vermelho
         const m = map[met];
         return '<span style="background:' + m.bg + ';color:' + m.color + ';padding:3px 8px;border-radius:6px;font-size:.75rem;font-weight:600;">' + m.label + '</span>';
     }
@@ -488,9 +488,9 @@
             _metricas = d.metricas || [];
             
             const mapL = { maxima: 'Máxima', media: 'Média', minima: 'Mínima' };
-            const bgMap = { maxima: '#f0fdf4', media: '#fefce8', minima: '#eff6ff' };
-            const borderMap = { maxima: '#bbf7d0', media: '#fef08a', minima: '#bfdbfe' };
-            const colorMap = { maxima: '#166534', media: '#713f12', minima: '#1e40af' };
+            const bgMap = { maxima: '#f0fdf4', media: '#eff6ff', minima: '#fefce8' };
+            const borderMap = { maxima: '#bbf7d0', media: '#bfdbfe', minima: '#fef08a' };
+            const colorMap = { maxima: '#166534', media: '#1e40af', minima: '#713f12' };
             
             const mHtml = _metricas.map((m, i) => `
                 <div style="background:${bgMap[m.label] || '#fff'};border:1px solid ${borderMap[m.label] || '#e2e8f0'};border-radius:8px;padding:12px;">
