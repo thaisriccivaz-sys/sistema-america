@@ -52,15 +52,17 @@
   </div>
 
   <!-- Uploads -->
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
     <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px dashed #a5b4fc;border-radius:10px;cursor:pointer;background:#f0f0ff;color:#4338ca;font-size:.85rem;font-weight:600;">
       <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Upload Planilha de Comissão (.xlsm/.xlsx)
       <input id="cc-upload-comissao" type="file" accept=".xlsx,.xlsm" style="display:none;">
     </label>
+    <button id="cc-btn-eye-comissao" onclick="window._comercialComissao._downloadPlanilha('comissao')" title="Baixar planilha de comissão deste mês" style="display:none;align-items:center;gap:6px;padding:9px 13px;background:#4338ca;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600;">&#128065;</button>
     <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px dashed #6ee7b7;border-radius:10px;cursor:pointer;background:#f0fff8;color:#065f46;font-size:.85rem;font-weight:600;">
       <i class="ph ph-file-xls" style="font-size:1.1rem;"></i> Upload Relatório de Propostas (.xlsx)
       <input id="cc-upload-propostas" type="file" accept=".xlsx" style="display:none;">
     </label>
+    <button id="cc-btn-eye-propostas" onclick="window._comercialComissao._downloadPlanilha('propostas')" title="Baixar relatório de propostas deste mês" style="display:none;align-items:center;gap:6px;padding:9px 13px;background:#065f46;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600;">&#128065;</button>
   </div>
 
   <!-- Spinner -->
@@ -521,7 +523,10 @@
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum estorno.</p>'; }
 
-            body.innerHTML = html;
+            // Botão de enviar e-mail
+            const _emailBtn = '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;">'
+                + '<button id="cc-btn-enviar-email" onclick="window._comercialComissao._enviarEmailConferencia(' + id + ')" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#1d4ed8;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;">&#128231; Enviar por e-mail para conferência</button></div>';
+            body.innerHTML = html + _emailBtn;
         } catch (e) {
             body.innerHTML = '<p style="color:#dc2626;text-align:center;">Falha na comunicação com o servidor.</p>';
         }
