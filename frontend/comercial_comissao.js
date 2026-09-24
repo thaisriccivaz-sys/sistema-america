@@ -669,7 +669,74 @@
         btn.disabled = false;
     }
 
-    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas };
+    // Carregar botões de planilhas (👁) conforme mês/ano
+    async function _carregarBotoesPlanilhas() {
+        const { mes, ano } = _getMesAno();
+        const btnC = document.getElementById('cc-btn-eye-comissao');
+        const btnP = document.getElementById('cc-btn-eye-propostas');
+        if (!btnC || !btnP) return;
+        btnC.style.display = 'none';
+        btnP.style.display = 'none';
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/planilhas', { headers: { 'Authorization': 'Bearer ' + token } });
+            const d = await r.json();
+            if (d.ok && d.planilhas) {
+                if (d.planilhas.comissao && d.planilhas.comissao.r2_key) btnC.style.display = 'inline-flex';
+                if (d.planilhas.propostas && d.planilhas.propostas.r2_key) btnP.style.display = 'inline-flex';
+            }
+        } catch (e) { /* silencioso */ }
+    }
+
+    // Download de planilha do R2
+    function _downloadPlanilha(tipo) {
+        const { mes, ano } = _getMesAno();
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const url = '/api/comercial/comissao/' + ano + '/' + mes + '/download-planilha/' + tipo;
+        // Abre download com token via link temporário
+        const a = document.createElement('a');
+        a.href = url;
+        a.setAttribute('download', '');
+        // Para endpoints autenticados, precisamos de fetch + blob
+        fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(function(r) { return r.blob(); })
+            .then(function(blob) {
+                const burl = URL.createObjectURL(blob);
+                a.href = burl;
+                a.click();
+                setTimeout(function() { URL.revokeObjectURL(burl); }, 5000);
+            })
+            .catch(function() {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível baixar a planilha.' });
+            });
+    }
+
+    // Enviar e-mail de conferência para o colaborador
+    async function _enviarEmailConferencia(colaboradorId) {
+        const { mes, ano } = _getMesAno();
+        const btn = document.getElementById('cc-btn-enviar-email');
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Enviando...'; }
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/enviar-conferencia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ colaborador_id: colaboradorId })
+            });
+            const d = await r.json();
+            if (d.ok) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'E-mail enviado!', text: 'Enviado para: ' + d.enviado_para, timer: 3000, showConfirmButton: false });
+            } else {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro ao enviar', text: d.error || 'Tente novamente.' });
+            }
+        } catch (e) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha na comunicação com o servidor.' });
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '📧 Enviar por e-mail para conferência'; }
+        }
+    }
+
+    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia };
 
     // Hook de navegação
     if (window.navigateTo) {

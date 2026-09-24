@@ -2,6 +2,9 @@
 'use strict';
 
 const XLSX = require('xlsx');
+const r2 = require('./utils/r2');
+const path = require('path');
+const nodemailer = require('nodemailer');
 
 const MOTIVOS_ESTORNO = {
     '01': 'CONTRATO',        '1': 'CONTRATO',
@@ -218,6 +221,18 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
 module.exports = function registerComercialComissaoRoutes(app, db, authenticateToken, multerMemory) {
 
     // Migrations
+    db.run(`CREATE TABLE IF NOT EXISTS comissao_planilhas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mes INTEGER NOT NULL,
+        ano INTEGER NOT NULL,
+        tipo TEXT NOT NULL,
+        nome_arquivo TEXT,
+        r2_key TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(mes, ano, tipo)
+    )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] comissao_planilhas:', err.message); });
+
+
     db.run(`CREATE TABLE IF NOT EXISTS comissao_comercial (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         mes INTEGER NOT NULL, ano INTEGER NOT NULL,
@@ -352,7 +367,27 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             await recalcularPrimeiroLugar(db, mesNum, anoNum, null);
 
             const resumo = resultados.map(({ _estCount, _liquidos, _bonusVal, detalhe_contratos, detalhe_estornos, ...pub }) => pub);
-            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo });
+
+            // Salvar planilha no R2
+            let planilhaComissaoKey = null;
+            try {
+                if (r2.isReady()) {
+                    const ext = (req.file.originalname || 'planilha.xlsx').split('.').pop();
+                    const r2Key = 'Comercial/Comissao/' + anoNum + '/' + String(mesNum).padStart(2, '0') + '/planilha_comissao_' + String(mesNum).padStart(2, '0') + anoNum + '.' + ext;
+                    await r2.uploadToR2(r2Key, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                    planilhaComissaoKey = r2Key;
+                    await new Promise((resolve, reject) => {
+                        db.run('INSERT OR REPLACE INTO comissao_planilhas (mes, ano, tipo, nome_arquivo, r2_key) VALUES (?, ?, ?, ?, ?)',
+                            [mesNum, anoNum, 'comissao', req.file.originalname || 'planilha.xlsx', r2Key],
+                            err => err ? reject(err) : resolve());
+                    });
+                    console.log('[Comissao] Planilha comissao salva no R2:', r2Key);
+                }
+            } catch (r2Err) {
+                console.warn('[Comissao] Falha ao salvar planilha no R2:', r2Err.message);
+            }
+
+            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo, planilha_r2_key: planilhaComissaoKey });
         } catch (err) {
             console.error('[Comissao] upload-comissao:', err);
             res.status(500).json({ error: 'Erro ao processar planilha de comissao.', detalhe: err.message });
@@ -402,6 +437,25 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             const totalG  = linhas.length;
             const aprovG  = linhas.filter(l => l.fase.toUpperCase() === 'PROPOSTA APROVADA').length;
+            // Salvar planilha no R2
+            let planilhaPropostasKey = null;
+            try {
+                if (r2.isReady()) {
+                    const extP = (req.file.originalname || 'planilha.xlsx').split('.').pop();
+                    const r2KeyP = 'Comercial/Comissao/' + anoNum + '/' + String(mesNum).padStart(2, '0') + '/planilha_propostas_' + String(mesNum).padStart(2, '0') + anoNum + '.' + extP;
+                    await r2.uploadToR2(r2KeyP, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                    planilhaPropostasKey = r2KeyP;
+                    await new Promise((resolve, reject) => {
+                        db.run('INSERT OR REPLACE INTO comissao_planilhas (mes, ano, tipo, nome_arquivo, r2_key) VALUES (?, ?, ?, ?, ?)',
+                            [mesNum, anoNum, 'propostas', req.file.originalname || 'planilha.xlsx', r2KeyP],
+                            err => err ? reject(err) : resolve());
+                    });
+                    console.log('[Comissao] Planilha propostas salva no R2:', r2KeyP);
+                }
+            } catch (r2ErrP) {
+                console.warn('[Comissao] Falha ao salvar planilha propostas no R2:', r2ErrP.message);
+            }
+
             res.json({
                 ok: true, total_linhas: linhas.length,
                 taxa_geral: totalG > 0 ? ((aprovG / totalG) * 100).toFixed(1) + '%' : '0.0%',
@@ -499,6 +553,170 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             await new Promise((resolve, reject) => { db.run('DELETE FROM comissao_propostas WHERE mes=? AND ano=?',  [parseInt(req.params.mes), parseInt(req.params.ano)], err => err ? reject(err) : resolve()); });
             res.json({ ok: true });
         } catch (err) { res.status(500).json({ error: 'Erro ao limpar mes.', detalhe: err.message }); }
+    });
+
+    // GET /:ano/:mes/planilhas — retorna r2_keys das planilhas do mes
+    app.get('/api/comercial/comissao/:ano/:mes/planilhas', authenticateToken, async (req, res) => {
+        try {
+            const rows = await new Promise((resolve, reject) => {
+                db.all('SELECT tipo, nome_arquivo, r2_key FROM comissao_planilhas WHERE mes=? AND ano=?',
+                    [parseInt(req.params.mes), parseInt(req.params.ano)],
+                    (err, rows) => err ? reject(err) : resolve(rows || []));
+            });
+            const result = {};
+            for (const r of rows) result[r.tipo] = { nome_arquivo: r.nome_arquivo, r2_key: r.r2_key };
+            res.json({ ok: true, planilhas: result });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // GET /:ano/:mes/download-planilha/:tipo — stream da planilha do R2
+    app.get('/api/comercial/comissao/:ano/:mes/download-planilha/:tipo', authenticateToken, async (req, res) => {
+        try {
+            const row = await new Promise((resolve, reject) => {
+                db.get('SELECT nome_arquivo, r2_key FROM comissao_planilhas WHERE mes=? AND ano=? AND tipo=?',
+                    [parseInt(req.params.mes), parseInt(req.params.ano), req.params.tipo],
+                    (err, row) => err ? reject(err) : resolve(row));
+            });
+            if (!row || !row.r2_key) return res.status(404).json({ error: 'Planilha nao encontrada.' });
+            if (!r2.isReady()) return res.status(503).json({ error: 'Storage R2 nao configurado.' });
+            const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+            res.setHeader('Content-Type', contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', 'attachment; filename="' + (row.nome_arquivo || 'planilha.xlsx') + '"');
+            stream.pipe(res);
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // POST /:ano/:mes/enviar-conferencia — envia e-mail de conferencia de comissao ao colaborador
+    app.post('/api/comercial/comissao/:ano/:mes/enviar-conferencia', authenticateToken, async (req, res) => {
+        try {
+            const { colaborador_id } = req.body;
+            const ano = parseInt(req.params.ano);
+            const mes = parseInt(req.params.mes);
+            if (!colaborador_id) return res.status(400).json({ error: 'colaborador_id obrigatorio.' });
+
+            // Buscar dados da comissao
+            const row = await new Promise((resolve, reject) => {
+                db.get('SELECT * FROM comissao_comercial WHERE id=?', [colaborador_id], (err, r) => err ? reject(err) : resolve(r));
+            });
+            if (!row) return res.status(404).json({ error: 'Dados de comissao nao encontrados.' });
+
+            // Buscar e-mail do colaborador
+            const colab = await new Promise((resolve, reject) => {
+                db.get('SELECT nome_completo, email_corporativo, email FROM colaboradores WHERE id=?', [row.colaborador_id], (err, r) => err ? reject(err) : resolve(r));
+            });
+            const emailDest = (colab && (colab.email_corporativo || colab.email)) || null;
+            if (!emailDest) return res.status(400).json({ error: 'Colaborador nao possui e-mail cadastrado.' });
+
+            const nomeColab = (colab && colab.nome_completo) || row.colaborador_nome;
+            const contratos = JSON.parse(row.detalhe_contratos || '[]');
+            const estornos  = JSON.parse(row.detalhe_estornos  || '[]');
+
+            const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            const mesNome = MESES[mes - 1] || mes;
+
+            const fmtBrl = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+            // HTML do e-mail — padrao America Rental com logo cid:empresa-logo
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5;">' +
+                '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px 0;">' +
+                '<tr><td align="center">' +
+                '<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">' +
+                // Header com logo
+                '<tr><td style="background:linear-gradient(135deg,#0d6efd 0%,#0a4abf 100%);padding:0;">' +
+                '<table width="100%" cellpadding="0" cellspacing="0">' +
+                '<tr>' +
+                '<td style="padding:24px 32px;">' +
+                '<img src="cid:empresa-logo" alt="América Rental" style="height:50px;max-width:200px;" />' +
+                '</td>' +
+                '<td style="text-align:right;padding:24px 32px;color:rgba(255,255,255,.6);font-size:12px;">Desde 1999</td>' +
+                '</tr></table>' +
+                '</td></tr>' +
+                // Titulo
+                '<tr><td style="padding:32px 32px 16px;text-align:center;">' +
+                '<div style="font-size:28px;">📊</div>' +
+                '<h2 style="margin:8px 0 4px;color:#0d6efd;font-size:20px;">Conferência de Comissão</h2>' +
+                '<p style="margin:0;color:#6b7280;font-size:14px;">' + mesNome + ' de ' + ano + '</p>' +
+                '</td></tr>' +
+                // Saudacao
+                '<tr><td style="padding:0 32px 16px;">' +
+                '<p style="margin:0;font-size:15px;color:#374151;">Olá <strong>' + nomeColab.split(' ')[0] + '</strong>,</p>' +
+                '<p style="margin:8px 0 0;font-size:14px;color:#6b7280;">Segue abaixo o resumo da conferência de comissão referente ao mês de <strong>' + mesNome + ' de ' + ano + '</strong>. Por favor, verifique as informações e em caso de divergência, entre em contato com o departamento de RH.</p>' +
+                '</td></tr>' +
+                // Resumo cards
+                '<tr><td style="padding:0 32px 24px;">' +
+                '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px;">' +
+                '<tr>' +
+                '<td style="background:#eff6ff;border-radius:8px;padding:16px;text-align:center;width:33%;">' +
+                '<div style="font-size:22px;font-weight:700;color:#1d4ed8;">' + row.contratos_brutos + '</div>' +
+                '<div style="font-size:11px;color:#6b7280;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">Contratos Brutos</div>' +
+                '</td>' +
+                '<td style="background:#fef2f2;border-radius:8px;padding:16px;text-align:center;width:33%;">' +
+                '<div style="font-size:22px;font-weight:700;color:#dc2626;">' + row.contratos_estorno + '</div>' +
+                '<div style="font-size:11px;color:#6b7280;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">Estornos</div>' +
+                '</td>' +
+                '<td style="background:#f0fdf4;border-radius:8px;padding:16px;text-align:center;width:33%;">' +
+                '<div style="font-size:22px;font-weight:700;color:#16a34a;">' + row.contratos_liquidos + '</div>' +
+                '<div style="font-size:11px;color:#6b7280;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">Contratos Líquidos</div>' +
+                '</td>' +
+                '</tr>' +
+                '</table>' +
+                '</td></tr>' +
+                // Metrica e valor
+                '<tr><td style="padding:0 32px 24px;">' +
+                '<table width="100%" cellpadding="12" style="background:#f8fafc;border-radius:8px;border-collapse:collapse;font-size:14px;">' +
+                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;width:50%;">Métrica atingida</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + (row.metrica || 'Sem meta') + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Valor por contrato</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + fmtBrl(row.valor_unitario) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Comissão bruta</td><td style="font-weight:600;color:#1e293b;text-align:right;">' + fmtBrl(row.comissao_bruta) + '</td></tr>' +
+                (row.bonus_primeiro > 0 ? '<tr style="border-bottom:1px solid #e2e8f0;"><td style="color:#6b7280;">Bônus 1º lugar</td><td style="font-weight:600;color:#16a34a;text-align:right;">+' + fmtBrl(row.bonus_primeiro) + '</td></tr>' : '') +
+                '<tr><td style="color:#6b7280;font-weight:700;">Total líquido</td><td style="font-weight:700;color:#1d4ed8;text-align:right;font-size:16px;">' + fmtBrl(row.liquido) + '</td></tr>' +
+                '</table>' +
+                '</td></tr>' +
+                // Tabela contratos
+                (contratos.length > 0 ? '<tr><td style="padding:0 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#374151;font-weight:700;">Contratos Entregues (' + contratos.length + ')</h4>' +
+                '<table width="100%" cellpadding="8" style="border-collapse:collapse;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;">' +
+                '<thead><tr style="background:#f1f5f9;"><th style="text-align:left;color:#6b7280;font-weight:600;">Nº</th><th style="color:#6b7280;font-weight:600;">Data</th><th style="color:#6b7280;font-weight:600;">Contrato</th></tr></thead>' +
+                '<tbody>' +
+                contratos.map((c, i) => '<tr style="border-top:1px solid #f1f5f9;background:' + (i % 2 === 1 ? '#f8fafc' : '#fff') + ';"><td>' + (c.seq || i + 1) + '</td><td style="text-align:center;">' + (c.data || '—') + '</td><td style="text-align:center;font-family:monospace;">' + (c.numero || '—') + '</td></tr>').join('') +
+                '</tbody></table></td></tr>' : '') +
+                // Tabela estornos
+                (estornos.length > 0 ? '<tr><td style="padding:16px 32px 8px;"><h4 style="margin:0 0 8px;font-size:14px;color:#dc2626;font-weight:700;">Estornos (' + estornos.length + ')</h4>' +
+                '<table width="100%" cellpadding="8" style="border-collapse:collapse;font-size:12px;border:1px solid #fee2e2;border-radius:6px;">' +
+                '<thead><tr style="background:#fef2f2;"><th style="text-align:left;color:#6b7280;font-weight:600;">Nº</th><th style="color:#6b7280;font-weight:600;">Data</th><th style="color:#6b7280;font-weight:600;">Contrato</th><th style="color:#6b7280;font-weight:600;">Motivo</th></tr></thead>' +
+                '<tbody>' +
+                estornos.map((e, i) => '<tr style="border-top:1px solid #fee2e2;background:' + (i % 2 === 1 ? '#fff5f5' : '#fff') + ';"><td>' + (e.seq || i + 1) + '</td><td style="text-align:center;">' + (e.data || '—') + '</td><td style="text-align:center;font-family:monospace;">' + (e.numero || '—') + '</td><td style="text-align:center;font-weight:600;color:#dc2626;">' + (e.motivo_cod || e.motivo || '—') + '</td></tr>').join('') +
+                '</tbody></table></td></tr>' : '') +
+                // Rodape
+                '<tr><td style="padding:32px;text-align:center;border-top:1px solid #f1f5f9;margin-top:24px;">' +
+                '<p style="margin:0;font-size:12px;color:#9ca3af;">Este é um e-mail automático enviado pelo Sistema América Rental.<br>Em caso de dúvidas, entre em contato com o departamento de RH.</p>' +
+                '</td></tr>' +
+                '</table>' +
+                '</td></tr></table>' +
+                '</body></html>';
+
+            const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const attachments = [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
+
+            const SMTP_CONFIG = {
+                host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                port: parseInt(process.env.SMTP_PORT || '587'),
+                secure: false,
+                auth: { user: process.env.SMTP_USER || '', pass: process.env.SMTP_PASS || '' }
+            };
+            const transporter = nodemailer.createTransport(SMTP_CONFIG);
+            await transporter.sendMail({
+                from: '"América Rental - Sistema" <' + (process.env.EMAIL_FROM || 'naoresponder@americarental.com.br') + '>',
+                to: emailDest,
+                subject: 'Conferência de comissão ' + mesNome + ' ' + ano,
+                html,
+                attachments
+            });
+
+            console.log('[Comissao] E-mail de conferencia enviado para ' + emailDest);
+            res.json({ ok: true, enviado_para: emailDest });
+        } catch (err) {
+            console.error('[Comissao] Erro ao enviar e-mail de conferencia:', err.message);
+            res.status(500).json({ error: 'Erro ao enviar e-mail.', detalhe: err.message });
+        }
     });
 
     console.log('[Comissao Comercial] Rotas registradas com sucesso.');
