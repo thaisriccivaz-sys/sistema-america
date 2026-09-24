@@ -476,7 +476,76 @@
     });
 
     // Expor API pública
-    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal };
+    
+    let _metricas = [];
+    
+    async function _abrirMetricas() {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        try {
+            const r = await fetch('/api/comercial/comissao/metricas', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!r.ok) return;
+            const d = await r.json();
+            _metricas = d.metricas || [];
+            
+            const mapL = { maxima: 'Máxima', media: 'Média', minima: 'Mínima' };
+            const mHtml = _metricas.map((m, i) => `
+                <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+                    <div style="font-weight:600;margin-bottom:8px;color:#1e293b;">Meta ${mapL[m.label] || m.label}</div>
+                    <div style="display:flex;gap:8px;">
+                        <div style="flex:1;">
+                            <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">Contratos</label>
+                            <input type="number" id="met-qtd-${i}" value="${m.qtd}" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">R$/Contrato</label>
+                            <input type="number" id="met-val-${i}" value="${m.valor}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">Bônus 1º (R$)</label>
+                            <input type="number" id="met-bon-${i}" value="${m.bonus}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('cc-metricas-form').innerHTML = mHtml;
+            document.getElementById('cc-modal-metricas').style.display = 'flex';
+        } catch (e) { console.error(e); }
+    }
+    
+    async function _salvarMetricas() {
+        const btn = document.getElementById('cc-btn-salvar-metricas');
+        btn.innerHTML = 'Salvando...';
+        btn.disabled = true;
+        
+        const novas = _metricas.map((m, i) => ({
+            label: m.label,
+            qtd: parseInt(document.getElementById(`met-qtd-${i}`).value) || 0,
+            valor: parseFloat(document.getElementById(`met-val-${i}`).value) || 0,
+            bonus: parseFloat(document.getElementById(`met-bon-${i}`).value) || 0
+        }));
+        
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        try {
+            await fetch('/api/comercial/comissao/metricas', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ metricas: novas })
+            });
+            document.getElementById('cc-modal-metricas').style.display = 'none';
+            if (typeof _dadosComissao !== 'undefined' && _dadosComissao && _dadosComissao.length > 0) {
+                Swal.fire('Métricas salvas', 'Reenvie as planilhas para recalcular a comissão com os novos valores.', 'success');
+            } else {
+                Swal.fire({ icon: 'success', title: 'Salvo', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+            }
+        } catch (e) {
+            Swal.fire('Erro', 'Não foi possível salvar.', 'error');
+        }
+        btn.innerHTML = 'Salvar e Recalcular';
+        btn.disabled = false;
+    }
+
+    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas };
 
     // Hook de navegação
     if (window.navigateTo) {
