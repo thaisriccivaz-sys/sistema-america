@@ -247,6 +247,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(mes, ano, colaborador_nome)
     )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] comissao_comercial:', err.message); });
+    db.run("ALTER TABLE comissao_comercial ADD COLUMN email_enviado_em TEXT", () => {});
 
     db.run(`CREATE TABLE IF NOT EXISTS comissao_propostas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -542,7 +543,11 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                     (err, row) => err ? reject(err) : resolve(row));
             });
             if (!row) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
-            res.json({ ok: true, ...row, detalhe_contratos: JSON.parse(row.detalhe_contratos || '[]'), detalhe_estornos: JSON.parse(row.detalhe_estornos || '[]') });
+            // Buscar nome do gestor comercial
+            const gestorNomeDetalhe = await new Promise((resolve) => {
+                db.get("SELECT COALESCE(c.nome_completo, d.responsavel_nome, '') as gestor_nome FROM departamentos d LEFT JOIN colaboradores c ON c.id = d.responsavel_id WHERE LOWER(TRIM(d.nome)) = 'comercial'", [], (err, g) => resolve(g ? g.gestor_nome : ''));
+            });
+            res.json({ ok: true, ...row, gestor_nome: gestorNomeDetalhe, detalhe_contratos: JSON.parse(row.detalhe_contratos || '[]'), detalhe_estornos: JSON.parse(row.detalhe_estornos || '[]') });
         } catch (err) { res.status(500).json({ error: 'Erro ao buscar detalhe.', detalhe: err.message }); }
     });
 
@@ -714,8 +719,13 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 attachments
             });
 
+            // Gravar data/hora do envio
+            const emailEnviadoEm = new Date().toISOString();
+            await new Promise((resolve) => {
+                db.run("UPDATE comissao_comercial SET email_enviado_em=? WHERE id=?", [emailEnviadoEm, colaborador_id], () => resolve());
+            });
             console.log('[Comissao] E-mail de conferencia enviado para ' + emailDest);
-            res.json({ ok: true, enviado_para: emailDest });
+            res.json({ ok: true, enviado_para: emailDest, email_enviado_em: emailEnviadoEm });
         } catch (err) {
             console.error('[Comissao] Erro ao enviar e-mail de conferencia:', err.message);
             res.status(500).json({ error: 'Erro ao enviar e-mail.', detalhe: err.message });

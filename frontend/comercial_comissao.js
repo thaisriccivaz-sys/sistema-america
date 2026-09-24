@@ -22,6 +22,7 @@
         _renderLayout(view);
         _bindEvents();
         buscar();
+        _controlarBotaoMetricas();
     }
 
     function _renderLayout(view) {
@@ -45,7 +46,7 @@
             <button id="cc-btn-buscar" style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;">
         <i class="ph ph-magnifying-glass"></i> Buscar
       </button>
-      <button id="cc-btn-metricas" style="padding:6px 12px;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;" onclick="window._comercialComissao._abrirMetricas()">
+      <button id="cc-btn-metricas" style="padding:6px 12px;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;display:none;" onclick="window._comercialComissao._abrirMetricas()">
         <i class="ph ph-sliders"></i> Alterar Métricas
       </button>
     </div>
@@ -537,8 +538,13 @@
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum estorno.</p>'; }
 
             // Botão de enviar e-mail
+            const _jaEnviado = d.email_enviado_em;
+            const _btnBg = _jaEnviado ? '#16a34a' : '#1d4ed8';
+            const _btnTxt = _jaEnviado ? '✅ E-mail enviado' : '📧 Enviar por e-mail para conferência';
+            const _dataSent = _jaEnviado ? '<div style="margin-top:8px;font-size:.8rem;color:#6b7280;">Enviado em: ' + _fmtDataHora(d.email_enviado_em) + '<\/div>' : '';
+            const _gestor = d.gestor_nome ? d.gestor_nome : '';
             const _emailBtn = '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;">'
-                + '<button id="cc-btn-enviar-email" onclick="window._comercialComissao._enviarEmailConferencia(' + id + ')" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#1d4ed8;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;">&#128231; Enviar por e-mail para conferência</button></div>';
+                + '<button id="cc-btn-enviar-email" onclick="window._comercialComissao._enviarEmailConferencia(' + id + ')" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:' + _btnBg + ';color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:600;">' + _btnTxt + '</button>' + _dataSent + '</div>';
             body.innerHTML = html + _emailBtn;
         } catch (e) {
             body.innerHTML = '<p style="color:#dc2626;text-align:center;">Falha na comunicação com o servidor.</p>';
@@ -752,14 +758,40 @@
             });
             const d = await r.json();
             if (d.ok) {
+                // Atualizar botão para verde + mostrar hora do envio
+                if (btn) { btn.style.background = '#16a34a'; btn.innerHTML = '✅ E-mail enviado'; btn.disabled = false; }
+                const _divBtn = btn && btn.parentElement;
+                if (_divBtn && d.email_enviado_em) {
+                    let _infoEl = _divBtn.querySelector('.cc-email-info');
+                    if (!_infoEl) { _infoEl = document.createElement('div'); _infoEl.className = 'cc-email-info'; _infoEl.style.cssText = 'margin-top:8px;font-size:.8rem;color:#6b7280;text-align:center;'; _divBtn.appendChild(_infoEl); }
+                    const _dS = new Date(d.email_enviado_em); const _pad = (n) => String(n).padStart(2,'0');
+                    _infoEl.textContent = 'Enviado em: ' + _pad(_dS.getDate())+'/'+_pad(_dS.getMonth()+1)+'/'+String(_dS.getFullYear()).slice(2)+' às '+_pad(_dS.getHours())+':'+_pad(_dS.getMinutes());
+                }
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'E-mail enviado!', text: 'Enviado para: ' + d.enviado_para, timer: 3000, showConfirmButton: false });
             } else {
+                if (btn) { btn.disabled = false; btn.innerHTML = '📧 Enviar por e-mail para conferência'; }
                 if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro ao enviar', text: d.error || 'Tente novamente.' });
             }
         } catch (e) {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha na comunicação com o servidor.' });
-        } finally {
             if (btn) { btn.disabled = false; btn.innerHTML = '📧 Enviar por e-mail para conferência'; }
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha na comunicação com o servidor.' });
+        }
+    }
+
+    function _controlarBotaoMetricas() {
+        const btn = document.getElementById('cc-btn-metricas');
+        if (!btn) return;
+        const u = window.currentUser || JSON.parse(localStorage.getItem('erp_user') || '{}');
+        const username = (u.username || '').toLowerCase();
+        const depto = (u.departamento || '').toLowerCase();
+        const perms = window.activeUserPerms || {};
+        const temPermComissao = !!perms['comercial-comissao'];
+        const ehThais = username === 'thais.ricci';
+        const ehProcessos = depto.includes('processo') || depto === 'processos';
+        if (ehThais || (temPermComissao && ehProcessos)) {
+            btn.style.display = '';
+        } else {
+            btn.style.display = 'none';
         }
     }
 
