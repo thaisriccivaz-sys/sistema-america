@@ -1114,8 +1114,8 @@ function abrirLegenda() {
         var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;';
         var w = isMoney ? '65px' : '68px';
         var blurFn = isMoney
-            ? "if(this.value){var pv=window._fechamento.parseBRL(this.value);if(pv!==0){this.value=window._fechamento.formatBRL(pv);}else{this.value='';}}"
-            : "if(this.value && parseFloat(this.value)===0){this.value='';}";
+            ? "if(this.value){var pv=window._fechamento.parseBRL(this.value);if(pv!==0){this.value=window._fechamento.formatBRL(pv);}else{this.value='';}} window._fechamento.salvarSilencioso();"
+            : "if(this.value && parseFloat(this.value)===0){this.value='';} window._fechamento.salvarSilencioso();";
         var oiFn = isMoney
             ? "window._fechamento.atualizar(" + idx + ",'" + campo + "',window._fechamento.parseBRL(this.value))"
             : "window._fechamento.atualizar(" + idx + ",'" + campo + "',parseFloat(this.value)||0)";
