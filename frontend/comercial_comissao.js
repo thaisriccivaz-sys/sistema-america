@@ -545,9 +545,9 @@
                 html += contratos.map(c => {
                     const excluido = c.excluido;
                     const aditivo = c.aditivo;
-                    const numDisplay = (aditivo ? '<span style="color:#6d28d9;font-weight:700;">(A)</span> ' : '') + (c.numero||'—');
+                    const numDisplay = (aditivo ? '<span title="' + (String(c.aditivo_texto || 'Justificado').replace(/"/g, '&quot;')) + '" style="color:#6d28d9;font-weight:700;cursor:help;">(A)</span> ' : '') + (c.numero||'—');
                     const style = excluido ? 'color:#9ca3af;text-decoration:line-through;background:#f9fafb;' : '';
-                    const tag = excluido ? '<span style="font-size:.7rem;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px;margin-left:4px;">excluído</span>' : (aditivo ? '<span style="font-size:.7rem;background:#ede9fe;color:#5b21b6;padding:1px 5px;border-radius:4px;margin-left:4px;">' + (c.aditivo_texto || 'Adtivo') + '</span>' : '');
+                    const tag = excluido ? '<span style="font-size:.7rem;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px;margin-left:4px;">excluído</span>' : '';
                     return '<tr style="border-bottom:1px solid #f1f5f9;' + style + '"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + numDisplay + tag + '</td><td style="padding:7px 10px;text-align:right;">' + (excluido ? '<span style="color:#9ca3af;">—</span>' : FMT2(d.valor_unitario||0)) + '</td></tr>';
                 }).join('');
                 html += '</tbody></table></div>';
