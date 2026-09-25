@@ -1753,7 +1753,7 @@ function abrirLegenda() {
                 if (idx >= 0) {
                     _dados[idx].plr = item.plr_valor;
                     const cell = document.getElementById(`fech-cell-plr-${idx}`);
-                    if (cell) cell.querySelector('input').value = item.plr_valor;
+                    if (cell) cell.querySelector('input').value = window._fechamento.formatBRL(item.plr_valor);
                     atualizar(idx, 'plr', item.plr_valor);
                 }
             });
