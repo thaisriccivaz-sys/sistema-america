@@ -358,11 +358,12 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 db.run('DELETE FROM comissao_comercial WHERE mes=? AND ano=?', [mesNum, anoNum], err => err ? reject(err) : resolve());
             });
 
-            const stmt = db.prepare('INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            const insertSql = 'INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
             for (const r of resultados) {
-                stmt.run(mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.detalhe_contratos, r.detalhe_estornos);
+                await new Promise((resolve, reject) => {
+                    db.run(insertSql, [mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.detalhe_contratos, r.detalhe_estornos], err => err ? reject(err) : resolve());
+                });
             }
-            stmt.finalize();
 
             // Calcular 1o lugar (sem taxas de conversao ainda)
             await recalcularPrimeiroLugar(db, mesNum, anoNum, null);
