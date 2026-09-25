@@ -1023,26 +1023,44 @@ function abrirLegenda() {
             + ' oninput=\'' + oi + '\''
             + ' onblur=\'' + ob + '\'>';
     }
+    function parseBRL(val) {
+        if (typeof val === 'number') return val;
+        if (!val) return 0;
+        var str = String(val).trim();
+        if (str.indexOf(',') === -1 && (str.length - str.lastIndexOf('.') <= 3) && str.indexOf('.') !== -1) {
+            if (str.split('.').length === 2) return parseFloat(str) || 0;
+        }
+        str = str.replace(/[^\d,\-]/g, '').replace(',', '.');
+        return parseFloat(str) || 0;
+    }
+
+    function formatBRL(val) {
+        var v = parseFloat(val) || 0;
+        return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
     function inpNum(idx, campo, val, placeholder, step) {
         var v = parseFloat(val);
         if (isNaN(v) || v === 0) v = '';
         var displayVal = '';
         var isMoney = step === '0.01';
         if (v !== '') {
-            displayVal = isMoney ? parseFloat(v).toFixed(2) : String(v);
+            displayVal = isMoney ? formatBRL(v) : String(v);
         }
         var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;';
-        var w = isMoney ? '58px' : '68px';
+        var w = isMoney ? '65px' : '68px';
         var blurFn = isMoney
-            ? "if(this.value && parseFloat(this.value)!==0){this.value=parseFloat(this.value).toFixed(2);}else{this.value='';}"
+            ? "if(this.value){var pv=window._fechamento.parseBRL(this.value);if(pv!==0){this.value=window._fechamento.formatBRL(pv);}else{this.value='';}}"
             : "if(this.value && parseFloat(this.value)===0){this.value='';}";
-        var oiFn = "window._fechamento.atualizar(" + idx + ",'" + campo + "',parseFloat(this.value)||0)";
+        var oiFn = isMoney
+            ? "window._fechamento.atualizar(" + idx + ",'" + campo + "',window._fechamento.parseBRL(this.value))"
+            : "window._fechamento.atualizar(" + idx + ",'" + campo + "',parseFloat(this.value)||0)";
         var inp = '<input type=\'text\' inputmode=\'decimal\''
             + ' value=\'' + displayVal + '\''
             + ' placeholder=\'\'  '
             + ' style=\'width:' + w + ';' + stComum + '\''
-            + ' oninput=\'' + oiFn + '\''
-            + ' onblur=\'' + blurFn + '\'>';
+            + ' oninput="' + oiFn + '"'
+            + ' onblur="' + blurFn + '">';
         if (isMoney) {
             return '<div style=\'display:flex;align-items:center;gap:1px;\'>'
                 + '<span style=\'color:#6b7280;font-size:.75rem;margin-right:1px;\'>R$</span>'
@@ -1139,7 +1157,7 @@ function abrirLegenda() {
                     var cell = document.getElementById('fech-cell-farmacia-' + idx);
                     if (cell) {
                         var inp = cell.querySelector('input');
-                        if (inp) inp.value = parseFloat(val).toFixed(2);
+                        if (inp) inp.value = window._fechamento.formatBRL(val);
                     }
                     atualizar(idx, 'farmacia', val);
                     atualizados++;
@@ -1259,7 +1277,7 @@ function abrirLegenda() {
                     var val = match.valor;
                     _dados[idx].mercado = val;
                     var cell = document.getElementById('fech-cell-mercado-' + idx);
-                    if (cell) { var inp = cell.querySelector('input'); if (inp) inp.value = parseFloat(val).toFixed(2); }
+                    if (cell) { var inp = cell.querySelector('input'); if (inp) inp.value = window._fechamento.formatBRL(val); }
                     atualizar(idx, 'mercado', val);
                     atualizados++;
                 }
@@ -1379,7 +1397,7 @@ function abrirLegenda() {
                 if (idx >= 0) {
                     _dados[idx].multas = item.valor_total;
                     const cell = document.getElementById(`fech-cell-multas-${idx}`);
-                    if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = parseFloat(item.valor_total).toFixed(2); }
+                    if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = window._fechamento.formatBRL(item.valor_total); }
                     atualizar(idx, 'multas', item.valor_total);
                 }
             });
@@ -1426,12 +1444,12 @@ function abrirLegenda() {
                 const cell = document.getElementById('fech-cell-comissao-' + idx);
                 if (cell) {
                     const inp = cell.querySelector('input');
-                    if (inp) inp.value = val.toFixed(2);
+                    if (inp) inp.value = window._fechamento.formatBRL(val);
                 }
                 const cellB = document.getElementById('fech-cell-bonus-comissao-' + idx);
                 if (cellB) {
                     const inp = cellB.querySelector('input');
-                    if (inp) inp.value = '0.00';
+                    if (inp) inp.value = '';
                 }
                 atualizar(idx, 'comissao', val);
                 atualizar(idx, 'bonus_comissao', 0);
@@ -1453,7 +1471,7 @@ function abrirLegenda() {
                     const cellC = document.getElementById('fech-cell-comissao-' + idxGestor);
                     if (cellC) {
                         const inp = cellC.querySelector('input');
-                        if (inp) inp.value = valGestor.toFixed(2);
+                        if (inp) inp.value = window._fechamento.formatBRL(valGestor);
                     }
                     atualizar(idxGestor, 'comissao', valGestor);
                     
@@ -1462,7 +1480,7 @@ function abrirLegenda() {
                     const cellB = document.getElementById('fech-cell-bonus-comissao-' + idxGestor);
                     if (cellB) {
                         const inp = cellB.querySelector('input');
-                        if (inp) inp.value = '0.00';
+                        if (inp) inp.value = '';
                     }
                     atualizar(idxGestor, 'bonus_comissao', 0);
                     
@@ -2409,7 +2427,7 @@ function abrirLegenda() {
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
         uploadFolhaContabilidade, conferirFolha,
-        calcularColaborador, calcINSS, calcIRRF
+        calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL
     };
 })();
 
