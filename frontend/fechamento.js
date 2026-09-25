@@ -671,6 +671,22 @@ function abrirLegenda() {
   </div>
 
   <!-- TOOLBAR DE AÇÕES (aparece após buscar) -->
+  
+  <style>
+    #fech-toolbar button, #fech-toolbar label {
+      height: 32px !important;
+      box-sizing: border-box !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.35rem !important;
+      margin: 0 !important;
+    }
+    /* Os botoes de olho devem ficar redondinhos ou ter padding menor, mas com a mesma altura */
+    #fech-toolbar button[id^="fech-btn-eye-"] {
+      padding: 0 0.5rem !important;
+    }
+  </style>
   <div id="fech-toolbar" style="display:none;flex-direction:column;gap:.75rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;">
   
   <!-- ROW 1: AÇÕES -->
