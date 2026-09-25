@@ -769,9 +769,9 @@ function abrirLegenda() {
 </div>
 
   <!-- Filtro por nome -->
-  <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;gap:1rem;">
-    <span id="fech-badge-ponto" style="font-size:.85rem;font-weight:600;color:#374151;display:none;"></span>
+  <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;justify-content:space-between;">
     <input id="fech-busca-nome" type="text" placeholder="Filtrar por nome..." style="padding:.4rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;width:260px;font-size:.85rem;" oninput="window._fechamento.filtrar(this.value)">
+    <span id="fech-badge-ponto" style="font-size:.85rem;font-weight:600;color:#374151;display:none;"></span>
   </div>
 
   <!-- Tabela principal -->
