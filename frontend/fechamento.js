@@ -1415,18 +1415,44 @@ function abrirLegenda() {
     }
 
     async function buscarTodos() {
-        try {
-            await carregarMultas();
-        } catch(e) { console.warn('[buscarTodos] Multas:', e); }
-        try {
-            await carregarPLR();
-        } catch(e) { console.warn('[buscarTodos] PLR:', e); }
-        try {
-            await buscarComissao();
-        } catch(e) { console.warn('[buscarTodos] Comissão:', e); }
-        try {
-            buscarAcademia();
-        } catch(e) { console.warn('[buscarTodos] Academia:', e); }
+        const msgs = [];
+        const originalSwal = Swal.fire;
+        const originalAlert = window.alert;
+
+        Swal.fire({
+            title: 'Buscando todos...',
+            html: 'Executando buscas em lote...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        Swal.fire = function(obj) {
+            if (obj && obj.title) {
+                msgs.push(`<strong>${obj.title}</strong>: ${obj.text || ''}`);
+            }
+        };
+        window.alert = function(txt) {
+            msgs.push(`<strong>Academia</strong>: ${String(txt).replace(/\n/g, ' ')}`);
+        };
+
+        try { await carregarMultas(); } catch(e) { msgs.push(`<strong>Erro Multas</strong>: ${e.message}`); }
+        try { await carregarPLR(); } catch(e) { msgs.push(`<strong>Erro PLR</strong>: ${e.message}`); }
+        try { await buscarComissao(); } catch(e) { msgs.push(`<strong>Erro Comissão</strong>: ${e.message}`); }
+        try { buscarAcademia(); } catch(e) { msgs.push(`<strong>Erro Academia</strong>: ${e.message}`); }
+
+        // Restaura as funções originais
+        Swal.fire = originalSwal;
+        window.alert = originalAlert;
+
+        const html = '<ul style="text-align:left; padding-left:1.2rem;">' + msgs.map(m => `<li style="margin-bottom:8px; font-size:0.85rem;">${m}</li>`).join('') + '</ul>';
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Buscas Concluídas',
+            html: html,
+            confirmButtonText: 'OK',
+            width: '550px'
+        });
     }
 
     async function carregarMultas() {
