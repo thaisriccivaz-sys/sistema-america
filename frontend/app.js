@@ -10121,6 +10121,7 @@ window.renderGeradoresList = function (items) {
             <td>${g.created_at ? new Date(g.created_at).toLocaleDateString('pt-BR') : '-'}</td>
             <td style="text-align:right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                    <button class="btn btn-info btn-sm" style="background:#0ea5e9; border-color:#0ea5e9; color:#fff;" onclick="window.abrirHistoricoGeradorList(${g.id})" title="Histórico"><i class="ph ph-clock-counter-clockwise"></i></button>
                     <button class="btn btn-primary btn-sm" onclick="window.abrirModalSelecaoColab(${g.id})" title="Visualizar"><i class="ph ph-eye"></i></button>
                     <button class="btn btn-warning btn-sm" onclick="window.editGerador(${g.id})" title="Editar"><i class="ph ph-pencil-simple"></i></button>
                 </div>
@@ -23577,8 +23578,8 @@ window._toggleCobradoManualmente = async function(multaId, numParcela, isChecked
 
 
 // --- HISTÓRICO DE GERADORES ---
-window.abrirHistoricoGeradorAtual = async function() {
-    const geradorId = document.getElementById('gerador-id').value;
+window.abrirHistoricoGeradorAtual = async function(idOverride) {
+    const geradorId = idOverride || document.getElementById('gerador-id').value;
     if (!geradorId) return;
 
     try {
@@ -23670,3 +23671,9 @@ window.abrirPdfHistorico = async function(historicoId) {
 };
 
 // Insert logic inside frontend
+
+
+window.abrirHistoricoGeradorList = function(id) {
+    document.getElementById('gerador-id').value = id;
+    window.abrirHistoricoGeradorAtual();
+};
