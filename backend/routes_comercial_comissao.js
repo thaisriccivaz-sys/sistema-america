@@ -127,44 +127,51 @@ function parseComissaoAba(ws) {
     const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
     const contratos = [];
     const estornos  = [];
+    const HEADER_VALS = new Set(['data', 'data da entrega', 'nº contrato', 'n° contrato', 'numero', 'numero do contrato', 'contrato', 'total', 'totais', 'motivo', 'motivo do estorno']);
 
-    for (let r = 1; r <= range.e.r; r++) {
+    for (let r = 0; r <= range.e.r; r++) {
         const cellA = ws[XLSX.utils.encode_cell({ r, c: 0 })];
-        const valA  = cellA ? String(cellA.v || '').trim().toUpperCase() : '';
-        if (valA === 'TOTAL' || valA === 'TOTAIS') break;
-        if (!cellA || !valA) continue;
-
         const cellB = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-        const cellC = ws[XLSX.utils.encode_cell({ r, c: 2 })];
         const cellD = ws[XLSX.utils.encode_cell({ r, c: 3 })];
+        const cellE = ws[XLSX.utils.encode_cell({ r, c: 4 })];
+        const cellF = ws[XLSX.utils.encode_cell({ r, c: 5 })];
 
-        if (!isNaN(Number(cellA.v))) {
-            contratos.push({
-                seq:    Number(cellA.v),
-                data:   cellB ? (cellB.w || String(cellB.v || '')) : '',
-                numero: cellC ? String(cellC.v || '') : '',
-                valor:  cellD ? (Number(cellD.v) || 0) : 0,
-            });
+        // Verificar se col A é linha de cabeçalho ou total
+        const valALower = cellA ? String(cellA.v || '').trim().toLowerCase() : '';
+        if (HEADER_VALS.has(valALower) || valALower === 'total' || valALower === 'totais') continue;
+
+        // ── Contratos: col A = data, col B = nº contrato ─────────────────────
+        if (cellA && cellA.v && cellB && cellB.v) {
+            const dateStr = cellA.w || String(cellA.v || '');
+            const numero  = String(cellB.v || '').trim();
+            // Ignorar se col A for texto de cabeçalho ou col B não for um número/string válido
+            if (numero && !HEADER_VALS.has(numero.toLowerCase())) {
+                contratos.push({
+                    seq:    contratos.length + 1,
+                    data:   dateStr,
+                    numero: numero,
+                    valor:  0, // O valor é calculado pelo sistema com base nas métricas, não lido da planilha
+                });
+            }
         }
 
-        const cellF = ws[XLSX.utils.encode_cell({ r, c: 5 })];
-        const cellG = ws[XLSX.utils.encode_cell({ r, c: 6 })];
-        const cellH = ws[XLSX.utils.encode_cell({ r, c: 7 })];
-        const cellI = ws[XLSX.utils.encode_cell({ r, c: 8 })];
-        const cellJ = ws[XLSX.utils.encode_cell({ r, c: 9 })];
-
-        const valF = cellF ? String(cellF.v || '').trim().toUpperCase() : '';
-        if (cellF && valF && valF !== 'TOTAL' && !isNaN(Number(cellF.v))) {
-            const motCod  = cellI ? String(cellI.v || '').trim() : '';
-            const motNome = MOTIVOS_ESTORNO[motCod] || ('CODIGO ' + motCod);
-            estornos.push({
-                seq:         Number(cellF.v),
-                data:        cellG ? (cellG.w || String(cellG.v || '')) : '',
-                numero:      cellH ? String(cellH.v || '') : '',
-                motivo_cod:  motCod,
-                motivo_nome: motNome,
-                valor:       cellJ ? Math.abs(Number(cellJ.v) || 0) : 0,
-            });
+        // ── Estornos: col D = data, col E = nº contrato, col F = motivo ──────
+        const valDLower = cellD ? String(cellD.v || '').trim().toLowerCase() : '';
+        if (cellD && cellD.v && cellE && cellE.v && !HEADER_VALS.has(valDLower)) {
+            const dateEstStr = cellD.w || String(cellD.v || '');
+            const numeroEst  = String(cellE.v || '').trim();
+            const motCod     = cellF ? String(cellF.v || '').trim() : '';
+            const motNome    = MOTIVOS_ESTORNO[motCod] || (motCod ? 'CODIGO ' + motCod : 'Estorno');
+            if (numeroEst && !HEADER_VALS.has(numeroEst.toLowerCase())) {
+                estornos.push({
+                    seq:         estornos.length + 1,
+                    data:        dateEstStr,
+                    numero:      numeroEst,
+                    motivo_cod:  motCod,
+                    motivo_nome: motNome,
+                    valor:       0,
+                });
+            }
         }
     }
     return { contratos, estornos };
