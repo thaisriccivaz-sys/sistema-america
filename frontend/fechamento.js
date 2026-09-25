@@ -192,6 +192,11 @@ window._fechamento = (function () {
             try { var _ss = localStorage.getItem('_fech_dp_'+_mes+'_'+_ano); if (_ss) Object.assign(_dadosPonto, JSON.parse(_ss)); } catch(_e3) {}
         }
 
+        if (!_dadosPonto || Object.keys(_dadosPonto).length === 0) {
+            Swal.fire({ icon: "warning", title: "Ponto não buscado", text: "O ponto ainda não foi buscado para este mês. Por favor, feche e clique no botão 'Buscar Ponto' primeiro." });
+            return;
+        }
+
         // Se _dados ainda está vazio, precisamos buscar o fechamento do mês primeiro
         if (!_dados || _dados.length === 0) {
             buscar().then(function() { abrirConferenciaPonto(idx); });
