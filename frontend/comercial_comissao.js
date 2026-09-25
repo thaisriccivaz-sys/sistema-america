@@ -374,12 +374,12 @@
 
                         var infoEquipe =
                 (g.todos_na_maxima 
-                    ? '<span style="color:#16a34a;font-weight:700;">&#10003; Todos na maxima</span>' 
-                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Equipe nao unanime</span>') +
+                    ? '<span style="color:#16a34a;font-weight:700;">&#10003; Todos na máxima</span>' 
+                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Equipe não unânime</span>') +
                 ' &nbsp;|&nbsp; ' +
                 (g.meta_220_atingida 
                     ? '<span style="color:#16a34a;font-weight:700;">&#10003; 220+ contratos</span>' 
-                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bonus 220</span>');
+                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bônus 220</span>');
 
             var nomeG = g.nome || 'Gestor (equipe)';
             var fotoGHtml = g.foto_url 
@@ -884,7 +884,8 @@
         modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:28px;max-width:800px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18);">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">' +
             '<h2 style="margin:0;font-size:1.1rem;color:#1e293b;">⚠️ Contratos Duplicados Detectados</h2>' +
-            '<span style="font-size:.82rem;color:#6b7280;">' + totalColabs + ' colaborador(es) processado(s)</span>' +
+            '<div style="display:flex;align-items:center;gap:12px;"><span style="font-size:.82rem;color:#6b7280;">' + totalColabs + ' colaborador(es) processado(s)</span>' +
+            '<button id="cc-dup-btn-fechar" style="background:none;border:none;font-size:1.6rem;color:#9ca3af;cursor:pointer;line-height:1;margin-top:-4px;padding:0;outline:none;" title="Fechar">&times;</button></div>' +
             '</div>' +
             '<p style="margin:0 0 16px;font-size:.82rem;color:#dc2626;font-weight:600;">* É obrigatório escolher Excluir ou Justificar para cada contrato duplicado.</p>' +
             rowsHtml +
@@ -902,6 +903,8 @@
             });
         });
         // Botão confirmar
+        var btnFechar = document.getElementById('cc-dup-btn-fechar');
+        if (btnFechar) btnFechar.onclick = function() { modal.style.display = 'none'; };
         var btnConfirmar = document.getElementById('cc-dup-btn-confirmar');
         var _capMes = mes; var _capAno = ano; var _capRows = totalRows;
         if (btnConfirmar) btnConfirmar.onclick = function() { _confirmarDuplicatas(_capMes, _capAno, _capRows); };
