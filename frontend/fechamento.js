@@ -1438,23 +1438,34 @@ function abrirLegenda() {
                 atualizados++;
             });
 
-            // Preencher comissão do gestor (bonus_equipe + bonus_meta220, somente se atingiu meta mínima)
+            // Preencher comissão do gestor (tudo na coluna comissao)
             if (gestor && gestor.meta && gestor.nome) {
-                // Valor do gestor vai em bonus_comissao (já que é bônus de supervisão)
-                const valGestor = (parseFloat(gestor.bonus_equipe) || 0) + (parseFloat(gestor.bonus_meta220) || 0);
+                // O valor total do gestor (meta + bonus_equipe + bonus_meta220) vai integralmente na coluna comissao
+                const valGestor = parseFloat(gestor.total) || 0;
                 // Encontrar gestor pelo nome
                 const nomeGestor = (gestor.nome || '').toLowerCase().trim();
                 const idxGestor = _dados.findIndex(function(r) {
                     return (r.nome_completo || r.nome || '').toLowerCase().trim().includes(nomeGestor.split(' ')[0]);
                 });
                 if (idxGestor >= 0) {
-                    _dados[idxGestor].bonus_comissao = valGestor;
+                    // Colocar total em comissao
+                    _dados[idxGestor].comissao = valGestor;
+                    const cellC = document.getElementById('fech-cell-comissao-' + idxGestor);
+                    if (cellC) {
+                        const inp = cellC.querySelector('input');
+                        if (inp) inp.value = valGestor.toFixed(2);
+                    }
+                    atualizar(idxGestor, 'comissao', valGestor);
+                    
+                    // Zerar / deixar em branco o bonus (que é preenchido manualmente)
+                    _dados[idxGestor].bonus_comissao = 0;
                     const cellB = document.getElementById('fech-cell-bonus-comissao-' + idxGestor);
                     if (cellB) {
                         const inp = cellB.querySelector('input');
-                        if (inp) inp.value = valGestor.toFixed(2);
+                        if (inp) inp.value = '0.00';
                     }
-                    atualizar(idxGestor, 'bonus_comissao', valGestor);
+                    atualizar(idxGestor, 'bonus_comissao', 0);
+                    
                     atualizados++;
                 }
             }
