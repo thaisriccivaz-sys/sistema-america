@@ -738,6 +738,26 @@ function abrirLegenda() {
       <i class="ph ph-money"></i> Buscar Comissão
     </button>
 
+    <!-- Buscar Insalubridade -->
+    <button onclick="window._fechamento.buscarInsalubridade()" style="background:#065f46;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca insalubridade do cadastro do colaborador">
+      <i class="ph ph-shield-warning"></i> Buscar Insalubridade
+    </button>
+
+    <!-- Buscar Periculosidade -->
+    <button onclick="window._fechamento.buscarPericulosidade()" style="background:#78350f;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca periculosidade do cadastro do colaborador">
+      <i class="ph ph-fire"></i> Buscar Periculosidade
+    </button>
+
+    <!-- Buscar Sindicato -->
+    <button onclick="window._fechamento.buscarSindicato()" style="background:#1e3a8a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca mensalidade sindical do cadastro do colaborador">
+      <i class="ph ph-users"></i> Buscar Sindicato
+    </button>
+
+    <!-- Buscar Pensão -->
+    <button onclick="window._fechamento.buscarPensao()" style="background:#831843;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca pensão alimentícia do cadastro do colaborador">
+      <i class="ph ph-scales"></i> Buscar Pens&atilde;o
+    </button>
+
     <!-- Buscar Academia -->
     <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
       <i class="ph ph-barbell"></i> Buscar Academia
@@ -807,11 +827,14 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Consig.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9750</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Comiss&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">37</span></th>
 
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Insalub.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">16</span></th>
 
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>PLR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">873</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Pr&ecirc;mio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">347</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Outros</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">290</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Insalub.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">16</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Periculosidade</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">193</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e3a8a;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Sindicato</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">601</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#831843;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Pens&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
           </tr>
         </thead>
         <tbody id="fech-tbody"></tbody>
@@ -1018,11 +1041,13 @@ function abrirLegenda() {
 <td id="fech-cell-academia-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-insalubridade-${idx}">${inpNum(idx,'insalubridade',row.insalubridade||0,'0.00','0.01')}</td>
-
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-insalubridade-${idx}">${inpNum(idx,'insalubridade',row.insalubridade||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#fef3c7;" id="fech-cell-periculosidade-${idx}">${inpNum(idx,'periculosidade',row.periculosidade||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#dbeafe;" id="fech-cell-sindicato-${idx}">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
 
 `;
             tbody.appendChild(tr);
@@ -1414,6 +1439,84 @@ function abrirLegenda() {
         alert('Busca de academia concluída.\n' + atualizados + ' colaboradores com desconto ativo.\n' + zerados + ' colaboradores tiveram desconto antigo removido (não participam mais).');
     }
 
+    function buscarInsalubridade() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            const val = parseInt(row.folha_insalubridade) === 1 ? (parseFloat(row.folha_insalubridade_valor) || 0) : 0;
+            if (val > 0) atualizados++;
+            _dados[idx].insalubridade = val;
+            const cell = document.getElementById('fech-cell-insalubridade-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+            }
+            atualizar(idx, 'insalubridade', val);
+        });
+        salvarSilencioso();
+        alert(atualizados + ' colaborador(es) com insalubridade preenchidos.');
+    }
+
+    function buscarPericulosidade() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            const val = parseInt(row.folha_periculosidade) === 1 ? (parseFloat(row.folha_periculosidade_valor) || 0) : 0;
+            if (val > 0) atualizados++;
+            _dados[idx].periculosidade = val;
+            const cell = document.getElementById('fech-cell-periculosidade-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+            }
+            atualizar(idx, 'periculosidade', val);
+        });
+        salvarSilencioso();
+        alert(atualizados + ' colaborador(es) com periculosidade preenchidos.');
+    }
+
+    function buscarSindicato() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            const val = parseInt(row.folha_mensalidade_sindical) === 1 ? (parseFloat(row.folha_mensalidade_sindical_valor) || 0) : 0;
+            if (val > 0) atualizados++;
+            _dados[idx].sindicato = val;
+            const cell = document.getElementById('fech-cell-sindicato-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+            }
+            atualizar(idx, 'sindicato', val);
+        });
+        salvarSilencioso();
+        alert(atualizados + ' colaborador(es) com sindicato preenchidos.');
+    }
+
+    function buscarPensao() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            // Pensão: aplica percentual sobre salário base se tipo estiver definido
+            let val = 0;
+            if (row.folha_pensao_tipo && row.folha_pensao_pct > 0) {
+                const salBase = parseFloat(row.salario_base || row.salario || 0);
+                val = salBase * (parseFloat(row.folha_pensao_pct) / 100);
+                val = Math.round(val * 100) / 100;
+                if (val > 0) atualizados++;
+            }
+            _dados[idx].pensao = val;
+            const cell = document.getElementById('fech-cell-pensao-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+            }
+            atualizar(idx, 'pensao', val);
+        });
+        salvarSilencioso();
+        alert(atualizados + ' colaborador(es) com pensão alimentícia preenchidos.');
+    }
+
     async function buscarTodos() {
         const msgs = [];
         const originalSwal = Swal.fire;
@@ -1439,6 +1542,10 @@ function abrirLegenda() {
         try { await carregarPLR(); } catch(e) { msgs.push(`<strong>Erro PLR</strong>: ${e.message}`); }
         try { await buscarComissao(); } catch(e) { msgs.push(`<strong>Erro Comissão</strong>: ${e.message}`); }
         try { buscarAcademia(); } catch(e) { msgs.push(`<strong>Erro Academia</strong>: ${e.message}`); }
+        try { buscarInsalubridade(); } catch(e) { msgs.push(`<strong>Erro Insalubridade</strong>: ${e.message}`); }
+        try { buscarPericulosidade(); } catch(e) { msgs.push(`<strong>Erro Periculosidade</strong>: ${e.message}`); }
+        try { buscarSindicato(); } catch(e) { msgs.push(`<strong>Erro Sindicato</strong>: ${e.message}`); }
+        try { buscarPensao(); } catch(e) { msgs.push(`<strong>Erro Pens\u00e3o</strong>: ${e.message}`); }
 
         // Restaura as funções originais
         Swal.fire = originalSwal;
@@ -2535,7 +2642,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarTodos,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
