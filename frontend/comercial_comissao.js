@@ -372,10 +372,14 @@
                 ? '<span title="' + bonusPartes.join(' + ') + '" style="color:#16a34a;font-weight:600;">' + FMT(totalBonus) + '</span>'
                 : '<span style="color:#9ca3af;display:block;text-align:center;">—</span>';
 
-            var infoEquipe =
-                (g.todos_na_maxima ? '&#10003; Todos na maxima' : '&#10007; Equipe nao unanime') +
+                        var infoEquipe =
+                (g.todos_na_maxima 
+                    ? '<span style="color:#16a34a;font-weight:700;">&#10003; Todos na maxima</span>' 
+                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Equipe nao unanime</span>') +
                 ' &nbsp;|&nbsp; ' +
-                (g.meta_220_atingida ? '&#10003; 220+ contratos' : '&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bonus 220');
+                (g.meta_220_atingida 
+                    ? '<span style="color:#16a34a;font-weight:700;">&#10003; 220+ contratos</span>' 
+                    : '<span style="color:#dc2626;font-weight:700;">&#10007; Faltam ' + Math.max(0, 220 - g.contratos_liquidos) + ' p/ bonus 220</span>');
 
             var nomeG = g.nome || 'Gestor (equipe)';
             var fotoGHtml = g.foto_url 
