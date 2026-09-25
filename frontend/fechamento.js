@@ -701,6 +701,11 @@ function abrirLegenda() {
       <i class="ph ph-warning"></i> Carregar Multas
     </button>
 
+    <!-- Buscar Academia -->
+    <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
+      <i class="ph ph-barbell"></i> Buscar Academia
+    </button>
+
     <!-- PLR -->
     <button onclick="window._fechamento.carregarPLR()" style="background:#059669;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
       <i class="ph ph-trophy"></i> Calcular PLR
@@ -951,7 +956,7 @@ function abrirLegenda() {
             // Preencher defaults no estado
             if (!_dados[idx].horas_normais) _dados[idx].horas_normais = '220:00';
             if (_dados[idx].vt == null) _dados[idx].vt = defaultVT;
-            if (_dados[idx].academia == null) _dados[idx].academia = defaultAcad;
+            // (Removido) if (_dados[idx].academia == null) _dados[idx].academia = defaultAcad;
 
             const isFerias = (row.colab_status || '').toLowerCase().includes('férias');
             const bgRow = isFerias ? '#fff7ed' : '';
@@ -977,7 +982,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
+<td id="fech-cell-academia-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-bonus-comissao-${idx}">${inpNum(idx,'bonus_comissao',row.bonus_comissao||0,'0.00','0.01')}</td>
@@ -1342,6 +1347,31 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     // CARREGAR MULTAS DO PRONTUÁRIO
     // ─────────────────────────────────────────────────────────────────
+    
+    function buscarAcademia() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            if (row.academia_participa === 'Sim') {
+                const val = parseFloat(row.academia_desconto_valor) || 60;
+                _dados[idx].academia = val;
+                const cell = document.getElementById('fech-cell-academia-' + idx);
+                if (cell) {
+                    const inp = cell.querySelector('input');
+                    if (inp) inp.value = window._fechamento.formatBRL(val);
+                }
+                atualizar(idx, 'academia', val);
+                atualizados++;
+            }
+        });
+        if (atualizados > 0) {
+            salvarSilencioso();
+            alert('Academia buscada e preenchida para ' + atualizados + ' colaborador(es).');
+        } else {
+            alert('Nenhum colaborador com academia ativa encontrado.');
+        }
+    }
+
     async function carregarMultas() {
         // Garantir que _mes e _ano estejam definidos a partir dos selects
         _mes = parseInt(document.getElementById('fech-select-mes').value);
@@ -2422,7 +2452,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
