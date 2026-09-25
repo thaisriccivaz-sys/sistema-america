@@ -1871,9 +1871,10 @@ function abrirLegenda() {
                     bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                     premio: parseFloat(row.premio) || 0,
                     plr: parseFloat(row.plr) || 0,
-                    insalubridade: parseFloat(row.folha_insalubridade_valor) || 0,
-                    periculosidade: parseFloat(row.folha_periculosidade_valor) || 0,
-                    pensao_pct: parseFloat(row.folha_pensao_pct) || 0,
+                    insalubridade: parseFloat(row.insalubridade) || 0,
+                    periculosidade: parseFloat(row.periculosidade) || 0,
+                    pensao: parseFloat(row.pensao) || 0,
+                    sindicato: parseFloat(row.sindicato) || 0,
                     dias_intermitente: parseInt(row.dias_intermitente) || 0,
                     observacao: row.observacao
                 };
@@ -1921,9 +1922,10 @@ function abrirLegenda() {
                 bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                 premio: parseFloat(row.premio) || 0,
                 plr: parseFloat(row.plr) || 0,
-                insalubridade: parseFloat(row.folha_insalubridade_valor) || 0,
-                periculosidade: parseFloat(row.folha_periculosidade_valor) || 0,
-                pensao_pct: parseFloat(row.folha_pensao_pct) || 0,
+                insalubridade: parseFloat(row.insalubridade) || 0,
+                periculosidade: parseFloat(row.periculosidade) || 0,
+                pensao: parseFloat(row.pensao) || 0,
+                    sindicato: parseFloat(row.sindicato) || 0,
                 dias_intermitente: parseInt(row.dias_intermitente) || 0,
                 status: 'rascunho',
             };
