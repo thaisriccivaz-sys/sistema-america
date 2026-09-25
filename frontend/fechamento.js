@@ -1355,25 +1355,33 @@ function abrirLegenda() {
     function buscarAcademia() {
         if (!_dados || _dados.length === 0) return;
         let atualizados = 0;
+        let zerados = 0;
         _dados.forEach((row, idx) => {
+            let val = 0;
             if (row.academia_participa === 'Sim') {
-                const val = parseFloat(row.academia_desconto_valor) || 60;
-                _dados[idx].academia = val;
-                const cell = document.getElementById('fech-cell-academia-' + idx);
-                if (cell) {
-                    const inp = cell.querySelector('input');
-                    if (inp) inp.value = window._fechamento.formatBRL(val);
-                }
-                atualizar(idx, 'academia', val);
+                val = parseFloat(row.academia_desconto_valor) || 60;
                 atualizados++;
+            } else {
+                if (parseFloat(_dados[idx].academia) > 0) zerados++;
             }
+            
+            _dados[idx].academia = val;
+            const cell = document.getElementById('fech-cell-academia-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) {
+                    if (val > 0) {
+                        inp.value = window._fechamento.formatBRL(val);
+                    } else {
+                        inp.value = '';
+                    }
+                }
+            }
+            atualizar(idx, 'academia', val);
         });
-        if (atualizados > 0) {
-            salvarSilencioso();
-            alert('Academia buscada e preenchida para ' + atualizados + ' colaborador(es).');
-        } else {
-            alert('Nenhum colaborador com academia ativa encontrado.');
-        }
+        
+        salvarSilencioso();
+        alert('Busca de academia concluída.\n' + atualizados + ' colaboradores com desconto ativo.\n' + zerados + ' colaboradores tiveram desconto antigo removido (não participam mais).');
     }
 
     async function carregarMultas() {
