@@ -846,7 +846,7 @@
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;">' + (d.data || '—') + '</td>';
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;">';
                 rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="intra" data-colab="' + d.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-seq="' + d.seq + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
-                rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Aditivo</option></select>';
+                rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
                 rowsHtml += '</td>';
                 rowsHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
                 rowsHtml += '</tr>';
@@ -870,7 +870,7 @@
                     rowsHtml += '<td style="padding:6px 8px;font-weight:600;">' + colab + '</td>';
                     rowsHtml += '<td style="padding:6px 8px;text-align:center;">';
                     rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="inter" data-colab="' + colab.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
-                    rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Aditivo</option></select>';
+                    rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
                     rowsHtml += '</td>';
                     rowsHtml += '<td style="padding:6px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
                     rowsHtml += '</tr>';
@@ -886,7 +886,7 @@
             '<h2 style="margin:0;font-size:1.1rem;color:#1e293b;">⚠️ Contratos Duplicados Detectados</h2>' +
             '<span style="font-size:.82rem;color:#6b7280;">' + totalColabs + ' colaborador(es) processado(s)</span>' +
             '</div>' +
-            '<p style="margin:0 0 16px;font-size:.82rem;color:#dc2626;font-weight:600;">* É obrigatório escolher Excluir ou Aditivo para cada contrato duplicado.</p>' +
+            '<p style="margin:0 0 16px;font-size:.82rem;color:#dc2626;font-weight:600;">* É obrigatório escolher Excluir ou Justificar para cada contrato duplicado.</p>' +
             rowsHtml +
             '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end;">' +
             '<button id="cc-dup-btn-confirmar" style="padding:9px 22px;background:#1d4ed8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;">✅ Confirmar decisões</button>' +
