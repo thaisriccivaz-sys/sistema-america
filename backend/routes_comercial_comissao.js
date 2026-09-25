@@ -336,7 +336,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const liquidos = Math.max(0, brutos - estCount);
                 const met      = aplicarMetrica(liquidos, metricasArr);
                 const comBruta = liquidos * met.valor;
-                const totEst   = estornos.reduce((s, e) => s + e.valor, 0);
+                const totEst   = estCount * met.valor;
 
                 const pnAba = nomAba.trim().split(/\s+/)[0].toLowerCase();
                 const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
@@ -657,7 +657,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const liquidos = Math.max(0, brutos - estCount);
                 const met = aplicarMetrica(liquidos, metricasArr);
                 const comBruta = liquidos * met.valor;
-                const totEst = estornos.reduce((s, e) => s + e.valor, 0);
+                const totEst = estCount * met.valor;
 
                 await new Promise((resolve, reject) => {
                     db.run(
