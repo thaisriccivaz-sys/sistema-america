@@ -680,7 +680,7 @@ function abrirLegenda() {
 
     <!-- Upload Farmácia -->
     <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-upload-simple"></i> Farmácia (PDF)
+      <i class="ph ph-pill"></i> Farmácia (PDF)
       <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
     </label>
     <!-- Olho Farmácia -->
@@ -688,7 +688,7 @@ function abrirLegenda() {
 
     <!-- Upload Consignado -->
     <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-upload-simple"></i> Consignado (XLSX)
+      <i class="ph ph-hand-coins"></i> Consignado (XLSX)
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
     </label>
     <!-- Olho Consignado -->
