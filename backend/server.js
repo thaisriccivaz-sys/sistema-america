@@ -10810,38 +10810,44 @@ app.get('/api/multas/:multaId/historico-cobranca', authenticateToken, (req, res)
 app.get('/api/fechamento/plr/:ano/:mes', authenticateToken, (req, res) => {
     const mesNum = parseInt(req.params.mes);
     const anoNum = parseInt(req.params.ano);
-    // Determinar período PLR
-    // Período 1: Mai(5) → Out(10), pago em outubro
-    // Período 2: Nov(11) → Abr(4), pago em abril do ano seguinte
-    let periodoInicio, periodoFim, periodoAno;
+    
+    // Períodos padrão de 6 meses para cálculo proporcional
+    let periodoInicio = new Date(anoNum, mesNum - 7, 1); 
+    let periodoFim = new Date(anoNum, mesNum, 0); 
+    
     if (mesNum === 10) { // Outubro: pago Período 1
         periodoInicio = new Date(anoNum, 4, 1); // maio
         periodoFim = new Date(anoNum, 9, 31);   // outubro
     } else if (mesNum === 4) { // Abril: pago Período 2
         periodoInicio = new Date(anoNum - 1, 10, 1); // novembro do ano anterior
-        periodoFim = new Date(anoNum, 3, 30);          // abril atual
-    } else {
-        return res.json([]); // Nao é mês de PLR padrão
+        periodoFim = new Date(anoNum, 3, 30);        // abril atual
     }
+    
     db.all(`SELECT id, nome_completo, folha_plr_valor, folha_plr_meses, data_admissao FROM colaboradores
             WHERE folha_plr = 1 AND status != 'Desligado'`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const resultado = [];
         for (const c of rows) {
-            // Checar se este mês está nos meses configurados de PLR
             let plrMeses = [];
             try { plrMeses = JSON.parse(c.folha_plr_meses || '[]'); } catch(e) {}
             const mesNomes = ['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-            if (plrMeses.length > 0 && !plrMeses.includes(mesNomes[mesNum - 1])) continue;
+            
+            // Se tem configuração customizada, verifica se o mês está marcado
+            if (plrMeses.length > 0) {
+                if (!plrMeses.includes(mesNomes[mesNum - 1])) continue;
+            } else {
+                // Regra padrão: só paga em outubro ou abril
+                if (mesNum !== 10 && mesNum !== 4) continue;
+            }
+            
             // Calcular proporcional
             const admissao = c.data_admissao ? new Date(c.data_admissao) : null;
             const valorBase = parseFloat(c.folha_plr_valor) || 800;
             let plrValor = valorBase;
             if (admissao && admissao > periodoInicio) {
-                // Meses completos no período
                 const diffMs = periodoFim - admissao;
                 const mesesCompletos = Math.floor(diffMs / (30.44 * 24 * 3600 * 1000));
-                if (mesesCompletos <= 0) continue;
+                if (mesesCompletos <= 0) continue; // Pode receber 0 se tiver menos de 1 mes completo
                 plrValor = Math.round((Math.min(mesesCompletos, 6) / 6) * valorBase * 100) / 100;
             }
             resultado.push({ colaborador_id: c.id, nome: c.nome_completo, plr_valor: plrValor, proporcional: admissao && admissao > periodoInicio });

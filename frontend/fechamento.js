@@ -1745,7 +1745,7 @@ function abrirLegenda() {
             const json = await resp.json();
             if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
             if (json.length === 0) {
-                Swal.fire({ icon: 'info', title: 'PLR', text: 'Nenhum colaborador recebe PLR neste mês (PLR é pago em outubro e abril).' });
+                Swal.fire({ icon: 'info', title: 'PLR', text: 'Nenhum colaborador tem PLR configurada para este mês.' });
                 return;
             }
             json.forEach(item => {
