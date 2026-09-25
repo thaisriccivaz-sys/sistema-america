@@ -742,6 +742,11 @@ function abrirLegenda() {
     <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
       <i class="ph ph-barbell"></i> Buscar Academia
     </button>
+
+    <!-- Buscar Todos -->
+    <button onclick="window._fechamento.buscarTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
+      <i class="ph ph-lightning"></i> Buscar Todos
+    </button>
   </div>
 
   <div style="width:100%;height:1px;background:#e2e8f0;"></div>
@@ -802,8 +807,10 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Consig.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9750</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Comiss&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">37</span></th>
 
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Insalub.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">16</span></th>
+
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>PLR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">873</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Pr&ecirc;mio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Pr&ecirc;mio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">347</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Outros</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">290</span></th>
           </tr>
         </thead>
@@ -1011,6 +1018,7 @@ function abrirLegenda() {
 <td id="fech-cell-academia-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-insalubridade-${idx}">${inpNum(idx,'insalubridade',row.insalubridade||0,'0.00','0.01')}</td>
 
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
@@ -1404,6 +1412,21 @@ function abrirLegenda() {
         
         salvarSilencioso();
         alert('Busca de academia concluída.\n' + atualizados + ' colaboradores com desconto ativo.\n' + zerados + ' colaboradores tiveram desconto antigo removido (não participam mais).');
+    }
+
+    async function buscarTodos() {
+        try {
+            await carregarMultas();
+        } catch(e) { console.warn('[buscarTodos] Multas:', e); }
+        try {
+            await carregarPLR();
+        } catch(e) { console.warn('[buscarTodos] PLR:', e); }
+        try {
+            await buscarComissao();
+        } catch(e) { console.warn('[buscarTodos] Comissão:', e); }
+        try {
+            buscarAcademia();
+        } catch(e) { console.warn('[buscarTodos] Academia:', e); }
     }
 
     async function carregarMultas() {
@@ -2486,7 +2509,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
