@@ -681,7 +681,7 @@ function abrirLegenda() {
     <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
       <i class="ph ph-fingerprint"></i> Buscar Ponto
     </button>
-    <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
+    
 
     <!-- Upload Farmácia -->
     <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
@@ -753,7 +753,8 @@ function abrirLegenda() {
 </div>
 
   <!-- Filtro por nome -->
-  <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;">
+  <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;gap:1rem;">
+    <span id="fech-badge-ponto" style="font-size:.85rem;font-weight:600;color:#374151;display:none;"></span>
     <input id="fech-busca-nome" type="text" placeholder="Filtrar por nome..." style="padding:.4rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;width:260px;font-size:.85rem;" oninput="window._fechamento.filtrar(this.value)">
   </div>
 
@@ -943,7 +944,7 @@ function abrirLegenda() {
             if (wrap) wrap.style.display = 'block';
             if (msg) msg.style.display = 'none';
             if (toolbar) toolbar.style.display = 'flex';
-            if (filtroWrap) filtroWrap.style.display = 'block';
+            if (filtroWrap) filtroWrap.style.display = 'flex';
         } catch (e) {
             if (msg) msg.innerHTML = `<span style="color:#dc2626;"><i class="ph ph-warning-circle"></i> Erro: ${e.message}</span>`;
         }
@@ -1410,7 +1411,7 @@ function abrirLegenda() {
                 var msg = document.getElementById('fech-msg');
                 if (wrap) wrap.style.display = 'block';
                 if (toolbar) toolbar.style.display = 'flex';
-                if (filtroWrap) filtroWrap.style.display = 'block';
+                if (filtroWrap) filtroWrap.style.display = 'flex';
                 if (msg) msg.style.display = 'none';
             } catch(e) {
                 Swal.fire({ icon: 'error', title: 'Erro ao carregar fechamento', text: e.message });
@@ -1800,7 +1801,7 @@ function abrirLegenda() {
         const toolbar = document.getElementById('fech-toolbar');
         if (aba === 'fechamento') {
             if (tabWrap && _dados.length) tabWrap.style.display = 'block';
-            if (filtroWrap) filtroWrap.style.display = 'block';
+            if (filtroWrap) filtroWrap.style.display = 'flex';
             if (toolbar) toolbar.style.display = 'flex';
         } else {
             if (tabWrap) tabWrap.style.display = 'none';
