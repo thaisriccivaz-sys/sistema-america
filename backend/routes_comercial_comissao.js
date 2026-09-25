@@ -379,17 +379,27 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             // ── Detectar duplicatas ──────────────────────────────────────────
             // 1) Intra-colaborador: mesmo numero aparece 2+ vezes na mesma aba
+            //    Envia cada ocorrência individual (com seq) para decisão separada
             const intraDups = [];
             for (const r of resultados) {
                 const cts = JSON.parse(r.detalhe_contratos || '[]');
-                const numCount = {};
+                const numOccs = {};
                 cts.forEach(c => {
                     const n = String(c.numero || '').trim();
-                    if (n) numCount[n] = (numCount[n] || 0) + 1;
+                    if (n) { if (!numOccs[n]) numOccs[n] = []; numOccs[n].push(c); }
                 });
-                for (const [numero, count] of Object.entries(numCount)) {
-                    if (count > 1) {
-                        intraDups.push({ colaborador_nome: r.colaborador_nome, numero, count });
+                for (const [numero, occs] of Object.entries(numOccs)) {
+                    if (occs.length > 1) {
+                        occs.forEach((c, idx) => {
+                            intraDups.push({
+                                colaborador_nome: r.colaborador_nome,
+                                numero,
+                                seq: c.seq,
+                                data: c.data,
+                                occurrence_num: idx + 1,
+                                total_occurrences: occs.length,
+                            });
+                        });
                     }
                 }
             }
@@ -624,10 +634,12 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
                 for (const resol of resolList) {
                     const numStr = String(resol.numero || '').trim();
-                    // Aplicar na primeira ocorrência ainda não marcada (para intra-duplicatas escolher qual excluir)
-                    // Para simplicidade: aplica em TODAS as ocorrências do mesmo numero neste colab
+                    // Se vier com seq (intra individual), aplica só na ocorrência exata
+                    // Se sem seq (inter), aplica em todas as ocorrências do número neste colab
+                    const hasSeq = resol.seq != null && resol.seq !== '';
                     contratos = contratos.map(c => {
                         if (String(c.numero || '').trim() !== numStr) return c;
+                        if (hasSeq && String(c.seq) !== String(resol.seq)) return c;
                         if (resol.acao === 'excluir') {
                             return Object.assign({}, c, { excluido: true, aditivo: false, aditivo_texto: '' });
                         }
