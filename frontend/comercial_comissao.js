@@ -526,10 +526,11 @@
                 return s;
             };
 
-            let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">';
-            html += '<div style="background:#f8fafc;border-radius:10px;padding:14px;"><div style="font-size:.75rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Contratos Líquidos</div><div style="font-size:1.5rem;font-weight:700;color:#1e293b;">' + d.contratos_liquidos + '</div></div>';
-            html += '<div style="background:#f8fafc;border-radius:10px;padding:14px;"><div style="font-size:.75rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Valor Líquido</div><div style="font-size:1.5rem;font-weight:700;color:#1d4ed8;">' + FMT2(d.liquido) + '</div></div>';
-            html += '</div>';
+            let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">'+
+            '<div style="background:#f8fafc;border-radius:10px;padding:12px;"><div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Contratos Líquidos</div><div style="font-size:1.4rem;font-weight:700;color:#1e293b;">'+ d.contratos_liquidos +'</div></div>'+
+            '<div style="background:#f8fafc;border-radius:10px;padding:12px;"><div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Métrica</div><div style="font-size:1.1rem;font-weight:700;color:#374151;">'+ (d.metrica||'—') +'</div></div>'+
+            '<div style="background:#f8fafc;border-radius:10px;padding:12px;"><div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">R$/Contrato</div><div style="font-size:1.1rem;font-weight:700;color:#047857;">'+ FMT2(d.valor_unitario||0) +'</div></div>'+
+            '<div style="background:#eff6ff;border-radius:10px;padding:12px;"><div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Valor Líquido</div><div style="font-size:1.4rem;font-weight:700;color:#1d4ed8;">'+ FMT2(d.liquido) +'</div></div></div>';
 
             // Tabela contratos
             const contratosValidos = contratos.filter(c => !c.excluido);
@@ -543,7 +544,7 @@
                     const numDisplay = (aditivo ? '<span style="color:#6d28d9;font-weight:700;">(A)</span> ' : '') + (c.numero||'—');
                     const style = excluido ? 'color:#9ca3af;text-decoration:line-through;background:#f9fafb;' : '';
                     const tag = excluido ? '<span style="font-size:.7rem;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px;margin-left:4px;">excluído</span>' : (aditivo ? '<span style="font-size:.7rem;background:#ede9fe;color:#5b21b6;padding:1px 5px;border-radius:4px;margin-left:4px;">' + (c.aditivo_texto || 'Adtivo') + '</span>' : '');
-                    return '<tr style="border-bottom:1px solid #f1f5f9;' + style + '"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + numDisplay + tag + '</td><td style="padding:7px 10px;text-align:right;">' + (excluido ? '<span style=\"color:#9ca3af;\">' + FMT2(c.valor) + '</span>' : FMT2(c.valor)) + '</td></tr>';
+                    return '<tr style="border-bottom:1px solid #f1f5f9;' + style + '"><td style="padding:7px 10px;">' + c.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(c.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + numDisplay + tag + '</td><td style="padding:7px 10px;text-align:right;">' + (excluido ? '<span style="color:#9ca3af;">—</span>' : FMT2(d.valor_unitario||0)) + '</td></tr>';
                 }).join('');
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum contrato.</p>'; }
@@ -552,8 +553,8 @@
             html += '<h4 style="margin:0 0 8px;font-size:.9rem;color:#374151;">Estornos (' + estornos.length + ')</h4>';
             if (estornos.length) {
                 html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.8rem;">';
-                html += '<thead><tr style="background:#fef2f2;"><th style="padding:8px 10px;text-align:left;">Nº</th><th style="padding:8px 10px;">Data</th><th style="padding:8px 10px;">Contrato</th><th style="padding:8px 10px;">Motivo</th><th style="padding:8px 10px;text-align:right;">Valor</th></tr></thead><tbody>';
-                html += estornos.map(e => '<tr style="border-bottom:1px solid #fee2e2;"><td style="padding:7px 10px;">' + e.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(e.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (e.numero||'—') + '</td><td style="padding:7px 10px;color:#dc2626;">' + (e.motivo_nome||'—') + '</td><td style="padding:7px 10px;text-align:right;color:#dc2626;">' + FMT2(e.valor) + '</td></tr>').join('');
+                html += '<thead><tr style="background:#fef2f2;"><th style="padding:8px 10px;text-align:left;">Nº</th><th style="padding:8px 10px;">Data</th><th style="padding:8px 10px;">Contrato</th><th style="padding:8px 10px;">Motivo</th></tr></thead><tbody>';
+                html += estornos.map(e => '<tr style="border-bottom:1px solid #fee2e2;"><td style="padding:7px 10px;">' + e.seq + '</td><td style="padding:7px 10px;text-align:center;">' + fmtData(e.data) + '</td><td style="padding:7px 10px;text-align:center;font-family:monospace;">' + (e.numero||'—') + '</td><td style="padding:7px 10px;color:#dc2626;">' + (e.motivo_nome||'—') ).join('');
                 html += '</tbody></table></div>';
             } else { html += '<p style="color:#9ca3af;font-size:.85rem;">Nenhum estorno.</p>'; }
 
