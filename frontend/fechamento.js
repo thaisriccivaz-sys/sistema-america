@@ -709,12 +709,12 @@ function abrirLegenda() {
 
     <!-- Multas prontuário -->
     <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-warning"></i> Buscar Multas
+      <i class="ph ph-police-car"></i> Buscar Multas
     </button>
 
     <!-- PLR -->
     <button onclick="window._fechamento.carregarPLR()" style="background:#059669;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-trophy"></i> Calcular PLR
+      <i class="ph ph-trophy"></i> Buscar PLR
     </button>
 
     <!-- Buscar Comissão Comercial -->
