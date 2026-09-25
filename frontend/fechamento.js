@@ -744,7 +744,7 @@ function abrirLegenda() {
     </button>
 
     <!-- Buscar Todos -->
-    <button onclick="window._fechamento.buscarTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
+    <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
       <i class="ph ph-lightning"></i> Buscar Todos
     </button>
   </div>
