@@ -674,7 +674,7 @@ function abrirLegenda() {
 
     <!-- Buscar Ponto RHID -->
     <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
+      <i class="ph ph-fingerprint"></i> Buscar Ponto
     </button>
     <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
 
@@ -704,7 +704,7 @@ function abrirLegenda() {
 
     <!-- Multas prontuário -->
     <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-warning"></i> Carregar Multas
+      <i class="ph ph-warning"></i> Buscar Multas
     </button>
 
     <!-- PLR -->
