@@ -666,15 +666,23 @@ function abrirLegenda() {
   </div>
 
   <!-- TOOLBAR DE AÇÕES (aparece após buscar) -->
-  <div id="fech-toolbar" style="display:none;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;display:none;flex-wrap:wrap;gap:.5rem;align-items:center;">
-    <span style="font-weight:600;color:#374151;font-size:.85rem;margin-right:.5rem;">Ações:</span>
+  <div id="fech-toolbar" style="display:none;flex-direction:column;gap:.75rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;">
+  
+  <!-- ROW 1: AÇÕES -->
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
+    <span style="font-weight:600;color:#374151;font-size:.85rem;margin-right:.5rem;width:85px;">Ações:</span>
+
+    <!-- Buscar Ponto RHID -->
+    <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+      <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
+    </button>
+    <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
 
     <!-- Upload Farmácia -->
     <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
       <i class="ph ph-upload-simple"></i> Farmácia (PDF)
       <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
     </label>
-
     <!-- Olho Farmácia -->
     <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i></button>
 
@@ -683,7 +691,6 @@ function abrirLegenda() {
       <i class="ph ph-upload-simple"></i> Consignado (XLSX)
       <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
     </label>
-
     <!-- Olho Consignado -->
     <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver consignado carregado"><i class="ph ph-eye"></i></button>
 
@@ -692,18 +699,12 @@ function abrirLegenda() {
       <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
       <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
     </label>
-
     <!-- Olho Mercado -->
     <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i></button>
 
     <!-- Multas prontuário -->
     <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
       <i class="ph ph-warning"></i> Carregar Multas
-    </button>
-
-    <!-- Buscar Academia -->
-    <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
-      <i class="ph ph-barbell"></i> Buscar Academia
     </button>
 
     <!-- PLR -->
@@ -716,20 +717,21 @@ function abrirLegenda() {
       <i class="ph ph-money"></i> Buscar Comissão
     </button>
 
-    <!-- Buscar Ponto RHID -->
-    <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-fingerprint"></i> Buscar Ponto (RHID)
+    <!-- Buscar Academia -->
+    <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
+      <i class="ph ph-barbell"></i> Buscar Academia
     </button>
+  </div>
+
+  <div style="width:100%;height:1px;background:#e2e8f0;"></div>
+
+  <!-- ROW 2: CONFERÊNCIAS -->
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
+    <span style="font-weight:600;color:#374151;font-size:.85rem;margin-right:.5rem;width:85px;">Conferências:</span>
+
+    <!-- Conferência de Ponto -->
     <button onclick="window._fechamento.abrirConferenciaPonto()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:.4rem;padding:.4rem .85rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
       <i class="ph ph-list-numbers"></i> Conferência de Ponto
-    </button>
-    <span id="fech-badge-ponto" style="font-size:.75rem;color:#374151;display:none;"></span>
-
-    <div style="flex:1;min-width:20px;"></div>
-
-    <!-- Salvar -->
-    <button id="fech-btn-salvar" onclick="window._fechamento.salvarTudo()" style="background:#16a34a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-floppy-disk"></i> Salvar
     </button>
 
     <!-- Gerar XLSX -->
@@ -742,6 +744,8 @@ function abrirLegenda() {
       <i class="ph ph-envelope"></i> Enviar Contabilidade
     </button>
   </div>
+
+</div>
 
   <!-- Filtro por nome -->
   <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;">
