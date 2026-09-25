@@ -23619,54 +23619,93 @@ window.abrirHistoricoGeradorAtual = async function(idOverride) {
 
 window.abrirPdfHistorico = async function(historicoId) {
     try {
+        Swal.fire({ title: 'Carregando histórico...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        
         const h = await apiGet(`/geradores/historico/${historicoId}`);
+        Swal.close();
+        
         if (!h || !h.conteudo) {
             return Swal.fire({ icon: 'error', title: 'Aviso', text: 'Conteúdo histórico vazio ou não encontrado.' });
         }
-        
-        // Use the existing window.gerarPDFBlob function which accepts HTML and generates a PDF
-        // Note: generating PDF directly from HTML requires formatting it similar to the final output.
-        // We will wrap it in standard styling just like the generator does.
         
         let conteudoFinal = h.conteudo;
         if (!conteudoFinal.includes('<') && !conteudoFinal.includes('>')) {
             conteudoFinal = conteudoFinal.replace(/\n/g, '<br>');
         }
         
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = `
-            <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #000; padding: 20px;">
+        // Usar o modal de preview existente para exibir o conteúdo
+        let container = document.getElementById('preview-doc-body');
+        if (!container) {
+            const htmlFallback = `<div id="modal-preview-doc" class="modal" style="display:block; z-index:99999;">
+                <div class="modal-content fullness">
+                    <div class="modal-header">
+                        <h3 id="preview-doc-title">Visualizar Documento</h3>
+                        <div id="preview-doc-buttons" style="display: flex; gap: 0.75rem; align-items: center;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'"><i class="ph ph-x"></i> Fechar</button>
+                        </div>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem 0; background-color: #f4f6f9;">
+                        <div id="preview-doc-body" style="background: white; margin: 0 auto; width: 21cm; min-height: 29.7cm; padding: 0; box-shadow: 0 0 20px rgba(0,0,0,0.1); border: 1px solid #ddd;"></div>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', htmlFallback);
+            container = document.getElementById('preview-doc-body');
+        }
+        
+        const data = new Date(h.created_at);
+        const dataStr = data.toLocaleDateString('pt-BR') + ' às ' + data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+        const nomeArquivo = `${h.nome || 'Documento'}_Historico_${data.toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+        
+        container.innerHTML = `
+            <div style="padding: 2rem; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000;">
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1.5rem; font-size:0.85rem; color:#1d4ed8;">
+                    <i class="ph ph-clock-counter-clockwise"></i> <b>Versão histórica</b> — Salva em ${dataStr} por ${h.usuario || 'Sistema'}
+                </div>
                 ${conteudoFinal}
             </div>
         `;
-        wrapper.style.position = 'absolute';
-        wrapper.style.left = '-9999px';
-        wrapper.style.top = '0';
-        document.body.appendChild(wrapper);
         
-        // Padrão de nome
-        const data = new Date(h.created_at);
-        const dataFmt = data.toLocaleDateString('pt-BR').replace(/\//g, '-');
-        const nomeArquivo = `${h.nome || 'Documento'}_Historico_${dataFmt}.pdf`;
+        const modal = document.getElementById('modal-preview-doc');
+        if (modal) modal.style.display = 'block';
         
-        Swal.fire({ title: 'Gerando PDF Histórico...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-        
-        if (typeof window.gerarPDFBlob === 'function') {
-            const blob = await window.gerarPDFBlob(wrapper, nomeArquivo);
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-            }
-            Swal.close();
-        } else {
-            Swal.fire({ icon: 'error', title: 'Erro', text: 'Função de geração de PDF não encontrada no sistema.' });
+        // Atualizar botões do modal
+        const btnDiv = document.getElementById('preview-doc-buttons');
+        if (btnDiv) {
+            btnDiv.innerHTML = `
+                <button class="btn btn-primary" onclick="window.salvarHistoricoPDF('${nomeArquivo}')">
+                    <i class="ph ph-download-simple"></i> Baixar PDF
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('modal-preview-doc').style.display='none'">
+                    <i class="ph ph-x"></i> Fechar
+                </button>
+            `;
         }
-        
-        document.body.removeChild(wrapper);
+        const titleEl = document.getElementById('preview-doc-title');
+        if (titleEl) titleEl.textContent = `Histórico: ${h.nome || 'Documento'}`;
         
     } catch (e) {
-        console.error('Erro ao abrir PDF histórico:', e);
+        console.error('Erro ao abrir histórico:', e);
         Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha ao processar o histórico.' });
+    }
+};
+
+window.salvarHistoricoPDF = async function(nomeArquivo) {
+    const container = document.getElementById('preview-doc-body');
+    if (!container) return;
+    Swal.fire({ title: 'Gerando PDF...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    try {
+        const blob = await window.gerarPDFBlob(container, nomeArquivo || 'historico.pdf');
+        if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nomeArquivo || 'historico.pdf';
+            a.click();
+        }
+        Swal.close();
+    } catch (e) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha ao gerar PDF.' });
     }
 };
 
