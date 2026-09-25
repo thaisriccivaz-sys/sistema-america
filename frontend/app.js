@@ -10596,10 +10596,14 @@ window.openModalGerador = function () {
     if (chkAdm) chkAdm.checked = true;
     if (chkOut) chkOut.checked = true;
     document.getElementById('modal-gerador').style.display = 'block';
+        const btnHist = document.getElementById('btn-historico-gerador');
+        if (btnHist) btnHist.style.display = 'inline-flex';
 };
 
 window.closeModalGerador = function () {
     document.getElementById('modal-gerador').style.display = 'none';
+    const btnHist = document.getElementById('btn-historico-gerador');
+    if (btnHist) btnHist.style.display = 'none';
 };
 
 window.editGerador = async function (id) {
@@ -23570,3 +23574,99 @@ window._toggleCobradoManualmente = async function(multaId, numParcela, isChecked
         if (colabId && typeof window._recarregarListaMultas === 'function') window._recarregarListaMultas(colabId);
     }
 };
+
+
+// --- HISTÓRICO DE GERADORES ---
+window.abrirHistoricoGeradorAtual = async function() {
+    const geradorId = document.getElementById('gerador-id').value;
+    if (!geradorId) return;
+
+    try {
+        const historico = await apiGet(`/geradores/${geradorId}/historico`);
+        const tbody = document.getElementById('tbody-historico-gerador');
+        tbody.innerHTML = '';
+        
+        if (!historico || historico.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:15px; color:#64748b;">Nenhum histórico encontrado para este documento.</td></tr>';
+        } else {
+            historico.forEach(h => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #e2e8f0';
+                
+                const data = new Date(h.created_at);
+                const dataStr = data.toLocaleDateString('pt-BR') + ' às ' + data.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                
+                tr.innerHTML = `
+                    <td style="padding: 10px 8px; color:#334155; font-size: 0.9rem;">${dataStr}</td>
+                    <td style="padding: 10px 8px; color:#64748b; font-size: 0.9rem;">${h.usuario || 'Sistema'}</td>
+                    <td style="padding: 10px 8px; text-align:center;">
+                        <button onclick="window.abrirPdfHistorico(${h.id})" title="Ver como o documento estava" style="background:#0ea5e9; color:#fff; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;">
+                            <i class="ph ph-eye"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        document.getElementById('modal-historico-gerador').style.display = 'block';
+    } catch (e) {
+        console.error('Erro ao buscar histórico:', e);
+        Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível carregar o histórico.' });
+    }
+};
+
+window.abrirPdfHistorico = async function(historicoId) {
+    try {
+        const h = await apiGet(`/geradores/historico/${historicoId}`);
+        if (!h || !h.conteudo) {
+            return Swal.fire({ icon: 'error', title: 'Aviso', text: 'Conteúdo histórico vazio ou não encontrado.' });
+        }
+        
+        // Use the existing window.gerarPDFBlob function which accepts HTML and generates a PDF
+        // Note: generating PDF directly from HTML requires formatting it similar to the final output.
+        // We will wrap it in standard styling just like the generator does.
+        
+        let conteudoFinal = h.conteudo;
+        if (!conteudoFinal.includes('<') && !conteudoFinal.includes('>')) {
+            conteudoFinal = conteudoFinal.replace(/\n/g, '<br>');
+        }
+        
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #000; padding: 20px;">
+                ${conteudoFinal}
+            </div>
+        `;
+        wrapper.style.position = 'absolute';
+        wrapper.style.left = '-9999px';
+        wrapper.style.top = '0';
+        document.body.appendChild(wrapper);
+        
+        // Padrão de nome
+        const data = new Date(h.created_at);
+        const dataFmt = data.toLocaleDateString('pt-BR').replace(/\//g, '-');
+        const nomeArquivo = `${h.nome || 'Documento'}_Historico_${dataFmt}.pdf`;
+        
+        Swal.fire({ title: 'Gerando PDF Histórico...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        
+        if (typeof window.gerarPDFBlob === 'function') {
+            const blob = await window.gerarPDFBlob(wrapper, nomeArquivo);
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            }
+            Swal.close();
+        } else {
+            Swal.fire({ icon: 'error', title: 'Erro', text: 'Função de geração de PDF não encontrada no sistema.' });
+        }
+        
+        document.body.removeChild(wrapper);
+        
+    } catch (e) {
+        console.error('Erro ao abrir PDF histórico:', e);
+        Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha ao processar o histórico.' });
+    }
+};
+
+// Insert logic inside frontend

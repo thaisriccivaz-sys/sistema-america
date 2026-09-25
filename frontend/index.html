@@ -5948,8 +5948,41 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="window.closeModalGerador()">Cancelar</button>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <div>
+                        <button type="button" class="btn btn-secondary" onclick="window.closeModalGerador()">Cancelar</button>
+                        <button type="button" id="btn-historico-gerador" class="btn btn-info" style="margin-left:10px; display:none; background:#0ea5e9; border-color:#0ea5e9; color:#fff;" onclick="window.abrirHistoricoGeradorAtual()">
+                            <i class="ph ph-clock-counter-clockwise"></i> Histórico
+                        </button>
+                    </div>
+
                 <button type="submit" form="form-gerador" class="btn btn-primary">Salvar Gerador</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- MODAL: HISTÓRICO DO GERADOR -->
+    <div id="modal-historico-gerador" class="modal">
+        <div class="modal-content" style="max-width: 600px; width: 95%; margin: 5% auto;">
+            <div class="modal-header">
+                <h3>Histórico de Alterações</h3>
+                <span class="close-modal" onclick="document.getElementById('modal-historico-gerador').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <table class="table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 8px; text-align: left;">Data / Hora</th>
+                            <th style="padding: 8px; text-align: left;">Usuário</th>
+                            <th style="padding: 8px; text-align: center; width: 80px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-historico-gerador">
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

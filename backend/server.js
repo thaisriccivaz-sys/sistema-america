@@ -12940,6 +12940,17 @@ app.delete('/api/admissao-assinaturas/:id', authenticateToken, (req, res) => {
 });
 
 // MIGRATION / STRUCT: Garantir que a tabela geradores exista
+
+db.run('CREATE TABLE IF NOT EXISTS geradores_historico (' +
+    'id INTEGER PRIMARY KEY AUTOINCREMENT,' +
+    'gerador_id INTEGER NOT NULL,' +
+    'nome TEXT,' +
+    'conteudo TEXT,' +
+    'variaveis TEXT,' +
+    'usuario TEXT,' +
+    'created_at DATETIME DEFAULT CURRENT_TIMESTAMP' +
+')', () => {});
+
 db.run(`CREATE TABLE IF NOT EXISTS geradores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -13001,6 +13012,21 @@ app.patch('/api/geradores/:id/regra', authenticateToken, (req, res) => {
     });
 });
 
+
+app.get('/api/geradores/:id/historico', authenticateToken, (req, res) => {
+    db.all('SELECT id, gerador_id, nome, usuario, created_at FROM geradores_historico WHERE gerador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/geradores/historico/:id_historico', authenticateToken, (req, res) => {
+    db.get('SELECT * FROM geradores_historico WHERE id = ?', [req.params.id_historico], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: 'Historico nao encontrado' });
+        res.json(row);
+    });
+});
+
 app.put('/api/geradores/:id', authenticateToken, (req, res) => {
     const { nome, conteudo, variaveis } = req.body;
     const loggedUser = req.user ? (req.user.username || req.user.nome || 'UNKNOWN') : 'SYSTEM';
@@ -13008,7 +13034,11 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM geradores WHERE id = ?', [req.params.id], (err, oldRow) => {
         if (err || !oldRow) return res.status(500).json({ error: err ? err.message : 'Not found' });
 
-        db.run("UPDATE geradores SET nome = ?, conteudo = ?, variaveis = ? WHERE id = ?",
+        // Backup to history
+        db.run('INSERT INTO geradores_historico (gerador_id, nome, conteudo, variaveis, usuario) VALUES (?, ?, ?, ?, ?)',
+            [oldRow.id, oldRow.nome, oldRow.conteudo, oldRow.variaveis, loggedUser], (errHist) => {
+                
+                db.run("UPDATE geradores SET nome = ?, conteudo = ?, variaveis = ? WHERE id = ?",
             [nome, conteudo, variaveis, req.params.id], function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -13024,6 +13054,7 @@ app.put('/api/geradores/:id', authenticateToken, (req, res) => {
 
                 res.json({ message: 'Gerador atualizado' });
             });
+        }); // Fecha o db.run do INSERT INTO geradores_historico
     });
 });
 
