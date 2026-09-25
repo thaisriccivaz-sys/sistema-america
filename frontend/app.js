@@ -4880,30 +4880,30 @@ window.editColaborador = async function (id) {
         // ── 7. Folha — carregar campos ao abrir colaborador ────────────────────────
         // Academia desconto
         if (document.getElementById('colab-academia-desconto-valor')) {
-            document.getElementById('colab-academia-desconto-valor').value = c.academia_desconto_valor || 0;
+            document.getElementById('colab-academia-desconto-valor').value = formatarMoedaLimpaValor(c.academia_desconto_valor);
         }
         // Insalubridade (Folha)
         const _folhaInsRad = document.querySelector(`input[name="folha_insalubridade"][value="${c.folha_insalubridade ? '1' : '0'}"]`);
         if (_folhaInsRad) { _folhaInsRad.checked = true; toggleFolhaField('insalubridade', _folhaInsRad.value); }
-        if (document.getElementById('colab-folha-insalubridade-valor')) document.getElementById('colab-folha-insalubridade-valor').value = c.folha_insalubridade_valor || 0;
+        if (document.getElementById('colab-folha-insalubridade-valor')) document.getElementById('colab-folha-insalubridade-valor').value = formatarMoedaLimpaValor(c.folha_insalubridade_valor);
         // Periculosidade (Folha)
         const _folhaPericRad = document.querySelector(`input[name="folha_periculosidade"][value="${c.folha_periculosidade ? '1' : '0'}"]`);
         if (_folhaPericRad) { _folhaPericRad.checked = true; toggleFolhaField('periculosidade', _folhaPericRad.value); }
-        if (document.getElementById('colab-folha-periculosidade-valor')) document.getElementById('colab-folha-periculosidade-valor').value = c.folha_periculosidade_valor || 0;
+        if (document.getElementById('colab-folha-periculosidade-valor')) document.getElementById('colab-folha-periculosidade-valor').value = formatarMoedaLimpaValor(c.folha_periculosidade_valor);
         // Mensalidade Sindical (Folha)
         const _folhaSindRad = document.querySelector(`input[name="folha_mensalidade_sindical"][value="${c.folha_mensalidade_sindical ? '1' : '0'}"]`);
         if (_folhaSindRad) { _folhaSindRad.checked = true; toggleFolhaField('sindical', _folhaSindRad.value); }
-        if (document.getElementById('colab-folha-mensalidade-sindical-valor')) document.getElementById('colab-folha-mensalidade-sindical-valor').value = c.folha_mensalidade_sindical_valor || 0;
+        if (document.getElementById('colab-folha-mensalidade-sindical-valor')) document.getElementById('colab-folha-mensalidade-sindical-valor').value = formatarMoedaLimpaValor(c.folha_mensalidade_sindical_valor);
         // Pensão Alimentícia (Folha)
         const _folhaPensValor = c.folha_pensao_pct > 0 ? 'Sim' : 'Não';
         const _folhaPensRad = document.querySelector(`input[name="folha_pensao_alimenticia_rh"][value="${_folhaPensValor}"]`);
         if (_folhaPensRad) { _folhaPensRad.checked = true; toggleFolhaField('pensao', _folhaPensValor); }
         if (document.getElementById('colab-folha-pensao-tipo') && c.folha_pensao_tipo) document.getElementById('colab-folha-pensao-tipo').value = c.folha_pensao_tipo;
-        if (document.getElementById('colab-folha-pensao-pct')) document.getElementById('colab-folha-pensao-pct').value = c.folha_pensao_pct || 0;
+        if (document.getElementById('colab-folha-pensao-pct')) document.getElementById('colab-folha-pensao-pct').value = formatarMoedaLimpaValor(c.folha_pensao_pct);
         // PLR (Folha)
         const _folhaPlrRad = document.querySelector(`input[name="folha_plr"][value="${c.folha_plr ? '1' : '0'}"]`);
         if (_folhaPlrRad) { _folhaPlrRad.checked = true; toggleFolhaField('plr', _folhaPlrRad.value); }
-        if (document.getElementById('colab-folha-plr-valor')) document.getElementById('colab-folha-plr-valor').value = c.folha_plr_valor || 0;
+        if (document.getElementById('colab-folha-plr-valor')) document.getElementById('colab-folha-plr-valor').value = formatarMoedaLimpaValor(c.folha_plr_valor);
         if (c.folha_plr && c.folha_plr_meses) {
             try {
                 const mesesArr = JSON.parse(c.folha_plr_meses || '[]');
@@ -4913,11 +4913,11 @@ window.editColaborador = async function (id) {
         // Vale Refeição - VR (Folha)
         const _folhaVrRad = document.querySelector(`input[name="folha_vr"][value="${c.folha_vr ? '1' : '0'}"]`);
         if (_folhaVrRad) { _folhaVrRad.checked = true; toggleFolhaField('vr', _folhaVrRad.value); }
-        if (document.getElementById('colab-folha-vr-valor')) document.getElementById('colab-folha-vr-valor').value = c.folha_vr_valor || 0;
+        if (document.getElementById('colab-folha-vr-valor')) document.getElementById('colab-folha-vr-valor').value = formatarMoedaLimpaValor(c.folha_vr_valor);
         // Vale Alimentação - VA (Folha)
         const _folhaVaRad = document.querySelector(`input[name="folha_va"][value="${c.folha_va ? '1' : '0'}"]`);
         if (_folhaVaRad) { _folhaVaRad.checked = true; toggleFolhaField('va', _folhaVaRad.value); }
-        if (document.getElementById('colab-folha-va-valor')) document.getElementById('colab-folha-va-valor').value = c.folha_va_valor || 0;
+        if (document.getElementById('colab-folha-va-valor')) document.getElementById('colab-folha-va-valor').value = formatarMoedaLimpaValor(c.folha_va_valor);
         // ── fim 7. Folha ────────────────────────────────────────────────────────────
 
         // Add selected keys row by row
@@ -5237,22 +5237,22 @@ if (formColab) {
             tamanho_calca: document.getElementById('tamanho_calca') ? document.getElementById('tamanho_calca').value : null,
             tamanho_calcado: document.getElementById('tamanho_calcado') ? document.getElementById('tamanho_calcado').value : null,
             // 7. Folha
-            academia_desconto_valor: parseFloat(document.getElementById('colab-academia-desconto-valor')?.value) || 0,
+            academia_desconto_valor: parseMoeda(document.getElementById('colab-academia-desconto-valor')?.value) || 0,
             folha_insalubridade: parseInt(document.querySelector('input[name="folha_insalubridade"]:checked')?.value) || 0,
-            folha_insalubridade_valor: parseFloat(document.getElementById('colab-folha-insalubridade-valor')?.value) || 0,
+            folha_insalubridade_valor: parseMoeda(document.getElementById('colab-folha-insalubridade-valor')?.value) || 0,
             folha_periculosidade: parseInt(document.querySelector('input[name="folha_periculosidade"]:checked')?.value) || 0,
-            folha_periculosidade_valor: parseFloat(document.getElementById('colab-folha-periculosidade-valor')?.value) || 0,
+            folha_periculosidade_valor: parseMoeda(document.getElementById('colab-folha-periculosidade-valor')?.value) || 0,
             folha_mensalidade_sindical: parseInt(document.querySelector('input[name="folha_mensalidade_sindical"]:checked')?.value) || 0,
-            folha_mensalidade_sindical_valor: parseFloat(document.getElementById('colab-folha-mensalidade-sindical-valor')?.value) || 0,
+            folha_mensalidade_sindical_valor: parseMoeda(document.getElementById('colab-folha-mensalidade-sindical-valor')?.value) || 0,
             folha_pensao_tipo: document.getElementById('colab-folha-pensao-tipo')?.value || null,
-            folha_pensao_pct: parseFloat(document.getElementById('colab-folha-pensao-pct')?.value) || 0,
+            folha_pensao_pct: parseMoeda(document.getElementById('colab-folha-pensao-pct')?.value) || 0,
             folha_plr: parseInt(document.querySelector('input[name="folha_plr"]:checked')?.value) || 0,
-            folha_plr_valor: parseFloat(document.getElementById('colab-folha-plr-valor')?.value) || 0,
+            folha_plr_valor: parseMoeda(document.getElementById('colab-folha-plr-valor')?.value) || 0,
             folha_plr_meses: JSON.stringify(Array.from(document.querySelectorAll('.plr-mes-check:checked')).map(el => el.value)),
             folha_vr: parseInt(document.querySelector('input[name="folha_vr"]:checked')?.value) || 0,
-            folha_vr_valor: parseFloat(document.getElementById('colab-folha-vr-valor')?.value) || 0,
+            folha_vr_valor: parseMoeda(document.getElementById('colab-folha-vr-valor')?.value) || 0,
             folha_va: parseInt(document.querySelector('input[name="folha_va"]:checked')?.value) || 0,
-            folha_va_valor: parseFloat(document.getElementById('colab-folha-va-valor')?.value) || 0
+            folha_va_valor: parseMoeda(document.getElementById('colab-folha-va-valor')?.value) || 0
         };
 
         // Converter valores formatados (R$) para números antes de enviar
@@ -9587,6 +9587,27 @@ window.mascaraTelefone = function (i) {
     } else {
         v = v.replace(/^(\d*)/, "($1");
     }
+    i.value = v;
+};
+
+
+function formatarMoedaLimpaValor(val) {
+    if (!val || isNaN(val) || val == 0) return '';
+    let v = parseFloat(val).toFixed(2) + "";
+    v = v.replace(".", ",");
+    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
+    return v;
+}
+
+window.mascaraMoedaLimpa = function (i) {
+    let v = i.value.replace(/\D/g, "");
+    if (v === "") {
+        i.value = "";
+        return;
+    }
+    v = (parseInt(v) / 100).toFixed(2) + "";
+    v = v.replace(".", ",");
+    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
     i.value = v;
 };
 

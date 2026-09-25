@@ -2420,7 +2420,7 @@
                                             </div>
                                                 <div class="input-group" style="margin-top:.5rem;">
                                                     <label>Desconto Mensal (R$)</label>
-                                                    <input type="number" id="colab-academia-desconto-valor" step="0.01" value="60" min="0" placeholder="60,00">
+                                                    <input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-academia-desconto-valor"  value="60" min="0" placeholder="60,00">
                                                 </div>
                                         </div>
 
@@ -2602,7 +2602,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-insalubridade" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group"><label>Valor (R$)</label><input type="number" id="colab-folha-insalubridade-valor" step="0.01" value="324.20" min="0"></div>
+                                                <div class="input-group"><label>Valor (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-insalubridade-valor"  value="324.20" min="0"></div>
                                             </div>
                                         </div>
 
@@ -2618,7 +2618,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-periculosidade" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group"><label>Valor (R$)</label><input type="number" id="colab-folha-periculosidade-valor" step="0.01" value="0" min="0"></div>
+                                                <div class="input-group"><label>Valor (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-periculosidade-valor"  value="0" min="0"></div>
                                             </div>
                                         </div>
 
@@ -2634,7 +2634,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-sindical" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group"><label>Valor (R$)</label><input type="number" id="colab-folha-mensalidade-sindical-valor" step="0.01" value="0" min="0"></div>
+                                                <div class="input-group"><label>Valor (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-mensalidade-sindical-valor"  value="0" min="0"></div>
                                             </div>
                                         </div>
 
@@ -2651,7 +2651,7 @@
                                             </div>
                                             <div id="section-folha-pensao" class="opcional-details-box" style="display:none;">
                                                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-                                                    <div class="input-group"><label>Percentual (%)</label><input type="number" id="colab-folha-pensao-pct" step="0.1" value="0" min="0" max="100"></div>
+                                                    <div class="input-group"><label>Percentual (%)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-pensao-pct"  value="0" min="0" max="100"></div>
                                                     <div class="input-group"><label>Base de Cálculo</label>
                                                         <select id="colab-folha-pensao-tipo">
                                                             <option value="bruto">Salário Bruto</option>
@@ -2674,7 +2674,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-plr" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group" style="margin-bottom:.75rem;"><label>Valor por Período (R$)</label><input type="number" id="colab-folha-plr-valor" step="0.01" value="800" min="0"></div>
+                                                <div class="input-group" style="margin-bottom:.75rem;"><label>Valor por Período (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-plr-valor"  value="800" min="0"></div>
                                                 <div class="input-group"><label>Meses de pagamento</label>
                                                     <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:.6rem;margin-top:.4rem;" id="plr-meses-checks">
                                                         <label style="display:flex;align-items:center;gap:.3rem;font-weight:400;min-width:auto;margin:0;"><input type="checkbox" class="plr-mes-check" value="janeiro" style="flex:none;height:auto;width:auto;margin:0;"> Janeiro</label>
@@ -2707,7 +2707,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-vr" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group"><label>Valor Diário (R$)</label><input type="number" id="colab-folha-vr-valor" step="0.01" value="0" min="0" placeholder="Ex: 35.00"></div>
+                                                <div class="input-group"><label>Valor Diário (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-vr-valor"  value="0" min="0" placeholder="Ex: 35.00"></div>
                                             </div>
                                         </div>
 
@@ -2724,7 +2724,7 @@
                                                 </div>
                                             </div>
                                             <div id="section-folha-va" class="opcional-details-box" style="display:none;">
-                                                <div class="input-group"><label>Valor Mensal Fixo (R$)</label><input type="number" id="colab-folha-va-valor" step="0.01" value="0" min="0" placeholder="Ex: 300.00"></div>
+                                                <div class="input-group"><label>Valor Mensal Fixo (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-va-valor"  value="0" min="0" placeholder="Ex: 300.00"></div>
                                             </div>
                                         </div>
 

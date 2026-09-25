@@ -1500,7 +1500,11 @@ function abrirLegenda() {
             // Pensão: aplica percentual sobre salário base se tipo estiver definido
             let val = 0;
             if (row.folha_pensao_tipo && row.folha_pensao_pct > 0) {
-                const salBase = parseFloat(row.salario_base || row.salario || 0);
+                let s = row.salario_base || row.salario || 0;
+                if (typeof s === 'string') {
+                    s = s.replace('R$', '').trim().replace(/\./g, '').replace(',', '.');
+                }
+                const salBase = parseFloat(s) || 0;
                 val = salBase * (parseFloat(row.folha_pensao_pct) / 100);
                 val = Math.round(val * 100) / 100;
                 if (val > 0) atualizados++;
