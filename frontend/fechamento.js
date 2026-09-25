@@ -1436,7 +1436,7 @@ function abrirLegenda() {
         });
         
         salvarSilencioso();
-        alert('Busca de academia concluída.\n' + atualizados + ' colaboradores com desconto ativo.\n' + zerados + ' colaboradores tiveram desconto antigo removido (não participam mais).');
+        Swal.fire({ title: 'Academia', text: 'Busca de academia concluída. ' + atualizados + ' colaboradores com desconto ativo.', icon: 'info' });
     }
 
     function buscarInsalubridade() {
@@ -1454,7 +1454,7 @@ function abrirLegenda() {
             atualizar(idx, 'insalubridade', val);
         });
         salvarSilencioso();
-        alert(atualizados + ' colaborador(es) com insalubridade preenchidos.');
+        Swal.fire({ title: 'Insalubridade', text: atualizados + ' colaborador(es) com insalubridade preenchidos.', icon: 'info' });
     }
 
     function buscarPericulosidade() {
@@ -1472,7 +1472,7 @@ function abrirLegenda() {
             atualizar(idx, 'periculosidade', val);
         });
         salvarSilencioso();
-        alert(atualizados + ' colaborador(es) com periculosidade preenchidos.');
+        Swal.fire({ title: 'Periculosidade', text: atualizados + ' colaborador(es) com periculosidade preenchidos.', icon: 'info' });
     }
 
     function buscarSindicato() {
@@ -1490,7 +1490,7 @@ function abrirLegenda() {
             atualizar(idx, 'sindicato', val);
         });
         salvarSilencioso();
-        alert(atualizados + ' colaborador(es) com sindicato preenchidos.');
+        Swal.fire({ title: 'Sindicato', text: atualizados + ' colaborador(es) com sindicato preenchidos.', icon: 'info' });
     }
 
     function buscarPensao() {
@@ -1514,7 +1514,7 @@ function abrirLegenda() {
             atualizar(idx, 'pensao', val);
         });
         salvarSilencioso();
-        alert(atualizados + ' colaborador(es) com pensão alimentícia preenchidos.');
+        Swal.fire({ title: 'Pensão', text: atualizados + ' colaborador(es) com pensão alimentícia preenchidos.', icon: 'info' });
     }
 
     async function buscarTodos() {
@@ -1535,7 +1535,7 @@ function abrirLegenda() {
             }
         };
         window.alert = function(txt) {
-            msgs.push(`<strong>Academia</strong>: ${String(txt).replace(/\n/g, ' ')}`);
+            msgs.push(`<strong>Aviso</strong>: ${String(txt).replace(/\n/g, ' ')}`);
         };
 
         try { await carregarMultas(); } catch(e) { msgs.push(`<strong>Erro Multas</strong>: ${e.message}`); }
