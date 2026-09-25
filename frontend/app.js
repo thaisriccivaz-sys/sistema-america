@@ -5111,6 +5111,12 @@ if (formColab) {
             submitter.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
         }
 
+        const parseMoeda = (v) => {
+            if (!v || typeof v !== 'string') return v;
+            const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
+            return clean ? parseFloat(clean) : null;
+        };
+
         const data = {
             nome_completo: nomeInput ? nomeInput.value : '',
             cpf: cpfInput ? cpfInput.value : '',
@@ -5256,11 +5262,6 @@ if (formColab) {
         };
 
         // Converter valores formatados (R$) para números antes de enviar
-        const parseMoeda = (v) => {
-            if (!v || typeof v !== 'string') return v;
-            const clean = v.replace(/[^\d,]/g, "").replace(",", ".");
-            return clean ? parseFloat(clean) : null;
-        };
         data.salario = parseMoeda(data.salario);
         data.valor_transporte = parseMoeda(data.valor_transporte);
         data.adiantamento_valor = parseMoeda(data.adiantamento_valor);
