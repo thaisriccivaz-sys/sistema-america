@@ -1626,6 +1626,8 @@ function abrirLegenda() {
         try { buscarPericulosidade(); } catch(e) { msgs.push(`<strong>Erro Periculosidade</strong>: ${e.message}`); }
         try { buscarSindicato(); } catch(e) { msgs.push(`<strong>Erro Sindicato</strong>: ${e.message}`); }
         try { buscarPensao(); } catch(e) { msgs.push(`<strong>Erro Pens\u00e3o</strong>: ${e.message}`); }
+        try { buscarVT(); } catch(e) { msgs.push(`<strong>Erro VT</strong>: ${e.message}`); }
+        try { buscarAdiantamento(); } catch(e) { msgs.push(`<strong>Erro Adiantamento</strong>: ${e.message}`); }
 
         // Restaura as funções originais
         Swal.fire = originalSwal;
@@ -2726,7 +2728,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarAdiantamento, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,

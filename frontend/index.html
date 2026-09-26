@@ -2023,22 +2023,22 @@
                                                 <input type="text" id="colab-transporte-placa" placeholder="EX: ABC-1234" maxlength="8">
                                             </div>
                                         </div>
+                                        <div class="input-group" style="display:flex; flex-direction:column; justify-content:flex-start;">
+                                            <label style="margin-bottom: 0.5rem; font-weight:600; color:#1e293b;">Adiantamento Salarial</label>
+                                            <div class="radio-pill-group" style="zoom: 0.85; margin:0; width: fit-content;">
+                                                <label><input type="radio" name="adiantamento_check" value="Não"
+                                                        checked onchange="window.toggleAdiantamento(this.value)">
+                                                    Não</label>
+                                                <label><input type="radio" name="adiantamento_check" value="Sim"
+                                                        onchange="window.toggleAdiantamento(this.value)">
+                                                    Sim</label>
+                                            </div>
+                                        </div>
                                         <div class="input-group">
-                                            <label
-                                                style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 0.5rem;">
-                                                <span>Adiantamento Salarial</span>
-                                                <div class="radio-pill-group" style="zoom: 0.85; margin:0;">
-                                                    <label><input type="radio" name="adiantamento_check" value="Não"
-                                                            checked onchange="window.toggleAdiantamento(this.value)">
-                                                        Não</label>
-                                                    <label><input type="radio" name="adiantamento_check" value="Sim"
-                                                            onchange="window.toggleAdiantamento(this.value)">
-                                                        Sim</label>
-                                                </div>
-                                            </label>
+                                            <label style="margin-bottom: 0.5rem; visibility:hidden;">Valor do Adiantamento</label>
                                             <input type="text" id="colab-adiantamento-valor"
                                                 placeholder="Valor (R$ 0,00)" onkeyup="mascaraMoeda(this)" disabled
-                                                style="background:#f8fafc; color:#94a3b8; cursor:not-allowed;">
+                                                style="background:#f8fafc; color:#94a3b8; cursor:not-allowed; margin-top: 0;">
                                         </div>
                                         <div class="input-group" style="display:none;">
                                             <label
