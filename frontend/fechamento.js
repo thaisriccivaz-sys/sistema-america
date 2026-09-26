@@ -763,6 +763,11 @@ function abrirLegenda() {
       <i class="ph ph-barbell"></i> Buscar Academia
     </button>
 
+    <!-- Buscar VT -->
+    <button onclick="window._fechamento.buscarVT()" style="background:#047857;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca informação de VT do cadastro do colaborador e preenche na folha">
+      <i class="ph ph-bus"></i> Buscar VT
+    </button>
+
     <!-- Buscar Todos -->
     <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
       <i class="ph ph-lightning"></i> Buscar Todos
@@ -1034,7 +1039,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>
 <td style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
 <td style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
-<td style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
+<td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
@@ -1437,6 +1442,28 @@ function abrirLegenda() {
         
         salvarSilencioso();
         Swal.fire({ title: 'Academia', text: 'Busca de academia concluída. ' + atualizados + ' colaboradores com desconto ativo.', icon: 'info' });
+    }
+
+    function buscarVT() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            let val = 0;
+            if (row.meio_transporte === 'Vale Transporte (VT)' || row.meio_transporte === 'Vale Transporte') {
+                val = 1;
+                atualizados++;
+            }
+            
+            _dados[idx].vt = val;
+            const cell = document.getElementById('fech-cell-vt-' + idx);
+            if (cell) {
+                cell.innerHTML = `<span style="font-size:.75rem;font-weight:600;color:${val ? '#16a34a' : '#9ca3af'};">${val ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${val}">`;
+            }
+            atualizar(idx, 'vt', val);
+        });
+        
+        salvarSilencioso();
+        Swal.fire({ title: 'Vale Transporte', text: 'Busca concluída. ' + atualizados + ' colaboradores recebem VT.', icon: 'info' });
     }
 
     function buscarInsalubridade() {
@@ -2654,7 +2681,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,

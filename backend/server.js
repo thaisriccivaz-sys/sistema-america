@@ -10062,7 +10062,7 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
     const { ano, mes } = req.params;
     db.all(
         `SELECT fm.*, c.id as colaborador_id, c.nome_completo, c.salario, c.cargo, c.departamento, c.status as colab_status,
-                c.tipo_contrato, c.meio_transporte, c.adiantamento_salarial, c.adiantamento_valor,
+                c.tipo_contrato, c.meio_transporte, c.valor_transporte, c.adiantamento_salarial, c.adiantamento_valor,
                 c.academia_participa, c.academia_desconto_valor,
                 c.folha_periculosidade, c.folha_periculosidade_valor,
                 c.folha_insalubridade, c.folha_insalubridade_valor,
