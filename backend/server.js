@@ -10897,7 +10897,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push(['AMERICA RENTAL']);
         aoa.push([]);
         // Linha 5: códigos de rubricas
-        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750', '']);
+        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750', '981']);
         // Linha 6: headers
         aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissao', 'Academia', 'PLR', 'Consignado', 'Adiantamento']);
         // Linhas de dados
