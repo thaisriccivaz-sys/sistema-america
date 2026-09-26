@@ -122,8 +122,8 @@ window._fechamento = (function () {
     // ─────────────────────────────────────────────────────────────────
     function calcularColaborador(row) {
         const salario = parseFloat(row.salario) || 0;
-        const insalubridade = parseInt(row.folha_insalubridade) === 1 ? (parseFloat(row.folha_insalubridade_valor) || 0) : 0;
-        const periculosidade = parseInt(row.folha_periculosidade) === 1 ? (parseFloat(row.folha_periculosidade_valor) || 0) : 0;
+        const insalubridade = parseFloat(row.insalubridade) || 0;
+        const periculosidade = parseFloat(row.periculosidade) || 0;
         const plr = parseFloat(row.plr) || 0;
         const horasNormais = horasParaFloat(row.horas_normais) || 220;
         const extra60h = horasParaFloat(row.extra_60);
