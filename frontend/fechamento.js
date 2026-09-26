@@ -147,8 +147,7 @@ window._fechamento = (function () {
         const multas = parseFloat(row.multas) || 0;
         const academia = parseFloat(row.academia) || 0;
         const consignado = parseFloat(row.consignado) || 0;
-        const adiantamento = (row.adiantamento_salarial === 'Sim' || row.adiantamento_salarial === '1')
-                            ? (parseFloat(row.adiantamento_valor) || 0) : 0;
+        const adiantamento = parseFloat(row.adiantamento) || 0;
         let pensao = 0;
         if (row.folha_pensao_tipo && parseFloat(row.folha_pensao_pct) > 0) {
             const pct = parseFloat(row.folha_pensao_pct) / 100;
@@ -768,6 +767,12 @@ function abrirLegenda() {
       <i class="ph ph-bus"></i> Buscar VT
     </button>
 
+    <!-- Buscar Adiantamento -->
+    <button onclick="window._fechamento.buscarAdiantamento()" style="background:#0d9488;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca informação de adiantamento do cadastro do colaborador e preenche na folha">
+      <i class="ph ph-money"></i> Buscar Adiant.
+    </button>
+
+
     <!-- Buscar Todos -->
     <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
       <i class="ph ph-lightning"></i> Buscar Todos
@@ -829,6 +834,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Mercado</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">279</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#7f1d1d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Multas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">302</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Academia</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">278</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0d9488;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Adiantamento</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;"></span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#4c1d95;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Consig.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">9750</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Comiss&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">37</span></th>
 
@@ -1044,6 +1050,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
 <td id="fech-cell-academia-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
+<td id="fech-cell-adiantamento-${idx}" style="padding:.35rem .3rem;background:#f0fdfa;">${inpNum(idx,'adiantamento',row.adiantamento||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
@@ -1412,6 +1419,42 @@ function abrirLegenda() {
     // CARREGAR MULTAS DO PRONTUÁRIO
     // ─────────────────────────────────────────────────────────────────
     
+        function buscarAdiantamento() {
+        if (!_dados || _dados.length === 0) return;
+        let atualizados = 0;
+        
+        // Zera tudo primeiro
+        _dados.forEach((row, idx) => {
+            _dados[idx].adiantamento = 0;
+            const cell = document.getElementById('fech-cell-adiantamento-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = '';
+            }
+            atualizar(idx, 'adiantamento', 0);
+        });
+
+        // Preenche com o que esta no cadastro
+        _dados.forEach((row, idx) => {
+            if (row.adiantamento_salarial === 'Sim') {
+                const val = parseFloat(row.adiantamento_valor) || 0;
+                if (val > 0) {
+                    _dados[idx].adiantamento = val;
+                    const cell = document.getElementById('fech-cell-adiantamento-' + idx);
+                    if (cell) {
+                        const inp = cell.querySelector('input');
+                        if (inp) inp.value = window._fechamento.formatBRL(val);
+                    }
+                    atualizar(idx, 'adiantamento', val);
+                    atualizados++;
+                }
+            }
+        });
+        
+        salvarSilencioso();
+        Swal.fire({ title: 'Adiantamento', text: 'Busca concluída. ' + atualizados + ' colaboradores receberam adiantamento.', icon: 'info' });
+    }
+
     function buscarAcademia() {
         if (!_dados || _dados.length === 0) return;
         let atualizados = 0;
@@ -1898,6 +1941,7 @@ function abrirLegenda() {
                     bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                     premio: parseFloat(row.premio) || 0,
                     plr: parseFloat(row.plr) || 0,
+                    adiantamento: parseFloat(row.adiantamento) || 0,
                     insalubridade: parseFloat(row.insalubridade) || 0,
                     periculosidade: parseFloat(row.periculosidade) || 0,
                     pensao: parseFloat(row.pensao) || 0,
@@ -1949,6 +1993,7 @@ function abrirLegenda() {
                 bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                 premio: parseFloat(row.premio) || 0,
                 plr: parseFloat(row.plr) || 0,
+                    adiantamento: parseFloat(row.adiantamento) || 0,
                 insalubridade: parseFloat(row.insalubridade) || 0,
                 periculosidade: parseFloat(row.periculosidade) || 0,
                 pensao: parseFloat(row.pensao) || 0,

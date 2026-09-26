@@ -10110,8 +10110,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
-         plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10127,6 +10127,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             status=excluded.status, email_contabilidade=excluded.email_contabilidade,
             adicional_noturno=excluded.adicional_noturno,
             observacao=excluded.observacao,
+            adiantamento=excluded.adiantamento,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10141,7 +10142,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.insalubridade || 0, item.periculosidade || 0,
                 item.plr || 0, item.pensao || 0, item.sindicato || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
-                item.adicional_noturno || 0, item.observacao || null
+                item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
@@ -10870,7 +10871,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                            fm.extra_60, fm.extra_100, fm.dias_falta, fm.data_faltas,
                            fm.dsr, fm.horas_atraso, fm.vt, fm.farmacia, fm.mercado,
                            fm.outros, fm.multas, fm.comissao, fm.bonus_comissao, fm.academia,
-                           fm.plr, fm.consignado, fm.dias_intermitente,
+                           fm.plr, fm.consignado, fm.dias_intermitente, fm.adiantamento,
                            fc_com.valor_comissao, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
                     FROM colaboradores c
@@ -10896,9 +10897,9 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push(['AMERICA RENTAL']);
         aoa.push([]);
         // Linha 5: códigos de rubricas
-        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750']);
+        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750', '']);
         // Linha 6: headers
-        aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissao', 'Academia', 'PLR', 'Consignado']);
+        aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissao', 'Academia', 'PLR', 'Consignado', 'Adiantamento']);
         // Linhas de dados
         for (const r of rows) {
             const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
@@ -10921,7 +10922,8 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 comissao || '',
                 parseFloat(r.academia) || '',
                 parseFloat(r.plr) || '',
-                consig || ''
+                consig || '',
+                parseFloat(r.adiantamento) || ''
             ]);
         }
         const ws = XLSX.utils.aoa_to_sheet(aoa);
