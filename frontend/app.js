@@ -6507,10 +6507,18 @@ async function renderCargoDocsChecklist(container) {
             color: 'azul',
             tabLabel: 'Contratos',
             tabDataTab: 'Contratos',
-            found: currentDocs.find(d =>
-                (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS' || d.tab_name === '01_FICHA_CADASTRAL') &&
-                norm(d.document_type) === norm(docName)
-            )
+            found: (() => {
+                const nn = norm(docName);
+                return currentDocs.find(d => {
+                    if (!(d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS' || d.tab_name === '01_FICHA_CADASTRAL')) return false;
+                    const nd = norm(d.document_type);
+                    if (nn === 'ficha de registro') {
+                        // Busca inclusiva igual à aba Contratos: aceita variações de nome e "Ficha Cadastral"
+                        return nd.includes('ficha de registro') || nd.includes('ficha cadastral');
+                    }
+                    return nd === nn;
+                });
+            })()
         }));
 
         // ── Contratos: perfil roxo (auto-geradores pelo perfil do colaborador) ─
