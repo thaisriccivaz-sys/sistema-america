@@ -10076,7 +10076,7 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
     let anoAnt = m === 1 ? a - 1 : a;
 
     db.all(
-        `SELECT fm.*, c.id as colaborador_id, c.nome_completo, fmant.observacao as observacao_anterior,, c.salario, c.cargo, c.departamento, c.status as colab_status,
+        `SELECT fm.*, c.id as colaborador_id, c.nome_completo, fmant.observacao as observacao_anterior, c.salario, c.cargo, c.departamento, c.status as colab_status,
                 c.tipo_contrato, c.meio_transporte, c.valor_transporte, c.adiantamento_salarial, c.adiantamento_valor,
                 c.academia_participa, c.academia_desconto_valor,
                 c.folha_periculosidade, c.folha_periculosidade_valor,
