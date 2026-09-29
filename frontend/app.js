@@ -22295,19 +22295,16 @@ window.renderMultasMotoristaTab = async function (container) {
                             botoes += `<button onclick="window.open('${baseApi}/api/logistica/multas/${m.id || idx}/documento-extra/1?token=${tokenUrl}&cb=${Date.now()}', '_blank')" style="background:#fff;color:#8b5cf6;border:1px solid #ddd6fe;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'"><i class="ph ph-files" style="font-size:1rem;"></i> Documento assinado</button>`;
                         }
                         
+
+                        const cleanConfig = (m.config_parcelas || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+                        const safeDataCriado = (m.criado_em || m.created_at || m.atualizado_em || m.status_updated_at || '').replace(/'/g, '');
+                        botoes += `<button onclick="window.abrirModalEditarParcelasProntuario(${m.id || idx || 0}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}', '${safeDataCriado}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>`;
+                        
                         if (!botoes) return '';
 
                         return `
                         <div style="grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px dashed #cbd5e1; display:flex; gap:10px; flex-wrap:wrap;">
                             ${botoes}
-                        </div>`;
-                    })()}
-                    <!-- Botão Editar Parcelas — sempre visível -->
-                    ${(() => {
-                        const cleanConfig = (m.config_parcelas || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-                        const safeDataCriado = (m.criado_em || m.created_at || m.atualizado_em || m.status_updated_at || '').replace(/'/g, '');
-                        return `<div style="grid-column:1/-1; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button onclick="window.abrirModalEditarParcelasProntuario(${m.id}, ${m.parcelas || 1}, '${cleanConfig}', ${(parseFloat(String(m.valor_multa || 0).replace(/[^0-9,.-]/g, '').replace(',', '.')) || 0)}, '${m.status || ''}', '${safeDataCriado}')" style="background:#fff;color:#f97316;border:1px solid #fed7aa;padding:6px 14px;border-radius:6px;font-size:0.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#fff'"><i class="ph ph-pencil-simple" style="font-size:1rem;"></i> Editar Parcelas</button>
                         </div>`;
                     })()}
                     <!-- Histórico de cobranças de parcelas -->
