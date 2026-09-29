@@ -10070,8 +10070,13 @@ app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
 // GET: Buscar dados do fechamento de um mês/ano
 app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) => {
     const { ano, mes } = req.params;
+    let m = parseInt(mes, 10);
+    let a = parseInt(ano, 10);
+    let mesAnt = m === 1 ? 12 : m - 1;
+    let anoAnt = m === 1 ? a - 1 : a;
+
     db.all(
-        `SELECT fm.*, c.id as colaborador_id, c.nome_completo, c.salario, c.cargo, c.departamento, c.status as colab_status,
+        `SELECT fm.*, c.id as colaborador_id, c.nome_completo, fmant.observacao as observacao_anterior,, c.salario, c.cargo, c.departamento, c.status as colab_status,
                 c.tipo_contrato, c.meio_transporte, c.valor_transporte, c.adiantamento_salarial, c.adiantamento_valor,
                 c.academia_participa, c.academia_desconto_valor,
                 c.folha_periculosidade, c.folha_periculosidade_valor,
@@ -10082,9 +10087,10 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
                 c.data_admissao, c.cpf, c.escala_tipo
          FROM colaboradores c
          LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
+         LEFT JOIN fechamento_mensal fmant ON fmant.colaborador_id = c.id AND fmant.mes = ? AND fmant.ano = ?
          WHERE c.status != 'Desligado'
          ORDER BY c.nome_completo ASC`,
-        [mes, ano],
+        [mes, ano, mesAnt, anoAnt],
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json(rows);

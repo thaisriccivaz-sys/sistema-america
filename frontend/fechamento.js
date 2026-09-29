@@ -1034,13 +1034,20 @@ function abrirLegenda() {
 
             const isFerias = (row.colab_status || '').toLowerCase().includes('férias');
             const bgRow = isFerias ? '#fff7ed' : '';
+            
+            let nameColor = '';
+            if (_dados[idx] && _dados[idx].observacao) {
+                nameColor = 'color:#dc2626;'; // vermelho
+            } else if (_dados[idx] && _dados[idx].observacao_anterior) {
+                nameColor = 'color:#d97706;'; // amarelo (amber-600)
+            }
 
             const tr = document.createElement('tr');
             tr.style.cssText = `border-bottom:1px solid #e5e7eb;${bgRow ? 'background:' + bgRow + ';' : ''}`;
             tr.dataset.idx = idx;
             tr.dataset.nome = (row.nome_completo || '').substring(0, 60);
             tr.innerHTML = `
-<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}<button onclick="window.abrirObsFechamento(${idx})" title="${_dados[idx] && _dados[idx].observacao ? 'Obs: '+_dados[idx].observacao : 'Adicionar observacao'}" style="background:transparent;border:1px solid ${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};border-radius:4px;color:${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};cursor:pointer;padding:0 4px;font-size:0.75rem;margin-left:4px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;"><i class='ph ph-plus'></i></button></td>
+<td style="padding:.35rem .5rem;white-space:nowrap;position:sticky;left:0;background:${bgRow||'#fff'};font-weight:600;min-width:140px;z-index:1;box-shadow:inset -1px 0 0 #e5e7eb;${nameColor}" title="${row.nome_completo||''}">${(row.nome_completo||'—').substring(0,20)}${isFerias?' 🏖️':''}<button onclick="window.abrirObsFechamento(${idx})" title="${_dados[idx] && _dados[idx].observacao ? 'Obs: '+_dados[idx].observacao : 'Adicionar observacao'}" style="background:transparent;border:1px solid ${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};border-radius:4px;color:${_dados[idx] && _dados[idx].observacao ? '#2563eb' : '#9ca3af'};cursor:pointer;padding:0 4px;font-size:0.75rem;margin-left:4px;display:inline-flex;align-items:center;vertical-align:middle;line-height:1;"><i class='ph ph-plus'></i></button></td>
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="display:none;"></td>
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
@@ -2734,6 +2741,17 @@ function abrirLegenda() {
                 btn.style.borderColor = cor;
                 btn.style.color = cor;
                 btn.title = texto ? 'Obs: ' + texto : 'Adicionar observacao';
+            }
+            
+            var tdNome = trEl.querySelector('td:first-child');
+            if (tdNome) {
+                if (texto) {
+                    tdNome.style.color = '#dc2626';
+                } else if (_dados[idx] && _dados[idx].observacao_anterior) {
+                    tdNome.style.color = '#d97706';
+                } else {
+                    tdNome.style.color = '';
+                }
             }
         }
         salvarSilencioso();
