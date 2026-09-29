@@ -412,10 +412,18 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            if (new Date() > new Date(cred.valid_until)) {
+            // Expirado apenas se hoje (data) > data_limite_envio (ignora hora para não expirar no mesmo dia)
+            let isExpirado = false;
+            if (cred.data_limite_envio) {
+                const hoje = new Date();
+                const hojeStr = hoje.toISOString().slice(0, 10); // YYYY-MM-DD
+                const limiteStr = String(cred.data_limite_envio).slice(0, 10); // YYYY-MM-DD
+                isExpirado = hojeStr > limiteStr;
+            }
+            if (isExpirado) {
                 statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
             } else {
-                statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
+                statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Aguardando</span>`;
             }
         } else if (cred.tipo_envio === 'whatsapp') {
             // WhatsApp: sempre verde (sem link para rastrear acesso)
