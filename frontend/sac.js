@@ -414,7 +414,8 @@
         else if (osDateStr.includes(' ')) osDateStr = osDateStr.split(' ')[0];
 
         // Deadline inicial: 17:00 BRT = 20:00 UTC
-        let deadlineMs = new Date(osDateStr + 'T20:00:00.000Z').getTime();\n        if (isNaN(deadlineMs)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+        let deadlineMs = new Date(osDateStr + 'T20:00:00.000Z').getTime();
+        if (isNaN(deadlineMs)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
 
         const openStr = _normDate(ticket.openDate || new Date().toISOString());
         const opened  = new Date(openStr).getTime();

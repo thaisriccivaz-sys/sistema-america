@@ -22002,13 +22002,38 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         ticketId, protocol, os || '', cliente_nome || 'N/A', '', '', endereco_instalacao || '',
                         req.user ? req.user.username : 'Comercial', cliente_whatsapp || '', cliente_email || '', 
                         'whatsapp', 'credenciamento', 0, JSON.stringify(['Solicitação de Cadastro']),
-                        descr, 'triagem', opendateStr, data_limite_envio || null
+                        descr, 'abertura', opendateStr, data_limite_envio || null
                     ], function(errInsert) {
                         if (errInsert) {
                             console.error("[SAC] Erro ao criar ticket automático de credenciamento:", errInsert);
-                        } else {
-                            console.log("[SAC] Ticket criado automaticamente para o credenciamento:", protocol);
+                            return;
                         }
+                        console.log("[SAC] Ticket criado automaticamente para o credenciamento:", protocol);
+
+                        // Notificar usuários com permissão SAC (ver todos)
+                        const getSACUsersQ = `SELECT u.id as usuario_id, NULLIF(c.email_corporativo, '') as dest_email
+                            FROM usuarios u
+                            JOIN permissoes_grupo pg ON u.grupo_permissao_id = pg.grupo_id
+                            LEFT JOIN colaboradores c ON (LOWER(TRIM(c.email)) = LOWER(TRIM(u.email))) OR (LOWER(TRIM(c.nome_completo)) = LOWER(TRIM(u.nome)))
+                            WHERE pg.modulo = 'Processos' AND pg.pagina_id = 'sac' AND pg.visualizar = 1 AND u.ativo = 1`;
+                        db.all(getSACUsersQ, [], async (errQ, sacUsers) => {
+                            if (!errQ && sacUsers && sacUsers.length > 0) {
+                                const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+                                const systemUrl = `https://sistema-america.onrender.com/?sac_ticket_id=${ticketId}`;
+                                const subject = `🪪 Novo SAC Credenciamento: Chamado Nº ${protocol}`;
+                                const htmlSac = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;"><div style="text-align:center;background:#fff;border-bottom:1px solid #eee;"><img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;"></div><div style="padding:24px;"><h2 style="color:#7048e8;text-align:center;margin-top:0;">🪪 Novo Chamado SAC &mdash; CREDENCIAMENTO</h2><p>Um novo chamado foi criado automaticamente.</p><div style="background:#f5f3ff;padding:16px;border-radius:8px;border-left:4px solid #7048e8;"><p><strong>Protocolo:</strong> Nº ${protocol}</p><p><strong>Cliente:</strong> ${cliente_nome}</p><p><strong>OS:</strong> ${os || 'Não informado'}</p><p><strong>Data Limite:</strong> ${data_limite_envio ? new Date(data_limite_envio).toLocaleDateString('pt-BR') : 'Não informada'}</p><p><strong>Solicitado por:</strong> ${req.user ? req.user.username : 'Comercial'}</p></div><div style="text-align:center;margin-top:20px;"><a href="${systemUrl}" style="display:inline-block;padding:12px 28px;background:#7048e8;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;">Acessar o Sistema</a></div></div></div>`;
+                                for (const u of sacUsers) {
+                                    const dadosSac = JSON.stringify({ protocolo: protocol, id: ticketId, clientName: cliente_nome, typeKey: 'credenciamento' });
+                                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)", [u.usuario_id, 'novo_sac', `Novo SAC Credenciamento Nº ${protocol} — ${cliente_nome}`, dadosSac]);
+                                    if (!u.dest_email || !u.dest_email.includes('@')) continue;
+                                    try {
+                                        const nodemailer = require('nodemailer');
+                                        const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: parseInt(process.env.SMTP_PORT||'587'), secure: false, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+                                        await transporter.sendMail({ from: process.env.SMTP_FROM||process.env.SMTP_USER, to: u.dest_email, subject, html: htmlSac, attachments: [{ filename: 'logo.png', path: logoPath, cid: 'empresa-logo' }] });
+                                    } catch(eErr) { console.error('[SAC-CRED] Email err:', eErr.message); }
+                                }
+                            }
+                        });
                     });
                 }
             );
