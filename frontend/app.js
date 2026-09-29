@@ -21777,7 +21777,7 @@ window._atualizarMepInputs = function(isInitial = false) {
 
         const systemCharge = historico.find(h => parseInt(h.parcela_num) === i);
         if (systemCharge) {
-            if (!cfgParcela) isAlert = true;
+            isAlert = true; // Força "Cobrado" se houver histórico do sistema
             // Só usa o mês/ano do histórico se o config_parcelas NÃO tiver mês explícito salvo pelo usuário
             if (!pMes || !pAno) {
                 pMes = parseInt(systemCharge.mes);
@@ -21974,10 +21974,12 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             
             var isSystemCobrado = !!parcelasCobradas[i];
             var isChecked = '';
-            if (cfg && cfg.hasOwnProperty('alert')) {
+            if (isSystemCobrado) {
+                isChecked = 'checked';
+            } else if (cfg && cfg.hasOwnProperty('alert')) {
                 isChecked = cfg.alert ? 'checked' : '';
             } else {
-                isChecked = isSystemCobrado ? 'checked' : '';
+                isChecked = '';
             }
             var bgColor = isChecked ? '#16a34a' : '#cbd5e1';
             var tX = isChecked ? 'translateX(12px)' : 'translateX(0)';
