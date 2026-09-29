@@ -1162,11 +1162,18 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     // ATUALIZAR E RECALCULAR
     // ─────────────────────────────────────────────────────────────────
+        let _autoSaveTimer = null;
     function atualizar(idx, campo, valor) {
         if (!_dados[idx]) return;
         _dados[idx][campo] = valor;
         const calc = calcularColaborador(_dados[idx]);
-        
+
+        clearTimeout(_autoSaveTimer);
+        _autoSaveTimer = setTimeout(() => {
+            if (typeof salvarSilencioso === 'function') {
+                salvarSilencioso();
+            }
+        }, 1500);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1837,6 +1844,9 @@ function abrirLegenda() {
                 }
             });
             const total = json.reduce((s, i) => s + i.plr_valor, 0);
+
+            salvarSilencioso();
+
             Swal.fire({ icon: 'success', title: 'PLR calculado!', text: `${json.length} colaborador(es). Total: ${fmt(total)}.`, timer: 3000, showConfirmButton: false });
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro ao calcular PLR', text: e.message });

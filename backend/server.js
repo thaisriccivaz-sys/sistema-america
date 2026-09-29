@@ -10650,7 +10650,7 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
     const corteStr = anoAnt + '-' + String(mesAnt).padStart(2,'0') + '-25';
 
     // Status elegíveis para desconto em folha
-    const STATUS_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
+    const STATUS_ELEGIVEIS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
     const placeholders = STATUS_ELEGIVEIS.map(() => '?').join(',');
 
     try {

@@ -306,7 +306,7 @@ window.initRhLogisticaMultas = async function() {
         return;
     }
     container.id = 'rh-multas-logistica-container';
-    var RH_STATUS_PERMITIDOS = ['Indicado', 'Multa NIC', 'Id. Indeferida', 'Id. Deferida', 'Cobrada - Pz. Perdido'];
+    var RH_STATUS_PERMITIDOS = ['Indicado', 'Multa NIC', 'Multa Nic', 'Id. Indeferida', 'Id. Deferida', 'Rec. Indeferida', 'Cobrada - Pz. Perdido'];
     try {
         var token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
         var response = await fetch('/api/logistica/multas', { headers: { 'Authorization': 'Bearer ' + token } });
