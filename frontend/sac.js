@@ -26,6 +26,7 @@
     contrato:            { name: 'CONTRATO',               sla: 48, icon: '✍️' },
     furto:               { name: 'FURTO / EXTRAVIO',       sla: 24, icon: '🛡️' },
     visita_tecnica:      { name: 'VISITA TÉCNICA',         sla: 48, icon: '🔧' },
+    credenciamento:      { name: 'CREDENCIAMENTO',         sla: 48, icon: '🪪' },
     tipo_teste:          { name: 'TIPO TESTE',             sla: (2/60), icon: '🧪' }
   };
 
@@ -41,6 +42,7 @@
     contrato:            ['Alteração Cadastral', 'Ruptura de contrato', 'Prorrogação de locação'],
     furto:               ['Furto no Cliente', 'Furto em Trânsito', 'Extravio / Perda'],
     visita_tecnica:      ['Avaliação técnica de equipamento', 'Solicitação do cliente', 'Vistoria de campo', 'Reclamação de funcionamento', 'Verificação pré-contrato'],
+    credenciamento:      ['Solicitação de Cadastro', 'Análise de Documentação'],
     tipo_teste:          ['Teste 1', 'Teste 2']
   };
 
@@ -394,6 +396,76 @@
   function getSLADetails(ticket) {
     const type = TICKET_TYPES[ticket.typeKey];
     if (!type) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+
+    // ── SLA especial para Credenciamento ──────────────
+    // Deadline = data do credenciamento (osDate) às 17:00 horário de Brasília (UTC-3).
+    // Se criado após esse horário no próprio dia, move para o dia seguinte às 17h.
+    if (ticket.typeKey === 'credenciamento' && ticket.osDate) {
+        const isConcluido = ticket.stage === 'concluido';
+        const isClosed = isConcluido || ticket.stage === 'encerrado';
+
+        // Parsear a data limite (formato YYYY-MM-DD ou DD/MM/YYYY)
+        let osDateStr = ticket.osDate;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(osDateStr)) {
+            const [d, m, y] = osDateStr.split('/');
+            osDateStr = `${y}-${m}-${d}`;
+        }
+        if (osDateStr.includes('T')) osDateStr = osDateStr.split('T')[0];
+        else if (osDateStr.includes(' ')) osDateStr = osDateStr.split(' ')[0];
+
+        // Deadline inicial: 17:00 BRT = 20:00 UTC
+        let deadlineMs = new Date(osDateStr + 'T20:00:00.000Z').getTime();\n        if (isNaN(deadlineMs)) return { label: '—', status: 'ok', pct: 100, consumedPct: 0, remaining: 0, isOverdue: false, isConcluido: false };
+
+        const openStr = _normDate(ticket.openDate || new Date().toISOString());
+        const opened  = new Date(openStr).getTime();
+        
+        if (opened > deadlineMs) {
+            deadlineMs += 86400000; // Estende 1 dia se j passou das 17h
+        }
+
+        const limitMs = deadlineMs - opened;
+        const now     = Date.now();
+        const elapsed = isClosed
+            ? (ticket.timeline && ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado')
+                ? new Date(_normDate(ticket.timeline.find(l => l.stage === 'concluido' || l.stage === 'encerrado').time)).getTime() - opened
+                : now - opened)
+            : now - opened;
+        const remainMs = deadlineMs - (isClosed ? (opened + elapsed) : now);
+
+        const fmtHM = (ms) => {
+            const totalMin = Math.floor(Math.abs(ms) / 60000);
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return `${h}h${m.toString().padStart(2,'0')}m`;
+        };
+
+        const isOverdue  = remainMs <= 0;
+        const pct        = Math.max(0, Math.min(100, Math.round((remainMs / limitMs) * 100)));
+        const consumedPct = 100 - pct;
+        let barColor = isOverdue ? '#dc2626' : consumedPct <= 40 ? '#15803d' : consumedPct <= 70 ? '#2563eb' : '#d97706';
+        const labelColor = isOverdue ? '#dc2626' : consumedPct > 70 ? '#d97706' : consumedPct > 40 ? '#2563eb' : '#15803d';
+
+        let label;
+        if (isConcluido) {
+            const withinSLA = !isOverdue;
+            label = `✓ ${fmtHM(elapsed)} (${withinSLA ? 'no prazo' : 'em atraso'})`;
+            barColor = withinSLA ? '#15803d' : '#dc2626';
+        } else if (isOverdue) {
+            label = `-${fmtHM(remainMs)}`;
+        } else {
+            label = `${fmtHM(remainMs)} restantes`;
+        }
+
+        return {
+            remaining: Math.round((remainMs / 3600000) * 10) / 10,
+            pct, consumedPct, isOverdue,
+            isConcluido,
+            label, barColor, labelColor,
+            status: isOverdue ? 'danger' : pct < 30 ? 'warning' : 'ok',
+            deadlineMs,
+            closedDateMs: isClosed ? (opened + elapsed) : null
+        };
+    }
 
     // ── SLA especial para Visita Técnica criada a partir de OS ──────────────
     // Deadline = dia seguinte à data da OS às 15:00 horário de Brasília (UTC-3)

@@ -21976,6 +21976,43 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
 
             const novoId = this.lastID;
 
+            // [INTEGRACAO SAC] Criação automática do card no SAC
+            db.get(
+                "SELECT COALESCE(MAX(CAST(REPLACE(protocol, ' ', '') AS INTEGER)), 0) AS max_num FROM sac_tickets WHERE CAST(REPLACE(protocol, ' ', '') AS INTEGER) > 0",
+                [],
+                (errMax, row) => {
+                    if (errMax) {
+                        console.error("[SAC] Erro ao obter max_num para novo credenciamento:", errMax);
+                        return; // não bloqueia o fluxo principal
+                    }
+                    const nextNum  = (row ? row.max_num : 0) + 1;
+                    const protocol = String(nextNum).padStart(4, '0');
+                    const uuidv4 = require('crypto').randomUUID;
+                    const ticketId = uuidv4();
+                    const opendateStr = new Date().toISOString();
+                    
+                    const descr = `Solicitação de Credenciamento da OS: ${os || 'N/A'}\nObservações: ${observacoes || 'Nenhuma'}`;
+
+                    db.run(`INSERT INTO sac_tickets (
+                        id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
+                        contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
+                        description, stage, open_date, os_date
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                    [
+                        ticketId, protocol, os || '', cliente_nome || 'N/A', '', '', endereco_instalacao || '',
+                        req.user ? req.user.username : 'Comercial', cliente_whatsapp || '', cliente_email || '', 
+                        'whatsapp', 'credenciamento', 0, JSON.stringify(['Solicitação de Cadastro']),
+                        descr, 'triagem', opendateStr, data_limite_envio || null
+                    ], function(errInsert) {
+                        if (errInsert) {
+                            console.error("[SAC] Erro ao criar ticket automático de credenciamento:", errInsert);
+                        } else {
+                            console.log("[SAC] Ticket criado automaticamente para o credenciamento:", protocol);
+                        }
+                    });
+                }
+            );
+
             // Inserir notificação para a Logística (popup)
             db.run(`INSERT INTO logistica_notificacoes_pendentes (tipo, dados) VALUES (?, ?)`,
                 ['nova_solicitacao', JSON.stringify({
