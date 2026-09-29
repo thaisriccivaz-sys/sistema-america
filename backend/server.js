@@ -2275,7 +2275,7 @@ app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
         FROM documentos d
         JOIN colaboradores c ON c.id = d.colaborador_id
         WHERE d.assinafy_status = 'Assinado' AND d.assinafy_id IS NOT NULL
-        AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+        AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
         ${whereColab}
         UNION ALL
         SELECT 'admissao_assinaturas' as tabela, aa.id, c.nome_completo, aa.nome_documento,
@@ -2283,7 +2283,7 @@ app.get('/api/admin/auditar-assinaturas', authenticateToken, (req, res) => {
         FROM admissao_assinaturas aa
         JOIN colaboradores c ON c.id = aa.colaborador_id
         WHERE aa.assinafy_status = 'Assinado' AND aa.assinafy_id IS NOT NULL
-        AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+        AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
         ${whereColab}
         ORDER BY nome_completo, nome_documento
     `, params.length === 1 ? [...params, ...params] : params, (err, rows) => {
@@ -2708,7 +2708,7 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
                     WHERE aa.assinafy_status = 'Assinado'
                       AND aa.assinado_em IS NOT NULL
                       AND datetime(aa.assinado_em) >= datetime('now', '-24 hours')
-                      AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+                      AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
 
                     UNION ALL
 
@@ -2719,7 +2719,7 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
                     WHERE d.assinafy_status = 'Assinado'
                       AND d.assinafy_signed_at IS NOT NULL
                       AND datetime(d.assinafy_signed_at) >= datetime('now', '-24 hours')
-                      AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+                      AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
                 )
                 GROUP BY COALESCE(assinafy_id, unq_id)
             )
@@ -3381,7 +3381,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             FROM admissao_assinaturas aa
             LEFT JOIN colaboradores c ON c.id = aa.colaborador_id
             WHERE aa.assinafy_id IS NOT NULL
-              AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+              AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
         `, []);
 
         // Query 2: Documentos do prontuario (ASO, EPI, etc.) ??? sem coluna assinafy_sent_at/signed_at para compatibilidade
@@ -3396,7 +3396,7 @@ app.get('/api/admissao-assinaturas/todos', authenticateToken, async (req, res) =
             FROM documentos d
             LEFT JOIN colaboradores c ON c.id = d.colaborador_id
             WHERE d.assinafy_id IS NOT NULL
-              AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+              AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
               AND d.assinafy_status IS NOT NULL
         `, []);
 
@@ -27091,7 +27091,7 @@ app.get('/api/assinaturas/pendentes', authenticateToken, (req, res) => {
         WHERE d.tipo = 'Administrativo'
           AND LOWER(TRIM(c.departamento)) NOT LIKE '%limpeza%'
           AND c.status != 'Desligado'
-          AND c.nome_completo NOT LIKE '%Nicolle Mezuraro Maio%'
+          AND c.nome_completo NOT LIKE '%Nicolle Mezuraro%'
         ORDER BY CASE WHEN COALESCE(p.status, 'Pendente') = 'Pendente' THEN 0 ELSE 1 END ASC,
                  c.nome_completo ASC
     `;
