@@ -216,7 +216,18 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-file-text" style="color:#d97706;"></i> BO: ${s.numero_boletim || 'N/A'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'} &nbsp;|&nbsp; ${naturezaDisplay}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
-                    ${s.observacoes ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${s.observacoes}</p>` : ''}
+                    ${(function() {
+                        let ultimaObs = s.observacoes || '';
+                        try {
+                            if (s.observacoes_historico) {
+                                const hist = JSON.parse(s.observacoes_historico);
+                                if (hist && hist.length > 0) {
+                                    ultimaObs = hist[hist.length - 1].texto;
+                                }
+                            }
+                        } catch(e) {}
+                        return ultimaObs ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${ultimaObs.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : '';
+                    })()}
                     ${signStatus}
                 </div>
             </div>

@@ -190,7 +190,18 @@ window._logSinRenderCardGeral = function(s, container) {
                     <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#059669;"></i> ${s.nome_completo || 'Colaborador Desconhecido'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-file-text"></i> BO: ${s.numero_boletim || 'N/A'} &nbsp;|&nbsp; <i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
-                    ${s.observacoes ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${s.observacoes}</p>` : ''}
+                    ${(function() {
+                        let ultimaObs = s.observacoes || '';
+                        try {
+                            if (s.observacoes_historico) {
+                                const hist = JSON.parse(s.observacoes_historico);
+                                if (hist && hist.length > 0) {
+                                    ultimaObs = hist[hist.length - 1].texto;
+                                }
+                            }
+                        } catch(e) {}
+                        return ultimaObs ? `<p style="margin:6px 0 0; font-size:0.85rem; color:#334155; background:#f1f5f9; padding:6px 10px; border-radius:6px;"><i class="ph ph-info"></i> <strong>Obs:</strong> ${ultimaObs.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : '';
+                    })()}
                 </div>
             </div>
             <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg}; white-space:nowrap;">${st.text}</span>
@@ -1151,22 +1162,29 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                             ${(function() {
                                 let hist = [];
                                 try { if (sinistro.observacoes_historico) hist = JSON.parse(sinistro.observacoes_historico); } catch(e) {}
-                                if (!hist.length && sinistro.observacoes) {
-                                    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
+                                let outputHtml = '';
+                                
+                                if (hist.length > 0) {
+                                    outputHtml += hist.slice().reverse().map(function(h) {
+                                        return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">'
+                                            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                            + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
+                                            + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
+                                            + '</div>'
+                                            + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                            + '</div>';
+                                    }).join('');
+                                }
+                                
+                                if (sinistro.observacoes) {
+                                    outputHtml += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
                                         + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
                                         + '<p style="margin:0;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                                } else if (hist.length === 0) {
+                                    outputHtml = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
                                 }
-                                if (!hist.length) return '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
-                                // Mostrar do mais novo ao mais antigo
-                                return hist.slice().reverse().map(function(h) {
-                                    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
-                                        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
-                                        + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
-                                        + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
-                                        + '</div>'
-                                        + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + (h.texto || '').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
-                                        + '</div>';
-                                }).join('');
+                                
+                                return outputHtml;
                             })()}
                         </div>
                         <hr style="border-color:#e2e8f0; margin:0 0 10px;">
@@ -1574,13 +1592,10 @@ window.logSinSalvarEdicao = async function() {
                     if (histContainer) {
                         var hist = [];
                         try { if (sinAtual.observacoes_historico) hist = JSON.parse(sinAtual.observacoes_historico); } catch(e) {}
-                        if (!hist.length && sinAtual.observacoes) {
-                            histContainer.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;"><p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p><p style="margin:0;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
-                        } else if (!hist.length) {
-                            histContainer.innerHTML = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
-                        } else {
-                            histContainer.innerHTML = hist.slice().reverse().map(function(h) {
-                                return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">'
+                        let outputHtml = '';
+                        if (hist.length > 0) {
+                            outputHtml += hist.slice().reverse().map(function(h) {
+                                return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">'
                                     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
                                     + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (h.autor || 'Sistema') + '</span>'
                                     + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + (h.data || '') + '</span>'
@@ -1589,6 +1604,16 @@ window.logSinSalvarEdicao = async function() {
                                     + '</div>';
                             }).join('');
                         }
+                        
+                        if (sinAtual.observacoes) {
+                            outputHtml += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
+                                + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
+                                + '<p style="margin:0;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                        } else if (hist.length === 0) {
+                            outputHtml = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
+                        }
+                        
+                        histContainer.innerHTML = outputHtml;
                         histContainer.scrollTop = 0; // Topo = mais recente
                     }
                 }
