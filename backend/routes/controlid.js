@@ -380,7 +380,7 @@ router.get('/ponto-colaborador', async (req, res) => {
             try {
                 const justRes = await axios.get(`${RHID_BASE_URL}/justification`, {
                     headers: { ...RHID_GET_HEADERS, Authorization: authHeader },
-                    params: { start: 0, length: 200 }
+                    params: { start: 0, length: 2000 }
                 });
                 const justList = Array.isArray(justRes.data) ? justRes.data
                     : (justRes.data?.data || justRes.data?.list || justRes.data?.items || []);
@@ -394,7 +394,7 @@ router.get('/ponto-colaborador', async (req, res) => {
                     if (d.idJustification && justMap[d.idJustification]) {
                         d.nomeJustificativa = justMap[d.idJustification];
                         const nomeLow = d.nomeJustificativa.toLowerCase();
-                        if (nomeLow.includes('férias') || nomeLow.includes('ferias') || nomeLow.includes('vacation')) {
+                        if (nomeLow.includes('férias') || nomeLow.includes('ferias') || nomeLow.includes('vacation') || d.idJustification == 3916) {
                             d.toolTipAlert = d.nomeJustificativa;
                             d.isFerias = true;
                         }
@@ -411,6 +411,14 @@ router.get('/ponto-colaborador', async (req, res) => {
             // Dias de esquecimento de ponto NÃO passam porque têm marcações 'O' com hora != 0
             apuracaoData.forEach(d => {
                 if (d.isFerias) return; // já marcado pela lookup acima
+
+                // Hardcode de emergência para o ID 3916 (Férias) descoberto via log
+                if (d.idJustification == 3916) {
+                    d.isFerias = true;
+                    d.toolTipAlert = d.nomeJustificativa || 'Férias';
+                    return;
+                }
+
                 const marcacoesF = d.listAfdtManutencao || [];
                 const semTrabalho = (d.diasTrabalhados || 0) === 0 && (d.totalHorasTrabalhadas || 0) === 0;
                 if (!semTrabalho) return;
