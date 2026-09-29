@@ -22142,7 +22142,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     : '<p style="color:#94a3b8; font-style:italic; margin:4px 0;">Nenhum documento específico solicitado.</p>';
 
                 const licsHtml = Object.keys(licGroups).length > 0
-                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">??????? Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${Object.entries(licGroups).map(([comp, nomes]) => `<li><strong>${comp}:</strong> ${nomes.join(' - ')}</li>`).join('')}</ul>`
+                    ? `<h3 style="margin:12px 0 6px; color:#0f172a; font-size:0.95rem;">📋 Licenças Solicitadas</h3><ul style="margin:4px 0; padding-left:20px;">${Object.entries(licGroups).map(([comp, nomes]) => `<li><strong>${comp}:</strong> ${nomes.join(' - ')}</li>`).join('')}</ul>`
                     : '';
 
                 const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
@@ -22153,22 +22153,22 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         <img src="cid:empresa-logo" alt="América Rental" style="width: 100%; max-width: 600px; height: auto; display: block;">
                     </div>
                     <div style="background: #7048e8; padding: 24px 20px; text-align:center;">
-                        <h2 style="color:#fff; margin:0; font-size:1.3rem;">???? Solicitação de Credenciamento Recebida</h2>
+                        <h2 style="color:#fff; margin:0; font-size:1.3rem;">✅ Solicitação de Credenciamento Recebida</h2>
                     </div>
                     <div style="padding:24px 20px;">
                         <p>Olá, <strong>${cliente_nome}</strong>!</p>
                         <p>Sua solicitação de credenciamento foi recebida e encaminhada ao nosso setor de <strong>Logística</strong>. Em breve enviaremos os documentos da equipe alocada para o seu projeto.</p>
 
                         <div style="background:#f8fafc; border-left:4px solid #7048e8; border-radius:6px; padding:16px; margin:20px 0;">
-                            <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">???? Documentos Solicitados</h3>
+                            <h3 style="margin:0 0 10px; color:#0f172a; font-size:0.95rem;">📄 Documentos Solicitados</h3>
                             ${docsHtml}
                             ${licsHtml}
                         </div>
 
-                        ${dtLimCliente ? `<p style="font-size:13px; color:#64748b;">??? <strong>Prazo estimado de envio:</strong> ${dtLimCliente}</p>` : ''}
-                        ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>???? Observações:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
+                        ${dtLimCliente ? `<p style="font-size:13px; color:#64748b;">⏰ <strong>Prazo estimado de envio:</strong> ${dtLimCliente}</p>` : ''}
+                        ${observacoes ? `<div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:12px; margin-top:16px;"><strong>💬 Observações:</strong><br><span style="color:#92400e;">${observacoes}</span></div>` : ''}
 
-                        <p style="margin-top:24px;">Em caso de d??vidas, entre em contato com nossa equipe.</p>
+                        <p style="margin-top:24px;">Em caso de dúvidas, entre em contato com nossa equipe.</p>
                         <p style="color:#64748b; font-size:13px;">Atenciosamente,<br><strong>América Rental - Logística</strong></p>
                     </div>
                     <div style="background:#f1f5f9; padding:12px; text-align:center; font-size:11px; color:#94a3b8;">
@@ -22537,6 +22537,9 @@ const _handleDownloadZip = async (req, res) => {
         const zipBuffer = zip.toBuffer();
         res.set('Content-Type', 'application/zip');
         res.set('Content-Disposition', `attachment; filename="Credenciamento_${cred.os || cred.id}.zip"`);
+        db.run("UPDATE credenciamentos SET status = 'enviado' WHERE id = ?", [req.params.id], (updateErr) => {
+            if (updateErr) console.error("Erro ao atualizar credenciamento para enviado no download ZIP:", updateErr);
+        });
         res.send(zipBuffer);
     });
 };

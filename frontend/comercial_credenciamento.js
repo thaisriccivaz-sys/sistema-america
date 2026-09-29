@@ -412,9 +412,11 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         
         let statusBadge = '';
         if (cred.status === 'solicitado') {
-            statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
-        } else if (new Date() > new Date(cred.valid_until)) {
-            statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
+            if (new Date() > new Date(cred.valid_until)) {
+                statusBadge = `<span style="color:#dc2626; font-weight:600;"><i class="ph ph-x-circle"></i> Expirado</span>`;
+            } else {
+                statusBadge = `<span style="color:#eab308; font-weight:600;"><i class="ph ph-clock"></i> Solicitado</span>`;
+            }
         } else if (cred.tipo_envio === 'whatsapp') {
             // WhatsApp: sempre verde (sem link para rastrear acesso)
             statusBadge = `<span style="color:#16a34a; font-weight:600;"><i class="ph ph-whatsapp-logo"></i> Enviado</span>`;
