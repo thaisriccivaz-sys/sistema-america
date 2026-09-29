@@ -693,25 +693,34 @@ function abrirLegenda() {
       <button style="background:#fff;border:1px solid #cbd5e1;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="document.getElementById('fech-dropdown-acoes').style.display='flex'">
         Ações: <i class="ph ph-caret-down"></i>
       </button>
-      <div id="fech-dropdown-acoes" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;flex-direction:column;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:200px;">
+      <div id="fech-dropdown-acoes" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;flex-direction:column;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:230px;">
         
-        <!-- Upload Farmácia -->
-        <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
-          <i class="ph ph-pill"></i> Farmácia (PDF)
-          <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
-        </label>
+        <!-- Farmácia com Olho -->
+        <div style="display:flex;gap:.25rem;align-items:center;width:100%;">
+          <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;flex:1;">
+            <i class="ph ph-pill"></i> Farmácia (PDF)
+            <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
+          </label>
+          <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;justify-content:center;height:100%;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i></button>
+        </div>
   
-        <!-- Upload Consignado -->
-        <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
-          <i class="ph ph-hand-coins"></i> Consignado (XLSX)
-          <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
-        </label>
+        <!-- Consignado com Olho -->
+        <div style="display:flex;gap:.25rem;align-items:center;width:100%;">
+          <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;flex:1;">
+            <i class="ph ph-hand-coins"></i> Consignado (XLSX)
+            <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
+          </label>
+          <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;justify-content:center;height:100%;" title="Ver consignado carregado"><i class="ph ph-eye"></i></button>
+        </div>
   
-        <!-- Upload Mercado PDFs -->
-        <label id="fech-label-mercado" style="background:#d97706;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
-          <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
-          <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
-        </label>
+        <!-- Mercado com Olho -->
+        <div style="display:flex;gap:.25rem;align-items:center;width:100%;">
+          <label id="fech-label-mercado" style="background:#d97706;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;flex:1;">
+            <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
+            <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
+          </label>
+          <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;justify-content:center;height:100%;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i></button>
+        </div>
   
         <!-- Conferência de Ponto -->
         <button onclick="window._fechamento.abrirConferenciaPonto()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:.4rem;padding:.4rem .85rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
@@ -800,19 +809,6 @@ function abrirLegenda() {
   
       </div>
     </div>
-  
-    <!-- Eye Buttons Container (Outside dropdowns) -->
-    <div style="display:flex;gap:.5rem;align-items:center;margin-left:auto;">
-      <!-- Olho Farmácia -->
-      <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i> Farmácia</button>
-  
-      <!-- Olho Consignado -->
-      <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver consignado carregado"><i class="ph ph-eye"></i> Consignado</button>
-  
-      <!-- Olho Mercado -->
-      <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i> Mercado</button>
-    </div>
-  
   </div>
   <!-- Filtro por nome -->
   <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;justify-content:space-between;">
