@@ -32020,10 +32020,55 @@ app.post('/api/licencas/baixar-lote', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/comercial/credenciamento/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Credenciamento nao encontrado' });
-        res.json({ message: 'Credenciamento excluído com sucesso' });
+    const credId = req.params.id;
+    const usuarioExclusao = req.user ? (req.user.nome || req.user.username || 'Desconhecido') : 'Desconhecido';
+
+    // Buscar o credenciamento antes de deletar para pegar os/cliente_nome
+    db.get('SELECT id, os, cliente_nome FROM credenciamentos WHERE id = ?', [credId], (errGet, cred) => {
+        if (errGet) return res.status(500).json({ error: errGet.message });
+        if (!cred) return res.status(404).json({ error: 'Credenciamento nao encontrado' });
+
+        // Deletar o credenciamento
+        db.run('DELETE FROM credenciamentos WHERE id = ?', [credId], function(errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+
+            res.json({ message: 'Credenciamento excluído com sucesso' });
+
+            // [SAC] Mover card para 'concluido' e adicionar comentário no histórico
+            const sacQuery = cred.os
+                ? `SELECT id, comments, timeline FROM sac_tickets WHERE type_key = 'credenciamento' AND os_number = ? AND stage != 'concluido' AND stage != 'encerrado' ORDER BY created_at DESC LIMIT 1`
+                : `SELECT id, comments, timeline FROM sac_tickets WHERE type_key = 'credenciamento' AND client_name = ? AND stage != 'concluido' AND stage != 'encerrado' ORDER BY created_at DESC LIMIT 1`;
+            const sacParam = cred.os ? cred.os : (cred.cliente_nome || '');
+
+            db.get(sacQuery, [sacParam], (errSac, ticket) => {
+                if (errSac || !ticket) {
+                    console.warn('[SAC-CRED] Ticket SAC não encontrado para credenciamento excluído:', cred.os || cred.cliente_nome);
+                    return;
+                }
+
+                const agora = new Date().toISOString();
+                const comentarioTexto = `🗑️ Credenciamento excluído na tela de Solicitação de Credenciamento por ${usuarioExclusao}.`;
+
+                // Adicionar comentário ao array de comments
+                let comments = [];
+                try { comments = JSON.parse(ticket.comments || '[]'); } catch(e) { comments = []; }
+                comments.push({ time: agora, user: usuarioExclusao, text: comentarioTexto });
+
+                // Adicionar entrada na timeline de conclusão
+                let timeline = [];
+                try { timeline = JSON.parse(ticket.timeline || '[]'); } catch(e) { timeline = []; }
+                timeline.push({ time: agora, user: usuarioExclusao, stage: 'concluido', notes: comentarioTexto });
+
+                db.run(
+                    `UPDATE sac_tickets SET stage = 'concluido', comments = ?, timeline = ?, close_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [JSON.stringify(comments), JSON.stringify(timeline), agora, ticket.id],
+                    (errUpd) => {
+                        if (errUpd) console.error('[SAC-CRED] Erro ao concluir ticket SAC:', errUpd.message);
+                        else console.log('[SAC-CRED] Ticket SAC movido para concluído após exclusão do credenciamento:', ticket.id);
+                    }
+                );
+            });
+        });
     });
 });
 
