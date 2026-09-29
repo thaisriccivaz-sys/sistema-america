@@ -21983,7 +21983,7 @@ window._carregarHistoricoMulta = async function(uid, multaId, totalParcelas, val
             var tX = isChecked ? 'translateX(12px)' : 'translateX(0)';
             var toggleColor = isChecked ? '#16a34a' : '#94a3b8';
 
-            var toggleHtml = `<div style="display:flex; align-items:center; gap:4px; margin-left:12px;" onclick="event.stopPropagation()">
+            var toggleHtml = window._isRhContext ? '' : `<div style="display:flex; align-items:center; gap:4px; margin-left:12px;" onclick="event.stopPropagation()">
                 <label style="position:relative; display:inline-block; width:28px; height:16px; margin:0;" onclick="event.stopPropagation()">
                     <input type="checkbox" ${isChecked} style="opacity:0; width:0; height:0;" onchange="this.disabled=true; this.nextElementSibling.style.opacity='0.5'; window._toggleCobradoManualmente(${multaId}, ${i}, this.checked)">
                     <div style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:${bgColor}; transition:.3s; border-radius:16px;" onclick="this.previousElementSibling.click()">
