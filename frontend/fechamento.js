@@ -2633,16 +2633,12 @@ function abrirLegenda() {
             _dados[idx].dias_ferias = diasFer;
             _dados[idx].valor_tercio_ferias = valorTercioFer;
 
-            var trFer = document.querySelectorAll('#fech-tbody tr');
-            for (var ti = 0; ti < trFer.length; ti++) {
-                if (parseInt(trFer[ti].dataset.idx) !== idx) continue;
-                Array.from(trFer[ti].querySelectorAll('input')).forEach(function(i) {
-                    var oi = i.getAttribute('oninput') || '';
-                    if (oi.indexOf("'dias_ferias'") !== -1) i.value = diasFer;
-                    if (oi.indexOf("'valor_tercio_ferias'") !== -1) i.value = valorTercioFer;
-                });
-                break;
-            }
+            var cellDF = document.getElementById('fech-cell-dias-ferias-' + idx);
+            if (cellDF) { var inpDF = cellDF.querySelector('input'); if (inpDF) inpDF.value = diasFer; }
+
+            var cellTF = document.getElementById('fech-cell-tercio-ferias-' + idx);
+            if (cellTF) { var inpTF = cellTF.querySelector('input'); if (inpTF) inpTF.value = valorTercioFer; }
+
             atualizar(idx, 'dias_ferias', diasFer);
             atualizar(idx, 'valor_tercio_ferias', valorTercioFer);
         }
