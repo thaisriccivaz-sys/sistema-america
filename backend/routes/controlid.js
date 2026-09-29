@@ -783,6 +783,9 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         }
     } catch(e) { payloadDebug = String(data).substring(0, 800); }
 
+    // Contar dias de férias (dias marcados como isFerias = true no enriquecimento)
+    const diasFerias = Array.isArray(data) ? data.filter(d => d.isFerias === true).length : 0;
+
     return {
         diasUteis: diasUteisTotal,
         diasTrabalhados,
@@ -795,11 +798,13 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         minutosExt60,
         minutosExt100,
         minutosAtraso,
+        diasFerias,
         aviso: (diasTrabalhados === null)
             ? 'Não foi possível interpretar a resposta do RHID. ' + payloadDebug
             : null
     };
 }
+
 
 module.exports = router;
 

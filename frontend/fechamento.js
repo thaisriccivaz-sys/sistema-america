@@ -853,6 +853,8 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Periculosidade</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">193</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e3a8a;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Sindicato</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">601</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#831843;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Pens&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 8783 — Dias de F&eacute;rias"><strong>8783</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">Dias F&eacute;r.</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 931 — 1/3 das F&eacute;rias"><strong>931</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">1/3 F&eacute;r. R$</span></th>
           </tr>
         </thead>
         <tbody id="fech-tbody"></tbody>
@@ -1074,6 +1076,8 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#fef3c7;" id="fech-cell-periculosidade-${idx}">${inpNum(idx,'periculosidade',row.periculosidade||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#dbeafe;" id="fech-cell-sindicato-${idx}">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-dias-ferias-${idx}">${inpNum(idx,'dias_ferias',row.dias_ferias||0,'0','1')}</td>
+<td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-tercio-ferias-${idx}">${inpNum(idx,'valor_tercio_ferias',row.valor_tercio_ferias||0,'0.00','0.01')}</td>
 
 `;
             tbody.appendChild(tr);
@@ -1973,7 +1977,9 @@ function abrirLegenda() {
                     pensao: parseFloat(row.pensao) || 0,
                     sindicato: parseFloat(row.sindicato) || 0,
                     dias_intermitente: parseInt(row.dias_intermitente) || 0,
-                    observacao: row.observacao
+                    observacao: row.observacao,
+                    dias_ferias: parseInt(row.dias_ferias) || 0,
+                    valor_tercio_ferias: parseFloat(row.valor_tercio_ferias) || 0
                 };
             });
             await fetch('/api/fechamento/salvar', {
@@ -2616,6 +2622,29 @@ function abrirLegenda() {
                 break;
             }
             atualizar(idx, 'horas_atraso', atrStr);
+        }
+
+        // ── Dias Férias (8783) e 1/3 Férias (931) ──────────────────────────────
+        if (dados.diasFerias > 0) {
+            var diasFer = parseInt(dados.diasFerias) || 0;
+            var salarioCo = parseFloat((_dados[idx].salario || _dados[idx].salario_base || 0));
+            var valorTercioFer = salarioCo > 0 ? parseFloat(((salarioCo / 30 * diasFer) / 3).toFixed(2)) : 0;
+
+            _dados[idx].dias_ferias = diasFer;
+            _dados[idx].valor_tercio_ferias = valorTercioFer;
+
+            var trFer = document.querySelectorAll('#fech-tbody tr');
+            for (var ti = 0; ti < trFer.length; ti++) {
+                if (parseInt(trFer[ti].dataset.idx) !== idx) continue;
+                Array.from(trFer[ti].querySelectorAll('input')).forEach(function(i) {
+                    var oi = i.getAttribute('oninput') || '';
+                    if (oi.indexOf("'dias_ferias'") !== -1) i.value = diasFer;
+                    if (oi.indexOf("'valor_tercio_ferias'") !== -1) i.value = valorTercioFer;
+                });
+                break;
+            }
+            atualizar(idx, 'dias_ferias', diasFer);
+            atualizar(idx, 'valor_tercio_ferias', valorTercioFer);
         }
     }
 

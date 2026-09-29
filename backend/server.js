@@ -4247,6 +4247,14 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN sindicato REAL DEFAULT 0', func
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] sindicato:', e.message);
 });
 
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN dias_ferias INTEGER DEFAULT 0', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] dias_ferias:', e.message);
+});
+
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN valor_tercio_ferias REAL DEFAULT 0', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] valor_tercio_ferias:', e.message);
+});
+
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
     if (e) console.error('[Migration] dsr cleanup:', e.message);
@@ -10126,8 +10134,9 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          dias_falta, data_faltas, horas_atraso, extra_60, extra_100, dsr,
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
-         plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
+         dias_ferias, valor_tercio_ferias)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10144,6 +10153,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             adicional_noturno=excluded.adicional_noturno,
             observacao=excluded.observacao,
             adiantamento=excluded.adiantamento,
+            dias_ferias=excluded.dias_ferias,
+            valor_tercio_ferias=excluded.valor_tercio_ferias,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10158,7 +10169,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.insalubridade || 0, item.periculosidade || 0,
                 item.plr || 0, item.pensao || 0, item.sindicato || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
-                item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0
+                item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0,
+                item.dias_ferias || 0, item.valor_tercio_ferias || 0
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
