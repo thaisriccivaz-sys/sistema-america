@@ -21877,7 +21877,13 @@ window._salvarMep = async function(multaId) {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
                 parcelas: num,
-                config_parcelas: JSON.stringify(arr)
+                config_parcelas: JSON.stringify(arr),
+                status_rh: (function() {
+                    var cobradas = arr.filter(function(p) { return p.alert; }).length;
+                    if (cobradas >= num) return 'Cobrado';
+                    if (cobradas > 0) return 'Cobrado Parcela';
+                    return 'Recebido';
+                })()
             })
         });
         if (!res.ok) throw new Error('Falha ao atualizar');

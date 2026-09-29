@@ -1192,22 +1192,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             </div>
                             <div style="flex:1; min-width:130px;" id="gm-status-rh-container">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status RH</label>
-                                ${window._isRhContext
-                                    ? `<div class="custom-status-dropdown" id="csd-gm-status-rh">
-                                        <div class="csd-trigger" onclick="_csdToggle('csd-gm-status-rh')">
-                                            <span class="csd-badge" id="csd-gm-status-rh-badge" style="background:${multa.status_rh === 'Cobrado' ? '#dcfce7' : multa.status_rh === 'Recebido' ? '#fef9c3' : '#f1f5f9'}; color:${multa.status_rh === 'Cobrado' ? '#16a34a' : multa.status_rh === 'Recebido' ? '#d97706' : '#64748b'};">${multa.status_rh || '-- Sem Status --'}</span>
-                                            <span class="csd-arrow">▼</span>
-                                        </div>
-                                        <div class="csd-list">
-                                            <div class="csd-item" data-val="" onclick="_csdRhSelect('')"><span class="csd-badge" style="background:#f1f5f9;color:#64748b;">-- Sem Status --</span></div>
-                                            <div class="csd-item" data-val="Recebido" onclick="_csdRhSelect('Recebido')"><span class="csd-badge" style="background:#fef9c3;color:#d97706;font-weight:700;">Recebido</span></div>
-                                            <div class="csd-item" data-val="Cobrado Parcela" onclick="_csdRhSelect('Cobrado Parcela')"><span class="csd-badge" style="background:#dbeafe;color:#2563eb;font-weight:700;">Cobrado Parcela</span></div>
-                                            <div class="csd-item" data-val="Cobrado" onclick="_csdRhSelect('Cobrado')"><span class="csd-badge" style="background:#dcfce7;color:#16a34a;font-weight:700;">Cobrado</span></div>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
-                                    : `<div style="padding:0.55rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; min-height:36px; display:flex; align-items:center;">${_statusRhBadge(multa.status_rh)}</div><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`
-                                }
+                                ${`<div style="padding:0.55rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; min-height:36px; display:flex; align-items:center; gap:8px;">${_statusRhBadge(multa.status_rh)}</div><small style="display:block;margin-top:4px;font-size:0.72rem;color:#94a3b8;">Calculado automaticamente pelas parcelas</small><input type="hidden" id="gm-status-rh" value="${multa.status_rh || ''}">`}
                             </div>
                         </div>
 
