@@ -4215,8 +4215,8 @@ function renderTabelaColaboradores(lista) {
         let probationDatesHtml = '';
         if (c.data_admissao) {
             const adm = new Date(c.data_admissao + 'T12:00:00');
-            const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
-            const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
+            const d45 = new Date(adm); d45.setDate(adm.getDate() + 44);
+            const d90 = new Date(adm); d90.setDate(adm.getDate() + 89);
             probationDatesHtml = `<div style="font-size:7pt;color:#94a3b8;line-height:1.1;margin-top:2px;">1º: ${d45.toLocaleDateString('pt-BR')}<br>2º: ${d90.toLocaleDateString('pt-BR')}</div>`;
         }
         let statusHtml = '';
@@ -4234,10 +4234,10 @@ function renderTabelaColaboradores(lista) {
         if (c.data_admissao) {
             const adm = new Date(c.data_admissao + 'T12:00:00');
             const today = new Date(); today.setHours(12, 0, 0, 0);
-            const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24));
-            if (diffDays >= 0 && diffDays <= 90) {
-                const d45 = new Date(adm); d45.setDate(adm.getDate() + 45);
-                const d90 = new Date(adm); d90.setDate(adm.getDate() + 90);
+            const diffDays = Math.floor((today - adm) / (1000 * 60 * 60 * 24)) + 1;
+            if (diffDays >= 1 && diffDays <= 90) {
+                const d45 = new Date(adm); d45.setDate(adm.getDate() + 44);
+                const d90 = new Date(adm); d90.setDate(adm.getDate() + 89);
                 let tagHtml = diffDays <= 45
                     ? `<span class="probation-badge" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">1º 45</span>`
                     : `<span class="probation-badge second" style="font-size:0.6rem;padding:0.15rem 0.4rem;border-radius:4px;white-space:nowrap;">2º 45</span>`;
@@ -9655,20 +9655,20 @@ function updateProbationBadge(admissaoDate) {
 
         // Calcular datas de vencimento
         const d1 = new Date(adm);
-        d1.setDate(d1.getDate() + 45);
+        d1.setDate(d1.getDate() + 44);
         if (venc1El) venc1El.value = d1.toLocaleDateString('pt-BR');
 
         const d2 = new Date(adm);
-        d2.setDate(d2.getDate() + 90);
+        d2.setDate(d2.getDate() + 89);
         if (venc2El) venc2El.value = d2.toLocaleDateString('pt-BR');
 
         const today = new Date();
         today.setHours(12, 0, 0, 0);
 
         const diffTime = today - adm;
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-        if (diffDays < 0) return;
+        if (diffDays < 1) return;
 
         containers.forEach(container => {
             if (diffDays <= 45) {

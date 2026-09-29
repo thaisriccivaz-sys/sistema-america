@@ -17883,7 +17883,7 @@ db.run(`CREATE TABLE IF NOT EXISTS logistica_notificacoes_pendentes (
     lido INTEGER DEFAULT 0
 )`);
 
-// Função para calcular 2?? prazo de experiência (45+45 = 90 dias corridos)
+// Função para calcular prazos de experiência (45 e 90 dias contando admissão como dia 1)
 function calcPrazoExp(dataAdmissao) {
     if (!dataAdmissao) return null;
     let adm;
@@ -17894,8 +17894,8 @@ function calcPrazoExp(dataAdmissao) {
         adm = new Date(dataAdmissao + 'T12:00:00');
     }
     if (!adm || isNaN(adm.getTime())) return null;
-    const prazo1_fim = new Date(adm); prazo1_fim.setDate(prazo1_fim.getDate() + 45);
-    const prazo2_fim = new Date(adm); prazo2_fim.setDate(prazo2_fim.getDate() + 90);
+    const prazo1_fim = new Date(adm); prazo1_fim.setDate(prazo1_fim.getDate() + 44);
+    const prazo2_fim = new Date(adm); prazo2_fim.setDate(prazo2_fim.getDate() + 89);
     return {
         prazo1_fim: prazo1_fim.toISOString().split('T')[0],
         prazo2_fim: prazo2_fim.toISOString().split('T')[0]
