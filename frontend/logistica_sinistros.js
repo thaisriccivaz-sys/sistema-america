@@ -1177,9 +1177,20 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                                 }
                                 
                                 if (sinistro.observacoes) {
-                                    outputHtml += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
-                                        + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
-                                        + '<p style="margin:0;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                                    var _dtIni = '';
+                                    try {
+                                        if (sinistro.created_at) {
+                                            var _dObj = new Date(sinistro.created_at);
+                                            _dtIni = _dObj.toLocaleDateString('pt-BR') + ' às ' + _dObj.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+                                        }
+                                    } catch(_) {}
+                                    outputHtml += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">'
+                                        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                        + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (sinistro.usuario_abertura || 'Sistema') + '</span>'
+                                        + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + _dtIni + '</span>'
+                                        + '</div>'
+                                        + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + sinistro.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                        + '</div>';
                                 } else if (hist.length === 0) {
                                     outputHtml = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
                                 }
@@ -1606,9 +1617,20 @@ window.logSinSalvarEdicao = async function() {
                         }
                         
                         if (sinAtual.observacoes) {
-                            outputHtml += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#1e40af;">'
-                                + '<p style="margin:0 0 3px;font-size:0.7rem;color:#64748b;">Observação inicial</p>'
-                                + '<p style="margin:0;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+                            var _dtIni2 = '';
+                            try {
+                                if (sinAtual.created_at) {
+                                    var _dObj2 = new Date(sinAtual.created_at);
+                                    _dtIni2 = _dObj2.toLocaleDateString('pt-BR') + ' às ' + _dObj2.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+                                }
+                            } catch(_) {}
+                            outputHtml += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">'
+                                + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+                                + '<span style="font-size:0.73rem;font-weight:700;color:#6366f1;"><i class="ph ph-user-circle"></i> ' + (sinAtual.usuario_abertura || 'Sistema') + '</span>'
+                                + '<span style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;margin-left:6px;">' + _dtIni2 + '</span>'
+                                + '</div>'
+                                + '<p style="margin:0;font-size:0.83rem;color:#334155;line-height:1.5;">' + sinAtual.observacoes.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+                                + '</div>';
                         } else if (hist.length === 0) {
                             outputHtml = '<p style="font-size:0.8rem;color:#94a3b8;margin:0;text-align:center;padding:1rem;">Nenhuma observação registrada ainda.</p>';
                         }
