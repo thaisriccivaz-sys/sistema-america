@@ -686,123 +686,134 @@ function abrirLegenda() {
       padding: 0 0.5rem !important;
     }
   </style>
-  <div id="fech-toolbar" style="display:none;flex-direction:column;gap:.75rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;">
+  <div id="fech-toolbar" style="display:none;flex-direction:row;align-items:center;flex-wrap:wrap;gap:1rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;">
   
-  <!-- ROW 1: AÇÕES -->
-  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
-    <span style="font-weight:600;color:#374151;font-size:.85rem;margin-right:.5rem;width:85px;">Ações:</span>
-
-    <!-- Buscar Ponto RHID -->
-    <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-fingerprint"></i> Buscar Ponto
-    </button>
-    
-
-    <!-- Upload Farmácia -->
-    <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-pill"></i> Farmácia (PDF)
-      <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
-    </label>
-    <!-- Olho Farmácia -->
-    <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i></button>
-
-    <!-- Upload Consignado -->
-    <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-hand-coins"></i> Consignado (XLSX)
-      <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
-    </label>
-    <!-- Olho Consignado -->
-    <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver consignado carregado"><i class="ph ph-eye"></i></button>
-
-    <!-- Upload Mercado PDFs -->
-    <label id="fech-label-mercado" style="background:#d97706;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
-      <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
-    </label>
-    <!-- Olho Mercado -->
-    <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i></button>
-
-    <!-- Multas prontuário -->
-    <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-detective"></i> Buscar Multas
-    </button>
-
-    <!-- PLR -->
-    <button onclick="window._fechamento.carregarPLR()" style="background:#059669;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-coins"></i> Buscar PLR
-    </button>
-
-    <!-- Buscar Comissão Comercial -->
-    <button id="fech-btn-buscar-comissao" onclick="window._fechamento.buscarComissao()" style="background:#7c3aed;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
-      <i class="ph ph-money"></i> Buscar Comissão
-    </button>
-
-    <!-- Buscar Insalubridade -->
-    <button onclick="window._fechamento.buscarInsalubridade()" style="background:#065f46;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca insalubridade do cadastro do colaborador">
-      <i class="ph ph-shield-warning"></i> Buscar Insalubridade
-    </button>
-
-    <!-- Buscar Periculosidade -->
-    <button onclick="window._fechamento.buscarPericulosidade()" style="background:#78350f;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca periculosidade do cadastro do colaborador">
-      <i class="ph ph-fire"></i> Buscar Periculosidade
-    </button>
-
-    <!-- Buscar Sindicato -->
-    <button onclick="window._fechamento.buscarSindicato()" style="background:#1e3a8a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca mensalidade sindical do cadastro do colaborador">
-      <i class="ph ph-users"></i> Buscar Sindicato
-    </button>
-
-    <!-- Buscar Pensão -->
-    <button onclick="window._fechamento.buscarPensao()" style="background:#831843;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca pensão alimentícia do cadastro do colaborador">
-      <i class="ph ph-scales"></i> Buscar Pens&atilde;o
-    </button>
-
-    <!-- Buscar Academia -->
-    <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
-      <i class="ph ph-barbell"></i> Buscar Academia
-    </button>
-
-    <!-- Buscar VT -->
-    <button onclick="window._fechamento.buscarVT()" style="background:#047857;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca informação de VT do cadastro do colaborador e preenche na folha">
-      <i class="ph ph-bus"></i> Buscar VT
-    </button>
-
-    <!-- Buscar Adiantamento -->
-    <button onclick="window._fechamento.buscarAdiantamento()" style="background:#0d9488;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;" title="Busca informação de adiantamento do cadastro do colaborador e preenche na folha">
-      <i class="ph ph-money"></i> Buscar Adiant.
-    </button>
-
-
-    <!-- Buscar Todos -->
-    <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin-left:.5rem;" title="Executa todas as buscas automáticas de uma vez">
-      <i class="ph ph-lightning"></i> Buscar Todos
-    </button>
+    <!-- Ações Dropdown -->
+    <div style="position:relative;" onmouseleave="document.getElementById('fech-dropdown-acoes').style.display='none'">
+      <button style="background:#fff;border:1px solid #cbd5e1;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="document.getElementById('fech-dropdown-acoes').style.display='flex'">
+        Ações: <i class="ph ph-caret-down"></i>
+      </button>
+      <div id="fech-dropdown-acoes" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;flex-direction:column;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:200px;">
+        
+        <!-- Upload Farmácia -->
+        <label style="background:#0891b2;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
+          <i class="ph ph-pill"></i> Farmácia (PDF)
+          <input type="file" accept=".pdf" style="display:none;" onchange="window._fechamento.uploadFarmacia(this)">
+        </label>
+  
+        <!-- Upload Consignado -->
+        <label style="background:#7c3aed;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
+          <i class="ph ph-hand-coins"></i> Consignado (XLSX)
+          <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window._fechamento.uploadConsignado(this)">
+        </label>
+  
+        <!-- Upload Mercado PDFs -->
+        <label id="fech-label-mercado" style="background:#d97706;color:#fff;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;margin:0;">
+          <i class="ph ph-shopping-cart"></i> Mercado (PDFs)
+          <input type="file" accept=".pdf" multiple style="display:none;" onchange="window._fechamento.uploadMercadoPdfs(this)">
+        </label>
+  
+        <!-- Conferência de Ponto -->
+        <button onclick="window._fechamento.abrirConferenciaPonto()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:.4rem;padding:.4rem .85rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+          <i class="ph ph-list-numbers"></i> Conferência de Ponto
+        </button>
+  
+        <!-- Gerar XLSX -->
+        <button onclick="window._fechamento.gerarXlsx()" style="background:#1e40af;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-file-xls"></i> Gerar XLSX
+        </button>
+  
+        <!-- Enviar Email -->
+        <button onclick="window._fechamento.abrirModalEmail()" style="background:#1e293b;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-envelope"></i> Enviar Contabilidade
+        </button>
+  
+      </div>
+    </div>
+  
+    <!-- Buscar Dropdown -->
+    <div style="position:relative;" onmouseleave="document.getElementById('fech-dropdown-buscar').style.display='none'">
+      <button style="background:#fff;border:1px solid #cbd5e1;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="document.getElementById('fech-dropdown-buscar').style.display='flex'">
+        Buscar: <i class="ph ph-caret-down"></i>
+      </button>
+      <div id="fech-dropdown-buscar" style="display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.5rem;flex-direction:column;gap:.35rem;z-index:9999;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);min-width:200px;">
+        
+        <!-- Buscar Ponto RHID -->
+        <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-fingerprint"></i> Buscar Ponto
+        </button>
+  
+        <!-- Multas prontuário -->
+        <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-detective"></i> Buscar Multas
+        </button>
+  
+        <!-- PLR -->
+        <button onclick="window._fechamento.carregarPLR()" style="background:#059669;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-coins"></i> Buscar PLR
+        </button>
+  
+        <!-- Buscar Comissão Comercial -->
+        <button id="fech-btn-buscar-comissao" onclick="window._fechamento.buscarComissao()" style="background:#7c3aed;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
+          <i class="ph ph-money"></i> Buscar Comissão
+        </button>
+  
+        <!-- Buscar Insalubridade -->
+        <button onclick="window._fechamento.buscarInsalubridade()" style="background:#065f46;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca insalubridade do cadastro do colaborador">
+          <i class="ph ph-shield-warning"></i> Buscar Insalubridade
+        </button>
+  
+        <!-- Buscar Periculosidade -->
+        <button onclick="window._fechamento.buscarPericulosidade()" style="background:#78350f;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca periculosidade do cadastro do colaborador">
+          <i class="ph ph-fire"></i> Buscar Periculosidade
+        </button>
+  
+        <!-- Buscar Sindicato -->
+        <button onclick="window._fechamento.buscarSindicato()" style="background:#1e3a8a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca mensalidade sindical do cadastro do colaborador">
+          <i class="ph ph-users"></i> Buscar Sindicato
+        </button>
+  
+        <!-- Buscar Pensão -->
+        <button onclick="window._fechamento.buscarPensao()" style="background:#831843;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca pensão alimentícia do cadastro do colaborador">
+          <i class="ph ph-scales"></i> Buscar Pens&atilde;o
+        </button>
+  
+        <!-- Buscar Academia -->
+        <button onclick="window._fechamento.buscarAcademia()" style="background:#2563eb;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca o valor da academia no cadastro atual do colaborador e preenche na folha">
+          <i class="ph ph-barbell"></i> Buscar Academia
+        </button>
+  
+        <!-- Buscar VT -->
+        <button onclick="window._fechamento.buscarVT()" style="background:#047857;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca informação de VT do cadastro do colaborador e preenche na folha">
+          <i class="ph ph-bus"></i> Buscar VT
+        </button>
+  
+        <!-- Buscar Adiantamento -->
+        <button onclick="window._fechamento.buscarAdiantamento()" style="background:#0d9488;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca informação de adiantamento do cadastro do colaborador e preenche na folha">
+          <i class="ph ph-money"></i> Buscar Adiant.
+        </button>
+  
+        <!-- Buscar Todos -->
+        <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Executa todas as buscas automáticas de uma vez">
+          <i class="ph ph-lightning"></i> Buscar Todos
+        </button>
+  
+      </div>
+    </div>
+  
+    <!-- Eye Buttons Container (Outside dropdowns) -->
+    <div style="display:flex;gap:.5rem;align-items:center;margin-left:auto;">
+      <!-- Olho Farmácia -->
+      <button id="fech-btn-eye-farmacia" onclick="window._fechamento.verFarmacia()" style="background:#0e7490;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver dados farmácia carregados"><i class="ph ph-eye"></i> Farmácia</button>
+  
+      <!-- Olho Consignado -->
+      <button id="fech-btn-eye-consignado" onclick="window._fechamento.verConsignado()" style="background:#6d28d9;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver consignado carregado"><i class="ph ph-eye"></i> Consignado</button>
+  
+      <!-- Olho Mercado -->
+      <button id="fech-btn-eye-mercado" onclick="window._fechamento.verMercado()" style="background:#b45309;color:#fff;border:none;padding:.4rem .5rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:none;align-items:center;gap:.35rem;" title="Ver texto mercado carregado"><i class="ph ph-eye"></i> Mercado</button>
+    </div>
+  
   </div>
-
-  <div style="width:100%;height:1px;background:#e2e8f0;"></div>
-
-  <!-- ROW 2: CONFERÊNCIAS -->
-  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
-    <span style="font-weight:600;color:#374151;font-size:.85rem;margin-right:.5rem;width:85px;">Conferências:</span>
-
-    <!-- Conferência de Ponto -->
-    <button onclick="window._fechamento.abrirConferenciaPonto()" style="background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:.4rem;padding:.4rem .85rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
-      <i class="ph ph-list-numbers"></i> Conferência de Ponto
-    </button>
-
-    <!-- Gerar XLSX -->
-    <button onclick="window._fechamento.gerarXlsx()" style="background:#1e40af;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-file-xls"></i> Gerar XLSX
-    </button>
-
-    <!-- Enviar Email -->
-    <button onclick="window._fechamento.abrirModalEmail()" style="background:#1e293b;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;">
-      <i class="ph ph-envelope"></i> Enviar Contabilidade
-    </button>
-  </div>
-
-</div>
-
   <!-- Filtro por nome -->
   <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;justify-content:space-between;">
     <input id="fech-busca-nome" type="text" placeholder="Filtrar por nome..." style="padding:.4rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;width:260px;font-size:.85rem;" oninput="window._fechamento.filtrar(this.value)">
