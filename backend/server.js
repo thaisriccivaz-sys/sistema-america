@@ -4234,6 +4234,10 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN apuracao_ponto TEXT', function(
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
     // coluna ja existe — OK silencioso
 });
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN adiantamento REAL DEFAULT 0', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
+    // coluna ja existe — OK silencioso
+});
 db.run('ALTER TABLE fechamento_mensal ADD COLUMN observacao TEXT', function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) {}
     // coluna ja existe — OK silencioso
