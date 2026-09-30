@@ -454,7 +454,7 @@
         } else if (isOverdue) {
             label = `-${fmtHM(remainMs)}`;
         } else {
-            label = `${fmtHM(remainMs)} restantes`;
+            label = `${fmtHM(remainMs)}`;
         }
 
         return {
@@ -515,7 +515,7 @@
         } else if (isOverdue) {
             label = `-${fmtHM(remainMs)}`;
         } else {
-            label = `${fmtHM(remainMs)} restantes`;
+            label = `${fmtHM(remainMs)}`;
         }
 
         return {
@@ -621,7 +621,7 @@
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
-      label = `${fmtHM(remainMs)} restantes`;
+      label = `${fmtHM(remainMs)}`;
     }
     // Color based on consumed %: 0-40%=green, 40-70%=blue, 70-100%=yellow, overdue=red
     let barColor;
