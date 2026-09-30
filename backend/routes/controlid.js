@@ -460,7 +460,18 @@ router.get('/ponto-colaborador', async (req, res) => {
         }
 
         // ── PASSO 4: Processar resposta ───────────────────────────────────────
+        // IMPORTANTE: calcular diasFerias ANTES de processarApuracao.
+        // Dentro de processarApuracao ha um JSON.parse que reconstroi os objetos,
+        // perdendo as propriedades isFerias setadas por referencia no bloco acima.
+        const diasFeriasPre = Array.isArray(apuracaoData)
+            ? apuracaoData.filter(d => d.isFerias === true).length
+            : 0;
+        console.log(`[ControlID] diasFeriasPre (antes de processarApuracao): ${diasFeriasPre}`);
+
         const resultado = processarApuracao(apuracaoData, mesNum, anoNum, idPerson, nomeRHID);
+
+        // Sobrescreve diasFerias com o valor correto calculado antes do parse interno
+        resultado.diasFerias = diasFeriasPre;
 
         // Se houve erro na apuração, sobrescreve o aviso com o erro real do RHID
         if (apuracaoErro && !resultado.aviso) {
