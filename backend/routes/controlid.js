@@ -371,6 +371,18 @@ router.get('/ponto-colaborador', async (req, res) => {
             console.warn('[ControlID] Erro ao buscar apuracao_ponto:', rhidMsg);
         }
 
+        // ── PASSO 3b-pre: Parsear apuracaoData se vier como string da API ──────
+        // O RHID às vezes retorna o array serializado como string JSON.
+        // Precisamos parsear ANTES do bloco de enriquecimento (que checa Array.isArray).
+        if (typeof apuracaoData === 'string') {
+            try {
+                apuracaoData = JSON.parse(apuracaoData);
+                console.log('[ControlID] apuracaoData parseado de string para array. Length:', Array.isArray(apuracaoData) ? apuracaoData.length : 'nao-array');
+            } catch(parseErr) {
+                console.warn('[ControlID] Falha ao parsear apuracaoData como JSON:', parseErr.message);
+            }
+        }
+
         // ── PASSO 3b: Enriquecer dias de férias com nome da justificativa ────
         // O ControlID não retorna toolTipAlert preenchido nos dias de férias.
         // Tentamos buscar o nome via API de justificativas; se funcionar, ótimo.
