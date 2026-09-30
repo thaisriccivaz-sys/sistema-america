@@ -467,6 +467,28 @@ router.get('/ponto-colaborador', async (req, res) => {
             ? apuracaoData.filter(d => d.isFerias === true).length
             : 0;
         console.log(`[ControlID] diasFeriasPre (antes de processarApuracao): ${diasFeriasPre}`);
+        // --- DEBUG FERIAS ---
+        if (Array.isArray(apuracaoData)) {
+            console.log('[DEBUG FERIAS] apuracaoData.length:', apuracaoData.length);
+            const comId3916 = apuracaoData.filter(d => d.idJustification == 3916);
+            console.log('[DEBUG FERIAS] dias com idJustification==3916:', comId3916.length);
+            const comIsFerias = apuracaoData.filter(d => d.isFerias === true);
+            console.log('[DEBUG FERIAS] dias com isFerias===true:', comIsFerias.length);
+            if (comId3916.length > 0) {
+                console.log('[DEBUG FERIAS] primeiro dia 3916:', JSON.stringify(comId3916[0]).substring(0, 200));
+            }
+            if (apuracaoData.length > 0) {
+                console.log('[DEBUG FERIAS] primeiro dia qualquer:', JSON.stringify({
+                    date: apuracaoData[0].date,
+                    idJustification: apuracaoData[0].idJustification,
+                    isFerias: apuracaoData[0].isFerias,
+                    diasTrabalhados: apuracaoData[0].diasTrabalhados
+                }));
+            }
+        } else {
+            console.log('[DEBUG FERIAS] apuracaoData NAO e array. Tipo:', typeof apuracaoData, '| valor:', String(apuracaoData).substring(0, 100));
+        }
+        // --- FIM DEBUG ---
 
         const resultado = processarApuracao(apuracaoData, mesNum, anoNum, idPerson, nomeRHID);
 
