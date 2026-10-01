@@ -1059,12 +1059,12 @@ function abrirLegenda() {
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
 <td id="fech-cell-adic-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpNum(idx,'adicional_noturno',row.adicional_noturno||0,'','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
-<td style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
-<td style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>
-<td style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
-<td style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
+<td id="fech-cell-extra_60-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
+<td id="fech-cell-extra_100-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
+<td id="fech-cell-dsr-${idx}" style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
+<td id="fech-cell-dias_falta-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>
+<td id="fech-cell-data_faltas-${idx}" style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
+<td id="fech-cell-horas_atraso-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
 <td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
@@ -2828,24 +2828,29 @@ function abrirLegenda() {
             };
 
             const mapRubricas = [
-                { field: 'dias_falta', code: '8792', type: 'val', label: 'Faltas' },
-                { field: 'extra_60', code: '264', type: 'time', label: 'Ext.60%' },
-                { field: 'extra_100', code: '200', type: 'time', label: 'Ext.100%' },
-                { field: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
-                { field: 'vt', code: '48', type: 'val', label: 'VT' },
-                { field: 'farmacia', code: '238', type: 'val', label: 'Farmácia' },
-                { field: 'mercado', code: '279', type: 'val', label: 'Mercado' },
-                { field: 'multas', code: '302', type: 'val', label: 'Multas' },
-                { field: 'academia', code: '278', type: 'val', label: 'Academia' },
-                { field: 'adiantamento', code: '981', type: 'val', label: 'Adiantamento' },
-                { field: 'consignado', code: '9750', type: 'val', label: 'Consig.' },
-                { field: 'comissao', code: '37', type: 'val', label: 'Comissão' },
-                { field: 'plr', code: '873', type: 'val', label: 'PLR' },
-                { field: 'premio', code: '347', type: 'val', label: 'Prêmio' },
-                { field: 'outros', code: '290', type: 'val', label: 'Outros' },
-                { field: 'insalubridade', code: '16', type: 'val', label: 'Insalub.' },
-                { field: 'periculosidade', code: '193', type: 'val', label: 'Periculosidade' },
-                { field: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
+                // Noturno: código 256 — qty = horas, val = R$
+                { field: 'horas_noturnas', cellId: 'noturno', code: '256', type: 'time', label: 'Total Noturno (h)', useQty: true },
+                { field: 'adicional_noturno', cellId: 'adic-noturno', code: '256', type: 'val', label: 'Ad. Noturno (R$)', useQty: false },
+                // Extras
+                { field: 'extra_60', cellId: 'extra_60', code: '264', type: 'time', label: 'Ext.60%' },
+                { field: 'extra_100', cellId: 'extra_100', code: '200', type: 'time', label: 'Ext.100%' },
+                // Faltas e atrasos
+                { field: 'dias_falta', cellId: 'dias_falta', code: '8792', type: 'val', label: 'Faltas (dias)' },
+                { field: 'horas_atraso', cellId: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
+                // Benefícios e descontos
+                { field: 'farmacia', cellId: 'farmacia', code: '238', type: 'val', label: 'Farmácia' },
+                { field: 'mercado', cellId: 'mercado', code: '279', type: 'val', label: 'Mercado' },
+                { field: 'multas', cellId: 'multas', code: '302', type: 'val', label: 'Multas' },
+                { field: 'academia', cellId: 'academia', code: '278', type: 'val', label: 'Academia' },
+                { field: 'adiantamento', cellId: 'adiantamento', code: '981', type: 'val', label: 'Adiantamento' },
+                { field: 'consignado', cellId: 'consig', code: '9750', type: 'val', label: 'Consig.' },
+                { field: 'comissao', cellId: 'comissao', code: '37', type: 'val', label: 'Comissão' },
+                { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
+                { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
+                { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
+                { field: 'insalubridade', cellId: 'insalubridade', code: '16', type: 'val', label: 'Insalub.' },
+                { field: 'periculosidade', cellId: 'periculosidade', code: '193', type: 'val', label: 'Periculosidade' },
+                { field: 'sindicato', cellId: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
             ];
 
             // Limpar
@@ -2881,28 +2886,35 @@ function abrirLegenda() {
                     else uiVal = row[m.field] || (m.type === 'val' ? 0 : '00:00');
 
                     const rubrica = folhaRow[m.code];
-                    
+                    // Para noturno: qty=horas, val=R$; useQty=true usa qty para comparação de hora
+                    const cellId = m.cellId || m.field;
+
                     if (m.type === 'val') {
-                        let folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                        let folhaVal;
+                        if (m.useQty === true) {
+                            // Nunca acontece pois noturno horas é type=time, mas por segurança
+                            folhaVal = rubrica ? parseToFloat(rubrica.qty) : 0;
+                        } else {
+                            folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                        }
                         let uiValFloat = typeof uiVal === 'number' ? uiVal : parseToFloat(uiVal);
-                        
-                        if (m.field === 'vt') return;
 
                         if (Math.abs(uiValFloat - folhaVal) > 0.05) {
-                            marcarErro(idx, m.field, `Contabilidade: R$ ${folhaVal.toFixed(2).replace('.',',')}`);
+                            marcarErro(idx, cellId, `Contabilidade: R$ ${folhaVal.toFixed(2).replace('.',',')}`);
                             colabErros.push(`${m.label}: Tabela R$ ${uiValFloat.toFixed(2).replace('.',',')} x Folha R$ ${folhaVal.toFixed(2).replace('.',',')}`);
                             qtdErros++;
                         }
                     } else if (m.type === 'time') {
+                        // Para noturno: qty é a duração de horas; para extras e atrasos também
                         let folhaVal = rubrica ? parseToTime(rubrica.qty) : '00:00';
                         let uiValTime = parseToTime(uiVal);
                         const toMin = t => {
                             const [h, min] = String(t).split(':').map(Number);
                             return (h || 0) * 60 + (min || 0);
                         };
-                        
+
                         if (Math.abs(toMin(uiValTime) - toMin(folhaVal)) > 2) {
-                            marcarErro(idx, m.field, `Contabilidade: ${folhaVal}`);
+                            marcarErro(idx, cellId, `Contabilidade: ${folhaVal}`);
                             colabErros.push(`${m.label}: Tabela ${uiValTime} x Folha ${folhaVal}`);
                             qtdErros++;
                         }

@@ -11012,7 +11012,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         
         const results = {};
         let currentEmployee = null;
-        const allowedCodes = ['264', '200', '250', '8792', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601'];
+        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601'];
 
         for (const line of allLines) {
             // match: Empr.: | 151 ABNER ABRAHÃO | Situaço:
