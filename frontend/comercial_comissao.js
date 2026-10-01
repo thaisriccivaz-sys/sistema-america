@@ -325,7 +325,7 @@
         vazio.style.display = 'none'; wrap.style.display = '';
         tbody.innerHTML = _dadosComissao.map(function(c) {
             var prim = c.primeiro_lugar ? '<span title="1º Lugar" style="margin-right:4px;">🏆</span>' : '';
-            var expBadge = c.em_experiencia ? '<span title="Em período de experiência" style="margin-left:4px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:5px;font-size:.7rem;padding:1px 5px;font-weight:700;">Em Exp.</span>' : '';
+            // expBadge: inlined no template do nome (coluna de colaborador)
             var taxa = c.taxa_conversao || '—';
             var tr = document.createElement('tr');
             tr.style.cssText = 'border-bottom:1px solid #f1f5f9;transition:background .15s;';
@@ -338,7 +338,10 @@
 
             tr.innerHTML =
                 '<td style="padding:10px 12px;font-weight:600;color:#1e293b;">' +
-                    '<div style="display:flex;align-items:center;flex-wrap:wrap;">' + prim + fotoHtml + '<span title="' + c.colaborador_nome + '">' + (c.colaborador_nome.length > 20 ? c.colaborador_nome.substring(0,20) + '...' : c.colaborador_nome) + '</span>' + expBadge + '</div>' +
+                    '<div style="display:flex;align-items:center;">' + prim + fotoHtml + '<div style="display:flex;flex-direction:column;line-height:1.3;">' +
+                    '<span title="' + c.colaborador_nome + '">' + (c.colaborador_nome.length > 20 ? c.colaborador_nome.substring(0,20) + '...' : c.colaborador_nome) + '</span>' +
+                    (c.em_experiencia ? '<span style="display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:5px;font-size:.68rem;padding:1px 5px;font-weight:700;margin-top:2px;width:fit-content;">Em Expériência</span>' : '') +
+                    '</div></div>' +
                 '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + c.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +

@@ -348,9 +348,10 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 db.all('SELECT * FROM comissao_comercial WHERE mes=? AND ano=?', [mesNum, anoNum], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
             const colabs = await new Promise((resolve, reject) => {
-                db.all("SELECT id, nome_completo, data_admissao FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%'",
+                db.all("SELECT id, nome_completo, data_admissao FROM colaboradores WHERE (status IS NULL OR status != 'Desligado')",
                     [], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
+
 
             let atualizados = 0;
             for (const reg of registros) {
@@ -431,6 +432,13 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                     [], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
 
+            // Para a checagem de experiência, buscar TODOS os colaboradores ativos
+            // (independente de departamento, pois o nome da aba pode não ter match exato com 'comercial')
+            const todosColabs = await new Promise((resolve, reject) => {
+                db.all("SELECT id, nome_completo, data_admissao FROM colaboradores WHERE (status IS NULL OR status != 'Desligado')",
+                    [], (err, rows) => err ? reject(err) : resolve(rows || []));
+            });
+
             const resultados = [];
             const foraCorte  = []; // contratos fora da janela 26-25
             for (const nomAba of abasColab) {
@@ -440,8 +448,11 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const { contratos, estornos } = parseComissaoAba(ws);
 
                 // ── Verificar se colaborador está em período de experiência ──
+                // Busca primeiro no comercial (para colaborador_id), depois em todos (para data_admissao)
                 const pnAba = nomAba.trim().split(/\s+/)[0].toLowerCase();
-                const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
+                const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba)
+                           || todosColabs.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
+
 
                 let emExperiencia = false;
                 if (colab && colab.data_admissao) {
