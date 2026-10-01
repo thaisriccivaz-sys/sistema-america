@@ -147,6 +147,23 @@ function parseComissaoAba(ws) {
     const estornos  = [];
     const HEADER_VALS = new Set(['data', 'data da entrega', 'nº contrato', 'n° contrato', 'numero', 'numero do contrato', 'contrato', 'total', 'totais', 'motivo', 'motivo do estorno']);
 
+    // Helper: extrai data de célula do Excel sempre como "DD/MM/YY"
+    // Quando cellA.v é número serial do Excel, usa XLSX.SSF.parse_date_code para obter dia/mês/ano exatos
+    // Evita o problema de "28-Aug" (sem ano) e formato americano MM/DD ambíguo
+    function excelDateStr(cell) {
+        if (!cell || cell.v == null) return '';
+        if (typeof cell.v === 'number' && cell.t === 'd' || (typeof cell.v === 'number' && cell.v > 40000 && cell.v < 60000)) {
+            try {
+                const info = XLSX.SSF.parse_date_code(cell.v);
+                if (info && info.y && info.y > 2000) {
+                    return String(info.d).padStart(2, '0') + '/' + String(info.m).padStart(2, '0') + '/' + String(info.y).slice(-2);
+                }
+            } catch (e) {}
+        }
+        // Fallback: usar string formatada pelo SheetJS
+        return cell.w || String(cell.v || '');
+    }
+
     for (let r = 0; r <= range.e.r; r++) {
         const cellA = ws[XLSX.utils.encode_cell({ r, c: 0 })];
         const cellB = ws[XLSX.utils.encode_cell({ r, c: 1 })];
@@ -160,7 +177,7 @@ function parseComissaoAba(ws) {
 
         // ── Contratos: col A = data, col B = nº contrato ─────────────────────
         if (cellA && cellA.v && cellB && cellB.v) {
-            const dateStr = cellA.w || String(cellA.v || '');
+            const dateStr = excelDateStr(cellA);
             const numero  = String(cellB.v || '').trim();
             // Ignorar se col A for texto de cabeçalho ou col B não for um número/string válido
             if (numero && !HEADER_VALS.has(numero.toLowerCase())) {
@@ -176,7 +193,7 @@ function parseComissaoAba(ws) {
         // ── Estornos: col D = data, col E = nº contrato, col F = motivo ──────
         const valDLower = cellD ? String(cellD.v || '').trim().toLowerCase() : '';
         if (cellD && cellD.v && cellE && cellE.v && !HEADER_VALS.has(valDLower)) {
-            const dateEstStr = cellD.w || String(cellD.v || '');
+            const dateEstStr = excelDateStr(cellD);
             const numeroEst  = String(cellE.v || '').trim();
             const motCod     = cellF ? String(cellF.v || '').trim() : '';
             const motNome    = MOTIVOS_ESTORNO[motCod] || (motCod ? 'CODIGO ' + motCod : 'Estorno');
@@ -194,6 +211,7 @@ function parseComissaoAba(ws) {
     }
     return { contratos, estornos };
 }
+
 
 async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
     if (!metricasArr) metricasArr = await carregarMetricas(db);

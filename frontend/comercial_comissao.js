@@ -600,7 +600,8 @@
         const monDashM = s.match(/^(\d{1,2})[-\.](\w{3})/i);
         if (monDashM) {
             const mon = shortMonMap[(monDashM[2]||'').toLowerCase()];
-            if (mon) return String(parseInt(monDashM[1])).padStart(2,'0') + '/' + String(mon).padStart(2,'0') + '/??';
+            // Sem informação do ano → retornar como está (dado legado sem ano do Excel)
+            if (mon) return String(parseInt(monDashM[1])).padStart(2,'0') + '/' + String(mon).padStart(2,'0');
         }
         const parts = s.split('/');
         if (parts.length === 3) {
