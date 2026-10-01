@@ -10892,14 +10892,10 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         const XLSX = require('xlsx');
         const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         const mesNome = mesesNomes[parseInt(mes) - 1] || mes;
-        // Buscar dados
+        // Gerar o buffer do XLSX
         const rows = await new Promise((resolve, reject) => {
-            db.all(`SELECT c.nome_completo, c.cpf, c.tipo_contrato, c.meio_transporte,
-                           fm.horas_normais, fm.horas_trabalhadas, fm.horas_noturnas,
-                           fm.extra_60, fm.extra_100, fm.dias_falta, fm.data_faltas,
-                           fm.dsr, fm.horas_atraso, fm.vt, fm.farmacia, fm.mercado,
-                           fm.outros, fm.multas, fm.comissao, fm.bonus_comissao, fm.academia,
-                           fm.plr, fm.consignado, fm.dias_intermitente, fm.adiantamento,
+            db.all(`SELECT c.nome_completo, c.cargo, c.cpf, c.tipo_contrato, c.meio_transporte,
+                           fm.*,
                            fc_com.valor_comissao, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
                     FROM colaboradores c
@@ -10912,52 +10908,67 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 (err, rows) => err ? reject(err) : resolve(rows)
             );
         });
-        // Helper para converter HH:MM em decimal
-        const horasDec = (str) => {
-            if (!str) return '';
-            const [h, m] = String(str).split(':').map(Number);
-            return Math.round(((h || 0) + (m || 0) / 60) * 1000) / 1000 || '';
-        };
-        // Montar linhas do XLSX
+
         const aoa = [];
         aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
         aoa.push([]);
         aoa.push(['AMERICA RENTAL']);
         aoa.push([]);
+
         // Linha 5: códigos de rubricas
-        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750', '981']);
+        aoa.push(['', '', '', '', '264', '200', '', '8792', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
+
         // Linha 6: headers
-        aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissao', 'Academia', 'PLR', 'Consignado', 'Adiantamento']);
-        // Linhas de dados
+        aoa.push([
+            'Colaborador', 'Cargo', 'Total Noturno', 'Ad. Noturno', 'Ext.60%', 'Ext.100%',
+            'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
+            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
+            'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
+        ]);
+
+        const formatNum = (v) => v ? { v: parseFloat(v) || 0, t: 'n', z: '"R$" * #,##0.00' } : { v: '', t: 's' };
+        const formatHora = (v) => {
+            if (!v) return { v: '', t: 's' };
+            const [h, m] = String(v).split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return { v: String(v), t: 's' };
+            return { v: (h + m / 60) / 24, t: 'n', z: '[hh]:mm' };
+        };
+
         for (const r of rows) {
             const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
             const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
-            const isIntermitente = (r.tipo_contrato || '').toLowerCase().includes('intermitente');
+
             aoa.push([
-                (r.nome_completo || '').substring(0, 15),
-                isIntermitente ? (r.dias_intermitente || '') : '',
-                horasDec(r.horas_noturnas),
-                horasDec(r.extra_60),
-                horasDec(r.extra_100),
+                r.nome_completo || '',
+                r.cargo || '',
+                formatHora(r.horas_noturnas),
+                formatNum(r.adicional_noturno),
+                formatHora(r.extra_60),
+                formatHora(r.extra_100),
+                formatNum(r.dsr),
                 r.dias_falta || '',
                 r.data_faltas || '',
-                horasDec(r.horas_atraso),
-                r.meio_transporte === 'Vale Transporte' || r.vt ? 'Sim' : '',
-                parseFloat(r.farmacia) || '',
-                parseFloat(r.mercado) || '',
-                parseFloat(r.outros) || '',
-                parseFloat(r.multas) || '',
-                comissao || '',
-                parseFloat(r.academia) || '',
-                parseFloat(r.plr) || '',
-                consig || '',
-                parseFloat(r.adiantamento) || ''
+                formatHora(r.horas_atraso),
+                r.vt ? 'Sim' : '',
+                formatNum(r.farmacia),
+                formatNum(r.mercado),
+                formatNum(r.multas),
+                formatNum(r.academia),
+                formatNum(r.adiantamento),
+                formatNum(consig),
+                formatNum(comissao),
+                formatNum(r.plr),
+                formatNum(r.premio),
+                formatNum(r.outros),
+                formatNum(r.insalubridade),
+                formatNum(r.periculosidade),
+                formatNum(r.sindicato),
+                formatNum(r.pensao)
             ]);
         }
+
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        // Estilizar header (linha 6 = índice 5)
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        ws['!cols'] = [{ wch: 18 }, ...Array(16).fill({ wch: 12 })];
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(23).fill({ wch: 12 })];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -10977,14 +10988,10 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         const XLSX = require('xlsx');
         const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         const mesNome = mesesNomes[parseInt(mes) - 1] || mes;
-        // Gerar o buffer do XLSX (reutilizar a lógica acima)
+        // Gerar o buffer do XLSX
         const rows = await new Promise((resolve, reject) => {
-            db.all(`SELECT c.nome_completo, c.cpf, c.tipo_contrato, c.meio_transporte,
-                           fm.horas_normais, fm.horas_trabalhadas, fm.horas_noturnas,
-                           fm.extra_60, fm.extra_100, fm.dias_falta, fm.data_faltas,
-                           fm.dsr, fm.horas_atraso, fm.vt, fm.farmacia, fm.mercado,
-                           fm.outros, fm.multas, fm.comissao, fm.bonus_comissao, fm.academia,
-                           fm.plr, fm.consignado, fm.dias_intermitente,
+            db.all(`SELECT c.nome_completo, c.cargo, c.cpf, c.tipo_contrato, c.meio_transporte,
+                           fm.*,
                            fc_com.valor_comissao, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
                     FROM colaboradores c
@@ -10997,31 +11004,67 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                 (err, rows) => err ? reject(err) : resolve(rows)
             );
         });
-        const horasDec = (str) => { if (!str) return ''; const [h, m] = String(str).split(':').map(Number); return Math.round(((h||0)+(m||0)/60)*1000)/1000 || ''; };
+
         const aoa = [];
         aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
         aoa.push([]);
         aoa.push(['AMERICA RENTAL']);
         aoa.push([]);
-        aoa.push(['', '9435', '256', '264', '200', '8792', '', '8060', '48', '238', '279', '290', '302', '37', '278', '873', '9750']);
-        aoa.push(['Nome do funcionário', 'Total Trabalhado', 'Total Noturno', 'Extra 60%', 'Extra 100%', 'Dia Falta', 'Data Falta', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Outros', 'Multas', 'Comissao', 'Academia', 'PLR', 'Consignado']);
+
+        // Linha 5: códigos de rubricas
+        aoa.push(['', '', '', '', '264', '200', '', '8792', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
+
+        // Linha 6: headers
+        aoa.push([
+            'Colaborador', 'Cargo', 'Total Noturno', 'Ad. Noturno', 'Ext.60%', 'Ext.100%',
+            'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
+            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
+            'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
+        ]);
+
+        const formatNum = (v) => v ? { v: parseFloat(v) || 0, t: 'n', z: '"R$" * #,##0.00' } : { v: '', t: 's' };
+        const formatHora = (v) => {
+            if (!v) return { v: '', t: 's' };
+            const [h, m] = String(v).split(':').map(Number);
+            if (isNaN(h) || isNaN(m)) return { v: String(v), t: 's' };
+            return { v: (h + m / 60) / 24, t: 'n', z: '[hh]:mm' };
+        };
+
         for (const r of rows) {
-            const comissao = (parseFloat(r.valor_comissao)||parseFloat(r.comissao)||0)+(parseFloat(r.valor_bonus)||parseFloat(r.bonus_comissao)||0);
-            const consig = parseFloat(r.consig_total)||parseFloat(r.consignado)||0;
-            const isIntermitente = (r.tipo_contrato||'').toLowerCase().includes('intermitente');
+            const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
+            const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
+
             aoa.push([
-                (r.nome_completo||'').substring(0,15),
-                isIntermitente?(r.dias_intermitente||''):'',
-                horasDec(r.horas_noturnas), horasDec(r.extra_60), horasDec(r.extra_100),
-                r.dias_falta||'', r.data_faltas||'', horasDec(r.horas_atraso),
-                r.meio_transporte==='Vale Transporte'||r.vt?'Sim':'',
-                parseFloat(r.farmacia)||'', parseFloat(r.mercado)||'', parseFloat(r.outros)||'',
-                parseFloat(r.multas)||'', comissao||'', parseFloat(r.academia)||'',
-                parseFloat(r.plr)||'', consig||''
+                r.nome_completo || '',
+                r.cargo || '',
+                formatHora(r.horas_noturnas),
+                formatNum(r.adicional_noturno),
+                formatHora(r.extra_60),
+                formatHora(r.extra_100),
+                formatNum(r.dsr),
+                r.dias_falta || '',
+                r.data_faltas || '',
+                formatHora(r.horas_atraso),
+                r.vt ? 'Sim' : '',
+                formatNum(r.farmacia),
+                formatNum(r.mercado),
+                formatNum(r.multas),
+                formatNum(r.academia),
+                formatNum(r.adiantamento),
+                formatNum(consig),
+                formatNum(comissao),
+                formatNum(r.plr),
+                formatNum(r.premio),
+                formatNum(r.outros),
+                formatNum(r.insalubridade),
+                formatNum(r.periculosidade),
+                formatNum(r.sindicato),
+                formatNum(r.pensao)
             ]);
         }
+
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{wch:18},...Array(16).fill({wch:12})];
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(23).fill({ wch: 12 })];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
