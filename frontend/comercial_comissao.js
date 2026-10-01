@@ -637,12 +637,13 @@
                 const bgM  = { maxima: '#f0fdf4', media: '#eff6ff', minima: '#fefce8' };
                 const corM = { maxima: '#166534', media: '#1e40af', minima: '#713f12' };
                 const borM = { maxima: '#bbf7d0', media: '#bfdbfe', minima: '#fef08a' };
-                const metasHtml = mets.map(m =>
-                    '<div style="display:flex;gap:8px;align-items:center;background:' + (bgM[m.label]||'#f8fafc') + ';border:1px solid ' + (borM[m.label]||'#e2e8f0') + ';border-radius:8px;padding:10px 14px;">' +
+                const metasHtml = mets.map(m => {
+                    const abo = m.abono != null ? m.abono : (m.label==='maxima'?3:m.label==='media'?2:1);
+                    return '<div style="display:flex;gap:8px;align-items:center;background:' + (bgM[m.label]||'#f8fafc') + ';border:1px solid ' + (borM[m.label]||'#e2e8f0') + ';border-radius:8px;padding:10px 14px;">' +
                     '<div style="font-size:1.5rem;font-weight:800;color:' + (corM[m.label]||'#1e293b') + ';min-width:38px;">' + m.qtd + '+</div>' +
                     '<div><div style="font-weight:700;color:' + (corM[m.label]||'#1e293b') + ';font-size:.9rem;">Meta ' + (mapL[m.label]||m.label) + '</div>' +
-                    '<div style="font-size:.8rem;color:#6b7280;">' + FMT(m.valor) + '/contrato · Bônus 1º: ' + FMT(m.bonus) + '</div></div></div>'
-                ).join('');
+                    '<div style="font-size:.8rem;color:#6b7280;">' + FMT(m.valor) + '/contrato · Bônus 1º: ' + FMT(m.bonus) + ' · Abonos: ' + abo + '</div></div></div>';
+                }).join('');
                 const html =
                     '<div style="background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);">' +
                     '<div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">' +
@@ -654,9 +655,9 @@
                     '<div style="font-weight:700;color:#0369a1;margin-bottom:6px;font-size:.9rem;">📅 Período de Corte</div>' +
                     '<div style="font-size:.85rem;color:#374151;">A comissão considera contratos entregues do <strong>dia 26 do mês anterior</strong> até o <strong>dia 25 do mês selecionado</strong>. Contratos fora desse período são sinalizados e devem ser excluídos ou justificados.</div>' +
                     '</div>' +
-                    '<div><div style="font-weight:700;color:#374151;margin-bottom:8px;font-size:.9rem;">🏆 Metas de Vendédores</div>' +
+                    '<div><div style="font-weight:700;color:#374151;margin-bottom:8px;font-size:.9rem;">🏆 Metas de Vendedores</div>' +
                     '<div style="display:flex;flex-direction:column;gap:6px;">' + metasHtml + '</div>' +
-                    '<div style="font-size:.78rem;color:#6b7280;margin-top:6px;">• Contratos Líquidos = Brutos − Estornos<br>• Comissão = Contratos Líquidos × Valor/Contrato da faixa atingida</div>' +
+                    '<div style="font-size:.78rem;color:#6b7280;margin-top:6px;">• Contratos Líquidos = Brutos − (Estornos − Abonos)<br>• Comissão = Contratos Líquidos × Valor/Contrato da faixa atingida</div>' +
                     '</div>' +
                     '<div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;">' +
                     '<div style="font-weight:700;color:#7c3aed;margin-bottom:6px;font-size:.9rem;">🏅 Bônus 1º Lugar</div>' +
@@ -664,7 +665,7 @@
                     '</div>' +
                     '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">' +
                     '<div style="font-weight:700;color:#dc2626;margin-bottom:6px;font-size:.9rem;">🔄 Estornos</div>' +
-                    '<div style="font-size:.85rem;color:#374151;">Cada estorno reduz 1 contrato líquido. Motivo <strong>07 — Erro Preventivo</strong> é excluído dos estornos do Gestor, mas conta nos Vendédores.</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">Cada estorno reduz 1 contrato líquido. Motivo <strong>07 — Erro Preventivo</strong> é excluído dos estornos do Gestor, mas conta nos Vendedores.</div>' +
                     '</div>' +
                     '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">' +
                     '<div style="font-weight:700;color:#166534;margin-bottom:6px;font-size:.9rem;">✅ Abono de Erros</div>' +
