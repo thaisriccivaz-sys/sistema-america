@@ -2806,6 +2806,7 @@ function abrirLegenda() {
         try {
             const resp = await fetch('/api/fechamento/comparar', {
                 method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getToken() },
                 body: formData
             });
             const res = await resp.json();
