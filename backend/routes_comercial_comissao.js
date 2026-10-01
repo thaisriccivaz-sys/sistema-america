@@ -30,12 +30,21 @@ async function carregarMetricas(db) {
     return new Promise(resolve => {
         db.get("SELECT valor FROM configuracoes_sistema WHERE chave='comissao_metricas'", [], (err, row) => {
             if (row && row.valor) {
-                try { resolve(JSON.parse(row.valor)); return; } catch (e) {}
+                try {
+                    const saved = JSON.parse(row.valor);
+                    // Garantir que o campo 'abono' existe (pode não ter em configs antigas)
+                    const merged = saved.map(m => {
+                        const def = DEFAULT_METRICAS.find(d => d.label === m.label);
+                        return { ...m, abono: m.abono != null ? m.abono : (def ? def.abono : 0) };
+                    });
+                    resolve(merged); return;
+                } catch (e) {}
             }
             resolve(DEFAULT_METRICAS);
         });
     });
 }
+
 
 function aplicarMetrica(liquidos, metricas) {
     const mSorted = [...metricas].sort((a, b) => b.qtd - a.qtd);

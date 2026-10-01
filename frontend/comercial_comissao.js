@@ -403,6 +403,7 @@
                 '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:#dc2626;font-weight:700;">' + g.contratos_estornos_gestor + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;font-weight:600;color:' + (g.abono_total_equipe > 0 ? '#16a34a' : '#94a3b8') + ';" title="Total de abonos da equipe">' + (g.abono_total_equipe || 0) + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + g.contratos_liquidos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + badgeGestor + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:#9ca3af;">—</td>' +
