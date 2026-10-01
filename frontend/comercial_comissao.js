@@ -338,7 +338,7 @@
 
             tr.innerHTML =
                 '<td style="padding:10px 12px;font-weight:600;color:#1e293b;">' +
-                    '<div style="display:flex;align-items:center;flex-wrap:wrap;">' + prim + fotoHtml + '<span>' + c.colaborador_nome + '</span>' + expBadge + '</div>' +
+                    '<div style="display:flex;align-items:center;flex-wrap:wrap;">' + prim + fotoHtml + '<span title="' + c.colaborador_nome + '">' + (c.colaborador_nome.length > 20 ? c.colaborador_nome.substring(0,20) + '...' : c.colaborador_nome) + '</span>' + expBadge + '</div>' +
                 '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + c.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +
