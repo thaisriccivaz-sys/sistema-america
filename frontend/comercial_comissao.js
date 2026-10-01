@@ -810,6 +810,29 @@
         btn.disabled = false;
     }
 
+    // Recalcular flags de experiência para mês/ano atual sem re-upload
+    async function _recalcularExperiencia() {
+        const { mes, ano } = _getMesAno();
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        try {
+            if (typeof Swal !== 'undefined') Swal.fire({ title: 'Recalculando...', text: 'Aguarde...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const r = await fetch('/api/comercial/comissao/' + ano + '/' + mes + '/recalcular-experiencia', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            });
+            const d = await r.json();
+            if (d.ok) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Concluído!', text: d.atualizados + ' colaborador(es) em experiência corrigido(s).', timer: 2500, showConfirmButton: false });
+                buscar();
+            } else {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: d.error || 'Erro ao recalcular.' });
+            }
+        } catch (e) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Erro', text: 'Falha na comunicação com o servidor.' });
+        }
+    }
+
+
     // Carregar botões de planilhas (👁) conforme mês/ano
     async function _carregarBotoesPlanilhas() {
         const { mes, ano } = _getMesAno();
@@ -1081,7 +1104,7 @@
         }
     }
 
-    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia, _abrirModalDuplicatas, _confirmarDuplicatas, _abrirRegras };
+    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _recalcularExperiencia, _downloadPlanilha, _enviarEmailConferencia, _abrirModalDuplicatas, _confirmarDuplicatas, _abrirRegras };
 
     // Hook de navegação
     if (window.navigateTo) {

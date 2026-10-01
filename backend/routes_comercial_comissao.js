@@ -185,14 +185,11 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
     });
     if (!todos.length) return;
 
-    // Excluir quem está em período de experiência do ranking do 1º lugar
-    const elegíveis = todos.filter(c => !c.em_experiencia);
-    if (!elegíveis.length) return;
-
-    const maxLiq = Math.max(...elegíveis.map(c => c.contratos_liquidos));
+    // Todos participam do ranking (incluindo quem está em experiência)
+    const maxLiq = Math.max(...todos.map(c => c.contratos_liquidos));
     if (maxLiq < 40) return;
 
-    let candidatos = elegíveis.filter(c => c.contratos_liquidos === maxLiq);
+    let candidatos = todos.filter(c => c.contratos_liquidos === maxLiq);
 
     if (candidatos.length > 1) {
         const minEst = Math.min(...candidatos.map(c => c.contratos_estorno));
@@ -218,16 +215,27 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
             [mes, ano], err => err ? reject(err) : resolve());
     });
 
-    // Dar bonus aos vencedores
+    // Dar troféu e bônus aos vencedores
+    // Quem está em experiência: recebe o troféu (primeiro_lugar=1) mas bônus = R$ 0,00 e liquido permanece 0
     for (const cand of candidatos) {
-        const met = aplicarMetrica(cand.contratos_liquidos, metricasArr);
-        await new Promise((resolve, reject) => {
-            db.run('UPDATE comissao_comercial SET bonus_primeiro=?, liquido=comissao_bruta+?, primeiro_lugar=1, updated_at=CURRENT_TIMESTAMP WHERE mes=? AND ano=? AND colaborador_nome=?',
-                [met.bonus, met.bonus, mes, ano, cand.colaborador_nome],
-                err => err ? reject(err) : resolve());
-        });
+        if (cand.em_experiencia) {
+            // Em experiência: 1º lugar visual, sem valor
+            await new Promise((resolve, reject) => {
+                db.run('UPDATE comissao_comercial SET bonus_primeiro=0, liquido=0, primeiro_lugar=1, updated_at=CURRENT_TIMESTAMP WHERE mes=? AND ano=? AND colaborador_nome=?',
+                    [mes, ano, cand.colaborador_nome],
+                    err => err ? reject(err) : resolve());
+            });
+        } else {
+            const met = aplicarMetrica(cand.contratos_liquidos, metricasArr);
+            await new Promise((resolve, reject) => {
+                db.run('UPDATE comissao_comercial SET bonus_primeiro=?, liquido=comissao_bruta+?, primeiro_lugar=1, updated_at=CURRENT_TIMESTAMP WHERE mes=? AND ano=? AND colaborador_nome=?',
+                    [met.bonus, met.bonus, mes, ano, cand.colaborador_nome],
+                    err => err ? reject(err) : resolve());
+            });
+        }
     }
 }
+
 
 
 module.exports = function registerComercialComissaoRoutes(app, db, authenticateToken, multerMemory) {
@@ -315,7 +323,73 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
+    // POST /:ano/:mes/recalcular-experiencia — reavaliar flag em_experiencia e zerar valores sem re-upload
+    app.post('/api/comercial/comissao/:ano/:mes/recalcular-experiencia', authenticateToken, async (req, res) => {
+        try {
+            const mesNum = parseInt(req.params.mes), anoNum = parseInt(req.params.ano);
+            const corteFim = new Date(anoNum, mesNum - 1, 25); // dia 25 do mês selecionado
+
+            function parseDateStrLocal(s) {
+                if (!s) return null;
+                s = String(s).trim();
+                let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+                m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+                if (m) {
+                    let yr = parseInt(m[3]); if (yr < 100) yr += 2000;
+                    const n0 = parseInt(m[1]), n1 = parseInt(m[2]);
+                    if (n0 <= 12 && n1 > 12) return new Date(yr, n0 - 1, n1);
+                    return new Date(yr, n1 - 1, n0);
+                }
+                return null;
+            }
+
+            const registros = await new Promise((resolve, reject) => {
+                db.all('SELECT * FROM comissao_comercial WHERE mes=? AND ano=?', [mesNum, anoNum], (err, rows) => err ? reject(err) : resolve(rows || []));
+            });
+            const colabs = await new Promise((resolve, reject) => {
+                db.all("SELECT id, nome_completo, data_admissao FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%'",
+                    [], (err, rows) => err ? reject(err) : resolve(rows || []));
+            });
+
+            let atualizados = 0;
+            for (const reg of registros) {
+                const pnReg = (reg.colaborador_nome || '').trim().split(/\s+/)[0].toLowerCase();
+                const colab = colabs.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnReg);
+                if (!colab || !colab.data_admissao) continue;
+
+                const admDate = parseDateStrLocal(colab.data_admissao);
+                if (!admDate) continue;
+                const fimExp = new Date(admDate.getTime());
+                fimExp.setDate(fimExp.getDate() + 90);
+                const emExp = fimExp > corteFim ? 1 : 0;
+
+                if (emExp !== (reg.em_experiencia || 0)) {
+                    const novosValores = emExp
+                        ? { comissao_bruta: 0, liquido: 0, bonus_primeiro: 0, metrica: 'experiencia', valor_unitario: 0, em_experiencia: 1 }
+                        : { em_experiencia: 0 }; // restaurar só o flag; valores precisam de re-upload completo
+                    if (emExp) {
+                        await new Promise((resolve, reject) => {
+                            db.run('UPDATE comissao_comercial SET comissao_bruta=0, liquido=0, bonus_primeiro=0, total_estorno=0, metrica=?, valor_unitario=0, em_experiencia=1, primeiro_lugar=0, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                                ['experiencia', reg.id], err => err ? reject(err) : resolve());
+                        });
+                        atualizados++;
+                    }
+                }
+            }
+
+            // Recalcular 1o lugar para refletir as mudanças
+            await recalcularPrimeiroLugar(db, mesNum, anoNum, null);
+
+            res.json({ ok: true, atualizados, mes: mesNum, ano: anoNum });
+        } catch (err) {
+            console.error('[Comissao] recalcular-experiencia:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // POST upload-comissao
+
     app.post('/api/comercial/comissao/upload-comissao', authenticateToken, multerMemory.single('arquivo'), async (req, res) => {
         try {
             const { mes, ano } = req.body;
