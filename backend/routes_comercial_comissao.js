@@ -392,8 +392,8 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             let atualizados = 0;
             for (const reg of registros) {
-                const normReg = normName((reg.colaborador_nome || '').trim());
-                const colab = colabs.find(c => normName(c.nome_completo || '') === normReg);
+                const normReg = normName((reg.colaborador_nome || '').trim().substring(0, 15));
+                const colab = colabs.find(c => normName((c.nome_completo || '').trim().substring(0, 15)) === normReg);
                 if (!colab || !colab.data_admissao) continue;
 
                 const admDate = parseDateStrLocal(colab.data_admissao);
@@ -485,11 +485,12 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const { contratos, estornos } = parseComissaoAba(ws);
 
                 // ── Verificar se colaborador está em período de experiência ──
-                // O nome da aba deve ser igual ao nome_completo no sistema (normalizado: sem acento, lowercase)
-                // Isso evita que "Ana Vitória" seja confundida com "Ana Paula" (mesmo primeiro nome)
-                const normAba = normName(nomAba.trim());
-                const colab = colabosMercial.find(c => normName(c.nome_completo || '') === normAba)
-                           || todosColabs.find(c => normName(c.nome_completo || '') === normAba);
+                // O nome da aba deve ser igual aos primeiros 15 caracteres do nome_completo no sistema.
+                // Isso contorna o limite de caracteres da aba do Excel e evita confusão entre "Ana Vitória" e "Ana Paula".
+                const normAba = normName(nomAba.trim().substring(0, 15));
+                const matchName = (c) => normName((c.nome_completo || '').trim().substring(0, 15)) === normAba;
+                const colab = colabosMercial.find(matchName) || todosColabs.find(matchName);
+
 
 
                 let emExperiencia = false;
