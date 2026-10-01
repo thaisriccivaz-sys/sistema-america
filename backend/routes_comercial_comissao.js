@@ -374,8 +374,8 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
             let atualizados = 0;
             for (const reg of registros) {
-                const pnReg = (reg.colaborador_nome || '').trim().split(/\s+/)[0].toLowerCase();
-                const colab = colabs.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnReg);
+                const normReg = normName((reg.colaborador_nome || '').trim());
+                const colab = colabs.find(c => normName(c.nome_completo || '') === normReg);
                 if (!colab || !colab.data_admissao) continue;
 
                 const admDate = parseDateStrLocal(colab.data_admissao);
@@ -467,10 +467,11 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const { contratos, estornos } = parseComissaoAba(ws);
 
                 // ── Verificar se colaborador está em período de experiência ──
-                // Busca primeiro no comercial (para colaborador_id), depois em todos (para data_admissao)
-                const pnAba = nomAba.trim().split(/\s+/)[0].toLowerCase();
-                const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba)
-                           || todosColabs.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
+                // O nome da aba deve ser igual ao nome_completo no sistema (normalizado: sem acento, lowercase)
+                // Isso evita que "Ana Vitória" seja confundida com "Ana Paula" (mesmo primeiro nome)
+                const normAba = normName(nomAba.trim());
+                const colab = colabosMercial.find(c => normName(c.nome_completo || '') === normAba)
+                           || todosColabs.find(c => normName(c.nome_completo || '') === normAba);
 
 
                 let emExperiencia = false;
