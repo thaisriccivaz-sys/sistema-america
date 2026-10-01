@@ -10981,6 +10981,93 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
     }
 });
 
+
+// Rota para comparar folha da contabilidade (PDF)
+app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('pdf'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+        const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+        const data = new Uint8Array(req.file.buffer);
+        const loadingTask = pdfjsLib.getDocument({ data: data });
+        const pdf = await loadingTask.promise;
+        
+        let allLines = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            let rows = {};
+            for (const item of textContent.items) {
+                const y = Math.round(item.transform[5]);
+                if (!rows[y]) rows[y] = [];
+                rows[y].push({ text: item.str, x: item.transform[4] });
+            }
+            const sortedY = Object.keys(rows).sort((a, b) => b - a);
+            for (const y of sortedY) {
+                rows[y].sort((a, b) => a.x - b.x);
+                const lineStr = rows[y].map(i => i.text.trim()).filter(Boolean).join(' | ');
+                if (lineStr) allLines.push(lineStr);
+            }
+        }
+        
+        const results = {};
+        let currentEmployee = null;
+        const allowedCodes = ['264', '200', '250', '8792', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601'];
+
+        for (const line of allLines) {
+            // match: Empr.: | 151 ABNER ABRAHÃO | Situaço:
+            if (line.includes('Empr.:') && (line.includes('Situa') || line.includes('Trabalhando'))) {
+                const parts = line.split('|').map(p => p.trim());
+                let namePart = parts.find(p => /^\d+\s+[A-Z\s]+/.test(p));
+                if (!namePart) {
+                    const idx = parts.findIndex(p => p.includes('Empr.:'));
+                    if (idx !== -1 && parts[idx+1]) {
+                        namePart = parts[idx+1];
+                    }
+                }
+                if (namePart) {
+                    const nameMatch = namePart.match(/^\d+\s+(.+)$/);
+                    if (nameMatch) {
+                        currentEmployee = nameMatch[1].trim();
+                        results[currentEmployee] = {};
+                    }
+                }
+                continue;
+            }
+            
+            if (!currentEmployee) continue;
+            
+            const parts = line.split('|').map(p => p.trim());
+            for (let i = 0; i < parts.length; i++) {
+                const codeMatch = parts[i].match(/^(\d{2,4})\b/);
+                if (codeMatch && allowedCodes.includes(codeMatch[1])) {
+                    let code = codeMatch[1];
+                    if (code === '8069') code = '8060';
+
+                    let qty = null, val = null;
+                    for (let j = i + 1; j < parts.length; j++) {
+                        if (/^[\d.,:]+/.test(parts[j])) {
+                            if (qty === null) qty = parts[j].match(/^[\d.,:]+/)[0];
+                            else if (val === null) val = parts[j].match(/^[\d.,:]+/)[0];
+                        }
+                        if (val !== null) break;
+                    }
+                    if (qty && val) {
+                        results[currentEmployee][code] = { qty, val };
+                    }
+                }
+            }
+        }
+
+        res.json({ ok: true, colaboradores: results });
+
+    } catch (e) {
+        console.error('[comparar-pdf]', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => {
     try {
         const { mes, ano, email_destino } = req.body;

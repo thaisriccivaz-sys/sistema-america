@@ -666,6 +666,10 @@ function abrirLegenda() {
       <button onclick="window._fechamento.buscar()" style="background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;font-weight:600;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
         <i class="ph ph-magnifying-glass"></i> Buscar
       </button>
+      <label style="background:#f59e0b;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.3rem;margin:0;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" title="Anexar folha em PDF da contabilidade para comparar">
+        <i class="ph ph-files"></i> Comparar
+        <input type="file" id="fech-comparar-pdf" style="display:none" accept="application/pdf" onchange="window._fechamento.compararFolhaPDF(event)">
+      </label>
     </div>
   </div>
 
@@ -2783,8 +2787,180 @@ function abrirLegenda() {
         if (typeof showToast !== 'undefined') showToast(texto ? 'Observacao salva!' : 'Observacao removida', 'success');
     };
 
+    
+    async function compararFolhaPDF(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        event.target.value = '';
+
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        const btn = document.querySelector('label[title="Anexar folha em PDF da contabilidade para comparar"]');
+        const oldHtml = btn ? btn.innerHTML : 'Comparar';
+        if (btn) {
+            btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Analisando...';
+            btn.style.pointerEvents = 'none';
+        }
+
+        try {
+            const resp = await fetch('/api/fechamento/comparar', {
+                method: 'POST',
+                body: formData
+            });
+            const res = await resp.json();
+            if (!res.ok) throw new Error(res.error || 'Erro na comparação');
+
+            const folhaData = res.colaboradores || {};
+            let divErros = '';
+            let qtdErros = 0;
+
+            const normalizeName = (s) => (s||'').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
+            const parseToFloat = (val) => {
+                if (!val) return 0;
+                return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+            };
+            const parseToTime = (val) => {
+                if (!val) return '00:00';
+                return String(val).trim();
+            };
+
+            const mapRubricas = [
+                { field: 'dias_falta', code: '8792', type: 'val', label: 'Faltas' },
+                { field: 'extra_60', code: '264', type: 'time', label: 'Ext.60%' },
+                { field: 'extra_100', code: '200', type: 'time', label: 'Ext.100%' },
+                { field: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
+                { field: 'vt', code: '48', type: 'val', label: 'VT' },
+                { field: 'farmacia', code: '238', type: 'val', label: 'Farmácia' },
+                { field: 'mercado', code: '279', type: 'val', label: 'Mercado' },
+                { field: 'multas', code: '302', type: 'val', label: 'Multas' },
+                { field: 'academia', code: '278', type: 'val', label: 'Academia' },
+                { field: 'adiantamento', code: '981', type: 'val', label: 'Adiantamento' },
+                { field: 'consignado', code: '9750', type: 'val', label: 'Consig.' },
+                { field: 'comissao', code: '37', type: 'val', label: 'Comissão' },
+                { field: 'plr', code: '873', type: 'val', label: 'PLR' },
+                { field: 'premio', code: '347', type: 'val', label: 'Prêmio' },
+                { field: 'outros', code: '290', type: 'val', label: 'Outros' },
+                { field: 'insalubridade', code: '16', type: 'val', label: 'Insalub.' },
+                { field: 'periculosidade', code: '193', type: 'val', label: 'Periculosidade' },
+                { field: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
+            ];
+
+            // Limpar
+            document.querySelectorAll('td[id^="fech-cell-"]').forEach(td => {
+                if (td.dataset.originalBg) td.style.background = td.dataset.originalBg;
+                td.title = '';
+                if (td.style.background === 'rgb(254, 202, 202)') td.style.background = 'transparent';
+                let inp = td.querySelector('input');
+                if (inp) {
+                    inp.style.background = '';
+                    inp.title = '';
+                }
+            });
+
+            _dados.forEach((row, idx) => {
+                const normName = normalizeName(row.nome_completo).substring(0, 15);
+                let folhaRow = null;
+                for (let k in folhaData) {
+                    if (normalizeName(k).substring(0, 15) === normName) {
+                        folhaRow = folhaData[k];
+                        break;
+                    }
+                }
+
+                if (!folhaRow) return;
+
+                let colabErros = [];
+
+                mapRubricas.forEach(m => {
+                    let uiVal = '';
+                    if (m.field === 'consignado') uiVal = parseFloat(row.consig_total) || parseFloat(row.consignado) || 0;
+                    else if (m.field === 'comissao') uiVal = (parseFloat(row.valor_comissao)||parseFloat(row.comissao)||0) + (parseFloat(row.valor_bonus)||parseFloat(row.bonus_comissao)||0);
+                    else uiVal = row[m.field] || (m.type === 'val' ? 0 : '00:00');
+
+                    const rubrica = folhaRow[m.code];
+                    
+                    if (m.type === 'val') {
+                        let folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                        let uiValFloat = typeof uiVal === 'number' ? uiVal : parseToFloat(uiVal);
+                        
+                        if (m.field === 'vt') return;
+
+                        if (Math.abs(uiValFloat - folhaVal) > 0.05) {
+                            marcarErro(idx, m.field, `Contabilidade: R$ ${folhaVal.toFixed(2).replace('.',',')}`);
+                            colabErros.push(`${m.label}: Tabela R$ ${uiValFloat.toFixed(2).replace('.',',')} x Folha R$ ${folhaVal.toFixed(2).replace('.',',')}`);
+                            qtdErros++;
+                        }
+                    } else if (m.type === 'time') {
+                        let folhaVal = rubrica ? parseToTime(rubrica.qty) : '00:00';
+                        let uiValTime = parseToTime(uiVal);
+                        const toMin = t => {
+                            const [h, min] = String(t).split(':').map(Number);
+                            return (h || 0) * 60 + (min || 0);
+                        };
+                        
+                        if (Math.abs(toMin(uiValTime) - toMin(folhaVal)) > 2) {
+                            marcarErro(idx, m.field, `Contabilidade: ${folhaVal}`);
+                            colabErros.push(`${m.label}: Tabela ${uiValTime} x Folha ${folhaVal}`);
+                            qtdErros++;
+                        }
+                    }
+                });
+
+                if (colabErros.length > 0) {
+                    divErros += `<div style="margin-bottom:.8rem;">
+                        <strong style="color:#1e40af;">${row.nome_completo}</strong>
+                        <ul style="margin:0;padding-left:1.2rem;color:#b91c1c;font-size:.9rem;">
+                            ${colabErros.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                }
+            });
+
+            if (qtdErros > 0) {
+                Swal.fire({
+                    title: 'Divergências Encontradas!',
+                    html: `<div style="text-align:left;max-height:60vh;overflow-y:auto;padding:.5rem;">
+                        <p style="margin-bottom:1rem;color:#4b5563;font-size:.9rem;">Encontramos <strong>${qtdErros}</strong> divergências entre a tabela atual e o PDF da contabilidade. Os campos foram pintados de vermelho na tabela.</p>
+                        ${divErros}
+                    </div>`,
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido',
+                    width: '600px'
+                });
+            } else {
+                Swal.fire('Tudo Certo!', 'A tabela e a folha da contabilidade batem 100%.', 'success');
+            }
+
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Erro', e.message, 'error');
+        } finally {
+            if (btn) {
+                btn.innerHTML = oldHtml;
+                btn.style.pointerEvents = 'auto';
+            }
+        }
+    }
+
+    function marcarErro(idx, field, msg) {
+        let cellId = `fech-cell-${field}-${idx}`;
+        let td = document.getElementById(cellId);
+        if (td) {
+            if (!td.dataset.originalBg) td.dataset.originalBg = td.style.background || 'transparent';
+            td.style.background = '#fecaca';
+            td.title = msg;
+            let inp = td.querySelector('input');
+            if (inp) {
+                inp.style.background = '#fef2f2';
+                inp.title = msg;
+            }
+        }
+    }
+
     return {
-        init, buscar, atualizar, filtrar, salvarTudo,
+        init, buscar, compararFolhaPDF, atualizar, filtrar, salvarTudo,
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
