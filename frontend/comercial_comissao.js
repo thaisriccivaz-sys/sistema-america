@@ -526,7 +526,21 @@
                 const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
                 if (isoMatch) return isoMatch[3] + '/' + isoMatch[2] + '/' + isoMatch[1].slice(2);
                 const parts = s.split('/');
-                if (parts.length === 3) return parts[0].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + (parts[2].length === 4 ? parts[2].slice(2) : parts[2]);
+                if (parts.length === 3) {
+                    let p0 = parts[0], p1 = parts[1], p2 = parts[2];
+                    let yy = p2.length === 4 ? p2.slice(2) : p2;
+                    let num0 = parseInt(p0, 10) || 0;
+                    let num1 = parseInt(p1, 10) || 0;
+                    let isMMDD = false;
+                    if (num0 <= 12 && num1 > 12) isMMDD = true;
+                    else if (num0 > 12) isMMDD = false;
+                    else isMMDD = true; 
+                    if (isMMDD) {
+                        return p1.padStart(2,'0') + '/' + p0.padStart(2,'0') + '/' + yy;
+                    } else {
+                        return p0.padStart(2,'0') + '/' + p1.padStart(2,'0') + '/' + yy;
+                    }
+                }
                 return s;
             };
 
