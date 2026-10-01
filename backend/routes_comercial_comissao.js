@@ -321,7 +321,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             if (!abasColab.length) return res.status(400).json({ error: 'Nenhuma aba de colaborador encontrada.' });
 
             const colabosMercial = await new Promise((resolve, reject) => {
-                db.all("SELECT id, nome_completo FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%' AND (status IS NULL OR LOWER(status) != 'demitido')",
+                db.all("SELECT id, nome_completo FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%' AND (status IS NULL OR status != 'Desligado')",
                     [], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
 
