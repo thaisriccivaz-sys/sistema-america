@@ -49,6 +49,9 @@
       <button id="cc-btn-metricas" style="padding:6px 12px;background:#f8fafc;color:#475569;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;display:none;" onclick="window._comercialComissao._abrirMetricas()">
         <i class="ph ph-sliders"></i> Alterar Métricas
       </button>
+      <button id="cc-btn-regras" onclick="window._comercialComissao._abrirRegras()" title="Ver regras de comissionamento" style="padding:6px 11px;background:#fefce8;color:#854d0e;border:1px solid #fde68a;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;">
+        <i class="ph ph-lightbulb"></i> Regras
+      </button>
     </div>
   </div>
 
@@ -322,6 +325,7 @@
         vazio.style.display = 'none'; wrap.style.display = '';
         tbody.innerHTML = _dadosComissao.map(function(c) {
             var prim = c.primeiro_lugar ? '<span title="1º Lugar" style="margin-right:4px;">🏆</span>' : '';
+            var expBadge = c.em_experiencia ? '<span title="Em período de experiência" style="margin-left:4px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:5px;font-size:.7rem;padding:1px 5px;font-weight:700;">Em Exp.</span>' : '';
             var taxa = c.taxa_conversao || '—';
             var tr = document.createElement('tr');
             tr.style.cssText = 'border-bottom:1px solid #f1f5f9;transition:background .15s;';
@@ -334,7 +338,7 @@
 
             tr.innerHTML =
                 '<td style="padding:10px 12px;font-weight:600;color:#1e293b;">' +
-                    '<div style="display:flex;align-items:center;">' + prim + fotoHtml + '<span>' + c.colaborador_nome + '</span></div>' +
+                    '<div style="display:flex;align-items:center;flex-wrap:wrap;">' + prim + fotoHtml + '<span>' + c.colaborador_nome + '</span>' + expBadge + '</div>' +
                 '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + c.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +
@@ -451,8 +455,10 @@
             if (d.ok) {
                 setTimeout(_carregarBotoesPlanilhas, 1000);
                 const dups = d.duplicatas || { intra: [], inter: [] };
+                window._ccForaCorte = d.fora_corte || [];
                 const temDup = dups.intra.length > 0 || dups.inter.length > 0;
-                if (temDup) {
+                const temForaCorte = window._ccForaCorte.length > 0;
+                if (temDup || temForaCorte) {
                     _abrirModalDuplicatas(dups, d.mes, d.ano, d.colaboradores.length);
                 } else {
                     if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Planilha importada!', text: d.colaboradores.length + ' colaborador(es) processado(s). Nenhum contrato duplicado encontrado.', timer: 3000, showConfirmButton: false });
@@ -520,29 +526,7 @@
             };
             const FMT2 = (v) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             // Formata data para DD/MM/AA
-            const fmtData = (d) => {
-                if (!d || d === '—') return '—';
-                const s = String(d).trim();
-                const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                if (isoMatch) return isoMatch[3] + '/' + isoMatch[2] + '/' + isoMatch[1].slice(2);
-                const parts = s.split('/');
-                if (parts.length === 3) {
-                    let p0 = parts[0], p1 = parts[1], p2 = parts[2];
-                    let yy = p2.length === 4 ? p2.slice(2) : p2;
-                    let num0 = parseInt(p0, 10) || 0;
-                    let num1 = parseInt(p1, 10) || 0;
-                    let isMMDD = false;
-                    if (num0 <= 12 && num1 > 12) isMMDD = true;
-                    else if (num0 > 12) isMMDD = false;
-                    else isMMDD = true; 
-                    if (isMMDD) {
-                        return p1.padStart(2,'0') + '/' + p0.padStart(2,'0') + '/' + yy;
-                    } else {
-                        return p0.padStart(2,'0') + '/' + p1.padStart(2,'0') + '/' + yy;
-                    }
-                }
-                return s;
-            };
+            const fmtData = _fmtDataDDMMYY;
 
             let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">'+
             '<div style="background:#f8fafc;border-radius:10px;padding:12px;"><div style="font-size:.7rem;color:#6b7280;font-weight:600;text-transform:uppercase;">Contratos Líquidos</div><div style="font-size:1.4rem;font-weight:700;color:#1e293b;">'+ d.contratos_liquidos +'</div></div>'+
@@ -599,6 +583,100 @@
         const modal = document.getElementById('cc-modal');
         if (modal && e.target === modal) _fecharModal();
     });
+
+    // ── Formatador global de data DD/MM/AA (suporta xlsx MM/DD/YY e ISO) ──
+    function _fmtDataDDMMYY(d) {
+        if (!d || d === '—') return '—';
+        const s = String(d).trim();
+        const isoM = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoM) return isoM[3] + '/' + isoM[2] + '/' + isoM[1].slice(2);
+        const shortMonMap = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+        const monDashM = s.match(/^(\d{1,2})[-\.](\w{3})/i);
+        if (monDashM) {
+            const mon = shortMonMap[(monDashM[2]||'').toLowerCase()];
+            if (mon) return String(parseInt(monDashM[1])).padStart(2,'0') + '/' + String(mon).padStart(2,'0') + '/??';
+        }
+        const parts = s.split('/');
+        if (parts.length === 3) {
+            const p0 = parts[0].trim(), p1 = parts[1].trim(), p2 = parts[2].trim();
+            const yy = p2.length === 4 ? p2.slice(2) : p2;
+            const n0 = parseInt(p0, 10) || 0, n1 = parseInt(p1, 10) || 0;
+            if (n0 <= 12 && n1 > 12) return p1.padStart(2,'0') + '/' + p0.padStart(2,'0') + '/' + yy;
+            if (n0 > 12) return p0.padStart(2,'0') + '/' + p1.padStart(2,'0') + '/' + yy;
+            return p0.padStart(2,'0') + '/' + p1.padStart(2,'0') + '/' + yy;
+        }
+        return s;
+    }
+
+    // ── Modal de Regras de Comissionamento ──────────────────────────
+    function _abrirRegras() {
+        let modal = document.getElementById('cc-modal-regras');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'cc-modal-regras';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+            document.body.appendChild(modal);
+        }
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        fetch('/api/comercial/comissao/metricas', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(d => {
+                const mets = d.metricas || [
+                    { label: 'maxima', qtd: 75, valor: 15, bonus: 375 },
+                    { label: 'media',  qtd: 55, valor: 12, bonus: 210 },
+                    { label: 'minima', qtd: 40, valor: 10, bonus: 100 }
+                ];
+                const mapL = { maxima: 'Máxima', media: 'Média', minima: 'Mínima' };
+                const bgM  = { maxima: '#f0fdf4', media: '#eff6ff', minima: '#fefce8' };
+                const corM = { maxima: '#166534', media: '#1e40af', minima: '#713f12' };
+                const borM = { maxima: '#bbf7d0', media: '#bfdbfe', minima: '#fef08a' };
+                const metasHtml = mets.map(m =>
+                    '<div style="display:flex;gap:8px;align-items:center;background:' + (bgM[m.label]||'#f8fafc') + ';border:1px solid ' + (borM[m.label]||'#e2e8f0') + ';border-radius:8px;padding:10px 14px;">' +
+                    '<div style="font-size:1.5rem;font-weight:800;color:' + (corM[m.label]||'#1e293b') + ';min-width:38px;">' + m.qtd + '+</div>' +
+                    '<div><div style="font-weight:700;color:' + (corM[m.label]||'#1e293b') + ';font-size:.9rem;">Meta ' + (mapL[m.label]||m.label) + '</div>' +
+                    '<div style="font-size:.8rem;color:#6b7280;">' + FMT(m.valor) + '/contrato · Bônus 1º: ' + FMT(m.bonus) + '</div></div></div>'
+                ).join('');
+                const html =
+                    '<div style="background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);">' +
+                    '<div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">' +
+                    '<h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#1e293b;">💡 Regras de Comissionamento</h3>' +
+                    '<button onclick="document.getElementById(&quot;cc-modal-regras&quot;).style.display=&quot;none&quot;" style="background:none;border:none;font-size:1.4rem;color:#9ca3af;cursor:pointer;">&times;</button>' +
+                    '</div>' +
+                    '<div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px;">' +
+                    '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#0369a1;margin-bottom:6px;font-size:.9rem;">📅 Período de Corte</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">A comissão considera contratos entregues do <strong>dia 26 do mês anterior</strong> até o <strong>dia 25 do mês selecionado</strong>. Contratos fora desse período são sinalizados e devem ser excluídos ou justificados.</div>' +
+                    '</div>' +
+                    '<div><div style="font-weight:700;color:#374151;margin-bottom:8px;font-size:.9rem;">🏆 Metas de Vendédores</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:6px;">' + metasHtml + '</div>' +
+                    '<div style="font-size:.78rem;color:#6b7280;margin-top:6px;">• Contratos Líquidos = Brutos − Estornos<br>• Comissão = Contratos Líquidos × Valor/Contrato da faixa atingida</div>' +
+                    '</div>' +
+                    '<div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#7c3aed;margin-bottom:6px;font-size:.9rem;">🏅 Bônus 1º Lugar</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">O colaborador com <strong>maior número de contratos líquidos</strong> (mínimo 40) recebe o bônus correspondente à sua faixa. Em empate: (1) menor número de estornos, (2) maior taxa de conversão.</div>' +
+                    '</div>' +
+                    '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#dc2626;margin-bottom:6px;font-size:.9rem;">🔄 Estornos</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">Cada estorno reduz 1 contrato líquido. Motivo <strong>07 — Erro Preventivo</strong> é excluído dos estornos do Gestor, mas conta nos Vendédores.</div>' +
+                    '</div>' +
+                    '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#c2410c;margin-bottom:6px;font-size:.9rem;">📅 Período de Experiência</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">Colaboradores com menos de <strong>90 dias de empresa</strong> na data de corte (dia 25) <strong>não recebem comissão</strong>, independente da quantidade de contratos.</div>' +
+                    '</div>' +
+                    '<div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#3730a3;margin-bottom:6px;font-size:.9rem;">👑 Comissão do Gestor</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">Base = soma de todos os contratos da equipe menos estornos (excluindo motivo 07). Inclui bônus de equipe se todos na meta máxima, e bônus de 220+ contratos.</div>' +
+                    '</div>' +
+                    '</div></div>';
+                modal.innerHTML = html;
+                modal.style.display = 'flex';
+                modal.onclick = function(e) { if (e.target === modal) modal.style.display = 'none'; };
+            })
+            .catch(() => {
+                modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;text-align:center;"><p style="color:#dc2626;">Erro ao carregar regras.</p><button onclick="document.getElementById(&quot;cc-modal-regras&quot;).style.display=&quot;none&quot;">Fechar</button></div>';
+                modal.style.display = 'flex';
+            });
+    }
 
     // Expor API pública
     
@@ -857,7 +935,7 @@
                 rowsHtml += '<td style="padding:7px 8px;font-weight:600;">' + d.colaborador_nome + '</td>';
                 rowsHtml += '<td style="padding:7px 8px;font-family:monospace;font-weight:700;">' + d.numero + '</td>';
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;color:#92400e;font-weight:700;">' + d.occurrence_num + '/' + d.total_occurrences + '</td>';
-                rowsHtml += '<td style="padding:7px 8px;text-align:center;">' + (d.data || '—') + '</td>';
+                rowsHtml += '<td style="padding:7px 8px;text-align:center;">' + _fmtDataDDMMYY(d.data || '—') + '</td>';
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;">';
                 rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="intra" data-colab="' + d.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-seq="' + d.seq + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
                 rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
@@ -893,6 +971,32 @@
             });
             rowsHtml += '</div>';
         }
+
+        // ── Seção 3: Contratos fora da data de corte ──
+        const foraCorte = _ccForaCorte || [];
+        let foraCorteHtml = '';
+        if (foraCorte.length > 0) {
+            foraCorteHtml += '<div style="background:#f0f9ff;border:2px solid #38bdf8;border-radius:10px;padding:16px;margin-bottom:16px;">';
+            foraCorteHtml += '<h3 style="margin:0 0 8px;font-size:.95rem;color:#0369a1;font-weight:700;">📅 Contratos fora da data de corte</h3>';
+            foraCorteHtml += '<p style="margin:0 0 10px;font-size:.82rem;color:#0c4a6e;">Os contratos abaixo têm data fora do período de comissionamento (dia 26 do mês anterior ao dia 25 do mês selecionado). Decida o que fazer com cada um.</p>';
+            foraCorteHtml += '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">';
+            foraCorteHtml += '<thead><tr style="background:#e0f2fe;"><th style="padding:7px 8px;text-align:left;">Colaborador</th><th style="padding:7px 8px;">Nº Contrato</th><th style="padding:7px 8px;text-align:center;">Data</th><th style="padding:7px 8px;text-align:center;">Ação *</th><th style="padding:7px 8px;text-align:left;">Justificativa</th></tr></thead><tbody>';
+            foraCorte.forEach(function(fc) {
+                const ri = rowIdx++;
+                foraCorteHtml += '<tr style="border-bottom:1px solid #bae6fd;">';
+                foraCorteHtml += '<td style="padding:7px 8px;font-weight:600;">' + fc.colaborador_nome + '</td>';
+                foraCorteHtml += '<td style="padding:7px 8px;text-align:center;font-family:monospace;font-weight:700;">' + fc.numero + '</td>';
+                foraCorteHtml += '<td style="padding:7px 8px;text-align:center;color:#0369a1;font-weight:600;">' + _fmtDataDDMMYY(fc.data || '—') + '</td>';
+                foraCorteHtml += '<td style="padding:7px 8px;text-align:center;">';
+                foraCorteHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="fora-corte" data-colab="' + fc.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + fc.numero + '" data-seq="' + fc.seq + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
+                foraCorteHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
+                foraCorteHtml += '</td>';
+                foraCorteHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" placeholder="Justificativa" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
+                foraCorteHtml += '</tr>';
+            });
+            foraCorteHtml += '</tbody></table></div>';
+        }
+        rowsHtml += foraCorteHtml;
 
         const totalRows = rowIdx;
         modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:28px;max-width:800px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18);">' +
@@ -977,7 +1081,7 @@
         }
     }
 
-    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia, _abrirModalDuplicatas, _confirmarDuplicatas };
+    window._comercialComissao = { init, buscar, _setAba, _abrirDetalhe, _fecharModal, _abrirMetricas, _salvarMetricas, _downloadPlanilha, _enviarEmailConferencia, _abrirModalDuplicatas, _confirmarDuplicatas, _abrirRegras };
 
     // Hook de navegação
     if (window.navigateTo) {

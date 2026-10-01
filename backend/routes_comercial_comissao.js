@@ -185,10 +185,14 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
     });
     if (!todos.length) return;
 
-    const maxLiq = Math.max(...todos.map(c => c.contratos_liquidos));
+    // Excluir quem está em período de experiência do ranking do 1º lugar
+    const elegíveis = todos.filter(c => !c.em_experiencia);
+    if (!elegíveis.length) return;
+
+    const maxLiq = Math.max(...elegíveis.map(c => c.contratos_liquidos));
     if (maxLiq < 40) return;
 
-    let candidatos = todos.filter(c => c.contratos_liquidos === maxLiq);
+    let candidatos = elegíveis.filter(c => c.contratos_liquidos === maxLiq);
 
     if (candidatos.length > 1) {
         const minEst = Math.min(...candidatos.map(c => c.contratos_estorno));
@@ -225,6 +229,7 @@ async function recalcularPrimeiroLugar(db, mes, ano, taxaMap, metricasArr) {
     }
 }
 
+
 module.exports = function registerComercialComissaoRoutes(app, db, authenticateToken, multerMemory) {
 
     // Migrations
@@ -255,6 +260,8 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
         UNIQUE(mes, ano, colaborador_nome)
     )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] comissao_comercial:', err.message); });
     db.run("ALTER TABLE comissao_comercial ADD COLUMN email_enviado_em TEXT", () => {});
+    db.run("ALTER TABLE comissao_comercial ADD COLUMN em_experiencia INTEGER DEFAULT 0", () => {});
+
 
     db.run(`CREATE TABLE IF NOT EXISTS comissao_propostas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -315,31 +322,86 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
             if (!mes || !ano || !req.file) return res.status(400).json({ error: 'Campos obrigatorios: mes, ano, arquivo.' });
             const mesNum = parseInt(mes), anoNum = parseInt(ano);
 
+            // ── Data de corte: dia 26 do mês anterior até dia 25 do mês selecionado ──
+            const corteInicio = new Date(anoNum, mesNum - 2, 26); // dia 26 do mês anterior
+            const corteFim    = new Date(anoNum, mesNum - 1, 25); // dia 25 do mês selecionado
+            // Data de corte para verificar experiência: dia 25 do mês selecionado
+            const dataCorteExp = corteFim;
+
+            // Helper: parseia data de string do Excel para Date (JS)
+            function parseDateStr(s) {
+                if (!s) return null;
+                s = String(s).trim();
+                // ISO yyyy-mm-dd
+                let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+                // dd/mm/yyyy ou dd/mm/yy
+                m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+                if (m) {
+                    let yr = parseInt(m[3]); if (yr < 100) yr += 2000;
+                    const n0 = parseInt(m[1]), n1 = parseInt(m[2]);
+                    // Se n0 <= 12 e n1 > 12 → formato mm/dd
+                    if (n0 <= 12 && n1 > 12) return new Date(yr, n0 - 1, n1);
+                    return new Date(yr, n1 - 1, n0); // dd/mm
+                }
+                return null;
+            }
+
             const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: false });
             const metricasArr = await carregarMetricas(db);
             const abasColab = wb.SheetNames.filter(n => !ABAS_IGNORAR.includes(n.toLowerCase().trim()));
             if (!abasColab.length) return res.status(400).json({ error: 'Nenhuma aba de colaborador encontrada.' });
 
             const colabosMercial = await new Promise((resolve, reject) => {
-                db.all("SELECT id, nome_completo FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%' AND (status IS NULL OR status != 'Desligado')",
+                db.all("SELECT id, nome_completo, data_admissao FROM colaboradores WHERE LOWER(departamento) LIKE '%comercial%' AND (status IS NULL OR status != 'Desligado')",
                     [], (err, rows) => err ? reject(err) : resolve(rows || []));
             });
 
             const resultados = [];
+            const foraCorte  = []; // contratos fora da janela 26-25
             for (const nomAba of abasColab) {
                 const ws = wb.Sheets[nomAba];
                 if (!ws || !ws['!ref']) continue;
 
                 const { contratos, estornos } = parseComissaoAba(ws);
+
+                // ── Verificar se colaborador está em período de experiência ──
+                const pnAba = nomAba.trim().split(/\s+/)[0].toLowerCase();
+                const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
+
+                let emExperiencia = false;
+                if (colab && colab.data_admissao) {
+                    const admDate = parseDateStr(colab.data_admissao);
+                    if (admDate) {
+                        // Prazo de experiência: 90 dias a partir da admissão
+                        const fimExp = new Date(admDate.getTime());
+                        fimExp.setDate(fimExp.getDate() + 90);
+                        // Se o fim da experiência ainda não passou da data de corte (25 do mês) → em experiência
+                        if (fimExp > dataCorteExp) emExperiencia = true;
+                    }
+                }
+
+                // ── Detectar contratos fora da data de corte ──
+                for (const c of contratos) {
+                    const dt = parseDateStr(c.data);
+                    if (dt && (dt < corteInicio || dt > corteFim)) {
+                        foraCorte.push({
+                            colaborador_nome: nomAba.trim(),
+                            numero: c.numero,
+                            seq: c.seq,
+                            data: c.data,
+                        });
+                    }
+                }
+
                 const brutos   = contratos.length;
                 const estCount = estornos.length;
                 const liquidos = Math.max(0, brutos - estCount);
-                const met      = aplicarMetrica(liquidos, metricasArr);
-                const comBruta = liquidos * met.valor;
-                const totEst   = estCount * met.valor;
 
-                const pnAba = nomAba.trim().split(/\s+/)[0].toLowerCase();
-                const colab = colabosMercial.find(c => (c.nome_completo || '').trim().split(/\s+/)[0].toLowerCase() === pnAba);
+                // Se em experiência: comissão zerada independente da quantidade
+                const met      = emExperiencia ? { label: null, valor: 0, bonus: 0 } : aplicarMetrica(liquidos, metricasArr);
+                const comBruta = emExperiencia ? 0 : liquidos * met.valor;
+                const totEst   = emExperiencia ? 0 : estCount * met.valor;
 
                 resultados.push({
                     colaborador_id:    colab ? colab.id : null,
@@ -347,13 +409,14 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                     contratos_brutos:  brutos,
                     contratos_estorno: estCount,
                     contratos_liquidos: liquidos,
-                    metrica:           met.label,
+                    metrica:           emExperiencia ? 'experiencia' : met.label,
                     valor_unitario:    met.valor,
                     comissao_bruta:    comBruta,
                     bonus_primeiro:    0,
                     total_estorno:     totEst,
                     liquido:           comBruta,
                     primeiro_lugar:    0,
+                    em_experiencia:    emExperiencia ? 1 : 0,
                     detalhe_contratos: JSON.stringify(contratos),
                     detalhe_estornos:  JSON.stringify(estornos),
                     _estCount: estCount, _liquidos: liquidos, _bonusVal: met.bonus,
@@ -365,14 +428,14 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 db.run('DELETE FROM comissao_comercial WHERE mes=? AND ano=?', [mesNum, anoNum], err => err ? reject(err) : resolve());
             });
 
-            const insertSql = 'INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+            const insertSql = 'INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,em_experiencia,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
             for (const r of resultados) {
                 await new Promise((resolve, reject) => {
-                    db.run(insertSql, [mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.detalhe_contratos, r.detalhe_estornos], err => err ? reject(err) : resolve());
+                    db.run(insertSql, [mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.em_experiencia, r.detalhe_contratos, r.detalhe_estornos], err => err ? reject(err) : resolve());
                 });
             }
 
-            // Calcular 1o lugar (sem taxas de conversao ainda)
+            // Calcular 1o lugar (sem taxas de conversao ainda) — exclui quem está em experiência
             await recalcularPrimeiroLugar(db, mesNum, anoNum, null);
 
             const resumo = resultados.map(({ _estCount, _liquidos, _bonusVal, detalhe_contratos, detalhe_estornos, ...pub }) => pub);
@@ -442,12 +505,13 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 console.warn('[Comissao] Falha ao salvar planilha no R2:', r2Err.message);
             }
 
-            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo, planilha_r2_key: planilhaComissaoKey, duplicatas });
+            res.json({ ok: true, mes: mesNum, ano: anoNum, colaboradores: resumo, planilha_r2_key: planilhaComissaoKey, duplicatas, fora_corte: foraCorte, corte_inicio: corteInicio.toISOString(), corte_fim: corteFim.toISOString() });
         } catch (err) {
             console.error('[Comissao] upload-comissao:', err);
             res.status(500).json({ error: 'Erro ao processar planilha de comissao.', detalhe: err.message });
         }
     });
+
 
     // POST upload-propostas
     app.post('/api/comercial/comissao/upload-propostas', authenticateToken, multerMemory.single('arquivo'), async (req, res) => {
