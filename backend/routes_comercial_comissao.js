@@ -21,9 +21,9 @@ const ABAS_IGNORAR = ['fechamento comercial', 'fechamento sup', 'sheet1', 'plan1
 
 
 const DEFAULT_METRICAS = [
-    { label: 'maxima', qtd: 75, valor: 15, bonus: 375 },
-    { label: 'media',  qtd: 55, valor: 12, bonus: 210 },
-    { label: 'minima', qtd: 40, valor: 10, bonus: 100 }
+    { label: 'maxima', qtd: 75, valor: 15, bonus: 375, abono: 3 },
+    { label: 'media',  qtd: 55, valor: 12, bonus: 210, abono: 2 },
+    { label: 'minima', qtd: 40, valor: 10, bonus: 100, abono: 1 }
 ];
 
 async function carregarMetricas(db) {
@@ -40,9 +40,9 @@ async function carregarMetricas(db) {
 function aplicarMetrica(liquidos, metricas) {
     const mSorted = [...metricas].sort((a, b) => b.qtd - a.qtd);
     for (const m of mSorted) {
-        if (liquidos >= m.qtd) return { label: m.label, valor: m.valor, bonus: m.bonus };
+        if (liquidos >= m.qtd) return { label: m.label, valor: m.valor, bonus: m.bonus, abono: m.abono || 0 };
     }
-    return { label: null, valor: 0, bonus: 0 };
+    return { label: null, valor: 0, bonus: 0, abono: 0 };
 }
 
 function normName(str) {
@@ -73,17 +73,24 @@ function calcularGestor(comissoes, metricasGestor) {
 
     // Estornos do gestor: todos exceto motivo 7 (ERRO PREVENTIVO)
     let totalEstornosGestor = 0;
+    let totalAbonoGestor = 0; // soma dos abonos de cada vendedor
     for (const c of comissoes) {
         let estornos = [];
         try { estornos = JSON.parse(c.detalhe_estornos || '[]'); } catch (e) {}
+        let estornosMercio = 0;
         for (const e of estornos) {
             const cod = String(e.motivo_cod || '').trim();
             if (cod === '07' || cod === '7') continue; // pula erro preventivo
+            estornosMercio++;
             totalEstornosGestor++;
         }
+        // O abono de cada vendedor reduz os estornos contabilizados pelo gestor
+        totalAbonoGestor += (c.abono || 0);
     }
 
-    const liquidos = Math.max(0, totalBrutos - totalEstornosGestor);
+    // Liquidos do gestor = brutos - (estornos_gestor - abono_total_da_equipe)
+    const estornosEfetivosGestor = Math.max(0, totalEstornosGestor - totalAbonoGestor);
+    const liquidos = Math.max(0, totalBrutos - estornosEfetivosGestor);
 
     // Aplicar meta do gestor
     let metaLabel = null;
@@ -111,6 +118,8 @@ function calcularGestor(comissoes, metricasGestor) {
     return {
         contratos_brutos: totalBrutos,
         contratos_estornos_gestor: totalEstornosGestor,
+        contratos_estornos_efetivos: estornosEfetivosGestor,
+        abono_total_equipe: totalAbonoGestor,
         contratos_liquidos: liquidos,
         meta: metaLabel,
         valor_meta: valorMeta,
@@ -269,6 +278,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
     )`, (err) => { if (err && !err.message.includes('already exists')) console.error('[Migration] comissao_comercial:', err.message); });
     db.run("ALTER TABLE comissao_comercial ADD COLUMN email_enviado_em TEXT", () => {});
     db.run("ALTER TABLE comissao_comercial ADD COLUMN em_experiencia INTEGER DEFAULT 0", () => {});
+    db.run("ALTER TABLE comissao_comercial ADD COLUMN abono INTEGER DEFAULT 0", () => {});
 
 
     db.run(`CREATE TABLE IF NOT EXISTS comissao_propostas (
@@ -481,12 +491,20 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
 
                 const brutos   = contratos.length;
                 const estCount = estornos.length;
-                const liquidos = Math.max(0, brutos - estCount);
+
+                // ── Cálculo com Abono ────────────────────────────────────────
+                // 1. Determinar faixa de meta pelos brutos → obtém o limite de abono da faixa
+                const metPorBrutos = aplicarMetrica(brutos, metricasArr);
+                const abono = Math.min(estCount, metPorBrutos.abono || 0);
+                // 2. Liquidos ajustados = brutos - (estornos - abono)
+                const liquidos = Math.max(0, brutos - (estCount - abono));
+                // 3. Faixa de comissão final pelos líquidos ajustados
+                // ────────────────────────────────────────────────────────────
 
                 // Se em experiência: comissão zerada independente da quantidade
-                const met      = emExperiencia ? { label: null, valor: 0, bonus: 0 } : aplicarMetrica(liquidos, metricasArr);
+                const met      = emExperiencia ? { label: null, valor: 0, bonus: 0, abono: 0 } : aplicarMetrica(liquidos, metricasArr);
                 const comBruta = emExperiencia ? 0 : liquidos * met.valor;
-                const totEst   = emExperiencia ? 0 : estCount * met.valor;
+                const totEst   = emExperiencia ? 0 : Math.max(0, estCount - abono) * met.valor;
 
                 resultados.push({
                     colaborador_id:    colab ? colab.id : null,
@@ -494,6 +512,7 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                     contratos_brutos:  brutos,
                     contratos_estorno: estCount,
                     contratos_liquidos: liquidos,
+                    abono:             emExperiencia ? 0 : abono,
                     metrica:           emExperiencia ? 'experiencia' : met.label,
                     valor_unitario:    met.valor,
                     comissao_bruta:    comBruta,
@@ -513,10 +532,10 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 db.run('DELETE FROM comissao_comercial WHERE mes=? AND ano=?', [mesNum, anoNum], err => err ? reject(err) : resolve());
             });
 
-            const insertSql = 'INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,em_experiencia,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+            const insertSql = 'INSERT INTO comissao_comercial (mes,ano,colaborador_id,colaborador_nome,contratos_brutos,contratos_estorno,contratos_liquidos,abono,metrica,valor_unitario,comissao_bruta,bonus_primeiro,total_estorno,liquido,primeiro_lugar,em_experiencia,detalhe_contratos,detalhe_estornos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
             for (const r of resultados) {
                 await new Promise((resolve, reject) => {
-                    db.run(insertSql, [mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.em_experiencia, r.detalhe_contratos, r.detalhe_estornos], err => err ? reject(err) : resolve());
+                    db.run(insertSql, [mesNum, anoNum, r.colaborador_id, r.colaborador_nome, r.contratos_brutos, r.contratos_estorno, r.contratos_liquidos, r.abono || 0, r.metrica, r.valor_unitario, r.comissao_bruta, r.bonus_primeiro, r.total_estorno, r.liquido, r.primeiro_lugar, r.em_experiencia, r.detalhe_contratos, r.detalhe_estornos], err => err ? reject(err) : resolve());
                 });
             }
 

@@ -126,6 +126,7 @@
             <th style="padding:10px 12px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Colaborador</th>
             <th style="padding:10px 8px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Brutos</th>
             <th style="padding:10px 8px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Estornos</th>
+                     <th style="padding:10px 8px;text-align:center;color:#16a34a;border-bottom:1px solid #e2e8f0;" title="Erros abonados pela meta">Abono</th>
             <th style="padding:10px 8px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Líquidos</th>
             <th style="padding:10px 8px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Métrica</th>
             <th style="padding:10px 8px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">R$/Contrato</th>
@@ -191,7 +192,7 @@
 
 <!-- Modal Métricas -->
 <div id="cc-modal-metricas" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;width:520px;max-width:96%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+  <div style="background:#fff;border-radius:16px;width:720px;max-width:96%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);">
     <div style="padding:18px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <h3 style="margin:0;font-size:1.1rem;font-weight:700;color:#1e293b;">Métricas de Comissão</h3>
       <button onclick="document.getElementById('cc-modal-metricas').style.display='none'"
@@ -345,6 +346,7 @@
                 '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + c.contratos_brutos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;color:' + (c.contratos_estorno > 0 ? '#dc2626' : '#9ca3af') + ';">' + c.contratos_estorno + '</td>' +
+                '<td style="padding:10px 8px;text-align:center;font-weight:600;color:' + (c.abono > 0 ? '#16a34a' : '#94a3b8') + ';">' + (c.abono || 0) + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;font-weight:700;">' + c.contratos_liquidos + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + _badgeMetrica(c.metrica) + '</td>' +
                 '<td style="padding:10px 8px;text-align:center;">' + (c.valor_unitario > 0 ? FMT(c.valor_unitario) : '<span style="color:#9ca3af;">—</span>') + '</td>' +
@@ -662,6 +664,10 @@
                     '<div style="font-weight:700;color:#dc2626;margin-bottom:6px;font-size:.9rem;">🔄 Estornos</div>' +
                     '<div style="font-size:.85rem;color:#374151;">Cada estorno reduz 1 contrato líquido. Motivo <strong>07 — Erro Preventivo</strong> é excluído dos estornos do Gestor, mas conta nos Vendédores.</div>' +
                     '</div>' +
+                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">' +
+                    '<div style="font-weight:700;color:#166534;margin-bottom:6px;font-size:.9rem;">✅ Abono de Erros</div>' +
+                    '<div style="font-size:.85rem;color:#374151;">Cada faixa de meta concede um limite de erros que podem ser <strong>abonados (não descontados)</strong>: Meta Mínima = 1 abono · Meta Média = 2 abonos · Meta Máxima = 3 abonos. O abono também é aplicado no cálculo dos contratos líquidos do Gestor.</div>' +
+                    '</div>' +
                     '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;">' +
                     '<div style="font-weight:700;color:#c2410c;margin-bottom:6px;font-size:.9rem;">📅 Período de Experiência</div>' +
                     '<div style="font-size:.85rem;color:#374151;">Colaboradores com menos de <strong>90 dias de empresa</strong> na data de corte (dia 25) <strong>não recebem comissão</strong>, independente da quantidade de contratos.</div>' +
@@ -713,6 +719,10 @@
                         <div style="flex:1;">
                             <label style="display:block;font-size:.75rem;color:#64748b;margin-bottom:2px;">Bônus 1º (R$)</label>
                             <input type="number" id="met-bon-${i}" value="${m.bonus}" step="0.01" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="display:block;font-size:.75rem;color:#16a34a;margin-bottom:2px;">Abono (erros)</label>
+                            <input type="number" id="met-abo-${i}" value="${m.abono != null ? m.abono : (i===0?3:i===1?2:1)}" min="0" step="1" style="width:100%;padding:6px;border:1px solid #bbf7d0;border-radius:6px;background:#fff;" title="Quantidade de estornos que podem ser abonados nessa faixa">
                         </div>
                     </div>
                 </div>
@@ -777,7 +787,8 @@
             label: m.label,
             qtd: parseInt(document.getElementById('met-qtd-' + i).value) || 0,
             valor: parseFloat(document.getElementById('met-val-' + i).value) || 0,
-            bonus: parseFloat(document.getElementById('met-bon-' + i).value) || 0
+            bonus: parseFloat(document.getElementById('met-bon-' + i).value) || 0,
+            abono: parseInt(document.getElementById('met-abo-' + i) ? document.getElementById('met-abo-' + i).value : (i===0?3:i===1?2:1)) || 0
         }));
 
         const novasGestor = {
