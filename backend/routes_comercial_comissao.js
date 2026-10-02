@@ -843,6 +843,9 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                         if (resol.acao === 'aditivo') {
                             return Object.assign({}, c, { excluido: false, aditivo: true, aditivo_texto: resol.texto || 'Adtivo' });
                         }
+                        if (resol.acao === 'original' || resol.acao === 'justificado') {
+                            return Object.assign({}, c, { excluido: false, aditivo: false, aditivo_texto: resol.texto || '' });
+                        }
                         return c;
                     });
                 }
@@ -851,15 +854,20 @@ module.exports = function registerComercialComissaoRoutes(app, db, authenticateT
                 const validContratos = contratos.filter(c => !c.excluido);
                 const brutos = validContratos.length;
                 const estCount = estornos.length;
-                const liquidos = Math.max(0, brutos - estCount);
-                const met = aplicarMetrica(liquidos, metricasArr);
-                const comBruta = liquidos * met.valor;
-                const totEst = estCount * met.valor;
+                const emExperiencia = row.em_experiencia === 1;
+
+                const metPorBrutos = aplicarMetrica(brutos, metricasArr);
+                const abono = Math.min(estCount, metPorBrutos.abono || 0);
+                const liquidos = Math.max(0, brutos - (estCount - abono));
+
+                const met = emExperiencia ? { label: null, valor: 0, bonus: 0, abono: 0 } : aplicarMetrica(liquidos, metricasArr);
+                const comBruta = emExperiencia ? 0 : liquidos * met.valor;
+                const totEst = emExperiencia ? 0 : Math.max(0, estCount - abono) * met.valor;
 
                 await new Promise((resolve, reject) => {
                     db.run(
-                        'UPDATE comissao_comercial SET contratos_brutos=?, contratos_estorno=?, contratos_liquidos=?, metrica=?, valor_unitario=?, comissao_bruta=?, total_estorno=?, liquido=?, detalhe_contratos=? WHERE mes=? AND ano=? AND colaborador_nome=?',
-                        [brutos, estCount, liquidos, met.label, met.valor, comBruta, totEst, comBruta, JSON.stringify(contratos), mes, ano, nomeColab],
+                        'UPDATE comissao_comercial SET contratos_brutos=?, contratos_estorno=?, contratos_liquidos=?, abono=?, metrica=?, valor_unitario=?, comissao_bruta=?, total_estorno=?, liquido=?, detalhe_contratos=? WHERE mes=? AND ano=? AND colaborador_nome=?',
+                        [brutos, estCount, liquidos, (emExperiencia ? 0 : abono), met.label, met.valor, comBruta, totEst, comBruta, JSON.stringify(contratos), mes, ano, nomeColab],
                         err => err ? reject(err) : resolve()
                     );
                 });
