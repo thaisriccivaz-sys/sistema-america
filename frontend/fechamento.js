@@ -666,10 +666,6 @@ function abrirLegenda() {
       <button onclick="window._fechamento.buscar()" style="background:#2563eb;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;font-weight:600;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
         <i class="ph ph-magnifying-glass"></i> Buscar
       </button>
-      <label style="background:#f59e0b;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.3rem;margin:0;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" title="Anexar folha em PDF da contabilidade para comparar">
-        <i class="ph ph-files"></i> Comparar
-        <input type="file" id="fech-comparar-pdf" style="display:none" accept="application/pdf" onchange="window._fechamento.compararFolhaPDF(event)">
-      </label>
     </div>
   </div>
 
@@ -811,8 +807,15 @@ function abrirLegenda() {
           <i class="ph ph-lightning"></i> Buscar Todos
         </button>
   
-      </div>
+            </div>
     </div>
+
+    <!-- Botão Comparar Folha -->
+    <label style="background:#f59e0b;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.85rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:.35rem;margin:0;height:32px;box-sizing:border-box;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'" title="Anexar folha em PDF da contabilidade para comparar">
+      <i class="ph ph-files"></i> Comparar
+      <input type="file" id="fech-comparar-pdf" style="display:none" accept="application/pdf" onchange="window._fechamento.compararFolhaPDF(event)">
+    </label>
+
   </div>
   <!-- Filtro por nome -->
   <div id="fech-filtro-wrap" style="margin-bottom:.75rem;display:none;align-items:center;justify-content:space-between;">
