@@ -1793,6 +1793,17 @@ function abrirLegenda() {
 
             let atualizados = 0;
 
+            // Zerar coluna comissão e bônus para TODOS antes de preencher
+            // (evita que valores antigos persistam quando alguém perde a meta)
+            _dados.forEach(function(r, i) {
+                r.comissao = 0;
+                r.bonus_comissao = 0;
+                const cellZ = document.getElementById('fech-cell-comissao-' + i);
+                if (cellZ) { const inp = cellZ.querySelector('input'); if (inp) inp.value = ''; }
+                const cellBZ = document.getElementById('fech-cell-bonus-comissao-' + i);
+                if (cellBZ) { const inp = cellBZ.querySelector('input'); if (inp) inp.value = ''; }
+            });
+
             // Preencher comissão dos colaboradores (somente se atingiu meta mínima)
             colaboradores.forEach(function(c) {
                 if (!c.metrica) return; // sem meta = não preenche
