@@ -991,6 +991,11 @@ function abrirLegenda() {
             });
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
+            _dados.forEach(row => {
+                const f = parseInt(row.dias_falta) || 0;
+                if (f === 0) row.dsr = '';
+                else if (f > 0 && row.dsr !== 'Não') row.dsr = 'Sim';
+            });
             // Reconstituir _dadosPonto a partir de apuracao_ponto salvo no banco
             _dadosPonto = {};
             _dados.forEach(function(row) {
@@ -1184,6 +1189,20 @@ function abrirLegenda() {
     function atualizar(idx, campo, valor) {
         if (!_dados[idx]) return;
         _dados[idx][campo] = valor;
+
+        // Regra DSR x Faltas
+        if (campo === 'dias_falta') {
+            const faltasNum = parseInt(valor) || 0;
+            let selectDsr = document.querySelector(`#fech-cell-dsr-${idx} select`);
+            if (faltasNum === 0) {
+                _dados[idx].dsr = '';
+                if (selectDsr) selectDsr.value = '';
+            } else if (faltasNum > 0 && _dados[idx].dsr !== 'Não') {
+                _dados[idx].dsr = 'Sim';
+                if (selectDsr) selectDsr.value = 'Sim';
+            }
+        }
+
         const calc = calcularColaborador(_dados[idx]);
 
         clearTimeout(_autoSaveTimer);
@@ -1689,6 +1708,11 @@ function abrirLegenda() {
                 });
                 if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
                 _dados = await resp.json();
+                _dados.forEach(row => {
+                    const f = parseInt(row.dias_falta) || 0;
+                    if (f === 0) row.dsr = '';
+                    else if (f > 0 && row.dsr !== 'Não') row.dsr = 'Sim';
+                });
                 renderizarTabela(_dados);
                 // Mostrar toolbar e tabela
                 var wrap = document.getElementById('fech-tabela-wrap');
@@ -2577,7 +2601,10 @@ function abrirLegenda() {
         }
         if (faltas !== null && faltas !== undefined) {
             _dados[idx].dias_falta = faltas;
-            if (faltas > 0) {
+            if (faltas === 0) {
+                _dados[idx].dsr = '';
+                atualizar(idx, 'dsr', '');
+            } else if (faltas > 0 && _dados[idx].dsr !== 'Não') {
                 _dados[idx].dsr = 'Sim';
                 atualizar(idx, 'dsr', 'Sim');
             }
