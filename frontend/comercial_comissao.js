@@ -726,7 +726,7 @@
                         </div>
                         <div style="flex:1;">
                             <label style="display:block;font-size:.75rem;color:#16a34a;margin-bottom:2px;">Abono (erros)</label>
-                            <input type="number" id="met-abo-${i}" value="${m.abono != null ? m.abono : (i===0?3:i===1?2:1)}" min="0" step="1" style="width:100%;padding:6px;border:1px solid #bbf7d0;border-radius:6px;background:#fff;" title="Quantidade de estornos que podem ser abonados nessa faixa">
+                            <input type="number" id="met-abo-${i}" value="${(m.abono != null && m.abono > 0) ? m.abono : (i===0?3:i===1?2:1)}" min="0" step="1" style="width:100%;padding:6px;border:1px solid #bbf7d0;border-radius:6px;background:#fff;" title="Quantidade de estornos que podem ser abonados nessa faixa">
                         </div>
                     </div>
                 </div>
@@ -792,7 +792,7 @@
             qtd: parseInt(document.getElementById('met-qtd-' + i).value) || 0,
             valor: parseFloat(document.getElementById('met-val-' + i).value) || 0,
             bonus: parseFloat(document.getElementById('met-bon-' + i).value) || 0,
-            abono: parseInt(document.getElementById('met-abo-' + i) ? document.getElementById('met-abo-' + i).value : (i===0?3:i===1?2:1)) || 0
+            abono: (function(){ const el = document.getElementById('met-abo-' + i); const v = el ? parseInt(el.value) : 0; return (v > 0) ? v : (i===0?3:i===1?2:1); })()
         }));
 
         const novasGestor = {
