@@ -35,7 +35,7 @@ async function carregarMetricas(db) {
                     // Garantir que o campo 'abono' existe (pode não ter em configs antigas)
                     const merged = saved.map(m => {
                         const def = DEFAULT_METRICAS.find(d => d.label === m.label);
-                        return { ...m, abono: m.abono != null ? m.abono : (def ? def.abono : 0) };
+                        return { ...m, abono: (m.abono != null && m.abono > 0) ? m.abono : (def ? def.abono : 0) };
                     });
                     resolve(merged); return;
                 } catch (e) {}

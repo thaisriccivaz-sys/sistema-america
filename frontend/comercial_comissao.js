@@ -979,9 +979,9 @@
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;">' + _fmtDataDDMMYY(d.data || '—') + '</td>';
                 rowsHtml += '<td style="padding:7px 8px;text-align:center;">';
                 rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="intra" data-colab="' + d.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-seq="' + d.seq + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
-                rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
+                rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="original">📋 Original</option><option value="aditivo">📝 Aditivo</option><option value="justificado">✅ Justificado</option></select>';
                 rowsHtml += '</td>';
-                rowsHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
+                rowsHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" placeholder="Justificativa" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
                 rowsHtml += '</tr>';
             });
             rowsHtml += '</tbody></table></div>';
@@ -1003,9 +1003,9 @@
                     rowsHtml += '<td style="padding:6px 8px;font-weight:600;">' + colab + '</td>';
                     rowsHtml += '<td style="padding:6px 8px;text-align:center;">';
                     rowsHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="inter" data-colab="' + colab.replace(/"/g,'&quot;') + '" data-numero="' + d.numero + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
-                    rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
+                    rowsHtml += '<option value="excluir">🗑️ Excluir</option><option value="original">📋 Original</option><option value="aditivo">📝 Aditivo</option><option value="justificado">✅ Justificado</option></select>';
                     rowsHtml += '</td>';
-                    rowsHtml += '<td style="padding:6px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" value="Adtivo" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
+                    rowsHtml += '<td style="padding:6px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" placeholder="Justificativa" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
                     rowsHtml += '</tr>';
                 });
                 rowsHtml += '</tbody></table></div>';
@@ -1030,7 +1030,7 @@
                 foraCorteHtml += '<td style="padding:7px 8px;text-align:center;color:#0369a1;font-weight:600;">' + _fmtDataDDMMYY(fc.data || '—') + '</td>';
                 foraCorteHtml += '<td style="padding:7px 8px;text-align:center;">';
                 foraCorteHtml += '<select id="cc-dup-acao-' + ri + '" class="cc-dup-sel" data-tipo="fora-corte" data-colab="' + fc.colaborador_nome.replace(/"/g,'&quot;') + '" data-numero="' + fc.numero + '" data-seq="' + fc.seq + '" data-ri="' + ri + '" style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;">';
-                foraCorteHtml += '<option value="excluir">🗑️ Excluir</option><option value="aditivo">📝 Justificar</option></select>';
+                foraCorteHtml += '<option value="excluir">🗑️ Excluir</option><option value="original">📋 Original</option><option value="aditivo">📝 Aditivo</option><option value="justificado">✅ Justificado</option></select>';
                 foraCorteHtml += '</td>';
                 foraCorteHtml += '<td style="padding:7px 8px;"><input id="cc-dup-txt-' + ri + '" type="text" placeholder="Justificativa" style="display:none;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:.8rem;width:120px;"></td>';
                 foraCorteHtml += '</tr>';
@@ -1058,7 +1058,7 @@
             sel.addEventListener('change', function() {
                 const ri = this.dataset.ri;
                 const txtEl = document.getElementById('cc-dup-txt-' + ri);
-                if (txtEl) txtEl.style.display = this.value === 'aditivo' ? 'block' : 'none';
+                if (txtEl) txtEl.style.display = 'block'; // sempre mostra justificativa
             });
         });
         // Botão confirmar
@@ -1080,7 +1080,7 @@
             const tipo = sel.dataset.tipo || 'inter';
             const seq = sel.dataset.seq || null; // presente para intra
             const txtEl = document.getElementById('cc-dup-txt-' + i);
-            const texto = (txtEl ? txtEl.value : '') || 'Adtivo';
+            const texto = (txtEl ? txtEl.value.trim() : '') || '';
             resolucoes.push({ colaborador_nome, numero, seq, acao, texto, tipo });
         }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
