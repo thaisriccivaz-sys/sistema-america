@@ -836,6 +836,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;text-align:left;"><strong>Cargo</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="display:none;"></th>
             <th style="display:none;"><strong>H.Normais</strong></th>
+            <th id="fech-th-dias-intermitente" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #34d399;text-align:center;line-height:1.3;" title="Dias trabalhados no mês (apenas Intermitentes)"><strong>Intermi&shy;nente</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">Dias</span></th>
             <th id="fech-th-total-trabalhado" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #34d399;text-align:center;line-height:1.3;" title="Total de horas trabalhadas no mês (apenas Intermitentes)"><strong>Total Trab.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">HH:MM</span></th>
             <th id="fech-th-noturno" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#6d28d9;z-index:10;box-shadow:inset 0 -1px 0 #a78bfa;text-align:center;line-height:1.3;" title="Horas trabalhadas entre 22h e 5h"><strong>Total Noturno</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">HH:MM</span></th>
             
@@ -1066,6 +1067,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;white-space:nowrap;color:#6b7280;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${row.cargo||'—'}</td>
 <td style="display:none;"></td>
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
+<td id="fech-cell-dias-intermitente-${idx}" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;font-weight:600;font-size:.8rem;">${(row.tipo_contrato||"").toLowerCase().trim()==="intermitente" ? (row.dias_intermitente||"") : ""}</td>
 <td id="fech-cell-total-trabalhado-${idx}" style="padding:.35rem .3rem;background:#d1fae5;text-align:center;font-weight:600;font-size:.8rem;">${(row.tipo_contrato||"").toLowerCase().trim()==="intermitente" ? (row.total_trabalhado||"") : ""}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
 
@@ -2555,6 +2557,13 @@ function abrirLegenda() {
 
         // Atualizar _dados em memória
         if (htrab) _dados[idx].horas_trabalhadas = htrab;
+
+        // Dias trabalhados Intermitente — preencher dias_intermitente
+        if (_tipoContrato === 'intermitente' && dados.diasTrabalhados !== null && dados.diasTrabalhados !== undefined) {
+            _dados[idx].dias_intermitente = dados.diasTrabalhados;
+            var cellDI = document.getElementById('fech-cell-dias-intermitente-' + idx);
+            if (cellDI) cellDI.textContent = dados.diasTrabalhados;
+        }
 
         // Total Trabalhado — apenas para Intermitentes (usa soma real de totalHorasTrabalhadas por dia)
         var _tipoContrato = (_dados[idx].tipo_contrato || '').toLowerCase().trim();
