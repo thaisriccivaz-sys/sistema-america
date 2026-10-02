@@ -10935,7 +10935,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
 
         // Linha 6: headers
         aoa.push([
-            'Colaborador', 'Cargo', 'Intermitente', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
+            'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
@@ -11119,7 +11119,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
 
         // Linha 6: headers
         aoa.push([
-            'Colaborador', 'Cargo', 'Intermitente', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
+            'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
