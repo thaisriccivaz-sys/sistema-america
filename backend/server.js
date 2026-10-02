@@ -4254,6 +4254,9 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN dias_ferias INTEGER DEFAULT 0',
 db.run('ALTER TABLE fechamento_mensal ADD COLUMN valor_tercio_ferias REAL DEFAULT 0', function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] valor_tercio_ferias:', e.message);
 });
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN total_trabalhado TEXT', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] total_trabalhado:', e.message);
+});
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
@@ -10135,8 +10138,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
          plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
-         dias_ferias, valor_tercio_ferias)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         dias_ferias, valor_tercio_ferias, total_trabalhado)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10155,6 +10158,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             adiantamento=excluded.adiantamento,
             dias_ferias=excluded.dias_ferias,
             valor_tercio_ferias=excluded.valor_tercio_ferias,
+            total_trabalhado=excluded.total_trabalhado,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10170,7 +10174,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.plr || 0, item.pensao || 0, item.sindicato || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
                 item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0,
-                item.dias_ferias || 0, item.valor_tercio_ferias || 0
+                item.dias_ferias || 0, item.valor_tercio_ferias || 0, item.total_trabalhado || null
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
@@ -10916,11 +10920,11 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '264', '200', '', '8792', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
+        aoa.push(['', '', '', '', '', '264', '200', '', '8792', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
 
         // Linha 6: headers
         aoa.push([
-            'Colaborador', 'Cargo', 'Total Noturno', 'Ext.60%', 'Ext.100%',
+            'Colaborador', 'Cargo', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
@@ -10941,6 +10945,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
             aoa.push([
                 r.nome_completo || '',
                 r.cargo || '',
+                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.total_trabalhado || '') : '',
                 formatHora(r.horas_noturnas),
                 formatHora(r.extra_60),
                 formatHora(r.extra_100),
@@ -11102,7 +11107,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
 
         // Linha 6: headers
         aoa.push([
-            'Colaborador', 'Cargo', 'Total Noturno', 'Ext.60%', 'Ext.100%',
+            'Colaborador', 'Cargo', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'DSR', 'Faltas', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
@@ -11123,6 +11128,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
             aoa.push([
                 r.nome_completo || '',
                 r.cargo || '',
+                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.total_trabalhado || '') : '',
                 formatHora(r.horas_noturnas),
                 formatHora(r.extra_60),
                 formatHora(r.extra_100),
