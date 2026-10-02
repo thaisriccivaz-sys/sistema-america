@@ -837,7 +837,7 @@ function abrirLegenda() {
             <th style="display:none;"></th>
             <th style="display:none;"><strong>H.Normais</strong></th>
             <th id="fech-th-noturno" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#6d28d9;z-index:10;box-shadow:inset 0 -1px 0 #a78bfa;text-align:center;line-height:1.3;" title="Horas trabalhadas entre 22h e 5h"><strong>Total Noturno</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">HH:MM</span></th>
-            <th id="fech-th-adic-noturno" style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#6d28d9;z-index:10;box-shadow:inset 0 -1px 0 #a78bfa;text-align:center;line-height:1.3;" title="Adicional noturno 20% (hora reduzida 52,5 min)"><strong>Ad. Noturno</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">R$</span></th>
+            
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.100%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">200</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
@@ -1061,7 +1061,7 @@ function abrirLegenda() {
 <td style="display:none;"></td>
 <td style="display:none;">${inpHora(idx,'horas_normais',row.horas_normais||'220:00')}</td>
 <td id="fech-cell-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpHora(idx,'horas_noturnas',row.horas_noturnas||'')}</td>
-<td id="fech-cell-adic-noturno-${idx}" style="padding:.35rem .3rem;background:#f3f0ff;">${inpNum(idx,'adicional_noturno',row.adicional_noturno||0,'','0.01')}</td>
+
 <td id="fech-cell-extra_60-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
 <td id="fech-cell-extra_100-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
 <td id="fech-cell-dsr-${idx}" style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
@@ -2833,7 +2833,6 @@ function abrirLegenda() {
             const mapRubricas = [
                 // Noturno: código 256 — qty = horas, val = R$
                 { field: 'horas_noturnas', cellId: 'noturno', code: '256', type: 'time', label: 'Total Noturno (h)', useQty: true },
-                { field: 'adicional_noturno', cellId: 'adic-noturno', code: '256', type: 'val', label: 'Ad. Noturno (R$)', useQty: false },
                 // Extras
                 { field: 'extra_60', cellId: 'extra_60', code: '264', type: 'time', label: 'Ext.60%' },
                 { field: 'extra_100', cellId: 'extra_100', code: '200', type: 'time', label: 'Ext.100%' },
