@@ -10191,30 +10191,40 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
         const _farmParser = new PDFParse({ verbosity: 0, data: req.file.buffer });
         const _farmData = await _farmParser.getText();
         const text = _farmData.text || '';
-        // Parse: linhas com "CPF NOME ... Total Conveniado: RR$valor"
+        // Parse novo formato: Relatorio de Previa de Fechamento de Convenios
+        // Blocos: "Conveniado: NOME" > "Matricula: CPF" > linha "RR$0,00 DATA ... RR$VALOR"
+        // Um mesmo colaborador pode aparecer em varias paginas (multiplas compras) - somar tudo.
         const result = {};
-        const lines = text.split('\n');
-        let currentCpf = null, currentNome = null;
+        let currentNome = null;
+        let currentCpf = null;
         for (const line of lines) {
-            // Formato 1: "CPF NOME" — "443.561.588-65 DANIEL ALMEIDA SANTOS ..."
-            const cpfMatch = line.match(/(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2})\s+([A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇa-záéíóúâêôãõàüç ]+)/);
-            if (cpfMatch) {
-                currentCpf = cpfMatch[1].replace(/[.\-]/g, '');
-                currentNome = cpfMatch[2].trim();
-            } else {
-                // Formato 2: "NOME CPF" — "JOSE HENRIQUE VILAS BOAS DA SILVA 443.561.588-65"
-                const cpfMatch2 = line.match(/([A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇ][A-ZÁÉÍÓÚÂÊÔÃÕÀÜÇa-záéíóúâêôãõàüç ]{5,})\s+(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2})/);
-                if (cpfMatch2) {
-                    currentNome = cpfMatch2[1].trim();
-                    currentCpf = cpfMatch2[2].replace(/[.\-]/g, '');
-                }
+            const trimmed = line.trim();
+            // Linha "Conveniado: NOME"
+            const convMatch = trimmed.match(/^Conveniado:\s+(.+)$/);
+            if (convMatch) {
+                currentNome = convMatch[1].trim();
+                currentCpf = null;
+                continue;
             }
-            const totalMatch = line.match(/Total Conveniado:\s*RR?\$([0-9,.]+)/i);
-            if (totalMatch && currentCpf) {
-                const valor = parseFloat(totalMatch[1].replace(',', '.'));
-                if (!result[currentCpf]) result[currentCpf] = { nome: currentNome, valor: 0 };
-                result[currentCpf].valor += valor;
-                currentCpf = null; currentNome = null;
+            // Linha "Matricula: CPF"
+            const matMatch = trimmed.match(/^Matricula:\s+([\d.\/\-]+)$/);
+            if (matMatch) {
+                currentCpf = matMatch[1].replace(/[.\-\/]/g, '').trim();
+                continue;
+            }
+            // Ignorar totais gerais do relatorio
+            if (trimmed.includes('Total Valor Fechado:') || trimmed.includes('Total Valor em Aberto:')) continue;
+            // Linha de venda individual: RR$0,00\tDATA\t... RR$VALOR_FECHADO
+            if (currentCpf && trimmed.match(/^RR\$[\d,]+\t\d{2}\/\d{2}\/\d{4}/)) {
+                const allValues = [...trimmed.matchAll(/RR\$([\d.]+,\d{2})/g)];
+                if (allValues.length > 0) {
+                    const valorStr = allValues[allValues.length - 1][1];
+                    const valor = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+                    if (!isNaN(valor) && valor > 0) {
+                        if (!result[currentCpf]) result[currentCpf] = { nome: currentNome, valor: 0 };
+                        result[currentCpf].valor += valor;
+                    }
+                }
             }
         }
         // Debug: lista de CPFs e nomes encontrados no PDF
