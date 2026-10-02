@@ -839,10 +839,11 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     // Contar dias de férias (dias marcados como isFerias = true no enriquecimento)
     const diasFerias = Array.isArray(data) ? data.filter(d => d.isFerias === true).length : 0;
 
-    // Soma total de minutos trabalhados (incluindo noturno e extras) — para Intermitentes
+    // Soma total de minutos trabalhados — para Intermitentes
+    // ATENÇÃO: totalHorasTrabalhadas já inclui horas noturnas, NÃO somar horasTotalNoturno novamente
     const minutosTotalTrabalhado = Array.isArray(data)
         ? data.reduce(function(acc, d) {
-            return acc + (parseInt(d.totalHorasTrabalhadas) || 0) + (parseInt(d.horasTotalNoturno) || 0);
+            return acc + (parseInt(d.totalHorasTrabalhadas) || 0);
           }, 0)
         : 0;
 
