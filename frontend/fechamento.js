@@ -2556,13 +2556,16 @@ function abrirLegenda() {
         // Atualizar _dados em memória
         if (htrab) _dados[idx].horas_trabalhadas = htrab;
 
-        // Total Trabalhado — apenas para Intermitentes
+        // Total Trabalhado — apenas para Intermitentes (usa soma real de totalHorasTrabalhadas por dia)
         var _tipoContrato = (_dados[idx].tipo_contrato || '').toLowerCase().trim();
-        if (_tipoContrato === 'intermitente' && htrab) {
-            _dados[idx].total_trabalhado = htrab;
-            // Atualizar célula na tabela
-            var cellTT = document.getElementById('fech-cell-total-trabalhado-' + idx);
-            if (cellTT) cellTT.textContent = htrab;
+        if (_tipoContrato === 'intermitente') {
+            var _minTotal = dados.minutosTotalTrabalhado || 0;
+            var _ttStr = _minTotal > 0 ? minToHH(_minTotal) : (htrab || '');
+            if (_ttStr) {
+                _dados[idx].total_trabalhado = _ttStr;
+                var cellTT = document.getElementById('fech-cell-total-trabalhado-' + idx);
+                if (cellTT) cellTT.textContent = _ttStr;
+            }
         }
         if (faltas !== null && faltas !== undefined) _dados[idx].dias_falta = faltas;
         if (dados.data_faltas !== undefined) _dados[idx].data_faltas = dados.data_faltas;

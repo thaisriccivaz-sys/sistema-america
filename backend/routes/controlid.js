@@ -839,6 +839,13 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     // Contar dias de férias (dias marcados como isFerias = true no enriquecimento)
     const diasFerias = Array.isArray(data) ? data.filter(d => d.isFerias === true).length : 0;
 
+    // Soma total de minutos trabalhados (incluindo noturno e extras) — para Intermitentes
+    const minutosTotalTrabalhado = Array.isArray(data)
+        ? data.reduce(function(acc, d) {
+            return acc + (parseInt(d.totalHorasTrabalhadas) || 0) + (parseInt(d.horasTotalNoturno) || 0);
+          }, 0)
+        : 0;
+
     return {
         diasUteis: diasUteisTotal,
         diasTrabalhados,
@@ -852,6 +859,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         minutosExt100,
         minutosAtraso,
         diasFerias,
+        minutosTotalTrabalhado,
         aviso: (diasTrabalhados === null)
             ? 'Não foi possível interpretar a resposta do RHID. ' + payloadDebug
             : null
