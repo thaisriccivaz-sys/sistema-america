@@ -2558,6 +2558,9 @@ function abrirLegenda() {
         // Atualizar _dados em memória
         if (htrab) _dados[idx].horas_trabalhadas = htrab;
 
+        // Tipo contrato do colaborador (precisa ser declarado antes dos ifs abaixo)
+        var _tipoContrato = (_dados[idx].tipo_contrato || '').toLowerCase().trim();
+
         // Dias trabalhados Intermitente — preencher dias_intermitente
         if (_tipoContrato === 'intermitente' && dados.diasTrabalhados !== null && dados.diasTrabalhados !== undefined) {
             _dados[idx].dias_intermitente = dados.diasTrabalhados;
@@ -2566,7 +2569,6 @@ function abrirLegenda() {
         }
 
         // Total Trabalhado — apenas para Intermitentes (usa soma real de totalHorasTrabalhadas por dia)
-        var _tipoContrato = (_dados[idx].tipo_contrato || '').toLowerCase().trim();
         if (_tipoContrato === 'intermitente') {
             var _minTotal = dados.minutosTotalTrabalhado || 0;
             var _ttStr = _minTotal > 0 ? minToHH(_minTotal) : (htrab || '');
