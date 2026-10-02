@@ -10194,6 +10194,7 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
         // Parse novo formato: Relatorio de Previa de Fechamento de Convenios
         // Blocos: "Conveniado: NOME" > "Matricula: CPF" > linha "RR$0,00 DATA ... RR$VALOR"
         // Um mesmo colaborador pode aparecer em varias paginas (multiplas compras) - somar tudo.
+        const lines = text.split('\n');
         const result = {};
         let currentNome = null;
         let currentCpf = null;
