@@ -11074,7 +11074,8 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         let currentEmployee = null;
         const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '9435'];
 
-        for (const line of allLines) {
+        for (const _lineOrig of allLines) {
+            let line = _lineOrig;
             // Fim dos holerites: totais por departamento/geral e "Resumo por Rubrica" NAO pertencem ao ultimo colaborador
             if (/^Resumo por Rubrica/i.test(line) || /^Total Geral/i.test(line) || /^L.quido Geral/i.test(line) || /^\d+\s+Departamento\b/.test(line) || /^Total:/.test(line)) {
                 currentEmployee = null;
@@ -11108,14 +11109,18 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             const _mConsig = line.match(/DESC\.?\s*EMP\.?\s*CRED\.?\s*TRAB/i);
             if (_mConsig) {
                 const _resto = line.substring(_mConsig.index + _mConsig[0].length);
-                const _mVal = _resto.match(/\d{1,3}(?:\.\d{3})*,\d{2}/);
-                if (_mVal) {
-                    const _v = parseFloat(_mVal[0].replace(/\./g, '').replace(',', '.')) || 0;
+                const _vals = [..._resto.matchAll(/\d{1,3}(?:\.\d{3})*,\d{2}/g)];
+                if (_vals.length) {
+                    const _v = parseFloat(_vals[0][0].replace(/\./g, '').replace(',', '.')) || 0;
                     const _ant = results[currentEmployee]['CONSIG'] ? parseFloat(String(results[currentEmployee]['CONSIG'].val).replace(/\./g, '').replace(',', '.')) || 0 : 0;
                     const _tot = Math.round((_ant + _v) * 100) / 100;
                     results[currentEmployee]['CONSIG'] = { qty: '0', val: _tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) };
                 }
-                continue;
+                // Remove so o trecho do consignado; a outra coluna da mesma linha (ex: "16 Insalubridade") continua sendo lida
+                const _pre = line.substring(0, _mConsig.index).replace(/\d{2,4}\s*\|?\s*$/, '');
+                const _ult = _vals.length ? _vals[Math.min(1, _vals.length - 1)] : null;
+                const _pos = _ult ? _ult.index + _ult[0].length : _resto.length;
+                line = _pre + ' | ' + _resto.substring(_pos);
             }
             
             const parts = line.split('|').map(p => p.trim());
