@@ -1095,8 +1095,8 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;background:#d1fae5;" id="fech-cell-insalubridade-${idx}">${inpNum(idx,'insalubridade',row.insalubridade||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;background:#fef3c7;" id="fech-cell-periculosidade-${idx}">${inpNum(idx,'periculosidade',row.periculosidade||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
+<td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#dbeafe;" id="fech-cell-sindicato-${idx}">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-dias-ferias-${idx}">${inpNum(idx,'dias_ferias',row.dias_ferias||0,'0','1')}</td>
@@ -1649,36 +1649,34 @@ function abrirLegenda() {
         if (!_dados || _dados.length === 0) return;
         let atualizados = 0;
         _dados.forEach((row, idx) => {
-            const val = parseInt(row.folha_insalubridade) === 1 ? (parseFloat(row.folha_insalubridade_valor) || 0) : 0;
+            const val = parseInt(row.folha_insalubridade) === 1 ? 1 : 0;
             if (val > 0) atualizados++;
             _dados[idx].insalubridade = val;
             const cell = document.getElementById('fech-cell-insalubridade-' + idx);
             if (cell) {
-                const inp = cell.querySelector('input');
-                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+                cell.innerHTML = '<span style="font-size:.75rem;font-weight:600;color:' + (val ? '#16a34a' : '#9ca3af') + ';">' + (val ? 'Sim' : '-') + '</span>';
             }
             atualizar(idx, 'insalubridade', val);
         });
         salvarSilencioso();
-        Swal.fire({ title: 'Insalubridade', text: atualizados + ' colaborador(es) com insalubridade preenchidos.', icon: 'info' });
+        Swal.fire({ title: 'Insalubridade', text: atualizados + ' colaborador(es) atualizados.', icon: 'info' });
     }
 
     function buscarPericulosidade() {
         if (!_dados || _dados.length === 0) return;
         let atualizados = 0;
         _dados.forEach((row, idx) => {
-            const val = parseInt(row.folha_periculosidade) === 1 ? (parseFloat(row.folha_periculosidade_valor) || 0) : 0;
+            const val = parseInt(row.folha_periculosidade) === 1 ? 1 : 0;
             if (val > 0) atualizados++;
             _dados[idx].periculosidade = val;
             const cell = document.getElementById('fech-cell-periculosidade-' + idx);
             if (cell) {
-                const inp = cell.querySelector('input');
-                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+                cell.innerHTML = '<span style="font-size:.75rem;font-weight:600;color:' + (val ? '#16a34a' : '#9ca3af') + ';">' + (val ? 'Sim' : '-') + '</span>';
             }
             atualizar(idx, 'periculosidade', val);
         });
         salvarSilencioso();
-        Swal.fire({ title: 'Periculosidade', text: atualizados + ' colaborador(es) com periculosidade preenchidos.', icon: 'info' });
+        Swal.fire({ title: 'Periculosidade', text: atualizados + ' colaborador(es) atualizados.', icon: 'info' });
     }
 
     function buscarSindicato() {
@@ -3057,7 +3055,7 @@ function abrirLegenda() {
                 { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
                 { field: 'insalubridade', cellId: 'insalubridade', code: '16', type: 'val', label: 'Insalub.' },
-                { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'val', label: 'Periculosidade' },
+                { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
                 { field: 'sindicato', cellId: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
             ];
 
@@ -3119,8 +3117,12 @@ function abrirLegenda() {
                         const uiTem = !!(parseFloat(row[m.field]) || 0);
                         if (folhaTem !== uiTem) {
                             const fmtF = b => b ? 'Sim' : 'em branco';
-                            marcarErro(idx, cellId, `Contabilidade: ${fmtF(folhaTem)}`);
-                            colabErros.push(`${m.label}: Tabela ${fmtF(uiTem)} x Folha ${fmtF(folhaTem)}`);
+                            let msgFolha = fmtF(folhaTem);
+                            if (folhaTem && rubrica && parseToFloat(rubrica.val) > 0 && m.showValueOnDiff) {
+                                msgFolha = `Sim (R$ ${parseToFloat(rubrica.val).toFixed(2).replace('.',',')})`;
+                            }
+                            marcarErro(idx, cellId, `Contabilidade: ${msgFolha}`);
+                            colabErros.push(`${m.label}: Tabela ${fmtF(uiTem)} x Folha ${msgFolha}`);
                             qtdErros++;
                         }
                     } else if (m.type === 'qty') {

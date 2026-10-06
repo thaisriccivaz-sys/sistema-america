@@ -11020,8 +11020,8 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 formatNum(r.plr),
                 formatNum(r.premio),
                 formatNum(r.outros),
-                formatNum(r.insalubridade),
-                formatNum(r.periculosidade),
+                r.insalubridade ? 'Sim' : '',
+                r.periculosidade ? 'Sim' : '',
                 formatNum(r.sindicato),
                 formatNum(r.pensao)
             ]);
@@ -11231,8 +11231,8 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                 formatNum(r.plr),
                 formatNum(r.premio),
                 formatNum(r.outros),
-                formatNum(r.insalubridade),
-                formatNum(r.periculosidade),
+                r.insalubridade ? 'Sim' : '',
+                r.periculosidade ? 'Sim' : '',
                 formatNum(r.sindicato),
                 formatNum(r.pensao)
             ]);
