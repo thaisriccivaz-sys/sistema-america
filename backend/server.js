@@ -8,8 +8,34 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
-const pdfParse = require('pdf-parse');
+// const pdfParse = require('pdf-parse');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+
+// HELPER: Extrair texto do PDF usando pdfjs-dist (substitui pdf-parse e evita conflitos de worker)
+async function extractTextFromPdfBuffer(buffer) {
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+    const uint8Array = new Uint8Array(buffer);
+    const pdf = await pdfjsLib.getDocument({ data: uint8Array, verbosity: 0 }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        let rows = {};
+        for (const item of textContent.items) {
+            const y = Math.round(item.transform[5]);
+            if (!rows[y]) rows[y] = [];
+            rows[y].push({ text: item.str, x: item.transform[4] });
+        }
+        const sortedY = Object.keys(rows).sort((a, b) => b - a);
+        for (const y of sortedY) {
+            rows[y].sort((a, b) => a.x - b.x);
+            const lineStr = rows[y].map(i => i.text.trim()).filter(Boolean).join(' ');
+            if (lineStr) fullText += lineStr + '\n';
+        }
+    }
+    return fullText;
+}
 
 // HELPER: Validação anti-corrupção (UTF-8)
 function validateTextSanity(text) {
@@ -6229,10 +6255,7 @@ const multerUploadMemoria = require('multer')({ storage: require('multer').memor
 app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arquivo'), async (req, res) => {
     try {
         if (!req.file) throw new Error('BO nao enviado.');
-        const { PDFParse } = require('pdf-parse');
-        const parser = new PDFParse({ verbosity: 0, data: req.file.buffer });
-        const pdfData = await parser.getText();
-        const text = pdfData.text || '';
+        const text = await extractTextFromPdfBuffer(req.file.buffer);
         // Eliminar espacos duplicados para ajudar a regex
         const cleanText = text.replace(/[\n]+/g, ' ').replace(/\s+/g, ' ');
 
@@ -10194,10 +10217,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
 app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single('pdf'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-        const { PDFParse } = require('pdf-parse');
-        const _farmParser = new PDFParse({ verbosity: 0, data: req.file.buffer });
-        const _farmData = await _farmParser.getText();
-        const text = _farmData.text || '';
+        const text = await extractTextFromPdfBuffer(req.file.buffer);
         // Parse novo formato: Relatorio de Previa de Fechamento de Convenios
         // Blocos: "Conveniado: NOME" > "Matricula: CPF" > linha "RR$0,00 DATA ... RR$VALOR"
         // Um mesmo colaborador pode aparecer em varias paginas (multiplas compras) - somar tudo.
@@ -10296,10 +10316,7 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
             let text = '';
             
                         try {
-                const { PDFParse } = require('pdf-parse');
-                const _mParser = new PDFParse({ verbosity: 0, data: file.buffer });
-                const _mData = await _mParser.getText();
-                text = (_mData && typeof _mData.text === 'string') ? _mData.text : (typeof _mData === 'string' ? _mData : '');
+                text = await extractTextFromPdfBuffer(file.buffer);
             } catch (e) {
                 console.error('[mercado-pdf-parse] Erro:', e.message);
                 text = '';
@@ -11429,9 +11446,7 @@ app.post('/api/fechamento/enviar-emails-comissao', authenticateToken, async (req
 app.post('/api/fechamento/upload-folha-contabilidade', authenticateToken, uploadFoto.single('pdf'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-        const pdfParse = require('pdf-parse');
-        const data = await pdfParse(req.file.buffer);
-        const text = data.text || '';
+        const text = await extractTextFromPdfBuffer(req.file.buffer);
         // Parser: extrair por colaborador
         // Formato típico da folha: cada colaborador começa com matrícula ou nome em maiúsculas
         // Linhas com rubricas têm código + descrição + valor
@@ -17435,8 +17450,7 @@ app.post('/api/colaboradores/:id/multas/upload-notificacao', authenticateToken, 
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
         // Extrai texto do PDF
-        const pdfData = await pdfParse(req.file.buffer);
-        const texto = pdfData.text || '';
+        const texto = await extractTextFromPdfBuffer(req.file.buffer);
 
         const extract = (regex, group = 1) => {
             const m = texto.match(regex);
@@ -29161,8 +29175,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     if (req.file.mimetype !== 'application/pdf') return res.json({ validade: null });
     try {
-        const data = await pdfParse(req.file.buffer);
-        const text = data.text;
+        const text = await extractTextFromPdfBuffer(req.file.buffer);
         let foundDate = null;
 
         const docNome = req.body.nome ? req.body.nome.toUpperCase() : '';
