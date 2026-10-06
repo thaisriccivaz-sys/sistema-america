@@ -768,7 +768,7 @@ function abrirLegenda() {
         </button>
   
         <!-- Buscar Insalubridade -->
-        <button onclick="window._fechamento.buscarInsalubridade()" style="background:#065f46;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca insalubridade do cadastro do colaborador">
+        <button onclick="window._fechamento.buscarInsalubridade()" style="display:none !important;background:#065f46;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;align-items:center;gap:.35rem;" title="Busca insalubridade do cadastro do colaborador">
           <i class="ph ph-shield-warning"></i> Buscar Insalubridade
         </button>
   
@@ -1758,7 +1758,7 @@ function abrirLegenda() {
         try { await carregarPLR(); } catch(e) { msgs.push(`<strong>Erro PLR</strong>: ${e.message}`); }
         try { await buscarComissao(); } catch(e) { msgs.push(`<strong>Erro Comissão</strong>: ${e.message}`); }
         try { buscarAcademia(); } catch(e) { msgs.push(`<strong>Erro Academia</strong>: ${e.message}`); }
-        try { buscarInsalubridade(); } catch(e) { msgs.push(`<strong>Erro Insalubridade</strong>: ${e.message}`); }
+        // try { buscarInsalubridade(); } catch(e) { msgs.push(`<strong>Erro Insalubridade</strong>: ${e.message}`); }
         try { buscarPericulosidade(); } catch(e) { msgs.push(`<strong>Erro Periculosidade</strong>: ${e.message}`); }
         try { buscarSindicato(); } catch(e) { msgs.push(`<strong>Erro Sindicato</strong>: ${e.message}`); }
         try { buscarPensao(); } catch(e) { msgs.push(`<strong>Erro Pens\u00e3o</strong>: ${e.message}`); }
