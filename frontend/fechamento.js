@@ -1277,6 +1277,16 @@ function abrirLegenda() {
                 var cellZ = document.getElementById('fech-cell-farmacia-' + i);
                 if (cellZ) { var inpZ = cellZ.querySelector('input'); if (inpZ) inpZ.value = ''; }
             });
+            // CPFs de colaboradores cadastrados: uma venda do PDF cujo CPF pertence a um colaborador
+            // cadastrado e SEMPRE dele - nunca pode cair em outro colaborador por semelhanca de nome.
+            var cpfsCadastrados = {};
+            _dados.forEach(function(r) {
+                var c = (r.cpf || '').replace(/\D/g, '');
+                if (c) cpfsCadastrados[c] = true;
+            });
+            var _STOP = { DE: 1, DA: 1, DO: 1, DAS: 1, DOS: 1, E: 1 };
+            var _sig = function(s) { return s.split(' ').filter(function(w) { return w && !_STOP[w]; }); };
+            var pdfUsados = {};
             _dados.forEach((row, idx) => {
                 var cpf = (row.cpf || '').replace(/[.\-]/g, '');
                 var matchKey = null;
@@ -1284,26 +1294,27 @@ function abrirLegenda() {
                 if (json.farmacia[cpf]) {
                     matchKey = cpf;
                 } else {
-                    // 2. Fallback: match por nome normalizado
+                    // 2. Fallback por nome - SOMENTE entre entradas do PDF cujo CPF nao e de colaborador cadastrado
                     var nomeColab = (row.nome_completo || '').toUpperCase()
                         .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                    if (normPdf[nomeColab]) {
+                    var _livre = function(k) { return !cpfsCadastrados[normPdf[k]]; };
+                    if (normPdf[nomeColab] && _livre(nomeColab)) {
                         matchKey = normPdf[nomeColab];
                     } else {
-                        // 3. Match parcial: >= 3 palavras em comum
+                        // 3. Match parcial: mesmo primeiro nome e todas as palavras (sem de/da/do...) de um nome contidas no outro
+                        var sc = _sig(nomeColab);
                         Object.keys(normPdf).forEach(function(nomePdfKey) {
-                            if (!matchKey) {
-                                var pw = nomePdfKey.split(' ').filter(Boolean);
-                                var pc = nomeColab.split(' ').filter(Boolean);
-                                var matches = pw.filter(function(p) { return pc.includes(p); });
-                                if (matches.length >= Math.min(3, pw.length)) {
-                                    matchKey = normPdf[nomePdfKey];
-                                }
-                            }
+                            if (matchKey || !_livre(nomePdfKey)) return;
+                            var sw = _sig(nomePdfKey);
+                            if (sw.length < 2 || sc.length < 2 || sw[0] !== sc[0]) return;
+                            var pdfNoColab = sw.every(function(w) { return sc.indexOf(w) !== -1; });
+                            var colabNoPdf = sc.every(function(w) { return sw.indexOf(w) !== -1; });
+                            if (pdfNoColab || colabNoPdf) matchKey = normPdf[nomePdfKey];
                         });
                     }
                 }
                 if (matchKey !== null) {
+                    pdfUsados[matchKey] = true;
                     var val = json.farmacia[matchKey].valor;
                     _dados[idx].farmacia = val;
                     var cell = document.getElementById('fech-cell-farmacia-' + idx);
@@ -1321,7 +1332,14 @@ function abrirLegenda() {
             _stateArquivos.farmacia = true;
             var _btnEF = document.getElementById('fech-btn-eye-farmacia');
             if (_btnEF) _btnEF.style.display = 'inline-flex';
-            Swal.fire({ icon: 'success', title: 'Farmácia processada!', text: atualizados + ' colaboradores com desconto de ' + Object.keys(json.farmacia).length + ' no PDF.' + debugInfo, timer: 4000, showConfirmButton: false });
+            var _semColab = Object.keys(json.farmacia).filter(function(k) { return !pdfUsados[k]; });
+            if (_semColab.length > 0) {
+                var _esc = function(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+                var _lista = _semColab.map(function(k) { return _esc(json.farmacia[k].nome) + ' (R$ ' + window._fechamento.formatBRL(json.farmacia[k].valor) + ')'; }).join('<br>');
+                Swal.fire({ icon: 'warning', title: 'Farmácia processada com avisos', html: atualizados + ' colaboradores preenchidos.<br><br><b>No PDF, sem colaborador correspondente (não foram lançados):</b><br>' + _lista });
+            } else {
+                Swal.fire({ icon: 'success', title: 'Farmácia processada!', text: atualizados + ' colaboradores com desconto de ' + Object.keys(json.farmacia).length + ' no PDF.' + debugInfo, timer: 4000, showConfirmButton: false });
+            }
             salvarSilencioso();
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no PDF de Farmácia', text: e.message });
