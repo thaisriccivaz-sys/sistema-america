@@ -1129,16 +1129,16 @@ function abrirLegenda() {
         var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
         return '<input type=\'text\' value=\'' + v.replace(/'/g, "&apos;") + '\''
             + ' style=\'width:' + (width || '70px') + ';padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:left;font-size:.8rem;\' '
-            + ' oninput=\'' + oi + '\'>';
+            + ' oninput="' + oi + '" onblur="window._fechamento.salvarSilencioso();" onkeydown="if(event.key===\'Enter\')this.blur()">';
     }
     function inpHora(idx, campo, val) {
         var v = (val && val !== '00:00' && val !== '0:00' && val !== '0') ? val : '';
         var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
-        var ob = "if(this.value==='00:00'||this.value==='0:00'||this.value==='0')this.value=''";
+        var ob = "if(this.value==='00:00'||this.value==='0:00'||this.value==='0'){this.value='';window._fechamento.atualizar(" + idx + ",'" + campo + "','');} window._fechamento.salvarSilencioso();";
         return '<input type=\'text\' placeholder=\'\'  value=\'' + (v||'') + '\''
             + ' style=\'width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;\''
-            + ' oninput=\'' + oi + '\''
-            + ' onblur=\'' + ob + '\'>';
+            + ' oninput="' + oi + '"'
+            + ' onblur="' + ob + '" onkeydown="if(event.key===\'Enter\')this.blur()">';
     }
     function parseBRL(val) {
         if (typeof val === 'number') return val;
@@ -1975,7 +1975,15 @@ function abrirLegenda() {
             });
             const json = await resp.json();
             if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
+            // Zerar a coluna PLR antes de preencher (valor antigo nao pode persistir)
+            _dados.forEach(function(r, i) {
+                _dados[i].plr = 0;
+                var c = document.getElementById('fech-cell-plr-' + i);
+                if (c) { var inpP = c.querySelector('input'); if (inpP) inpP.value = ''; }
+                atualizar(i, 'plr', 0);
+            });
             if (json.length === 0) {
+                salvarSilencioso();
                 Swal.fire({ icon: 'info', title: 'PLR', text: 'Nenhum colaborador tem PLR configurada para este mês.' });
                 return;
             }
@@ -2635,9 +2643,26 @@ function abrirLegenda() {
         return (min < 0 ? "-" : "") + String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
     }
 
+    // Zera as colunas alimentadas pela busca de Ponto (Inter. Dias, Total Trab., Total Noturno, Ext.60%,
+    // Ext.100%, Faltas, Dias Faltas, DSR e Atrasos). Valor antigo nao pode persistir apos nova busca.
+    function zerarColunasPonto(idx) {
+        var r = _dados[idx];
+        if (!r) return;
+        r.dias_intermitente = 0;
+        r.total_trabalhado = '';
+        r.horas_noturnas = '';
+        r.extra_60 = '';
+        r.extra_100 = '';
+        r.dias_falta = 0;
+        r.data_faltas = '';
+        r.dsr = '';
+        r.horas_atraso = '';
+    }
+
     // Aplica dados do RHID na linha do colaborador
     function aplicarPontoNaTabela(idx, dados) {
         if (!_dados[idx]) return;
+        zerarColunasPonto(idx);
         var _dbgNome = _dados[idx].nome_completo || idx;
         console.log('[PONTO] idx=' + idx + ' ' + _dbgNome + ' | noturnos=' + dados.minutosNoturnos + ' ext60=' + dados.minutosExt60 + ' ext100=' + dados.minutosExt100 + ' atraso=' + dados.minutosAtraso + ' (bruto=' + dados.minutosFaltaAtrasoBruto + ' faltaDesc=' + dados.minutosFaltaDescontados + ') faltas=' + dados.faltas + ' horasNot=' + dados.horasNoturnas + ' adNot=' + dados.adicionalNoturnoValor + ' aviso=' + (dados.aviso||'nenhum'));
 
@@ -2840,6 +2865,7 @@ function abrirLegenda() {
                 } else {
                     semCadastro++;
                     nomesSem.push(row.nome_completo + (dados.aviso ? ' (sem apuração)' : ''));
+                    if (dados.success) zerarColunasPonto(idx); // sem ponto no RHID: nao manter valor antigo
                 }
             } catch(e) {
                 erros++;
