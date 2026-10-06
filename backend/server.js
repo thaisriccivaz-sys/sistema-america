@@ -10974,7 +10974,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '', '264', '200', '', '8794', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '290', '16', '149', '-', '']);
 
         // Linha 6: headers
         aoa.push([
@@ -11072,7 +11072,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         
         const results = {};
         let currentEmployee = null;
-        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '9435'];
+        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '9435'];
 
         for (const line of allLines) {
             // Fim dos holerites: totais por departamento/geral e "Resumo por Rubrica" NAO pertencem ao ultimo colaborador
@@ -11169,7 +11169,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '264', '200', '', '8794', '', '8060', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '290', '16', '149', '-', '']);
 
         // Linha 6: headers
         aoa.push([
