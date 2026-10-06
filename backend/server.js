@@ -11104,8 +11104,13 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             
             const parts = line.split('|').map(p => p.trim());
             for (let i = 0; i < parts.length; i++) {
-                const codeMatch = parts[i].match(/^(\d{2,4})\b/);
-                if (codeMatch && allowedCodes.includes(codeMatch[1])) {
+                // Codigo de rubrica = numero sozinho ou seguido de espaco+descricao ("256 Adicional...").
+                // Nao pode ser valor como "256,08" ou "1.000,00" (antes \b casava "256" de "256,08" e gerava rubrica falsa).
+                const codeMatch = parts[i].match(/^(\d{2,4})(?:\s+\S.*)?$/);
+                // Se o codigo vier sozinho na celula, a celula seguinte precisa ser a descricao (texto, nao numero)
+                const _soCodigo = codeMatch && /^\d{2,4}$/.test(parts[i]);
+                const _descOk = !_soCodigo || (parts[i + 1] !== undefined && /^[A-Za-z\u00C0-\u00FF]/.test(parts[i + 1]));
+                if (codeMatch && _descOk && allowedCodes.includes(codeMatch[1])) {
                     let code = codeMatch[1];
                     if (code === '8069') code = '8060';
 
