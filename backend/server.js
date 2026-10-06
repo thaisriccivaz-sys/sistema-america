@@ -10936,7 +10936,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         // Linha 6: headers
         aoa.push([
             'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
-            'Faltas', 'DSR', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
+            'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
         ]);
@@ -10962,8 +10962,9 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 formatHora(r.extra_60),
                 formatHora(r.extra_100),
                 r.dias_falta || '',
-                r.dsr || '',
                 String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim(),
+                r.dsr || '',
+                
                 formatHora(r.horas_atraso),
                 r.vt ? 'Sim' : '',
                 formatNum(r.farmacia),
@@ -11120,7 +11121,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         // Linha 6: headers
         aoa.push([
             'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
-            'Faltas', 'DSR', 'Dias Faltas', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
+            'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
             'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
         ]);
@@ -11146,8 +11147,9 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                 formatHora(r.extra_60),
                 formatHora(r.extra_100),
                 r.dias_falta || '',
-                r.dsr || '',
                 String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim(),
+                r.dsr || '',
+                
                 formatHora(r.horas_atraso),
                 r.vt ? 'Sim' : '',
                 formatNum(r.farmacia),

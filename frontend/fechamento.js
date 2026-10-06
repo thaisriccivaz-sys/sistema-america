@@ -843,7 +843,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.100%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">200</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8792</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>\n            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Dias Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Dias Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>\n            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Atrasos</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8060</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>VT</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">48</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0c4a6e;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Farm&aacute;cia</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">238</span></th>
@@ -993,10 +993,17 @@ function abrirLegenda() {
             });
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
-            _dados.forEach(row => {
+                        _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
-                if (f === 0) row.dsr = '';
-                else if (f > 0 && row.dsr !== 'Não') row.dsr = 'Sim';
+                let atual = (row.dsr || '').trim().toUpperCase();
+                let isNao = atual.startsWith('N');
+                let isSim = atual.startsWith('S');
+                
+                if (f === 0) {
+                    if (!isSim && !isNao) row.dsr = '';
+                } else {
+                    if (!isNao) row.dsr = 'Sim';
+                }
             });
             // Reconstituir _dadosPonto a partir de apuracao_ponto salvo no banco
             _dadosPonto = {};
@@ -1074,8 +1081,8 @@ function abrirLegenda() {
 <td id="fech-cell-extra_60-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_60',row.extra_60||'')}</td>
 <td id="fech-cell-extra_100-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'extra_100',row.extra_100||'')}</td>
 <td id="fech-cell-dias_falta-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'dias_falta',row.dias_falta||0,'0')}</td>
-<td id="fech-cell-dsr-${idx}" style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
 <td id="fech-cell-data_faltas-${idx}" style="padding:.35rem .3rem;">${inpText(idx,'data_faltas',row.data_faltas,'70px')}</td>
+<td id="fech-cell-dsr-${idx}" style="padding:.35rem .3rem;">${inpDsr(idx, row.dsr)}</td>
 <td id="fech-cell-horas_atraso-${idx}" style="padding:.35rem .3rem;">${inpHora(idx,'horas_atraso',row.horas_atraso||'')}</td>
 <td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
@@ -1179,10 +1186,12 @@ function abrirLegenda() {
         return inp;
     }
     function inpDsr(idx, val) {
+        let isNao = (val || '').trim().toUpperCase().startsWith('N');
+        let isSim = (val || '').trim().toUpperCase().startsWith('S');
         return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
-            <option value="" ${(!val || (val!=='Sim' && val!=='Não'))?'selected':''}></option>
-            <option value="Não" ${val==='Não'?'selected':''}>N</option>
-            <option value="Sim" ${val==='Sim'?'selected':''}>S</option>
+            <option value="" ${(!isSim && !isNao)?'selected':''}></option>
+            <option value="Não" ${isNao?'selected':''}>N</option>
+            <option value="Sim" ${isSim?'selected':''}>S</option>
         </select>`;
     }
 
@@ -1198,10 +1207,15 @@ function abrirLegenda() {
         if (campo === 'dias_falta') {
             const faltasNum = parseInt(valor) || 0;
             let selectDsr = document.querySelector(`#fech-cell-dsr-${idx} select`);
+            let atual = (_dados[idx].dsr || '').trim().toUpperCase();
+            let isNao = atual.startsWith('N');
+            let isSim = atual.startsWith('S');
             if (faltasNum === 0) {
-                _dados[idx].dsr = '';
-                if (selectDsr) selectDsr.value = '';
-            } else if (faltasNum > 0 && _dados[idx].dsr !== 'Não') {
+                if (!isSim && !isNao) {
+                    _dados[idx].dsr = '';
+                    if (selectDsr) selectDsr.value = '';
+                }
+            } else if (faltasNum > 0 && !isNao) {
                 _dados[idx].dsr = 'Sim';
                 if (selectDsr) selectDsr.value = 'Sim';
             }
@@ -1712,11 +1726,18 @@ function abrirLegenda() {
                 });
                 if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
                 _dados = await resp.json();
-                _dados.forEach(row => {
-                    const f = parseInt(row.dias_falta) || 0;
-                    if (f === 0) row.dsr = '';
-                    else if (f > 0 && row.dsr !== 'Não') row.dsr = 'Sim';
-                });
+                            _dados.forEach(row => {
+                const f = parseInt(row.dias_falta) || 0;
+                let atual = (row.dsr || '').trim().toUpperCase();
+                let isNao = atual.startsWith('N');
+                let isSim = atual.startsWith('S');
+                
+                if (f === 0) {
+                    if (!isSim && !isNao) row.dsr = '';
+                } else {
+                    if (!isNao) row.dsr = 'Sim';
+                }
+            });
                 renderizarTabela(_dados);
                 // Mostrar toolbar e tabela
                 var wrap = document.getElementById('fech-tabela-wrap');
