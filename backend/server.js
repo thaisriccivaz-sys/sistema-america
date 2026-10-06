@@ -11101,6 +11101,8 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             }
             
             if (!currentEmployee) continue;
+            // Linhas de cabecalho do colaborador (Cargo/Vinculo) nao sao rubricas: "Cargo: | 200 Assistente..." casava com a rubrica 200
+            if (/^Cargo:/i.test(line) || /^V.nculo:/i.test(line)) continue;
             
             const parts = line.split('|').map(p => p.trim());
             for (let i = 0; i < parts.length; i++) {
