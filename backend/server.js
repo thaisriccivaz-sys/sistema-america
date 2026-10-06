@@ -10360,6 +10360,16 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
                 }
             }
             
+            // Linha de TOTAL do relatorio: '- - - - - R$ <total> R$ 0,00 R$ <recebido> ...' (o valor pode quebrar de linha apos 'R$')
+            // Tem prioridade sobre as heuristicas acima (que podiam pegar ID de venda ou 1a linha de compra).
+            {
+                const mTot = (typeof text === 'string') ? text.match(/-\s+-\s+-\s+-\s+-\s+R\$\s*([\d.]*\d,\d{2})/) : null;
+                if (mTot && mTot[1]) {
+                    const vTot = parseFloat(mTot[1].replace(/\./g, '').replace(',', '.'));
+                    if (!isNaN(vTot)) valor = vTot;
+                }
+            }
+            
             const nomeSemExtensao = file.originalname.replace(/\.pdf$/i, '');
             const nomeSeguro = nomeSemExtensao.replace(/[^a-zA-Z0-9 ]/g, '').trim().toUpperCase();
             let r2Key = null;
