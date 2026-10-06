@@ -15,24 +15,22 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 // HELPER: Extrair texto do PDF usando pdfjs-dist (substitui pdf-parse e evita conflitos de worker)
 async function extractTextFromPdfBuffer(buffer) {
     const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
-    const uint8Array = new Uint8Array(buffer);
-    const pdf = await pdfjsLib.getDocument({ data: uint8Array, verbosity: 0 }).promise;
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), verbosity: 0 }).promise;
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        let rows = {};
+        // Ordem do content stream (igual ao pdf-parse): itens separados por TAB quando ha espaco horizontal
+        let prev = null;
         for (const item of textContent.items) {
-            const y = Math.round(item.transform[5]);
-            if (!rows[y]) rows[y] = [];
-            rows[y].push({ text: item.str, x: item.transform[4] });
+            if (prev && !prev.hasEOL && item.str.trim() !== '' && prev.str.trim() !== '') {
+                if (!/\s$/.test(prev.str) && !/^\s/.test(item.str)) fullText += '\t';
+            }
+            fullText += item.str;
+            if (item.hasEOL) fullText += '\n';
+            prev = item;
         }
-        const sortedY = Object.keys(rows).sort((a, b) => b - a);
-        for (const y of sortedY) {
-            rows[y].sort((a, b) => a.x - b.x);
-            const lineStr = rows[y].map(i => i.text.trim()).filter(Boolean).join(' ');
-            if (lineStr) fullText += lineStr + '\n';
-        }
+        fullText += '\n';
     }
     return fullText;
 }
