@@ -621,6 +621,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let minutosNormais   = 0;   // H. Normais (diurnas não-extra, em minutos)
     let minutosExt60     = 0;   // Horas extras 60% (extraDiurna, em minutos)
     let minutosExt100    = 0;   // Horas extras 100% (extraNoturna, em minutos)
+    let minutosFaltaAtrasoBruto = 0; // soma bruta de "Falta e Atraso" do RHID (min)
+    let minutosFaltaDescontados = 0; // horas dos dias de falta inteira retiradas do atraso (min)
     let minutosAtraso    = 0;   // Atrasos + saída antecipada (em minutos)
 
     // O RHID pode retornar a resposta como uma string JSON dupla (stringificada)
@@ -667,9 +669,20 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             percentuais.forEach(function(pct, i) { if (_parsePercStr(pct) === 100) v100 += (parseInt(horas[i]) || 0); });
             return acc + v100;
         }, 0);
-        minutosAtraso = data.reduce(function(acc, d) {
-            return acc + (parseInt(d.horasFaltaAtraso) || 0); // FALTA E ATRASO do PDF
-        }, 0);
+        // Atrasos = "Falta e Atraso" do RHID MENOS as horas dos dias de FALTA INTEIRA
+        // (esses dias ja entram na coluna Faltas). Em dia de falta inteira desconta-se a jornada
+        // do dia (horasUteis; se nao vier, horasApenasFalta), limitada ao que o RHID lancou no dia.
+        // Mesmo criterio da coluna Faltas: faltasDiasInteiro > 0.
+        data.forEach(function(d) {
+            const fa = parseInt(d.horasFaltaAtraso) || 0; // FALTA E ATRASO do PDF
+            minutosFaltaAtrasoBruto += fa;
+            if ((parseInt(d.faltasDiasInteiro) || 0) > 0 && fa > 0) {
+                const jornadaDia = (parseInt(d.horasUteis) || 0) || (parseInt(d.horasApenasFalta) || 0) || fa;
+                minutosFaltaDescontados += Math.min(fa, jornadaDia);
+            }
+        });
+        minutosAtraso = minutosFaltaAtrasoBruto - minutosFaltaDescontados;
+        console.log('[ControlID] atraso bruto (falta+atraso):', minutosFaltaAtrasoBruto, 'min | horas de falta descontadas:', minutosFaltaDescontados, 'min | atraso liquido:', minutosAtraso, 'min');
         console.log('[ControlID] processarApuracao → noturnos:', minutosNoturnos, 'ext60:', minutosExt60, 'ext100:', minutosExt100, 'atraso:', minutosAtraso);
 
         // VR: dias com > 6h trabalhadas (ou >= 2h se for sábado da escala)
@@ -859,6 +872,8 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         minutosExt60,
         minutosExt100,
         minutosAtraso,
+        minutosFaltaAtrasoBruto,
+        minutosFaltaDescontados,
         diasFerias,
         minutosTotalTrabalhado,
         aviso: (diasTrabalhados === null)

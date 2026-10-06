@@ -2639,7 +2639,7 @@ function abrirLegenda() {
     function aplicarPontoNaTabela(idx, dados) {
         if (!_dados[idx]) return;
         var _dbgNome = _dados[idx].nome_completo || idx;
-        console.log('[PONTO] idx=' + idx + ' ' + _dbgNome + ' | noturnos=' + dados.minutosNoturnos + ' ext60=' + dados.minutosExt60 + ' ext100=' + dados.minutosExt100 + ' atraso=' + dados.minutosAtraso + ' faltas=' + dados.faltas + ' horasNot=' + dados.horasNoturnas + ' adNot=' + dados.adicionalNoturnoValor + ' aviso=' + (dados.aviso||'nenhum'));
+        console.log('[PONTO] idx=' + idx + ' ' + _dbgNome + ' | noturnos=' + dados.minutosNoturnos + ' ext60=' + dados.minutosExt60 + ' ext100=' + dados.minutosExt100 + ' atraso=' + dados.minutosAtraso + ' (bruto=' + dados.minutosFaltaAtrasoBruto + ' faltaDesc=' + dados.minutosFaltaDescontados + ') faltas=' + dados.faltas + ' horasNot=' + dados.horasNoturnas + ' adNot=' + dados.adicionalNoturnoValor + ' aviso=' + (dados.aviso||'nenhum'));
 
         // Extrair dados do RHID
         var diasTrab = dados.diasTrabalhados;
