@@ -3025,6 +3025,8 @@ function abrirLegenda() {
                 // Faltas: rubrica 8794 (Dias Faltas) — compara a QUANTIDADE de dias (ex.: 2,00), nao o valor em R$
                 { field: 'dias_falta', cellId: 'dias_falta', code: '8794', type: 'qty', label: 'Faltas (dias)' },
                 { field: 'horas_atraso', cellId: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
+                // VT: rubrica 48 — com valor na folha = Sim; sem valor = vazio
+                { field: 'vt', cellId: 'vt', code: '48', type: 'flag', label: 'VT' },
                 // Benefícios e descontos
                 { field: 'farmacia', cellId: 'farmacia', code: '238', type: 'val', label: 'Farmácia' },
                 { field: 'mercado', cellId: 'mercado', code: '279', type: 'val', label: 'Mercado' },
@@ -3092,6 +3094,15 @@ function abrirLegenda() {
                         if (Math.abs(uiValFloat - folhaVal) > 0.05) {
                             marcarErro(idx, cellId, `Contabilidade: R$ ${folhaVal.toFixed(2).replace('.',',')}`);
                             colabErros.push(`${m.label}: Tabela R$ ${uiValFloat.toFixed(2).replace('.',',')} x Folha R$ ${folhaVal.toFixed(2).replace('.',',')}`);
+                            qtdErros++;
+                        }
+                    } else if (m.type === 'flag') {
+                        const folhaTem = !!rubrica && (parseToFloat(rubrica.val) > 0 || parseToFloat(rubrica.qty) > 0);
+                        const uiTem = !!(parseFloat(row[m.field]) || 0);
+                        if (folhaTem !== uiTem) {
+                            const fmtF = b => b ? 'Sim' : 'em branco';
+                            marcarErro(idx, cellId, `Contabilidade: ${fmtF(folhaTem)}`);
+                            colabErros.push(`${m.label}: Tabela ${fmtF(uiTem)} x Folha ${fmtF(folhaTem)}`);
                             qtdErros++;
                         }
                     } else if (m.type === 'qty') {
