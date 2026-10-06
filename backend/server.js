@@ -10079,6 +10079,13 @@ app.get('/api/recibos/historico/:mes/:ano', authenticateToken, (req, res) => {
 // ═══════════════════════════════════════════════════════════════════
 
 // GET: Buscar dados do fechamento de um mês/ano
+// Colaboradores ocultos do Fechamento Mensal (tela e planilha XLSX): Nicolle Mezuraro e "Teste"
+function fechamentoColabOculto(nome) {
+    const n = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    if (n.includes('nicolle') && n.includes('mez')) return true;
+    return /\bteste\b/.test(n);
+}
+
 app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) => {
     const { ano, mes } = req.params;
     let m = parseInt(mes, 10);
@@ -10104,7 +10111,7 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
         [mes, ano, mesAnt, anoAnt],
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json(rows);
+            res.json(rows.filter(r => !fechamentoColabOculto(r.nome_completo)));
         }
     );
 });
@@ -10198,6 +10205,9 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
         const result = {};
         let currentNome = null;
         let currentCpf = null;
+        // Uma venda longa quebra em 2 paginas e o cabecalho (cupom/data/valor) e repetido.
+        // Deduplicar por CPF + linha de cabecalho (data + cupom + loja + valor) para nao somar 2x.
+        const vendasVistas = new Set();
         for (const line of lines) {
             const trimmed = line.trim();
             // Linha "Conveniado: NOME"
@@ -10217,6 +10227,9 @@ app.post('/api/fechamento/upload-farmacia', authenticateToken, uploadFoto.single
             if (trimmed.includes('Total Valor Fechado:') || trimmed.includes('Total Valor em Aberto:')) continue;
             // Linha de venda individual: RR$0,00\tDATA\t... RR$VALOR_FECHADO
             if (currentCpf && trimmed.match(/^RR\$[\d,]+\t\d{2}\/\d{2}\/\d{4}/)) {
+                const _vendaKey = currentCpf + '|' + trimmed.replace(/\s+/g, ' ');
+                if (vendasVistas.has(_vendaKey)) continue; // cabecalho repetido na quebra de pagina
+                vendasVistas.add(_vendaKey);
                 const allValues = [...trimmed.matchAll(/RR\$([\d.]+,\d{2})/g)];
                 if (allValues.length > 0) {
                     const valorStr = allValues[allValues.length - 1][1];
@@ -10920,7 +10933,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                     WHERE c.status != 'Desligado'
                     ORDER BY c.nome_completo ASC`,
                 [mes, ano, mes, ano, mes, ano],
-                (err, rows) => err ? reject(err) : resolve(rows)
+                (err, rows) => err ? reject(err) : resolve(rows.filter(r => !fechamentoColabOculto(r.nome_completo)))
             );
         });
 
@@ -11105,7 +11118,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                     WHERE c.status != 'Desligado'
                     ORDER BY c.nome_completo ASC`,
                 [mes, ano, mes, ano, mes, ano],
-                (err, rows) => err ? reject(err) : resolve(rows)
+                (err, rows) => err ? reject(err) : resolve(rows.filter(r => !fechamentoColabOculto(r.nome_completo)))
             );
         });
 

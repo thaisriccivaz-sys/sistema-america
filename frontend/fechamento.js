@@ -1270,6 +1270,13 @@ function abrirLegenda() {
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
                 normPdf[nomePdf] = cpfKey;
             });
+            // Zerar coluna Farmácia de TODOS antes de preencher com o novo PDF
+            // (um novo PDF substitui o anterior; quem não está nele fica sem valor)
+            _dados.forEach(function(r, i) {
+                r.farmacia = 0;
+                var cellZ = document.getElementById('fech-cell-farmacia-' + i);
+                if (cellZ) { var inpZ = cellZ.querySelector('input'); if (inpZ) inpZ.value = ''; }
+            });
             _dados.forEach((row, idx) => {
                 var cpf = (row.cpf || '').replace(/[.\-]/g, '');
                 var matchKey = null;
