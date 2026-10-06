@@ -11104,6 +11104,20 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             // Linhas de cabecalho do colaborador (Cargo/Vinculo) nao sao rubricas: "Cargo: | 200 Assistente..." casava com a rubrica 200
             if (/^Cargo:/i.test(line) || /^V.nculo:/i.test(line)) continue;
             
+            // Consignado: varias rubricas de codigo variavel; o que e fixo e o texto "DESC. EMP. CRED. TRAB Nº". Soma todas.
+            const _mConsig = line.match(/DESC\.?\s*EMP\.?\s*CRED\.?\s*TRAB/i);
+            if (_mConsig) {
+                const _resto = line.substring(_mConsig.index + _mConsig[0].length);
+                const _mVal = _resto.match(/\d{1,3}(?:\.\d{3})*,\d{2}/);
+                if (_mVal) {
+                    const _v = parseFloat(_mVal[0].replace(/\./g, '').replace(',', '.')) || 0;
+                    const _ant = results[currentEmployee]['CONSIG'] ? parseFloat(String(results[currentEmployee]['CONSIG'].val).replace(/\./g, '').replace(',', '.')) || 0 : 0;
+                    const _tot = Math.round((_ant + _v) * 100) / 100;
+                    results[currentEmployee]['CONSIG'] = { qty: '0', val: _tot.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) };
+                }
+                continue;
+            }
+            
             const parts = line.split('|').map(p => p.trim());
             for (let i = 0; i < parts.length; i++) {
                 // Codigo de rubrica = numero sozinho ou seguido de espaco+descricao ("256 Adicional...").

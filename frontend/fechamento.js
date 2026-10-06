@@ -3033,7 +3033,7 @@ function abrirLegenda() {
                 { field: 'multas', cellId: 'multas', code: '302', type: 'val', label: 'Multas' },
                 { field: 'academia', cellId: 'academia', code: '278', type: 'val', label: 'Academia' },
                 { field: 'adiantamento', cellId: 'adiantamento', code: '981', type: 'val', label: 'Adiantamento' },
-                { field: 'consignado', cellId: 'consig', code: '9750', type: 'val', label: 'Consig.' },
+                { field: 'consignado', cellId: 'consig', code: 'CONSIG', type: 'val', label: 'Consig.' },
                 { field: 'comissao', cellId: 'comissao', code: '37', type: 'val', label: 'Comissão' },
                 { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
                 { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
