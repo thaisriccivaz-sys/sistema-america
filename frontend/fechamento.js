@@ -3032,7 +3032,7 @@ function abrirLegenda() {
                 { field: 'mercado', cellId: 'mercado', code: '279', type: 'val', label: 'Mercado' },
                 { field: 'multas', cellId: 'multas', code: '302', type: 'val', label: 'Multas' },
                 { field: 'academia', cellId: 'academia', code: '278', type: 'val', label: 'Academia' },
-                { field: 'adiantamento', cellId: 'adiantamento', code: '981', type: 'val', label: 'Adiantamento' },
+                { field: 'adiantamento', cellId: 'adiantamento', code: ['981', '353'], type: 'val', label: 'Adiantamento' },
                 { field: 'consignado', cellId: 'consig', code: 'CONSIG', type: 'val', label: 'Consig.' },
                 { field: 'comissao', cellId: 'comissao', code: '37', type: 'val', label: 'Comissão' },
                 { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
@@ -3077,7 +3077,17 @@ function abrirLegenda() {
                     else if (m.field === 'comissao') uiVal = (parseFloat(row.valor_comissao)||parseFloat(row.comissao)||0) + (parseFloat(row.valor_bonus)||parseFloat(row.bonus_comissao)||0);
                     else uiVal = row[m.field] || (m.type === 'val' ? 0 : '00:00');
 
-                    const rubrica = folhaRow[m.code];
+                    let rubrica = null;
+                    if (Array.isArray(m.code)) {
+                        for (let code of m.code) {
+                            if (folhaRow[code]) {
+                                rubrica = folhaRow[code];
+                                break;
+                            }
+                        }
+                    } else {
+                        rubrica = folhaRow[m.code];
+                    }
                     // Para noturno: qty=horas, val=R$; useQty=true usa qty para comparação de hora
                     const cellId = m.cellId || m.field;
 
