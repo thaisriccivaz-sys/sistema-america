@@ -507,6 +507,16 @@ router.get('/ponto-colaborador', async (req, res) => {
         // Sobrescreve diasFerias com o valor correto calculado antes do parse interno
         resultado.diasFerias = diasFeriasPre;
 
+        // Dias de falta JUSTIFICADA inteira (atestado/justificativa sem trabalho no dia): contam no desconto de dias
+        // da insalubridade, mas NAO geram DSR. Ferias e feriados ficam de fora; faltas injustificadas tambem.
+        resultado.diasJustificados = Array.isArray(apuracaoData)
+            ? apuracaoData.filter(d => !d.isFerias && !d.isHoliday && d.idJustification
+                && (parseInt(d.faltasDiasInteiro) || 0) === 0
+                && (parseInt(d.diasTrabalhados) || 0) === 0
+                && (parseInt(d.totalHorasTrabalhadas) || 0) === 0
+                && (parseInt(d.horasUteis) || 0) > 0).length
+            : 0;
+
         // Se houve erro na apuração, sobrescreve o aviso com o erro real do RHID
         if (apuracaoErro && !resultado.aviso) {
             resultado.aviso = apuracaoErro;
@@ -616,6 +626,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
     let diasVR          = null; // Dias com >6h trabalhadas (base para VR)
     let faltas          = null;
     let dataFaltas      = [];    // Dias do mês com falta inteira (ex: [15, 20])
+    let diasDsrFalta    = 0;     // Dias de DSR perdidos: 1 por SEMANA (seg-dom) com falta injustificada
     let diasComHoraExtra = null; // Dias com ≥3h extra (janta)
     let minutosNoturnos  = 0;   // Total de minutos em horário noturno (22h-5h) no mês
     let minutosNormais   = 0;   // H. Normais (diurnas não-extra, em minutos)
@@ -720,6 +731,17 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
             return parseInt(parts.length === 3 && parts[0].length === 4 ? parts[2] : parts[0], 10);
         }).filter(Boolean);
         
+        // DSR sob faltas: perde-se 1 DSR por semana (seg-dom) que tenha ao menos 1 falta injustificada
+        (function() {
+            const semanas = new Set();
+            dataFaltas.forEach(function(dia) {
+                const dt = new Date(ano, mes - 1, dia);
+                const offSeg = (dt.getDay() + 6) % 7; // 0=segunda ... 6=domingo
+                semanas.add(new Date(ano, mes - 1, dia - offSeg).getTime());
+            });
+            diasDsrFalta = semanas.size;
+        })();
+
         faltas = data.reduce(function(acc, d) {
             return acc + (parseInt(d.faltasDiasInteiro) || 0); // DIA FALTA do PDF
         }, 0);
@@ -866,6 +888,7 @@ function processarApuracao(data, mes, ano, idPerson, nomeRHID) {
         diasVR,
         faltas,
         data_faltas: JSON.stringify(dataFaltas),
+        diasDsrFalta,
         diasComHoraExtra,
         minutosNoturnos,
         minutosNormais,
