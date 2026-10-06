@@ -11072,9 +11072,14 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         
         const results = {};
         let currentEmployee = null;
-        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601'];
+        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '9435'];
 
         for (const line of allLines) {
+            // Fim dos holerites: totais por departamento/geral e "Resumo por Rubrica" NAO pertencem ao ultimo colaborador
+            if (/^Resumo por Rubrica/i.test(line) || /^Total Geral/i.test(line) || /^L.quido Geral/i.test(line) || /^\d+\s+Departamento\b/.test(line) || /^Total:/.test(line)) {
+                currentEmployee = null;
+                continue;
+            }
             // match: Empr.: | 151 ABNER ABRAHÃO | Situaço:
             if (line.includes('Empr.:') && (line.includes('Situa') || line.includes('Trabalhando'))) {
                 const parts = line.split('|').map(p => p.trim());
@@ -11089,7 +11094,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
                     const nameMatch = namePart.match(/^\d+\s+(.+)$/);
                     if (nameMatch) {
                         currentEmployee = nameMatch[1].trim();
-                        results[currentEmployee] = {};
+                        results[currentEmployee] = results[currentEmployee] || {};
                     }
                 }
                 continue;

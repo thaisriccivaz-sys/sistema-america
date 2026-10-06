@@ -2988,6 +2988,8 @@ function abrirLegenda() {
             };
 
             const mapRubricas = [
+                // Total Trabalhado (so Intermitentes): rubrica 9435 — compara a QUANTIDADE de horas, nao o valor
+                { field: 'total_trabalhado', cellId: 'total-trabalhado', code: '9435', type: 'time', label: 'Total Trabalhado (h)', onlyIntermitente: true },
                 // Noturno: código 256 — qty = horas, val = R$
                 { field: 'horas_noturnas', cellId: 'noturno', code: '256', type: 'time', label: 'Total Noturno (h)', useQty: true },
                 // Extras
@@ -3038,7 +3040,9 @@ function abrirLegenda() {
 
                 let colabErros = [];
 
+                const _ehInterm = (row.tipo_contrato || '').toLowerCase().trim() === 'intermitente';
                 mapRubricas.forEach(m => {
+                    if (m.onlyIntermitente && !_ehInterm) return;
                     let uiVal = '';
                     if (m.field === 'consignado') uiVal = parseFloat(row.consig_total) || parseFloat(row.consignado) || 0;
                     else if (m.field === 'comissao') uiVal = (parseFloat(row.valor_comissao)||parseFloat(row.comissao)||0) + (parseFloat(row.valor_bonus)||parseFloat(row.bonus_comissao)||0);
