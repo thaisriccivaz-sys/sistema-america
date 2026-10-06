@@ -1428,12 +1428,18 @@ function abrirLegenda() {
             var json = await resp.json();
             if (!json.ok) throw new Error(json.error);
             _dadosMercado = json.resultados || [];
-            // Normalizar nomes do PDF
-            var normRes = {};
-            _dadosMercado.forEach(function(r) {
-                var nNorm = (r.nome || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                normRes[nNorm] = r;
-            });
+            // Helpers de comparacao de nomes (arquivo do PDF x colaborador)
+            var _normN = function(s) { return (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); };
+            var _STOP = { DE: 1, DA: 1, DO: 1, DAS: 1, DOS: 1, E: 1 };
+            var _sig = function(s) { return s.split(' ').filter(function(w) { return w && !_STOP[w]; }); };
+            // palavras iguais, ou com 1 letra de diferenca (ex: LUIS/LUIZ, ERIK/ERICK) quando tem >= 4 letras
+            var _palEq = function(a, b) {
+                if (a === b) return true;
+                if (a.length < 4 || b.length < 4 || Math.abs(a.length - b.length) > 1) return false;
+                var i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+                if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+                return a.length > b.length ? a.slice(i + 1) === b.slice(i) : b.slice(i + 1) === a.slice(i);
+            };
             // Preencher coluna mercado por nome do colaborador
             var atualizados = 0;
             // Zerar coluna Mercado de TODOS antes de preencher com os novos PDFs
@@ -1443,28 +1449,41 @@ function abrirLegenda() {
                 var cellZ = document.getElementById('fech-cell-mercado-' + i);
                 if (cellZ) { var inpZ = cellZ.querySelector('input'); if (inpZ) inpZ.value = ''; }
             });
+            // Para cada PDF, achar o(s) colaborador(es) candidato(s): nome identico OU mesmo primeiro nome
+            // (grafia aproximada aceita) e TODAS as palavras do arquivo presentes no nome do colaborador.
+            // "de/da/do" e sobrenomes soltos nao bastam. Se houver mais de um candidato, NAO lanca (ambiguo).
+            var _arqs = _dadosMercado.map(function(r) { var k = _normN(r.nome); return { r: r, k: k, sw: _sig(k), cands: [] }; });
             _dados.forEach(function(row, idx) {
-                var nColab = (row.nome_completo || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                var match = normRes[nColab];
-                if (!match) {
-                    // Tentar match parcial com palavras
-                    Object.keys(normRes).forEach(function(k) {
-                        if (!match) {
-                            var pw = k.split(' ').filter(Boolean);
-                            var pc = nColab.split(' ').filter(Boolean);
-                            var hits = pw.filter(function(p) { return pc.includes(p); });
-                            if (hits.length >= Math.min(2, pw.length)) match = normRes[k];
-                        }
-                    });
-                }
-                if (match) {
-                    var val = match.valor;
-                    _dados[idx].mercado = val;
-                    var cell = document.getElementById('fech-cell-mercado-' + idx);
-                    if (cell) { var inp = cell.querySelector('input'); if (inp) inp.value = window._fechamento.formatBRL(val); }
-                    atualizar(idx, 'mercado', val);
-                    atualizados++;
-                }
+                var nColab = _normN(row.nome_completo);
+                var sc = _sig(nColab);
+                _arqs.forEach(function(a) {
+                    var exato = (a.k === nColab);
+                    var ok = exato;
+                    if (!ok && a.sw.length >= 1 && sc.length >= 1 && _palEq(a.sw[0], sc[0])) {
+                        var arqNoColab = a.sw.every(function(w) { return sc.some(function(c) { return _palEq(w, c); }); });
+                        var colabNoArq = sc.length >= 2 && sc.every(function(c) { return a.sw.some(function(w) { return _palEq(w, c); }); });
+                        ok = arqNoColab || colabNoArq;
+                    }
+                    if (ok) a.cands.push({ idx: idx, exato: exato });
+                });
+            });
+            var _porColab = {};
+            _arqs.forEach(function(a) {
+                if (a.cands.some(function(c) { return c.exato; })) a.cands = a.cands.filter(function(c) { return c.exato; });
+                if (a.cands.length === 1) (_porColab[a.cands[0].idx] = _porColab[a.cands[0].idx] || []).push(a);
+            });
+            var avisosSem = [], avisosAmb = [];
+            _arqs.forEach(function(a) {
+                if (a.cands.length === 0) { avisosSem.push(a); return; }
+                if (a.cands.length > 1) { avisosAmb.push({ a: a, nomes: a.cands.map(function(c) { return _dados[c.idx].nome_completo; }) }); return; }
+                var idx = a.cands[0].idx;
+                if (_porColab[idx].length > 1) { avisosAmb.push({ a: a, nomes: [_dados[idx].nome_completo + ' (mais de um PDF)'] }); return; }
+                var val = a.r.valor;
+                _dados[idx].mercado = val;
+                var cell = document.getElementById('fech-cell-mercado-' + idx);
+                if (cell) { var inp = cell.querySelector('input'); if (inp) inp.value = window._fechamento.formatBRL(val); }
+                atualizar(idx, 'mercado', val);
+                atualizados++;
             });
             // Mostrar botão de olho
             _stateArquivos.mercado_pdfs = true;
@@ -1474,7 +1493,16 @@ function abrirLegenda() {
             var totalPdfs = _dadosMercado.length;
             // Rule 21: auto-save obrigatorio apos upload para persistencia
             salvarSilencioso();
-            Swal.fire({ icon: 'success', title: 'Mercado processado!', text: totalPdfs + ' PDF(s) importados. ' + atualizados + ' colaboradores com valor preenchido.', timer: 4000, showConfirmButton: false });
+            if (avisosSem.length > 0 || avisosAmb.length > 0) {
+                var _esc = function(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+                var _fmt = function(a) { return _esc(a.r.nome) + ' (R$ ' + window._fechamento.formatBRL(a.r.valor) + ')'; };
+                var _html = totalPdfs + ' PDF(s) importados. ' + atualizados + ' colaboradores com valor preenchido.';
+                if (avisosSem.length > 0) _html += '<br><br><b>PDF sem colaborador correspondente (não lançado):</b><br>' + avisosSem.map(_fmt).join('<br>');
+                if (avisosAmb.length > 0) _html += '<br><br><b>PDF ambíguo (não lançado):</b><br>' + avisosAmb.map(function(x) { return _fmt(x.a) + ' → ' + x.nomes.map(_esc).join(' / '); }).join('<br>');
+                Swal.fire({ icon: 'warning', title: 'Mercado processado com avisos', html: _html });
+            } else {
+                Swal.fire({ icon: 'success', title: 'Mercado processado!', text: totalPdfs + ' PDF(s) importados. ' + atualizados + ' colaboradores com valor preenchido.', timer: 4000, showConfirmButton: false });
+            }
         } catch(e) {
             Swal.fire({ icon: 'error', title: 'Erro no Mercado', text: e.message });
         }
