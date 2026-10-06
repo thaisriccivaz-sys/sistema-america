@@ -842,7 +842,7 @@ function abrirLegenda() {
             
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.60%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">264</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Ext.100%</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">200</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8792</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8794</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Dias Faltas</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>\n            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>DSR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Atrasos</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8060</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>VT</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">48</span></th>
@@ -3022,7 +3022,8 @@ function abrirLegenda() {
                 { field: 'extra_60', cellId: 'extra_60', code: '264', type: 'time', label: 'Ext.60%' },
                 { field: 'extra_100', cellId: 'extra_100', code: '200', type: 'time', label: 'Ext.100%' },
                 // Faltas e atrasos
-                { field: 'dias_falta', cellId: 'dias_falta', code: '8792', type: 'val', label: 'Faltas (dias)' },
+                // Faltas: rubrica 8794 (Dias Faltas) — compara a QUANTIDADE de dias (ex.: 2,00), nao o valor em R$
+                { field: 'dias_falta', cellId: 'dias_falta', code: '8794', type: 'qty', label: 'Faltas (dias)' },
                 { field: 'horas_atraso', cellId: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
                 // Benefícios e descontos
                 { field: 'farmacia', cellId: 'farmacia', code: '238', type: 'val', label: 'Farmácia' },
@@ -3091,6 +3092,15 @@ function abrirLegenda() {
                         if (Math.abs(uiValFloat - folhaVal) > 0.05) {
                             marcarErro(idx, cellId, `Contabilidade: R$ ${folhaVal.toFixed(2).replace('.',',')}`);
                             colabErros.push(`${m.label}: Tabela R$ ${uiValFloat.toFixed(2).replace('.',',')} x Folha R$ ${folhaVal.toFixed(2).replace('.',',')}`);
+                            qtdErros++;
+                        }
+                    } else if (m.type === 'qty') {
+                        const folhaQtd = rubrica ? parseToFloat(rubrica.qty) : 0;
+                        const uiQtd = parseFloat(row[m.field]) || 0;
+                        if (Math.abs(uiQtd - folhaQtd) > 0.001) {
+                            const fmtQ = n => String(n).replace('.', ',');
+                            marcarErro(idx, cellId, `Contabilidade: ${fmtQ(folhaQtd)}`);
+                            colabErros.push(`${m.label}: Tabela ${fmtQ(uiQtd)} x Folha ${fmtQ(folhaQtd)}`);
                             qtdErros++;
                         }
                     } else if (m.type === 'time') {
