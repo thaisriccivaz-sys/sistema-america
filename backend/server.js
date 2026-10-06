@@ -10286,6 +10286,10 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
 
         const r2 = require('./utils/r2');
         const resultados = [];
+        // Uploads anteriores do mes: serao substituidos pelo novo upload (removidos apos o sucesso)
+        const mercadoAntigos = await new Promise((resolve) => {
+            db.all('SELECT id, r2_key FROM fechamento_mercado_uploads WHERE mes = ? AND ano = ?', [mes, ano], (err, rs) => resolve(err ? [] : rs));
+        });
         
         for (const file of req.files) {
             let valor = 0;
@@ -10364,6 +10368,11 @@ app.post('/api/fechamento/upload-mercado-pdfs', authenticateToken, uploadFoto.ar
             resultados.push(result);
         }
         
+        // Novo upload SUBSTITUI os anteriores do mes: remover PDFs antigos (R2 primeiro, depois o registro)
+        for (const antigo of mercadoAntigos) {
+            try { if (antigo.r2_key && r2.isReady()) await r2.deleteFromR2(antigo.r2_key); } catch (eDel) { console.warn('[upload-mercado-pdfs] Falha ao remover PDF antigo do R2:', eDel.message); }
+            await new Promise((resolve) => db.run('DELETE FROM fechamento_mercado_uploads WHERE id = ?', [antigo.id], () => resolve()));
+        }
         res.json({ ok: true, resultados });
     } catch (e) {
         console.error('[upload-mercado-pdfs] Erro:', e.message);
@@ -10459,6 +10468,9 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
         const idxInicioDesconto = header.indexOf('competenciaInicioDesconto');
         const idxTotalParcelas = header.indexOf('totalParcelas');
         const idxValorParcela = header.indexOf('valorParcela');
+        if (idxCpf < 0 || idxInicioDesconto < 0 || idxValorParcela < 0) {
+            return res.status(400).json({ error: 'Planilha de consignado invalida: colunas cpf, competenciaInicioDesconto e valorParcela nao encontradas.' });
+        }
         // Group by CPF, filter active for mes/ano
         const mesAno = `${String(mes).padStart(2,'0')}/${ano}`;
         const grouped = {};
@@ -10487,6 +10499,10 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
                 grouped[cpf].detalhes.push({ parcela: valorParcela, inicio: inicioStr, total: totalParcelas });
             }
         }
+        // Chaves R2 do XLSX anterior deste mes (removidas do R2 apos o novo upload)
+        const consigOldKeys = await new Promise((resolve) => {
+            db.all('SELECT DISTINCT r2_key FROM fechamento_consignado WHERE mes = ? AND ano = ? AND r2_key IS NOT NULL', [mes, ano], (err, rs) => resolve(err ? [] : rs.map(x => x.r2_key)));
+        });
         // Upsert into fechamento_consignado
         const stmtC = db.prepare(`INSERT INTO fechamento_consignado (mes, ano, cpf, nome, valor_total, detalhe_json)
             VALUES (?,?,?,?,?,?)
@@ -10497,6 +10513,15 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
             });
         }
         stmtC.finalize();
+        // Novo arquivo SUBSTITUI o anterior: remover do mes quem nao esta no novo XLSX
+        {
+            const cpfsNovos = Object.keys(grouped);
+            const phsNovos = cpfsNovos.map(() => '?').join(',');
+            await new Promise((resolve, reject) => {
+                db.run('DELETE FROM fechamento_consignado WHERE mes = ? AND ano = ?' + (cpfsNovos.length ? ' AND cpf NOT IN (' + phsNovos + ')' : ''),
+                    [mes, ano, ...cpfsNovos], (err) => err ? reject(err) : resolve());
+            });
+        }
         // Garantir que todos os valores estão arredondados no response
         Object.keys(grouped).forEach(cpf => {
             grouped[cpf].valor = Math.round(grouped[cpf].valor * 100) / 100;
@@ -10516,6 +10541,11 @@ app.post('/api/fechamento/upload-consignado', authenticateToken, uploadFoto.sing
                     db.run('UPDATE fechamento_consignado SET r2_key = ? WHERE mes = ? AND ano = ?',
                         [consigR2Key, mes, ano], (err) => err ? reject(err) : resolve());
                 });
+                for (const kOld of consigOldKeys) {
+                    if (kOld && kOld !== consigR2Key) {
+                        try { await r2.deleteFromR2(kOld); } catch (eDel) { console.warn('[upload-consignado] Falha ao remover XLSX antigo do R2:', eDel.message); }
+                    }
+                }
             }
         } catch (r2Err) {
             console.warn('[upload-consignado] Aviso R2:', r2Err.message);

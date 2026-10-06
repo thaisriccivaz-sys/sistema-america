@@ -1349,6 +1349,13 @@ function abrirLegenda() {
             if (!json.ok) throw new Error(json.error);
             // Preencher coluna consignado por CPF
             let atualizados = 0;
+            // Zerar coluna Consignado de TODOS antes de preencher com o novo XLSX
+            // (um novo arquivo substitui o anterior; quem nao esta nele fica sem valor)
+            _dados.forEach(function(r, i) {
+                r.consignado = 0;
+                var cellZ = document.getElementById('fech-cell-consig-' + i);
+                if (cellZ) { var inpZ = cellZ.querySelector('input'); if (inpZ) inpZ.value = ''; }
+            });
             _dados.forEach((row, idx) => {
                 const cpf = (row.cpf || '').replace(/[.\-]/g, '');
                 if (json.consignado[cpf]) {
@@ -1411,6 +1418,13 @@ function abrirLegenda() {
             });
             // Preencher coluna mercado por nome do colaborador
             var atualizados = 0;
+            // Zerar coluna Mercado de TODOS antes de preencher com os novos PDFs
+            // (um novo upload substitui o anterior; quem nao esta nele fica sem valor)
+            _dados.forEach(function(r, i) {
+                r.mercado = 0;
+                var cellZ = document.getElementById('fech-cell-mercado-' + i);
+                if (cellZ) { var inpZ = cellZ.querySelector('input'); if (inpZ) inpZ.value = ''; }
+            });
             _dados.forEach(function(row, idx) {
                 var nColab = (row.nome_completo || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
                 var match = normRes[nColab];
