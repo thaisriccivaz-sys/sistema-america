@@ -2830,23 +2830,7 @@ function abrirLegenda() {
             atualizar(idx, 'valor_tercio_ferias', valorTercioFer);
         }
 
-        // ── Insalubridade proporcional (folha: base x dias efetivos / 30) ───────
-        // Base = valor do cadastro. Desconta: dias de falta injustificada, DSR (1 por semana com falta),
-        // dias de falta justificada (sem DSR), dias de ferias e horas de atraso (horas / 220 x 30).
-        // Afastamento por doenca continua manual.
-        if (parseInt(_dados[idx].folha_insalubridade) === 1 && faltas !== null && faltas !== undefined) {
-            var _baseInsal = parseFloat(_dados[idx].folha_insalubridade_valor) || 0;
-            var _dsrNao = (_dados[idx].dsr || '').trim().toUpperCase().indexOf('N') === 0;
-            var _dDsr = _dsrNao ? 0 : (parseInt(dados.diasDsrFalta) || 0);
-            var _dJust = parseInt(dados.diasJustificados) || 0;
-            var _dFer = parseInt(dados.diasFerias) || 0;
-            var _dAtr = ((dados.minutosAtraso || 0) / 60) / 220 * 30;
-            var _diasInsal = Math.max(0, 30 - (parseInt(faltas) || 0) - _dDsr - _dJust - _dFer - _dAtr);
-            var _valInsal = Math.round(_baseInsal * _diasInsal / 30 * 100) / 100;
-            console.log('[INSALUB] ' + _dbgNome + ' base=' + _baseInsal + ' faltas=' + faltas + ' dsr=' + _dDsr + ' just=' + _dJust + ' ferias=' + _dFer + ' atr(d)=' + _dAtr.toFixed(3) + ' => ' + _valInsal);
-            _dados[idx].insalubridade = _valInsal;
-            atualizar(idx, 'insalubridade', _valInsal);
-        }
+        // Insalubridade proporcional removida a pedido
     }
 
     async function buscarPontoTodos() {
