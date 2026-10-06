@@ -2772,8 +2772,12 @@ function abrirLegenda() {
         }
 
         // ── Atrasos ───────────────────────────────────────────────────────────
-        if (dados.minutosAtraso > 0) {
-            var atrStr = minToHH(dados.minutosAtraso);
+        // Atrasos = coluna "Falta e Atraso" do ponto (soma dos dias, em HH:MM).
+        // Sempre sobrescreve, inclusive com vazio quando o ponto atual nao tem atraso,
+        // para nao manter valor antigo (ex: 08:00) vindo de busca/gravacao anterior.
+        // So nao mexe quando o RHID nao devolveu apuracao (diasTrabalhados nulo).
+        if (typeof dados.minutosAtraso === 'number' && diasTrab !== null && diasTrab !== undefined) {
+            var atrStr = dados.minutosAtraso > 0 ? minToHH(dados.minutosAtraso) : '';
             _dados[idx].horas_atraso = atrStr;
             var trAtr = document.querySelectorAll('#fech-tbody tr');
             for (var ti = 0; ti < trAtr.length; ti++) {
