@@ -3038,7 +3038,7 @@ function abrirLegenda() {
                 { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
                 { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
-                { field: 'insalubridade', cellId: 'insalubridade', code: '16', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
+                { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
                 { field: 'sindicato', cellId: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
             ];

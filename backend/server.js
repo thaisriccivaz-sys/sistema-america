@@ -11125,6 +11125,23 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             
             const parts = line.split('|').map(p => p.trim());
             for (let i = 0; i < parts.length; i++) {
+                // Insalubridade: o codigo varia (16, 394, 8013...); o fixo e o texto "INSALUB" na descricao
+                const _mIns = parts[i].match(/^(\d{2,4})(?:\s+(.*))?$/);
+                if (_mIns) {
+                    const _descIns = _mIns[2] || parts[i + 1] || '';
+                    if (/INSALUB/i.test(_descIns) && !results[currentEmployee]['INSAL']) {
+                        let _q = null, _v = null;
+                        for (let j = i + 1; j < parts.length; j++) {
+                            if (/^[\d.,:]+/.test(parts[j])) {
+                                if (_q === null) _q = parts[j].match(/^[\d.,:]+/)[0];
+                                else if (_v === null) _v = parts[j].match(/^[\d.,:]+/)[0];
+                            }
+                            if (_v !== null) break;
+                        }
+                        if (_q && _v) results[currentEmployee]['INSAL'] = { qty: _q, val: _v };
+                    }
+                }
+
                 // Codigo de rubrica = numero sozinho ou seguido de espaco+descricao ("256 Adicional...").
                 // Nao pode ser valor como "256,08" ou "1.000,00" (antes \b casava "256" de "256,08" e gerava rubrica falsa).
                 const codeMatch = parts[i].match(/^(\d{2,4})(?:\s+\S.*)?$/);
