@@ -8533,14 +8533,20 @@ window.renderPagamentosCompetencia = function () {
         subContainer.appendChild(secRA);
     })();
 
-    const feriasDoAno = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Férias' && d.year == y);
+    // Mes efetivo: o gravado no documento; para docs antigos (sem mes), usa o mes da data em que foram anexados
+    const _feriasMesEfetivo = d => {
+        if (d.month !== null && d.month !== undefined && String(d.month).trim() !== '') return parseInt(d.month, 10);
+        const mm = String(d.upload_date || '').match(/^\d{4}-(\d{2})/);
+        return mm ? parseInt(mm[1], 10) : null;
+    };
+    const feriasDoAno = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.document_type === 'Férias' && d.year == y && _feriasMesEfetivo(d) === parseInt(m, 10));
 
     const secFerias = document.createElement('div');
     secFerias.style.cssText = 'margin-top:1.5rem; border-top:2px dashed #bfdbfe; padding-top:1.25rem;';
     secFerias.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
             <h5 style="margin:0; color:#1e40af; display:flex; align-items:center; gap:0.5rem;">
-                <i class="ph ph-sun-horizon" style="font-size:1.2rem;"></i> Férias <span style="font-size:0.8rem; font-weight:400; color:#64748b; margin-left:4px;">(${y} — sazonal)</span>
+                <i class="ph ph-sun-horizon" style="font-size:1.2rem;"></i> Férias <span style="font-size:0.8rem; font-weight:400; color:#64748b; margin-left:4px;">(${m}/${y})</span>
             </h5>
             <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
                 <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem;">
@@ -8556,12 +8562,12 @@ window.renderPagamentosCompetencia = function () {
                        onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#1e40af'">
                     <i class="ph ph-upload-simple"></i> Adicionar Férias
                     <input type="file" accept=".pdf" style="display:none;"
-                        onchange="const r=this.closest('div').querySelector('input[name^=ferias-assin-]:checked'); window.uploadDocument(this, 'Pagamentos', 'Férias', '${y}', null, null, r ? r.value : 'PENDENTE')">
+                        onchange="const r=this.closest('div').querySelector('input[name^=ferias-assin-]:checked'); window.uploadDocument(this, 'Pagamentos', 'Férias', '${y}', '${m}', null, r ? r.value : 'PENDENTE')">
                 </label>
             </div>
         </div>
             ${feriasDoAno.length === 0
-                ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento de férias cadastrado para ${y}. Clique em "Adicionar Férias" para inserir.</p>`
+                ? `<p style="color:#94a3b8; font-size:0.85rem; margin:0;">Nenhum documento de férias cadastrado para ${m}/${y}. Clique em "Adicionar Férias" para inserir.</p>`
                 : feriasDoAno.map(d => {
                     const st = d.assinafy_status || 'PENDENTE';
                     const isAssinado = (st === 'Assinado' || st.includes('Testemunhas'));
@@ -8694,7 +8700,6 @@ window.renderPagamentosCompetencia = function () {
                         </div>
                     </div>`;
                 }).join('')
-            }
             }
         </div>
     `;
