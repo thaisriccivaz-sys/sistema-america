@@ -32688,7 +32688,20 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             conferidoAt: r.conferido_at || null,
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
-        res.json(parsed);
+        // Lista pode ser muito grande (anexos/imagens embutidos): sem cache do navegador + gzip + log de tamanho
+        const _json = JSON.stringify(parsed);
+        console.log('[SAC] GET /api/sac/tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+            require('zlib').gzip(Buffer.from(_json), (zErr, zBuf) => {
+                if (zErr) return res.send(_json);
+                res.setHeader('Content-Encoding', 'gzip');
+                res.send(zBuf);
+            });
+        } else {
+            res.send(_json);
+        }
     });
 });
 
