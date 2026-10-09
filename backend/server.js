@@ -323,6 +323,17 @@ function notificarEstoqueMinimo(db, itemId, itemNome, itemDepto, enderecoId, qtd
 
 const db = require('./database');
 
+// ── SAC: cache da lista de chamados — versão incrementa a cada escrita em sac_tickets ──
+global._sacTicketsVersion = 1;
+const _SAC_BOOT = Date.now().toString(36);
+(function () {
+    const _bump = (sql) => { try { if (typeof sql === 'string' && /sac_tickets/i.test(sql) && !/^\s*select/i.test(sql)) global._sacTicketsVersion++; } catch (e) { } };
+    const _origRun = db.run;
+    db.run = function (sql, ...args) { _bump(sql); return _origRun.call(this, sql, ...args); };
+    const _origExec = db.exec;
+    db.exec = function (sql, ...args) { _bump(sql); return _origExec.call(this, sql, ...args); };
+})();
+
 // AUTO-PATCH: Excluir permanentemente geradores com caracteres especiais quebrados
 db.run("DELETE FROM geradores WHERE nome LIKE '%Ã%'", err => { if(err) console.error(err); });
 
@@ -32716,6 +32727,17 @@ app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 
 });
 
 app.get('/api/sac/tickets', authenticateToken, (req, res) => {
+    const _ver = global._sacTicketsVersion;
+    const _etag = 'W/"sac-' + _SAC_BOOT + '-' + _ver + '"';
+    res.setHeader('ETag', _etag);
+    res.setHeader('Cache-Control', 'private, no-cache');
+    res.setHeader('Vary', 'Accept-Encoding');
+    if (req.headers['if-none-match'] === _etag) return res.status(304).end();
+    if (global._sacTicketsCache && global._sacTicketsCache.ver === _ver && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Encoding', 'gzip');
+        return res.send(global._sacTicketsCache.gz);
+    }
     db.all("SELECT * FROM sac_tickets ORDER BY created_at DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const parsed = rows.map(r => ({
@@ -32762,10 +32784,10 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
         // Lista pode ser muito grande (anexos/imagens embutidos): sem cache do navegador + gzip + log de tamanho
         const _json = JSON.stringify(parsed);
         console.log('[SAC] GET /api/sac/tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
-        res.setHeader('Cache-Control', 'no-store');
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
         if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
             require('zlib').gzip(Buffer.from(_json), (zErr, zBuf) => {
+                if (!zErr) global._sacTicketsCache = { ver: _ver, gz: zBuf };
                 if (zErr) return res.send(_json);
                 res.setHeader('Content-Encoding', 'gzip');
                 res.send(zBuf);

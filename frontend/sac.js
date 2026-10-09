@@ -106,6 +106,7 @@
   };
   let _view = 'pipeline'; // 'pipeline' | 'tabela' | 'config'
   let _searchTerm = '';
+  let _stageLimit = {}; // limite de cards renderizados por coluna (performance)
   let _filterType = 'all';
   let _filterDateType = 'abertura';
   let _filterDateStart = '';
@@ -171,23 +172,26 @@
 
   let _globalDepartamentos = [];
 
-  async function loadTickets() {
+  async function loadTickets(light) {
     try {
       const token = localStorage.getItem('erp_token')||localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
       const _sacLoadTs = Date.now(); // timestamp ANTES da fetch (detectar race condition de save)
       const [ticketsRes, deptsRes, usersRes, occsRes] = await Promise.all([
         fetch('/api/sac/tickets', { headers }),
-        fetch('/api/departamentos', { headers }).catch(() => null),
-        fetch('/api/usuarios', { headers }).catch(() => null),
-        fetch('/api/sac/ocorrencias', { headers }).catch(() => null)
+        light ? null : fetch('/api/departamentos', { headers }).catch(() => null),
+        light ? null : fetch('/api/usuarios', { headers }).catch(() => null),
+        light ? null : fetch('/api/sac/ocorrencias', { headers }).catch(() => null)
       ]);
       if (ticketsRes.ok) {
-          const _fresh = await ticketsRes.json();
+          const _et = ticketsRes.headers.get('ETag');
+          window._sacUnchanged = false;
+          if (light && _et && _et === window._sacLastEtag && _tickets && _tickets.length) window._sacUnchanged = true;
+          const _fresh = window._sacUnchanged ? null : await ticketsRes.json();
           // Só substituir _tickets se nenhum save aconteceu DURANTE essa carga de rede.
           // Evita sobrescrever stage='respondido' com dado desatualizado vindo do servidor.
           if ((window._sacLastSaveMs || 0) <= _sacLoadTs) {
-              _tickets = _fresh;
+              if (!window._sacUnchanged) { _tickets = _fresh; window._sacLastEtag = _et; }
           } else {
               console.warn('[SAC] loadTickets: save detectado durante a carga — dados do servidor descartados para evitar race condition.');
           }
@@ -729,13 +733,17 @@
             // Não recarregar se houve um save nos últimos 30 segundos (anti race-condition)
             const secsSinceLastSave = (Date.now() - (window._sacLastSaveMs || 0)) / 1000;
             if (secsSinceLastSave < 30) return;
+            if (document.hidden) return; // aba em segundo plano: não recarrega
             const ov = document.getElementById('sac-modal-overlay');
             if (!ov || ov.style.display === 'none') {
                 const _snapSave = window._sacLastSaveMs || 0;
-                await loadTickets();
+                window._sacRefreshN = (window._sacRefreshN || 0) + 1;
+                const _heavy = (window._sacRefreshN % 10 === 1);
+                await loadTickets(!_heavy);
                 // Verificar novamente após o load: se houve save durante a carga, não renderizar
                 // (dados já foram descartados em loadTickets, mas garantimos não fazer renderAll com lixo)
                 if ((window._sacLastSaveMs || 0) > _snapSave) return;
+                if (window._sacUnchanged && (window._sacRefreshN % 5) !== 0) return; // dados iguais: evita re-render pesado
                 renderAll();
             }
         }
@@ -825,7 +833,7 @@
       <!-- SEARCH BAR (pipeline only) -->
       <div id="sac-search-bar" style="background:#fff;border-bottom:1px solid #e2e8f0;padding:8px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;flex-shrink:0;">
         <div style="position:relative;flex:1;min-width:260px;max-width:360px;display:flex;align-items:center;">
-          <input id="sac-search" type="text" placeholder="Busca por OS, cliente, equipamento..." style="width:100%;padding:7px 38px 7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="SAC.onSearch(this.value)" onkeydown="if(event.key==='Enter'){SAC.onSearch(document.getElementById('sac-search').value)}">
+          <input id="sac-search" type="text" placeholder="Busca por OS, cliente, equipamento..." style="width:100%;padding:7px 38px 7px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="SAC.onSearchDebounced(this.value)" onkeydown="if(event.key==='Enter'){SAC.onSearch(document.getElementById('sac-search').value)}">
           <button onclick="SAC.onSearch(document.getElementById('sac-search').value)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:#1e293b;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#1e293b'" title="Buscar"><i class="ph ph-magnifying-glass" style="font-size:0.9rem;"></i></button>
         </div>
         
@@ -960,6 +968,7 @@
     const filtered = getFilteredTickets();
     const numStages = PIPELINE_STAGES.filter(s => s.id !== 'encerrado').length;
     const boardMinWidth = numStages * 280; // ~280px por coluna
+    const moreBtn = (id, n) => '<button onclick="SAC.showMoreStage(\'' + id + '\')" style="width:100%;margin:6px 0;padding:8px;border:1px dashed #94a3b8;background:#fff;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:700;color:#475569;">Mostrar mais (' + n + ' restantes)</button>';
 
     container.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;">
@@ -976,6 +985,9 @@
         const isConcluido = stage.id === 'concluido';
         const cards         = isConcluido ? allCards.filter(t => !t.conferido) : allCards;
         const conferidos    = isConcluido ? allCards.filter(t => t.conferido)  : [];
+        const _capOn   = isConcluido && !_searchTerm;
+        const _limCards = _capOn ? (_stageLimit[stage.id] || 40) : Infinity;
+        const _limConf  = _capOn ? (_stageLimit['conferidos'] || 20) : Infinity;
         const totalColuna   = allCards.length;
 
         const conferidosHtml = conferidos.length === 0 ? '' : `
@@ -988,7 +1000,7 @@
               <span style="background:#64748b;color:#fff;border-radius:20px;padding:1px 7px;font-size:0.72rem;font-weight:700;margin-left:2px;">${conferidos.length}</span>
             </button>
             <div id="sac-conferidos-list-${stage.id}" style="display:none;">
-              ${conferidos.map(t => renderCard(t, stage, true)).join('')}
+              ${conferidos.slice(0, _limConf).map(t => renderCard(t, stage, true)).join('')}${conferidos.length > _limConf ? moreBtn('conferidos', conferidos.length - _limConf) : ''}
             </div>
           </div>`;
 
@@ -1008,7 +1020,7 @@
           <div style="flex:1;overflow-y:auto;padding:10px 8px;">
             ${cards.length === 0 && conferidos.length === 0
               ? `<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:20px 0;">Sem ocorrências</div>`
-              : cards.map(t => renderCard(t, stage)).join('')
+              : cards.slice(0, _limCards).map(t => renderCard(t, stage)).join('') + (cards.length > _limCards ? moreBtn(stage.id, cards.length - _limCards) : '')
             }
             ${conferidosHtml}
           </div>
@@ -3325,6 +3337,8 @@
     },
     setView(v)    { _view = v; renderAll(); },
     onSearch(v)   { _searchTerm = v; renderAll(); },
+    onSearchDebounced(v) { clearTimeout(window._sacSearchT); window._sacSearchT = setTimeout(function () { SAC.onSearch(v); }, 250); },
+    showMoreStage(id) { _stageLimit[id] = (_stageLimit[id] || (id === 'conferidos' ? 20 : 40)) + 40; renderAll(); },
     onFilterType(v){ _filterType = v; renderAll(); },
     onFilterDateType(v){ _filterDateType = v; renderAll(); },
     onFilterDate(start, end){ _filterDateStart = start; _filterDateEnd = end; renderAll(); },
