@@ -659,8 +659,8 @@ window.abrirModalNovoSinistro = function() {
                                     ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._sinAdicionarOrcs(event.dataTransfer.files);">
                                     <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
                                     <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                                    <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
-                                    <input type="file" id="sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                                    <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; JPG, PNG ou PDF &bull; múltiplos de uma vez</p>
+                                    <input type="file" id="sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png,application/pdf,.pdf" style="display:none;"
                                         onchange="window._sinAdicionarOrcs(this.files); this.value='';">
                                 </div>
                                 <div id="sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
@@ -2195,18 +2195,21 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                 ${orcs.length > 0 ? `
                 <div>
                     <p style="font-weight:700; font-size:0.85rem; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcs.length})</p>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                        ${orcs.map((p, i) => `
-                        <a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive('${p}')"
-                            style="display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; color:#0369a1; background:#e0f2fe; padding:4px 8px; border-radius:4px; text-decoration:none;">
-                            <i class="ph ph-image"></i> Orç. ${i + 1}
-                        </a>`).join('')}
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                        ${orcs.map((p, i) => {
+                            const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
+                            return `<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive('${p}')" title="Orçamento ${i + 1}">
+                                ${isPdf ? `<div style="width:100%;height:100%;background:#ef4444;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.7rem;font-weight:bold;"><i class="ph ph-file-pdf" style="font-size:1.8rem;margin-bottom:2px;"></i>PDF</div>` 
+                                : `<img src="${p}" style="width:100%;height:100%;object-fit:cover;">`}
+                                <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ${i+1}</span>
+                            </div>`;
+                        }).join('')}
                     </div>
                 </div>` : ''}
 
                 <!-- ADICIONAR ORÇAMENTOS -->
                 <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
-                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
+                    <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG/PDF)</p>
                     <div style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer;"
                         onclick="document.getElementById('rh-edit-orc-file').click()"
                         ondragover="event.preventDefault(); this.style.background='#e2e8f0';"
@@ -2214,8 +2217,8 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                         ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._rhEditAddOrcs(event.dataTransfer.files);">
                         <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
                         <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste imagens dos orçamentos</p>
-                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique • apenas JPG e PNG</p>
-                        <input type="file" id="rh-edit-orc-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique • JPG, PNG ou PDF</p>
+                        <input type="file" id="rh-edit-orc-file" multiple accept="image/jpeg,image/png,.jpg,.png,application/pdf,.pdf" style="display:none;"
                             onchange="window._rhEditAddOrcs(this.files); this.value='';">
                     </div>
                     <div id="rh-edit-orcs-preview" style="display:none; margin-top:8px; flex-wrap:wrap; gap:8px;"></div>
@@ -2265,10 +2268,16 @@ window._rhEditRenderMidias = function() {
             img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
             card.appendChild(img);
         } else {
-            const ico = document.createElement('div');
-            ico.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
-            ico.innerHTML = `<i class="ph ph-video" style="font-size:2rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:4px;padding:0 4px;text-align:center;">${(m.nome||'Vídeo').slice(0,12)}</span>`;
-            card.appendChild(ico);
+            const vid = document.createElement('video');
+        vid.src = m.url;
+        vid.style.cssText = 'width:100%;height:100%;object-fit:cover;background:#1e293b;';
+        vid.muted = true; vid.playsInline = true; vid.preload = "metadata";
+        vid.onloadeddata = () => { vid.currentTime = 0.5; };
+        card.appendChild(vid);
+        const ico = document.createElement('div');
+        ico.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.2);';
+        ico.innerHTML = '<i class="ph ph-play-circle" style="font-size:2rem;color:#fff;opacity:0.8;text-shadow:0 2px 4px rgba(0,0,0,0.5);"></i>';
+        card.appendChild(ico);
         }
         // Overlay excluir
         const del = document.createElement('button');
@@ -2408,7 +2417,7 @@ window._rhEditAddOrcs = function(fileList) {
     if (!fileList || !fileList.length) return;
     Array.from(fileList).forEach(f => {
         const ext = f.name.split('.').pop().toLowerCase();
-        if (!['jpg','jpeg','png'].includes(ext)) { alert('Apenas JPG/PNG: ' + f.name); return; }
+        if (!['jpg','jpeg','png','pdf'].includes(ext)) { alert('Apenas JPG/PNG/PDF: ' + f.name); return; }
         if (!window._rhEdit.orcFiles.some(x => x.name === f.name && x.size === f.size))
             window._rhEdit.orcFiles.push(f);
     });

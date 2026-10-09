@@ -378,8 +378,8 @@ window.logSinAbrirModalNovo = function() {
                                         ondrop="event.preventDefault(); this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'; window._logSinAdicionarOrcs(event.dataTransfer.files);">
                                         <i class="ph ph-image" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
                                         <p style="margin:0; font-weight:600; font-size:0.82rem; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; apenas JPG e PNG &bull; múltiplos de uma vez</p>
-                                        <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;" onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
+                                        <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique para selecionar &bull; JPG, PNG ou PDF &bull; múltiplos de uma vez</p>
+                                        <input type="file" id="log-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png,application/pdf,.pdf" style="display:none;" onchange="window._logSinAdicionarOrcs(this.files); this.value='';">
                                     </div>
                                     <div id="log-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
                                     <p id="log-sin-orcs-count" style="margin:6px 0 0; font-size:0.75rem; color:#475569; display:none;"></p>
@@ -1102,7 +1102,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
 
                     <!-- ADICIONAR NOVOS ORÇAMENTOS -->
                     <div style="background:#f8fafc; padding:0.85rem; border-radius:8px; border:1px solid #e2e8f0;">
-                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG)</p>
+                        <p style="margin:0 0 8px; font-weight:600; font-size:0.85rem;"><i class="ph ph-image"></i> Adicionar orçamentos (JPG/PNG/PDF)</p>
                         <div id="edit-sin-orc-dropzone"
                             style="border:2px dashed #cbd5e1; border-radius:10px; background:#f1f5f9; padding:1rem; text-align:center; cursor:pointer; transition:all .2s;"
                             onclick="document.getElementById('edit-sin-orcs-file').click()"
@@ -1111,8 +1111,8 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                             ondrop="event.preventDefault(); this.style.background='#f1f5f9'; window._logSinEditAdicionarOrcs(event.dataTransfer.files);">
                             <i class="ph ph-upload-simple" style="font-size:1.8rem; color:#94a3b8; display:block; margin-bottom:4px;"></i>
                             <p style="margin:0; font-size:0.82rem; font-weight:600; color:#475569;">Arraste fotos dos orçamentos aqui</p>
-                            <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; apenas JPG e PNG</p>
-                            <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png" style="display:none;"
+                            <p style="margin:2px 0 0; font-size:0.72rem; color:#94a3b8;">ou clique &bull; JPG, PNG ou PDF</p>
+                            <input type="file" id="edit-sin-orcs-file" multiple accept="image/jpeg,image/png,.jpg,.png,application/pdf,.pdf" style="display:none;"
                                 onchange="window._logSinEditAdicionarOrcs(this.files); this.value='';">
                         </div>
                         <div id="edit-sin-orcs-preview" style="display:none; margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
