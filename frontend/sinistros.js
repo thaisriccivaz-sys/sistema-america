@@ -2199,7 +2199,7 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                         ${orcs.map((p, i) => {
                             const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
                             return `<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive('${p}')" title="Orçamento ${i + 1}">
-                                ${isPdf ? `<div style="width:100%;height:100%;background:#ef4444;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.7rem;font-weight:bold;"><i class="ph ph-file-pdf" style="font-size:1.8rem;margin-bottom:2px;"></i>PDF</div>` 
+                                ${isPdf ? `<div style="width:100%;height:100%;position:relative;background:#fff;overflow:hidden;"><iframe src="${p}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" style="position:absolute;top:0;left:0;width:300%;height:300%;transform:scale(0.333);transform-origin:0 0;border:none;pointer-events:none;background:#fff;" scrolling="no" tabindex="-1"></iframe><div style="position:absolute;inset:0;background:transparent;z-index:10;"></div></div>` 
                                 : `<img src="${p}" style="width:100%;height:100%;object-fit:cover;">`}
                                 <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ${i+1}</span>
                             </div>`;
@@ -2269,7 +2269,7 @@ window._rhEditRenderMidias = function() {
             card.appendChild(img);
         } else {
             const vid = document.createElement('video');
-        vid.src = m.url;
+        vid.src = m.url + '#t=0.1';
         vid.style.cssText = 'width:100%;height:100%;object-fit:cover;background:#1e293b;';
         vid.muted = true; vid.playsInline = true; vid.preload = "metadata";
         vid.onloadeddata = () => { vid.currentTime = 0.5; };

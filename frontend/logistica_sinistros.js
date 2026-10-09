@@ -678,10 +678,15 @@ window._logSinAtualizarPreviewMidias = function() {
             reader.readAsDataURL(f);
             card.appendChild(img);
         } else {
-            var icon = document.createElement('div');
-            icon.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
-            icon.innerHTML = '<i class="ph ph-video" style="font-size:1.6rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:2px;padding:0 4px;overflow:hidden;word-break:break-all;">' + f.name.slice(0,14) + '</span>';
-            card.appendChild(icon);
+            var vid = document.createElement('video');
+            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;background:#1e293b;';
+            vid.muted = true; vid.playsInline = true; vid.preload = "metadata";
+            var rd = new FileReader(); rd.onload = function(ev) { vid.src = ev.target.result; vid.onloadeddata = function() { vid.currentTime = 0.5; }; }; rd.readAsDataURL(f);
+            card.appendChild(vid);
+            var ico = document.createElement('div');
+            ico.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.2);';
+            ico.innerHTML = '<i class="ph ph-play-circle" style="font-size:2rem;color:#fff;opacity:0.8;text-shadow:0 2px 4px rgba(0,0,0,0.5);"></i>';
+            card.appendChild(ico);
         }
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -1094,7 +1099,12 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <p style="font-size:0.85rem; font-weight:700; color:#374151; margin:0 0 6px;"><i class="ph ph-receipt"></i> Orçamentos já anexados (${orcsExistentes.length})</p>
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             ${orcsExistentes.map(function(p, idx) {
-                                return '<a href="javascript:void(0)" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;color:#0369a1;background:#e0f2fe;padding:4px 8px;border-radius:4px;text-decoration:none;"><i class=\"ph ph-image\"></i> Orç. ' + (idx + 1) + '</a>';
+                                const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
+        return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" title="Orçamento ' + (idx + 1) + '">' +
+            (isPdf ? '<div style="width:100%;height:100%;position:relative;background:#fff;overflow:hidden;"><iframe src="${p}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" style="position:absolute;top:0;left:0;width:300%;height:300%;transform:scale(0.333);transform-origin:0 0;border:none;pointer-events:none;background:#fff;" scrolling="no" tabindex="-1"></iframe><div style="position:absolute;inset:0;background:transparent;z-index:10;"></div></div>'
+                   : '<img src="' + p + '" style="width:100%;height:100%;object-fit:cover;">') +
+            '<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ' + (idx + 1) + '</span>' +
+        '</div>';
                             }).join('')}
                         </div>
                     </div>
@@ -1300,10 +1310,16 @@ window._logSinEditRenderMidiasExistentes = function() {
             img.onerror = function() { this.src=''; this.parentElement.style.background='#e0f2fe'; };
             card.appendChild(img);
         } else {
-            var iconDiv = document.createElement('div');
-            iconDiv.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
-            iconDiv.innerHTML = '<i class="ph ph-video" style="font-size:2rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:4px;padding:0 4px;text-align:center;word-break:break-all;">' + (m.nome || 'Vídeo').slice(0, 12) + '</span>';
-            card.appendChild(iconDiv);
+            var vid = document.createElement('video');
+            vid.src = m.url + '#t=0.1';
+            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;background:#1e293b;';
+            vid.muted = true; vid.playsInline = true; vid.preload = "metadata";
+            vid.onloadeddata = function() { this.currentTime = 0.5; };
+            card.appendChild(vid);
+            var ico = document.createElement('div');
+            ico.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.2);';
+            ico.innerHTML = '<i class="ph ph-play-circle" style="font-size:2rem;color:#fff;opacity:0.8;text-shadow:0 2px 4px rgba(0,0,0,0.5);"></i>';
+            card.appendChild(ico);
         }
         // Botão excluir
         var btnDel = document.createElement('button');
@@ -1402,10 +1418,15 @@ window._logSinEditRenderNovasMidias = function() {
             reader.readAsDataURL(f);
             card.appendChild(img);
         } else {
-            var icon = document.createElement('div');
-            icon.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1e293b;';
-            icon.innerHTML = '<i class="ph ph-video" style="font-size:1.6rem;color:#60a5fa;"></i><span style="font-size:0.55rem;color:#94a3b8;margin-top:2px;padding:0 4px;word-break:break-all;">' + f.name.slice(0,12) + '</span>';
-            card.appendChild(icon);
+            var vid = document.createElement('video');
+            vid.style.cssText = 'width:100%;height:100%;object-fit:cover;background:#1e293b;';
+            vid.muted = true; vid.playsInline = true; vid.preload = "metadata";
+            var rd = new FileReader(); rd.onload = function(ev) { vid.src = ev.target.result; vid.onloadeddata = function() { vid.currentTime = 0.5; }; }; rd.readAsDataURL(f);
+            card.appendChild(vid);
+            var ico = document.createElement('div');
+            ico.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.2);';
+            ico.innerHTML = '<i class="ph ph-play-circle" style="font-size:2rem;color:#fff;opacity:0.8;text-shadow:0 2px 4px rgba(0,0,0,0.5);"></i>';
+            card.appendChild(ico);
         }
         var btn = document.createElement('button');
         btn.type = 'button';
