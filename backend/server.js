@@ -22908,6 +22908,7 @@ const _handleDownloadZip = async (req, res) => {
                 'contrato_esocial':'Contrato_eSocial',
                 'nr1':             'NR1',
                 'foto_colaborador':'Foto',
+                'cid':             'Atestado_CID',
             };
 
             for (const colab of colabs) {
@@ -22943,6 +22944,7 @@ const _handleDownloadZip = async (req, res) => {
                     else if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
                     else if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') matchedCategory = 'contrato_esocial';
                     else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
+                    else if (docsExigidos.includes('cid') && (docTypeLower.includes('cid') || docTypeLower.includes('atestado'))) matchedCategory = 'cid';
                     
                     if (matchedCategory) {
                         const r2Key = doc.signed_r2_key || doc.r2_key;
@@ -23027,7 +23029,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
             'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
-            'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico']
+            'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico'],
+            'cid': ['Atestado', 'CID', 'atestado']
         };
 
         const docNamesReadable = {
