@@ -2198,9 +2198,10 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                     <div style="display:flex; flex-wrap:wrap; gap:8px;">
                         ${orcs.map((p, i) => {
                             const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
+                            const pUrl = p.startsWith('http') ? p : API_URL + '/onedrive/download?path=' + encodeURIComponent(p) + '&token=' + localStorage.getItem('erp_token');
                             return `<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive('${p}')" title="Orçamento ${i + 1}">
-                                ${isPdf ? `<div style="width:100%;height:100%;position:relative;background:#fff;overflow:hidden;"><iframe src="${p}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" style="position:absolute;top:0;left:0;width:300%;height:300%;transform:scale(0.333);transform-origin:0 0;border:none;pointer-events:none;background:#fff;" scrolling="no" tabindex="-1"></iframe><div style="position:absolute;inset:0;background:transparent;z-index:10;"></div></div>` 
-                                : `<img src="${p}" style="width:100%;height:100%;object-fit:cover;">`}
+                                ${isPdf ? `<div style="width:100%;height:100%;position:relative;background:#fff;overflow:hidden;"><iframe src="${pUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" style="position:absolute;top:0;left:0;width:300%;height:300%;transform:scale(0.333);transform-origin:0 0;border:none;pointer-events:none;background:#fff;" scrolling="no" tabindex="-1"></iframe><div style="position:absolute;inset:0;background:transparent;z-index:10;"></div></div>` 
+                                : `<img src="${pUrl}" style="width:100%;height:100%;object-fit:cover;">`}
                                 <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ${i+1}</span>
                             </div>`;
                         }).join('')}
