@@ -563,14 +563,14 @@ async function validarVencimentosCredenciamento() {
         if (d.includes('contrato') || d.includes('social')) return 'contrato_esocial';
         if (d.includes('nr1') || d.includes('ordem de serv')) return 'nr1';
         if (d.includes('foto')) return 'foto_colaborador';
-        if (d.includes('cid') || d.includes('atestado')) return 'cid';
+        if (d.includes('carteira de trabalho') || d.includes('ctps')) return 'ctps';
         return null;
     };
 
     const docNamesReadable = {
         'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
         'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto do Colaborador', 'cid': 'Atestado Médico (CID)'
+        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto do Colaborador', 'ctps': 'Carteira de Trabalho'
     };
 
     // 1. Validar licenças selecionadas
@@ -671,54 +671,7 @@ window.gerarEnviarCredenciamento = async function(modo) {
     const originalHTML = btn ? btn.innerHTML : '';
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner"></i> Validando...'; btn.disabled = true; }
 
-    // Limpar exibição de pendências anterior para reavaliar e atualizar
-    const containerPendencias = document.getElementById('cred-lista-pendencias-container');
-    if (containerPendencias) {
-        containerPendencias.innerHTML = '';
-        containerPendencias.style.display = 'none';
-    }
-
-    // ── Validar documentos e pendências (sem bloquear o download) ───────────────
-    let erros = [];
-    try {
-        erros = await validarVencimentosCredenciamento();
-    } catch(errVal) {
-        console.warn('[Credenciamento] Erro ao validar documentos:', errVal);
-    }
-
-    // Exibir lista de pendências no quadro 'Responder credenciamento'
     const solId = window._credSolicitacaoId;
-    if (containerPendencias) {
-        if (erros.length > 0) {
-            containerPendencias.innerHTML = `
-                <div style="background:#fff1f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; text-align:left;">
-                    <div style="display:flex; align-items:center; gap:8px; color:#991b1b; font-weight:700; font-size:0.88rem; margin-bottom:8px;">
-                        <i class="ph ph-warning-circle" style="font-size:1.3rem; color:#dc2626;"></i>
-                        <span>Documentos não baixados / pendentes (${erros.length}):</span>
-                    </div>
-                    <ul style="margin:0; padding-left:22px; font-size:0.82rem; color:#b91c1c; line-height:1.6;">
-                        ${erros.map(e => `<li>${e}</li>`).join('')}
-                    </ul>
-                    <div style="font-size:0.75rem; color:#6b7280; margin-top:8px; font-style:italic;">
-                        * O ZIP foi baixado com os demais documentos disponíveis. Os itens acima não constavam ou estavam vencidos.
-                    </div>
-                </div>
-            `;
-            containerPendencias.style.display = 'block';
-        } else {
-            containerPendencias.innerHTML = `
-                <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:10px 14px; text-align:left; color:#166534; font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-check-circle" style="font-size:1.2rem; color:#16a34a;"></i>
-                    <span>Todos os documentos exigidos foram baixados com sucesso!</span>
-                </div>
-            `;
-            containerPendencias.style.display = 'block';
-        }
-        try {
-            const storageKey = 'cred_pendencias_' + (solId || clienteNome || 'geral');
-            localStorage.setItem(storageKey, JSON.stringify(erros));
-        } catch(e) {}
-    }
 
     if (btn) btn.innerHTML = '<i class="ph ph-spinner"></i> Gerando...';
 
@@ -808,6 +761,10 @@ window.gerarEnviarCredenciamento = async function(modo) {
                     a.remove();
                 }
             } catch (err) { console.error('Erro ZIP:', err); }
+            if (modo !== 'info') {
+                try { await window.carregarHistoricoCredenciamento(); } catch(eH) {}
+                if (typeof window.renderPendenciasCredPorId === 'function') window.renderPendenciasCredPorId(solId);
+            }
             
             window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, modo === 'info' ? 'Credenciamento atendido! Confira as informações abaixo.' : 'Credenciamento atendido! O ZIP com os documentos será baixado.');
         } else {
@@ -819,6 +776,7 @@ window.gerarEnviarCredenciamento = async function(modo) {
             }
         }
 
+        if (!solId) {
         if (document.getElementById('cred-cliente-nome')) document.getElementById('cred-cliente-nome').value = '';
         if (document.getElementById('cred-cliente-email')) document.getElementById('cred-cliente-email').value = '';
         if (document.getElementById('cred-endereco-instalacao')) document.getElementById('cred-endereco-instalacao').value = '';
@@ -829,13 +787,14 @@ window.gerarEnviarCredenciamento = async function(modo) {
         atualizarResumoColabs();
         atualizarResumoVeiculos();
         atualizarResumoLicencas();
+        }
         
         // Atualizar histórico de credenciamentos
         carregarHistoricoCredenciamento();
         
         // Fechar o modal após o envio
-        if (typeof window.fecharModalNovoCredenciamento === 'function') {
-        // Modal permanece aberto com a lista de pendências visível no quadro Responder credenciamento
+        if (!solId && typeof window.fecharModalNovoCredenciamento === 'function') {
+            window.fecharModalNovoCredenciamento();
         }
     } catch (e) {
         alert('Erro: ' + e.message);
@@ -961,43 +920,7 @@ window.abrirModalCumprirSolicitacao = async function(id) {
 
     const modal = document.getElementById('modal-novo-credenciamento');
     if (typeof window.atualizarDestaqueBotoesCred === 'function') window.atualizarDestaqueBotoesCred();
-    // Restaurar lista de pendências da solicitação salva no localStorage, se houver
-    const containerPendencias = document.getElementById('cred-lista-pendencias-container');
-    if (containerPendencias) {
-        const storageKey = 'cred_pendencias_' + (id || 'novo');
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-            try {
-                const pendencias = JSON.parse(saved);
-                if (Array.isArray(pendencias) && pendencias.length > 0) {
-                    containerPendencias.innerHTML = `
-                        <div style="background:#fff1f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; text-align:left;">
-                            <div style="display:flex; align-items:center; gap:8px; color:#991b1b; font-weight:700; font-size:0.88rem; margin-bottom:8px;">
-                                <i class="ph ph-warning-circle" style="font-size:1.3rem; color:#dc2626;"></i>
-                                <span>Últimos documentos não baixados / pendentes (${pendencias.length}):</span>
-                            </div>
-                            <ul style="margin:0; padding-left:22px; font-size:0.82rem; color:#b91c1c; line-height:1.6;">
-                                ${pendencias.map(p => `<li>${p}</li>`).join('')}
-                            </ul>
-                            <div style="font-size:0.75rem; color:#6b7280; margin-top:8px; font-style:italic;">
-                                * Registrado no último download. Ao clicar em Baixar ZIP novamente, esta lista será reavaliada e atualizada.
-                            </div>
-                        </div>
-                    `;
-                    containerPendencias.style.display = 'block';
-                } else {
-                    containerPendencias.innerHTML = '';
-                    containerPendencias.style.display = 'none';
-                }
-            } catch(e) {
-                containerPendencias.innerHTML = '';
-                containerPendencias.style.display = 'none';
-            }
-        } else {
-            containerPendencias.innerHTML = '';
-            containerPendencias.style.display = 'none';
-        }
-    }
+    window.renderPendenciasCredPorId(id);
     if (modal) modal.style.display = 'flex';
 };
 
@@ -1018,6 +941,27 @@ window.atualizarDestaqueBotoesCred = function() {
 document.addEventListener('change', function(ev) {
     if (ev.target && ev.target.id === 'cred-apenas-dados') window.atualizarDestaqueBotoesCred();
 });
+
+// ── Lista persistente de documentos não baixados (gravada no banco a cada ZIP) ──
+window.renderPendenciasCredPorId = function(id) {
+    const container = document.getElementById('cred-lista-pendencias-container');
+    if (!container) return;
+    const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
+    if (!dados || !dados.docs_baixados_em) { container.innerHTML = ''; container.style.display = 'none'; return; }
+    let lista = [];
+    try { lista = JSON.parse(dados.docs_faltantes || '[]'); } catch(e) { lista = []; }
+    let quando = '';
+    try { quando = new Date(dados.docs_baixados_em).toLocaleString('pt-BR'); } catch(e) {}
+    const rodape = quando ? `<div style="font-size:0.72rem; color:#6b7280; margin-top:8px; font-style:italic;">Verificado no último download do ZIP (${quando}). Ao baixar novamente, a lista é atualizada.</div>` : '';
+    if (Array.isArray(lista) && lista.length > 0) {
+        container.innerHTML = `<div style="background:#fff1f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; text-align:left;">` +
+            `<div style="display:flex; align-items:center; gap:8px; color:#991b1b; font-weight:700; font-size:0.88rem; margin-bottom:8px;"><i class="ph ph-warning-circle" style="font-size:1.3rem; color:#dc2626;"></i><span>Documentos NÃO baixados no ZIP (${lista.length}):</span></div>` +
+            `<ul style="margin:0; padding-left:22px; font-size:0.82rem; color:#b91c1c; line-height:1.6;">${lista.map(p => `<li>${p}</li>`).join('')}</ul>${rodape}</div>`;
+    } else {
+        container.innerHTML = `<div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:10px 14px; text-align:left; color:#166534; font-size:0.85rem; font-weight:600;"><div style="display:flex; align-items:center; gap:8px;"><i class="ph ph-check-circle" style="font-size:1.2rem; color:#16a34a;"></i><span>Todos os documentos exigidos foram baixados com sucesso!</span></div>${rodape}</div>`;
+    }
+    container.style.display = 'block';
+};
 
 window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');

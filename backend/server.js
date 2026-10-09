@@ -22515,7 +22515,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     const docNamesMap = {
                         'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-                        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+                        'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'ctps': 'Carteira de Trabalho'
                     };
                     const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
                     const docsList = docsArr.join(' - ') || 'Nenhum';
@@ -22570,7 +22570,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                 const docNamesMap = {
                     'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-                    'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+                    'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'ctps': 'Carteira de Trabalho'
                 };
                 const docsArr = (docs_exigidos || []).map(d => docNamesMap[d] || d);
                 // Agrupar licenças por empresa
@@ -22759,6 +22759,7 @@ const _handleDownloadZip = async (req, res) => {
         const AdmZip = require('adm-zip');
         const zip = new AdmZip();
         let hasFiles = false;
+        const faltantes = []; // documentos que nao entraram no ZIP (persistido em credenciamentos.docs_faltantes)
 
         let colabsIds = [];
         let veicIds = [];
@@ -22818,8 +22819,10 @@ const _handleDownloadZip = async (req, res) => {
                 const folderPath = parts.join('/');
                 zip.addLocalFile(absolutePath, folderPath, fileName);
                 hasFiles = true;
+                return true;
             } else {
                 console.warn('[ZIP] Arquivo nao encontrado:', filePath, '->', absolutePath);
+                return false;
             }
         };
 
@@ -22836,7 +22839,8 @@ const _handleDownloadZip = async (req, res) => {
             const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
             console.log(`[ZIP] Licencas solicitadas: ${JSON.stringify(licencasSolicitadas)} | Encontradas no DB: ${lics.length}`);
             lics.forEach(lic => {
-                if (!lic.file_path) return;
+                if (lic.validade && new Date(lic.validade + 'T12:00:00') < new Date(new Date().setHours(0,0,0,0))) faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) está VENCIDA (${String(lic.validade).split('-').reverse().join('/')}).`);
+                if (!lic.file_path) { faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) não possui arquivo anexado.`); return; }
                 console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
                 const empresaSafe = (lic.empresa || 'Empresa')
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
@@ -22880,6 +22884,7 @@ const _handleDownloadZip = async (req, res) => {
                     } catch(e) {}
                 }
                 if (!found) {
+                    faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) com arquivo não encontrado no servidor.`);
                     console.warn(`[ZIP] Licenca NAO ENCONTRADA id=${lic.id}. Caminhos tentados: ${candidatos.join(' | ')}`);
                 }
             });
@@ -22889,13 +22894,14 @@ const _handleDownloadZip = async (req, res) => {
         if (veicIds.length > 0) {
             const veics = await new Promise(resolve => db.all(`SELECT id, placa, crlv_base64, crlv_filename FROM frota_veiculos WHERE id IN (${veicIds.join(',')})`, (err, rows) => resolve(rows || [])));
             veics.forEach(v => {
+                if (!v.crlv_base64) faltantes.push(`CRLV do veículo ${v.placa} não encontrado.`);
                 addBase64IfExists(v.crlv_base64, `Veiculos/${v.placa}_${v.crlv_filename || 'CRLV.pdf'}`);
             });
         }
 
         // 3. Colaboradores (Documentos)
         if (colabsIds.length > 0) {
-            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
             
             // Mapeamento de categoria → label amigável para o nome do arquivo
             const docCategoryLabel = {
@@ -22908,7 +22914,7 @@ const _handleDownloadZip = async (req, res) => {
                 'contrato_esocial':'Contrato_eSocial',
                 'nr1':             'NR1',
                 'foto_colaborador':'Foto',
-                'cid':             'Atestado_CID',
+                'ctps':            'Carteira_Trabalho',
             };
 
             for (const colab of colabs) {
@@ -22920,10 +22926,11 @@ const _handleDownloadZip = async (req, res) => {
                     .replace(/\s+/g, '_');
 
                 const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
+                const addedCats = new Set(); // categorias de documentos efetivamente adicionadas ao ZIP para este colaborador
                 
                 if (docsExigidos.includes('foto_colaborador')) {
-                    if (colab.foto_base64) addBase64IfExists(colab.foto_base64, `${folderName}/${nomeColabSafe}_Foto.png`);
-                    else if (colab.foto_path) addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`);
+                    if (colab.foto_base64) { addBase64IfExists(colab.foto_base64, `${folderName}/${nomeColabSafe}_Foto.png`); addedCats.add('foto_colaborador'); }
+                    else if (colab.foto_path) { if (addLocalFileIfExists(colab.foto_path, `${folderName}/${nomeColabSafe}_Foto.png`)) addedCats.add('foto_colaborador'); }
                 }
 
                 // Buscar documentos da tabela documentos
@@ -22944,7 +22951,7 @@ const _handleDownloadZip = async (req, res) => {
                     else if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
                     else if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') matchedCategory = 'contrato_esocial';
                     else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
-                    else if (docsExigidos.includes('cid') && (docTypeLower.includes('cid') || docTypeLower.includes('atestado'))) matchedCategory = 'cid';
+                    else if (docsExigidos.includes('ctps') && (docTypeLower.includes('carteira de trabalho') || docTypeLower.includes('ctps'))) matchedCategory = 'ctps';
                     
                     if (matchedCategory) {
                         const r2Key = doc.signed_r2_key || doc.r2_key;
@@ -22976,8 +22983,9 @@ const _handleDownloadZip = async (req, res) => {
                             }
                             // Fallback: Tentar disco local (documentos antigos)
                             if (!fetched && filePath) {
-                                addLocalFileIfExists(filePath, nameInZip);
+                                fetched = addLocalFileIfExists(filePath, nameInZip) === true;
                             }
+                            if (fetched) addedCats.add(matchedCategory);
                         }
                     }
                 }
@@ -22986,7 +22994,19 @@ const _handleDownloadZip = async (req, res) => {
                 if (docsExigidos.includes('epi')) {
                     const epi = await new Promise(resolve => db.get(`SELECT ficha_pdf_path FROM colaborador_epi_fichas WHERE colaborador_id = ? AND status = 'ativa' ORDER BY id DESC LIMIT 1`, [colab.id], (err, row) => resolve(row)));
                     if (epi && epi.ficha_pdf_path) {
-                        addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/${nomeColabSafe}_Ficha_EPI.pdf`);
+                        if (addLocalFileIfExists(epi.ficha_pdf_path, `${folderName}/${nomeColabSafe}_Ficha_EPI.pdf`)) addedCats.add('epi');
+                    }
+                }
+
+                // Apurar documentos exigidos que NAO entraram no ZIP para este colaborador
+                {
+                    const isMotCred = String(colab.cargo || '').toUpperCase().includes('MOTORISTA');
+                    const docNomesCred = { cnh: 'CNH', cpf: 'CPF', aso: 'ASO', ficha_registro: 'Ficha de Registro', treinamento: 'Carteira de Vacinação', epi: 'Ficha de EPI', contrato_esocial: 'Contrato e-social', nr1: 'NR1 / Ordem de Serviço', foto_colaborador: 'Foto 3x4', ctps: 'Carteira de Trabalho' };
+                    for (const reqDoc of docsExigidos) {
+                        if (!docNomesCred[reqDoc]) continue;
+                        if (reqDoc === 'cnh' && !isMotCred) continue;
+                        if (reqDoc === 'cpf' && isMotCred) continue;
+                        if (!addedCats.has(reqDoc)) faltantes.push(`Documento "${docNomesCred[reqDoc]}" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
                     }
                 }
             }
@@ -22997,6 +23017,9 @@ const _handleDownloadZip = async (req, res) => {
             // Retorna um zip vazio com um readme
             zip.addFile('README.txt', Buffer.from('Nenhum documento encontrado para este credenciamento.'));
         }
+
+        // Persistir a lista de documentos nao baixados (substitui a anterior a cada download)
+        await new Promise(resolve => db.run('UPDATE credenciamentos SET docs_faltantes = ?, docs_baixados_em = ? WHERE id = ?', [JSON.stringify(faltantes), new Date().toISOString(), cred.id], () => resolve()));
 
         const zipBuffer = zip.toBuffer();
         res.set('Content-Type', 'application/zip');
@@ -23030,7 +23053,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
             'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
             'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
             'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico'],
-            'cid': ['Atestado', 'CID', 'atestado']
+            'ctps': ['Carteira de Trabalho', 'CTPS']
         };
 
         const docNamesReadable = {
@@ -23283,7 +23306,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
+    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, c.docs_faltantes, c.docs_baixados_em, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without 'os' and optional new columns in case migration hasn't run
@@ -34367,6 +34390,10 @@ app.get('/api/admin/run-backup', async (req, res) => {
         res.status(500).send('Erro no backup: ' + e.message);
     }
 });
+
+// Credenciamento: lista persistente de documentos nao baixados no ultimo ZIP
+db.run("ALTER TABLE credenciamentos ADD COLUMN docs_faltantes TEXT", (err) => { if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION docs_faltantes]', err.message); });
+db.run("ALTER TABLE credenciamentos ADD COLUMN docs_baixados_em TEXT", (err) => { if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION docs_baixados_em]', err.message); });
 
 // [FIX] Migracao de correcao para adicionar coluna documento_url
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_url TEXT", (err) => {
