@@ -1263,6 +1263,7 @@ window.calcularTotalRecibos = function() {
     let totalVR = 0;
     let totalVT = 0;
     let totalVC = 0;
+    let totalVA = 0;
     
     if (!_recibosFiltrados || !_recibosFiltrados.length) {
         if(typeof mostrarToastAviso === 'function') mostrarToastAviso('Nenhum colaborador na lista para calcular totais.');
@@ -1277,6 +1278,7 @@ window.calcularTotalRecibos = function() {
         if (inpVR) totalVR += parseFloat(inpVR.value) || 0;
         if (inpVT) totalVT += parseFloat(inpVT.value) || 0;
         if (inpVC) totalVC += parseFloat(inpVC.value) || 0;
+        if (c.folha_va && c.folha_va_valor > 0) totalVA += parseFloat(c.folha_va_valor) || 0;
     });
 
     const modalHtml = `
@@ -1301,9 +1303,13 @@ window.calcularTotalRecibos = function() {
                     <span style="font-weight:600;color:#475569;">Vale Combustível (VC)</span>
                     <span style="font-weight:700;color:#92400e;font-size:1.1rem;">R$ ${_recFmt(totalVC)}</span>
                 </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e2e8f0;">
+                    <span style="font-weight:600;color:#475569;">Vale Alimentação (VA)</span>
+                    <span style="font-weight:700;color:#854d0e;font-size:1.1rem;">R$ ${_recFmt(totalVA)}</span>
+                </div>
                 <div style="display:flex;justify-content:space-between;padding:10px 0;margin-top:0.5rem;background:#f8fafc;border-radius:8px;padding-left:10px;padding-right:10px;">
                     <span style="font-weight:800;color:#0f172a;">TOTAL GERAL</span>
-                    <span style="font-weight:800;color:#2563eb;font-size:1.2rem;">R$ ${_recFmt(totalVR + totalVT + totalVC)}</span>
+                    <span style="font-weight:800;color:#2563eb;font-size:1.2rem;">R$ ${_recFmt(totalVR + totalVT + totalVC + totalVA)}</span>
                 </div>
             </div>
             <div style="padding:1rem 1.5rem;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:right;">
