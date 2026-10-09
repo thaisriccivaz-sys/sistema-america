@@ -22703,8 +22703,9 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
         const finalTipoEnvio = tipo_envio || cred.tipo_envio || 'email';
         const finalWhatsapp = cliente_whatsapp || cred.cliente_whatsapp || '';
 
-        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, licencas_ids = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
-            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(licencas || []), token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
+        const finalDocsExigidos = req.body && req.body.docs_exigidos ? JSON.stringify(req.body.docs_exigidos) : cred.docs_exigidos;
+        db.run(`UPDATE credenciamentos SET colaboradores_ids = ?, veiculos_ids = ?, licencas_ids = ?, docs_exigidos = ?, token = ?, valid_until = ?, status = 'enviado', enviado_em = CURRENT_TIMESTAMP, enviado_por_id = ?, tipo_envio = ?, cliente_whatsapp = ? WHERE id = ?`,
+            [JSON.stringify(colabsEnriquecidos), JSON.stringify(veiculos || []), JSON.stringify(licencas || []), finalDocsExigidos, token, validUntil.toISOString(), req.user.id, finalTipoEnvio, finalWhatsapp, req.params.id],
             async function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
 
@@ -22766,15 +22767,22 @@ const _handleDownloadZip = async (req, res) => {
         let docsExigidos = [];
         let licencasSolicitadas = [];
 
-        try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => c.id); } catch (e) {}
-        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => v.id); } catch (e) {}
+        try { colabsIds = JSON.parse(cred.colaboradores_ids || '[]').map(c => typeof c === 'object' && c !== null ? c.id : c).filter(Boolean); } catch (e) {}
+        try { veicIds = JSON.parse(cred.veiculos_ids || '[]').map(v => typeof v === 'object' && v !== null ? v.id : v).filter(Boolean); } catch (e) {}
         try { docsExigidos = JSON.parse(cred.docs_exigidos || '[]'); } catch (e) {}
+
+        // Se passado no body do POST: atualizar docs_exigidos
+        if (req.body && Array.isArray(req.body.docs_exigidos) && req.body.docs_exigidos.length > 0) {
+            docsExigidos = req.body.docs_exigidos;
+            db.run('UPDATE credenciamentos SET docs_exigidos = ? WHERE id = ?', [JSON.stringify(docsExigidos), cred.id], () => {});
+        }
 
         // Prioridade 1: licencas no body do POST
         const bodyLicencas = req.body && req.body.licencas;
         if (Array.isArray(bodyLicencas) && bodyLicencas.length > 0) {
             licencasSolicitadas = bodyLicencas.map(l => typeof l === 'object' && l !== null ? l.id : l).filter(Boolean);
             console.log(`[ZIP] Licencas via body POST: ${JSON.stringify(licencasSolicitadas)}`);
+            db.run('UPDATE credenciamentos SET licencas_ids = ? WHERE id = ?', [JSON.stringify(licencasSolicitadas), cred.id], () => {});
         }
 
         // Prioridade 2: licencas via query param (GET)
@@ -22940,18 +22948,20 @@ const _handleDownloadZip = async (req, res) => {
                 const r2Utils = require('./utils/r2');
                 for (const doc of docs) {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
+                    const fileNameLower = (doc.file_name || '').toLowerCase();
+                    const combinedLower = `${docTypeLower} ${fileNameLower}`;
                     const tabName = doc.tab_name || '';
                     let matchedCategory = null;
                     
-                    if (docsExigidos.includes('cnh') && (docTypeLower.includes('cnh') || docTypeLower.includes('habilita'))) matchedCategory = 'cnh';
-                    else if (docsExigidos.includes('cpf') && docTypeLower.includes('cpf')) matchedCategory = 'cpf';
-                    else if (docsExigidos.includes('aso') && docTypeLower.includes('aso')) matchedCategory = 'aso';
-                    else if (docsExigidos.includes('ficha_registro') && (docTypeLower.includes('ficha de registro') || docTypeLower.includes('registro'))) matchedCategory = 'ficha_registro';
-                    else if (docsExigidos.includes('treinamento') && (docTypeLower.includes('vacina') || docTypeLower.includes('treinamento'))) matchedCategory = 'treinamento';
-                    else if (docsExigidos.includes('epi') && docTypeLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
-                    else if (docsExigidos.includes('contrato_esocial') && (docTypeLower.includes('contrato') && (docTypeLower.includes('social') || docTypeLower.includes('esocial') || docTypeLower.includes('e-social'))) && tabName === '01_FICHA_CADASTRAL') matchedCategory = 'contrato_esocial';
-                    else if (docsExigidos.includes('nr1') && (docTypeLower.includes('nr1') || docTypeLower.includes('ordem de serv')) && tabName === 'CONTRATOS') matchedCategory = 'nr1';
-                    else if (docsExigidos.includes('ctps') && (docTypeLower.includes('carteira de trabalho') || docTypeLower.includes('ctps'))) matchedCategory = 'ctps';
+                    if (docsExigidos.includes('cnh') && (combinedLower.includes('cnh') || combinedLower.includes('habilita'))) matchedCategory = 'cnh';
+                    else if (docsExigidos.includes('cpf') && combinedLower.includes('cpf')) matchedCategory = 'cpf';
+                    else if (docsExigidos.includes('aso') && combinedLower.includes('aso')) matchedCategory = 'aso';
+                    else if (docsExigidos.includes('ficha_registro') && (combinedLower.includes('ficha de registro') || combinedLower.includes('registro'))) matchedCategory = 'ficha_registro';
+                    else if (docsExigidos.includes('treinamento') && (combinedLower.includes('vacina') || combinedLower.includes('treinamento'))) matchedCategory = 'treinamento';
+                    else if (docsExigidos.includes('epi') && combinedLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
+                    else if (docsExigidos.includes('contrato_esocial') && (combinedLower.includes('contrato') && (combinedLower.includes('social') || combinedLower.includes('esocial') || combinedLower.includes('e-social'))) && (tabName === '01_FICHA_CADASTRAL' || tabName.toUpperCase().includes('CONTRATO'))) matchedCategory = 'contrato_esocial';
+                    else if (docsExigidos.includes('nr1') && (combinedLower.includes('nr1') || combinedLower.includes('nr 1') || combinedLower.includes('nr-1') || combinedLower.includes('nr_1') || combinedLower.includes('ordem de serv') || combinedLower.includes('ordem serv'))) matchedCategory = 'nr1';
+                    else if (docsExigidos.includes('ctps') && (combinedLower.includes('carteira de trabalho') || combinedLower.includes('ctps') || combinedLower.includes('carteira_trabalho'))) matchedCategory = 'ctps';
                     
                     if (matchedCategory) {
                         const r2Key = doc.signed_r2_key || doc.r2_key;
@@ -23019,11 +23029,15 @@ const _handleDownloadZip = async (req, res) => {
         }
 
         // Persistir a lista de documentos nao baixados (substitui a anterior a cada download)
-        await new Promise(resolve => db.run('UPDATE credenciamentos SET docs_faltantes = ?, docs_baixados_em = ? WHERE id = ?', [JSON.stringify(faltantes), new Date().toISOString(), cred.id], () => resolve()));
+        const docsBaixadosEm = new Date().toISOString();
+        await new Promise(resolve => db.run('UPDATE credenciamentos SET docs_faltantes = ?, docs_baixados_em = ? WHERE id = ?', [JSON.stringify(faltantes), docsBaixadosEm, cred.id], () => resolve()));
 
         const zipBuffer = zip.toBuffer();
         res.set('Content-Type', 'application/zip');
         res.set('Content-Disposition', `attachment; filename="Credenciamento_${cred.os || cred.id}.zip"`);
+        res.set('X-Docs-Faltantes', encodeURIComponent(JSON.stringify(faltantes)));
+        res.set('X-Docs-Baixados-Em', docsBaixadosEm);
+        res.set('Access-Control-Expose-Headers', 'X-Docs-Faltantes, X-Docs-Baixados-Em, Content-Disposition');
         db.run("UPDATE credenciamentos SET status = 'enviado' WHERE id = ?", [req.params.id], (updateErr) => {
             if (updateErr) console.error("Erro ao atualizar credenciamento para enviado no download ZIP:", updateErr);
         });
@@ -23067,8 +23081,8 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         if (colabIds.length > 0 && docs_exigidos && docs_exigidos.length > 0) {
             for (let cid of colabIds) {
                 const cDocs = docsData
-                    .filter(d => d.colaborador_id === cid && d.document_type)
-                    .map(d => (d.document_type || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim());
+                    .filter(d => d.colaborador_id === cid && (d.document_type || d.file_name))
+                    .map(d => `${d.document_type || ''} ${d.file_name || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim());
 
                 const colabObj = colabData.find(c => c.id === cid);
                 const cNome = colabObj?.nome_completo || 'Colaborador desconhecido';
@@ -23309,8 +23323,8 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
     db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, c.docs_faltantes, c.docs_baixados_em, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
-            // Fallback: try without 'os' and optional new columns in case migration hasn't run
-            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status
+            // Fallback: try without optional joins, keeping docs_faltantes & docs_baixados_em
+            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status, docs_faltantes, docs_baixados_em
                     FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 const mapped = (rows2 || []).map(r => ({ ...r, status: r.status || 'enviado' }));
@@ -23319,6 +23333,41 @@ app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
             return;
         }
         res.json(rows || []);
+    });
+});
+
+// PATCH Autenticado: Salvar seleções dinâmicas de credenciamento (docs_exigidos, licencas_ids, etc)
+app.patch('/api/logistica/credenciamento/:id/salvar-selecoes', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { docs_exigidos, licencas_ids, colaboradores_ids, veiculos_ids } = req.body || {};
+    
+    const updates = [];
+    const params = [];
+    
+    if (docs_exigidos !== undefined) {
+        updates.push('docs_exigidos = ?');
+        params.push(typeof docs_exigidos === 'string' ? docs_exigidos : JSON.stringify(docs_exigidos));
+    }
+    if (licencas_ids !== undefined) {
+        updates.push('licencas_ids = ?');
+        params.push(typeof licencas_ids === 'string' ? licencas_ids : JSON.stringify(licencas_ids));
+    }
+    if (colaboradores_ids !== undefined) {
+        updates.push('colaboradores_ids = ?');
+        params.push(typeof colaboradores_ids === 'string' ? colaboradores_ids : JSON.stringify(colaboradores_ids));
+    }
+    if (veiculos_ids !== undefined) {
+        updates.push('veiculos_ids = ?');
+        params.push(typeof veiculos_ids === 'string' ? veiculos_ids : JSON.stringify(veiculos_ids));
+    }
+    
+    if (updates.length === 0) return res.json({ success: true, message: 'Nenhuma alteração enviada' });
+    
+    params.push(id);
+    const sql = `UPDATE credenciamentos SET ${updates.join(', ')} WHERE id = ?`;
+    db.run(sql, params, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, changes: this.changes });
     });
 });
 
@@ -23506,8 +23555,9 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                 'treinamento': ['Carteira de vacinacao', 'Carteira de vacinação', 'Carteira de Vacina', 'vacina'],
                 'epi': ['Ficha de EPI Assinada', 'Ficha de EPI', 'ficha epi', 'epi'],
                 'contrato_esocial': ['Contrato e-social', 'contrato esocial', 'e-social', 'esocial'],
-                'nr1': ['NR1', 'NR 1', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico'],
-                'foto_colaborador': ['Foto do Colaborador', 'foto colaborador', 'foto']
+                'nr1': ['NR1', 'NR 1', 'NR-1', 'nr1_', 'Ordem de Servico', 'Ordem de Serviço', 'OS', 'ordem servico'],
+                'foto_colaborador': ['Foto do Colaborador', 'foto colaborador', 'foto'],
+                'ctps': ['Carteira de Trabalho', 'CTPS', 'carteira trabalho']
             };
 
             // Verificar se foto foi exigida

@@ -101,7 +101,7 @@ async function _carregarLicencasAgrupadasLogistica(licsSelecionadas = []) {
                     const vencIcon = isVencida ? '⚠ Vencida' : (l.validade ? l.validade.split('-').reverse().join('/') : 'Sem vencimento');
 
                     return `<label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; padding:4px 0;">
-                        <input type="checkbox" name="cred_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" data-validade="${l.validade || ''}" ${checked} onchange="window._updateLicencasTabCountsCred()">
+                        <input type="checkbox" name="cred_licencas" value="${l.id}" data-nome="${l.nome}" data-empresa="${emp}" data-validade="${l.validade || ''}" ${checked} onchange="window._updateLicencasTabCountsCred(); if(typeof window._autoSalvarSelecoesCredenciamento === 'function') window._autoSalvarSelecoesCredenciamento();">
                         ${l.nome} <span style="font-size:11px; ${vencStyle}">(${vencIcon})</span>
                     </label>`;
                 }).join('');
@@ -552,8 +552,8 @@ async function validarVencimentosCredenciamento() {
         }
     }
 
-    const mapDocTypeToValue = (docType) => {
-        const d = (docType || '').toLowerCase();
+    const mapDocTypeToValue = (docType, fileName) => {
+        const d = `${docType || ''} ${fileName || ''}`.toLowerCase();
         if (d.includes('cnh') || d.includes('habilita')) return 'cnh';
         if (d.includes('cpf')) return 'cpf';
         if (d.includes('aso')) return 'aso';
@@ -561,9 +561,9 @@ async function validarVencimentosCredenciamento() {
         if (d.includes('vacina') || d.includes('treinamento')) return 'treinamento';
         if (d.includes('epi')) return 'epi';
         if (d.includes('contrato') || d.includes('social')) return 'contrato_esocial';
-        if (d.includes('nr1') || d.includes('ordem de serv')) return 'nr1';
+        if (d.includes('nr1') || d.includes('nr 1') || d.includes('nr-1') || d.includes('nr_1') || d.includes('ordem de serv') || d.includes('ordem serv')) return 'nr1';
         if (d.includes('foto')) return 'foto_colaborador';
-        if (d.includes('carteira de trabalho') || d.includes('ctps')) return 'ctps';
+        if (d.includes('carteira de trabalho') || d.includes('ctps') || d.includes('carteira_trabalho')) return 'ctps';
         return null;
     };
 
@@ -610,7 +610,7 @@ async function validarVencimentosCredenciamento() {
                     }
 
                     const matchingDocs = (docs || []).filter(d => {
-                        const val = mapDocTypeToValue(d.document_type);
+                        const val = mapDocTypeToValue(d.document_type, d.file_name);
                         return val === reqDoc;
                     });
                     
@@ -734,16 +734,37 @@ window.gerarEnviarCredenciamento = async function(modo) {
 
         if (solId) {
             if (modo !== 'info') try {
-                // Usa POST para enviar as licenças selecionadas no body (mais confiável que query param)
+                // Usa POST para enviar as licenças selecionadas e docs_exigidos no body
                 const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')}`
                     },
-                    body: JSON.stringify({ licencas: payload.licencas || [] })
+                    body: JSON.stringify({ 
+                        licencas: payload.licencas || [],
+                        docs_exigidos: payload.docs_exigidos || []
+                    })
                 });
                 if (zipRes.ok) {
+                    const rawFaltantes = zipRes.headers.get('X-Docs-Faltantes');
+                    const rawBaixadosEm = zipRes.headers.get('X-Docs-Baixados-Em') || new Date().toISOString();
+                    if (rawFaltantes) {
+                        try {
+                            const docsFaltantes = decodeURIComponent(rawFaltantes);
+                            localStorage.setItem(`cred_pendencias_${solId}`, JSON.stringify({
+                                docs_faltantes: docsFaltantes,
+                                docs_baixados_em: rawBaixadosEm
+                            }));
+                            if (window._historicoCredDados) {
+                                const item = window._historicoCredDados.find(c => String(c.id) === String(solId));
+                                if (item) {
+                                    item.docs_faltantes = docsFaltantes;
+                                    item.docs_baixados_em = rawBaixadosEm;
+                                }
+                            }
+                        } catch(e) {}
+                    }
                     const blob = await zipRes.blob();
                     const urlBlob = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -902,13 +923,26 @@ window.abrirModalCumprirSolicitacao = async function(id) {
 
         // Pré-marcar documentos exigidos
         let docsArr = [];
-        try { docsArr = JSON.parse(dados.docs_exigidos || '[]'); } catch(e) {}
+        try { docsArr = typeof dados.docs_exigidos === 'string' ? JSON.parse(dados.docs_exigidos || '[]') : (dados.docs_exigidos || []); } catch(e) {}
+        
+        let licsSelecionadas = [];
+        try { licsSelecionadas = typeof dados.licencas_ids === 'string' ? JSON.parse(dados.licencas_ids || '[]') : (dados.licencas_ids || []); } catch(e) {}
+
+        // Fallback para seleções em cache local (caso o usuário tenha editado e recarregado)
+        try {
+            const cachedSel = JSON.parse(localStorage.getItem(`cred_selecoes_${id}`) || '{}');
+            if (Array.isArray(cachedSel.docs_exigidos) && cachedSel.docs_exigidos.length > 0) {
+                docsArr = cachedSel.docs_exigidos;
+            }
+            if (Array.isArray(cachedSel.licencas_ids) && cachedSel.licencas_ids.length > 0) {
+                licsSelecionadas = cachedSel.licencas_ids;
+            }
+        } catch(e) {}
+
         document.querySelectorAll('#cred-docs-exigidos input').forEach(cb => {
             cb.checked = docsArr.includes(cb.value);
         });
 
-        let licsSelecionadas = [];
-        try { licsSelecionadas = typeof dados.licencas_ids === 'string' ? JSON.parse(dados.licencas_ids || '[]') : (dados.licencas_ids || []); } catch(e) {}
         if (typeof _carregarLicencasAgrupadasLogistica === 'function') {
             _carregarLicencasAgrupadasLogistica(licsSelecionadas);
         }
@@ -942,16 +976,36 @@ document.addEventListener('change', function(ev) {
     if (ev.target && ev.target.id === 'cred-apenas-dados') window.atualizarDestaqueBotoesCred();
 });
 
-// ── Lista persistente de documentos não baixados (gravada no banco a cada ZIP) ──
+// ── Lista persistente de documentos não baixados (gravada no banco a cada ZIP e persistente no reload) ──
 window.renderPendenciasCredPorId = function(id) {
     const container = document.getElementById('cred-lista-pendencias-container');
     if (!container) return;
     const dados = (window._historicoCredDados || []).find(c => String(c.id) === String(id));
-    if (!dados || !dados.docs_baixados_em) { container.innerHTML = ''; container.style.display = 'none'; return; }
+    
+    let docsFaltantes = dados ? dados.docs_faltantes : null;
+    let docsBaixadosEm = dados ? dados.docs_baixados_em : null;
+
+    // Fallback: se ainda não veio no objeto dados, busca no localStorage
+    if (!docsBaixadosEm) {
+        try {
+            const cached = JSON.parse(localStorage.getItem(`cred_pendencias_${id}`) || '{}');
+            if (cached && cached.docs_baixados_em) {
+                docsFaltantes = cached.docs_faltantes;
+                docsBaixadosEm = cached.docs_baixados_em;
+            }
+        } catch(e) {}
+    }
+
+    if (!docsBaixadosEm && (!docsFaltantes || docsFaltantes === '[]')) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        return;
+    }
+
     let lista = [];
-    try { lista = JSON.parse(dados.docs_faltantes || '[]'); } catch(e) { lista = []; }
+    try { lista = typeof docsFaltantes === 'string' ? JSON.parse(docsFaltantes || '[]') : (docsFaltantes || []); } catch(e) { lista = []; }
     let quando = '';
-    try { quando = new Date(dados.docs_baixados_em).toLocaleString('pt-BR'); } catch(e) {}
+    try { quando = docsBaixadosEm ? new Date(docsBaixadosEm).toLocaleString('pt-BR') : ''; } catch(e) {}
     const rodape = quando ? `<div style="font-size:0.72rem; color:#6b7280; margin-top:8px; font-style:italic;">Verificado no último download do ZIP (${quando}). Ao baixar novamente, a lista é atualizada.</div>` : '';
     if (Array.isArray(lista) && lista.length > 0) {
         container.innerHTML = `<div style="background:#fff1f2; border:1.5px solid #fecaca; border-radius:8px; padding:12px 14px; text-align:left;">` +
@@ -962,6 +1016,80 @@ window.renderPendenciasCredPorId = function(id) {
     }
     container.style.display = 'block';
 };
+
+// ── Auto-salvar seleções de documentos e licenças no Credenciamento ──────────
+let _salvarSelecoesTimeout = null;
+window._autoSalvarSelecoesCredenciamento = function() {
+    if (!window._credSolicitacaoId) return;
+    const solId = window._credSolicitacaoId;
+
+    const docs = Array.from(document.querySelectorAll('#cred-docs-exigidos input:checked')).map(cb => cb.value);
+
+    const fromOldModal = Array.from(document.querySelectorAll('#cred-licencas-list-select input[type="checkbox"]:checked'));
+    const fromNewPanel = Array.from(document.querySelectorAll('#cred-licencas-empresas input[type="checkbox"]:checked'));
+    const todos = [...fromOldModal, ...fromNewPanel];
+    const vistos = new Set();
+    const licencas = todos.filter(cb => {
+        if (vistos.has(cb.value)) return false;
+        vistos.add(cb.value);
+        return true;
+    }).map(cb => ({
+        id: cb.value,
+        nome: cb.dataset.nome || '',
+        empresa: cb.dataset.empresa || '',
+        validade: cb.dataset.validade || null
+    }));
+
+    credenciamentoState.selecionadosLicencas = licencas.map(l => String(l.id));
+
+    // Atualiza imediatamente em memória
+    if (window._historicoCredDados) {
+        const item = window._historicoCredDados.find(c => String(c.id) === String(solId));
+        if (item) {
+            item.docs_exigidos = JSON.stringify(docs);
+            item.licencas_ids = JSON.stringify(licencas);
+        }
+    }
+
+    // Salva no localStorage como backup imediato
+    try {
+        localStorage.setItem(`cred_selecoes_${solId}`, JSON.stringify({
+            docs_exigidos: docs,
+            licencas_ids: licencas,
+            atualizado_em: new Date().toISOString()
+        }));
+    } catch(e) {}
+
+    // Envia ao servidor com debounce de 300ms
+    clearTimeout(_salvarSelecoesTimeout);
+    _salvarSelecoesTimeout = setTimeout(async () => {
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+            await fetch(`/api/logistica/credenciamento/${solId}/salvar-selecoes`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    docs_exigidos: docs,
+                    licencas_ids: licencas
+                })
+            });
+        } catch(err) {
+            console.warn('[CRED] Erro ao auto-salvar seleções:', err);
+        }
+    }, 300);
+};
+
+// Event listener global para capturar qualquer mudança de checkbox de docs ou licenças
+document.addEventListener('change', function(ev) {
+    if (ev.target && (ev.target.closest('#cred-docs-exigidos') || ev.target.name === 'cred_licencas' || ev.target.closest('#cred-licencas-empresas'))) {
+        if (typeof window._autoSalvarSelecoesCredenciamento === 'function') {
+            window._autoSalvarSelecoesCredenciamento();
+        }
+    }
+});
 
 window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');
