@@ -22846,9 +22846,9 @@ const _handleDownloadZip = async (req, res) => {
         if (licencasSolicitadas.length > 0) {
             const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
             console.log(`[ZIP] Licencas solicitadas: ${JSON.stringify(licencasSolicitadas)} | Encontradas no DB: ${lics.length}`);
-            lics.forEach(lic => {
+            for (const lic of lics) {
                 if (lic.validade && new Date(lic.validade + 'T12:00:00') < new Date(new Date().setHours(0,0,0,0))) faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) está VENCIDA (${String(lic.validade).split('-').reverse().join('/')}).`);
-                if (!lic.file_path) { faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) não possui arquivo anexado.`); return; }
+                if (!lic.file_path && !lic.r2_key) { faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) não possui arquivo anexado.`); continue; }
                 console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
                 const empresaSafe = (lic.empresa || 'Empresa')
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
@@ -22878,7 +22878,22 @@ const _handleDownloadZip = async (req, res) => {
                     path.join(LICENCAS_UPLOAD_PATH, lic.file_path.split('/').slice(-2).join('/')),
                 ];
                 let found = false;
-                for (const candidato of candidatos) {
+                const r2Lic = require('./utils/r2');
+                if (lic.r2_key && r2Lic.isReady()) {
+                    try {
+                        const fileData = await r2Lic.downloadStreamFromR2(lic.r2_key);
+                        if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                            const bytes = await fileData.stream.transformToByteArray();
+                            zip.addFile(zipName, Buffer.from(bytes));
+                            hasFiles = true;
+                            found = true;
+                            console.log(`[ZIP] Licenca adicionada do R2: ${lic.r2_key}`);
+                        }
+                    } catch(eR2) {
+                        console.warn(`[ZIP] Falha ao baixar licenca do R2 (${lic.r2_key}):`, eR2.message);
+                    }
+                }
+                if (!found) for (const candidato of candidatos) {
                     try {
                         if (fs.existsSync(candidato)) {
                             console.log(`[ZIP] Licenca encontrada em: ${candidato}`);
@@ -22895,7 +22910,7 @@ const _handleDownloadZip = async (req, res) => {
                     faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) com arquivo não encontrado no servidor.`);
                     console.warn(`[ZIP] Licenca NAO ENCONTRADA id=${lic.id}. Caminhos tentados: ${candidatos.join(' | ')}`);
                 }
-            });
+            }
         }
 
         // 2. Veículos (CRLV)
@@ -29428,7 +29443,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
                         if (!maxDateObj || dObj > maxDateObj) {
                             maxDateObj = dObj;
                             let dFinal = new Date(dObj);
-                            if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
+                            if (docNome.includes('PCMSO') || docNome.includes('PRG') || docNome.includes('PGR')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                             if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
                             if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
                                 const targetM = dFinal.getMonth() + 6;
@@ -29449,7 +29464,7 @@ app.post('/api/licencas/extrair-validade', authenticateToken, uploadFoto.single(
             const parts = foundDate.split(/[\/\.-]/);
             if (parts.length === 3) {
                 const dFinal = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-                if (docNome.includes('PCMSO')) dFinal.setFullYear(dFinal.getFullYear() + 1);
+                if (docNome.includes('PCMSO') || docNome.includes('PRG') || docNome.includes('PGR')) dFinal.setFullYear(dFinal.getFullYear() + 1);
                 if (docNome.includes('CND') && docNome.includes('MUNICIPAL')) dFinal.setDate(dFinal.getDate() + 30);
                 if (docNome.includes('CND') && docNome.includes('ESTADUAL')) {
                     const targetM = dFinal.getMonth() + 6;
@@ -29474,7 +29489,7 @@ app.get('/api/licencas', authenticateToken, (req, res) => {
     });
 });
 
-app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) => {
+app.post('/api/licencas', authenticateToken, upload.single('file'), async (req, res) => {
     const { empresa, nome, validade } = req.body;
     if (!empresa || !nome) return res.status(400).json({ error: 'Empresa e nome sao obrigatorios.' });
     if (!req.file) return res.status(400).json({ error: 'Arquivo PDF obrigatorio.' });
@@ -29487,8 +29502,22 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
     fs.copyFileSync(req.file.path, filePath);
     fs.unlinkSync(req.file.path);
     const relPath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), filePath).replace(/\\/g, '/');
-    db.run('INSERT INTO licencas (empresa, nome, validade, file_path, file_name, updated_at, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
-        [empresa, nome, validade || null, relPath, fileName],
+
+    const r2 = require('./utils/r2');
+    let r2Key = null;
+    if (r2.isReady()) {
+        try {
+            const buf = fs.readFileSync(filePath);
+            r2Key = `Licencas/${empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_')}/${fileName}`;
+            await r2.uploadToR2(r2Key, buf, 'application/pdf');
+            console.log('[R2] Licenca enviada para R2:', r2Key);
+        } catch(eR2) {
+            console.warn('[R2] Erro upload licenca R2:', eR2.message);
+        }
+    }
+
+    db.run('INSERT INTO licencas (empresa, nome, validade, file_path, file_name, r2_key, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime("now"), datetime("now"))',
+        [empresa, nome, validade || null, relPath, fileName, r2Key],
         function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Licenca salva.' });
@@ -29496,12 +29525,13 @@ app.post('/api/licencas', authenticateToken, upload.single('file'), (req, res) =
     );
 });
 
-app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res) => {
+app.put('/api/licencas/:id', authenticateToken, upload.single('file'), async (req, res) => {
     const id = req.params.id;
-    db.get('SELECT * FROM licencas WHERE id = ?', [id], (err, row) => {
+    db.get('SELECT * FROM licencas WHERE id = ?', [id], async (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Licenca nao encontrada.' });
         const validade = req.body.validade !== undefined ? req.body.validade : row.validade;
         let filePath = row.file_path; let fileName = row.file_name;
+        let r2Key = row.r2_key;
         if (req.file) {
             const empresaDir = path.join(LICENCAS_UPLOAD_PATH, row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_'));
             if (!fs.existsSync(empresaDir)) fs.mkdirSync(empresaDir, { recursive: true });
@@ -29512,9 +29542,21 @@ app.put('/api/licencas/:id', authenticateToken, upload.single('file'), (req, res
             fs.copyFileSync(req.file.path, absolutePath);
             fs.unlinkSync(req.file.path);
             filePath = path.relative(path.join(BASE_UPLOAD_PATH, '..', '..'), absolutePath).replace(/\\/g, '/');
+
+            const r2 = require('./utils/r2');
+            if (r2.isReady()) {
+                try {
+                    const buf = fs.readFileSync(absolutePath);
+                    r2Key = `Licencas/${row.empresa.toUpperCase().replace(/[^A-Z0-9]/g, '_')}/${fileName}`;
+                    await r2.uploadToR2(r2Key, buf, 'application/pdf');
+                    console.log('[R2] Licenca atualizada no R2:', r2Key);
+                } catch(eR2) {
+                    console.warn('[R2] Erro upload licenca R2 no PUT:', eR2.message);
+                }
+            }
         }
-        db.run('UPDATE licencas SET validade = ?, file_path = ?, file_name = ?, updated_at = datetime("now") WHERE id = ?',
-            [validade || null, filePath, fileName, id],
+        db.run('UPDATE licencas SET validade = ?, file_path = ?, file_name = ?, r2_key = ?, updated_at = datetime("now") WHERE id = ?',
+            [validade || null, filePath, fileName, r2Key, id],
             (err2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ message: 'Licenca atualizada.' });
@@ -29538,9 +29580,21 @@ app.delete('/api/licencas/:id', authenticateToken, (req, res) => {
 });
 
 app.get('/api/licencas/:id/view', authenticateToken, (req, res) => {
-    db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT * FROM licencas WHERE id = ?', [req.params.id], async (err, row) => {
         if (err || !row) return res.status(404).send('Licenca nao encontrada.');
-        if (!row.file_path && !row.file_name) return res.status(404).send('Arquivo nao anexado.');
+        if (!row.file_path && !row.file_name && !row.r2_key) return res.status(404).send('Arquivo nao anexado.');
+
+        const r2 = require('./utils/r2');
+        if (row.r2_key && r2.isReady()) {
+            try {
+                const { stream, contentType } = await r2.downloadStreamFromR2(row.r2_key);
+                res.setHeader('Content-Type', contentType || 'application/pdf');
+                res.setHeader('Content-Disposition', 'inline; filename="' + (row.file_name || 'licenca.pdf') + '"');
+                return stream.pipe(res);
+            } catch(eR2) {
+                console.warn('[R2 View] Falha stream R2, tentando disco:', eR2.message);
+            }
+        }
 
         let absPath = '';
         if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
@@ -29761,7 +29815,7 @@ function verificarLicencasVencimentoCron() {
                 const diffDias = Math.ceil((dataValidade - hoje) / 86400000);
 
                 // Regras de envio
-                const envio3Meses = ['PCMSO', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Contrato', 'Alvará', 'LO'];
+                const envio3Meses = ['PCMSO', 'PRG', 'PGR', 'ALVARÁ', 'AVCB', 'CADRI', 'CLI', 'Licença de Operação', 'CETESB', 'LTCAT', 'LI - Licença de Instalação', 'LO - Licença de Operação', 'Declaração de Contrato', 'Contrato', 'Alvará', 'LO'];
                 const envioDia = ['CND Estadual', 'CND Federal', 'CND Municipal', 'CND Trabalhista', 'CTF IBAMA'];
 
                 const nomeNorm = lic.nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -34444,6 +34498,7 @@ app.get('/api/admin/run-backup', async (req, res) => {
 // Credenciamento: lista persistente de documentos nao baixados no ultimo ZIP
 db.run("ALTER TABLE credenciamentos ADD COLUMN docs_faltantes TEXT", (err) => { if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION docs_faltantes]', err.message); });
 db.run("ALTER TABLE credenciamentos ADD COLUMN docs_baixados_em TEXT", (err) => { if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION docs_baixados_em]', err.message); });
+db.run("ALTER TABLE licencas ADD COLUMN r2_key TEXT", (err) => { if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION licencas r2_key]', err.message); });
 
 // [FIX] Migracao de correcao para adicionar coluna documento_url
 db.run("ALTER TABLE multas_logistica ADD COLUMN documento_url TEXT", (err) => {

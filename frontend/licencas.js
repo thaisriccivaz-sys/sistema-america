@@ -11,7 +11,7 @@ const LICENCAS_CONFIG = {
         border: '#ffd0b8',
         icon: 'ph-building-office',
         docs: [
-            'PCMSO', 'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão de CNPJ',
+            'PCMSO', 'PRG', 'CLI - Alvará', 'AVCB', 'CADRI', 'Cartão de CNPJ',
             'CND Estadual', 'CND Federal', 'CND Municipal',
             'CND Trabalhista', 'CTF IBAMA', 'Inscrição Estadual',
             'Inscrição Municipal', 'LO - CETESB', 'LTCAT'
@@ -146,8 +146,8 @@ function renderLicencasContent() {
 
     // Construir cards de documentos fixos
     const cards = cfg.docs.map(nome => {
-        const licenca = docs.find(d => d.nome === nome);
-        const temArquivo = !!(licenca && licenca.file_name);
+        const licenca = docs.find(d => d.nome === nome || (nome === 'PRG' && (d.nome === 'PGR' || d.nome === 'PRG')));
+        const temArquivo = !!(licenca && (licenca.file_name || licenca.file_path || licenca.r2_key));
         const status = getStatus(licenca ? licenca.validade : null, nome, temArquivo);
         const vencFormatted = licenca ? formatDate(licenca.validade) : null;
         const idSafe = `lic-${licencasActiveTab}-${nome.replace(/[^a-zA-Z0-9]/g,'_')}`;
@@ -191,7 +191,7 @@ function renderLicencasContent() {
 
                 <!-- Ações -->
                 <div class="licenca-card-actions">
-                    ${licenca ? `
+                    ${temArquivo ? `
                         <button class="licenca-btn licenca-btn-view" onclick="viewLicenca(${licenca.id})" title="Visualizar PDF">
                             <i class="ph ph-eye"></i> Ver PDF
                         </button>
