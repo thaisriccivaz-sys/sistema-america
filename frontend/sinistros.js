@@ -1566,7 +1566,7 @@ window.excluirSinistro = async function(sinId, colabId) {
     if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
     
     const senha = prompt('Para excluir o sinistro, digite a senha de autorização:');
-    if (senha !== 'EXL2499!') {
+    if (senha !== 'EXL2499!' && senha !== 'log123') {
         return alert('Senha incorreta. Exclusão cancelada.');
     }
 
@@ -2199,6 +2199,7 @@ window.rhSinAbrirModalEditar = async function(sinId, colabId) {
                             const pUrl = window._sinOrcUrl(p);
                             return `<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window._sinAbrirOrc('${p}')" title="Orçamento ${i + 1}">
                                 <img src="${pUrl}" onerror="window._sinPdfFallback(this)" style="width:100%;height:100%;object-fit:cover;">
+                                <button type="button" title="Excluir orçamento" onclick="event.stopPropagation(); window._sinExcluirOrc(this, '${p}', window._rhEdit.sinId)" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.95);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0;z-index:5;">&times;</button>
                                 <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ${i+1}</span>
                             </div>`;
                         }).join('')}
@@ -2301,13 +2302,14 @@ window._rhEditExcluirMidia = async function(localIdx) {
     if (!sinId || localIdx < 0 || localIdx >= mids.length) return;
     const m = mids[localIdx];
     if (!confirm(`Excluir "${m.nome || 'Mídia ' + (localIdx+1)}"? Não pode ser desfeito.`)) return;
+    const _sen = window._sinPedirSenha(); if (!_sen) return;
 
     const grid = document.getElementById('rh-edit-midias-grid');
     if (grid) grid.style.opacity = '0.5';
     try {
         const res = await fetch(`${API_URL}/sinistros/${sinId}/midia/${m.idx}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('erp_token')}`, 'x-delete-password': _sen }
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erro ao excluir.');
@@ -2576,5 +2578,31 @@ if (!window._sinOrcUrl) {
             rd.onload = function(ev) { img.src = ev.target.result; };
             rd.readAsDataURL(f);
         }
+    };
+}
+
+
+/* ── Exclusão de anexos com senha ── */
+if (!window._sinExcluirOrc) {
+    window._sinPedirSenha = function() {
+        var s = prompt('Digite a senha para excluir:');
+        if (s === null) return null;
+        if (s !== 'log123' && s !== 'EXL2499!') { alert('Senha incorreta. Exclusão cancelada.'); return null; }
+        return s;
+    };
+    window._sinExcluirOrc = async function(btn, p, sinId) {
+        if (!sinId) return;
+        if (!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
+        var s = window._sinPedirSenha();
+        if (!s) return;
+        try {
+            var res = await fetch(API_URL + '/sinistros/' + sinId + '/orcamento?path=' + encodeURIComponent(p), {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || ''), 'x-delete-password': s }
+            });
+            var data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao excluir orçamento.');
+            if (btn && btn.parentElement) btn.parentElement.remove();
+        } catch (e) { alert('Erro ao excluir: ' + e.message); }
     };
 }

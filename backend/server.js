@@ -6849,9 +6849,35 @@ app.post('/api/sinistros/:id/midia', authenticateToken, uploadMediaFile.single('
     }
 });
 
+// DELETE: Remove um orçamento (anexo) do sinistro pelo caminho — exige senha
+app.delete('/api/sinistros/:id/orcamento', authenticateToken, async (req, res) => {
+    try {
+        const pw = req.headers['x-delete-password'];
+        if (pw !== 'log123' && pw !== 'EXL2499!') return res.status(403).json({ error: 'Senha de exclusão incorreta.' });
+        const p = req.query.path;
+        if (!p) return res.status(400).json({ error: 'Caminho nao informado.' });
+        const sinistro = await new Promise((resolve, reject) => {
+            db.get('SELECT id, status, orcamentos_paths FROM sinistros WHERE id = ?', [req.params.id], (err, row) => err ? reject(err) : resolve(row));
+        });
+        if (!sinistro) return res.status(404).json({ error: 'Sinistro nao encontrado.' });
+        if (sinistro.status !== 'pendente') return res.status(403).json({ error: 'Remocao nao permitida: sinistro ja possui assinaturas.' });
+        let orcs = [];
+        try { orcs = JSON.parse(sinistro.orcamentos_paths || '[]'); } catch (e) { }
+        const novos = orcs.filter(x => x !== p);
+        if (novos.length === orcs.length) return res.status(404).json({ error: 'Orcamento nao encontrado neste sinistro.' });
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE sinistros SET orcamentos_paths = ? WHERE id = ?', [JSON.stringify(novos), req.params.id], err => err ? reject(err) : resolve());
+        });
+        res.json({ sucesso: true, total: novos.length });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // DELETE: Remove uma média específica do sinistro pelo ??ndice (só se status=pendente)
 app.delete('/api/sinistros/:id/midia/:idx', authenticateToken, async (req, res) => {
     try {
+        { const _pw = req.headers['x-delete-password']; if (_pw !== 'log123' && _pw !== 'EXL2499!') return res.status(403).json({ error: 'Senha de exclusão incorreta.' }); }
         const { id: sinId, idx } = req.params;
         const index = parseInt(idx);
 
