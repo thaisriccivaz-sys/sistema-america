@@ -1172,15 +1172,65 @@ window.carregarHistoricoCredenciamento = async function() {
 };
 
 window.excluirCredenciamento = async function(id) {
-    if (!confirm('Deseja realmente excluir este credenciamento? O link enviado não funcionará mais.')) return;
+    let senha = '';
+    if (typeof Swal !== 'undefined') {
+        const result = await Swal.fire({
+            title: 'Excluir Credenciamento',
+            text: 'Digite a senha para autorizar a exclusão deste credenciamento:',
+            input: 'password',
+            inputPlaceholder: 'Senha de autorização',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Excluir',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!result.isConfirmed) return;
+        senha = (result.value || '').trim();
+    } else {
+        if (!confirm('Deseja realmente excluir este credenciamento?')) return;
+        const val = prompt('Digite a senha para autorizar a exclusão:');
+        if (val === null) return;
+        senha = (val || '').trim();
+    }
+
+    if (senha !== 'log123') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
+        } else {
+            alert('Senha incorreta! Exclusão cancelada.');
+        }
+        return;
+    }
+
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const res = await fetch('/api/logistica/credenciamentos/' + id, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ senha: senha })
         });
-        if (!res.ok) throw new Error('Falha ao excluir credenciamento');
-        carregarHistoricoCredenciamento();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Falha ao excluir credenciamento');
+        
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Excluído!', 'Credenciamento excluído com sucesso.', 'success');
+        } else {
+            alert('Credenciamento excluído com sucesso.');
+        }
+        
+        const modal = document.getElementById('modal-novo-credenciamento');
+        if (modal && modal.style.display !== 'none') {
+            modal.style.display = 'none';
+        }
+
+        if (typeof window.carregarHistoricoCredenciamento === 'function') {
+            window.carregarHistoricoCredenciamento();
+        }
     } catch(e) {
         alert('Erro ao excluir: ' + e.message);
     }
@@ -1367,6 +1417,7 @@ window._renderizarTabelaHistorico = function(dados) {
             <td style="text-align:right; white-space:nowrap;">
                 <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="toggleCredDetails(this, 'log-cred-det-${cred.id}')" title="Ver Detalhes"><i class="ph ph-caret-down"></i></button>
                 ${cred.status === 'solicitado' ? `<button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-download-simple"></i> Atender</button>` : `<button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; margin-right:4px;" onclick="window.abrirModalCumprirSolicitacao('${cred.id}')"><i class="ph ph-pencil-simple"></i> Editar</button>`}
+                <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:12px; color:#dc2626; border-color:#fca5a5;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'" onclick="window.excluirCredenciamento('${cred.id}')" title="Excluir Credenciamento"><i class="ph ph-trash"></i></button>
             </td>
         </tr>
         <tr id="log-cred-det-${cred.id}" style="display:none; background:#f8fafc;">

@@ -23455,11 +23455,52 @@ app.post('/api/credenciamentos/:id/reenviar', authenticateToken, (req, res) => {
     });
 });
 
-// DELETE Autenticado: Excluir credenciamento
+// DELETE Autenticado: Excluir credenciamento (exige senha 'log123')
 app.delete('/api/logistica/credenciamentos/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM credenciamentos WHERE id = ?', [req.params.id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ ok: true });
+    const credId = req.params.id;
+    const senha = (req.body && req.body.senha) || req.query.senha || req.headers['x-delete-password'];
+    if (senha !== 'log123') {
+        return res.status(403).json({ error: 'Senha incorreta para exclusão de credenciamento.' });
+    }
+
+    const usuarioExclusao = req.user ? (req.user.nome || req.user.username || 'Logística') : 'Logística';
+
+    db.get('SELECT id, os, cliente_nome FROM credenciamentos WHERE id = ?', [credId], (errGet, cred) => {
+        if (errGet) return res.status(500).json({ error: errGet.message });
+        if (!cred) return res.status(404).json({ error: 'Credenciamento não encontrado' });
+
+        db.run('DELETE FROM credenciamentos WHERE id = ?', [credId], function (errDel) {
+            if (errDel) return res.status(500).json({ error: errDel.message });
+
+            res.json({ ok: true, message: 'Credenciamento excluído com sucesso' });
+
+            // [SAC] Mover card para 'concluido' e adicionar comentário no histórico se existir
+            const sacQuery = cred.os
+                ? `SELECT id, comments, timeline FROM sac_tickets WHERE type_key = 'credenciamento' AND os_number = ? AND stage != 'concluido' AND stage != 'encerrado' ORDER BY created_at DESC LIMIT 1`
+                : `SELECT id, comments, timeline FROM sac_tickets WHERE type_key = 'credenciamento' AND client_name = ? AND stage != 'concluido' AND stage != 'encerrado' ORDER BY created_at DESC LIMIT 1`;
+            const sacParam = cred.os ? cred.os : (cred.cliente_nome || '');
+
+            db.get(sacQuery, [sacParam], (errSac, ticket) => {
+                if (errSac || !ticket) return;
+
+                const agora = new Date().toISOString();
+                const comentarioTexto = `🗑️ Credenciamento excluído na Logística por ${usuarioExclusao}.`;
+
+                let comments = [];
+                try { comments = JSON.parse(ticket.comments || '[]'); } catch(e) { comments = []; }
+                comments.push({ time: agora, user: usuarioExclusao, text: comentarioTexto });
+
+                let timeline = [];
+                try { timeline = JSON.parse(ticket.timeline || '[]'); } catch(e) { timeline = []; }
+                timeline.push({ time: agora, user: usuarioExclusao, stage: 'concluido', notes: comentarioTexto });
+
+                db.run(
+                    `UPDATE sac_tickets SET stage = 'concluido', comments = ?, timeline = ?, close_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                    [JSON.stringify(comments), JSON.stringify(timeline), agora, ticket.id],
+                    () => {}
+                );
+            });
+        });
     });
 });
 
