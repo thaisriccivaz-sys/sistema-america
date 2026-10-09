@@ -707,7 +707,7 @@
     await loadTickets();
 
     const tk = localStorage.getItem('erp_token') || localStorage.getItem('token');
-    if (tk) {
+    if (tk) (async () => { // não bloqueia a renderização do Kanban
       try {
         const resConf = await fetch('/api/config-notificacoes', { headers: { 'Authorization': 'Bearer ' + tk } });
         if (resConf.ok) {
@@ -715,7 +715,7 @@
           _sacSlaNotificadosIds = configRows.filter(r => r.tipo === 'sac_sla_vencido').map(r => String(r.usuario_id));
         }
       } catch(e) {}
-    }
+    })();
 
     _wiz.protocol = nextProtocol();
     renderAll();

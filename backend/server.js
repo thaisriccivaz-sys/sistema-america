@@ -327,7 +327,7 @@ const db = require('./database');
 global._sacTicketsVersion = 1;
 const _SAC_BOOT = Date.now().toString(36);
 (function () {
-    const _bump = (sql) => { try { if (typeof sql === 'string' && /sac_tickets/i.test(sql) && !/^\s*select/i.test(sql)) global._sacTicketsVersion++; } catch (e) { } };
+    const _bump = (sql) => { try { if (typeof sql === 'string' && /sac_tickets/i.test(sql) && !/^\s*select/i.test(sql)) { global._sacTicketsVersion++; clearTimeout(global._sacWarmT); global._sacWarmT = setTimeout(() => { try { global._sacWarmFn && global._sacWarmFn(); } catch (e) { } }, 1500); } } catch (e) { } };
     const _origRun = db.run;
     db.run = function (sql, ...args) { _bump(sql); return _origRun.call(this, sql, ...args); };
     const _origExec = db.exec;
@@ -32726,21 +32726,14 @@ app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 
     }
 });
 
-app.get('/api/sac/tickets', authenticateToken, (req, res) => {
-    const _ver = global._sacTicketsVersion;
-    const _etag = 'W/"sac-' + _SAC_BOOT + '-' + _ver + '"';
-    res.setHeader('ETag', _etag);
-    res.setHeader('Cache-Control', 'private, no-cache');
-    res.setHeader('Vary', 'Accept-Encoding');
-    if (req.headers['if-none-match'] === _etag) return res.status(304).end();
-    if (global._sacTicketsCache && global._sacTicketsCache.ver === _ver && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Content-Encoding', 'gzip');
-        return res.send(global._sacTicketsCache.gz);
-    }
+// ── SAC: payload da lista de chamados (gzip) construído 1x e reutilizado até a próxima escrita ──
+function _sacBuildTicketsPayload(cb) {
+    const ver = global._sacTicketsVersion;
     db.all("SELECT * FROM sac_tickets ORDER BY created_at DESC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const parsed = rows.map(r => ({
+        if (err) return cb(err);
+        let parsed;
+        try {
+            parsed = rows.map(r => ({
             ...r,
             timeline: JSON.parse(r.timeline||'[]'),
             costCenters: JSON.parse(r.cost_centers||'[]'),
@@ -32781,20 +32774,49 @@ app.get('/api/sac/tickets', authenticateToken, (req, res) => {
             conferidoAt: r.conferido_at || null,
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
-        // Lista pode ser muito grande (anexos/imagens embutidos): sem cache do navegador + gzip + log de tamanho
+        } catch (e) { return cb(e); }
         const _json = JSON.stringify(parsed);
-        console.log('[SAC] GET /api/sac/tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
-                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        console.log('[SAC] payload tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
+        require('zlib').gzip(Buffer.from(_json), (zErr, gz) => {
+            if (zErr) return cb(zErr);
+            cb(null, { ver, gz });
+        });
+    });
+}
+function _sacGetPayload(cb) {
+    const c = global._sacTicketsCache;
+    if (c && c.ver === global._sacTicketsVersion) return cb(null, c);
+    if (global._sacBuilding) { global._sacBuilding.push(cb); return; }
+    global._sacBuilding = [cb];
+    _sacBuildTicketsPayload((err, entry) => {
+        const waiters = global._sacBuilding || [];
+        global._sacBuilding = null;
+        if (!err) global._sacTicketsCache = entry;
+        waiters.forEach(w => { try { w(err, entry); } catch (e) { console.error(e); } });
+    });
+}
+global._sacWarmFn = () => _sacGetPayload(() => { });
+// Pré-aquece o cache logo após subir o servidor
+setTimeout(() => { try { global._sacWarmFn(); } catch (e) { } }, 8000);
+
+app.get('/api/sac/tickets', authenticateToken, (req, res) => {
+    const _etagOf = (v) => 'W/"sac-' + _SAC_BOOT + '-' + v + '"';
+    const _c = global._sacTicketsCache;
+    res.setHeader('Cache-Control', 'private, no-cache');
+    res.setHeader('Vary', 'Accept-Encoding');
+    if (_c && _c.ver === global._sacTicketsVersion && req.headers['if-none-match'] === _etagOf(_c.ver)) {
+        res.setHeader('ETag', _etagOf(_c.ver));
+        return res.status(304).end();
+    }
+    _sacGetPayload((err, entry) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.setHeader('ETag', _etagOf(entry.ver));
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
-            require('zlib').gzip(Buffer.from(_json), (zErr, zBuf) => {
-                if (!zErr) global._sacTicketsCache = { ver: _ver, gz: zBuf };
-                if (zErr) return res.send(_json);
-                res.setHeader('Content-Encoding', 'gzip');
-                res.send(zBuf);
-            });
-        } else {
-            res.send(_json);
+            res.setHeader('Content-Encoding', 'gzip');
+            return res.send(entry.gz);
         }
+        require('zlib').gunzip(entry.gz, (e, buf) => e ? res.status(500).json({ error: e.message }) : res.send(buf));
     });
 });
 
