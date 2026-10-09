@@ -111,7 +111,7 @@ window.logSinCarregarListaGeral = async function() {
     }
 
     area.innerHTML = '<div id="log-sin-cards" style="display:flex; flex-direction:column; gap:1.25rem;"></div>';
-    const cardsContainer = document.getElementById('log-sin-cards');
+    const cardsContainer = area.querySelector('#log-sin-cards') || area.firstElementChild;
     sinistros.forEach(s => window._logSinRenderCardGeral(s, cardsContainer));
 };
 
@@ -707,7 +707,7 @@ window._logSinAdicionarOrcs = function(fileList) {
     if (!fileList || !fileList.length) return;
     Array.from(fileList).forEach(function(f) {
         var ext = f.name.split('.').pop().toLowerCase();
-        if (!['jpg','jpeg','png'].includes(ext)) {
+        if (!['jpg','jpeg','png','pdf'].includes(ext)) {
             alert('Apenas imagens JPG ou PNG são aceitas para orçamentos. Arquivo ignorado: ' + f.name);
             return;
         }
@@ -1100,10 +1100,9 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             ${orcsExistentes.map(function(p, idx) {
                                 const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
-        var pUrl = p.startsWith('http') ? p : API_URL + '/onedrive/download?path=' + encodeURIComponent(p) + '&token=' + localStorage.getItem('erp_token');
+        var pUrl = p.startsWith('http') ? p : API_URL + '/onedrive/thumbnail?path=' + encodeURIComponent(p) + '&token=' + localStorage.getItem('erp_token');
         return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" title="Orçamento ' + (idx + 1) + '">' +
-            (isPdf ? '<div style="width:100%;height:100%;position:relative;background:#fff;overflow:hidden;"><iframe src="' + pUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=FitH" style="position:absolute;top:0;left:0;width:300%;height:300%;transform:scale(0.333);transform-origin:0 0;border:none;pointer-events:none;background:#fff;" scrolling="no" tabindex="-1"></iframe><div style="position:absolute;inset:0;background:transparent;z-index:10;"></div></div>'
-                   : '<img src="' + pUrl + '" style="width:100%;height:100%;object-fit:cover;">') +
+            ('<img src="' + pUrl + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.src=\'\'">') +
             '<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ' + (idx + 1) + '</span>' +
         '</div>';
                             }).join('')}
@@ -1449,7 +1448,7 @@ window._logSinEditAdicionarOrcs = function(fileList) {
     if (!fileList || !fileList.length) return;
     Array.from(fileList).forEach(function(f) {
         var ext = f.name.split('.').pop().toLowerCase();
-        if (!['jpg','jpeg','png'].includes(ext)) {
+        if (!['jpg','jpeg','png','pdf'].includes(ext)) {
             alert('Apenas JPG, PNG ou PDF são aceitos para orçamentos. Ignorado: ' + f.name);
             return;
         }

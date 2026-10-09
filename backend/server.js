@@ -5077,6 +5077,26 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
 /**
  * ROTA DE DIAGNº???STICO: Testar Conex??o OneDrive
  */
+
+app.get('/api/onedrive/thumbnail', authenticateToken, async (req, res) => {
+    try {
+        const path = req.query.path;
+        if (!path) return res.status(400).json({ error: 'Caminho nao fornecido' });
+
+        if (typeof onedrive === 'undefined') return res.status(500).json({ error: 'Módulo onedrive nao inicializado' });
+
+        const base64Str = await onedrive.getFileAsJpeg(path);
+        if (!base64Str) throw new Error('Não foi possível gerar a miniatura');
+
+        const buffer = Buffer.from(base64Str.split(',')[1], 'base64');
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.end(buffer);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir miniatura: ' + e.message);
+    }
+});
+
 app.get('/api/onedrive/download', authenticateToken, async (req, res) => {
     try {
         const path = req.query.path;
