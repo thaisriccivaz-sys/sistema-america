@@ -744,9 +744,7 @@ window._logSinAtualizarPreviewOrcs = function() {
         card.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:2px solid #d1d5db;background:#f9fafb;flex-shrink:0;';
         var img = document.createElement('img');
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-        var reader = new FileReader();
-        reader.onload = function(ev) { img.src = ev.target.result; };
-        reader.readAsDataURL(f);
+        window._sinThumbFile(img, f);
         card.appendChild(img);
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -1100,9 +1098,9 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <div style="display:flex; flex-wrap:wrap; gap:6px;">
                             ${orcsExistentes.map(function(p, idx) {
                                 const isPdf = p.toLowerCase().split('?')[0].endsWith('.pdf');
-        var pUrl = p.startsWith('http') ? p : API_URL + '/onedrive/thumbnail?path=' + encodeURIComponent(p) + '&token=' + localStorage.getItem('erp_token');
-        return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window.abrirArquivoOneDrive(\'' + p + '\')" title="Orçamento ' + (idx + 1) + '">' +
-            ('<img src="' + pUrl + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.src=\'\'">') +
+        var pUrl = window._sinOrcUrl(p);
+        return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #cbd5e1;flex-shrink:0;cursor:pointer;" onclick="window._sinAbrirOrc(\'' + p + '\')" title="Orçamento ' + (idx + 1) + '">' +
+            ('<img src="' + pUrl + '" style="width:100%;height:100%;object-fit:cover;" onerror="window._sinPdfFallback(this)">') +
             '<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;">Orç. ' + (idx + 1) + '</span>' +
         '</div>';
                             }).join('')}
@@ -1484,9 +1482,7 @@ window._logSinEditAtualizarPreviewOrcs = function() {
         card.style.cssText = 'position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:2px solid #d1d5db;flex-shrink:0;';
         var img = document.createElement('img');
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-        var reader = new FileReader();
-        reader.onload = function(ev) { img.src = ev.target.result; };
-        reader.readAsDataURL(f);
+        window._sinThumbFile(img, f);
         card.appendChild(img);
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -1739,3 +1735,42 @@ window.abrirModalVideoLogistica = function() {
     const video = document.getElementById('logistica-video-player');
     if (video) video.play();
 };window.verPdfLocal = function(inputId, existingUrl) { const inp = document.getElementById(inputId); if (inp && inp.files && inp.files.length > 0) { const file = inp.files[0]; const url = URL.createObjectURL(file); window.open(url, '_blank'); } else if (existingUrl) { window.abrirArquivoOneDrive(existingUrl); } else { alert('Nenhum arquivo selecionado.'); } };
+
+
+/* ── Helpers de miniatura de orçamentos (imagem/PDF) ── */
+if (!window._sinOrcUrl) {
+    window._sinOrcUrl = function(p) {
+        if (/^https?:/i.test(p)) return p;
+        return API_URL + '/onedrive/file?path=' + encodeURIComponent(p) + '&token=' + localStorage.getItem('erp_token');
+    };
+    window._sinAbrirOrc = function(p) { window.open(window._sinOrcUrl(p), '_blank'); };
+    window._sinPdfToImg = async function(img, buf) {
+        try {
+            if (!window.pdfjsLib) throw new Error('pdfjs ausente');
+            if (pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+            }
+            var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+            var pg = await pdf.getPage(1);
+            var vp = pg.getViewport({ scale: 0.6 });
+            var c = document.createElement('canvas');
+            c.width = vp.width; c.height = vp.height;
+            await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+            img.src = c.toDataURL('image/jpeg', 0.75);
+        } catch (e) { console.warn('[Sinistro] miniatura PDF falhou:', e && e.message); }
+    };
+    window._sinPdfFallback = function(img) {
+        img.onerror = null;
+        fetch(img.src).then(function(r) { return r.arrayBuffer(); })
+            .then(function(b) { return window._sinPdfToImg(img, b); }).catch(function() {});
+    };
+    window._sinThumbFile = function(img, f) {
+        if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
+            f.arrayBuffer().then(function(b) { window._sinPdfToImg(img, b); });
+        } else {
+            var rd = new FileReader();
+            rd.onload = function(ev) { img.src = ev.target.result; };
+            rd.readAsDataURL(f);
+        }
+    };
+}

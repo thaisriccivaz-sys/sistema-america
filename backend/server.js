@@ -5078,6 +5078,31 @@ app.get('/api/maintenance/db-info', authenticateToken, (req, res) => {
  * ROTA DE DIAGNº???STICO: Testar Conex??o OneDrive
  */
 
+app.get('/api/onedrive/file', authenticateToken, async (req, res) => {
+    try {
+        const p = req.query.path;
+        if (!p) return res.status(400).send('Caminho nao fornecido');
+        const url = await onedrive.getDownloadUrl(p);
+        if (!url) return res.status(404).send('Arquivo nao encontrado');
+        const r = await fetch(url);
+        if (!r.ok) return res.status(502).send('Falha ao baixar: ' + r.status);
+        const buf = Buffer.from(await r.arrayBuffer());
+        let ct = 'application/octet-stream';
+        if (buf.slice(0, 4).toString('latin1') === '%PDF') ct = 'application/pdf';
+        else if (buf[0] === 0xFF && buf[1] === 0xD8) ct = 'image/jpeg';
+        else if (buf[0] === 0x89 && buf[1] === 0x50) ct = 'image/png';
+        else if (buf.slice(0, 4).toString('latin1') === 'RIFF') ct = 'image/webp';
+        const ext = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[ct];
+        let nome = String(p).split('/').pop().replace(/\.[^.]+$/, '');
+        res.setHeader('Content-Type', ct);
+        res.setHeader('Content-Disposition', 'inline; filename="' + (ext ? nome + '.' + ext : nome) + '"');
+        res.setHeader('Cache-Control', 'private, max-age=3600');
+        res.end(buf);
+    } catch (e) {
+        res.status(500).send('Erro ao abrir arquivo: ' + e.message);
+    }
+});
+
 app.get('/api/onedrive/thumbnail', authenticateToken, async (req, res) => {
     try {
         const path = req.query.path;
@@ -6609,7 +6634,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     const dataUrl = novosOrcs[i];
                     const mimeMatch = dataUrl.match(/^data:([^;]+);/);
                     const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-                    const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png' };
+                    const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
                     const ext = extMap[mime] || 'jpg';
                     const orcBuf = Buffer.from(dataUrl.split(',')[1], 'base64');
                     const orcNome = 'Orcamento_' + (existentes.length + i + 1) + '.' + ext;
