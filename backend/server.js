@@ -9262,6 +9262,18 @@ app.put('/api/documentos/:id/vencimento', authenticateToken, (req, res) => {
     });
 });
 
+// ASO: define se o documento anexado será enviado para assinatura (Sim = PENDENTE / Não = NAO_EXIGE)
+app.put('/api/documentos/:id/exige-assinatura', authenticateToken, (req, res) => {
+    const valor = req.body && req.body.exige_assinatura;
+    if (valor !== 'PENDENTE' && valor !== 'NAO_EXIGE') return res.status(400).json({ error: 'Valor inválido' });
+    db.run("UPDATE documentos SET assinafy_status = ? WHERE id = ? AND (assinafy_status IS NULL OR assinafy_status IN ('', 'Nenhum', 'PENDENTE', 'NAO_EXIGE'))",
+        [valor, req.params.id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(409).json({ error: 'Documento já enviado para assinatura ou assinado.' });
+            res.json({ message: 'Opção de assinatura atualizada' });
+        });
+});
+
 app.delete('/api/documentos/:id', authenticateToken, (req, res) => {
     db.get('SELECT file_path FROM documentos WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Documento nao encontrado' });

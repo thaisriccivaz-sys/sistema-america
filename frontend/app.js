@@ -6805,6 +6805,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     const div = document.createElement('div');
     div.className = 'doc-item';
     const isSaved = !!existingDoc;
+    const isAsoPlaceholder = (tabId === 'ASO' && isSaved && !existingDoc.file_name); // exame solicitado à IACI, ainda sem ASO anexado
     if (isSaved) {
         div.setAttribute('data-doc-id', existingDoc.id);
         div.setAttribute('data-assinafy-status', existingDoc.assinafy_status || 'Nenhum');
@@ -6998,7 +6999,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     let infoHtml = `
         <div class="doc-info ${isSaved ? 'has-file' : ''}">
-            <i class="ph ${isSaved ? docIconClass : 'ph-file-dashed'}" style="color:${isSaved ? docIconColor : ''}; font-size:1.3rem; margin-top:2px;"></i>
+            <i class="ph ${(isSaved && !isAsoPlaceholder) ? docIconClass : 'ph-file-dashed'}" style="color:${(isSaved && !isAsoPlaceholder) ? docIconColor : ''}; font-size:1.3rem; margin-top:2px;"></i>
             <div style="display: flex; flex-direction: column;">
                 <h4 style="display:flex; align-items:flex-start; margin:0;">
                     ${toggleArrow}
@@ -7007,7 +7008,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ${docBadge ? `<div>${docBadge}</div>` : ''}
                     </div>
                 </h4>
-                ${isSaved ? `<p style="margin:2px 0 0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${timestampsHtml}${subInfoLine}${enviadoFinanceiroHtml}` : '<p>Pendente</p>'}
+                ${isAsoPlaceholder ? '<p style="margin:2px 0 0; font-size:0.82rem; color:#b45309; font-weight:600;"><i class="ph ph-clock"></i> Exame solicitado à IACI — aguardando anexo do ASO</p>' : isSaved ? `<p style="margin:2px 0 0; font-size:0.82rem; color:#475569;">${displayFileName}</p>${timestampsHtml}${subInfoLine}${enviadoFinanceiroHtml}` : '<p>Pendente</p>'}
             </div>
         </div>
     `;
@@ -7039,6 +7040,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     let assStatusIcon = '';
     const stMain = isSaved ? (existingDoc.assinafy_status || '') : '';
     const isAssinado = isSaved && (stMain === 'Assinado' || stMain === 'Testemunhas' || stMain.includes('Testemunhas'));
+    // ASO: após anexar, pergunta 'Enviar para assinatura?' (Sim/Não). O botão Solicitar Assinatura só aparece com 'Sim'.
+    const asoPerguntaAssin = (tabId === 'ASO' && isSaved && !isAsoPlaceholder && !isAssinado && !existingDoc.assinafy_sent_at && ['', 'Nenhum', 'PENDENTE', 'NAO_EXIGE'].includes(stMain));
+    const asoHideSign = (tabId === 'ASO' && isSaved && (isAsoPlaceholder || (asoPerguntaAssin && stMain !== 'PENDENTE')));
 
     if (isSaved) {
         const st = existingDoc.assinafy_status || '';
@@ -7159,10 +7163,11 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         ${vencimentoInputHtml}
-                        ${isSaved && !(isAssinado && (tabId === 'Pagamentos' || tabId === 'ASO')) && !(tabId === 'Atestados' && existingDoc.atestado_tipo !== 'horas') ? `
+                        ${isSaved && !isAsoPlaceholder && !(isAssinado && (tabId === 'Pagamentos' || tabId === 'ASO')) && !(tabId === 'Atestados' && existingDoc.atestado_tipo !== 'horas') ? `
                             <button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
                             ${(!isAssinado) ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ` : ''}
+                        ${isAsoPlaceholder ? `<button type="button" class="btn btn-danger" onclick="deleteDoc(${existingDoc.id}, this)" title="Cancelar solicitação / Excluir" style="height: 42px;"><i class="ph ph-trash"></i></button>` : ''}
                         ${(tabId === 'Pagamentos' || tabId === 'ASO') && !isSaved ? `
                         <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem; white-space:nowrap;">
                             <span style="font-weight:600;color:#64748b;">Exige Assinatura?</span>
@@ -7175,8 +7180,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </div>
                         ` : ''}
                         ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
-                        <label class="btn ${isSaved ? 'btn-warning' : 'btn-primary'}" title="${isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
-                            <i class="ph ph-upload-simple"></i> ${isSaved ? 'Substituir' : 'Upload'}
+                        <label class="btn ${(isSaved && !isAsoPlaceholder) ? 'btn-warning' : 'btn-primary'}" title="${isAsoPlaceholder ? 'Anexar ASO' : isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
+                            <i class="ph ph-upload-simple"></i> ${isAsoPlaceholder ? 'Anexar ASO' : isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
                                 if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
@@ -7191,9 +7196,21 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         ` : ''}
                     </div>
 
+                    ${asoPerguntaAssin ? `
+
+                    <div style="display:flex; align-items:center; gap:8px; font-size:0.82rem; white-space:nowrap; justify-content:flex-end;">
+
+                        <span style="font-weight:600;color:#64748b;">Enviar para assinatura?</span>
+
+                        <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;"><input type="radio" name="aso-sign-${existingDoc.id}" value="PENDENTE" ${stMain === 'PENDENTE' ? 'checked' : ''} onchange="window.asoSetExigeAssinatura(${existingDoc.id}, 'PENDENTE', this)"> Sim</label>
+
+                        <label style="display:flex;align-items:center;gap:3px;cursor:pointer;margin:0;font-weight:500;"><input type="radio" name="aso-sign-${existingDoc.id}" value="NAO_EXIGE" ${stMain === 'NAO_EXIGE' ? 'checked' : ''} onchange="window.asoSetExigeAssinatura(${existingDoc.id}, 'NAO_EXIGE', this)"> Não</label>
+
+                    </div>` : ''}
+
                     ${(() => {
             const isOcorrenciaDoc = (docType || '').includes('###Ocorr');
-            const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc;
+            const showAssinafy = isSaved && tabId !== 'Atestados' && tabId !== '01_FICHA_CADASTRAL' && tabId !== 'Faculdade' && tabId !== 'Dependentes' && stMain !== 'NAO_EXIGE' && !isOcorrenciaDoc && !asoHideSign;
             return showAssinafy ? `
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             ${(isAssinado && isSaved && (tabId === 'Pagamentos' || tabId === 'ASO')) ? `<button type="button" class="btn btn-secondary" onclick="viewDoc(${existingDoc.id})" title="Visualizar" style="height: 42px;"><i class="ph ph-eye"></i></button>
@@ -7560,6 +7577,25 @@ window.sendASOEmailTab = async function () {
 };
 
 
+
+// Salva a opção 'Enviar para assinatura?' do ASO (Sim = PENDENTE / Não = NAO_EXIGE) e redesenha o cartão
+window.asoSetExigeAssinatura = async function (docId, valor, radioEl) {
+    try {
+        const res = await fetch(`${API_URL}/documentos/${docId}/exige-assinatura`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exige_assinatura: valor })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Erro ao salvar'); }
+        const lista = (typeof currentDocs !== 'undefined' && Array.isArray(currentDocs)) ? currentDocs : [];
+        const d = lista.find(x => String(x.id) === String(docId));
+        if (d) d.assinafy_status = valor;
+        const item = radioEl && radioEl.closest ? radioEl.closest('.doc-item') : null;
+        if (item && d) item.replaceWith(createDocSlot('ASO', d.document_type, d, d.year ? `'${d.year}'` : null, null));
+    } catch (e) {
+        alert('Não foi possível salvar a opção de assinatura: ' + e.message);
+    }
+};
 
 window.renderASOAno = function () {
     const yEl = document.getElementById('aso_year');
