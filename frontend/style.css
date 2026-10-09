@@ -1291,9 +1291,18 @@ body {
     transform: translateY(0);
 }
 
-/* Abas de navegação — fonte coerente com o sistema */
+/* Abas de navegação fixas abaixo da topbar */
+#app-tabs-container {
+    position: sticky;
+    top: var(--topbar-height, 60px);
+    z-index: 998;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
 #app-tabs-container .app-top-tab {
     font-family: 'Inter', sans-serif !important;
+}
+body.has-open-tabs .page-header {
+    top: calc(var(--topbar-height, 60px) + 38px) !important;
 }
 /* Enhanced Active Step Highlight */
 .step-item.active .step-icon {

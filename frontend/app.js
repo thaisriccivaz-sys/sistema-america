@@ -1206,9 +1206,11 @@ function renderAppTabs() {
     if (!container) return;
     if (appOpenTabs.length === 0) {
         container.style.display = 'none';
+        document.body.classList.remove('has-open-tabs');
         return;
     }
     container.style.display = 'flex';
+    document.body.classList.add('has-open-tabs');
     container.innerHTML = appOpenTabs.map(t => {
         const activeColor = t.color || '#0f172a';
         // Cor inativa: mesma cor do departamento mas com opacidade reduzida
