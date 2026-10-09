@@ -4091,30 +4091,39 @@
     },
     async onCostCenterSectorChange() {
       const sector = document.getElementById('cc-sector')?.value || '';
-      const targetSectors = ['Logística (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)'];
+      const targetSectors = ['Logística (Interno)', 'Financeiro (Interno)', 'Comercial (Interno)', 'Motorista (Interno)', 'Pátio (Interno)'];
       const container = document.getElementById('cc-user-container');
       if (!container) return;
 
       if (targetSectors.includes(sector)) {
-        const baseSector = sector.split(' (')[0]; 
+        const baseSector = sector.split(' (')[0];
         const normalizeStr = str => (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const deptKey = normalizeStr(baseSector);
-        
+        let querySector = baseSector;
+        let deptKey = normalizeStr(baseSector);
+        if (baseSector === 'Pátio') {
+            const liderDept = (_globalDepartamentos || []).find(d => normalizeStr(d.nome).startsWith('lider'));
+            querySector = liderDept ? liderDept.nome : 'Líderes';
+            deptKey = normalizeStr(querySector);
+        }
+
         container.innerHTML = '<div style="margin-top:12px;font-size:0.8rem;color:#64748b;">Buscando colaboradores...</div>';
         container.style.display = 'block';
-        
+
         try {
             const token = localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const res = await fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(baseSector)}&_t=${Date.now()}`, {
+            const res = await fetch(`/api/sac/colaboradores-por-setor?setor=${encodeURIComponent(querySector)}&_t=${Date.now()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             let validUsers = [];
             if (res.ok) {
                 validUsers = await res.json();
             }
-            
-            const managerName = (_globalDepartamentos || []).find(d => normalizeStr(d.nome) === deptKey)?.responsavel_nome;
+
+            const managerName = (_globalDepartamentos || []).find(d => {
+                const dn = normalizeStr(d.nome);
+                return dn === deptKey || (baseSector === 'Pátio' && dn.startsWith('lider'));
+            })?.responsavel_nome;
             let manager = null;
             if (managerName) {
                 const m = normalizeStr(managerName);
@@ -4142,7 +4151,7 @@
                     }
                 }
             }
-            
+
             // Ordenar alfabeticamente, mas garantir que o gestor (se existir) fique no topo
             validUsers.sort((a,b) => {
                 if (manager && a.id === manager.id) return -1;
@@ -4152,15 +4161,26 @@
                 return nameA.localeCompare(nameB);
             });
 
+            let labelText = `Qual colaborador da ${baseSector} o custo se aplica?`;
+            if (baseSector === 'Pátio') {
+                labelText = 'Qual colaborador do departamento Líderes o custo se aplica?';
+            } else if (baseSector === 'Motorista') {
+                labelText = 'Qual motorista o custo se aplica?';
+            } else if (baseSector === 'Financeiro') {
+                labelText = 'Qual colaborador do Financeiro o custo se aplica?';
+            } else if (baseSector === 'Comercial') {
+                labelText = 'Qual colaborador do Comercial o custo se aplica?';
+            }
+
             let html = `
                 <div style="margin-top:12px;">
-                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">Qual colaborador da ${baseSector} o custo se aplica?</label>
+                    <label style="font-size:0.75rem;color:#64748b;font-weight:600;display:block;margin-bottom:4px;white-space:nowrap;">${labelText}</label>
                     <div style="position:relative;">
                         <select id="cc-responsible-user" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.85rem;background:#fff;appearance:none;cursor:pointer;" onchange="
                             const sel = this;
                             const opt = sel.options[sel.selectedIndex];
-                            const photo = opt.getAttribute('data-photo');
-                            const imgEl = document.getElementById('cc-user-photo-preview');
+                            const photo = opt.getAttribute(\'data-photo\');
+                            const imgEl = document.getElementById(\'cc-user-photo-preview\');
                             if (photo) {
                                 imgEl.src = photo;
                                 imgEl.style.display = 'block';

@@ -33560,8 +33560,13 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
 
         // Filtra: colaborador entra se o departamento efetivo (do cargo OU do campo) bate com o setor
         // Usa match bidirecional para tolerar variações de nome (ex: "Logística" vs "Logistica")
+        const isLiderQuery = setorNorm.startsWith('lider') || setorNorm === 'patio';
         const filtered = (todosColabs || []).filter(c => {
             const deptNorm = norm(c.dept_efetivo || c.departamento);
+            if (isLiderQuery) {
+                const cargoNorm = norm(c.cargo);
+                return deptNorm.startsWith('lider') || cargoNorm.startsWith('lid') || cargoNorm.includes('lider');
+            }
             return deptNorm.includes(setorNorm) || setorNorm.includes(deptNorm);
         });
 
@@ -33571,6 +33576,9 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
             // Busca do departamento com match bidirecional
             const dept = (depts || []).find(d => {
                 const dNorm = norm(d.nome);
+                if (isLiderQuery) {
+                    return dNorm.startsWith('lider');
+                }
                 return dNorm.includes(setorNorm) || setorNorm.includes(dNorm);
             });
 
