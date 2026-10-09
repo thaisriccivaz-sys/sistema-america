@@ -4661,7 +4661,7 @@ app.get('/api/equipes/colaboradores-sem-equipe', authenticateToken, (req, res) =
 app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) => {
     const data = req.query.data || new Date().toISOString().split('T')[0];
     db.all(`
-        SELECT c.id, c.nome_completo, c.cargo, c.foto_base64, c.foto_path,
+        SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.foto_base64, c.foto_path,
                c.status as colab_status, c.ferias_programadas_inicio, c.ferias_programadas_fim,
                c.tipo_contrato, c.data_admissao, c.escala_tipo, c.escala_folgas, c.escala_ciclo_inicio,
                c.horario_entrada, c.horario_saida,
@@ -4674,6 +4674,14 @@ app.get('/api/equipes/colaboradores-disponiveis', authenticateToken, (req, res) 
                                   OR LOWER(TRIM(d.nome)) = LOWER(TRIM(c.cargo))
         WHERE LOWER(c.status) NOT LIKE '%desligado%'
           AND LOWER(c.status) NOT LIKE '%iniciado%'
+          AND LOWER(c.nome_completo) NOT LIKE '%teste%'
+          AND LOWER(c.nome_completo) NOT LIKE '%thais ricci%'
+          AND LOWER(COALESCE(c.cargo, '')) NOT LIKE '%manuten%'
+          AND LOWER(COALESCE(c.departamento, '')) NOT LIKE '%manuten%'
+          AND LOWER(COALESCE(eq.nome, '')) NOT LIKE '%manuten%'
+          AND LOWER(COALESCE(c.cargo, '')) NOT LIKE '%limpeza%'
+          AND LOWER(COALESCE(c.departamento, '')) NOT LIKE '%limpeza%'
+          AND LOWER(COALESCE(eq.nome, '')) NOT LIKE '%limpeza%'
           AND (d.tipo = 'Operacional'
                OR (d.id IS NULL AND c.departamento IN ('EXTERNO', 'P??TIO', 'MOTORISTA FREE'))
                OR em.equipe_id IS NOT NULL)

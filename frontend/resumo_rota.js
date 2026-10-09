@@ -1526,15 +1526,35 @@ async function _rrRenderColabDisponiveis() {
         if (v.ajudante && v.ajudante.trim()) nomesNaRota.add(v.ajudante.trim().toLowerCase());
     });
 
-    // Filtrar: remover folga, férias, afastados, intermitentes e limpeza
+    // Filtrar: remover folga, férias, afastados, intermitentes, limpeza, manutenção, colaborador Teste e Thais Ricci
     let disponiveis = colabs.filter(c => {
+        const nome = (c.nome_completo || '').toLowerCase().trim();
+        const cargo = (c.cargo || c.funcao || '').toLowerCase().trim();
+        const depto = (c.departamento || '').toLowerCase().trim();
+        const equipe = (c.equipe_nome || '').toLowerCase().trim();
+
+        // 1. Colaborador Teste
+        if (nome.includes('teste')) return false;
+
+        // 2. Colaborador Thais Ricci
+        if (nome.includes('thais ricci') || nome.includes('thais.ricci')) return false;
+
+        // 3. Manutenção (cargo, departamento ou equipe)
+        if (cargo.includes('manuten') || depto.includes('manuten') || equipe.includes('manuten')) return false;
+
+        // 4. Limpeza (cargo, departamento ou equipe)
+        if (cargo.includes('limpeza') || depto.includes('limpeza') || equipe.includes('limpeza')) return false;
+
+        // 5. Intermitentes
         if ((c.tipo_contrato || '').toLowerCase().includes('intermitente')) return false;
-        // Limpeza não opera na rota
-        const depto = (c.departamento || c.equipe_nome || '').toLowerCase();
-        if (depto.includes('limpeza')) return false;
+
+        // 6. Férias, afastados ou falta
         const indisponivel = _rrIsFeriasAfastado(c, dataRota);
         if (indisponivel) return false;
+
+        // 7. Folga no dia
         if (_rrIsFolga(c, dataRota)) return false;
+
         return true;
     });
 
