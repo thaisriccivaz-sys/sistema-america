@@ -22713,11 +22713,27 @@ app.post('/api/logistica/credenciamento/:id/enviar', authenticateToken, (req, re
                 const logoUrl = `${baseUrl}/assets/logo-header.png`;
 
                 // Construir texto_copia para o WhatsApp (sem link)
-                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n\nSeguem dados dos colaboradores para credenciamento, em anexo documentos solicitados.\n`;
+                let textoCopia = `*Credenciamento - ${cred.cliente_nome}*\nOS: ${cred.os || '-'}\n\nSeguem dados dos colaboradores para credenciamento${cred.apenas_dados ? '.' : ', em anexo documentos solicitados.'}\n`;
                 if (colabsEnriquecidos && colabsEnriquecidos.length > 0) {
+                    textoCopia += `\n*Colaboradores:*\n`;
+                    colabsEnriquecidos.forEach(c => {
+                        const nomeC = c.nome || c.nome_completo || '';
+                        textoCopia += `- ${nomeC}\n`;
+                        if (c.cargo) textoCopia += `  Cargo: ${c.cargo}\n`;
+                        if (c.cpf) textoCopia += `  CPF: ${c.cpf}\n`;
+                        if (c.cnh && String(c.cargo || '').toUpperCase().includes('MOTORISTA')) textoCopia += `  CNH: ${c.cnh}\n`;
+                    });
+                }
+                if (veiculos && veiculos.length > 0) {
                     textoCopia += `\n*Veículos:*\n`;
                     veiculos.forEach(v => {
-                        textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao}\n`;
+                        textoCopia += `- ${v.placa} - ${v.modelo || v.marca_modelo_versao || ''}\n`;
+                    });
+                }
+                if (licencas && licencas.length > 0) {
+                    textoCopia += `\n*Licenças:*\n`;
+                    licencas.forEach(l => {
+                        textoCopia += `- ${l.nome} (${l.empresa || 'América Rental'})\n`;
                     });
                 }
                 textoCopia = textoCopia.trim();

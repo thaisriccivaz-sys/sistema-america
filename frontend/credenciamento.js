@@ -645,7 +645,7 @@ async function validarVencimentosCredenciamento() {
 }
 
 // ── Gerar e Enviar credenciamento ─────────────────────────────────────────────
-window.gerarEnviarCredenciamento = async function() {
+window.gerarEnviarCredenciamento = async function(modo) {
     const clienteNome = (document.getElementById('cred-cliente-nome') || {}).value?.trim();
     const clienteEmail = (document.getElementById('cred-cliente-email') || {}).value?.trim();
     const tipoEnvio = (document.getElementById('cred-tipo-envio') || {}).value || 'email';
@@ -666,7 +666,7 @@ window.gerarEnviarCredenciamento = async function() {
     }
 
 
-    const btn = document.getElementById('btn-enviar-cred');
+    const btn = document.getElementById(modo === 'info' ? 'btn-visualizar-cred' : 'btn-enviar-cred');
     const originalHTML = btn ? btn.innerHTML : '';
     if (btn) { btn.innerHTML = '<i class="ph ph-spinner"></i> Validando...'; btn.disabled = true; }
 
@@ -738,7 +738,7 @@ window.gerarEnviarCredenciamento = async function() {
         if (!res.ok) throw new Error(data.error || 'Erro ao enviar credenciamento.');
 
         if (solId) {
-            try {
+            if (modo !== 'info') try {
                 // Usa POST para enviar as licenças selecionadas no body (mais confiável que query param)
                 const zipRes = await fetch(`/api/logistica/credenciamento/${solId}/download-zip`, {
                     method: 'POST',
@@ -767,7 +767,7 @@ window.gerarEnviarCredenciamento = async function() {
                 }
             } catch (err) { console.error('Erro ZIP:', err); }
             
-            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, 'Credenciamento atendido! O ZIP com os documentos será baixado.');
+            window.abrirPopupCopiaTextoCred(data.texto_copia, data.whatsapp, data.apenas_dados, modo === 'info' ? 'Credenciamento atendido! Confira as informações abaixo.' : 'Credenciamento atendido! O ZIP com os documentos será baixado.');
         } else {
             // Comercial criando
             if (data.apenas_dados || data.tipo_envio === 'whatsapp') {
@@ -837,6 +837,7 @@ window.abrirModalNovoCredenciamento = async function() {
     const titulo = document.querySelector('#modal-novo-credenciamento h3');
     if (titulo) titulo.textContent = 'Novo Credenciamento';
     const modal = document.getElementById('modal-novo-credenciamento');
+    if (typeof window.atualizarDestaqueBotoesCred === 'function') window.atualizarDestaqueBotoesCred();
     if (modal) modal.style.display = 'flex';
 };
 
@@ -915,9 +916,27 @@ window.abrirModalCumprirSolicitacao = async function(id) {
     if (titulo) titulo.textContent = dados ? `Credenciar: ${dados.cliente_nome}` : 'Cumprir Solicitação';
 
     const modal = document.getElementById('modal-novo-credenciamento');
+    if (typeof window.atualizarDestaqueBotoesCred === 'function') window.atualizarDestaqueBotoesCred();
     if (modal) modal.style.display = 'flex';
 };
 
+
+
+// ── Destaque dos botões Baixar ZIP / Visualizar informações ───────────────────
+window.atualizarDestaqueBotoesCred = function() {
+    const cb = document.getElementById('cred-apenas-dados');
+    const apenas = !!(cb && cb.checked);
+    const azul = 'background:#2563eb; color:#fff; border:1px solid #2563eb;';
+    const cinza = 'background:#e2e8f0; color:#475569; border:1px solid #cbd5e1;';
+    const base = 'flex:1; justify-content:center; padding:12px; font-size:1rem; ';
+    const bZip = document.getElementById('btn-enviar-cred');
+    const bInfo = document.getElementById('btn-visualizar-cred');
+    if (bZip) bZip.style.cssText = base + (apenas ? cinza : azul);
+    if (bInfo) bInfo.style.cssText = base + (apenas ? azul : cinza);
+};
+document.addEventListener('change', function(ev) {
+    if (ev.target && ev.target.id === 'cred-apenas-dados') window.atualizarDestaqueBotoesCred();
+});
 
 window.fecharModalNovoCredenciamento = function() {
     const modal = document.getElementById('modal-novo-credenciamento');
@@ -956,11 +975,11 @@ window.abrirPopupCopiaTextoCred = function(texto, whatsapp, apenasDados, message
     let msg = message || 'Ação realizada com sucesso.';
     const popupHtml = `
         <div id="modal-popup-copia-cred" class="modal" style="display:flex; z-index:11000; align-items:center; justify-content:center;">
-            <div class="modal-content" style="max-width:500px; padding:20px; border-radius:10px;">
-                <h3 style="margin-top:0; color:#1e293b;"><i class="ph ph-check-circle" style="color:#16a34a;"></i> ${apenasDados ? 'Apenas Dados' : 'Aviso pelo WhatsApp'}</h3>
+            <div class="modal-content" style="max-width:560px; padding:20px; border-radius:10px;">
+                <h3 style="margin-top:0; color:#1e293b;"><i class="ph ph-check-circle" style="color:#16a34a;"></i> ${apenasDados ? 'Apenas Dados' : 'Informações do Credenciamento'}</h3>
                 <p style="color:#475569; font-size:0.95rem; margin-bottom:15px;">${msg}</p>
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
-                    <textarea id="texto-copia-cred" style="width:100%; height:150px; border:none; background:transparent; resize:none; font-family:monospace; font-size:0.85rem;" readonly>${texto}</textarea>
+                    <textarea id="texto-copia-cred" style="width:100%; height:320px; border:none; background:transparent; resize:none; font-family:monospace; font-size:0.85rem;" readonly>${texto}</textarea>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:15px; align-items:center;">
                     <button class="btn btn-outline" onclick="document.getElementById('modal-popup-copia-cred').remove()">Fechar</button>
