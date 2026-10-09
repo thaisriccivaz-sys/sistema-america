@@ -552,11 +552,12 @@ async function validarVencimentosCredenciamento() {
         }
     }
 
-    const mapDocTypeToValue = (docType, fileName) => {
+    const mapDocTypeToValue = (docType, fileName, tabName) => {
         const d = `${docType || ''} ${fileName || ''}`.toLowerCase();
+        const tab = (tabName || '').toUpperCase().trim();
         if (d.includes('cnh') || d.includes('habilita')) return 'cnh';
         if (d.includes('cpf')) return 'cpf';
-        if (d.includes('aso')) return 'aso';
+        if (tab === 'ASO' || d.includes('aso')) return 'aso';
         if (d.includes('ficha de registro') || d.includes('registro')) return 'ficha_registro';
         if (d.includes('vacina') || d.includes('treinamento')) return 'treinamento';
         if (d.includes('epi')) return 'epi';
@@ -610,7 +611,7 @@ async function validarVencimentosCredenciamento() {
                     }
 
                     const matchingDocs = (docs || []).filter(d => {
-                        const val = mapDocTypeToValue(d.document_type, d.file_name);
+                        const val = mapDocTypeToValue(d.document_type, d.file_name, d.tab_name);
                         return val === reqDoc;
                     });
                     
@@ -629,12 +630,10 @@ async function validarVencimentosCredenciamento() {
                     if (!docFound) {
                         erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} é INEXISTENTE. Contacte o setor de RH para atualização.`);
                     } else if (reqDoc !== 'cpf' && docFound.vencimento) {
-                        let dataVencimento = new Date(docFound.vencimento + 'T12:00:00');
-                        if (reqDoc === 'aso') {
-                            dataVencimento.setFullYear(dataVencimento.getFullYear() + 1);
-                        }
+                        let dataVencimento = new Date(docFound.vencimento + 'T23:59:59');
                         if (dataVencimento < hoje) {
-                            erros.push(`O documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${dataVencimento.toLocaleDateString('pt-BR')}). Contacte o setor de RH.`);
+                            const vencFormatado = docFound.vencimento.includes('-') ? docFound.vencimento.split('T')[0].split('-').reverse().join('/') : docFound.vencimento;
+                            erros.push(`Documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${vencFormatado}) e por isso não foi baixado, contactar o RH para atualizar.`);
                         }
                     }
                 }

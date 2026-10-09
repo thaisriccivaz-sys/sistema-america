@@ -6824,9 +6824,7 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
     let vencInfoHtml = '';
     if (isSaved && existingDoc.vencimento) {
         const vencDate = new Date(existingDoc.vencimento + 'T12:00:00');
-        if (tabId === 'ASO') {
-            vencDate.setFullYear(vencDate.getFullYear() + 1); // 12 meses apos o exame
-        }
+        // O campo vencimento já é a data final de validade do ASO
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const diasRestantes = Math.floor((vencDate - today) / (1000 * 60 * 60 * 24));

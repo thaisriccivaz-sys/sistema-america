@@ -22961,6 +22961,97 @@ const _handleDownloadZip = async (req, res) => {
                 
                 const addedFilePaths = new Set(); // Evita duplicatas no zip
                 const r2Utils = require('./utils/r2');
+
+                // Helper para parsear datas de vencimento do ASO e outros documentos
+                const parseVencDoc = (val) => {
+                    if (!val || typeof val !== 'string') return null;
+                    val = val.trim();
+                    const mIso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (mIso) return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 23, 59, 59, 999);
+                    const mBr = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                    if (mBr) return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 23, 59, 59, 999);
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? null : d;
+                };
+
+                // TRATAMENTO OBRIGATÓRIO DE ASO:
+                // Considerar sempre a validade mais longe para baixar. Se vencido, NÃO baixar no ZIP e avisar.
+                let asoMensagemFaltanteAdicionada = false;
+                if (docsExigidos.includes('aso')) {
+                    const asoDocs = docs.filter(d => {
+                        const tab = (d.tab_name || '').toUpperCase().trim();
+                        const dt = (d.document_type || '').toLowerCase();
+                        const fn = (d.file_name || '').toLowerCase();
+                        const hasFile = !!(d.signed_r2_key || d.r2_key || d.signed_file_path || d.file_path);
+                        if (tab === 'ATESTADOS' && !dt.includes('aso')) return false;
+                        return hasFile && (tab === 'ASO' || dt.includes('aso') || fn.includes('aso'));
+                    });
+
+                    if (asoDocs.length === 0) {
+                        faltantes.push(`Documento "ASO" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
+                        asoMensagemFaltanteAdicionada = true;
+                    } else {
+                        // Ordenar pela validade mais longe (maior data de vencimento primeiro)
+                        asoDocs.sort((a, b) => {
+                            const dateA = parseVencDoc(a.vencimento);
+                            const dateB = parseVencDoc(b.vencimento);
+                            if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+                            if (dateA) return -1;
+                            if (dateB) return 1;
+                            return (b.id || 0) - (a.id || 0);
+                        });
+
+                        const bestAso = asoDocs[0];
+                        const dataVenc = parseVencDoc(bestAso.vencimento);
+                        const agora = new Date();
+
+                        if (dataVenc && dataVenc < agora) {
+                            // ASO VENCIDO: NÃO baixa no ZIP e registra o aviso exigido
+                            const vencFormatado = bestAso.vencimento.includes('-')
+                                ? bestAso.vencimento.split('T')[0].split('-').reverse().join('/')
+                                : bestAso.vencimento;
+                            faltantes.push(`Documento "ASO" do colaborador(a) ${colab.nome_completo} está VENCIDO (${vencFormatado}) e por isso não foi baixado, contactar o RH para atualizar.`);
+                            asoMensagemFaltanteAdicionada = true;
+                        } else {
+                            // ASO VÁLIDO: baixar no ZIP
+                            const r2Key = bestAso.signed_r2_key || bestAso.r2_key;
+                            const filePath = bestAso.signed_file_path || bestAso.file_path;
+                            const dedupeKey = r2Key || (filePath ? filePath.replace(/\\/g, '/') : null);
+
+                            if (dedupeKey && !addedFilePaths.has(dedupeKey)) {
+                                addedFilePaths.add(dedupeKey);
+                                const ext = path.extname(bestAso.file_name || '.pdf') || '.pdf';
+                                const nameInZip = `${folderName}/${nomeColabSafe}_ASO${ext}`;
+
+                                let fetched = false;
+                                if (r2Key && r2Utils.isReady()) {
+                                    try {
+                                        const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                                        if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                                            const bytes = await fileData.stream.transformToByteArray();
+                                            zip.addFile(nameInZip, Buffer.from(bytes));
+                                            hasFiles = true;
+                                            fetched = true;
+                                            console.log(`[ZIP] ASO adicionado do R2: ${r2Key} -> ${nameInZip}`);
+                                        }
+                                    } catch(e) {
+                                        console.warn(`[ZIP] Falha ao baixar ASO do R2 (${r2Key}):`, e.message);
+                                    }
+                                }
+                                if (!fetched && filePath) {
+                                    fetched = addLocalFileIfExists(filePath, nameInZip) === true;
+                                }
+                                if (fetched) {
+                                    addedCats.add('aso');
+                                } else {
+                                    faltantes.push(`Documento "ASO" do colaborador(a) ${colab.nome_completo} com arquivo não encontrado no servidor.`);
+                                    asoMensagemFaltanteAdicionada = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 for (const doc of docs) {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
                     const fileNameLower = (doc.file_name || '').toLowerCase();
@@ -22970,7 +23061,7 @@ const _handleDownloadZip = async (req, res) => {
                     
                     if (docsExigidos.includes('cnh') && (combinedLower.includes('cnh') || combinedLower.includes('habilita'))) matchedCategory = 'cnh';
                     else if (docsExigidos.includes('cpf') && combinedLower.includes('cpf')) matchedCategory = 'cpf';
-                    else if (docsExigidos.includes('aso') && combinedLower.includes('aso')) matchedCategory = 'aso';
+                    // ASO já tratado com regra de validade acima - não duplicar aqui
                     else if (docsExigidos.includes('ficha_registro') && (combinedLower.includes('ficha de registro') || combinedLower.includes('registro'))) matchedCategory = 'ficha_registro';
                     else if (docsExigidos.includes('treinamento') && (combinedLower.includes('vacina') || combinedLower.includes('treinamento'))) matchedCategory = 'treinamento';
                     else if (docsExigidos.includes('epi') && combinedLower.includes('epi') && tabName !== 'CERTIFICADOS') matchedCategory = 'epi';
@@ -23031,6 +23122,7 @@ const _handleDownloadZip = async (req, res) => {
                         if (!docNomesCred[reqDoc]) continue;
                         if (reqDoc === 'cnh' && !isMotCred) continue;
                         if (reqDoc === 'cpf' && isMotCred) continue;
+                        if (reqDoc === 'aso' && asoMensagemFaltanteAdicionada) continue;
                         if (!addedCats.has(reqDoc)) faltantes.push(`Documento "${docNomesCred[reqDoc]}" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
                     }
                 }
@@ -23538,7 +23630,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const colabDocsPromise = new Promise((resolve) => {
             if (colabIds.length === 0) return resolve([]);
             const placeholders = colabIds.map(() => '?').join(',');
-            db.all(`SELECT id, colaborador_id, document_type, file_name, file_path, signed_file_path FROM documentos WHERE colaborador_id IN (${placeholders})`, colabIds, (err, docs) => {
+            db.all(`SELECT id, colaborador_id, document_type, file_name, file_path, signed_file_path, vencimento FROM documentos WHERE colaborador_id IN (${placeholders})`, colabIds, (err, docs) => {
                 resolve(docs || []);
             });
         });
@@ -23658,7 +23750,18 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                         foto_base64,
                         is_apenas_dados: isApenasDados,
                         documentos: (() => {
-                            const filtrados = docsComEPI
+                            const parseVencLocal = (val) => {
+                                if (!val || typeof val !== 'string') return null;
+                                val = val.trim();
+                                const mIso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                                if (mIso) return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 23, 59, 59, 999);
+                                const mBr = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+                                if (mBr) return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 23, 59, 59, 999);
+                                const d = new Date(val);
+                                return isNaN(d.getTime()) ? null : d;
+                            };
+
+                            let filtrados = docsComEPI
                                 .filter(d => d.colaborador_id === c.id && isPermitido(d))
                                 .map(d => ({
                                     id: d.id,
@@ -23666,16 +23769,40 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                                     nome_arquivo: d.file_name,
                                     tem_assinado: !!d.signed_file_path,
                                     _chave: getChaveDoc(d),
-                                    is_epi: !!d._is_epi_ficha
+                                    is_epi: !!d._is_epi_ficha,
+                                    vencimento: d.vencimento || null
                                 }));
-                            // Deduplicar
+
+                            // Tratar ASO no link público: selecionar o de maior validade e excluir se vencido
+                            const agora = new Date();
+                            const asos = filtrados.filter(d => d._chave === 'aso');
+                            if (asos.length > 0) {
+                                asos.sort((a, b) => {
+                                    const dateA = parseVencLocal(a.vencimento);
+                                    const dateB = parseVencLocal(b.vencimento);
+                                    if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+                                    if (dateA) return -1;
+                                    if (dateB) return 1;
+                                    return (b.id || 0) - (a.id || 0);
+                                });
+                                const bestAso = asos[0];
+                                const dataVenc = parseVencLocal(bestAso.vencimento);
+                                // Remove todos os outros ASOs
+                                filtrados = filtrados.filter(d => d._chave !== 'aso');
+                                // Se o de maior validade NÃO estiver vencido, inclui ele
+                                if (!dataVenc || dataVenc >= agora) {
+                                    filtrados.push(bestAso);
+                                }
+                            }
+
+                            // Deduplicar outros tipos
                             const vistos = new Set();
                             return filtrados.filter(d => {
                                 const key = d._chave || d.tipo;
                                 if (vistos.has(key)) return false;
                                 vistos.add(key);
                                 return true;
-                            }).map(({ _chave, ...rest }) => rest);
+                            }).map(({ _chave, vencimento, ...rest }) => rest);
                         })()
                     };
                 }),
