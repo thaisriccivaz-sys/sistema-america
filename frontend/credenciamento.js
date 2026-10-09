@@ -633,7 +633,11 @@ async function validarVencimentosCredenciamento() {
                         let dataVencimento = new Date(docFound.vencimento + 'T23:59:59');
                         if (dataVencimento < hoje) {
                             const vencFormatado = docFound.vencimento.includes('-') ? docFound.vencimento.split('T')[0].split('-').reverse().join('/') : docFound.vencimento;
-                            erros.push(`Documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${vencFormatado}) e por isso não foi baixado, contactar o RH para atualizar.`);
+                            if (reqDoc === 'cnh') {
+                                erros.push(`Documento "CNH" do colaborador(a) ${nomeColab} está VENCIDO (${vencFormatado}) e não pode ser baixado pois está vencido. Contactar o RH para atualizar.`);
+                            } else {
+                                erros.push(`Documento "${docName}" do colaborador(a) ${nomeColab} está VENCIDO (${vencFormatado}) e por isso não foi baixado, contactar o RH para atualizar.`);
+                            }
                         }
                     }
                 }

@@ -22924,7 +22924,7 @@ const _handleDownloadZip = async (req, res) => {
 
         // 3. Colaboradores (Documentos)
         if (colabsIds.length > 0) {
-            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, cargo, foto_base64, foto_path FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, cargo, foto_base64, foto_path, cnh_vencimento FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
             
             // Mapeamento de categoria → label amigável para o nome do arquivo
             const docCategoryLabel = {
@@ -23052,6 +23052,90 @@ const _handleDownloadZip = async (req, res) => {
                     }
                 }
 
+                // TRATAMENTO OBRIGATÓRIO DE CNH:
+                // Se a CNH anexada no sistema do colaborador estiver vencida, não baixar no ZIP e avisar
+                let cnhMensagemFaltanteAdicionada = false;
+                if (docsExigidos.includes('cnh')) {
+                    const isMot = String(colab.cargo || '').toUpperCase().includes('MOTORISTA');
+                    const cnhDocs = docs.filter(d => {
+                        const tab = (d.tab_name || '').toLowerCase();
+                        const dt = (d.document_type || '').toLowerCase();
+                        const fn = (d.file_name || '').toLowerCase();
+                        if (tab.includes('dependente') || dt.includes('dependente') || dt.includes('cônjuge') || dt.includes('conjuge')) return false;
+                        const hasFile = !!(d.signed_r2_key || d.r2_key || d.signed_file_path || d.file_path);
+                        return hasFile && (dt === 'cnh' || dt.includes('cnh') || fn.includes('cnh') || dt.includes('habilita') || fn.includes('habilita'));
+                    });
+
+                    if (cnhDocs.length === 0) {
+                        if (isMot) {
+                            faltantes.push(`Documento "CNH" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
+                            cnhMensagemFaltanteAdicionada = true;
+                        }
+                    } else {
+                        // Ordenar pela validade mais longe primeiro
+                        cnhDocs.sort((a, b) => {
+                            const valA = a.vencimento || colab.cnh_vencimento;
+                            const valB = b.vencimento || colab.cnh_vencimento;
+                            const dateA = parseVencDoc(valA);
+                            const dateB = parseVencDoc(valB);
+                            if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+                            if (dateA) return -1;
+                            if (dateB) return 1;
+                            return (b.id || 0) - (a.id || 0);
+                        });
+
+                        const bestCnh = cnhDocs[0];
+                        const vencRaw = bestCnh.vencimento || colab.cnh_vencimento;
+                        const dataVenc = parseVencDoc(vencRaw);
+                        const agora = new Date();
+
+                        if (dataVenc && dataVenc < agora) {
+                            // CNH VENCIDA: NÃO baixa no ZIP e avisa que não pode ser baixada pois está vencida
+                            const vencFormatado = vencRaw.includes('-')
+                                ? vencRaw.split('T')[0].split('-').reverse().join('/')
+                                : vencRaw;
+                            faltantes.push(`Documento "CNH" do colaborador(a) ${colab.nome_completo} está VENCIDO (${vencFormatado}) e não pode ser baixado pois está vencido. Contactar o RH para atualizar.`);
+                            cnhMensagemFaltanteAdicionada = true;
+                        } else {
+                            // CNH VÁLIDA: baixar no ZIP
+                            const r2Key = bestCnh.signed_r2_key || bestCnh.r2_key;
+                            const filePath = bestCnh.signed_file_path || bestCnh.file_path;
+                            const dedupeKey = r2Key || (filePath ? filePath.replace(/\\/g, '/') : null);
+
+                            if (dedupeKey && !addedFilePaths.has(dedupeKey)) {
+                                addedFilePaths.add(dedupeKey);
+                                const ext = path.extname(bestCnh.file_name || '.pdf') || '.pdf';
+                                const nameInZip = `${folderName}/${nomeColabSafe}_CNH${ext}`;
+
+                                let fetched = false;
+                                if (r2Key && r2Utils.isReady()) {
+                                    try {
+                                        const fileData = await r2Utils.downloadStreamFromR2(r2Key);
+                                        if (fileData.stream && typeof fileData.stream.transformToByteArray === 'function') {
+                                            const bytes = await fileData.stream.transformToByteArray();
+                                            zip.addFile(nameInZip, Buffer.from(bytes));
+                                            hasFiles = true;
+                                            fetched = true;
+                                            console.log(`[ZIP] CNH adicionada do R2: ${r2Key} -> ${nameInZip}`);
+                                        }
+                                    } catch(e) {
+                                        console.warn(`[ZIP] Falha ao baixar CNH do R2 (${r2Key}):`, e.message);
+                                    }
+                                }
+                                if (!fetched && filePath) {
+                                    fetched = addLocalFileIfExists(filePath, nameInZip) === true;
+                                }
+                                if (fetched) {
+                                    addedCats.add('cnh');
+                                } else {
+                                    faltantes.push(`Documento "CNH" do colaborador(a) ${colab.nome_completo} com arquivo não encontrado no servidor.`);
+                                    cnhMensagemFaltanteAdicionada = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 for (const doc of docs) {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
                     const fileNameLower = (doc.file_name || '').toLowerCase();
@@ -23059,8 +23143,8 @@ const _handleDownloadZip = async (req, res) => {
                     const tabName = doc.tab_name || '';
                     let matchedCategory = null;
                     
-                    if (docsExigidos.includes('cnh') && (combinedLower.includes('cnh') || combinedLower.includes('habilita'))) matchedCategory = 'cnh';
-                    else if (docsExigidos.includes('cpf') && combinedLower.includes('cpf')) matchedCategory = 'cpf';
+                    // CNH e ASO já tratados com regra de validade acima - não duplicar aqui
+                    if (docsExigidos.includes('cpf') && combinedLower.includes('cpf')) matchedCategory = 'cpf';
                     // ASO já tratado com regra de validade acima - não duplicar aqui
                     else if (docsExigidos.includes('ficha_registro') && (combinedLower.includes('ficha de registro') || combinedLower.includes('registro'))) matchedCategory = 'ficha_registro';
                     else if (docsExigidos.includes('treinamento') && (combinedLower.includes('vacina') || combinedLower.includes('treinamento'))) matchedCategory = 'treinamento';
@@ -23120,7 +23204,7 @@ const _handleDownloadZip = async (req, res) => {
                     const docNomesCred = { cnh: 'CNH', cpf: 'CPF', aso: 'ASO', ficha_registro: 'Ficha de Registro', treinamento: 'Carteira de Vacinação', epi: 'Ficha de EPI', contrato_esocial: 'Contrato e-social', nr1: 'NR1 / Ordem de Serviço', foto_colaborador: 'Foto 3x4', ctps: 'Carteira de Trabalho' };
                     for (const reqDoc of docsExigidos) {
                         if (!docNomesCred[reqDoc]) continue;
-                        if (reqDoc === 'cnh' && !isMotCred) continue;
+                        if (reqDoc === 'cnh' && (!isMotCred || cnhMensagemFaltanteAdicionada)) continue;
                         if (reqDoc === 'cpf' && isMotCred) continue;
                         if (reqDoc === 'aso' && asoMensagemFaltanteAdicionada) continue;
                         if (!addedCats.has(reqDoc)) faltantes.push(`Documento "${docNomesCred[reqDoc]}" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
@@ -23792,6 +23876,25 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                                 // Se o de maior validade NÃO estiver vencido, inclui ele
                                 if (!dataVenc || dataVenc >= agora) {
                                     filtrados.push(bestAso);
+                                }
+                            }
+
+                            // Tratar CNH no link público: selecionar a de maior validade e excluir se vencida
+                            const cnhs = filtrados.filter(d => d._chave === 'cnh');
+                            if (cnhs.length > 0) {
+                                cnhs.sort((a, b) => {
+                                    const dateA = parseVencLocal(a.vencimento);
+                                    const dateB = parseVencLocal(b.vencimento);
+                                    if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+                                    if (dateA) return -1;
+                                    if (dateB) return 1;
+                                    return (b.id || 0) - (a.id || 0);
+                                });
+                                const bestCnh = cnhs[0];
+                                const dataVenc = parseVencLocal(bestCnh.vencimento);
+                                filtrados = filtrados.filter(d => d._chave !== 'cnh');
+                                if (!dataVenc || dataVenc >= agora) {
+                                    filtrados.push(bestCnh);
                                 }
                             }
 
