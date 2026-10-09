@@ -160,7 +160,7 @@ function calcularCargaTotalFromLista() {
     let totalCargaTanque = 0;
 
     for (const produto of osState.produtos) {
-        const equipamento = (produto.desc || '').trim().toUpperCase();
+        const equipamento = (produto.desc || '').trim().toUpperCase().replace(/\b(ELX|SLX)\b/g, 'EXL');
         const quantidade = parseInt(produto.qtd) || 0;
         if (!equipamento) continue;
 
@@ -295,7 +295,7 @@ function calcularCamposPorProduto(produtoAdicionado) {
             tipoServico === 'MANUTENCAO OBRA' ||
             tipoServico === 'MANUTENCAO EVENTO';
 
-        const equipamento = (produtoAdicionado.desc || '').trim().toUpperCase();
+        const equipamento = (produtoAdicionado.desc || '').trim().toUpperCase().replace(/\b(ELX|SLX)\b/g, 'EXL');
         const quantidade  = parseInt(produtoAdicionado.qtd) || 0;
         if (!equipamento) { calcularTempo(); return; }
 

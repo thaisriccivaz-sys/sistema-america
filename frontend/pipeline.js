@@ -654,7 +654,7 @@ async function pipelineExportarExcel(registrosOverride) {
         let totalCargaTanque = 0;
 
         for (const p of produtosArr) {
-            const equipamento = (p.desc || p.produto || '').trim().toUpperCase();
+            const equipamento = (p.desc || p.produto || '').trim().toUpperCase().replace(/\b(ELX|SLX)\b/g, 'EXL');
             const quantidade = parseInt(p.qtd) || 0;
             if (!equipamento) continue;
 
