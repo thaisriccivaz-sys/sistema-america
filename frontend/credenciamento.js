@@ -574,12 +574,23 @@ async function validarVencimentosCredenciamento() {
         'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto do Colaborador', 'ctps': 'Carteira de Trabalho'
     };
 
-    // 1. Validar licenças selecionadas
-    for (const id of credenciamentoState.selecionadosLicencas) {
-        const lic = credenciamentoState.licencas.find(l => String(l.id) === id);
+    // 1. Validar licenças selecionadas (todas as empresas)
+    const licsCheckedDom = Array.from(document.querySelectorAll('input[name="cred_licencas"]:checked, #cred-licencas-empresas input[type="checkbox"]:checked'));
+    const licIdsParaValidar = new Set((credenciamentoState.selecionadosLicencas || []).map(String));
+    licsCheckedDom.forEach(cb => licIdsParaValidar.add(String(cb.value)));
+
+    for (const id of licIdsParaValidar) {
+        let lic = (credenciamentoState.licencas || []).find(l => String(l.id) === id);
+        if (!lic) {
+            const cb = licsCheckedDom.find(c => String(c.value) === id);
+            if (cb) lic = { id, nome: cb.dataset.nome, empresa: cb.dataset.empresa, validade: cb.dataset.validade };
+        }
         if (lic && lic.validade) {
-            if (new Date(lic.validade + 'T12:00:00') < hoje)
-                erros.push(`A licença "${lic.nome}" da empresa ${lic.empresa || 'América Rental'} está VENCIDA (${lic.validade.split('-').reverse().join('/')}).`);
+            const dataVenc = new Date(lic.validade + (lic.validade.includes('T') ? '' : 'T23:59:59'));
+            if (dataVenc < hoje) {
+                const valFormatada = lic.validade.split('T')[0].split('-').reverse().join('/');
+                erros.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) está VENCIDA (${valFormatada}) e não pode ser baixada pois está vencida. Contactar o administrativo para atualizar.`);
+            }
         }
     }
 

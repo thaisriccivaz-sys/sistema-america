@@ -22842,13 +22842,37 @@ const _handleDownloadZip = async (req, res) => {
             }
         };
 
+        // Helper para parsear datas de vencimento de documentos e licenças
+        const parseVencDoc = (val) => {
+            if (!val || typeof val !== 'string') return null;
+            val = val.trim();
+            const mIso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (mIso) return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 23, 59, 59, 999);
+            const mBr = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (mBr) return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 23, 59, 59, 999);
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
         // 1. Licencas
         if (licencasSolicitadas.length > 0) {
             const lics = await new Promise(resolve => db.all(`SELECT * FROM licencas WHERE id IN (${licencasSolicitadas.join(',')})`, (err, rows) => resolve(rows || [])));
             console.log(`[ZIP] Licencas solicitadas: ${JSON.stringify(licencasSolicitadas)} | Encontradas no DB: ${lics.length}`);
             for (const lic of lics) {
-                if (lic.validade && new Date(lic.validade + 'T12:00:00') < new Date(new Date().setHours(0,0,0,0))) faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) está VENCIDA (${String(lic.validade).split('-').reverse().join('/')}).`);
-                if (!lic.file_path && !lic.r2_key) { faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) não possui arquivo anexado.`); continue; }
+                if (lic.validade) {
+                    const dataVenc = parseVencDoc(lic.validade);
+                    if (dataVenc && dataVenc < new Date()) {
+                        const valStr = String(lic.validade).trim();
+                        const mIso = valStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                        const valFormatada = mIso ? `${mIso[3]}/${mIso[2]}/${mIso[1]}` : valStr;
+                        faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) está VENCIDA (${valFormatada}) e não pode ser baixada pois está vencida. Contactar o administrativo para atualizar.`);
+                        continue; // OBRIGATÓRIO: Se vencida, NÃO baixa no ZIP!
+                    }
+                }
+                if (!lic.file_path && !lic.r2_key) {
+                    faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) não possui arquivo anexado. Contactar o administrativo para atualizar.`);
+                    continue;
+                }
                 console.log(`[ZIP] Licenca ${lic.id} (${lic.nome}) file_path: ${lic.file_path}`);
                 const empresaSafe = (lic.empresa || 'Empresa')
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
@@ -22907,7 +22931,7 @@ const _handleDownloadZip = async (req, res) => {
                     } catch(e) {}
                 }
                 if (!found) {
-                    faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) com arquivo não encontrado no servidor.`);
+                    faltantes.push(`Licença "${lic.nome}" (${lic.empresa || 'América Rental'}) com arquivo não encontrado no servidor. Contactar o administrativo para atualizar.`);
                     console.warn(`[ZIP] Licenca NAO ENCONTRADA id=${lic.id}. Caminhos tentados: ${candidatos.join(' | ')}`);
                 }
             }
@@ -22962,17 +22986,7 @@ const _handleDownloadZip = async (req, res) => {
                 const addedFilePaths = new Set(); // Evita duplicatas no zip
                 const r2Utils = require('./utils/r2');
 
-                // Helper para parsear datas de vencimento do ASO e outros documentos
-                const parseVencDoc = (val) => {
-                    if (!val || typeof val !== 'string') return null;
-                    val = val.trim();
-                    const mIso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                    if (mIso) return new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 23, 59, 59, 999);
-                    const mBr = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-                    if (mBr) return new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10), 23, 59, 59, 999);
-                    const d = new Date(val);
-                    return isNaN(d.getTime()) ? null : d;
-                };
+                // parseVencDoc já definido no escopo de _handleDownloadZip
 
                 // TRATAMENTO OBRIGATÓRIO DE ASO:
                 // Considerar sempre a validade mais longe para baixar. Se vencido, NÃO baixar no ZIP e avisar.
@@ -23762,7 +23776,7 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
         const licencasDbPromise = new Promise((resolve) => {
             if (licencaIds.length === 0) return resolve([]);
             const ph = licencaIds.map(() => '?').join(',');
-            db.all(`SELECT id, file_name FROM licencas WHERE id IN (${ph})`, licencaIds, (err, rows) => resolve(rows || []));
+            db.all(`SELECT id, file_name, validade FROM licencas WHERE id IN (${ph})`, licencaIds, (err, rows) => resolve(rows || []));
         });
 
         Promise.all([colabDocsPromise, veicDocsPromise, licencasDbPromise, epiPromise, colabFotoPromise]).then(([docs, frotas, licencasDb, epiDocs, colabFotos]) => {
@@ -23917,7 +23931,15 @@ app.get('/api/publico/credenciamento/:token', (req, res) => {
                         has_crlv: f && !!f.crlv_base64
                     };
                 }),
-                licencas: licencasRaw.map(l => {
+                licencas: licencasRaw.filter(l => {
+                    const dbRow = licencasDb.find(r => String(r.id) === String(l.id));
+                    if (!dbRow) return true;
+                    if (dbRow.validade) {
+                        const dV = parseVencLocal(dbRow.validade);
+                        if (dV && dV < agora) return false;
+                    }
+                    return true;
+                }).map(l => {
                     const dbRow = licencasDb.find(r => String(r.id) === String(l.id));
                     return { ...l, file_name: dbRow ? dbRow.file_name : null };
                 })
@@ -23991,7 +24013,14 @@ app.get('/api/publico/credenciamento/:token/licenca/:licId', (req, res) => {
 
         db.get('SELECT * FROM licencas WHERE id = ?', [req.params.licId], (err2, row) => {
             if (err2 || !row) return res.status(404).send('Licença nao encontrada');
-            if (!row.file_path && !row.file_name) return res.status(404).send('Nenhum arquivo anexado a esta licença');
+            if (row.validade) {
+                const mIso = String(row.validade).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                const dV = mIso ? new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10), 23, 59, 59, 999) : new Date(row.validade);
+                if (!isNaN(dV.getTime()) && dV < new Date()) {
+                    return res.status(403).send('Licença vencida. Contactar o administrativo para atualizar.');
+                }
+            }
+            if (!row.file_path && !row.file_name && !row.r2_key) return res.status(404).send('Nenhum arquivo anexado a esta licença');
 
             let absPath = '';
             if (row.file_path) absPath = path.resolve(__dirname, '..', '..', row.file_path);
