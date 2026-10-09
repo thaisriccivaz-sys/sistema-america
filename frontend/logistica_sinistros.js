@@ -1301,7 +1301,8 @@ window._logSinEditRenderMidiasExistentes = function() {
             isVideo = ['mp4','mov','avi','mkv','webm'].includes(ext);
         }
         var card = document.createElement('div');
-        card.style.cssText = 'position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;';
+        card.style.cssText = 'position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;cursor:pointer;';
+        card.onclick = function() { window.open(m.url, '_blank'); };
         if (!isVideo) {
             var img = document.createElement('img');
             img.src = m.url;
@@ -1323,12 +1324,10 @@ window._logSinEditRenderMidiasExistentes = function() {
         // Botão excluir
         var btnDel = document.createElement('button');
         btnDel.type = 'button';
-        btnDel.title = 'Excluir esta mídia';
-        btnDel.innerHTML = '<i class="ph ph-trash"></i>';
-        btnDel.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;background:rgba(239,68,68,0);color:transparent;cursor:pointer;font-size:1.5rem;display:flex;align-items:center;justify-content:center;transition:all .2s;';
-        btnDel.onmouseover = function() { this.style.background='rgba(239,68,68,0.75)'; this.style.color='#fff'; };
-        btnDel.onmouseout  = function() { this.style.background='rgba(239,68,68,0)'; this.style.color='transparent'; };
-        btnDel.onclick = function() { window._logSinEditExcluirMidiaExistente(i); };
+        btnDel.title = 'Excluir';
+        btnDel.innerHTML = '&times;';
+        btnDel.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.95);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0;z-index:5;';
+        btnDel.onclick = function(e) { e.stopPropagation(); window._logSinEditExcluirMidiaExistente(i); };
         card.appendChild(btnDel);
         // Label tipo
         var label = document.createElement('span');

@@ -2260,7 +2260,8 @@ window._rhEditRenderMidias = function() {
         const isVideo = (m.tipo && m.tipo.startsWith('video/')) ||
             ['mp4','mov','avi','mkv','webm'].includes((m.url || '').split('.').pop().toLowerCase().split('?')[0]);
         const card = document.createElement('div');
-        card.style.cssText = 'position:relative;width:88px;height:88px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;';
+        card.style.cssText = 'position:relative;width:88px;height:88px;border-radius:10px;overflow:hidden;border:2px solid #bae6fd;background:#f0f9ff;flex-shrink:0;cursor:pointer;';
+        card.onclick = function() { window.open(m.url, '_blank'); };
         if (!isVideo) {
             const img = document.createElement('img');
             img.src = m.url;
@@ -2282,11 +2283,9 @@ window._rhEditRenderMidias = function() {
         const del = document.createElement('button');
         del.type = 'button';
         del.title = 'Excluir';
-        del.innerHTML = '<i class="ph ph-trash"></i>';
-        del.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;background:rgba(239,68,68,0);color:transparent;cursor:pointer;font-size:1.4rem;display:flex;align-items:center;justify-content:center;transition:all .2s;';
-        del.onmouseover = function() { this.style.background='rgba(239,68,68,0.78)'; this.style.color='#fff'; };
-        del.onmouseout  = function() { this.style.background='rgba(239,68,68,0)'; this.style.color='transparent'; };
-        del.onclick = function() { window._rhEditExcluirMidia(i); };
+        del.innerHTML = '&times;';
+        del.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(239,68,68,0.95);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0;z-index:5;';
+        del.onclick = function(e) { e.stopPropagation(); window._rhEditExcluirMidia(i); };
         card.appendChild(del);
         const lbl = document.createElement('span');
         lbl.style.cssText = 'position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.52rem;border-radius:3px;padding:1px 4px;pointer-events:none;';
