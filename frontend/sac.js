@@ -2899,12 +2899,12 @@
 
     return _tickets.filter(t => {
       const matchSearch = !s ||
-        t.protocol.toLowerCase().includes(s) ||
+        (t.protocol||'').toLowerCase().includes(s) ||
         (t.osNumber||'').toLowerCase().includes(s) ||
-        t.clientName.toLowerCase().includes(s) ||
+        (t.clientName||'').toLowerCase().includes(s) ||
         (t.equipment||'').toLowerCase().includes(s) ||
-        (t.cnpjCpf||'').includes(s) ||
-        (t.occurrences||[]).some(o => o.name.toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
+        (t.cnpjCpf||'').toLowerCase().includes(s) ||
+        (t.occurrences||[]).some(o => (o.name||'').toLowerCase().includes(s) || (o.note||'').toLowerCase().includes(s));
       const matchType = _filterType === 'all' || t.typeKey === _filterType;
       const matchUrgent = !_filterUrgent || t.isUrgent;
 
