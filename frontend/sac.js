@@ -787,7 +787,7 @@
                          !ADVANCED_STAGES_RESTORE.includes(ticket.stage);
 
         const stageOk = (pendingType === 'followup' && ticket.stage === 'execucao'          && followupExpired) ||
-                        (pendingType === 'aguard'   && ticket.stage === 'aguardando_setores' && aguardExpired)   ||
+                        (pendingType === 'aguard'   && aguardExpired && (ticket.stage === 'aguardando_setores' || (ticket.stage === 'respondido' && ticket.aguardPendingJustification === true))) ||
                         (pendingType === 'sla'      && slaValid);
 
         if (!stageOk) {
@@ -3688,8 +3688,13 @@
       const user = currentUsername();
       if (!t.comments) t.comments = [];
       let isHandled = false;
-      const pendingTipo = localStorage.getItem('sac_pending_popup_' + t.id);
-      const isGestorJustifying = pendingTipo && localStorage.getItem('sac_popup_gestor_required_' + t.id) === '1';
+      const _pendingTipoLocal = localStorage.getItem('sac_pending_popup_' + t.id);
+      const _localGestorReq = !!(_pendingTipoLocal && localStorage.getItem('sac_popup_gestor_required_' + t.id) === '1');
+      // Trava baseada no estado do chamado (servidor): o gestor do setor n\u00e3o pode responder sem justificar
+      // quando o prazo de resposta estourou. Outras pessoas autorizadas respondem normalmente.
+      const _srvAguardPend = !_localGestorReq && (t.stage === 'aguardando_setores' || t.stage === 'respondido') && _sacAguardOverdue(t) && _sacIsRealGestor(t);
+      const pendingTipo = _localGestorReq ? _pendingTipoLocal : (_srvAguardPend ? 'aguard' : _pendingTipoLocal);
+      const isGestorJustifying = _localGestorReq || _srvAguardPend;
 
       if (isGestorJustifying) {
           const typeLabel = pendingTipo === 'followup' ? 'prazo de acompanhamento' : pendingTipo === 'aguard' ? 'prazo de aguardo de setor' : 'SLA';
@@ -3730,6 +3735,8 @@
               t.aguardPendingJustification = false;
               // CRÍTICO: remover localStorage ANTES de qualquer re-render para evitar loop infinito
               localStorage.removeItem('sac_pending_popup_' + t.id);
+              localStorage.removeItem('sac_popup_gestor_required_' + t.id);
+              if (t.stage !== 'aguardando_setores') t.aguardDeadline = null; // já respondido: encerra a pendência
               t.timeline.push({ stage: t.stage, time: justTimestamp, notes: 'Justificativa de atraso registrada: "' + text + '"', user });
               // Fechar popup obrigatório se ainda estiver na tela
               const popupEl = document.getElementById('sac-mandatory-popup-' + t.id);
@@ -3820,9 +3827,12 @@
              const nowTs = new Date().toISOString();
              t.stage = 'respondido';
              // ── BUG FIX: limpar flags de aguardando ao mover para respondido via comentário
-             t.aguardDeadline = null;
-             t.aguardNotified = false;
-             t.aguardPendingJustification = false;
+             // Se o prazo estourou e o gestor ainda não justificou, a pendência PERMANECE (gestor ainda deve justificar)
+             if (!_sacAguardOverdue(t)) {
+               t.aguardDeadline = null;
+               t.aguardNotified = false;
+               t.aguardPendingJustification = false;
+             }
              // Limpar flag de SLA pendente (evita popup fantasma em outras sessões/usuários)
              t.slaOverduePendingJustification = false;
              localStorage.removeItem('sac_pending_popup_'         + t.id);
@@ -3863,6 +3873,9 @@
       const inp = document.getElementById('tf-'+key);
       const feedback = inp ? inp.value.trim() : '';
       if (!feedback) { showToast('Escreva o feedback antes de confirmar.','warning'); return; }
+      if ((t.stage === 'aguardando_setores' || t.stage === 'respondido') && _sacAguardOverdue(t) && _sacIsRealGestor(t)) {
+        showToast('Prazo de resposta estourado: registre a justificativa obrigatória (campo de comentário) antes de responder.', 'warning'); return;
+      }
       const isRedirect = t.stage === 'aguardando_setores';
       const user = currentUsername();
       t[key] = { ...t[key], isCompleted:true, feedback, history: [...(t[key].history||[]), { type:'resolution', time:new Date().toISOString(), feedback, user }] };
@@ -3870,9 +3883,11 @@
       if (isRedirect) {
         t.stage = 'respondido';
         // ── BUG FIX: limpar flags de aguardando ao sair da coluna
-        t.aguardDeadline = null;
-        t.aguardNotified = false;
-        t.aguardPendingJustification = false;
+        if (!_sacAguardOverdue(t)) { // prazo estourado sem justificativa do gestor: mantém a pendência
+          t.aguardDeadline = null;
+          t.aguardNotified = false;
+          t.aguardPendingJustification = false;
+        }
         // Limpar flag de SLA pendente (evita popup fantasma em outras sessões/usuários)
         t.slaOverduePendingJustification = false;
         localStorage.removeItem('sac_pending_popup_'         + t.id);
@@ -4902,6 +4917,53 @@
   // ══════════════════════════════════════════════════════
   // Usuários que podem fechar o popup sem preencher (gestores/admins) já definidos no topo
 
+  // ── Prazo de resposta (Aguardando Setores) estourado e ainda sem justificativa do gestor ──
+  function _sacAguardOverdue(tk) {
+    return !!(tk && tk.aguardPendingJustification === true && tk.aguardDeadline &&
+              new Date(tk.aguardDeadline).getTime() < Date.now());
+  }
+  // Gestor "real" do chamado = gestor do departamento do colaborador atribuído (gestorSetor gravado no
+  // chamado OU responsável do departamento). Admins que fecham popup (POPUP_CLOSERS) não entram.
+  function _sacIsRealGestor(ticket) {
+    const currentUser = currentUsername() || '';
+    if (POPUP_CLOSERS.some(u => currentUser.toLowerCase() === u.toLowerCase())) return false;
+    const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Log\u00edstica'
+                     : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
+                     : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
+                     : ticket.logisticsTask ? 'Log\u00edstica' : ticket.commercialTask ? 'Comercial' : ticket.financialTask ? 'Financeiro' : null;
+    const clean = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+    let cUserId = null; let currNomeCompleto = '';
+    try { const u = JSON.parse(localStorage.getItem('erp_user')||'{}'); cUserId = String(u.id); currNomeCompleto = (u.nome||'').toLowerCase(); } catch(e){}
+    const gs = ticket.gestorSetor;
+    const byTicket = !!(gs && (
+      (cUserId && gs.id && String(gs.id) === cUserId) ||
+      (currentUser && gs.login && String(gs.login).toLowerCase() === currentUser.toLowerCase()) ||
+      (() => {
+        if (!currNomeCompleto || !gs.nome) return false;
+        const a = clean(currNomeCompleto), b = clean(gs.nome);
+        return a && b && (a === b || a.includes(b) || b.includes(a));
+      })()
+    ));
+    if (byTicket) return true;
+    if (!sectorName) return false;
+    const myDepts = (_globalDepartamentos||[]).filter(d => {
+      const respId = (d.responsavel_id || '').toString().trim();
+      const respNomeClean = clean(d.responsavel_nome);
+      const respLoginClean = clean(d.responsavel_login || d.responsavel_username);
+      const currNomeClean = clean(currNomeCompleto);
+      const currUserClean = clean(currentUser);
+      return (cUserId && respId && respId === cUserId) ||
+             (currUserClean && respLoginClean && respLoginClean === currUserClean) ||
+             (currNomeClean && respNomeClean && respNomeClean === currNomeClean) ||
+             (currNomeClean && respNomeClean && (respNomeClean.includes(currNomeClean) || currNomeClean.includes(respNomeClean)) && currNomeClean.length > 3);
+    }).map(d => (d.nome || '').trim());
+    const sectorNorm = sectorName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    return myDepts.some(n => {
+      const nn = n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      return nn.includes(sectorNorm) || sectorNorm.includes(nn);
+    });
+  }
+
   function showMandatoryJustificationPopup(ticket, tipo) {
     const existingId = 'sac-mandatory-popup-' + ticket.id;
     if (document.getElementById(existingId)) return; // já aberto
@@ -4910,10 +4972,11 @@
     const currentUser = currentUsername();
     if (tipo === 'aguard') {
       // Descobrir o setor atribuído
-      const sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
+      let sectorName = ticket.logisticsTask && !ticket.logisticsTask.isCompleted ? 'Logística'
                        : ticket.commercialTask && !ticket.commercialTask.isCompleted ? 'Comercial'
                        : ticket.financialTask  && !ticket.financialTask.isCompleted  ? 'Financeiro'
                        : null;
+      if (!sectorName) sectorName = ticket.logisticsTask ? 'Log\u00edstica' : ticket.commercialTask ? 'Comercial' : ticket.financialTask ? 'Financeiro' : null;
       if (sectorName) {
         // Verificar se o usuário atual é o gestor do setor
         // Método 1: gestor gravado no ticket ao atribuir
@@ -4983,6 +5046,7 @@
         // Somente o gestor real do setor (isGestorByTicket || isGestorByDept) precisa preencher obrigatoriamente
         // Demais (assignedTo, admins, canSeeAll) podem fechar com X
         const mustJustify = (isGestorByTicket || isGestorByDept) && !isPopupCloser;
+        if (ticket.stage === 'respondido' && !mustJustify) return; // em Respondido só o gestor pendente é notificado
         localStorage.setItem('sac_popup_gestor_required_' + ticket.id, mustJustify ? '1' : '0');
         localStorage.setItem('sac_pending_popup_' + ticket.id, tipo);
         if (mustJustify) {
@@ -5050,7 +5114,7 @@
       // 2. Verificar se Aguardando Setores estourou (notificação e popup) independente do estágio
       if (ticket.aguardDeadline) {
         // ── BUG FIX: se o ticket saiu de aguardando_setores, limpar os flags para nunca mais disparar
-        if (ticket.stage !== 'aguardando_setores' && ticket.aguardPendingJustification) {
+        if (ticket.stage !== 'aguardando_setores' && ticket.stage !== 'respondido' && ticket.aguardPendingJustification) {
           ticket.aguardPendingJustification = false;
           ticket.aguardDeadline = null;
           localStorage.removeItem('sac_pending_popup_' + ticket.id);
@@ -5072,7 +5136,7 @@
             }).catch(e => console.error('[SAC] notificar-aguard:', e));
           }
           // ── BUG FIX: só mostra popup se ainda estiver em aguardando_setores
-          if (ticket.aguardPendingJustification === true && ticket.stage === 'aguardando_setores' && !_aguardShown.has(ticket.id)) {
+          if (ticket.aguardPendingJustification === true && (ticket.stage === 'aguardando_setores' || ticket.stage === 'respondido') && !_aguardShown.has(ticket.id)) {
             _aguardShown.add(ticket.id);
             showMandatoryJustificationPopup(ticket, 'aguard');
           }
