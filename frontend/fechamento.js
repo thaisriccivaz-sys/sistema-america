@@ -963,6 +963,7 @@ function abrirLegenda() {
     </div>
   </div>
 </div>`;
+        setupEventosDblClick(container);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -1217,12 +1218,40 @@ function abrirLegenda() {
         });
     }
 
+    function getNomeUsuarioAtual() {
+        var u = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
+        if (!u) {
+            try { u = JSON.parse(localStorage.getItem('erp_user') || '{}'); } catch(e) { u = {}; }
+        }
+        return (u && (u.username || u.nome)) || 'RH';
+    }
+
     function montarTooltipCelula(idx, campo) {
         var r = (_dados && _dados[idx]) ? _dados[idx] : {};
         var linhas = [];
 
+        var mapCellIdToField = {
+            'dias-intermitente': 'dias_intermitente',
+            'total-trabalhado': 'total_trabalhado',
+            'noturno': 'horas_noturnas',
+            'consig': 'consignado',
+            'dias-ferias': 'dias_ferias',
+            'tercio-ferias': 'valor_tercio_ferias'
+        };
+        var mapFieldToCellId = {
+            'dias_intermitente': 'dias-intermitente',
+            'total_trabalhado': 'total-trabalhado',
+            'horas_noturnas': 'noturno',
+            'consignado': 'consig',
+            'dias_ferias': 'dias-ferias',
+            'valor_tercio_ferias': 'tercio-ferias'
+        };
+
+        var fKey = mapCellIdToField[campo] || campo;
+        var cKey = mapFieldToCellId[campo] || campo;
+
         // 1. Detalhes de parcelas de multas (quando houver)
-        if (campo === 'multas' && r.multas_detalhes && Array.isArray(r.multas_detalhes) && r.multas_detalhes.length > 0) {
+        if (fKey === 'multas' && r.multas_detalhes && Array.isArray(r.multas_detalhes) && r.multas_detalhes.length > 0) {
             r.multas_detalhes.forEach(function(d) {
                 var pNum = d.parcela_num || 1;
                 var pTot = d.total_parcelas || 1;
@@ -1233,26 +1262,27 @@ function abrirLegenda() {
         }
 
         // 2. Detalhes de edição manual (quando houver)
-        if (r.edicoes_manuais && r.edicoes_manuais[campo] && r.edicoes_manuais[campo].texto) {
-            linhas.push(r.edicoes_manuais[campo].texto);
+        var ed = (r.edicoes_manuais && (r.edicoes_manuais[fKey] || r.edicoes_manuais[cKey])) ? (r.edicoes_manuais[fKey] || r.edicoes_manuais[cKey]) : null;
+        if (ed && ed.texto) {
+            linhas.push(ed.texto);
         }
 
         // 3. Detalhes de divergência da comparação (quando houver)
-        if (r.divergencias_comparacao && r.divergencias_comparacao[campo]) {
-            var div = r.divergencias_comparacao[campo];
+        var div = (r.divergencias_comparacao && (r.divergencias_comparacao[fKey] || r.divergencias_comparacao[cKey])) ? (r.divergencias_comparacao[fKey] || r.divergencias_comparacao[cKey]) : null;
+
+        if (div) {
             var txtDiv = div.texto || div.msg || '';
             if (txtDiv) linhas.push(txtDiv);
+            if (div.confirmado_por) {
+                linhas.push('Confirmado: ' + div.confirmado_por);
+            }
         } else {
-            var mapIds = {
-                'horas_noturnas': 'noturno',
-                'consignado': 'consig',
-                'dias_ferias': 'dias-ferias',
-                'valor_tercio_ferias': 'tercio-ferias'
-            };
-            var cid = mapIds[campo] || campo;
-            var td = document.getElementById('fech-cell-' + cid + '-' + idx);
+            var td = document.getElementById('fech-cell-' + cKey + '-' + idx);
             if (td && td.dataset && td.dataset.divMsg && !linhas.includes(td.dataset.divMsg)) {
                 linhas.push(td.dataset.divMsg);
+            }
+            if (td && td.dataset && td.dataset.confirmadoPor) {
+                linhas.push('Confirmado: ' + td.dataset.confirmadoPor);
             }
         }
 
@@ -1272,7 +1302,10 @@ function abrirLegenda() {
         if (td) {
             td.removeAttribute('data-manual-edit');
             delete td.dataset.divMsg;
+            delete td.dataset.confirmadoPor;
             td.style.background = td.dataset.originalBg || 'transparent';
+            td.style.outline = '';
+            td.style.outlineOffset = '';
             td.title = baseTip;
 
             var inp = td.querySelector('input');
@@ -1280,6 +1313,7 @@ function abrirLegenda() {
                 inp.style.color = '';
                 inp.style.fontWeight = '';
                 inp.style.background = '';
+                inp.style.border = '';
                 inp.removeAttribute('data-manual-edit');
                 inp.title = baseTip;
             }
@@ -1288,6 +1322,7 @@ function abrirLegenda() {
                 sel.style.color = '';
                 sel.style.fontWeight = '';
                 sel.style.background = '';
+                sel.style.border = '';
                 sel.removeAttribute('data-manual-edit');
                 sel.title = baseTip;
             }
@@ -1297,6 +1332,127 @@ function abrirLegenda() {
                 cifrao.style.fontWeight = '';
             }
         }
+    }
+
+    function alternarConfirmacaoDivergencia(idx, campo, td) {
+        if (!_dados || !_dados[idx]) return;
+        var row = _dados[idx];
+        if (!row.divergencias_comparacao) row.divergencias_comparacao = {};
+
+        var mapCellIdToField = {
+            'dias-intermitente': 'dias_intermitente',
+            'total-trabalhado': 'total_trabalhado',
+            'noturno': 'horas_noturnas',
+            'consig': 'consignado',
+            'dias-ferias': 'dias_ferias',
+            'tercio-ferias': 'valor_tercio_ferias'
+        };
+        var mapFieldToCellId = {
+            'dias_intermitente': 'dias-intermitente',
+            'total_trabalhado': 'total-trabalhado',
+            'horas_noturnas': 'noturno',
+            'consignado': 'consig',
+            'dias_ferias': 'dias-ferias',
+            'valor_tercio_ferias': 'tercio-ferias'
+        };
+
+        var fKey = mapCellIdToField[campo] || campo;
+        var cKey = mapFieldToCellId[campo] || campo;
+
+        var divKey = row.divergencias_comparacao[fKey] ? fKey : (
+            row.divergencias_comparacao[cKey] ? cKey : null
+        );
+
+        // Se não encontrou chave salva mas a célula tem divMsg ativo
+        if (!divKey && td && td.dataset && td.dataset.divMsg) {
+            row.divergencias_comparacao[fKey] = {
+                cellId: cKey,
+                msg: td.dataset.divMsg,
+                texto: td.dataset.divMsg
+            };
+            divKey = fKey;
+        }
+
+        // Se não há divergência nesta célula, não faz validação
+        if (!divKey || !row.divergencias_comparacao[divKey]) {
+            return;
+        }
+
+        var div = row.divergencias_comparacao[divKey];
+        var jaConfirmado = !!div.confirmado_por;
+
+        var inp = td ? td.querySelector('input') : null;
+        var sel = td ? td.querySelector('select') : null;
+
+        if (jaConfirmado) {
+            // Desfazer validação
+            delete div.confirmado_por;
+            delete div.confirmado_em;
+            if (td) {
+                delete td.dataset.confirmadoPor;
+                td.style.outline = '';
+                td.style.outlineOffset = '';
+            }
+            if (inp) inp.style.border = '';
+            if (sel) sel.style.border = '';
+        } else {
+            // Validar pelo RH com usuário logado
+            var usuario = getNomeUsuarioAtual();
+            div.confirmado_por = usuario;
+            div.confirmado_em = new Date().toISOString();
+            if (td) {
+                td.dataset.confirmadoPor = usuario;
+                td.style.outline = '2px solid #16a34a';
+                td.style.outlineOffset = '-2px';
+            }
+            if (inp) inp.style.border = '2px solid #16a34a';
+            if (sel) sel.style.border = '2px solid #16a34a';
+        }
+
+        // Atualizar tooltip com o novo status
+        var fullTitle = montarTooltipCelula(idx, fKey);
+        if (td) td.title = fullTitle;
+        if (inp) inp.title = fullTitle;
+        if (sel) sel.title = fullTitle;
+
+        // Persistir silenciosamente no SQLite
+        salvarSilencioso();
+    }
+
+    function setupEventosDblClick(container) {
+        if (!container || container.dataset.fechDblclickSetup === 'true') return;
+        container.dataset.fechDblclickSetup = 'true';
+
+        container.addEventListener('dblclick', function(e) {
+            var td = e.target.closest('td[id^="fech-cell-"]');
+            if (!td) return;
+
+            var tr = td.closest('tr');
+            if (!tr || tr.dataset.idx === undefined) return;
+            var idx = parseInt(tr.dataset.idx, 10);
+            if (isNaN(idx)) return;
+
+            var cellIdWithoutPrefix = td.id.replace('fech-cell-', '');
+            var rawKey = cellIdWithoutPrefix.replace(new RegExp('-' + idx + '$'), '');
+
+            var mapCellIdToField = {
+                'dias-intermitente': 'dias_intermitente',
+                'total-trabalhado': 'total_trabalhado',
+                'noturno': 'horas_noturnas',
+                'consig': 'consignado',
+                'dias-ferias': 'dias_ferias',
+                'tercio-ferias': 'valor_tercio_ferias'
+            };
+            var campo = mapCellIdToField[rawKey] || rawKey;
+
+            // Evitar seleção de texto nativa do navegador no duplo clique
+            e.preventDefault();
+            if (window.getSelection) {
+                try { window.getSelection().removeAllRanges(); } catch(err) {}
+            }
+
+            alternarConfirmacaoDivergencia(idx, campo, td);
+        });
     }
 
     function limparEdicoesColuna(coluna) {
@@ -3390,12 +3546,16 @@ function abrirLegenda() {
                 if (td.dataset.originalBg) td.style.background = td.dataset.originalBg;
                 else td.style.background = 'transparent';
                 delete td.dataset.divMsg;
+                delete td.dataset.confirmadoPor;
+                td.style.outline = '';
+                td.style.outlineOffset = '';
 
                 let inp = td.querySelector('input');
                 let sel = td.querySelector('select');
                 let el = inp || sel;
                 if (el) {
                     el.style.background = '';
+                    el.style.border = '';
                     if (el.dataset.manualEdit === 'true') {
                         let mIdx = td.closest('tr') ? td.closest('tr').dataset.idx : null;
                         let field = td.id.replace('fech-cell-', '').replace(new RegExp('-' + mIdx + '$'), '');
@@ -3615,6 +3775,40 @@ function abrirLegenda() {
                 }
                 sel.title = fullTitle;
             }
+
+            var mapCellIdToField = {
+                'dias-intermitente': 'dias_intermitente',
+                'total-trabalhado': 'total_trabalhado',
+                'noturno': 'horas_noturnas',
+                'consig': 'consignado',
+                'dias-ferias': 'dias_ferias',
+                'tercio-ferias': 'valor_tercio_ferias'
+            };
+            var mapFieldToCellId = {
+                'dias_intermitente': 'dias-intermitente',
+                'total_trabalhado': 'total-trabalhado',
+                'horas_noturnas': 'noturno',
+                'consignado': 'consig',
+                'dias_ferias': 'dias-ferias',
+                'valor_tercio_ferias': 'tercio-ferias'
+            };
+            var fKey = mapCellIdToField[field] || field;
+            var cKey = mapFieldToCellId[field] || field;
+            var divObj = (row && row.divergencias_comparacao) ? (row.divergencias_comparacao[fKey] || row.divergencias_comparacao[cKey] || row.divergencias_comparacao[field]) : null;
+
+            if (divObj && divObj.confirmado_por) {
+                td.dataset.confirmadoPor = divObj.confirmado_por;
+                td.style.outline = '2px solid #16a34a';
+                td.style.outlineOffset = '-2px';
+                if (inp) inp.style.border = '2px solid #16a34a';
+                if (sel) sel.style.border = '2px solid #16a34a';
+            } else {
+                delete td.dataset.confirmadoPor;
+                td.style.outline = '';
+                td.style.outlineOffset = '';
+                if (inp) inp.style.border = '';
+                if (sel) sel.style.border = '';
+            }
         }
     }
 
@@ -3629,7 +3823,7 @@ function abrirLegenda() {
         reenviarComissao, importarComissaoParaFechamento,
         uploadFolhaContabilidade, conferirFolha,
         calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL,
-        atualizarManual, montarTooltipCelula
+        atualizarManual, montarTooltipCelula, alternarConfirmacaoDivergencia
     };
 })();
 
