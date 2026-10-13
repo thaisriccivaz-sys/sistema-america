@@ -178,7 +178,12 @@ async function censorBOPdfBuffer(pdfBuffer) {
         const buf = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
 
         // Passo 1: extrair itens com coordenadas
-        const pageData = await extractItemsFromBuffer(buf);
+        // Timeout de 15s: se o pdfreader travar, segue com o PDF original (nao bloqueia o salvar/upload)
+        let _censorTimer;
+        const pageData = await Promise.race([
+            extractItemsFromBuffer(buf),
+            new Promise((_, reject) => { _censorTimer = setTimeout(() => reject(new Error('Timeout na leitura do PDF do BO (15s)')), 15000); })
+        ]).finally(() => clearTimeout(_censorTimer));
 
         // Passo 2: identificar itens a censurar
         const itemsToRedact = findItemsToRedact(pageData);
