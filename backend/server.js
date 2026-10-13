@@ -23187,7 +23187,7 @@ const _handleDownloadZip = async (req, res) => {
 
         // 3. Colaboradores (Documentos)
         if (colabsIds.length > 0) {
-            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, cargo, foto_base64, foto_path, cnh_vencimento FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
+            const colabs = await new Promise(resolve => db.all(`SELECT id, nome_completo, cargo, departamento, foto_base64, foto_path, cnh_vencimento FROM colaboradores WHERE id IN (${colabsIds.join(',')})`, (err, rows) => resolve(rows || [])));
             
             // Mapeamento de categoria → label amigável para o nome do arquivo
             const docCategoryLabel = {
@@ -23212,6 +23212,8 @@ const _handleDownloadZip = async (req, res) => {
                     .replace(/\s+/g, '_');
 
                 const folderName = `Colaboradores/${colab.nome_completo.replace(/[^a-zA-Z0-9 ]/g, '')}`;
+                // Lideres (departamento Lideres) tambem precisam da CNH anexada no prontuario (Ficha Cadastral)
+                const isLiderColab = (colab.departamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('LIDER');
                 const addedCats = new Set(); // categorias de documentos efetivamente adicionadas ao ZIP para este colaborador
                 
                 if (docsExigidos.includes('foto_colaborador')) {
@@ -23308,8 +23310,8 @@ const _handleDownloadZip = async (req, res) => {
                 // TRATAMENTO OBRIGATÓRIO DE CNH:
                 // Se a CNH anexada no sistema do colaborador estiver vencida, não baixar no ZIP e avisar
                 let cnhMensagemFaltanteAdicionada = false;
-                if (docsExigidos.includes('cnh')) {
-                    const isMot = String(colab.cargo || '').toUpperCase().includes('MOTORISTA');
+                if (docsExigidos.includes('cnh') || isLiderColab) {
+                    const isMot = String(colab.cargo || '').toUpperCase().includes('MOTORISTA') || isLiderColab;
                     const cnhDocs = docs.filter(d => {
                         const tab = (d.tab_name || '').toLowerCase();
                         const dt = (d.document_type || '').toLowerCase();
@@ -23321,7 +23323,11 @@ const _handleDownloadZip = async (req, res) => {
 
                     if (cnhDocs.length === 0) {
                         if (isMot) {
-                            faltantes.push(`Documento "CNH" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
+                            if (isLiderColab) {
+                                faltantes.push(`Documento "CNH" do líder ${colab.nome_completo} não foi baixado pois não está anexado no sistema (prontuário digital > Ficha Cadastral). Contactar o RH.`);
+                            } else {
+                                faltantes.push(`Documento "CNH" do colaborador(a) ${colab.nome_completo} não foi encontrado.`);
+                            }
                             cnhMensagemFaltanteAdicionada = true;
                         }
                     } else {
@@ -23389,6 +23395,17 @@ const _handleDownloadZip = async (req, res) => {
                     }
                 }
 
+                // CPF: usar SOMENTE o CPF do proprio colaborador anexado na Ficha Cadastral do prontuario.
+                // Ignora documentos de dependentes/conjuge (aba Dependentes, 'CPF do Conjuge', 'RG-CPF esposa' etc.).
+                const _nrm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                const _ehDocDependente = d => /dependente|conjuge|esposa|esposo|companheir|filho|filha/.test(_nrm(d.tab_name) + ' ' + _nrm(d.document_type) + ' ' + _nrm(d.file_name));
+                const _cpfCands = docs.filter(d => {
+                    const temArq = !!(d.signed_r2_key || d.r2_key || d.signed_file_path || d.file_path);
+                    return temArq && /cpf/.test(_nrm(d.document_type) + ' ' + _nrm(d.file_name)) && !_ehDocDependente(d);
+                });
+                const _cpfFicha = _cpfCands.filter(d => /ficha[_ ]?cadastral/.test(_nrm(d.tab_name)));
+                const cpfEscolhido = (_cpfFicha.length ? _cpfFicha : _cpfCands).slice().sort((a, b) => (b.id || 0) - (a.id || 0))[0] || null;
+
                 for (const doc of docs) {
                     const docTypeLower = (doc.document_type || '').toLowerCase();
                     const fileNameLower = (doc.file_name || '').toLowerCase();
@@ -23397,7 +23414,7 @@ const _handleDownloadZip = async (req, res) => {
                     let matchedCategory = null;
                     
                     // CNH e ASO já tratados com regra de validade acima - não duplicar aqui
-                    if (docsExigidos.includes('cpf') && combinedLower.includes('cpf')) matchedCategory = 'cpf';
+                    if (docsExigidos.includes('cpf') && combinedLower.includes('cpf') && doc === cpfEscolhido) matchedCategory = 'cpf';
                     // ASO já tratado com regra de validade acima - não duplicar aqui
                     else if (docsExigidos.includes('ficha_registro') && (combinedLower.includes('ficha de registro') || combinedLower.includes('registro'))) matchedCategory = 'ficha_registro';
                     else if (docsExigidos.includes('treinamento') && (combinedLower.includes('vacina') || combinedLower.includes('treinamento'))) matchedCategory = 'treinamento';

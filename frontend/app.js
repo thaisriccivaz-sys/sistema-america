@@ -5632,6 +5632,9 @@ function getFichaCadastralDocs() {
     } else {
         if (rgTipo === 'CIN') docs.push("CIN-CPF");
         else docs.push("RG-CPF");
+        // Lideres (departamento Lideres) tambem anexam a CNH na Ficha Cadastral
+        const _depLider = (viewedColaborador && viewedColaborador.departamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('LIDER');
+        if (_depLider) docs.push("CNH");
     }
 
     docs.push(
@@ -6292,6 +6295,8 @@ window.renderTabContent = function (tabId, tabTitle, preventScroll = false) {
             fixed.push('CNH');
         } else {
             fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+            // Lideres (departamento Lideres) tambem anexam a CNH na Ficha Cadastral
+            if ((viewedColaborador && viewedColaborador.departamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('LIDER')) fixed.push('CNH');
         }
 
         fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
@@ -14529,6 +14534,8 @@ function updateAdmissaoStepPercentages(colab) {
         fixed.push('CNH');
     } else {
         fixed.push(rgTipo === 'CIN' ? 'CIN-CPF' : 'RG-CPF');
+        // Lideres (departamento Lideres) tambem anexam a CNH na Ficha Cadastral
+        if ((targetColab.departamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().includes('LIDER')) fixed.push('CNH');
     }
 
     fixed.push('Carteira de vacinação', 'Currículo', 'Carteira de Trabalho', 'Contrato e-social');
