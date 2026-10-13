@@ -764,6 +764,11 @@ function abrirLegenda() {
         <button id="fech-btn-buscar-ponto" onclick="window._fechamento.buscarPontoTodos()" style="background:#0f172a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
           <i class="ph ph-fingerprint"></i> Buscar Ponto
         </button>
+
+        <!-- Buscar Todos -->
+        <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Executa todas as buscas automáticas de uma vez">
+          <i class="ph ph-lightning"></i> Buscar Todos
+        </button>
   
         <!-- Multas prontuário -->
         <button onclick="window._fechamento.carregarMultas()" style="background:#dc2626;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;">
@@ -823,11 +828,6 @@ function abrirLegenda() {
         <!-- Buscar Outros (sinistros) -->
         <button id="fech-btn-buscar-outros" onclick="window._fechamento.buscarOutros()" style="background:#475569;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca as parcelas de sinistros assinados do mês e soma ao valor de Outros">
           <i class="ph ph-warning"></i> Buscar Outros
-        </button>
-
-        <!-- Buscar Todos -->
-        <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Executa todas as buscas automáticas de uma vez">
-          <i class="ph ph-lightning"></i> Buscar Todos
         </button>
   
             </div>
