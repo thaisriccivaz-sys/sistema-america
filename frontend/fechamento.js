@@ -999,6 +999,11 @@ function abrirLegenda() {
                     if (typeof em === 'object') return em;
                     try { return JSON.parse(em) || {}; } catch(e) { return {}; }
                 })(row.edicoes_manuais);
+                row.divergencias_comparacao = (function(dc) {
+                    if (!dc) return {};
+                    if (typeof dc === 'object') return dc;
+                    try { return JSON.parse(dc) || {}; } catch(e) { return {}; }
+                })(row.divergencias_comparacao);
             });
             _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
@@ -1113,6 +1118,8 @@ function abrirLegenda() {
             tbody.appendChild(tr);
         });
 
+        aplicarDivergenciasSalvas();
+
         // Atualizar barra de rolagem superior
         setTimeout(() => {
             const t = document.getElementById('fech-tabela');
@@ -1169,6 +1176,19 @@ function abrirLegenda() {
         return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase();
     }
 
+    function aplicarDivergenciasSalvas() {
+        if (!_dados || !_dados.length) return;
+        _dados.forEach((row, idx) => {
+            if (!row.divergencias_comparacao) return;
+            Object.keys(row.divergencias_comparacao).forEach(field => {
+                const div = row.divergencias_comparacao[field];
+                if (div && (div.msg || div.texto)) {
+                    marcarErro(idx, div.cellId || field, div.msg || div.texto, false);
+                }
+            });
+        });
+    }
+
     function restaurarEstiloPadrao(idx, coluna) {
         var mapIds = {
             'horas_noturnas': 'noturno',
@@ -1180,25 +1200,25 @@ function abrirLegenda() {
         var td = document.getElementById('fech-cell-' + cid + '-' + idx);
         if (td) {
             td.removeAttribute('data-manual-edit');
-            var isDivergente = td.style.background === 'rgb(254, 202, 202)';
-            if (!isDivergente) td.title = '';
-            else if (td.dataset.divMsg) td.title = td.dataset.divMsg;
+            delete td.dataset.divMsg;
+            td.style.background = td.dataset.originalBg || 'transparent';
+            td.title = '';
 
             var inp = td.querySelector('input');
             if (inp) {
                 inp.style.color = '';
                 inp.style.fontWeight = '';
+                inp.style.background = '';
                 inp.removeAttribute('data-manual-edit');
-                if (!isDivergente) inp.title = '';
-                else if (td.dataset.divMsg) inp.title = td.dataset.divMsg;
+                inp.title = '';
             }
             var sel = td.querySelector('select');
             if (sel) {
                 sel.style.color = '';
                 sel.style.fontWeight = '';
+                sel.style.background = '';
                 sel.removeAttribute('data-manual-edit');
-                if (!isDivergente) sel.title = '';
-                else if (td.dataset.divMsg) sel.title = td.dataset.divMsg;
+                sel.title = '';
             }
             var cifrao = td.querySelector('.fech-cifrao-span');
             if (cifrao) {
@@ -1211,8 +1231,16 @@ function abrirLegenda() {
     function limparEdicoesColuna(coluna) {
         if (!_dados || !_dados.length) return;
         _dados.forEach(function(r, idx) {
+            var limpou = false;
             if (r.edicoes_manuais && r.edicoes_manuais[coluna]) {
                 delete r.edicoes_manuais[coluna];
+                limpou = true;
+            }
+            if (r.divergencias_comparacao && r.divergencias_comparacao[coluna]) {
+                delete r.divergencias_comparacao[coluna];
+                limpou = true;
+            }
+            if (limpou) {
                 restaurarEstiloPadrao(idx, coluna);
             }
         });
@@ -1229,6 +1257,7 @@ function abrirLegenda() {
         if (!row.edicoes_manuais) row.edicoes_manuais = {};
 
         var valAnterior = row[campo];
+        var td = inputEl ? inputEl.closest('td') : null;
 
         // Atualiza valor em memória e aciona debounce de auto-save
         atualizar(idx, campo, novoValor);
@@ -1242,6 +1271,7 @@ function abrirLegenda() {
         }
 
         var paraFmt = formatarValorParaTooltip(campo, novoValor);
+        var divMsg = (td && td.dataset.divMsg) || (row.divergencias_comparacao && row.divergencias_comparacao[campo] && (row.divergencias_comparacao[campo].texto || row.divergencias_comparacao[campo].msg));
 
         if (valoresSaoIguais(campo, deFmt, paraFmt)) {
             // Voltou ao valor original antes da edição: remove o registro manual
@@ -1250,16 +1280,10 @@ function abrirLegenda() {
                 inputEl.style.color = '';
                 inputEl.style.fontWeight = '';
                 inputEl.removeAttribute('data-manual-edit');
-                var td = inputEl.closest('td');
                 if (td) {
                     td.removeAttribute('data-manual-edit');
-                    if (td.style.background === 'rgb(254, 202, 202)' && td.dataset.divMsg) {
-                        inputEl.title = td.dataset.divMsg;
-                        td.title = td.dataset.divMsg;
-                    } else {
-                        inputEl.title = '';
-                        td.title = '';
-                    }
+                    inputEl.title = divMsg || '';
+                    td.title = divMsg || '';
                 }
                 var cifrao = inputEl.parentElement ? inputEl.parentElement.querySelector('.fech-cifrao-span') : null;
                 if (cifrao) {
@@ -1278,7 +1302,6 @@ function abrirLegenda() {
                 inputEl.style.color = '#dc2626';
                 inputEl.style.fontWeight = 'bold';
                 inputEl.setAttribute('data-manual-edit', 'true');
-                var td = inputEl.closest('td');
                 if (td) td.setAttribute('data-manual-edit', 'true');
                 var cifrao = inputEl.parentElement ? inputEl.parentElement.querySelector('.fech-cifrao-span') : null;
                 if (cifrao) {
@@ -1286,11 +1309,7 @@ function abrirLegenda() {
                     cifrao.style.fontWeight = 'bold';
                 }
 
-                // Se houver divergencia da contabilidade ativa nesta celula:
-                var fullTitle = texto;
-                if (td && td.style.background === 'rgb(254, 202, 202)' && td.dataset.divMsg) {
-                    fullTitle = texto + '\n' + td.dataset.divMsg;
-                }
+                var fullTitle = divMsg ? (texto + '\n' + divMsg) : texto;
                 inputEl.title = fullTitle;
                 if (td) td.title = fullTitle;
             }
@@ -2339,7 +2358,8 @@ function abrirLegenda() {
                     dias_ferias: parseInt(row.dias_ferias) || 0,
                     valor_tercio_ferias: parseFloat(row.valor_tercio_ferias) || 0,
                     total_trabalhado: row.total_trabalhado || null,
-                    edicoes_manuais: JSON.stringify(row.edicoes_manuais || {})
+                    edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
+                    divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {})
                 };
             });
             await fetch('/api/fechamento/salvar', {
@@ -2393,6 +2413,7 @@ function abrirLegenda() {
                 dias_intermitente: parseInt(row.dias_intermitente) || 0,
                 total_trabalhado: row.total_trabalhado || null,
                 edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
+                divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {}),
                 status: 'rascunho',
             };
         });
@@ -2875,11 +2896,20 @@ function abrirLegenda() {
         r.data_faltas = '';
         r.dsr = '';
         r.horas_atraso = '';
+        var pontoCols = ['horas_normais', 'horas_trabalhadas', 'horas_noturnas', 'extra_60', 'extra_100', 'dias_falta', 'data_faltas', 'dsr', 'horas_atraso', 'total_trabalhado', 'dias_intermitente', 'dias_ferias', 'valor_tercio_ferias'];
         if (r.edicoes_manuais) {
-            ['horas_normais', 'horas_trabalhadas', 'horas_noturnas', 'extra_60', 'extra_100', 'dias_falta', 'data_faltas', 'dsr', 'horas_atraso', 'total_trabalhado', 'dias_intermitente', 'dias_ferias', 'valor_tercio_ferias'].forEach(function(col) {
+            pontoCols.forEach(function(col) {
                 delete r.edicoes_manuais[col];
             });
         }
+        if (r.divergencias_comparacao) {
+            pontoCols.forEach(function(col) {
+                delete r.divergencias_comparacao[col];
+            });
+        }
+        pontoCols.forEach(function(col) {
+            restaurarEstiloPadrao(idx, col);
+        });
     }
 
     // Aplica dados do RHID na linha do colaborador
@@ -3227,6 +3257,9 @@ function abrirLegenda() {
             let divErros = '';
             let qtdErros = 0;
 
+            // Limpar divergências anteriores em memória para o novo arquivo
+            _dados.forEach(r => { r.divergencias_comparacao = {}; });
+
             const normalizeName = (s) => (s||'').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
             const parseToFloat = (val) => {
@@ -3420,6 +3453,9 @@ function abrirLegenda() {
                 }
             });
 
+            // Persistir divergências no banco para manter destaque vermelho após refresh (F5)
+            await salvarSilencioso();
+
             if (qtdErros > 0) {
                 Swal.fire({
                     title: 'Divergências Encontradas!',
@@ -3446,7 +3482,7 @@ function abrirLegenda() {
         }
     }
 
-    function marcarErro(idx, field, msg) {
+    function marcarErro(idx, field, msg, gravar) {
         let cellId = `fech-cell-${field}-${idx}`;
         let td = document.getElementById(cellId);
         if (td) {
@@ -3464,6 +3500,15 @@ function abrirLegenda() {
             td.dataset.divMsg = divLinha;
 
             let row = _dados[idx];
+            if (row && gravar !== false) {
+                if (!row.divergencias_comparacao) row.divergencias_comparacao = {};
+                row.divergencias_comparacao[field] = {
+                    cellId: field,
+                    msg: msg,
+                    texto: divLinha
+                };
+            }
+
             let ed = row && row.edicoes_manuais && row.edicoes_manuais[field];
             let fullTitle = ed ? (ed.texto + '\n' + divLinha) : msg;
 
