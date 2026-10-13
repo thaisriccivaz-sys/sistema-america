@@ -512,14 +512,23 @@ function renderMultasLogistica(container) {
     });
 }
 
+// As telas de Multas da Logistica e do RH usam os mesmos ids. Com as duas abas abertas,
+// getElementById devolve o elemento da aba escondida. Este helper pega o que esta visivel.
+function _mfEl(id) {
+    const all = document.querySelectorAll('[id="' + id + '"]');
+    for (const e of all) { if (e.offsetParent !== null) return e; }
+    return all[0] || null;
+}
+
 function _aplicarFiltrosMultas(lista) {
-    const motorista = (document.getElementById('mf-motorista')?.value || '').toLowerCase().trim();
-    const ait       = (document.getElementById('mf-ait')?.value || '').toLowerCase().trim();
-    const placa     = (document.getElementById('mf-placa')?.value || '').toLowerCase().trim();
-    const de        = document.getElementById('mf-de')?.value || '';
-    const ate       = document.getElementById('mf-ate')?.value || '';
+    const motorista = (_mfEl('mf-motorista')?.value || '').toLowerCase().trim();
+    const ait       = (_mfEl('mf-ait')?.value || '').toLowerCase().trim();
+    const placa     = (_mfEl('mf-placa')?.value || '').toLowerCase().trim();
+    const de        = _mfEl('mf-de')?.value || '';
+    const ate       = _mfEl('mf-ate')?.value || '';
     
-    const chksStatusRH = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
+    const _boxFiltros = _mfEl('multas-filtros') || document;
+    const chksStatusRH = Array.from(_boxFiltros.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
 
     return lista.filter(m => {
         if (motorista && !(m.motorista_nome || '').toLowerCase().includes(motorista)) return false;
@@ -534,7 +543,7 @@ function _aplicarFiltrosMultas(lista) {
 
 function filtrarMultasLogistica() {
     // Atualiza só o tbody sem re-render completo (preserva os filtros preenchidos)
-    const tbody = document.getElementById('multas-tbody');
+    const tbody = _mfEl('multas-tbody');
     if (!tbody) return;
 
     const listaFiltrada = _aplicarFiltrosMultas(multasLogistica);
@@ -641,16 +650,16 @@ function filtrarMultasLogistica() {
 
 function limparFiltrosMultas() {
     ['mf-motorista','mf-ait','mf-placa','mf-de','mf-ate'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
+        const el = _mfEl(id); if (el) el.value = '';
     });
-    document.querySelectorAll('.chk-status-rh').forEach(cb => cb.checked = false);
+    (_mfEl('multas-filtros') || document).querySelectorAll('.chk-status-rh').forEach(cb => cb.checked = false);
     if(window.atualizarLabelStatusRH) window.atualizarLabelStatusRH();
     filtrarMultasLogistica();
 }
 
 window.atualizarLabelStatusRH = function() {
-    const chks = Array.from(document.querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
-    const lbl = document.getElementById('lbl-status-rh');
+    const chks = Array.from((_mfEl('multas-filtros') || document).querySelectorAll('.chk-status-rh:checked')).map(c => c.value);
+    const lbl = _mfEl('lbl-status-rh');
     if (chks.length === 0) lbl.textContent = 'Todos Status Logística';
     else if (chks.length === 1) lbl.textContent = chks[0];
     else lbl.textContent = `${chks.length} selecionados`;
