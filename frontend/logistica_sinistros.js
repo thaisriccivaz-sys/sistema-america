@@ -125,9 +125,10 @@ window._logSinRenderCardGeral = function(s, container) {
 
     if (s.status === 'assinado') {
         // Após assinatura: sempre mostra Assinado, independente da situação
-        statusText = 'Assinado';
-        statusColor = '#10b981';
-        statusBg = '#d1fae5';
+        var _ci = window._sinStatusInfo ? window._sinStatusInfo(s) : null;
+        statusText = _ci ? _ci.text : 'Assinado';
+        statusColor = _ci ? _ci.color : '#7c3aed';
+        statusBg = _ci ? _ci.bg : '#ede9fe';
     } else if (sit === 'Finalizado - Passar para RH' || sit === 'Finalizado') {
         statusText = 'Aguardando Assinaturas (RH)';
         statusColor = '#f59e0b';

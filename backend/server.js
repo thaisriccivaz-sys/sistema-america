@@ -932,6 +932,18 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN observacoes_historico TEXT', (e) => { });
         db.run("ALTER TABLE sinistros ADD COLUMN situacao_sinistro TEXT DEFAULT 'Novo'", (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN descricao_ocorrencia TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN config_parcelas TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN status_rh TEXT', (e) => { });
+        db.run(`CREATE TABLE IF NOT EXISTS sinistros_cobranca_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sinistro_id INTEGER NOT NULL,
+            mes INTEGER NOT NULL,
+            ano INTEGER NOT NULL,
+            parcela_num INTEGER NOT NULL,
+            valor_parcela REAL NOT NULL,
+            criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(sinistro_id, mes, ano)
+        )`, (e) => { if (e && !e.message.includes('already exists')) console.error('[MIGRATION] sinistros_cobranca_historico:', e.message); });
     }
 });
 
@@ -4305,6 +4317,9 @@ db.run("ALTER TABLE fechamento_mensal ADD COLUMN multas_detalhes TEXT DEFAULT '[
 db.run('ALTER TABLE fechamento_mensal ADD COLUMN pts REAL DEFAULT 0', function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] pts:', e.message);
 });
+db.run("ALTER TABLE fechamento_mensal ADD COLUMN sinistros_detalhes TEXT DEFAULT '[]'", function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] sinistros_detalhes:', e.message);
+});
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
@@ -6434,6 +6449,178 @@ app.post('/api/extrair-bo', authenticateToken, multerUploadMemoria.single('arqui
 
 
 
+// =============================================================================
+// COBRANCA PARCELADA DE SINISTROS (mesmo padrao das multas)
+// =============================================================================
+function _sinParseValor(v) {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    let s = String(v).trim().replace(/[^\d,.-]/g, '');
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    return parseFloat(s) || 0;
+}
+function _sinGetP(sql, p) { return new Promise((resolve, reject) => db.get(sql, p || [], (e, r) => e ? reject(e) : resolve(r))); }
+function _sinAllP(sql, p) { return new Promise((resolve) => db.all(sql, p || [], (e, r) => resolve(r || []))); }
+function _sinRunP(sql, p) { return new Promise((resolve, reject) => db.run(sql, p || [], function (e) { e ? reject(e) : resolve(this); })); }
+
+// Recalcula status_rh (Cobrado / Cobrado Parcela / null) a partir do historico + config_parcelas
+async function _sinRecalcStatusRh(sinId) {
+    const s = await _sinGetP('SELECT id, parcelas, config_parcelas FROM sinistros WHERE id = ?', [sinId]);
+    if (!s) return null;
+    const num = parseInt(s.parcelas) || 1;
+    let cfg = [];
+    try { if (s.config_parcelas) cfg = JSON.parse(s.config_parcelas); } catch (e) {}
+    const hist = await _sinAllP('SELECT parcela_num FROM sinistros_cobranca_historico WHERE sinistro_id = ?', [sinId]);
+    const set = new Set();
+    hist.forEach(h => set.add(parseInt(h.parcela_num)));
+    cfg.forEach(c => { if (c.alert) set.add(parseInt(c.num)); else set.delete(parseInt(c.num)); });
+    const qtd = Array.from(set).filter(n => n >= 1 && n <= num).length;
+    const novo = qtd >= num ? 'Cobrado' : (qtd > 0 ? 'Cobrado Parcela' : null);
+    await _sinRunP('UPDATE sinistros SET status_rh = ? WHERE id = ?', [novo, sinId]);
+    return novo;
+}
+
+// GET parcelas de sinistros assinados que caem no mes/ano do fechamento (agrupado por colaborador)
+app.get('/api/fechamento/sinistros-prontuario/:ano/:mes', authenticateToken, async (req, res) => {
+    const mesNum = parseInt(req.params.mes);
+    const anoNum = parseInt(req.params.ano);
+    try {
+        const sins = await _sinAllP("SELECT id, colaborador_id, numero_boletim, tipo_sinistro, valor_total, parcelas, config_parcelas, data_assinatura_condutor, created_at FROM sinistros WHERE status = 'assinado'");
+        const grupos = {};
+        for (const s of sins) {
+            const valorTotal = _sinParseValor(s.valor_total);
+            if (valorTotal <= 0 || /isent/i.test(s.tipo_sinistro || '')) continue;
+            const numParcelas = parseInt(s.parcelas) > 0 ? parseInt(s.parcelas) : 1;
+            const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+
+            const historico = await _sinAllP('SELECT id, mes, ano, parcela_num, valor_parcela FROM sinistros_cobranca_historico WHERE sinistro_id = ? ORDER BY ano ASC, mes ASC', [s.id]);
+
+            let mIni, aIni;
+            if (historico.length > 0) {
+                const primeira = historico.find(h => h.parcela_num === 1) || historico[0];
+                aIni = primeira.ano; mIni = primeira.mes;
+                if (primeira.parcela_num > 1) {
+                    mIni -= (primeira.parcela_num - 1);
+                    while (mIni < 1) { mIni += 12; aIni--; }
+                }
+            } else {
+                const dtStr = String(s.data_assinatura_condutor || s.created_at || '');
+                let dt = new Date(dtStr.replace(' ', 'T') + (dtStr.endsWith('Z') ? '' : 'Z'));
+                if (isNaN(dt.getTime())) dt = new Date();
+                const br = new Date(dt.getTime() - 3 * 3600 * 1000);
+                mIni = br.getUTCMonth() + 1;
+                aIni = br.getUTCFullYear();
+                mIni += (br.getUTCDate() <= 25) ? 1 : 2;
+                if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+            }
+
+            let parsedConfig = [];
+            try { if (s.config_parcelas) parsedConfig = JSON.parse(s.config_parcelas); } catch (e) {}
+
+            let parcelaNum = null;
+            let cfgParcela = null;
+            for (let p = 1; p <= numParcelas; p++) {
+                let eMes = mIni + (p - 1);
+                let eAno = aIni;
+                while (eMes > 12) { eAno++; eMes -= 12; }
+                const cfg = parsedConfig.find(c => parseInt(c.num) === p);
+                if (cfg && cfg.mes && cfg.ano) { eMes = parseInt(cfg.mes); eAno = parseInt(cfg.ano); }
+                if (eMes === mesNum && eAno === anoNum) { parcelaNum = p; cfgParcela = cfg; break; }
+            }
+            if (!parcelaNum) continue;
+
+            const existing = historico.find(h => h.mes === mesNum && h.ano === anoNum);
+            let valorFinal = valorParcela;
+            let manualCobrada = false;
+            if (cfgParcela) {
+                valorFinal = parseFloat(cfgParcela.valor) || 0;
+                if (cfgParcela.alert) manualCobrada = true;
+            }
+
+            if (!existing && !manualCobrada) {
+                await _sinRunP('INSERT INTO sinistros_cobranca_historico (sinistro_id, mes, ano, parcela_num, valor_parcela) VALUES (?, ?, ?, ?, ?)', [s.id, mesNum, anoNum, parcelaNum, valorFinal]);
+            } else if (existing && !manualCobrada && Math.abs(existing.valor_parcela - valorFinal) > 0.001) {
+                await _sinRunP('UPDATE sinistros_cobranca_historico SET valor_parcela = ?, parcela_num = ? WHERE id = ?', [valorFinal, parcelaNum, existing.id]);
+            } else if (existing && manualCobrada) {
+                await _sinRunP('DELETE FROM sinistros_cobranca_historico WHERE id = ?', [existing.id]);
+            }
+
+            await _sinRunP('UPDATE sinistros SET status_rh = ? WHERE id = ?', [(parcelaNum >= numParcelas) ? 'Cobrado' : 'Cobrado Parcela', s.id]);
+
+            if (manualCobrada) continue;
+
+            const colId = s.colaborador_id;
+            if (!grupos[colId]) grupos[colId] = { colaborador_id: colId, valor_total: 0, detalhes: [] };
+            grupos[colId].valor_total = Math.round((grupos[colId].valor_total + valorFinal) * 100) / 100;
+            grupos[colId].detalhes.push({
+                sinistro_id: s.id,
+                descricao: 'Sinistro' + (s.numero_boletim ? ' BO ' + s.numero_boletim : ''),
+                parcela_num: parcelaNum,
+                total_parcelas: numParcelas,
+                valor_parcela: valorFinal,
+                valor_total: valorTotal
+            });
+        }
+        res.json(Object.values(grupos));
+    } catch (e) {
+        console.error('[sinistros-prontuario]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET historico de cobrancas de um sinistro
+app.get('/api/sinistros/:id/historico-cobranca', authenticateToken, (req, res) => {
+    db.all('SELECT mes, ano, parcela_num, valor_parcela, criado_em FROM sinistros_cobranca_historico WHERE sinistro_id = ? ORDER BY ano, mes',
+        [req.params.id],
+        (err, rows) => err ? res.status(500).json({ error: err.message }) : res.json(rows || []));
+});
+
+// PUT cobranca do sinistro: { toggle:{num,checked} } OU { parcelas, config_parcelas }
+app.put('/api/sinistros/:id/cobranca', authenticateToken, async (req, res) => {
+    try {
+        const sinId = parseInt(req.params.id);
+        const body = req.body || {};
+        const s = await _sinGetP('SELECT id, valor_total, parcelas, config_parcelas FROM sinistros WHERE id = ?', [sinId]);
+        if (!s) return res.status(404).json({ error: 'Sinistro nao encontrado.' });
+
+        let parcelas = parseInt(s.parcelas) || 1;
+        let cfg = [];
+        try { if (s.config_parcelas) cfg = JSON.parse(s.config_parcelas); } catch (e) {}
+
+        if (body.toggle) {
+            const num = parseInt(body.toggle.num);
+            const checked = !!body.toggle.checked;
+            let p = cfg.find(c => parseInt(c.num) === num);
+            if (!p) {
+                p = { num: num, valor: Math.round((_sinParseValor(s.valor_total) / parcelas) * 100) / 100, alert: checked };
+                cfg.push(p);
+            } else {
+                p.alert = checked;
+            }
+            if (!checked) {
+                await _sinRunP('DELETE FROM sinistros_cobranca_historico WHERE sinistro_id = ? AND parcela_num = ?', [sinId, num]);
+            }
+        } else {
+            if (body.parcelas !== undefined) parcelas = parseInt(body.parcelas) || 1;
+            if (body.config_parcelas !== undefined) {
+                try { cfg = typeof body.config_parcelas === 'string' ? JSON.parse(body.config_parcelas) : (body.config_parcelas || []); } catch (e) { cfg = []; }
+                // parcela desmarcada some do historico (volta a ser cobrada no mes dela)
+                for (const c of cfg) {
+                    if (!c.alert) await _sinRunP('DELETE FROM sinistros_cobranca_historico WHERE sinistro_id = ? AND parcela_num = ?', [sinId, parseInt(c.num)]);
+                }
+            }
+        }
+
+        const vParcelaStr = (_sinParseValor(s.valor_total) / parcelas).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        await _sinRunP('UPDATE sinistros SET parcelas = ?, valor_parcela = ?, config_parcelas = ? WHERE id = ?', [parcelas, vParcelaStr, JSON.stringify(cfg), sinId]);
+        const novoStatus = await _sinRecalcStatusRh(sinId);
+        res.json({ sucesso: true, status_rh: novoStatus, parcelas: parcelas, valor_parcela: vParcelaStr, config_parcelas: JSON.stringify(cfg) });
+    } catch (e) {
+        console.error('[PUT sinistro cobranca]', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.delete('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, (req, res) => {
     const { id, sinistroId } = req.params;
 
@@ -6448,6 +6635,7 @@ app.delete('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, (r
 
         db.run('DELETE FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
+            db.run('DELETE FROM sinistros_cobranca_historico WHERE sinistro_id = ?', [sinistroId], () => {});
             res.json({ sucesso: true });
         });
     });
@@ -10284,8 +10472,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
          plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
-         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao, multas_detalhes, pts)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao, multas_detalhes, pts, sinistros_detalhes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10308,6 +10496,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             edicoes_manuais=excluded.edicoes_manuais,
             divergencias_comparacao=excluded.divergencias_comparacao,
             multas_detalhes=excluded.multas_detalhes,
+            sinistros_detalhes=excluded.sinistros_detalhes,
             pts=excluded.pts,
             updated_at=CURRENT_TIMESTAMP`);
     try {
@@ -10328,7 +10517,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 typeof item.edicoes_manuais === 'object' ? JSON.stringify(item.edicoes_manuais || {}) : (item.edicoes_manuais || '{}'),
                 typeof item.divergencias_comparacao === 'object' ? JSON.stringify(item.divergencias_comparacao || {}) : (item.divergencias_comparacao || '{}'),
                 typeof item.multas_detalhes === 'object' ? JSON.stringify(item.multas_detalhes || []) : (item.multas_detalhes || '[]'),
-                item.pts || 0
+                item.pts || 0,
+                typeof item.sinistros_detalhes === 'object' ? JSON.stringify(item.sinistros_detalhes || []) : (item.sinistros_detalhes || '[]')
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))

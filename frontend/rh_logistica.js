@@ -57,7 +57,7 @@ window._rhSinBuildLayout = function() {
         '<option value="iniciado">Iniciado</option>',
         '<option value="pendente">Aguardando Assinaturas</option>',
         '<option value="assinado_testemunhas">Assinado pelas Testemunhas</option>',
-        '<option value="assinado">Finalizado e Assinado</option>',
+        '<option value="assinado">Assinado</option>',
         '</select>',
         '</div>',
         '<div id="rh-sin-contagem" style="font-size:0.82rem; color:#64748b; margin-bottom:0.75rem;"></div>',
@@ -136,7 +136,7 @@ window._rhSinRenderCard = function(s, container) {
         assinado_testemunhas: { text: 'Assinado pelas Testemunhas', color: '#8b5cf6', bg: '#ede9fe', icon: 'ph-pencil-simple' },
         assinado: { text: 'Finalizado e Assinado', color: '#10b981', bg: '#d1fae5', icon: 'ph-check-circle' }
     };
-    var st = statusMap[s.status] || { text: s.status || '-', color: '#64748b', bg: '#f1f5f9', icon: 'ph-warning' };
+    var st = (window._sinStatusInfo ? window._sinStatusInfo(s) : null) || statusMap[s.status] || { text: s.status || '-', color: '#64748b', bg: '#f1f5f9', icon: 'ph-warning' };
     var testemunhasOk = !!(s.assinatura_testemunha1_base64);
     var condutorOk = !!(s.assinatura_condutor_base64);
     var nomeColab = s.colaborador_nome || s.nome_completo || '—';
@@ -223,7 +223,7 @@ window._rhSinRenderCard = function(s, container) {
         + '<div style="flex:1; min-width:200px;">'
         + '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem; flex-wrap:wrap;">'
         + '<span style="background:#fce4f8; color:#f503c5; font-weight:800; font-size:0.82rem; padding:2px 10px; border-radius:20px;"><i class="ph ph-user"></i> ' + nomeColab + '</span>'
-        + '<span style="background:' + st.bg + '; color:' + st.color + '; font-size:0.78rem; font-weight:700; padding:2px 10px; border-radius:20px;"><i class="ph ' + st.icon + '"></i> ' + st.text + '</span>'
+        + '<span data-sin-badge="' + s.id + '" data-sin-icon="1" style="background:' + st.bg + '; color:' + st.color + '; font-size:0.78rem; font-weight:700; padding:2px 10px; border-radius:20px;"><i class="ph ' + st.icon + '"></i> ' + st.text + '</span>'
         + '</div>'
         + '<div style="font-size:0.85rem; color:#334155; font-weight:600; margin-bottom:0.25rem;">BO: ' + (s.numero_boletim || '—') + (s.natureza ? ' <span style="color:#64748b; font-weight:400;">&middot; ' + s.natureza + '</span>' : '') + '</div>'
         + '<div style="font-size:0.8rem; color:#64748b; display:flex; gap:1rem; flex-wrap:wrap;">'
@@ -236,8 +236,13 @@ window._rhSinRenderCard = function(s, container) {
         + '</div>'
         + '<div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:flex-start;">' + btns + '</div>'
         + '</div>'
-        + anexosHtml;
+        + anexosHtml
+        + '<div id="sin-parc-' + s.id + '" style="margin-top:0.75rem;"></div>';
     container.appendChild(card);
+    if (window._sinCache) {
+        window._sinCache[s.id] = s;
+        if (window._sinTemCobranca && window._sinTemCobranca(s)) window._sinCarregarParcelas(s.id);
+    }
 };
 
 window.rhSinAbrirModalNovo = function() {

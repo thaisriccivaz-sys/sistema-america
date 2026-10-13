@@ -78,7 +78,7 @@ window._renderSinistroCard = function(s, colabId, container) {
         'assinado':             { text: 'Finalizado e Assinado',            color: '#10b981', bg: '#d1fae5' },
         'iniciado':             { text: 'Iniciado',                         color: '#b45309', bg: '#fef08a' }
     };
-    const st = statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
+    const st = window._sinStatusInfo(s) || statusMap[s.status] || { text: s.status, color: '#64748b', bg: '#f1f5f9' };
 
     const testemunhasOk = s.assinatura_testemunha1_base64;
     const condutorOk    = s.assinatura_condutor_base64;
@@ -231,7 +231,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                     ${signStatus}
                 </div>
             </div>
-            <span style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
+            <span data-sin-badge="${s.id}" style="display:inline-block; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; color:${st.color}; background:${st.bg};">${st.text}</span>
         </div>
         
         <!-- Detalhes Expansíveis -->
@@ -242,6 +242,7 @@ window._renderSinistroCard = function(s, colabId, container) {
                     <p style="margin:0 0 6px 0;"><i class="ph ph-clock"></i> Registrado no sistema: ${dataCriacao}</p>
                     <p style="margin:0 0 6px 0;"><i class="ph ph-pen"></i> Assinatura do Colaborador: ${assinCondutorTxt}</p>
                     ${valorTotalDisplay}
+                    <div id="sin-parc-${s.id}" style="margin-top:8px;"></div>
 
                 </div>
                 <div>
@@ -263,6 +264,8 @@ window._renderSinistroCard = function(s, colabId, container) {
     `;
 
     container.appendChild(card);
+    window._sinCache[s.id] = s;
+    if (window._sinTemCobranca(s)) window._sinCarregarParcelas(s.id);
 };
 
 // =========================================================
@@ -347,7 +350,7 @@ window.sinAbrirDetalhes = async function(sinId, colabId) {
         '<div class="modal-header" style="background:linear-gradient(135deg,#0f172a,#1e293b);z-index:10;flex-shrink:0;">' +
         '<h3 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">' +
         '<i class="ph ph-list-magnifying-glass" style="color:#86efac;"></i> Detalhes do Sinistro #' + sinId +
-        '<span style="font-size:0.72rem;background:#10b981;color:#fff;border-radius:12px;padding:2px 10px;font-weight:700;margin-left:4px;">ASSINADO</span></h3>' +
+        '<span style="font-size:0.72rem;background:#7c3aed;color:#fff;border-radius:12px;padding:2px 10px;font-weight:700;margin-left:4px;">ASSINADO</span></h3>' +
         '<button onclick="document.getElementById(\'modal-sin-detalhes\').style.display=\'none\'" class="btn-close" style="background:rgba(255,255,255,0.15);color:#fff;"><i class="ph ph-x"></i></button>' +
         '</div>' +
 
@@ -2605,3 +2608,277 @@ if (!window._sinExcluirOrc) {
         } catch (e) { alert('Erro ao excluir: ' + e.message); }
     };
 }
+
+// =========================================================
+// COBRANCA PARCELADA DE SINISTROS (padrao das multas)
+// Status: Assinado (roxo) -> Cobrado Parcial (azul) -> Cobrado (verde)
+// =========================================================
+window._sinCache = window._sinCache || {};
+window._SIN_MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+window._SIN_MESES_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+window._sinStatusInfo = function(s) {
+    if (s && s.status === 'assinado') {
+        if (s.status_rh === 'Cobrado') return { text: 'Cobrado', color: '#16a34a', bg: '#dcfce7', icon: 'ph-check-circle' };
+        if (s.status_rh === 'Cobrado Parcela') return { text: 'Cobrado Parcial', color: '#2563eb', bg: '#dbeafe', icon: 'ph-check-circle' };
+        return { text: 'Assinado', color: '#7c3aed', bg: '#ede9fe', icon: 'ph-seal-check' };
+    }
+    return null;
+};
+
+window._sinValorNum = function(v) {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    var st = String(v).trim().replace(/[^\d,.-]/g, '');
+    if (st.indexOf(',') >= 0) st = st.replace(/\./g, '').replace(',', '.');
+    return parseFloat(st) || 0;
+};
+
+window._sinTemCobranca = function(s) {
+    return !!(s && s.status === 'assinado' && window._sinValorNum(s.valor_total) > 0 && !/isent/i.test(s.tipo_sinistro || ''));
+};
+
+window._sinFmtBRL = function(v) {
+    return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+window._sinBaseInicio = function(s, hist) {
+    var mIni, aIni;
+    if (hist && hist.length) {
+        var primeira = hist.find(function(h) { return parseInt(h.parcela_num) === 1; }) || hist[0];
+        aIni = parseInt(primeira.ano); mIni = parseInt(primeira.mes);
+        if (parseInt(primeira.parcela_num) > 1) {
+            mIni -= (parseInt(primeira.parcela_num) - 1);
+            while (mIni < 1) { mIni += 12; aIni--; }
+        }
+    } else {
+        var dtStr = String(s.data_assinatura_condutor || s.created_at || '');
+        var dt = new Date(dtStr.replace(' ', 'T') + (dtStr.endsWith('Z') ? '' : 'Z'));
+        if (isNaN(dt.getTime())) dt = new Date();
+        var br = new Date(dt.getTime() - 3 * 3600 * 1000);
+        mIni = br.getUTCMonth() + 1; aIni = br.getUTCFullYear();
+        mIni += (br.getUTCDate() <= 25) ? 1 : 2;
+        if (mIni > 12) { aIni += Math.floor((mIni - 1) / 12); mIni = ((mIni - 1) % 12) + 1; }
+    }
+    return { mes: mIni, ano: aIni };
+};
+
+window._sinMesAno = function(base, i) {
+    var m = base.mes + (i - 1), a = base.ano;
+    while (m > 12) { a++; m -= 12; }
+    return { mes: m, ano: a };
+};
+
+window._sinMontarParcelas = function(s, hist) {
+    var total = window._sinValorNum(s.valor_total);
+    var num = parseInt(s.parcelas) || 1;
+    var cfg = [];
+    try { if (s.config_parcelas) cfg = JSON.parse(s.config_parcelas); } catch (e) {}
+    hist = hist || [];
+    var base = window._sinBaseInicio(s, hist);
+    var lista = [];
+    for (var i = 1; i <= num; i++) {
+        var c = cfg.find(function(x) { return parseInt(x.num) === i; });
+        var h = hist.find(function(x) { return parseInt(x.parcela_num) === i; });
+        var valor = (c && c.valor !== undefined) ? (parseFloat(c.valor) || 0) : (h ? (parseFloat(h.valor_parcela) || 0) : (total / num));
+        var ma = (c && c.mes && c.ano) ? { mes: parseInt(c.mes), ano: parseInt(c.ano) } : (h ? { mes: parseInt(h.mes), ano: parseInt(h.ano) } : window._sinMesAno(base, i));
+        lista.push({ num: i, valor: valor, mes: ma.mes, ano: ma.ano, cobrado: !!h || !!(c && c.alert) });
+    }
+    return lista;
+};
+
+window._sinTokenAuth = function() {
+    return { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || localStorage.getItem('token') || '') };
+};
+
+window._sinCarregarParcelas = async function(sinId) {
+    var el = document.getElementById('sin-parc-' + sinId);
+    var s = window._sinCache[sinId];
+    if (!el || !s) return;
+    if (!window._sinTemCobranca(s)) { el.innerHTML = ''; return; }
+    el.innerHTML = '<span style="color:#94a3b8;font-style:italic;font-size:0.8rem;">Carregando parcelas...</span>';
+    var hist = [];
+    try {
+        var r = await fetch(API_URL + '/sinistros/' + sinId + '/historico-cobranca', { headers: window._sinTokenAuth() });
+        if (r.ok) hist = await r.json();
+    } catch (e) {}
+    var parcelas = window._sinMontarParcelas(s, Array.isArray(hist) ? hist : []);
+    var total = window._sinValorNum(s.valor_total);
+    var html = '<div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;background:#fafafa;margin-top:4px;">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;">'
+        + '<strong style="font-size:0.8rem;color:#334155;"><i class="ph ph-list-numbers"></i> Parcelas de cobrança — Total ' + window._sinFmtBRL(total) + '</strong>'
+        + '<button type="button" onclick="window._sinAbrirEditarParcelas(' + sinId + ')" style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;"><i class="ph ph-pencil-simple"></i> Editar parcelas</button>'
+        + '</div>';
+    parcelas.forEach(function(p) {
+        var bg = p.cobrado ? '#16a34a' : '#cbd5e1';
+        var tX = p.cobrado ? 'translateX(12px)' : 'translateX(0)';
+        var toggle = '<div style="display:flex;align-items:center;gap:4px;margin-left:12px;">'
+            + '<label style="position:relative;display:inline-block;width:28px;height:16px;margin:0;">'
+            + '<input type="checkbox" ' + (p.cobrado ? 'checked' : '') + ' style="opacity:0;width:0;height:0;" onchange="this.disabled=true;this.nextElementSibling.style.opacity=\'0.5\';window._sinToggleCobrado(' + sinId + ',' + p.num + ',this.checked)">'
+            + '<div style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:' + bg + ';transition:.3s;border-radius:16px;" onclick="this.previousElementSibling.click()">'
+            + '<span style="position:absolute;height:12px;width:12px;left:2px;bottom:2px;background-color:white;transition:.3s;border-radius:50%;transform:' + tX + ';pointer-events:none;"></span></div></label>'
+            + '<span style="font-size:0.65rem;font-weight:700;color:' + (p.cobrado ? '#16a34a' : '#94a3b8') + ';">Cobrado</span></div>';
+        var mesNome = window._SIN_MESES[(p.mes || 1) - 1] || p.mes;
+        if (p.cobrado) {
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:0.8rem;">'
+                + '<span style="color:#16a34a;width:16px;">&#10003;</span>'
+                + '<span style="font-weight:600;color:#16a34a;">Parcela ' + p.num + '</span>'
+                + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + p.ano + '</span>'
+                + '<span style="margin-left:auto;font-weight:700;color:#16a34a;">' + window._sinFmtBRL(p.valor) + ' <span style="font-size:0.7rem;">(Cobrado)</span></span>' + toggle + '</div>';
+        } else {
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;font-size:0.8rem;opacity:0.75;">'
+                + '<span style="color:#64748b;width:16px;"><i class="ph ph-clock"></i></span>'
+                + '<span style="font-weight:600;">Parcela ' + p.num + '</span>'
+                + '<span style="color:#64748b;">&#8212; ' + mesNome + '/' + p.ano + ' (Aguardando)</span>'
+                + '<span style="margin-left:auto;font-weight:700;color:#d97706;">' + window._sinFmtBRL(p.valor) + '</span>' + toggle + '</div>';
+        }
+    });
+    html += '</div>';
+    el.innerHTML = html;
+};
+
+window._sinAtualizarBadge = function(sinId) {
+    var s = window._sinCache[sinId];
+    var info = window._sinStatusInfo(s);
+    if (!info) return;
+    document.querySelectorAll('[data-sin-badge="' + sinId + '"]').forEach(function(b) {
+        b.style.color = info.color;
+        b.style.background = info.bg;
+        b.innerHTML = (b.getAttribute('data-sin-icon') === '1' ? '<i class="ph ' + info.icon + '"></i> ' : '') + info.text;
+    });
+};
+
+window._sinAplicarRetornoCobranca = function(sinId, d) {
+    var s = window._sinCache[sinId];
+    if (s) {
+        s.status_rh = d.status_rh || null;
+        if (d.config_parcelas !== undefined) s.config_parcelas = d.config_parcelas;
+        if (d.parcelas !== undefined) s.parcelas = d.parcelas;
+        if (d.valor_parcela !== undefined) s.valor_parcela = d.valor_parcela;
+    }
+    window._sinCarregarParcelas(sinId);
+    window._sinAtualizarBadge(sinId);
+};
+
+window._sinToggleCobrado = async function(sinId, num, checked) {
+    try {
+        var h = window._sinTokenAuth(); h['Content-Type'] = 'application/json';
+        var r = await fetch(API_URL + '/sinistros/' + sinId + '/cobranca', { method: 'PUT', headers: h, body: JSON.stringify({ toggle: { num: num, checked: checked } }) });
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Falha ao atualizar cobrança');
+        window._sinAplicarRetornoCobranca(sinId, d);
+    } catch (e) {
+        alert(e.message);
+        window._sinCarregarParcelas(sinId);
+    }
+};
+
+// ----- Modal Editar Parcelas -----
+window._sinAbrirEditarParcelas = async function(sinId) {
+    var s = window._sinCache[sinId];
+    if (!s) return;
+    var hist = [];
+    try {
+        var r = await fetch(API_URL + '/sinistros/' + sinId + '/historico-cobranca', { headers: window._sinTokenAuth() });
+        if (r.ok) hist = await r.json();
+    } catch (e) {}
+    var old = document.getElementById('modal-sin-editar-parcelas');
+    if (old) old.remove();
+    window._sinMep = {
+        sinId: sinId,
+        total: window._sinValorNum(s.valor_total),
+        base: window._sinBaseInicio(s, hist),
+        ini: window._sinMontarParcelas(s, hist)
+    };
+    var num = parseInt(s.parcelas) || 1;
+    var modal = document.createElement('div');
+    modal.id = 'modal-sin-editar-parcelas';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:800px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto;">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">'
+        + '<h3 style="margin:0;color:#1e293b;font-size:1.1rem;">📝 Editar Parcelas em Folha — Sinistro</h3>'
+        + '<button type="button" onclick="document.getElementById(\'modal-sin-editar-parcelas\').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#64748b;">×</button></div>'
+        + '<div style="margin-bottom:1.5rem;"><label style="display:block;margin-bottom:0.3rem;font-size:0.85rem;font-weight:600;color:#475569;">Quantidade de Parcelas</label>'
+        + '<select id="sinmep-parcelas" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;" onchange="window._sinMepRender(false)">'
+        + [1,2,3,4,5,6,7,8,9,10,11,12].map(function(i) { return '<option value="' + i + '" ' + (num === i ? 'selected' : '') + '>' + i + 'x</option>'; }).join('')
+        + '</select></div>'
+        + '<div id="sinmep-inputs" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;padding:1rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;"></div>'
+        + '<div id="sinmep-aviso" style="margin-bottom:1.5rem;font-size:0.85rem;font-weight:600;"></div>'
+        + '<button type="button" id="sinmep-salvar" onclick="window._sinMepSalvar()" style="width:100%;padding:0.85rem;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;"><i class="ph ph-floppy-disk"></i> Salvar Alterações</button>'
+        + '</div>';
+    document.body.appendChild(modal);
+    window._sinMepRender(true);
+};
+
+window._sinMepRender = function(inicial) {
+    var M = window._sinMep; if (!M) return;
+    var num = parseInt(document.getElementById('sinmep-parcelas').value) || 1;
+    var defVal = M.total / num;
+    var anoAtual = new Date().getFullYear();
+    var html = '';
+    for (var i = 1; i <= num; i++) {
+        var ini = inicial ? M.ini[i - 1] : null;
+        var v = ini ? ini.valor : defVal;
+        var ma = ini ? { mes: ini.mes, ano: ini.ano } : window._sinMesAno(M.base, i);
+        var cob = ini ? ini.cobrado : false;
+        var mesOpts = '';
+        for (var m = 1; m <= 12; m++) mesOpts += '<option value="' + m + '" ' + (ma.mes === m ? 'selected' : '') + '>' + window._SIN_MESES_FULL[m - 1] + '</option>';
+        var anoOpts = '';
+        for (var a = Math.min(anoAtual - 1, ma.ano); a <= Math.max(anoAtual + 3, ma.ano); a++) anoOpts += '<option value="' + a + '" ' + (ma.ano === a ? 'selected' : '') + '>' + a + '</option>';
+        html += '<div style="flex:1;min-width:180px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;">'
+            + '<label style="font-size:0.75rem;color:#475569;font-weight:700;display:block;margin-bottom:4px;">Parcela ' + i + '</label>'
+            + '<input type="number" step="0.01" class="sinmep-val" data-idx="' + i + '" value="' + v.toFixed(2) + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;margin-bottom:8px;font-weight:600;" onchange="window._sinMepSoma()">'
+            + '<div style="display:flex;gap:4px;margin-bottom:8px;">'
+            + '<select class="sinmep-mes" data-idx="' + i + '" style="flex:1;padding:4px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;">' + mesOpts + '</select>'
+            + '<select class="sinmep-ano" data-idx="' + i + '" style="width:60px;padding:4px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.75rem;">' + anoOpts + '</select></div>'
+            + '<label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-size:0.75rem;font-weight:700;color:#475569;"><input type="checkbox" class="sinmep-alert" data-idx="' + i + '" ' + (cob ? 'checked' : '') + '> Cobrado</label>'
+            + '</div>';
+    }
+    document.getElementById('sinmep-inputs').innerHTML = html;
+    window._sinMepSoma();
+};
+
+window._sinMepSoma = function() {
+    var M = window._sinMep; if (!M) return;
+    var soma = 0;
+    document.querySelectorAll('.sinmep-val').forEach(function(i) { soma += (parseFloat(i.value) || 0); });
+    var av = document.getElementById('sinmep-aviso');
+    if (!av) return;
+    if (Math.abs(soma - M.total) > 0.02) {
+        av.innerHTML = '<span style="color:#dc2626;">Aviso: A soma das parcelas (' + window._sinFmtBRL(soma) + ') difere do total do sinistro (' + window._sinFmtBRL(M.total) + ')</span>';
+    } else {
+        av.innerHTML = '<span style="color:#16a34a;">Soma correta (' + window._sinFmtBRL(soma) + ')</span>';
+    }
+};
+
+window._sinMepSalvar = async function() {
+    var M = window._sinMep; if (!M) return;
+    var btn = document.getElementById('sinmep-salvar');
+    var orig = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.75'; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Salvando...'; }
+    var restore = function() { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = orig; } };
+    var num = parseInt(document.getElementById('sinmep-parcelas').value) || 1;
+    var arr = [];
+    document.querySelectorAll('.sinmep-val').forEach(function(inp) {
+        var idx = parseInt(inp.getAttribute('data-idx'));
+        arr.push({
+            num: idx,
+            valor: parseFloat(inp.value) || 0,
+            alert: document.querySelector('.sinmep-alert[data-idx="' + idx + '"]').checked,
+            mes: parseInt(document.querySelector('.sinmep-mes[data-idx="' + idx + '"]').value),
+            ano: parseInt(document.querySelector('.sinmep-ano[data-idx="' + idx + '"]').value)
+        });
+    });
+    try {
+        var h = window._sinTokenAuth(); h['Content-Type'] = 'application/json';
+        var r = await fetch(API_URL + '/sinistros/' + M.sinId + '/cobranca', { method: 'PUT', headers: h, body: JSON.stringify({ parcelas: num, config_parcelas: JSON.stringify(arr) }) });
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Falha ao atualizar parcelas');
+        var modal = document.getElementById('modal-sin-editar-parcelas'); if (modal) modal.remove();
+        window._sinAplicarRetornoCobranca(M.sinId, d);
+        if (typeof showToast === 'function') showToast('Parcelas atualizadas!', 'success');
+    } catch (e) {
+        restore();
+        alert(e.message);
+    }
+};

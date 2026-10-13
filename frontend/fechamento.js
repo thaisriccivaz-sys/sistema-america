@@ -820,6 +820,11 @@ function abrirLegenda() {
           <i class="ph ph-money"></i> Buscar Adiant.
         </button>
   
+        <!-- Buscar Outros (sinistros) -->
+        <button id="fech-btn-buscar-outros" onclick="window._fechamento.buscarOutros()" style="background:#475569;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca as parcelas de sinistros assinados do mês e soma ao valor de Outros">
+          <i class="ph ph-warning"></i> Buscar Outros
+        </button>
+
         <!-- Buscar Todos -->
         <button onclick="window._fechamento.buscarTodos()" style="background:#eab308;color:#000;font-weight:600;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Executa todas as buscas automáticas de uma vez">
           <i class="ph ph-lightning"></i> Buscar Todos
@@ -1029,6 +1034,11 @@ function abrirLegenda() {
                     if (Array.isArray(md)) return md;
                     try { return JSON.parse(md) || []; } catch(e) { return []; }
                 })(row.multas_detalhes);
+                row.sinistros_detalhes = (function(sd) {
+                    if (!sd) return [];
+                    if (Array.isArray(sd)) return sd;
+                    try { return JSON.parse(sd) || []; } catch(e) { return []; }
+                })(row.sinistros_detalhes);
             });
 
             // Se há colaboradores com multas mas sem multas_detalhes persistido, busca os detalhes da API
@@ -1155,7 +1165,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td id="fech-cell-premio-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'pts',row.pts||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
+<td id="fech-cell-outros-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
 <td id="fech-cell-sindicato-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
@@ -1279,6 +1289,15 @@ function abrirLegenda() {
                 var vParc = parseFloat(d.valor_parcela) || 0;
                 var vTot = parseFloat((d.valor_total !== undefined && d.valor_total !== null) ? d.valor_total : (vParc * pTot)) || 0;
                 linhas.push(pNum + '/' + pTot + ' - Parcela R$' + formatBRL(vParc) + ' - Total R$' + formatBRL(vTot));
+            });
+        }
+
+        // 1b. Parcelas de sinistros (coluna Outros)
+        if (fKey === 'outros') {
+            var _sd = [];
+            try { _sd = Array.isArray(r.sinistros_detalhes) ? r.sinistros_detalhes : JSON.parse(r.sinistros_detalhes || '[]'); } catch(e) { _sd = []; }
+            (_sd || []).forEach(function(d) {
+                linhas.push('Sinistro ' + (d.parcela_num || 1) + '/' + (d.total_parcelas || 1) + ' - Parcela R$' + formatBRL(parseFloat(d.valor_parcela) || 0) + ' - Total R$' + formatBRL(parseFloat(d.valor_total) || 0));
             });
         }
 
@@ -2281,6 +2300,65 @@ function abrirLegenda() {
         Swal.fire({ title: 'Pensão', text: atualizados + ' colaborador(es) com pensão alimentícia preenchidos.', icon: 'info' });
     }
 
+    function _detArr(x) {
+        if (Array.isArray(x)) return x;
+        try { return JSON.parse(x || '[]') || []; } catch(e) { return []; }
+    }
+
+    async function buscarOutros() {
+        if (!_dados || _dados.length === 0) return;
+        var selMes = document.getElementById('fech-select-mes');
+        var selAno = document.getElementById('fech-select-ano');
+        if (selMes && selAno) { _mes = parseInt(selMes.value); _ano = parseInt(selAno.value); }
+        var btn = document.getElementById('fech-btn-buscar-outros');
+        var orig = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.75'; btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Aguarde...'; }
+        var restore = function() { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = orig; } };
+        try {
+            const resp = await fetch('/api/fechamento/sinistros-prontuario/' + _ano + '/' + _mes, {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            const json = await resp.json();
+            if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
+
+            var mapa = {};
+            json.forEach(function(item) { mapa[item.colaborador_id] = item; });
+            var qtd = 0;
+
+            _dados.forEach(function(row, idx) {
+                // Outros = valor digitado (manual) + parcelas de sinistros. O manual e' derivado
+                // (outros atual - sinistros anteriores), por isso clicar varias vezes nao duplica.
+                var antigoSin = _detArr(row.sinistros_detalhes).reduce(function(a, d) { return a + (parseFloat(d.valor_parcela) || 0); }, 0);
+                var manual = Math.max(0, Math.round(((parseFloat(row.outros) || 0) - antigoSin) * 100) / 100);
+                var item = mapa[row.colaborador_id] || mapa[row.id];
+                var novoSin = item ? (parseFloat(item.valor_total) || 0) : 0;
+                if (item) qtd++;
+                row.sinistros_detalhes = item ? (item.detalhes || []) : [];
+                var novo = Math.round((manual + novoSin) * 100) / 100;
+                row.outros = novo;
+                var cell = document.getElementById('fech-cell-outros-' + idx);
+                if (cell) {
+                    var inp = cell.querySelector('input');
+                    if (inp) inp.value = novo > 0 ? formatBRL(novo) : '';
+                    var tip = montarTooltipCelula(idx, 'outros');
+                    cell.title = tip;
+                    if (inp) {
+                        inp.title = tip;
+                        if (inp.parentElement && inp.parentElement.tagName === 'DIV') inp.parentElement.title = tip;
+                    }
+                }
+                atualizar(idx, 'outros', novo);
+            });
+            // Regra 26: auto-save apos preencher campos
+            salvarSilencioso();
+            Swal.fire({ icon: 'info', title: 'Outros', text: qtd + ' colaborador(es) com parcela de sinistro neste mês.' });
+        } catch(e) {
+            Swal.fire({ icon: 'error', title: 'Erro ao buscar Outros', text: e.message });
+        } finally {
+            restore();
+        }
+    }
+
     async function buscarTodos() {
         limparDivergenciasComparacao();
         const msgs = [];
@@ -2314,6 +2392,7 @@ function abrirLegenda() {
         try { buscarPensao(); } catch(e) { msgs.push(`<strong>Erro Pens\u00e3o</strong>: ${e.message}`); }
         try { buscarVT(); } catch(e) { msgs.push(`<strong>Erro VT</strong>: ${e.message}`); }
         try { buscarAdiantamento(); } catch(e) { msgs.push(`<strong>Erro Adiantamento</strong>: ${e.message}`); }
+        try { await buscarOutros(); } catch(e) { msgs.push(`<strong>Erro Outros</strong>: ${e.message}`); }
 
         // Restaura as funções originais
         Swal.fire = originalSwal;
@@ -2687,7 +2766,8 @@ function abrirLegenda() {
                     total_trabalhado: row.total_trabalhado || null,
                     edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
                     divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {}),
-                    multas_detalhes: JSON.stringify(row.multas_detalhes || [])
+                    multas_detalhes: JSON.stringify(row.multas_detalhes || []),
+                    sinistros_detalhes: JSON.stringify(_detArr(row.sinistros_detalhes))
                 };
             });
             await fetch('/api/fechamento/salvar', {
@@ -2744,6 +2824,7 @@ function abrirLegenda() {
                 edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
                 divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {}),
                 multas_detalhes: JSON.stringify(row.multas_detalhes || []),
+                sinistros_detalhes: JSON.stringify(_detArr(row.sinistros_detalhes)),
                 status: 'rascunho',
             };
         });
@@ -3934,7 +4015,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarAdiantamento, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarPTS, buscarTodos,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarAdiantamento, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarPTS, buscarOutros, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
