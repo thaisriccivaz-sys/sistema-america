@@ -685,6 +685,19 @@ function abrirLegenda() {
     #fech-toolbar button[id^="fech-btn-eye-"] {
       padding: 0 0.5rem !important;
     }
+    /* Estética padrão dos campos da tabela (borda suave e limpa, idêntica ao anexo 2) */
+    #fech-tbody input, #fech-tbody select {
+      border: 1px solid #e5e7eb !important;
+      border-radius: 0.3rem !important;
+      box-sizing: border-box !important;
+      outline: none;
+    }
+    #fech-tbody input:focus, #fech-tbody select:focus {
+      border-color: #3b82f6 !important;
+    }
+    #fech-tbody input.fech-borda-verde, #fech-tbody select.fech-borda-verde {
+      border: 2px solid #16a34a !important;
+    }
   </style>
   <div id="fech-toolbar" style="display:none;flex-direction:row;align-items:center;flex-wrap:wrap;gap:1rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem;margin-bottom:1rem;">
   
@@ -1320,7 +1333,8 @@ function abrirLegenda() {
                 inp.style.color = '';
                 inp.style.fontWeight = '';
                 inp.style.background = '';
-                inp.style.border = '';
+                inp.classList.remove('fech-borda-verde');
+                inp.style.border = '1px solid #e5e7eb';
                 inp.removeAttribute('data-manual-edit');
                 inp.title = baseTip;
             }
@@ -1329,7 +1343,8 @@ function abrirLegenda() {
                 sel.style.color = '';
                 sel.style.fontWeight = '';
                 sel.style.background = '';
-                sel.style.border = '';
+                sel.classList.remove('fech-borda-verde');
+                sel.style.border = '1px solid #e5e7eb';
                 sel.removeAttribute('data-manual-edit');
                 sel.title = baseTip;
             }
@@ -1400,8 +1415,14 @@ function abrirLegenda() {
                 td.style.outline = '';
                 td.style.outlineOffset = '';
             }
-            if (inp) inp.style.border = '';
-            if (sel) sel.style.border = '';
+            if (inp) {
+                inp.classList.remove('fech-borda-verde');
+                inp.style.border = '1px solid #e5e7eb';
+            }
+            if (sel) {
+                sel.classList.remove('fech-borda-verde');
+                sel.style.border = '1px solid #e5e7eb';
+            }
         } else {
             // Validar pelo RH com usuário logado
             var usuario = getNomeUsuarioAtual();
@@ -1412,8 +1433,14 @@ function abrirLegenda() {
                 td.style.outline = '2px solid #16a34a';
                 td.style.outlineOffset = '-2px';
             }
-            if (inp) inp.style.border = '2px solid #16a34a';
-            if (sel) sel.style.border = '2px solid #16a34a';
+            if (inp) {
+                inp.classList.add('fech-borda-verde');
+                inp.style.border = '2px solid #16a34a';
+            }
+            if (sel) {
+                sel.classList.add('fech-borda-verde');
+                sel.style.border = '2px solid #16a34a';
+            }
         }
 
         // Atualizar tooltip com o novo status
@@ -3585,8 +3612,9 @@ function abrirLegenda() {
                 let sel = td.querySelector('select');
                 let el = inp || sel;
                 if (el) {
+                    el.classList.remove('fech-borda-verde');
                     el.style.background = '';
-                    el.style.border = '';
+                    el.style.border = '1px solid #e5e7eb';
                     if (el.dataset.manualEdit === 'true') {
                         let mIdx = td.closest('tr') ? td.closest('tr').dataset.idx : null;
                         let field = td.id.replace('fech-cell-', '').replace(new RegExp('-' + mIdx + '$'), '');
@@ -3831,14 +3859,26 @@ function abrirLegenda() {
                 td.dataset.confirmadoPor = divObj.confirmado_por;
                 td.style.outline = '2px solid #16a34a';
                 td.style.outlineOffset = '-2px';
-                if (inp) inp.style.border = '2px solid #16a34a';
-                if (sel) sel.style.border = '2px solid #16a34a';
+                if (inp) {
+                    inp.classList.add('fech-borda-verde');
+                    inp.style.border = '2px solid #16a34a';
+                }
+                if (sel) {
+                    sel.classList.add('fech-borda-verde');
+                    sel.style.border = '2px solid #16a34a';
+                }
             } else {
                 delete td.dataset.confirmadoPor;
                 td.style.outline = '';
                 td.style.outlineOffset = '';
-                if (inp) inp.style.border = '';
-                if (sel) sel.style.border = '';
+                if (inp) {
+                    inp.classList.remove('fech-borda-verde');
+                    inp.style.border = '1px solid #e5e7eb';
+                }
+                if (sel) {
+                    sel.classList.remove('fech-borda-verde');
+                    sel.style.border = '1px solid #e5e7eb';
+                }
             }
         }
     }
