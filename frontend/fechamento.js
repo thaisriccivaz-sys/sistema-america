@@ -3024,6 +3024,8 @@ function abrirLegenda() {
                 // Faltas e atrasos
                 // Faltas: rubrica 8794 (Dias Faltas) — compara a QUANTIDADE de dias (ex.: 2,00), nao o valor em R$
                 { field: 'dias_falta', cellId: 'dias_falta', code: '8794', type: 'qty', label: 'Faltas (dias)' },
+                // DSR: rubrica 8792 (DSR sob faltas) — compara coluna DSR com rubrica 8792 da folha
+                { field: 'dsr', cellId: 'dsr', code: '8792', type: 'dsr', label: 'DSR (8792)' },
                 { field: 'horas_atraso', cellId: 'horas_atraso', code: '8060', type: 'time', label: 'Atrasos' },
                 // VT: rubrica 48 — com valor na folha = Sim; sem valor = vazio
                 { field: 'vt', cellId: 'vt', code: '48', type: 'flag', label: 'VT' },
@@ -3052,6 +3054,11 @@ function abrirLegenda() {
                 if (inp) {
                     inp.style.background = '';
                     inp.title = '';
+                }
+                let sel = td.querySelector('select');
+                if (sel) {
+                    sel.style.background = '';
+                    sel.title = '';
                 }
             });
 
@@ -3091,7 +3098,29 @@ function abrirLegenda() {
                     // Para noturno: qty=horas, val=R$; useQty=true usa qty para comparação de hora
                     const cellId = m.cellId || m.field;
 
-                    if (m.type === 'val') {
+                    if (m.type === 'dsr') {
+                        const folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                        const folhaQtd = rubrica ? parseToFloat(rubrica.qty) : 0;
+                        const folhaTem = !!rubrica && (folhaVal > 0 || folhaQtd > 0);
+                        const uiDsrStr = String(row.dsr || '').trim().toUpperCase();
+                        const uiTem = uiDsrStr.startsWith('S');
+
+                        const folhaValFmt = folhaVal > 0 ? `R$ ${folhaVal.toFixed(2).replace('.', ',')}` : 'R$ 0,00';
+                        const msgFolha = `Contabilidade: ${folhaValFmt}`;
+
+                        if (uiTem !== folhaTem) {
+                            marcarErro(idx, cellId, msgFolha);
+                            colabErros.push(`${m.label}: Tabela ${uiTem ? 'S' : (uiDsrStr.startsWith('N') ? 'N' : 'em branco')} x Folha ${folhaValFmt}`);
+                            qtdErros++;
+                        } else if (folhaTem) {
+                            let tdDsr = document.getElementById(`fech-cell-${cellId}-${idx}`);
+                            if (tdDsr) {
+                                tdDsr.title = msgFolha;
+                                let sel = tdDsr.querySelector('select');
+                                if (sel) sel.title = msgFolha;
+                            }
+                        }
+                    } else if (m.type === 'val') {
                         let folhaVal;
                         if (m.useQty === true) {
                             // Nunca acontece pois noturno horas é type=time, mas por segurança
@@ -3192,6 +3221,11 @@ function abrirLegenda() {
             if (inp) {
                 inp.style.background = '#fef2f2';
                 inp.title = msg;
+            }
+            let sel = td.querySelector('select');
+            if (sel) {
+                sel.style.background = '#fef2f2';
+                sel.title = msg;
             }
         }
     }
