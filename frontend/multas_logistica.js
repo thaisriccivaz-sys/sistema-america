@@ -139,7 +139,20 @@ function _statusTextColor(bg) {
 // Cria um dropdown customizado de status com badges coloridos
 // selectId: id do <select> oculto que mantém o valor real
 // containerId: id do wrapper div
-function _buildStatusDropdown(containerId, selectId, currentValue, opts, onchange) {
+// Situacoes que so podem ser selecionadas depois que a Declaracao de Responsabilidade for assinada
+const STATUS_EXIGEM_DECLARACAO = ['Indicado', 'Cobrada - Pz. Perdido'];
+function _declaracaoAssinada(m) {
+    let ex = [];
+    try { ex = JSON.parse((m && m.documentos_extras) || '[]'); } catch (_) {}
+    return !!ex[1];
+}
+function _statusBloqueadosDeclaracao(m) {
+    if (_declaracaoAssinada(m)) return [];
+    // o status atual da multa continua selecionavel (nao trava registros ja existentes)
+    return STATUS_EXIGEM_DECLARACAO.filter(s => !m || s !== m.status);
+}
+
+function _buildStatusDropdown(containerId, selectId, currentValue, opts, onchange, bloqueados) {
     const ALL_STATUS = [
         'Conferência','Em Andamento','Indicado','Multa NIC',
         'Id. Deferida','Id. Indeferida','Recorrida','Rec. Deferida','Rec. Indeferida',
@@ -151,6 +164,12 @@ function _buildStatusDropdown(containerId, selectId, currentValue, opts, onchang
     const items = list.map(s => {
         const bg = _statusRHColor(s);
         const fg = _statusTextColor(bg);
+        // Situacoes que exigem a Declaracao de Responsabilidade assinada ficam travadas (cadeado)
+        if ((bloqueados || []).includes(s)) {
+            return `<div class="csd-item" data-val="${s}" title="Disponível somente após a assinatura da Declaração de Responsabilidade" style="opacity:0.45; cursor:not-allowed;" onclick="mostrarToastAviso('A situação &quot;${s}&quot; só pode ser selecionada após a Declaração de Responsabilidade ser assinada.')">
+            <span class="csd-badge" style="background:${bg}; color:${fg};">🔒 ${s}</span>
+        </div>`;
+        }
         return `<div class="csd-item" data-val="${s}" onclick="_csdSelect('${containerId}','${selectId}','${s}')">
             <span class="csd-badge" style="background:${bg}; color:${fg};">${s}</span>
         </div>`;
@@ -792,7 +811,7 @@ function abrirModalNovaMulta() {
                         <div style="display:flex; gap:1rem; flex-wrap:wrap;">
                             <div style="flex:2; min-width:200px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Forma de Resolução</label>
-                                ${_buildStatusDropdown('csd-nm-status','nm-status','Conferência')}
+                                ${_buildStatusDropdown('csd-nm-status','nm-status','Conferência', null, null, STATUS_EXIGEM_DECLARACAO)}
                             </div>
                             <div style="flex:1; min-width:120px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.85rem; font-weight:600; color:#475569;">Parcelas</label>
@@ -1197,7 +1216,7 @@ function abrirModalGerenciarMulta(id, focoMotorista = false) {
                             </div>
                             <div style="flex:1; min-width:160px;">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status Logística</label>
-                                ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()')}
+                                ${_buildStatusDropdown('csd-gm-status','gm-status', multa.status || 'Conferência', null, 'atualizarValoresMultaModal()', _statusBloqueadosDeclaracao(multa))}
                             </div>
                             <div style="flex:1; min-width:130px;" id="gm-status-rh-container">
                                 <label style="display:block; margin-bottom:0.3rem; font-size:0.82rem; font-weight:600; color:#475569;">Status RH</label>
@@ -1783,6 +1802,12 @@ async function salvarGerenciamentoMulta(e, id) {
         try { docsEx = JSON.parse(m.documentos_extras || '[]'); } catch(err){}
     }
     // Documentos são opcionais — sem validação de quantidade mínima
+
+    // 'Indicado' / 'Cobrada - Pz. Perdido' exigem a Declaração de Responsabilidade assinada
+    if (STATUS_EXIGEM_DECLARACAO.includes(status) && (!m || status !== m.status) && !_declaracaoAssinada(m)) {
+        mostrarToastAviso('A situação "' + status + '" só pode ser selecionada após a Declaração de Responsabilidade ser assinada.');
+        return;
+    }
 
 
     const btn = e.target.querySelector('button[type="submit"]');

@@ -8380,6 +8380,9 @@ app.post('/api/logistica/multas', authenticateToken, multaUploadMiddleware.singl
 
     // Se o AIT está na lista de multas antigas, for??a status 'Antiga'
     const finalStatus = isAitAntiga(numero_ait) ? 'Antiga' : (status || 'Conferência');
+    if (finalStatus === 'Indicado' || finalStatus === 'Cobrada - Pz. Perdido') {
+        return res.status(400).json({ error: `A situação "${finalStatus}" só pode ser selecionada após a Declaração de Responsabilidade ser assinada.` });
+    }
     const statusUpdatedAt = getNowBR();
     // Captura usuário logado
     const createdById = req.user ? req.user.id : null;
@@ -8489,6 +8492,17 @@ app.put('/api/logistica/multas/:id', authenticateToken, (req, res) => {
         if (err || !oldData) return res.status(404).json({ error: 'Multa nao encontrada' });
 
         // Removido bloqueio de edição para Multa NIC conforme solicitado
+
+        // 'Indicado' e 'Cobrada - Pz. Perdido' so podem ser definidos apos a Declaracao de Responsabilidade assinada
+        // (Termo Assinado no slot 1 de documentos_extras). A rota salvar-declaracao grava o status direto e nao passa por aqui.
+        const STATUS_EXIGEM_DECLARACAO = ['Indicado', 'Cobrada - Pz. Perdido'];
+        if (status && STATUS_EXIGEM_DECLARACAO.includes(status) && status !== oldData.status) {
+            let _extrasChk = [];
+            try { _extrasChk = JSON.parse(oldData.documentos_extras || '[]'); } catch (_) {}
+            if (!_extrasChk[1]) {
+                return res.status(400).json({ error: `A situação "${status}" só pode ser selecionada após a Declaração de Responsabilidade ser assinada.` });
+            }
+        }
 
         const novoStatusUpdatedAt = (status && status !== oldData.status) ? getNowBR() : oldData.status_updated_at;
 
