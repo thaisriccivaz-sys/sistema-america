@@ -1314,6 +1314,14 @@ window.navigateToTab = function (tabId) {
     // Se a aba tem dados de colaborador (prontuário ou form), restaura o viewedColaborador
     if (tab._colaboradorData) {
         viewedColaborador = tab._colaboradorData;
+        // Prontuário: a view é única, então recarrega o colaborador desta aba se a tela estiver mostrando outro
+        if (tab.target === 'prontuario') {
+            const _d = tab._colaboradorData;
+            const _idAtual = window.viewedColaborador && window.viewedColaborador.id;
+            if (_d.id && String(_idAtual) !== String(_d.id)) {
+                window.openProntuario(_d.id, _d.nome_completo || _d.nome || '', _d.cargo || '', _d.cpf || '', _d.sexo || '', _d.data_admissao || '', _d.status || '', _d.rg_tipo || 'RG');
+            }
+        }
     }
 };
 
