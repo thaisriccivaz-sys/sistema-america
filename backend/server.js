@@ -11483,6 +11483,18 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
                         }
                         if (_q && _v) results[currentEmployee]['INSAL'] = { qty: _q, val: _v };
                     }
+                    // PTS: se o código vier com texto de Prêmio por Tempo de Serviço
+                    if (/(?:PREMIO.*TEMPO|TEMPO.*SERVI|^PTS\b)/i.test(_descIns) && !results[currentEmployee]['397']) {
+                        let _q = null, _v = null;
+                        for (let j = i + 1; j < parts.length; j++) {
+                            if (/^[\d.,:]+/.test(parts[j])) {
+                                if (_q === null) _q = parts[j].match(/^[\d.,:]+/)[0];
+                                else if (_v === null) _v = parts[j].match(/^[\d.,:]+/)[0];
+                            }
+                            if (_v !== null) break;
+                        }
+                        if (_q && _v) results[currentEmployee]['397'] = { qty: _q, val: _v };
+                    }
                 }
 
                 // Codigo de rubrica = numero sozinho ou seguido de espaco+descricao ("256 Adicional...").

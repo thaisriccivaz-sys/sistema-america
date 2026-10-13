@@ -131,9 +131,10 @@ window._fechamento = (function () {
         const valorHora = salario / horasNormais;
         const valorExtra60 = extra60h * valorHora * 1.6;
         const valorExtra100 = extra100h * valorHora * 2.0;
+        const ptsVal = (parseInt(row.pts) === 1 || parseInt(row.folha_pts) === 1) ? (parseFloat(row.folha_pts_valor) || 0) : (parseFloat(row.pts) || 0);
         const totalBruto = salario + insalubridade + periculosidade + plr
                          + valorExtra60 + valorExtra100 + parseFloat(row.comissao || 0)
-                         + parseFloat(row.bonus_comissao || 0) + parseFloat(row.premio || 0) + parseFloat(row.pts || 0);
+                         + parseFloat(row.bonus_comissao || 0) + parseFloat(row.premio || 0) + ptsVal;
         const inss = calcINSS(totalBruto);
         const baseIRRF = totalBruto - inss;
         const irrf = calcIRRF(baseIRRF);
@@ -1164,7 +1165,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td id="fech-cell-premio-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
-<td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'pts',row.pts||0,'0.00','0.01')}</td>
+<td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;background:#dbeafe;text-align:center;" data-original-bg="#dbeafe" title="${(montarTooltipCelula(idx, 'pts')||'').replace(/"/g, '&quot;')}"><span style="font-size:.75rem;font-weight:600;pointer-events:none;color:${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? '#16a34a' : '#9ca3af'};">${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? 'Sim' : '-'}</span></td>
 <td id="fech-cell-outros-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
@@ -1194,7 +1195,7 @@ function abrirLegenda() {
     function isCampoMoeda(campo) {
         return [
             'farmacia', 'mercado', 'multas', 'academia', 'adiantamento',
-            'consignado', 'comissao', 'bonus_comissao', 'premio', 'pts', 'outros',
+            'consignado', 'comissao', 'bonus_comissao', 'premio', 'outros',
             'plr', 'sindicato', 'pensao', 'valor_tercio_ferias', 'adicional_noturno'
         ].includes(campo);
     }
@@ -1299,6 +1300,15 @@ function abrirLegenda() {
             (_sd || []).forEach(function(d) {
                 linhas.push('Sinistro ' + (d.parcela_num || 1) + '/' + (d.total_parcelas || 1) + ' - Parcela R$' + formatBRL(parseFloat(d.valor_parcela) || 0) + ' - Total R$' + formatBRL(parseFloat(d.valor_total) || 0));
             });
+        }
+
+        // 1c. PTS (Prêmio por Tempo de Serviço): mostrar valor cadastrado no sistema quando ativo
+        if (fKey === 'pts') {
+            const temPts = parseInt(r.folha_pts) === 1 || parseInt(r.pts) === 1 || parseFloat(r.pts) > 0;
+            const valPtsCad = parseFloat(r.folha_pts_valor) || 0;
+            if (temPts) {
+                linhas.push('Valor cadastrado: R$ ' + formatBRL(valPtsCad));
+            }
         }
 
         // 2. Detalhes de edição manual (quando houver)
@@ -2251,13 +2261,13 @@ function abrirLegenda() {
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             const ativo = parseInt(row.folha_pts) === 1;
-            const val = ativo ? (parseFloat(row.folha_pts_valor) || 0) : 0;
-            if (val > 0) atualizados++;
+            const val = ativo ? 1 : 0;
+            if (ativo) atualizados++;
             _dados[idx].pts = val;
             const cell = document.getElementById('fech-cell-pts-' + idx);
             if (cell) {
-                const inp = cell.querySelector('input');
-                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+                cell.innerHTML = '<span style="font-size:.75rem;font-weight:600;pointer-events:none;color:' + (ativo ? '#16a34a' : '#9ca3af') + ';">' + (ativo ? 'Sim' : '-') + '</span>';
+                cell.title = montarTooltipCelula(idx, 'pts');
             }
             atualizar(idx, 'pts', val);
         });
@@ -3711,7 +3721,7 @@ function abrirLegenda() {
                 { field: 'comissao', cellId: 'comissao', code: '37', type: 'val', label: 'Comissão' },
                 { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
                 { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
-                { field: 'pts', cellId: 'pts', code: '397', type: 'val', label: 'PTS' },
+                { field: 'pts', cellId: 'pts', code: '397', type: 'pts_flag', label: 'PTS' },
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
@@ -3843,6 +3853,30 @@ function abrirLegenda() {
                             }
                             marcarErro(idx, cellId, `Contabilidade: ${msgFolha}`);
                             colabErros.push(`${m.label}: Tabela ${fmtF(uiTem)} x Folha ${msgFolha}`);
+                            qtdErros++;
+                        }
+                    } else if (m.type === 'pts_flag') {
+                        const folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                        const folhaQtd = rubrica ? parseToFloat(rubrica.qty) : 0;
+                        const folhaTem = !!rubrica && (folhaVal > 0 || folhaQtd > 0);
+                        const uiTem = (parseInt(row.folha_pts) === 1 || parseInt(row.pts) === 1 || parseFloat(row.pts) > 0);
+                        const valCad = parseFloat(row.folha_pts_valor) || 0;
+                        const valCadFmt = 'R$ ' + formatBRL(valCad);
+
+                        if (folhaTem && uiTem) {
+                            // Se tiver algum valor no PDF e tiver Sim no sistema -> NÃO destaca em vermelho
+                            let tdPts = document.getElementById(`fech-cell-${cellId}-${idx}`);
+                            if (tdPts) tdPts.title = montarTooltipCelula(idx, 'pts');
+                        } else if (!folhaTem && uiTem) {
+                            // Se tiver sem valor mas tem Sim no cadastro -> destaca em vermelho e tooltip mostra valor cadastrado
+                            marcarErro(idx, cellId, 'Contabilidade: em branco');
+                            colabErros.push(`PTS: Tabela Sim (${valCadFmt}) x Folha em branco`);
+                            qtdErros++;
+                        } else if (folhaTem && !uiTem) {
+                            // Folha tem valor mas sistema não tem Sim -> divergência
+                            const msgFolha = `R$ ${formatBRL(folhaVal)}`;
+                            marcarErro(idx, cellId, `Contabilidade: ${msgFolha}`);
+                            colabErros.push(`PTS: Tabela - x Folha ${msgFolha}`);
                             qtdErros++;
                         }
                     } else if (m.type === 'qty') {
