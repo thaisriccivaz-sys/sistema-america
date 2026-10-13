@@ -6539,7 +6539,7 @@ app.get('/api/fechamento/sinistros-prontuario/:ano/:mes', authenticateToken, asy
 
             if (!existing && !manualCobrada) {
                 await _sinRunP('INSERT INTO sinistros_cobranca_historico (sinistro_id, mes, ano, parcela_num, valor_parcela) VALUES (?, ?, ?, ?, ?)', [s.id, mesNum, anoNum, parcelaNum, valorFinal]);
-            } else if (existing && !manualCobrada && Math.abs(existing.valor_parcela - valorFinal) > 0.001) {
+            } else if (existing && !manualCobrada && (Math.abs(existing.valor_parcela - valorFinal) > 0.001 || parseInt(existing.parcela_num) !== parcelaNum)) {
                 await _sinRunP('UPDATE sinistros_cobranca_historico SET valor_parcela = ?, parcela_num = ? WHERE id = ?', [valorFinal, parcelaNum, existing.id]);
             } else if (existing && manualCobrada) {
                 await _sinRunP('DELETE FROM sinistros_cobranca_historico WHERE id = ?', [existing.id]);

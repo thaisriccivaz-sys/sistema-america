@@ -2679,9 +2679,11 @@ window._sinMontarParcelas = function(s, hist) {
     var lista = [];
     for (var i = 1; i <= num; i++) {
         var c = cfg.find(function(x) { return parseInt(x.num) === i; });
-        var h = hist.find(function(x) { return parseInt(x.parcela_num) === i; });
+        var maPrev = (c && c.mes && c.ano) ? { mes: parseInt(c.mes), ano: parseInt(c.ano) } : window._sinMesAno(base, i);
+        var h = hist.find(function(x) { return parseInt(x.mes) === maPrev.mes && parseInt(x.ano) === maPrev.ano; })
+            || hist.find(function(x) { return parseInt(x.parcela_num) === i; });
         var valor = (c && c.valor !== undefined) ? (parseFloat(c.valor) || 0) : (h ? (parseFloat(h.valor_parcela) || 0) : (total / num));
-        var ma = (c && c.mes && c.ano) ? { mes: parseInt(c.mes), ano: parseInt(c.ano) } : (h ? { mes: parseInt(h.mes), ano: parseInt(h.ano) } : window._sinMesAno(base, i));
+        var ma = (c && c.mes && c.ano) ? { mes: parseInt(c.mes), ano: parseInt(c.ano) } : (h ? { mes: parseInt(h.mes), ano: parseInt(h.ano) } : maPrev);
         lista.push({ num: i, valor: valor, mes: ma.mes, ano: ma.ano, cobrado: !!h || !!(c && c.alert) });
     }
     return lista;
