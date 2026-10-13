@@ -1158,7 +1158,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
-<td style="padding:.35rem .3rem;background:#dbeafe;" id="fech-cell-sindicato-${idx}">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
+<td id="fech-cell-sindicato-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-dias-ferias-${idx}">${inpNum(idx,'dias_ferias',row.dias_ferias||0,'0','1')}</td>
 <td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-tercio-ferias-${idx}">${inpNum(idx,'valor_tercio_ferias',row.valor_tercio_ferias||0,'0.00','0.01')}</td>
@@ -3596,7 +3596,8 @@ function abrirLegenda() {
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
-                { field: 'sindicato', cellId: 'sindicato', code: ['823', '52'], type: 'val', label: 'Sindicato' }
+                { field: 'sindicato', cellId: 'sindicato', code: ['823', '52'], type: 'val', label: 'Sindicato' },
+                { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' }
             ];
 
             // Limpar marcações anteriores de comparação
