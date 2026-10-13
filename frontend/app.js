@@ -2521,7 +2521,7 @@ window.toggleHabilitacaoD = function (val) {
 };
 
 window.toggleFolhaField = function(campo, valor) {
-    const mapa = { insalubridade: 'section-folha-insalubridade', periculosidade: 'section-folha-periculosidade', sindical: 'section-folha-sindical', pensao: 'section-folha-pensao', plr: 'section-folha-plr', vr: 'section-folha-vr', va: 'section-folha-va' };
+    const mapa = { insalubridade: 'section-folha-insalubridade', periculosidade: 'section-folha-periculosidade', sindical: 'section-folha-sindical', pensao: 'section-folha-pensao', plr: 'section-folha-plr', vr: 'section-folha-vr', va: 'section-folha-va', pts: 'section-folha-pts' };
     const el = document.getElementById(mapa[campo]);
     if (!el) return;
     el.style.display = (valor === '1' || valor === 'Sim') ? '' : 'none';
@@ -4928,6 +4928,10 @@ window.editColaborador = async function (id) {
         const _folhaVaRad = document.querySelector(`input[name="folha_va"][value="${c.folha_va ? '1' : '0'}"]`);
         if (_folhaVaRad) { _folhaVaRad.checked = true; toggleFolhaField('va', _folhaVaRad.value); }
         if (document.getElementById('colab-folha-va-valor')) document.getElementById('colab-folha-va-valor').value = formatarMoedaLimpaValor(c.folha_va_valor);
+        // Prêmio por Tempo de Serviço - PTS (Folha)
+        const _folhaPtsRad = document.querySelector(`input[name="folha_pts"][value="${c.folha_pts ? '1' : '0'}"]`);
+        if (_folhaPtsRad) { _folhaPtsRad.checked = true; toggleFolhaField('pts', _folhaPtsRad.value); }
+        if (document.getElementById('colab-folha-pts-valor')) document.getElementById('colab-folha-pts-valor').value = formatarMoedaLimpaValor(c.folha_pts_valor);
         // ── fim 7. Folha ────────────────────────────────────────────────────────────
 
         // Add selected keys row by row
@@ -5268,7 +5272,9 @@ if (formColab) {
             folha_vr: parseInt(document.querySelector('input[name="folha_vr"]:checked')?.value) || 0,
             folha_vr_valor: parseMoeda(document.getElementById('colab-folha-vr-valor')?.value) || 0,
             folha_va: parseInt(document.querySelector('input[name="folha_va"]:checked')?.value) || 0,
-            folha_va_valor: parseMoeda(document.getElementById('colab-folha-va-valor')?.value) || 0
+            folha_va_valor: parseMoeda(document.getElementById('colab-folha-va-valor')?.value) || 0,
+            folha_pts: parseInt(document.querySelector('input[name="folha_pts"]:checked')?.value) || 0,
+            folha_pts_valor: parseMoeda(document.getElementById('colab-folha-pts-valor')?.value) || 0
         };
 
         // Converter valores formatados (R$) para números antes de enviar

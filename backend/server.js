@@ -4207,11 +4207,12 @@ db.run("ALTER TABLE colaboradores ADD COLUMN admissao_responsavel_nome TEXT", (e
     'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
     'academia_desconto_valor',
     'folha_vr', 'folha_vr_valor',
-    'folha_va', 'folha_va_valor'
+    'folha_va', 'folha_va_valor',
+    'folha_pts', 'folha_pts_valor'
 ].forEach((col) => {
     let def = 'TEXT';
-    if (['folha_periculosidade','folha_insalubridade','folha_mensalidade_sindical','folha_plr','folha_vr','folha_va'].includes(col)) def = 'INTEGER DEFAULT 0';
-    else if (['folha_periculosidade_valor','folha_mensalidade_sindical_valor','folha_pensao_pct','folha_plr_valor','academia_desconto_valor','folha_vr_valor','folha_va_valor'].includes(col)) def = 'REAL DEFAULT 0';
+    if (['folha_periculosidade','folha_insalubridade','folha_mensalidade_sindical','folha_plr','folha_vr','folha_va','folha_pts'].includes(col)) def = 'INTEGER DEFAULT 0';
+    else if (['folha_periculosidade_valor','folha_mensalidade_sindical_valor','folha_pensao_pct','folha_plr_valor','academia_desconto_valor','folha_vr_valor','folha_va_valor','folha_pts_valor'].includes(col)) def = 'REAL DEFAULT 0';
     else if (col === 'folha_insalubridade_valor') def = 'REAL DEFAULT 324.20';
     else if (col === 'folha_plr_meses') def = "TEXT DEFAULT '[]'";
     else if (col === 'folha_plr_valor') def = 'REAL DEFAULT 800';
@@ -4300,6 +4301,9 @@ db.run("ALTER TABLE fechamento_mensal ADD COLUMN divergencias_comparacao TEXT DE
 });
 db.run("ALTER TABLE fechamento_mensal ADD COLUMN multas_detalhes TEXT DEFAULT '[]'", function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] multas_detalhes:', e.message);
+});
+db.run('ALTER TABLE fechamento_mensal ADD COLUMN pts REAL DEFAULT 0', function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] pts:', e.message);
 });
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
@@ -4846,7 +4850,8 @@ app.post('/api/colaboradores', authenticateToken, (req, res) => {
         'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
         'academia_desconto_valor',
         'folha_vr', 'folha_vr_valor',
-        'folha_va', 'folha_va_valor'
+        'folha_va', 'folha_va_valor',
+        'folha_pts', 'folha_pts_valor'
     ];
 
     const values = colunas.map(col => {
@@ -5486,7 +5491,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
         'folha_plr', 'folha_plr_valor', 'folha_plr_meses',
         'academia_desconto_valor',
         'folha_vr', 'folha_vr_valor',
-        'folha_va', 'folha_va_valor'
+        'folha_va', 'folha_va_valor',
+        'folha_pts', 'folha_pts_valor'
     ];
 
     const allowedColunas = colunas;
@@ -10234,6 +10240,7 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
                 c.folha_mensalidade_sindical, c.folha_mensalidade_sindical_valor,
                 c.folha_pensao_tipo, c.folha_pensao_pct,
                 c.folha_plr, c.folha_plr_valor, c.folha_plr_meses,
+                c.folha_pts, c.folha_pts_valor,
                 c.data_admissao, c.cpf, c.escala_tipo
          FROM colaboradores c
          LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
@@ -10277,8 +10284,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
          plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
-         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao, multas_detalhes)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao, multas_detalhes, pts)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10301,6 +10308,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             edicoes_manuais=excluded.edicoes_manuais,
             divergencias_comparacao=excluded.divergencias_comparacao,
             multas_detalhes=excluded.multas_detalhes,
+            pts=excluded.pts,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10319,7 +10327,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.dias_ferias || 0, item.valor_tercio_ferias || 0, item.total_trabalhado || null,
                 typeof item.edicoes_manuais === 'object' ? JSON.stringify(item.edicoes_manuais || {}) : (item.edicoes_manuais || '{}'),
                 typeof item.divergencias_comparacao === 'object' ? JSON.stringify(item.divergencias_comparacao || {}) : (item.divergencias_comparacao || '{}'),
-                typeof item.multas_detalhes === 'object' ? JSON.stringify(item.multas_detalhes || []) : (item.multas_detalhes || '[]')
+                typeof item.multas_detalhes === 'object' ? JSON.stringify(item.multas_detalhes || []) : (item.multas_detalhes || '[]'),
+                item.pts || 0
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
@@ -11117,13 +11126,13 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '290', '16', '149', '-', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '-', '']);
 
         // Linha 6: headers
         aoa.push([
             'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
-            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
+            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'PTS', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
         ]);
 
@@ -11162,6 +11171,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                 formatNum(comissao),
                 formatNum(r.plr),
                 formatNum(r.premio),
+                formatNum(r.pts),
                 formatNum(r.outros),
                 r.insalubridade ? 'Sim' : '',
                 r.periculosidade ? 'Sim' : '',
@@ -11171,7 +11181,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         }
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(23).fill({ wch: 12 })];
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(24).fill({ wch: 12 })];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -11215,7 +11225,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         
         const results = {};
         let currentEmployee = null;
-        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '290', '16', '193', '601', '9435', '353'];
+        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '397', '290', '16', '193', '601', '9435', '353'];
 
         for (const _lineOrig of allLines) {
             let line = _lineOrig;
@@ -11350,13 +11360,13 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '290', '16', '149', '-', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '-', '']);
 
         // Linha 6: headers
         aoa.push([
             'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
             'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
-            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'Outros',
+            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'PTS', 'Outros',
             'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
         ]);
 
@@ -11395,6 +11405,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
                 formatNum(comissao),
                 formatNum(r.plr),
                 formatNum(r.premio),
+                formatNum(r.pts),
                 formatNum(r.outros),
                 r.insalubridade ? 'Sim' : '',
                 r.periculosidade ? 'Sim' : '',
@@ -11404,7 +11415,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         }
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(23).fill({ wch: 12 })];
+        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(24).fill({ wch: 12 })];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

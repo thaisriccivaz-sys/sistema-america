@@ -32,7 +32,7 @@
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=1791551450617v8" defer></script>
-    <script src="fechamento.js?v=1791913000000" defer></script>
+    <script src="fechamento.js?v=1791914000000" defer></script>
     <style>
 .bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
 .fav-btn, .btn-favorite { display: none !important; }
@@ -2725,6 +2725,23 @@
                                             </div>
                                             <div id="section-folha-va" class="opcional-details-box" style="display:none;">
                                                 <div class="input-group"><label>Valor Mensal Fixo (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-va-valor"  value="0" min="0" placeholder="Ex: 300.00"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Prêmio por Tempo de Serviço (PTS) -->
+                                        <div class="opcional-item">
+                                            <div class="opcional-info">
+                                                <h4><i class="ph ph-medal"></i> Prêmio por Tempo de Serviço</h4>
+                                                <div class="opcional-question-row">
+                                                    <span class="opcional-question">Recebe Prêmio por Tempo de Serviço (PTS)?</span>
+                                                    <div class="radio-pill-group">
+                                                        <label><input type="radio" name="folha_pts" value="0" checked onchange="toggleFolhaField('pts',this.value)"> Não</label>
+                                                        <label><input type="radio" name="folha_pts" value="1" onchange="toggleFolhaField('pts',this.value)"> Sim</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div id="section-folha-pts" class="opcional-details-box" style="display:none;">
+                                                <div class="input-group"><label>Valor (R$)</label><input type="text" inputmode="decimal" oninput="mascaraMoedaLimpa(this)" id="colab-folha-pts-valor"  value="0" min="0" placeholder="Ex: 150.00"></div>
                                             </div>
                                         </div>
 
@@ -6441,7 +6458,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=1791550714718"></script>
-    <script src="app.js?v=1791911000000"></script>
+    <script src="app.js?v=1791914000000"></script>
     <script src="frota_resumo.js?v=1778869020176"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->

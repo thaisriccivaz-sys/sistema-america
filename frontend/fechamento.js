@@ -133,7 +133,7 @@ window._fechamento = (function () {
         const valorExtra100 = extra100h * valorHora * 2.0;
         const totalBruto = salario + insalubridade + periculosidade + plr
                          + valorExtra60 + valorExtra100 + parseFloat(row.comissao || 0)
-                         + parseFloat(row.bonus_comissao || 0) + parseFloat(row.premio || 0);
+                         + parseFloat(row.bonus_comissao || 0) + parseFloat(row.premio || 0) + parseFloat(row.pts || 0);
         const inss = calcINSS(totalBruto);
         const baseIRRF = totalBruto - inss;
         const irrf = calcIRRF(baseIRRF);
@@ -777,6 +777,11 @@ function abrirLegenda() {
           <i class="ph ph-fire"></i> Buscar Periculosidade
         </button>
   
+        <!-- Buscar PTS -->
+        <button onclick="window._fechamento.buscarPTS()" style="background:#1e40af;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca Prêmio por Tempo de Serviço do cadastro do colaborador">
+          <i class="ph ph-medal"></i> Buscar PTS
+        </button>
+
         <!-- Buscar Sindicato -->
         <button onclick="window._fechamento.buscarSindicato()" style="background:#1e3a8a;color:#fff;border:none;padding:.4rem .85rem;border-radius:.4rem;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:.35rem;" title="Busca mensalidade sindical do cadastro do colaborador">
           <i class="ph ph-users"></i> Buscar Sindicato
@@ -857,6 +862,7 @@ function abrirLegenda() {
 
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#14532d;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>PLR</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">873</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Pr&ecirc;mio</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">347</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;" title="Pr&ecirc;mio por Tempo de Servi&ccedil;o"><strong>PTS</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">397</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Outros</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">290</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Insalub.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">16</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Periculosidade</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">149</span></th>
@@ -1134,7 +1140,8 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#ecfdf5;" id="fech-cell-comissao-${idx}">${inpNum(idx,'comissao',row.comissao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
+<td id="fech-cell-premio-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
+<td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'pts',row.pts||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
@@ -1164,7 +1171,7 @@ function abrirLegenda() {
     function isCampoMoeda(campo) {
         return [
             'farmacia', 'mercado', 'multas', 'academia', 'adiantamento',
-            'consignado', 'comissao', 'bonus_comissao', 'premio', 'outros',
+            'consignado', 'comissao', 'bonus_comissao', 'premio', 'pts', 'outros',
             'plr', 'sindicato', 'pensao', 'valor_tercio_ferias', 'adicional_noturno'
         ].includes(campo);
     }
@@ -2158,6 +2165,26 @@ function abrirLegenda() {
         Swal.fire({ title: 'Sindicato', text: atualizados + ' colaborador(es) com sindicato preenchidos.', icon: 'info' });
     }
 
+    function buscarPTS() {
+        if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('pts');
+        let atualizados = 0;
+        _dados.forEach((row, idx) => {
+            const ativo = parseInt(row.folha_pts) === 1;
+            const val = ativo ? (parseFloat(row.folha_pts_valor) || 0) : 0;
+            if (val > 0) atualizados++;
+            _dados[idx].pts = val;
+            const cell = document.getElementById('fech-cell-pts-' + idx);
+            if (cell) {
+                const inp = cell.querySelector('input');
+                if (inp) inp.value = val > 0 ? window._fechamento.formatBRL(val) : '';
+            }
+            atualizar(idx, 'pts', val);
+        });
+        salvarSilencioso();
+        Swal.fire({ title: 'PTS', text: atualizados + ' colaborador(es) com Prêmio por Tempo de Serviço preenchidos.', icon: 'info' });
+    }
+
     function buscarPensao() {
         if (!_dados || _dados.length === 0) return;
         limparEdicoesColuna('pensao');
@@ -2221,6 +2248,7 @@ function abrirLegenda() {
         try { buscarInsalubridade(); } catch(e) { msgs.push(`<strong>Erro Insalubridade</strong>: ${e.message}`); }
         try { buscarPericulosidade(); } catch(e) { msgs.push(`<strong>Erro Periculosidade</strong>: ${e.message}`); }
         try { buscarSindicato(); } catch(e) { msgs.push(`<strong>Erro Sindicato</strong>: ${e.message}`); }
+        try { buscarPTS(); } catch(e) { msgs.push(`<strong>Erro PTS</strong>: ${e.message}`); }
         try { buscarPensao(); } catch(e) { msgs.push(`<strong>Erro Pens\u00e3o</strong>: ${e.message}`); }
         try { buscarVT(); } catch(e) { msgs.push(`<strong>Erro VT</strong>: ${e.message}`); }
         try { buscarAdiantamento(); } catch(e) { msgs.push(`<strong>Erro Adiantamento</strong>: ${e.message}`); }
@@ -2583,6 +2611,7 @@ function abrirLegenda() {
                     comissao: parseFloat(row.comissao) || 0,
                     bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                     premio: parseFloat(row.premio) || 0,
+                    pts: parseFloat(row.pts) || 0,
                     plr: parseFloat(row.plr) || 0,
                     adiantamento: parseFloat(row.adiantamento) || 0,
                     insalubridade: parseFloat(row.insalubridade) || 0,
@@ -2641,6 +2670,7 @@ function abrirLegenda() {
                 comissao: parseFloat(row.comissao) || 0,
                 bonus_comissao: parseFloat(row.bonus_comissao) || 0,
                 premio: parseFloat(row.premio) || 0,
+                    pts: parseFloat(row.pts) || 0,
                 plr: parseFloat(row.plr) || 0,
                     adiantamento: parseFloat(row.adiantamento) || 0,
                 insalubridade: parseFloat(row.insalubridade) || 0,
@@ -3535,6 +3565,7 @@ function abrirLegenda() {
                 { field: 'comissao', cellId: 'comissao', code: '37', type: 'val', label: 'Comissão' },
                 { field: 'plr', cellId: 'plr', code: '873', type: 'val', label: 'PLR' },
                 { field: 'premio', cellId: 'premio', code: '347', type: 'val', label: 'Prêmio' },
+                { field: 'pts', cellId: 'pts', code: '397', type: 'val', label: 'PTS' },
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
@@ -3817,7 +3848,7 @@ function abrirLegenda() {
         abrirConferenciaPonto,
         uploadFarmacia, uploadConsignado, uploadMercadoPdfs, salvarSilencioso, verFarmacia, verConsignado, verMercado, buscarPontoTodos,
         abrirModalMercado, fecharModalMercado, parseMercado,
-        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarAdiantamento, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarTodos,
+        carregarMultas, carregarPLR, buscarComissao, buscarAcademia, buscarVT, buscarAdiantamento, buscarInsalubridade, buscarPericulosidade, buscarSindicato, buscarPensao, buscarPTS, buscarTodos,
         gerarXlsx, abrirModalEmail, fecharModalEmail, enviarEmail,
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
