@@ -3225,6 +3225,8 @@ function abrirLegenda() {
         r.data_faltas = '';
         r.dsr = '';
         r.horas_atraso = '';
+        r.dias_ferias = 0;
+        r.valor_tercio_ferias = 0;
         var pontoCols = ['horas_normais', 'horas_trabalhadas', 'horas_noturnas', 'extra_60', 'extra_100', 'dias_falta', 'data_faltas', 'dsr', 'horas_atraso', 'total_trabalhado', 'dias_intermitente', 'dias_ferias', 'valor_tercio_ferias'];
         if (r.edicoes_manuais) {
             pontoCols.forEach(function(col) {

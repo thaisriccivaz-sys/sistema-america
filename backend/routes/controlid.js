@@ -424,8 +424,10 @@ router.get('/ponto-colaborador', async (req, res) => {
             apuracaoData.forEach(d => {
                 if (d.isFerias) return; // já marcado pela lookup acima
 
-                // Hardcode de emergência para o ID 3916 (Férias) descoberto via log
-                if (d.idJustification == 3916) {
+                // Ferias = justificativa do tipo 4 (idJustificationType). O idJustification e' o id de CADA
+                // lancamento (ex.: 3916 so e' o lancamento do Pedro), nao do tipo. Outros tipos (5, 12...)
+                // sao afastamento/abono/atestado e NAO sao ferias.
+                if (d.idJustification && parseInt(d.idJustificationType) === 4) {
                     d.isFerias = true;
                     d.toolTipAlert = d.nomeJustificativa || 'Férias';
                     return;
@@ -439,21 +441,14 @@ router.get('/ponto-colaborador', async (req, res) => {
                 const dtObj = new Date(dtStr + 'T12:00:00');
                 const diaSem = !isNaN(dtObj.getTime()) ? dtObj.getDay() : -1;
 
-                // Critério A: tem idJustification + todas as marcações são _typeRegister='I'
-                const todasI = marcacoesF.length > 0 && marcacoesF.every(m => m._typeRegister === 'I');
-                if (todasI && d.idJustification) {
-                    d.isFerias = true;
-                    d.toolTipAlert = 'Férias';
-                    console.log(`[ControlID] Férias detectada (todasI+idJust): ${d.date || d.dateTimeStr}`);
-                    return;
-                }
+                // Critério A removido: justificativa + marcacoes 'I' tambem ocorre em afastamento/abono/atestado
+                // (tipos 5, 12...). Ferias agora so por idJustificationType === 4 (acima) ou nome da justificativa.
 
                 // Critério B: SAB ou DOM + todas as marcações têm hora=0 (injeção automática ControlID)
                 const todasHoraZero = marcacoesF.length > 0 && marcacoesF.every(m => (m.hora || 0) === 0);
                 if ((diaSem === 0 || diaSem === 6) && todasHoraZero) {
-                    d.isFerias = true;
-                    d.toolTipAlert = 'Férias';
-                    console.log(`[ControlID] Férias detectada em fds (hora=0): ${d.date || d.dateTimeStr} diaSem=${diaSem} registros=${marcacoesF.map(m=>m._typeRegister).join(',')}`);
+                    // So candidato: vira ferias apenas se encostado em dia de ferias confirmado (passo 2 abaixo)
+                    d._fdsHoraZero = true;
                     return;
                 }
 
@@ -472,6 +467,25 @@ router.get('/ponto-colaborador', async (req, res) => {
         }
 
         // ── PASSO 4: Processar resposta ───────────────────────────────────────
+        // Passo 2: fim de semana com marcacao zerada so conta como ferias se estiver colado em dia de
+        // ferias confirmado (tipo 4 / nome). Isso inclui sab/dom dentro do periodo e evita falso positivo.
+        if (Array.isArray(apuracaoData)) {
+            let _mudou = true;
+            while (_mudou) {
+                _mudou = false;
+                apuracaoData.forEach((d, i) => {
+                    if (d.isFerias || !d._fdsHoraZero) return;
+                    const ant = apuracaoData[i - 1];
+                    const prox = apuracaoData[i + 1];
+                    if ((ant && ant.isFerias) || (prox && prox.isFerias)) {
+                        d.isFerias = true;
+                        d.toolTipAlert = 'Férias';
+                        _mudou = true;
+                    }
+                });
+            }
+        }
+
         // IMPORTANTE: calcular diasFerias ANTES de processarApuracao.
         // Dentro de processarApuracao ha um JSON.parse que reconstroi os objetos,
         // perdendo as propriedades isFerias setadas por referencia no bloco acima.
