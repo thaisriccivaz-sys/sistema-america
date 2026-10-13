@@ -879,7 +879,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e40af;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;"><strong>Outros</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">290</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#065f46;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Insalub.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">16</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#78350f;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Periculosidade</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">149</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e3a8a;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Sindicato</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">-</span></th>
+            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e3a8a;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Sindicato</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">823 / 52</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#831843;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Pens&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 8783 — Dias de F&eacute;rias"><strong>Dias F&eacute;r.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8783</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 931 — 1/3 das F&eacute;rias"><strong>1/3 F&eacute;r. R$</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">931</span></th>
@@ -3596,7 +3596,7 @@ function abrirLegenda() {
                 { field: 'outros', cellId: 'outros', code: '290', type: 'val', label: 'Outros' },
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
-                { field: 'sindicato', cellId: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
+                { field: 'sindicato', cellId: 'sindicato', code: ['823', '52'], type: 'val', label: 'Sindicato' }
             ];
 
             // Limpar marcações anteriores de comparação
@@ -3692,11 +3692,18 @@ function abrirLegenda() {
                         }
                     } else if (m.type === 'val') {
                         let folhaVal;
-                        if (m.useQty === true) {
-                            // Nunca acontece pois noturno horas é type=time, mas por segurança
-                            folhaVal = rubrica ? parseToFloat(rubrica.qty) : 0;
+                        if (Array.isArray(m.code)) {
+                            let sum = 0;
+                            let anyFound = false;
+                            for (let code of m.code) {
+                                if (folhaRow[code]) {
+                                    sum += (m.useQty === true ? parseToFloat(folhaRow[code].qty) : parseToFloat(folhaRow[code].val));
+                                    anyFound = true;
+                                }
+                            }
+                            folhaVal = anyFound ? sum : 0;
                         } else {
-                            folhaVal = rubrica ? parseToFloat(rubrica.val) : 0;
+                            folhaVal = rubrica ? (m.useQty === true ? parseToFloat(rubrica.qty) : parseToFloat(rubrica.val)) : 0;
                         }
                         let uiValFloat = typeof uiVal === 'number' ? uiVal : parseToFloat(uiVal);
 

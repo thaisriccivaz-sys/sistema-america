@@ -11126,7 +11126,7 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '-', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '823 / 52', '']);
 
         // Linha 6: headers
         aoa.push([
@@ -11225,7 +11225,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
         
         const results = {};
         let currentEmployee = null;
-        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '397', '290', '16', '193', '601', '9435', '353'];
+        const allowedCodes = ['256', '264', '200', '250', '8792', '8794', '8060', '8069', '149', '48', '238', '279', '302', '278', '981', '9750', '37', '873', '347', '397', '290', '16', '193', '601', '9435', '353', '823', '52'];
 
         for (const _lineOrig of allLines) {
             let line = _lineOrig;
@@ -11360,7 +11360,7 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
         aoa.push([]);
 
         // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '-', '']);
+        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '823 / 52', '']);
 
         // Linha 6: headers
         aoa.push([
@@ -11643,7 +11643,7 @@ app.post('/api/fechamento/conferir', authenticateToken, async (req, res) => {
             db.all(`SELECT c.nome_completo, c.salario, c.cpf,
                            fm.extra_60, fm.extra_100, fm.farmacia, fm.academia,
                            fm.consignado, fm.vt, fm.multas, fm.mercado, fm.outros,
-                           fm.dias_falta, fm.horas_atraso, fm.plr, fm.comissao
+                           fm.dias_falta, fm.horas_atraso, fm.plr, fm.comissao, fm.sindicato
                     FROM colaboradores c
                     LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes=? AND fm.ano=?
                     WHERE c.status != 'Desligado'`,
@@ -11661,6 +11661,8 @@ app.post('/api/fechamento/conferir', authenticateToken, async (req, res) => {
             '48': 'vt_desc',
             '8069': 'atraso_desc',
             '8060': 'atraso_desc',
+            '823': 'sindicato',
+            '52': 'sindicato',
         };
 
         const divergencias = [];
