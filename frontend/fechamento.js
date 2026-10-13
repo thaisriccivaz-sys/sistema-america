@@ -3597,7 +3597,8 @@ function abrirLegenda() {
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
                 { field: 'sindicato', cellId: 'sindicato', code: ['823', '52'], type: 'val', label: 'Sindicato' },
-                { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' }
+                { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' },
+                { field: 'valor_tercio_ferias', cellId: 'tercio-ferias', code: '931', type: 'val', label: '1/3 Férias' }
             ];
 
             // Limpar marcações anteriores de comparação
