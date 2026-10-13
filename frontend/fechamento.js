@@ -882,7 +882,7 @@ function abrirLegenda() {
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#1e3a8a;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Sindicato</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">823 / 52</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#831843;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;"><strong>Pens&atilde;o</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">—</span></th>
             <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 8783 — Dias de F&eacute;rias"><strong>Dias F&eacute;r.</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">8783</span></th>
-            <th style="padding:.4rem .3rem;white-space:nowrap;position:sticky;top:0;background:#0369a1;z-index:10;box-shadow:inset 0 -1px 0 #cbd5e1;text-align:center;line-height:1.3;color:#fff;" title="Rubrica 931 — 1/3 das F&eacute;rias"><strong>1/3 F&eacute;r. R$</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">931</span></th>
+            <th style="display:none;" title="Rubrica 931 — 1/3 das F&eacute;rias"><strong>1/3 F&eacute;r. R$</strong><br><span style="font-size:.65rem;font-weight:400;opacity:.8;">931</span></th>
           </tr>
         </thead>
         <tbody id="fech-tbody"></tbody>
@@ -1161,7 +1161,7 @@ function abrirLegenda() {
 <td id="fech-cell-sindicato-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fce7f3;" id="fech-cell-pensao-${idx}">${inpNum(idx,'pensao',row.pensao||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-dias-ferias-${idx}">${inpNum(idx,'dias_ferias',row.dias_ferias||0,'0','1')}</td>
-<td style="padding:.35rem .3rem;background:#e0f2fe;" id="fech-cell-tercio-ferias-${idx}">${inpNum(idx,'valor_tercio_ferias',row.valor_tercio_ferias||0,'0.00','0.01')}</td>
+<td style="display:none;" id="fech-cell-tercio-ferias-${idx}">${inpNum(idx,'valor_tercio_ferias',row.valor_tercio_ferias||0,'0.00','0.01')}</td>
 
 `;
             tbody.appendChild(tr);
@@ -1230,6 +1230,7 @@ function abrirLegenda() {
         _dados.forEach((row, idx) => {
             if (!row.divergencias_comparacao) return;
             Object.keys(row.divergencias_comparacao).forEach(field => {
+                if (field === 'tercio-ferias' || field === 'valor_tercio_ferias') return;
                 const div = row.divergencias_comparacao[field];
                 if (div && (div.msg || div.texto)) {
                     marcarErro(idx, div.cellId || field, div.msg || div.texto, false);
@@ -3634,8 +3635,7 @@ function abrirLegenda() {
                 { field: 'insalubridade', cellId: 'insalubridade', code: 'INSAL', type: 'flag', label: 'Insalubridade', showValueOnDiff: true },
                 { field: 'periculosidade', cellId: 'periculosidade', code: '149', type: 'flag', label: 'Periculosidade', showValueOnDiff: true },
                 { field: 'sindicato', cellId: 'sindicato', code: ['823', '52'], type: 'val', label: 'Sindicato' },
-                { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' },
-                { field: 'valor_tercio_ferias', cellId: 'tercio-ferias', code: '931', type: 'val', label: '1/3 Férias' }
+                { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' }
             ];
 
             // Limpar marcações anteriores de comparação
