@@ -843,7 +843,7 @@ function abrirLegenda() {
 
   <!-- Tabela principal -->
   <div id="fech-tabela-wrap" style="display:none;">
-    <div id="fech-top-scroll" style="overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:4px;" onscroll="document.getElementById('fech-tabela-inner').scrollLeft = this.scrollLeft;">
+    <div id="fech-top-scroll" style="display:none; overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:4px;" onscroll="document.getElementById('fech-tabela-inner').scrollLeft = this.scrollLeft;">
       <div id="fech-top-scroll-content" style="height:14px;"></div>
     </div>
     <div id="fech-tabela-inner" style="overflow-x:auto; max-height: 65vh; overflow-y:auto; border-bottom:1px solid #e5e7eb;" onscroll="document.getElementById('fech-top-scroll').scrollLeft = this.scrollLeft;">
