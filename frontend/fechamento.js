@@ -993,7 +993,14 @@ function abrirLegenda() {
             });
             if (!resp.ok) throw new Error((await resp.json()).error || resp.statusText);
             _dados = await resp.json();
-                        _dados.forEach(row => {
+            _dados.forEach(row => {
+                row.edicoes_manuais = (function(em) {
+                    if (!em) return {};
+                    if (typeof em === 'object') return em;
+                    try { return JSON.parse(em) || {}; } catch(e) { return {}; }
+                })(row.edicoes_manuais);
+            });
+            _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
                 let atual = (row.dsr || '').trim().toUpperCase();
                 let isNao = atual.startsWith('N');
@@ -1117,6 +1124,179 @@ function abrirLegenda() {
     }
 
     
+    // ── Edições Manuais Persistentes & Destaque Visual ─────────────
+    function isCampoMoeda(campo) {
+        return [
+            'farmacia', 'mercado', 'multas', 'academia', 'adiantamento',
+            'consignado', 'comissao', 'bonus_comissao', 'premio', 'outros',
+            'plr', 'sindicato', 'pensao', 'valor_tercio_ferias', 'adicional_noturno'
+        ].includes(campo);
+    }
+
+    function isCampoHora(campo) {
+        return ['horas_normais', 'horas_trabalhadas', 'horas_noturnas', 'extra_60', 'extra_100', 'horas_atraso', 'total_trabalhado'].includes(campo);
+    }
+
+    function formatarValorParaTooltip(campo, val) {
+        if (isCampoMoeda(campo)) {
+            var v = parseFloat(val) || 0;
+            return 'R$' + formatBRL(v);
+        }
+        if (isCampoHora(campo)) {
+            return (val && val !== '0' && val !== '0:00') ? String(val).trim() : '00:00';
+        }
+        if (campo === 'dsr') {
+            var s = String(val || '').trim().toUpperCase();
+            return s.startsWith('S') ? 'S' : (s.startsWith('N') ? 'N' : 'em branco');
+        }
+        if (campo === 'dias_falta' || campo === 'dias_ferias') {
+            return String(parseInt(val) || 0);
+        }
+        if (campo === 'data_faltas') {
+            try {
+                var p = JSON.parse(val);
+                if (Array.isArray(p)) return p.join(', ') || 'em branco';
+            } catch(e) {}
+            return val ? String(val) : 'em branco';
+        }
+        if (campo === 'vt') {
+            return (val && val != '0') ? 'Sim' : 'em branco';
+        }
+        return (val !== null && val !== undefined && val !== '') ? String(val) : '—';
+    }
+
+    function valoresSaoIguais(campo, a, b) {
+        return String(a || '').trim().toUpperCase() === String(b || '').trim().toUpperCase();
+    }
+
+    function restaurarEstiloPadrao(idx, coluna) {
+        var mapIds = {
+            'horas_noturnas': 'noturno',
+            'consignado': 'consig',
+            'dias_ferias': 'dias-ferias',
+            'valor_tercio_ferias': 'tercio-ferias'
+        };
+        var cid = mapIds[coluna] || coluna;
+        var td = document.getElementById('fech-cell-' + cid + '-' + idx);
+        if (td) {
+            td.removeAttribute('data-manual-edit');
+            var isDivergente = td.style.background === 'rgb(254, 202, 202)';
+            if (!isDivergente) td.title = '';
+            else if (td.dataset.divMsg) td.title = td.dataset.divMsg;
+
+            var inp = td.querySelector('input');
+            if (inp) {
+                inp.style.color = '';
+                inp.style.fontWeight = '';
+                inp.removeAttribute('data-manual-edit');
+                if (!isDivergente) inp.title = '';
+                else if (td.dataset.divMsg) inp.title = td.dataset.divMsg;
+            }
+            var sel = td.querySelector('select');
+            if (sel) {
+                sel.style.color = '';
+                sel.style.fontWeight = '';
+                sel.removeAttribute('data-manual-edit');
+                if (!isDivergente) sel.title = '';
+                else if (td.dataset.divMsg) sel.title = td.dataset.divMsg;
+            }
+            var cifrao = td.querySelector('.fech-cifrao-span');
+            if (cifrao) {
+                cifrao.style.color = '#6b7280';
+                cifrao.style.fontWeight = '';
+            }
+        }
+    }
+
+    function limparEdicoesColuna(coluna) {
+        if (!_dados || !_dados.length) return;
+        _dados.forEach(function(r, idx) {
+            if (r.edicoes_manuais && r.edicoes_manuais[coluna]) {
+                delete r.edicoes_manuais[coluna];
+                restaurarEstiloPadrao(idx, coluna);
+            }
+        });
+    }
+
+    function limparEdicoesColunas(colunas) {
+        if (!Array.isArray(colunas)) colunas = [colunas];
+        colunas.forEach(limparEdicoesColuna);
+    }
+
+    function atualizarManual(idx, campo, novoValor, inputEl) {
+        if (!_dados[idx]) return;
+        var row = _dados[idx];
+        if (!row.edicoes_manuais) row.edicoes_manuais = {};
+
+        var valAnterior = row[campo];
+
+        // Atualiza valor em memória e aciona debounce de auto-save
+        atualizar(idx, campo, novoValor);
+
+        // Se ja temos registro dessa edicao manual, preservamos o "de" inicial original
+        var deFmt = '';
+        if (row.edicoes_manuais[campo] && row.edicoes_manuais[campo].de) {
+            deFmt = row.edicoes_manuais[campo].de;
+        } else {
+            deFmt = formatarValorParaTooltip(campo, valAnterior);
+        }
+
+        var paraFmt = formatarValorParaTooltip(campo, novoValor);
+
+        if (valoresSaoIguais(campo, deFmt, paraFmt)) {
+            // Voltou ao valor original antes da edição: remove o registro manual
+            delete row.edicoes_manuais[campo];
+            if (inputEl) {
+                inputEl.style.color = '';
+                inputEl.style.fontWeight = '';
+                inputEl.removeAttribute('data-manual-edit');
+                var td = inputEl.closest('td');
+                if (td) {
+                    td.removeAttribute('data-manual-edit');
+                    if (td.style.background === 'rgb(254, 202, 202)' && td.dataset.divMsg) {
+                        inputEl.title = td.dataset.divMsg;
+                        td.title = td.dataset.divMsg;
+                    } else {
+                        inputEl.title = '';
+                        td.title = '';
+                    }
+                }
+                var cifrao = inputEl.parentElement ? inputEl.parentElement.querySelector('.fech-cifrao-span') : null;
+                if (cifrao) {
+                    cifrao.style.color = '#6b7280';
+                    cifrao.style.fontWeight = '';
+                }
+            }
+        } else {
+            var texto = 'Editado: ' + deFmt + ' para ' + paraFmt;
+            row.edicoes_manuais[campo] = {
+                de: deFmt,
+                para: paraFmt,
+                texto: texto
+            };
+            if (inputEl) {
+                inputEl.style.color = '#dc2626';
+                inputEl.style.fontWeight = 'bold';
+                inputEl.setAttribute('data-manual-edit', 'true');
+                var td = inputEl.closest('td');
+                if (td) td.setAttribute('data-manual-edit', 'true');
+                var cifrao = inputEl.parentElement ? inputEl.parentElement.querySelector('.fech-cifrao-span') : null;
+                if (cifrao) {
+                    cifrao.style.color = '#dc2626';
+                    cifrao.style.fontWeight = 'bold';
+                }
+
+                // Se houver divergencia da contabilidade ativa nesta celula:
+                var fullTitle = texto;
+                if (td && td.style.background === 'rgb(254, 202, 202)' && td.dataset.divMsg) {
+                    fullTitle = texto + '\n' + td.dataset.divMsg;
+                }
+                inputEl.title = fullTitle;
+                if (td) td.title = fullTitle;
+            }
+        }
+    }
+
     function inpText(idx, campo, val, width) {
         var v = val || '';
         if (typeof v === 'string') {
@@ -1126,17 +1306,29 @@ function abrirLegenda() {
             } catch(e) { }
         }
         if (Array.isArray(v)) v = v.join(', ');
-        var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
+        var r = _dados[idx] || {};
+        var ed = (r.edicoes_manuais && r.edicoes_manuais[campo]) ? r.edicoes_manuais[campo] : null;
+        var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : '';
+        var tEdit = ed ? ' title="' + String(ed.texto || '').replace(/"/g, '&quot;') + '"' : '';
+        var attrEdit = ed ? ' data-manual-edit="true"' : '';
+        var oi = "window._fechamento.atualizarManual(" + idx + ",'" + campo + "',this.value,this)";
         return '<input type=\'text\' value=\'' + v.replace(/'/g, "&apos;") + '\''
-            + ' style=\'width:' + (width || '70px') + ';padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:left;font-size:.8rem;\' '
+            + tEdit + attrEdit
+            + ' style=\'width:' + (width || '70px') + ';padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:left;font-size:.8rem;' + stEdit + '\' '
             + ' oninput="' + oi + '" onblur="window._fechamento.salvarSilencioso();" onkeydown="if(event.key===\'Enter\')this.blur()">';
     }
     function inpHora(idx, campo, val) {
         var v = (val && val !== '00:00' && val !== '0:00' && val !== '0') ? val : '';
-        var oi = "window._fechamento.atualizar(" + idx + ",'" + campo + "',this.value)";
-        var ob = "if(this.value==='00:00'||this.value==='0:00'||this.value==='0'){this.value='';window._fechamento.atualizar(" + idx + ",'" + campo + "','');} window._fechamento.salvarSilencioso();";
+        var r = _dados[idx] || {};
+        var ed = (r.edicoes_manuais && r.edicoes_manuais[campo]) ? r.edicoes_manuais[campo] : null;
+        var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : '';
+        var tEdit = ed ? ' title="' + String(ed.texto || '').replace(/"/g, '&quot;') + '"' : '';
+        var attrEdit = ed ? ' data-manual-edit="true"' : '';
+        var oi = "window._fechamento.atualizarManual(" + idx + ",'" + campo + "',this.value,this)";
+        var ob = "if(this.value==='00:00'||this.value==='0:00'||this.value==='0'){this.value='';window._fechamento.atualizarManual(" + idx + ",'" + campo + "','',this);} window._fechamento.salvarSilencioso();";
         return '<input type=\'text\' placeholder=\'\'  value=\'' + (v||'') + '\''
-            + ' style=\'width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;\''
+            + tEdit + attrEdit
+            + ' style=\'width:55px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:center;font-size:.8rem;' + stEdit + '\''
             + ' oninput="' + oi + '"'
             + ' onblur="' + ob + '" onkeydown="if(event.key===\'Enter\')this.blur()">';
     }
@@ -1164,23 +1356,30 @@ function abrirLegenda() {
         if (v !== '') {
             displayVal = isMoney ? formatBRL(v) : String(v);
         }
-        var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;';
+        var r = _dados[idx] || {};
+        var ed = (r.edicoes_manuais && r.edicoes_manuais[campo]) ? r.edicoes_manuais[campo] : null;
+        var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : '';
+        var tEdit = ed ? ' title="' + String(ed.texto || '').replace(/"/g, '&quot;') + '"' : '';
+        var attrEdit = ed ? ' data-manual-edit="true"' : '';
+        var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;' + stEdit;
         var w = isMoney ? '65px' : '68px';
         var blurFn = isMoney
             ? "if(this.value){var pv=window._fechamento.parseBRL(this.value);if(pv!==0){this.value=window._fechamento.formatBRL(pv);}else{this.value='';}} window._fechamento.salvarSilencioso();"
             : "if(this.value && parseFloat(this.value)===0){this.value='';} window._fechamento.salvarSilencioso();";
         var oiFn = isMoney
-            ? "window._fechamento.atualizar(" + idx + ",'" + campo + "',window._fechamento.parseBRL(this.value))"
-            : "window._fechamento.atualizar(" + idx + ",'" + campo + "',parseFloat(this.value)||0)";
+            ? "window._fechamento.atualizarManual(" + idx + ",'" + campo + "',window._fechamento.parseBRL(this.value),this)"
+            : "window._fechamento.atualizarManual(" + idx + ",'" + campo + "',parseFloat(this.value)||0,this)";
         var inp = '<input type=\'text\' inputmode=\'decimal\''
             + ' value=\'' + displayVal + '\''
+            + tEdit + attrEdit
             + ' placeholder=\'\'  '
             + ' style=\'width:' + w + ';' + stComum + '\''
             + ' oninput="' + oiFn + '"'
             + ' onblur="' + blurFn + '">';
         if (isMoney) {
-            return '<div style=\'display:flex;align-items:center;gap:1px;\'>'
-                + '<span style=\'color:#6b7280;font-size:.75rem;margin-right:1px;\'>R$</span>'
+            var stSpan = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : 'color:#6b7280;';
+            return '<div style=\'display:flex;align-items:center;gap:1px;\'' + tEdit + '>'
+                + '<span class=\'fech-cifrao-span\' style=\'' + stSpan + 'font-size:.75rem;margin-right:1px;\'>R$</span>'
                 + inp + '</div>';
         }
         return inp;
@@ -1188,7 +1387,12 @@ function abrirLegenda() {
     function inpDsr(idx, val) {
         let isNao = (val || '').trim().toUpperCase().startsWith('N');
         let isSim = (val || '').trim().toUpperCase().startsWith('S');
-        return `<select style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;" onchange="window._fechamento.atualizar(${idx},'dsr',this.value)">
+        var r = _dados[idx] || {};
+        var ed = (r.edicoes_manuais && r.edicoes_manuais['dsr']) ? r.edicoes_manuais['dsr'] : null;
+        var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : '';
+        var tEdit = ed ? ` title="${String(ed.texto || '').replace(/"/g, '&quot;')}"` : '';
+        var attrEdit = ed ? ' data-manual-edit="true"' : '';
+        return `<select ${tEdit}${attrEdit} style="width:45px;padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;font-size:.8rem;${stEdit}" onchange="window._fechamento.atualizarManual(${idx},'dsr',this.value,this)">
             <option value="" ${(!isSim && !isNao)?'selected':''}></option>
             <option value="Não" ${isNao?'selected':''}>N</option>
             <option value="Sim" ${isSim?'selected':''}>S</option>
@@ -1286,6 +1490,7 @@ function abrirLegenda() {
             });
             var _STOP = { DE: 1, DA: 1, DO: 1, DAS: 1, DOS: 1, E: 1 };
             var _sig = function(s) { return s.split(' ').filter(function(w) { return w && !_STOP[w]; }); };
+            limparEdicoesColuna('farmacia');
             var pdfUsados = {};
             _dados.forEach((row, idx) => {
                 var cpf = (row.cpf || '').replace(/[.\-]/g, '');
@@ -1369,6 +1574,7 @@ function abrirLegenda() {
             let atualizados = 0;
             // Zerar coluna Consignado de TODOS antes de preencher com o novo XLSX
             // (um novo arquivo substitui o anterior; quem nao esta nele fica sem valor)
+            limparEdicoesColuna('consignado');
             _dados.forEach(function(r, i) {
                 r.consignado = 0;
                 var cellZ = document.getElementById('fech-cell-consig-' + i);
@@ -1467,6 +1673,7 @@ function abrirLegenda() {
                     if (ok) a.cands.push({ idx: idx, exato: exato });
                 });
             });
+            limparEdicoesColuna('mercado');
             var _porColab = {};
             _arqs.forEach(function(a) {
                 if (a.cands.some(function(c) { return c.exato; })) a.cands = a.cands.filter(function(c) { return c.exato; });
@@ -1510,6 +1717,7 @@ function abrirLegenda() {
     }
 
     function parseMercado() {
+        limparEdicoesColuna('mercado');
         const texto = document.getElementById('fech-mercado-texto').value || '';
         const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
         let atualizados = 0;
@@ -1557,6 +1765,7 @@ function abrirLegenda() {
     
         function buscarAdiantamento() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('adiantamento');
         let atualizados = 0;
         
         // Zera tudo primeiro
@@ -1593,6 +1802,7 @@ function abrirLegenda() {
 
     function buscarAcademia() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('academia');
         let atualizados = 0;
         let zerados = 0;
         _dados.forEach((row, idx) => {
@@ -1625,6 +1835,7 @@ function abrirLegenda() {
 
     function buscarVT() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('vt');
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             let val = 0;
@@ -1647,6 +1858,7 @@ function abrirLegenda() {
 
     function buscarInsalubridade() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('insalubridade');
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             const val = parseInt(row.folha_insalubridade) === 1 ? 1 : 0;
@@ -1664,6 +1876,7 @@ function abrirLegenda() {
 
     function buscarPericulosidade() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('periculosidade');
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             const val = parseInt(row.folha_periculosidade) === 1 ? 1 : 0;
@@ -1681,6 +1894,7 @@ function abrirLegenda() {
 
     function buscarSindicato() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('sindicato');
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             const val = parseInt(row.folha_mensalidade_sindical) === 1 ? (parseFloat(row.folha_mensalidade_sindical_valor) || 0) : 0;
@@ -1699,6 +1913,7 @@ function abrirLegenda() {
 
     function buscarPensao() {
         if (!_dados || _dados.length === 0) return;
+        limparEdicoesColuna('pensao');
         let atualizados = 0;
         _dados.forEach((row, idx) => {
             // Pensão: aplica percentual sobre salário base se tipo estiver definido
@@ -1826,6 +2041,7 @@ function abrirLegenda() {
             const json = await resp.json();
             if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
             
+            limparEdicoesColuna('multas');
             // LIMPAR DADOS ANTIGOS ANTES DE PREENCHER OS NOVOS
             _dados.forEach((r, idx) => {
                 _dados[idx].multas = 0;
@@ -1879,6 +2095,7 @@ function abrirLegenda() {
 
             let atualizados = 0;
 
+            limparEdicoesColunas(['comissao', 'bonus_comissao']);
             // Zerar coluna comissão e bônus para TODOS antes de preencher
             // (evita que valores antigos persistam quando alguém perde a meta)
             _dados.forEach(function(r, i) {
@@ -1973,6 +2190,7 @@ function abrirLegenda() {
             });
             const json = await resp.json();
             if (!Array.isArray(json)) throw new Error(json.error || 'Resposta inválida');
+            limparEdicoesColuna('plr');
             // Zerar a coluna PLR antes de preencher (valor antigo nao pode persistir)
             _dados.forEach(function(r, i) {
                 _dados[i].plr = 0;
@@ -2120,7 +2338,8 @@ function abrirLegenda() {
                     observacao: row.observacao,
                     dias_ferias: parseInt(row.dias_ferias) || 0,
                     valor_tercio_ferias: parseFloat(row.valor_tercio_ferias) || 0,
-                    total_trabalhado: row.total_trabalhado || null
+                    total_trabalhado: row.total_trabalhado || null,
+                    edicoes_manuais: JSON.stringify(row.edicoes_manuais || {})
                 };
             });
             await fetch('/api/fechamento/salvar', {
@@ -2173,6 +2392,7 @@ function abrirLegenda() {
                     sindicato: parseFloat(row.sindicato) || 0,
                 dias_intermitente: parseInt(row.dias_intermitente) || 0,
                 total_trabalhado: row.total_trabalhado || null,
+                edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
                 status: 'rascunho',
             };
         });
@@ -2655,6 +2875,11 @@ function abrirLegenda() {
         r.data_faltas = '';
         r.dsr = '';
         r.horas_atraso = '';
+        if (r.edicoes_manuais) {
+            ['horas_normais', 'horas_trabalhadas', 'horas_noturnas', 'extra_60', 'extra_100', 'dias_falta', 'data_faltas', 'dsr', 'horas_atraso', 'total_trabalhado', 'dias_intermitente', 'dias_ferias', 'valor_tercio_ferias'].forEach(function(col) {
+                delete r.edicoes_manuais[col];
+            });
+        }
     }
 
     // Aplica dados do RHID na linha do colaborador
@@ -3045,20 +3270,31 @@ function abrirLegenda() {
                 { field: 'sindicato', cellId: 'sindicato', code: '601', type: 'val', label: 'Sindicato' }
             ];
 
-            // Limpar
+            // Limpar marcações anteriores de comparação
             document.querySelectorAll('td[id^="fech-cell-"]').forEach(td => {
                 if (td.dataset.originalBg) td.style.background = td.dataset.originalBg;
-                td.title = '';
-                if (td.style.background === 'rgb(254, 202, 202)') td.style.background = 'transparent';
+                else td.style.background = 'transparent';
+                delete td.dataset.divMsg;
+
                 let inp = td.querySelector('input');
-                if (inp) {
-                    inp.style.background = '';
-                    inp.title = '';
-                }
                 let sel = td.querySelector('select');
-                if (sel) {
-                    sel.style.background = '';
-                    sel.title = '';
+                let el = inp || sel;
+                if (el) {
+                    el.style.background = '';
+                    if (el.dataset.manualEdit === 'true') {
+                        let mIdx = td.closest('tr') ? td.closest('tr').dataset.idx : null;
+                        let field = td.id.replace('fech-cell-', '').replace(new RegExp('-' + mIdx + '$'), '');
+                        let emTxt = (_dados[mIdx] && _dados[mIdx].edicoes_manuais && _dados[mIdx].edicoes_manuais[field])
+                            ? _dados[mIdx].edicoes_manuais[field].texto
+                            : el.title.split('\n')[0];
+                        el.title = emTxt;
+                        td.title = emTxt;
+                    } else {
+                        el.title = '';
+                        td.title = '';
+                    }
+                } else {
+                    td.title = '';
                 }
             });
 
@@ -3216,16 +3452,40 @@ function abrirLegenda() {
         if (td) {
             if (!td.dataset.originalBg) td.dataset.originalBg = td.style.background || 'transparent';
             td.style.background = '#fecaca';
-            td.title = msg;
+
+            let divLinha = '';
+            if (msg.startsWith('Contabilidade:')) {
+                divLinha = 'Divergente: ' + msg.replace(/^Contabilidade:\s*/, 'Contabilidade ').replace('R$ ', '');
+            } else if (msg.startsWith('Divergente:')) {
+                divLinha = msg;
+            } else {
+                divLinha = 'Divergente: ' + msg;
+            }
+            td.dataset.divMsg = divLinha;
+
+            let row = _dados[idx];
+            let ed = row && row.edicoes_manuais && row.edicoes_manuais[field];
+            let fullTitle = ed ? (ed.texto + '\n' + divLinha) : msg;
+
+            td.title = fullTitle;
+
             let inp = td.querySelector('input');
             if (inp) {
                 inp.style.background = '#fef2f2';
-                inp.title = msg;
+                if (ed) {
+                    inp.style.color = '#dc2626';
+                    inp.style.fontWeight = 'bold';
+                }
+                inp.title = fullTitle;
             }
             let sel = td.querySelector('select');
             if (sel) {
                 sel.style.background = '#fef2f2';
-                sel.title = msg;
+                if (ed) {
+                    sel.style.color = '#dc2626';
+                    sel.style.fontWeight = 'bold';
+                }
+                sel.title = fullTitle;
             }
         }
     }
@@ -3240,7 +3500,8 @@ function abrirLegenda() {
         mudarAba, gerarLinksComissao, carregarStatusComissao, enviarEmailsComissao,
         reenviarComissao, importarComissaoParaFechamento,
         uploadFolhaContabilidade, conferirFolha,
-        calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL
+        calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL,
+        atualizarManual
     };
 })();
 

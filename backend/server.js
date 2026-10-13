@@ -4292,6 +4292,9 @@ db.run('ALTER TABLE fechamento_mensal ADD COLUMN valor_tercio_ferias REAL DEFAUL
 db.run('ALTER TABLE fechamento_mensal ADD COLUMN total_trabalhado TEXT', function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] total_trabalhado:', e.message);
 });
+db.run("ALTER TABLE fechamento_mensal ADD COLUMN edicoes_manuais TEXT DEFAULT '{}'", function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] edicoes_manuais:', e.message);
+});
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
@@ -10268,8 +10271,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
          plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
-         dias_ferias, valor_tercio_ferias, total_trabalhado)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10289,6 +10292,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             dias_ferias=excluded.dias_ferias,
             valor_tercio_ferias=excluded.valor_tercio_ferias,
             total_trabalhado=excluded.total_trabalhado,
+            edicoes_manuais=excluded.edicoes_manuais,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10304,7 +10308,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.plr || 0, item.pensao || 0, item.sindicato || 0, item.dias_intermitente || 0,
                 item.status || 'rascunho', item.email_contabilidade || 'thais.ricci@americarental.com.br',
                 item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0,
-                item.dias_ferias || 0, item.valor_tercio_ferias || 0, item.total_trabalhado || null
+                item.dias_ferias || 0, item.valor_tercio_ferias || 0, item.total_trabalhado || null,
+                typeof item.edicoes_manuais === 'object' ? JSON.stringify(item.edicoes_manuais || {}) : (item.edicoes_manuais || '{}')
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
