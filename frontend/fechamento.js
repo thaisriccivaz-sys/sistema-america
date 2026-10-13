@@ -1004,7 +1004,35 @@ function abrirLegenda() {
                     if (typeof dc === 'object') return dc;
                     try { return JSON.parse(dc) || {}; } catch(e) { return {}; }
                 })(row.divergencias_comparacao);
+                row.multas_detalhes = (function(md) {
+                    if (!md) return [];
+                    if (Array.isArray(md)) return md;
+                    try { return JSON.parse(md) || []; } catch(e) { return []; }
+                })(row.multas_detalhes);
             });
+
+            // Se há colaboradores com multas mas sem multas_detalhes persistido, busca os detalhes da API
+            const precisaBuscarMultasDetalhes = _dados.some(r => parseFloat(r.multas) > 0 && (!r.multas_detalhes || r.multas_detalhes.length === 0));
+            if (precisaBuscarMultasDetalhes) {
+                try {
+                    const respMultas = await fetch(`/api/fechamento/multas-prontuario/${_ano}/${_mes}`, {
+                        headers: { 'Authorization': 'Bearer ' + getToken() }
+                    });
+                    if (respMultas.ok) {
+                        const mJson = await respMultas.json();
+                        if (Array.isArray(mJson)) {
+                            mJson.forEach(item => {
+                                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
+                                if (idx >= 0 && item.detalhes && item.detalhes.length > 0) {
+                                    _dados[idx].multas_detalhes = item.detalhes;
+                                }
+                            });
+                        }
+                    }
+                } catch(eM) {
+                    console.warn('[fechamento] Detalhes de multas:', eM);
+                }
+            }
             _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
                 let atual = (row.dsr || '').trim().toUpperCase();
@@ -1099,7 +1127,7 @@ function abrirLegenda() {
 <td id="fech-cell-vt-${idx}" style="padding:.35rem .3rem;text-align:center;"><span style="font-size:.75rem;font-weight:600;color:${_dados[idx].vt ? '#16a34a' : '#9ca3af'};">${_dados[idx].vt ? 'Sim' : '—'}</span><input type="hidden" oninput="atualizar(${idx},'vt',this.value)" value="${_dados[idx].vt ? 1 : 0}"></td>
 <td style="padding:.35rem .3rem;background:#f0f9ff;" id="fech-cell-farmacia-${idx}">${inpNum(idx,'farmacia',row.farmacia||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#fffbeb;" id="fech-cell-mercado-${idx}">${inpNum(idx,'mercado',row.mercado||0,'0.00','0.01')}</td>
-<td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
+<td style="padding:.35rem .3rem;background:#fff1f2;" id="fech-cell-multas-${idx}" title="${(montarTooltipCelula(idx, 'multas')||'').replace(/"/g, '&quot;')}">${inpNum(idx,'multas',row.multas||0,'0.00','0.01')}</td>
 <td id="fech-cell-academia-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'academia',_dados[idx].academia,'0.00','0.01')}</td>
 <td id="fech-cell-adiantamento-${idx}" style="padding:.35rem .3rem;background:#f0fdfa;">${inpNum(idx,'adiantamento',row.adiantamento||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#faf5ff;" id="fech-cell-consig-${idx}">${inpNum(idx,'consignado',row.consignado||0,'0.00','0.01')}</td>
@@ -1189,6 +1217,48 @@ function abrirLegenda() {
         });
     }
 
+    function montarTooltipCelula(idx, campo) {
+        var r = (_dados && _dados[idx]) ? _dados[idx] : {};
+        var linhas = [];
+
+        // 1. Detalhes de parcelas de multas (quando houver)
+        if (campo === 'multas' && r.multas_detalhes && Array.isArray(r.multas_detalhes) && r.multas_detalhes.length > 0) {
+            r.multas_detalhes.forEach(function(d) {
+                var pNum = d.parcela_num || 1;
+                var pTot = d.total_parcelas || 1;
+                var vParc = parseFloat(d.valor_parcela) || 0;
+                var vTot = parseFloat((d.valor_total !== undefined && d.valor_total !== null) ? d.valor_total : (vParc * pTot)) || 0;
+                linhas.push(pNum + '/' + pTot + ' - Parcela R$' + formatBRL(vParc) + ' - Total R$' + formatBRL(vTot));
+            });
+        }
+
+        // 2. Detalhes de edição manual (quando houver)
+        if (r.edicoes_manuais && r.edicoes_manuais[campo] && r.edicoes_manuais[campo].texto) {
+            linhas.push(r.edicoes_manuais[campo].texto);
+        }
+
+        // 3. Detalhes de divergência da comparação (quando houver)
+        if (r.divergencias_comparacao && r.divergencias_comparacao[campo]) {
+            var div = r.divergencias_comparacao[campo];
+            var txtDiv = div.texto || div.msg || '';
+            if (txtDiv) linhas.push(txtDiv);
+        } else {
+            var mapIds = {
+                'horas_noturnas': 'noturno',
+                'consignado': 'consig',
+                'dias_ferias': 'dias-ferias',
+                'valor_tercio_ferias': 'tercio-ferias'
+            };
+            var cid = mapIds[campo] || campo;
+            var td = document.getElementById('fech-cell-' + cid + '-' + idx);
+            if (td && td.dataset && td.dataset.divMsg && !linhas.includes(td.dataset.divMsg)) {
+                linhas.push(td.dataset.divMsg);
+            }
+        }
+
+        return linhas.join('\n');
+    }
+
     function restaurarEstiloPadrao(idx, coluna) {
         var mapIds = {
             'horas_noturnas': 'noturno',
@@ -1198,11 +1268,12 @@ function abrirLegenda() {
         };
         var cid = mapIds[coluna] || coluna;
         var td = document.getElementById('fech-cell-' + cid + '-' + idx);
+        var baseTip = montarTooltipCelula(idx, coluna);
         if (td) {
             td.removeAttribute('data-manual-edit');
             delete td.dataset.divMsg;
             td.style.background = td.dataset.originalBg || 'transparent';
-            td.title = '';
+            td.title = baseTip;
 
             var inp = td.querySelector('input');
             if (inp) {
@@ -1210,7 +1281,7 @@ function abrirLegenda() {
                 inp.style.fontWeight = '';
                 inp.style.background = '';
                 inp.removeAttribute('data-manual-edit');
-                inp.title = '';
+                inp.title = baseTip;
             }
             var sel = td.querySelector('select');
             if (sel) {
@@ -1218,7 +1289,7 @@ function abrirLegenda() {
                 sel.style.fontWeight = '';
                 sel.style.background = '';
                 sel.removeAttribute('data-manual-edit');
-                sel.title = '';
+                sel.title = baseTip;
             }
             var cifrao = td.querySelector('.fech-cifrao-span');
             if (cifrao) {
@@ -1271,19 +1342,19 @@ function abrirLegenda() {
         }
 
         var paraFmt = formatarValorParaTooltip(campo, novoValor);
-        var divMsg = (td && td.dataset.divMsg) || (row.divergencias_comparacao && row.divergencias_comparacao[campo] && (row.divergencias_comparacao[campo].texto || row.divergencias_comparacao[campo].msg));
 
         if (valoresSaoIguais(campo, deFmt, paraFmt)) {
             // Voltou ao valor original antes da edição: remove o registro manual
             delete row.edicoes_manuais[campo];
+            var fullTitle = montarTooltipCelula(idx, campo);
             if (inputEl) {
                 inputEl.style.color = '';
                 inputEl.style.fontWeight = '';
                 inputEl.removeAttribute('data-manual-edit');
                 if (td) {
                     td.removeAttribute('data-manual-edit');
-                    inputEl.title = divMsg || '';
-                    td.title = divMsg || '';
+                    inputEl.title = fullTitle;
+                    td.title = fullTitle;
                 }
                 var cifrao = inputEl.parentElement ? inputEl.parentElement.querySelector('.fech-cifrao-span') : null;
                 if (cifrao) {
@@ -1298,6 +1369,7 @@ function abrirLegenda() {
                 para: paraFmt,
                 texto: texto
             };
+            var fullTitle = montarTooltipCelula(idx, campo);
             if (inputEl) {
                 inputEl.style.color = '#dc2626';
                 inputEl.style.fontWeight = 'bold';
@@ -1309,7 +1381,6 @@ function abrirLegenda() {
                     cifrao.style.fontWeight = 'bold';
                 }
 
-                var fullTitle = divMsg ? (texto + '\n' + divMsg) : texto;
                 inputEl.title = fullTitle;
                 if (td) td.title = fullTitle;
             }
@@ -1378,7 +1449,8 @@ function abrirLegenda() {
         var r = _dados[idx] || {};
         var ed = (r.edicoes_manuais && r.edicoes_manuais[campo]) ? r.edicoes_manuais[campo] : null;
         var stEdit = ed ? 'color:#dc2626 !important;font-weight:bold !important;' : '';
-        var tEdit = ed ? ' title="' + String(ed.texto || '').replace(/"/g, '&quot;') + '"' : '';
+        var tipCell = montarTooltipCelula(idx, campo);
+        var tEdit = tipCell ? ' title="' + String(tipCell).replace(/"/g, '&quot;') + '"' : '';
         var attrEdit = ed ? ' data-manual-edit="true"' : '';
         var stComum = 'padding:.2rem;border:1px solid #e5e7eb;border-radius:.3rem;text-align:right;font-size:.8rem;' + stEdit;
         var w = isMoney ? '65px' : '68px';
@@ -2064,8 +2136,9 @@ function abrirLegenda() {
             // LIMPAR DADOS ANTIGOS ANTES DE PREENCHER OS NOVOS
             _dados.forEach((r, idx) => {
                 _dados[idx].multas = 0;
+                _dados[idx].multas_detalhes = [];
                 const cell = document.getElementById(`fech-cell-multas-${idx}`);
-                if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = ''; }
+                if (cell) { const inp = cell.querySelector('input'); if (inp) { inp.value = ''; inp.title = ''; } cell.title = ''; }
                 atualizar(idx, 'multas', 0);
             });
 
@@ -2079,8 +2152,15 @@ function abrirLegenda() {
                 const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
                 if (idx >= 0) {
                     _dados[idx].multas = item.valor_total;
+                    _dados[idx].multas_detalhes = item.detalhes || [];
                     const cell = document.getElementById(`fech-cell-multas-${idx}`);
-                    if (cell) { const inp = cell.querySelector('input'); if (inp) inp.value = window._fechamento.formatBRL(item.valor_total); }
+                    if (cell) {
+                        const inp = cell.querySelector('input');
+                        if (inp) inp.value = window._fechamento.formatBRL(item.valor_total);
+                        const tip = montarTooltipCelula(idx, 'multas');
+                        cell.title = tip;
+                        if (inp) inp.title = tip;
+                    }
                     atualizar(idx, 'multas', item.valor_total);
                 }
             });
@@ -2359,7 +2439,8 @@ function abrirLegenda() {
                     valor_tercio_ferias: parseFloat(row.valor_tercio_ferias) || 0,
                     total_trabalhado: row.total_trabalhado || null,
                     edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
-                    divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {})
+                    divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {}),
+                    multas_detalhes: JSON.stringify(row.multas_detalhes || [])
                 };
             });
             await fetch('/api/fechamento/salvar', {
@@ -2414,6 +2495,7 @@ function abrirLegenda() {
                 total_trabalhado: row.total_trabalhado || null,
                 edicoes_manuais: JSON.stringify(row.edicoes_manuais || {}),
                 divergencias_comparacao: JSON.stringify(row.divergencias_comparacao || {}),
+                multas_detalhes: JSON.stringify(row.multas_detalhes || []),
                 status: 'rascunho',
             };
         });
@@ -3509,14 +3591,14 @@ function abrirLegenda() {
                 };
             }
 
-            let ed = row && row.edicoes_manuais && row.edicoes_manuais[field];
-            let fullTitle = ed ? (ed.texto + '\n' + divLinha) : msg;
+            let fullTitle = montarTooltipCelula(idx, field);
 
             td.title = fullTitle;
 
             let inp = td.querySelector('input');
             if (inp) {
                 inp.style.background = '#fef2f2';
+                let ed = row && row.edicoes_manuais && row.edicoes_manuais[field];
                 if (ed) {
                     inp.style.color = '#dc2626';
                     inp.style.fontWeight = 'bold';
@@ -3526,6 +3608,7 @@ function abrirLegenda() {
             let sel = td.querySelector('select');
             if (sel) {
                 sel.style.background = '#fef2f2';
+                let ed = row && row.edicoes_manuais && row.edicoes_manuais[field];
                 if (ed) {
                     sel.style.color = '#dc2626';
                     sel.style.fontWeight = 'bold';
@@ -3546,7 +3629,7 @@ function abrirLegenda() {
         reenviarComissao, importarComissaoParaFechamento,
         uploadFolhaContabilidade, conferirFolha,
         calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL,
-        atualizarManual
+        atualizarManual, montarTooltipCelula
     };
 })();
 

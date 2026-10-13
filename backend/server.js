@@ -4298,6 +4298,9 @@ db.run("ALTER TABLE fechamento_mensal ADD COLUMN edicoes_manuais TEXT DEFAULT '{
 db.run("ALTER TABLE fechamento_mensal ADD COLUMN divergencias_comparacao TEXT DEFAULT '{}'", function(e) {
     if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] divergencias_comparacao:', e.message);
 });
+db.run("ALTER TABLE fechamento_mensal ADD COLUMN multas_detalhes TEXT DEFAULT '[]'", function(e) {
+    if (e && !e.message.includes('duplicate') && !e.message.includes('already')) console.error('[Migration] multas_detalhes:', e.message);
+});
 
 // Migration: limpar DSR 'Nao' padrão antigo para NULL (branco = nao selecionado)
 db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) {
@@ -10274,8 +10277,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
          vt, farmacia, mercado, outros, multas, academia, consignado,
          comissao, bonus_comissao, premio, insalubridade, periculosidade,
          plr, pensao, sindicato, dias_intermitente, status, email_contabilidade, adicional_noturno, observacao, adiantamento,
-         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         dias_ferias, valor_tercio_ferias, total_trabalhado, edicoes_manuais, divergencias_comparacao, multas_detalhes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(mes, ano, colaborador_id) DO UPDATE SET
             horas_normais=excluded.horas_normais, horas_trabalhadas=excluded.horas_trabalhadas,
             horas_noturnas=excluded.horas_noturnas, dias_falta=excluded.dias_falta,
@@ -10297,6 +10300,7 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
             total_trabalhado=excluded.total_trabalhado,
             edicoes_manuais=excluded.edicoes_manuais,
             divergencias_comparacao=excluded.divergencias_comparacao,
+            multas_detalhes=excluded.multas_detalhes,
             updated_at=CURRENT_TIMESTAMP`);
     try {
         const saveItem = (item) => new Promise((resolve, reject) => {
@@ -10314,7 +10318,8 @@ app.post('/api/fechamento/salvar', authenticateToken, (req, res) => {
                 item.adicional_noturno || 0, item.observacao || null, item.adiantamento || 0,
                 item.dias_ferias || 0, item.valor_tercio_ferias || 0, item.total_trabalhado || null,
                 typeof item.edicoes_manuais === 'object' ? JSON.stringify(item.edicoes_manuais || {}) : (item.edicoes_manuais || '{}'),
-                typeof item.divergencias_comparacao === 'object' ? JSON.stringify(item.divergencias_comparacao || {}) : (item.divergencias_comparacao || '{}')
+                typeof item.divergencias_comparacao === 'object' ? JSON.stringify(item.divergencias_comparacao || {}) : (item.divergencias_comparacao || '{}'),
+                typeof item.multas_detalhes === 'object' ? JSON.stringify(item.multas_detalhes || []) : (item.multas_detalhes || '[]')
             ], (err) => err ? reject(err) : resolve());
         });
         Promise.all(itens.map(saveItem))
@@ -11011,7 +11016,8 @@ app.get('/api/fechamento/multas-prontuario/:ano/:mes', authenticateToken, async 
                 descricao: m.motivo || m.numero_ait || 'Multa',
                 parcela_num: parcelaNum,
                 total_parcelas: numParcelas,
-                valor_parcela: valorFinal
+                valor_parcela: valorFinal,
+                valor_total: valorTotal
             });
         }
 
