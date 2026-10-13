@@ -1489,6 +1489,36 @@ function abrirLegenda() {
         });
     }
 
+    // Limpa TODAS as divergencias da comparacao com a folha (dados + visual).
+    // Chamado ao buscar ponto / buscar todos / anexar farmacia, mercado ou consignado.
+    // Nao mexe em edicoes manuais. A divergencia so volta com nova comparacao (PDF da folha).
+    function limparDivergenciasComparacao() {
+        if (_dados && _dados.length) {
+            _dados.forEach(function(r) { if (r) r.divergencias_comparacao = {}; });
+        }
+        document.querySelectorAll('td[id^="fech-cell-"]').forEach(function(td) {
+            if (!td.dataset.divMsg && !td.dataset.confirmadoPor) return;
+            delete td.dataset.divMsg;
+            delete td.dataset.confirmadoPor;
+            td.style.background = td.dataset.originalBg || 'transparent';
+            td.style.outline = '';
+            td.style.outlineOffset = '';
+            var el = td.querySelector('input') || td.querySelector('select');
+            if (el) {
+                el.classList.remove('fech-borda-verde');
+                el.style.background = '';
+                el.style.border = '1px solid #e5e7eb';
+            }
+            var tr = td.closest('tr');
+            var mIdx = tr ? tr.dataset.idx : null;
+            var field = td.id.replace('fech-cell-', '');
+            if (mIdx !== null && mIdx !== undefined) field = field.replace(new RegExp('-' + mIdx + '$'), '');
+            var tip = (mIdx !== null && mIdx !== undefined) ? (montarTooltipCelula(parseInt(mIdx), field) || '') : '';
+            td.title = tip;
+            if (el) el.title = tip;
+        });
+    }
+
     function limparEdicoesColuna(coluna) {
         if (!_dados || !_dados.length) return;
         _dados.forEach(function(r, idx) {
@@ -1733,6 +1763,7 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     async function uploadFarmacia(input) {
         if (!input.files[0]) return;
+        limparDivergenciasComparacao();
         const formData = new FormData();
         formData.append('pdf', input.files[0]);
         formData.append('mes', _mes);
@@ -1838,6 +1869,7 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     async function uploadConsignado(input) {
         if (!input.files[0]) return;
+        limparDivergenciasComparacao();
         const formData = new FormData();
         formData.append('xlsx', input.files[0]);
         formData.append('mes', _mes);
@@ -1900,6 +1932,7 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     async function uploadMercadoPdfs(input) {
         if (!input.files || input.files.length === 0) return;
+        limparDivergenciasComparacao();
         var files = Array.from(input.files);
         var formData = new FormData();
         files.forEach(function(f) { formData.append('pdfs', f); });
@@ -2248,6 +2281,7 @@ function abrirLegenda() {
     }
 
     async function buscarTodos() {
+        limparDivergenciasComparacao();
         const msgs = [];
         const originalSwal = Swal.fire;
         const originalAlert = window.alert;
@@ -3385,6 +3419,7 @@ function abrirLegenda() {
 
     async function buscarPontoTodos() {
         if (!_mes || !_ano) { Swal.fire({ icon: "warning", text: "Busque um mês antes de carregar o ponto." }); return; }
+        limparDivergenciasComparacao();
         var btn = document.getElementById("fech-btn-buscar-ponto");
         var badge = document.getElementById("fech-badge-ponto");
         if (btn) { btn.disabled = true; btn.innerHTML = "<i class=\"ph ph-spinner\"></i> Buscando..."; }
