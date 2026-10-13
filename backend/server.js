@@ -9221,12 +9221,16 @@ app.get('/api/colaboradores/:id/arquivo/cpf_rg', (req, res) => {
     db.get('SELECT id, nome_completo FROM colaboradores WHERE id = ?', [req.params.id], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
 
-        db.get("SELECT file_path, file_name FROM documentos WHERE colaborador_id = ? AND (document_type LIKE '%CPF%' OR document_type LIKE '%RG%' OR file_name LIKE '%CPF%' OR file_name LIKE '%RG%') ORDER BY id DESC LIMIT 1", [req.params.id], (err3, rowDoc) => {
-            if (!err3 && rowDoc && rowDoc.file_path && require('fs').existsSync(rowDoc.file_path)) {
-                return res.download(rowDoc.file_path, rowDoc.file_name || `Doc_Pessoal_${encodeURIComponent(row.nome_completo)}.pdf`);
-            } else {
+        db.all("SELECT id, tab_name, document_type, file_name, file_path, r2_key, signed_r2_key, signed_file_path FROM documentos WHERE colaborador_id = ? AND (document_type LIKE '%CPF%' OR document_type LIKE '%RG%' OR file_name LIKE '%CPF%' OR file_name LIKE '%RG%') ORDER BY id DESC", [req.params.id], (err3, docs) => {
+            const norm = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const reDep = /dependente|conjuge|esposa|esposo|companheir|filho|filha/;
+            const cands = (docs || []).filter(d => (d.signed_r2_key || d.r2_key || d.signed_file_path || d.file_path) &&
+                !reDep.test(norm(d.tab_name) + ' ' + norm(d.document_type) + ' ' + norm(d.file_name)));
+            const escolhido = cands.find(d => /ficha[_ ]?cadastral/.test(norm(d.tab_name))) || cands[0];
+            if (err3 || !escolhido) {
                 return res.status(404).send(`Nenhum arquivo de CPF ou RG cadastrado para ${row.nome_completo || 'este colaborador'}. Acesse o prontuario Digital para anexar.`);
             }
+            return res.redirect(`/api/documentos/download/${escolhido.id}?token=${encodeURIComponent(token)}`);
         });
     });
 });
