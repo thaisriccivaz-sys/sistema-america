@@ -11753,6 +11753,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
     if (!viewedColaborador || !container) return;
     // container.innerHTML = '<p class="text-muted"><i class="ph ph-spinner ph-spin"></i> Carregando Documentos...</p>';
     try {
+        const _norm = s => (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const safeGet = async (url) => {
             try {
                 const r = await apiGet(url);
@@ -11811,8 +11812,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         );
 
         // Garantir que Contrato de Comissão esteja em autoGeradores para colaboradores do Comercial
-        const _normDeptColab = s => (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const isComercialColab = _normDeptColab(deptNome).includes('comercial') || _normDeptColab(c.departamento).includes('comercial');
+        const isComercialColab = _norm(deptNome).includes('comercial') || _norm(c.departamento).includes('comercial');
         if (isComercialColab) {
             const comissaoG = geradoresElegiveis.find(g => _norm(g.nome) === 'contrato de comissao');
             if (comissaoG && !autoGeradores.some(g => g.id === comissaoG.id)) {
@@ -11877,8 +11877,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         // filteredDocs: apenas documentos da aba CONTRATOS_AVULSOS
         const filteredDocs = docs.filter(d => d.tab_name === 'CONTRATOS_AVULSOS');
 
-        // Normalização para matching de nomes
-        const _norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        // Normalização para matching de nomes (declarada no início da função)
 
         // Função para encontrar doc correspondente a um gerador
         const _findDocForGerador = (g) => {
