@@ -11315,16 +11315,16 @@ app.get('/api/fechamento/plr/:ano/:mes', authenticateToken, (req, res) => {
     });
 });
 
-app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
-    try {
-        const { mes, ano } = req.body;
-        if (!mes || !ano) return res.status(400).json({ error: 'Mês/ano obrigatórios' });
-        const XLSX = require('xlsx');
-        const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        const mesNome = mesesNomes[parseInt(mes) - 1] || mes;
-        // Gerar o buffer do XLSX
-        const rows = await new Promise((resolve, reject) => {
+// ── Função unificada para gerar o XLSX estilizado do Fechamento (ExcelJS + Logo + Roxo) ──
+async function gerarBufferFechamentoXlsx({ mes, ano, rows }) {
+    const ExcelJS = require('exceljs');
+    const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const mesNome = mesesNomes[parseInt(mes, 10) - 1] || mes;
+
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+        rows = await new Promise((resolve, reject) => {
             db.all(`SELECT c.nome_completo, c.cargo, c.cpf, c.tipo_contrato, c.meio_transporte,
+                           c.folha_insalubridade, c.folha_periculosidade,
                            fm.*,
                            fc_com.valor_comissao, fc_com.valor_bonus,
                            fcons.valor_total as consig_total
@@ -11335,76 +11335,248 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
                     WHERE c.status != 'Desligado'
                     ORDER BY c.nome_completo ASC`,
                 [mes, ano, mes, ano, mes, ano],
-                (err, rows) => err ? reject(err) : resolve(rows.filter(r => !fechamentoColabOculto(r.nome_completo)))
+                (err, rList) => err ? reject(err) : resolve((rList || []).filter(r => !fechamentoColabOculto(r.nome_completo)))
             );
         });
+    }
 
-        const aoa = [];
-        aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
-        aoa.push([]);
-        aoa.push(['AMERICA RENTAL']);
-        aoa.push([]);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'América Rental - Sistema RH';
+    wb.created = new Date();
 
-        // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '823 / 52', '']);
+    const sheetName = `${mesNome} ${ano}`.substring(0, 31);
+    const ws = wb.addWorksheet(sheetName, {
+        views: [{ showGridLines: true, state: 'frozen', xSplit: 2, ySplit: 6 }]
+    });
 
-        // Linha 6: headers
-        aoa.push([
-            'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
-            'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
-            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'PTS', 'Outros',
-            'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
-        ]);
+    // Logo oficial da empresa no topo
+    const logoPaths = [
+        path.join(__dirname, 'assets', 'logo-excel-fechamento.jpg'),
+        path.join(__dirname, '../frontend/assets', 'logo-excel-fechamento.jpg'),
+        path.join(__dirname, 'assets', 'logo-header.png'),
+        path.join(__dirname, '../frontend/assets', 'logo-header.png')
+    ];
+    let logoPath = logoPaths.find(p => fs.existsSync(p));
+    if (logoPath) {
+        try {
+            const ext = logoPath.toLowerCase().endsWith('.png') ? 'png' : 'jpeg';
+            const imgId = wb.addImage({
+                filename: logoPath,
+                extension: ext
+            });
+            ws.addImage(imgId, {
+                tl: { col: 0.1, row: 0.2 },
+                ext: { width: 195, height: 52 }
+            });
+        } catch (eImg) {
+            console.warn('[gerar-xlsx] Não foi possível embutir o logo:', eImg.message);
+        }
+    }
 
-        const formatNum = (v) => v ? { v: parseFloat(v) || 0, t: 'n', z: '"R$" * #,##0.00' } : { v: '', t: 's' };
-        const formatHora = (v) => {
-            if (!v) return { v: '', t: 's' };
-            const [h, m] = String(v).split(':').map(Number);
-            if (isNaN(h) || isNaN(m)) return { v: String(v), t: 's' };
-            return { v: (h + m / 60) / 24, t: 'n', z: '[hh]:mm' };
+    ws.getRow(1).height = 14;
+    ws.getRow(2).height = 24;
+    ws.getRow(3).height = 18;
+    ws.getRow(4).height = 8;
+    ws.getRow(5).height = 18; // Rubricas
+    ws.getRow(6).height = 28; // Headers
+
+    // Título e identificação institucional
+    ws.mergeCells('D2:AC2');
+    const tCell = ws.getCell('D2');
+    tCell.value = `FECHAMENTO MENSAL DE FOLHA DE PAGAMENTO — ${mesNome.toUpperCase()}/${ano}`;
+    tCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF4C1D95' } };
+    tCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    ws.mergeCells('D3:AC3');
+    const sCell = ws.getCell('D3');
+    const dataHoraStr = new Date().toLocaleString('pt-BR');
+    sCell.value = `AMERICA RENTAL EQUIPAMENTOS LTDA  |  Gerado em ${dataHoraStr}`;
+    sCell.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF6B21A8' } };
+    sCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+    // Definição das 29 colunas da tabela de fechamento
+    const columnsDef = [
+        { key: 'colaborador',    header: 'Colaborador',    rubrica: '—',         width: 32, align: 'left' },
+        { key: 'cargo',          header: 'Cargo',          rubrica: '—',         width: 24, align: 'left' },
+        { key: 'intermitente',   header: 'Inter.',         rubrica: 'Dias',      width: 10, align: 'center', isInt: true },
+        { key: 'total_trab',     header: 'Total Trab.',    rubrica: 'HH:MM',     width: 12, align: 'center' },
+        { key: 'total_noturno',  header: 'Total Noturno',  rubrica: '256',       width: 13, align: 'center' },
+        { key: 'extra_60',       header: 'Ext.60%',        rubrica: '264',       width: 11, align: 'center' },
+        { key: 'extra_100',      header: 'Ext.100%',       rubrica: '200',       width: 11, align: 'center' },
+        { key: 'faltas',         header: 'Faltas',         rubrica: '8794',      width: 10, align: 'center', isInt: true },
+        { key: 'dias_faltas',    header: 'Dias Faltas',    rubrica: '—',         width: 20, align: 'center' },
+        { key: 'dsr',            header: 'DSR',            rubrica: '8792',      width: 9,  align: 'center' },
+        { key: 'atrasos',        header: 'Atrasos',        rubrica: '8069',      width: 11, align: 'center' },
+        { key: 'vt',             header: 'VT',             rubrica: '48',        width: 8,  align: 'center' },
+        { key: 'farmacia',       header: 'Farmácia',       rubrica: '238',       width: 13, align: 'right', isMoney: true },
+        { key: 'mercado',        header: 'Mercado',        rubrica: '279',       width: 13, align: 'right', isMoney: true },
+        { key: 'multas',         header: 'Multas',         rubrica: '302',       width: 13, align: 'right', isMoney: true },
+        { key: 'academia',       header: 'Academia',       rubrica: '278',       width: 13, align: 'right', isMoney: true },
+        { key: 'adiantamento',   header: 'Adiantamento',   rubrica: '981',       width: 14, align: 'right', isMoney: true },
+        { key: 'consignado',     header: 'Consig.',        rubrica: '—',         width: 13, align: 'right', isMoney: true },
+        { key: 'comissao',       header: 'Comissão',       rubrica: '37',        width: 13, align: 'right', isMoney: true },
+        { key: 'plr',            header: 'PLR',            rubrica: '873',       width: 13, align: 'right', isMoney: true },
+        { key: 'premio',         header: 'Prêmio',         rubrica: '347',       width: 13, align: 'right', isMoney: true },
+        { key: 'pts',            header: 'PTS',            rubrica: '397',       width: 9,  align: 'center' },
+        { key: 'outros',         header: 'Outros',         rubrica: '290',       width: 13, align: 'right', isMoney: true },
+        { key: 'insalubridade',  header: 'Insalub.',       rubrica: '16',        width: 10, align: 'center' },
+        { key: 'periculosidade', header: 'Periculosidade', rubrica: '149',       width: 14, align: 'center' },
+        { key: 'sindicato',      header: 'Sindicato',      rubrica: '823 / 52',  width: 13, align: 'right', isMoney: true },
+        { key: 'pensao',         header: 'Pensão',         rubrica: '—',         width: 13, align: 'right', isMoney: true },
+        { key: 'dias_ferias',    header: 'Dias Fér.',      rubrica: '8783',      width: 11, align: 'center', isInt: true },
+        { key: 'observacoes',    header: 'Observações',    rubrica: '—',         width: 32, align: 'left' }
+    ];
+
+    columnsDef.forEach((col, idx) => {
+        const colNum = idx + 1;
+        ws.getColumn(colNum).width = col.width;
+
+        // Linha 5: Rubrica contábil
+        const rCell = ws.getCell(5, colNum);
+        rCell.value = col.rubrica || '';
+        rCell.font = { name: 'Calibri', size: 8.5, bold: true, color: { argb: 'FFE9D5FF' } };
+        rCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B21A8' } };
+        rCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        rCell.border = {
+            top: { style: 'thin', color: { argb: 'FF581C87' } },
+            bottom: { style: 'thin', color: { argb: 'FF581C87' } },
+            left: { style: 'thin', color: { argb: 'FF581C87' } },
+            right: { style: 'thin', color: { argb: 'FF581C87' } }
         };
 
-        for (const r of rows) {
-            const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
-            const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
+        // Linha 6: Nome da coluna
+        const hCell = ws.getCell(6, colNum);
+        hCell.value = col.header;
+        hCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFFFFFFF' } };
+        hCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4C1D95' } };
+        hCell.alignment = { vertical: 'middle', horizontal: col.align === 'right' ? 'right' : (col.align === 'left' ? 'left' : 'center'), wrapText: true };
+        hCell.border = {
+            top: { style: 'thin', color: { argb: 'FF3B0764' } },
+            bottom: { style: 'medium', color: { argb: 'FF3B0764' } },
+            left: { style: 'thin', color: { argb: 'FF581C87' } },
+            right: { style: 'thin', color: { argb: 'FF581C87' } }
+        };
+    });
 
-            aoa.push([
-                r.nome_completo || '',
-                r.cargo || '',
-                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.dias_intermitente || '') : '',
-                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.total_trabalhado || '') : '',
-                formatHora(r.horas_noturnas),
-                formatHora(r.extra_60),
-                formatHora(r.extra_100),
-                r.dias_falta || '',
-                String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim(),
-                r.dsr || '',
-                
-                formatHora(r.horas_atraso),
-                r.vt ? 'Sim' : '',
-                formatNum(r.farmacia),
-                formatNum(r.mercado),
-                formatNum(r.multas),
-                formatNum(r.academia),
-                formatNum(r.adiantamento),
-                formatNum(consig),
-                formatNum(comissao),
-                formatNum(r.plr),
-                formatNum(r.premio),
-                formatNum(r.pts),
-                formatNum(r.outros),
-                r.insalubridade ? 'Sim' : '',
-                r.periculosidade ? 'Sim' : '',
-                formatNum(r.sindicato),
-                formatNum(r.pensao)
-            ]);
+    const formatHora = (v) => {
+        if (!v || v === '0' || v === '00:00' || v === '0:00') return '';
+        return String(v).trim();
+    };
+
+    let startRow = 7;
+    rows.forEach((r, rIdx) => {
+        const rowNum = startRow + rIdx;
+        const row = ws.getRow(rowNum);
+        row.height = 20;
+
+        const isEven = rIdx % 2 === 1;
+        const rowBg = isEven ? 'FFFAF5FF' : 'FFFFFFFF'; // zebra lilás bem suave
+
+        const isIntermitente = (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente';
+        const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
+        const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
+        const temVt = (r.vt == 1 || r.vt === '1' || r.vt === 'Sim' || r.meio_transporte === 'Vale Transporte');
+        const temPts = (parseInt(r.pts) === 1 || parseFloat(r.pts) > 0 || parseInt(r.folha_pts) === 1);
+        const temInsalub = (r.insalubridade == 1 || r.insalubridade === '1' || r.insalubridade === 'Sim' || r.folha_insalubridade == 1);
+        const temPeric = (r.periculosidade == 1 || r.periculosidade === '1' || r.periculosidade === 'Sim' || r.folha_periculosidade == 1);
+
+        const dataFaltasStr = String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim();
+
+        const values = [
+            r.nome_completo || '',
+            r.cargo || '',
+            isIntermitente ? (parseInt(r.dias_intermitente) || '') : '',
+            isIntermitente ? (r.total_trabalhado || '') : '',
+            formatHora(r.horas_noturnas),
+            formatHora(r.extra_60),
+            formatHora(r.extra_100),
+            parseInt(r.dias_falta) || null,
+            dataFaltasStr,
+            (r.dsr || '').trim().toUpperCase().startsWith('S') ? 'Sim' : ((r.dsr || '').trim().toUpperCase().startsWith('N') ? 'Não' : ''),
+            formatHora(r.horas_atraso),
+            temVt ? 'Sim' : '-',
+            parseFloat(r.farmacia) || null,
+            parseFloat(r.mercado) || null,
+            parseFloat(r.multas) || null,
+            parseFloat(r.academia) || null,
+            parseFloat(r.adiantamento) || null,
+            consig || null,
+            comissao || null,
+            parseFloat(r.plr) || null,
+            parseFloat(r.premio) || null,
+            temPts ? 'Sim' : '-',
+            parseFloat(r.outros) || null,
+            temInsalub ? 'Sim' : '-',
+            temPeric ? 'Sim' : '-',
+            parseFloat(r.sindicato) || null,
+            parseFloat(r.pensao) || null,
+            parseInt(r.dias_ferias) || null,
+            r.observacao || ''
+        ];
+
+        values.forEach((val, cIdx) => {
+            const cell = row.getCell(cIdx + 1);
+            const colDef = columnsDef[cIdx];
+
+            cell.value = val;
+            cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E1B4B' } };
+            cell.alignment = { vertical: 'middle', horizontal: colDef.align };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+            cell.border = {
+                top: { style: 'thin', color: { argb: 'FFE9D5FF' } },
+                bottom: { style: 'thin', color: { argb: 'FFE9D5FF' } },
+                left: { style: 'thin', color: { argb: 'FFE9D5FF' } },
+                right: { style: 'thin', color: { argb: 'FFE9D5FF' } }
+            };
+
+            if (colDef.isMoney) {
+                cell.numFmt = '"R$" #,##0.00;("R$" #,##0.00);"-"';
+            } else if (colDef.isInt) {
+                cell.numFmt = '#,##0;-#,##0;""';
+            }
+        });
+    });
+
+    // Linha de Totais gerais
+    const totalRowNum = startRow + rows.length;
+    const totalRow = ws.getRow(totalRowNum);
+    totalRow.height = 22;
+
+    columnsDef.forEach((colDef, cIdx) => {
+        const cell = totalRow.getCell(cIdx + 1);
+        const colLetter = ws.getColumn(cIdx + 1).letter;
+
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF4C1D95' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } };
+        cell.alignment = { vertical: 'middle', horizontal: colDef.align };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FF6D28D9' } },
+            bottom: { style: 'double', color: { argb: 'FF4C1D95' } },
+            left: { style: 'thin', color: { argb: 'FFE9D5FF' } },
+            right: { style: 'thin', color: { argb: 'FFE9D5FF' } }
+        };
+
+        if (cIdx === 0) {
+            cell.value = `TOTAL GERAL (${rows.length} colaboradores)`;
+        } else if (colDef.isMoney) {
+            cell.value = { formula: `SUM(${colLetter}7:${colLetter}${totalRowNum - 1})` };
+            cell.numFmt = '"R$" #,##0.00';
+        } else if (colDef.isInt && ['faltas', 'dias_ferias'].includes(colDef.key)) {
+            cell.value = { formula: `SUM(${colLetter}7:${colLetter}${totalRowNum - 1})` };
+            cell.numFmt = '#,##0';
+        } else {
+            cell.value = '';
         }
+    });
 
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(24).fill({ wch: 12 })];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    return await wb.xlsx.writeBuffer();
+}
+
+app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
+    try {
+        const { mes, ano, itens } = req.body;
+        if (!mes || !ano) return res.status(400).json({ error: 'Mês/ano obrigatórios' });
+        const buffer = await gerarBufferFechamentoXlsx({ mes, ano, rows: Array.isArray(itens) && itens.length > 0 ? itens : null });
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="fechamento_${String(mes).padStart(2,'0')}_${ano}.xlsx"`);
         res.send(buffer);
@@ -11703,92 +11875,10 @@ app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => 
     try {
         const { mes, ano, email_destino } = req.body;
         if (!mes || !ano || !email_destino) return res.status(400).json({ error: 'Parâmetros obrigatórios: mes, ano, email_destino' });
-        const XLSX = require('xlsx');
         const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         const mesNome = mesesNomes[parseInt(mes) - 1] || mes;
-        // Gerar o buffer do XLSX
-        const rows = await new Promise((resolve, reject) => {
-            db.all(`SELECT c.nome_completo, c.cargo, c.cpf, c.tipo_contrato, c.meio_transporte,
-                           fm.*,
-                           fc_com.valor_comissao, fc_com.valor_bonus,
-                           fcons.valor_total as consig_total
-                    FROM colaboradores c
-                    LEFT JOIN fechamento_mensal fm ON fm.colaborador_id = c.id AND fm.mes = ? AND fm.ano = ?
-                    LEFT JOIN fechamento_comissao fc_com ON fc_com.colaborador_id = c.id AND fc_com.mes = ? AND fc_com.ano = ?
-                    LEFT JOIN fechamento_consignado fcons ON fcons.cpf = c.cpf AND fcons.mes = ? AND fcons.ano = ?
-                    WHERE c.status != 'Desligado'
-                    ORDER BY c.nome_completo ASC`,
-                [mes, ano, mes, ano, mes, ano],
-                (err, rows) => err ? reject(err) : resolve(rows.filter(r => !fechamentoColabOculto(r.nome_completo)))
-            );
-        });
-
-        const aoa = [];
-        aoa.push([`FOLHA PAGAMENTO - ${mesNome.toUpperCase()}/${ano}`]);
-        aoa.push([]);
-        aoa.push(['AMERICA RENTAL']);
-        aoa.push([]);
-
-        // Linha 5: códigos de rubricas
-        aoa.push(['', '', '', '', '256', '264', '200', '8794', '', '8792', '8069', '48', '238', '279', '302', '278', '981', '-', '37', '873', '347', '397', '290', '16', '149', '823 / 52', '']);
-
-        // Linha 6: headers
-        aoa.push([
-            'Colaborador', 'Cargo', 'Inter.', 'Total Trabalhado', 'Total Noturno', 'Ext.60%', 'Ext.100%',
-            'Faltas', 'Dias Faltas', 'DSR', 'Atrasos', 'VT', 'Farmácia', 'Mercado', 'Multas',
-            'Academia', 'Adiantamento', 'Consig.', 'Comissão', 'PLR', 'Prêmio', 'PTS', 'Outros',
-            'Insalub.', 'Periculosidade', 'Sindicato', 'Pensão'
-        ]);
-
-        const formatNum = (v) => v ? { v: parseFloat(v) || 0, t: 'n', z: '"R$" * #,##0.00' } : { v: '', t: 's' };
-        const formatHora = (v) => {
-            if (!v) return { v: '', t: 's' };
-            const [h, m] = String(v).split(':').map(Number);
-            if (isNaN(h) || isNaN(m)) return { v: String(v), t: 's' };
-            return { v: (h + m / 60) / 24, t: 'n', z: '[hh]:mm' };
-        };
-
-        for (const r of rows) {
-            const comissao = (parseFloat(r.valor_comissao) || parseFloat(r.comissao) || 0) + (parseFloat(r.valor_bonus) || parseFloat(r.bonus_comissao) || 0);
-            const consig = parseFloat(r.consig_total) || parseFloat(r.consignado) || 0;
-
-            aoa.push([
-                r.nome_completo || '',
-                r.cargo || '',
-                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.dias_intermitente || '') : '',
-                (r.tipo_contrato || '').toLowerCase().trim() === 'intermitente' ? (r.total_trabalhado || '') : '',
-                formatHora(r.horas_noturnas),
-                formatHora(r.extra_60),
-                formatHora(r.extra_100),
-                r.dias_falta || '',
-                String(r.data_faltas || '').replace(/[\[\]"]/g, '').trim(),
-                r.dsr || '',
-                
-                formatHora(r.horas_atraso),
-                r.vt ? 'Sim' : '',
-                formatNum(r.farmacia),
-                formatNum(r.mercado),
-                formatNum(r.multas),
-                formatNum(r.academia),
-                formatNum(r.adiantamento),
-                formatNum(consig),
-                formatNum(comissao),
-                formatNum(r.plr),
-                formatNum(r.premio),
-                formatNum(r.pts),
-                formatNum(r.outros),
-                r.insalubridade ? 'Sim' : '',
-                r.periculosidade ? 'Sim' : '',
-                formatNum(r.sindicato),
-                formatNum(r.pensao)
-            ]);
-        }
-
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{ wch: 30 }, { wch: 20 }, ...Array(24).fill({ wch: 12 })];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `${mesNome} ${ano}`);
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+        // Gerar o buffer do XLSX com novo layout institucional roxo e logo
+        const buffer = await gerarBufferFechamentoXlsx({ mes, ano });
         // Enviar email
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST, port: parseInt(process.env.SMTP_PORT)||587,

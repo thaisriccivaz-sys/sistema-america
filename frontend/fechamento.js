@@ -1065,6 +1065,29 @@ function abrirLegenda() {
                     console.warn('[fechamento] Detalhes de multas:', eM);
                 }
             }
+
+            // Se há colaboradores com outros mas sem sinistros_detalhes persistido, busca os detalhes da API
+            const precisaBuscarSinistrosDetalhes = _dados.some(r => parseFloat(r.outros) > 0 && (!r.sinistros_detalhes || r.sinistros_detalhes.length === 0));
+            if (precisaBuscarSinistrosDetalhes) {
+                try {
+                    const respSin = await fetch(`/api/fechamento/sinistros-prontuario/${_ano}/${_mes}`, {
+                        headers: { 'Authorization': 'Bearer ' + getToken() }
+                    });
+                    if (respSin.ok) {
+                        const sJson = await respSin.json();
+                        if (Array.isArray(sJson)) {
+                            sJson.forEach(item => {
+                                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
+                                if (idx >= 0 && item.detalhes && item.detalhes.length > 0) {
+                                    _dados[idx].sinistros_detalhes = item.detalhes;
+                                }
+                            });
+                        }
+                    }
+                } catch(eS) {
+                    console.warn('[fechamento] Detalhes de sinistros:', eS);
+                }
+            }
             _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
                 let atual = (row.dsr || '').trim().toUpperCase();
@@ -1168,7 +1191,7 @@ function abrirLegenda() {
 <td style="padding:.35rem .3rem;background:#f0fdf4;" id="fech-cell-plr-${idx}">${inpNum(idx,'plr',row.plr||0,'0.00','0.01')}</td>
 <td id="fech-cell-premio-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'premio',row.premio||0,'0.00','0.01')}</td>
 <td id="fech-cell-pts-${idx}" style="padding:.35rem .3rem;background:#dbeafe;text-align:center;" data-original-bg="#dbeafe" title="${(montarTooltipCelula(idx, 'pts')||'').replace(/"/g, '&quot;')}"><span style="font-size:.75rem;font-weight:600;pointer-events:none;color:${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? '#16a34a' : '#9ca3af'};">${(parseInt(row.pts) === 1 || parseFloat(row.pts) > 0 || parseInt(row.folha_pts) === 1) ? 'Sim' : '-'}</span></td>
-<td id="fech-cell-outros-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
+<td id="fech-cell-outros-${idx}" style="padding:.35rem .3rem;" title="${(montarTooltipCelula(idx, 'outros')||'').replace(/"/g, '&quot;')}">${inpNum(idx,'outros',row.outros||0,'0.00','0.01')}</td>
 <td style="padding:.35rem .3rem;background:#d1fae5;text-align:center;" id="fech-cell-insalubridade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.insalubridade ? '#16a34a' : '#9ca3af'};">${row.insalubridade ? 'Sim' : '-'}</span></td>
 <td style="padding:.35rem .3rem;background:#fef3c7;text-align:center;" id="fech-cell-periculosidade-${idx}"><span style="font-size:.75rem;font-weight:600;color:${row.periculosidade ? '#16a34a' : '#9ca3af'};">${row.periculosidade ? 'Sim' : '-'}</span></td>
 <td id="fech-cell-sindicato-${idx}" style="padding:.35rem .3rem;">${inpNum(idx,'sindicato',row.sindicato||0,'0.00','0.01')}</td>
@@ -1300,7 +1323,12 @@ function abrirLegenda() {
             var _sd = [];
             try { _sd = Array.isArray(r.sinistros_detalhes) ? r.sinistros_detalhes : JSON.parse(r.sinistros_detalhes || '[]'); } catch(e) { _sd = []; }
             (_sd || []).forEach(function(d) {
-                linhas.push('Sinistro ' + (d.parcela_num || 1) + '/' + (d.total_parcelas || 1) + ' - Parcela R$' + formatBRL(parseFloat(d.valor_parcela) || 0) + ' - Total R$' + formatBRL(parseFloat(d.valor_total) || 0));
+                var pNum = d.parcela_num || 1;
+                var pTot = d.total_parcelas || 1;
+                var vParc = parseFloat(d.valor_parcela) || 0;
+                var vTot = parseFloat((d.valor_total !== undefined && d.valor_total !== null) ? d.valor_total : (vParc * pTot)) || 0;
+                var desc = d.descricao ? (d.descricao + ' - ') : 'Sinistro ';
+                linhas.push(desc + pNum + '/' + pTot + ' - Parcela R$' + formatBRL(vParc) + ' - Total R$' + formatBRL(vTot));
             });
         }
 
@@ -2664,11 +2692,13 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     async function gerarXlsx() {
         try {
-            Swal.fire({ title: 'Gerando planilha...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'Gerando planilha...', text: 'Salvando e aplicando identidade visual...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            // Regra 21: Auto-save antes de gerar o XLSX para garantir que edições na tela estejam gravadas no banco
+            await salvarSilencioso();
             const resp = await fetch('/api/fechamento/gerar-xlsx', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mes: _mes, ano: _ano })
+                body: JSON.stringify({ mes: _mes, ano: _ano, itens: _dados })
             });
             if (!resp.ok) {
                 const err = await resp.json();
