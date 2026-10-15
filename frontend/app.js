@@ -11600,14 +11600,15 @@ window._avaliarRegraGerador = function (g, colab, deptNome, deptObj) {
     // Verificar restrição de departamento (ou cargo/tipo)
     if (regra.departamentos && regra.departamentos.length > 0) {
         const deptNomeLower = (deptNome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const cargoLower = (colab.cargo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const tipoLower = (colab.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const colabDeptLower = ((colab && colab.departamento) || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const cargoLower = ((colab && colab.cargo) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const tipoLower = ((colab && colab.tipo) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         
         const match = regra.departamentos.some(d => {
             const dLower = d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             // Remove o 's' final do 'motoristas' para buscar 'motorista'
             const dLowerBase = dLower.endsWith('s') && dLower !== 'liderancas' ? dLower.slice(0, -1) : dLower;
-            return deptNomeLower.includes(dLowerBase) || cargoLower.includes(dLowerBase) || tipoLower.includes(dLowerBase);
+            return deptNomeLower.includes(dLowerBase) || colabDeptLower.includes(dLowerBase) || cargoLower.includes(dLowerBase) || tipoLower.includes(dLowerBase);
         });
         if (!match) return false;
     }
@@ -11808,6 +11809,16 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
         let autoGeradores = geradoresElegiveis.filter(g =>
             window._avaliarRegraGerador(g, c, deptNome, deptObj)
         );
+
+        // Garantir que Contrato de Comissão esteja em autoGeradores para colaboradores do Comercial
+        const _normDeptColab = s => (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const isComercialColab = _normDeptColab(deptNome).includes('comercial') || _normDeptColab(c.departamento).includes('comercial');
+        if (isComercialColab) {
+            const comissaoG = geradoresElegiveis.find(g => _norm(g.nome) === 'contrato de comissao');
+            if (comissaoG && !autoGeradores.some(g => g.id === comissaoG.id)) {
+                autoGeradores.push(comissaoG);
+            }
+        }
 
         // FALLBACK: se nenhum gerador tem regras seeded ainda, usa mapa legado de perfil
         const algumTemRegra = geradoresElegiveis.some(g => g.visibilidade_regra);

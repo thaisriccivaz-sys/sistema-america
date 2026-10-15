@@ -1755,6 +1755,11 @@ db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria D'", (err
         db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria D', habDHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
             if(!err) console.log("[SEED] Gerador Habilitação Categoria D criado.");
         });
+    }
+});
+})();
+
+// === SEED INDEPENDENTE: CONTRATO DE COMISSÃO ===
 
 const contratoComissaoHtml = `<div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #1e293b; text-align: justify; max-width: 800px; margin: 0 auto; padding: 20px;">
     
@@ -1953,18 +1958,26 @@ const contratoComissaoHtml = `<div style="font-family: Arial, sans-serif; font-s
     </table>
 </div>`;
 
-db.get("SELECT id FROM geradores WHERE nome = 'Contrato de Comissão'", (err, row) => {
-    if (!row) {
-        db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, visibilidade_regra) VALUES (?, ?, '[]', 'html', ?)",
-            ['Contrato de Comissão', contratoComissaoHtml, '{"dropdown_todos":false,"visivel_automatico":true,"condicao":null,"departamentos":["Comercial"],"tipos_departamento":null}'],
-            (err) => {
-                if(!err) console.log("[SEED] Gerador Contrato de Comissão criado.");
-            }
-        );
-    }
-});
-    }
-});
+(function seedContratoComissao() {
+    db.get("SELECT id FROM geradores WHERE nome = 'Contrato de Comissão'", (err, row) => {
+        if (!row) {
+            db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, visibilidade_regra) VALUES (?, ?, '[]', 'html', ?)",
+                ['Contrato de Comissão', contratoComissaoHtml, '{"dropdown_todos":false,"visivel_automatico":true,"condicao":null,"departamentos":["Comercial"],"tipos_departamento":null}'],
+                (insErr) => {
+                    if (!insErr) console.log("[SEED] Gerador Contrato de Comissão criado com sucesso!");
+                    else console.error("[SEED] Erro ao criar Contrato de Comissão:", insErr);
+                }
+            );
+        } else {
+            db.run("UPDATE geradores SET conteudo = ?, visibilidade_regra = ?, tipo = 'html' WHERE id = ?",
+                [contratoComissaoHtml, '{"dropdown_todos":false,"visivel_automatico":true,"condicao":null,"departamentos":["Comercial"],"tipos_departamento":null}', row.id],
+                (updErr) => {
+                    if (!updErr) console.log("[SEED] Gerador Contrato de Comissão atualizado com sucesso!");
+                    else console.error("[SEED] Erro ao atualizar Contrato de Comissão:", updErr);
+                }
+            );
+        }
+    });
 })();
 
 async function syncColaboradorOneDrive(nomeCompleto) {
@@ -14075,6 +14088,20 @@ db.run("ALTER TABLE faltas ADD COLUMN avisado_previamente TEXT DEFAULT 'Nao'", (
 app.get('/api/geradores', authenticateToken, (req, res) => {
     db.all("SELECT * FROM geradores ORDER BY nome ASC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
+        const normN = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const hasComissao = (rows || []).some(r => normN(r.nome) === 'contrato de comissao');
+        if (!hasComissao) {
+            db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, visibilidade_regra) VALUES (?, ?, '[]', 'html', ?)",
+                ['Contrato de Comissão', contratoComissaoHtml, '{"dropdown_todos":false,"visivel_automatico":true,"condicao":null,"departamentos":["Comercial"],"tipos_departamento":null}'],
+                function (insErr) {
+                    if (!insErr) console.log("[AUTO-SEED /api/geradores] Contrato de Comissão auto-criado!");
+                    db.all("SELECT * FROM geradores ORDER BY nome ASC", [], (err2, rows2) => {
+                        res.json(rows2 || rows);
+                    });
+                }
+            );
+            return;
+        }
         res.json(rows);
     });
 });
