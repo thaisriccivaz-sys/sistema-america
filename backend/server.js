@@ -8505,21 +8505,766 @@ app.get('/api/logistica/resumo-rota/:id', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/logistica/resumo-rota - Salva um novo resumo
+// ── Helpers de Métricas e E-mail Executivo com Gráficos para Resumo da Rota ──
+const _RR_EQ_BACKEND = {
+    'STD O':  { nome: 'STD OBRA',              icon: '💙' },
+    'STD E':  { nome: 'STD EVENTO',            icon: '💜' },
+    'LX O':   { nome: 'LX OBRA',               icon: '🟦' },
+    'LX E':   { nome: 'LX EVENTO',             icon: '🟪' },
+    'ELX O':  { nome: 'ELX OBRA',              icon: '🔵' },
+    'ELX E':  { nome: 'ELX EVENTO',            icon: '🟣' },
+    'SLX O':  { nome: 'ELX OBRA',              icon: '🔵' },
+    'SLX E':  { nome: 'ELX EVENTO',            icon: '🟣' },
+    'PCD O':  { nome: 'PCD OBRA',              icon: '♿' },
+    'PCD E':  { nome: 'PCD EVENTO',            icon: '🧑🏾‍🦽' },
+    'CHUVEIRO O':  { nome: 'CHUVEIRO OBRA',    icon: '🚿' },
+    'CHUVEIRO E':  { nome: 'CHUVEIRO EVENTO',  icon: '🚿' },
+    'HIDRAULICO O':{ nome: 'HIDRÁULICO OBRA',  icon: '🚽' },
+    'HIDRAULICO E':{ nome: 'HIDRÁULICO EVENTO',icon: '🚽' },
+    'MICTORIO O':  { nome: 'MICTÓRIO OBRA',    icon: '💦' },
+    'MICTORIO E':  { nome: 'MICTÓRIO EVENTO',  icon: '💦' },
+    'PIA II O':    { nome: 'PBII OBRA',         icon: '🧼' },
+    'PIA II E':    { nome: 'PBII EVENTO',       icon: '🧼' },
+    'PIA III O':   { nome: 'PBIII OBRA',        icon: '🧼' },
+    'PIA III E':   { nome: 'PBIII EVENTO',      icon: '🧼' },
+    'PBII O':      { nome: 'PBII OBRA',         icon: '🧼' },
+    'PBII E':      { nome: 'PBII EVENTO',       icon: '🧼' },
+    'PBIII O':     { nome: 'PBIII OBRA',        icon: '🧼' },
+    'PBIII E':     { nome: 'PBIII EVENTO',      icon: '🧼' },
+    'PB II O':     { nome: 'PBII OBRA',         icon: '🧼' },
+    'PB II E':     { nome: 'PBII EVENTO',       icon: '🧼' },
+    'PB III O':    { nome: 'PBIII OBRA',        icon: '🧼' },
+    'PB III E':    { nome: 'PBIII EVENTO',      icon: '🧼' },
+    'GUARITA INDIVIDUAL O': { nome: 'GUARITA INDIVIDUAL OBRA',  icon: '⬜' },
+    'GUARITA INDIVIDUAL E': { nome: 'GUARITA INDIVIDUAL EVENTO',icon: '⬜' },
+    'GUARITA DUPLA O': { nome: 'GUARITA DUPLA OBRA',   icon: '⚪' },
+    'GUARITA DUPLA E': { nome: 'GUARITA DUPLA EVENTO', icon: '⚪' },
+    'LIMPA FOSSA':    { nome: 'LIMPA FOSSA',    icon: '💧' },
+    'VISITA TECNICA': { nome: 'VISITA TÉCNICA', icon: '⚙️' },
+    'CARRINHO':       { nome: 'CARRINHO',        icon: '🛞' },
+    'STD OBRA':       { nome: 'STD OBRA',       icon: '💙' },
+    'STD EVENTO':     { nome: 'STD EVENTO',     icon: '💜' },
+    'LX OBRA':        { nome: 'LX OBRA',        icon: '🟦' },
+    'LX EVENTO':      { nome: 'LX EVENTO',      icon: '🟪' },
+    'ELX OBRA':       { nome: 'ELX OBRA',       icon: '🔵' },
+    'ELX EVENTO':     { nome: 'ELX EVENTO',     icon: '🟣' },
+    'PCD OBRA':       { nome: 'PCD OBRA',       icon: '♿' },
+    'PCD EVENTO':     { nome: 'PCD EVENTO',     icon: '🧑🏾‍🦽' },
+    'PBII OBRA':      { nome: 'PBII OBRA',      icon: '🧼' },
+    'PBII EVENTO':    { nome: 'PBII EVENTO',    icon: '🧼' },
+    'PBIII OBRA':     { nome: 'PBIII OBRA',     icon: '🧼' },
+    'PBIII EVENTO':   { nome: 'PBIII EVENTO',   icon: '🧼' },
+    'CHUVEIRO OBRA':  { nome: 'CHUVEIRO OBRA',  icon: '🚿' },
+    'CHUVEIRO EVENTO':{ nome: 'CHUVEIRO EVENTO',icon: '🚿' },
+    'MICTORIO OBRA':  { nome: 'MICTÓRIO OBRA',  icon: '💦' },
+    'MICTORIO EVENTO':{ nome: 'MICTÓRIO EVENTO',icon: '💦' }
+};
+
+function _rrNormEquipBackend(codigo) {
+    const original = String(codigo || '').trim().toUpperCase();
+    const c = original.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (_RR_EQ_BACKEND[c]) return _RR_EQ_BACKEND[c];
+    for (const [k, v] of Object.entries(_RR_EQ_BACKEND)) {
+        if (c.startsWith(k)) return v;
+    }
+    return { nome: original || 'OUTROS', icon: '🚽' };
+}
+
+function _rrCalcularMetricasRelatorio(veiculosRaw) {
+    const veiculos = Array.isArray(veiculosRaw) ? veiculosRaw : [];
+    const stats = {
+        banheirosEntreguesEvento: 0,
+        banheirosEntreguesObra: 0,
+        banheirosEntreguesTotal: 0,
+        clientesEntregaDia: 0,
+        clientesEntregaEvento: 0,
+        clientesEntregaObra: 0,
+        banheirosRetirados: 0,
+        banheirosRetiradosEvento: 0,
+        banheirosRetiradosObra: 0,
+        clientesRetiradaAgendada: 0,
+        manutencoesObra: 0,
+        manutencoesEvento: 0,
+        somaTotalManutencoes: 0,
+        manutencoesOS_Obra: 0,
+        manutencoesOS_Evento: 0,
+        manutencoesOS_Total: 0,
+        manutencoesPorProduto: {}, // nomeProd -> { qtd, icon, isEvento }
+        equipes: []
+    };
+
+    veiculos.forEach(v => {
+        const eqItem = {
+            veiculo: String(v.veiculo || 'Veículo s/ placa').trim(),
+            motorista: String(v.motorista || '').trim(),
+            ajudante: String(v.ajudante || '').trim(),
+            totalOS: Array.isArray(v.os) ? v.os.length : 0,
+            manutencoesTotal: 0,
+            manutencoesObra: 0,
+            manutencoesEvento: 0,
+            manutencoesOS: 0,
+            manutencoesPorProduto: {},
+            entregasEventoBanheiros: 0,
+            entregasEventoOS: 0,
+            entregasObraBanheiros: 0,
+            entregasObraOS: 0,
+            banheirosRetirados: 0,
+            retiradasOS: 0
+        };
+
+        const osList = Array.isArray(v.os) ? v.os : [];
+        osList.forEach(os => {
+            const tipo = String(os.tipo || '').toUpperCase().trim();
+            const servicoUp = String(os.servico || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const clienteStr = String(os.cliente || '').trim();
+            const osIsEvento = servicoUp.includes('EVENTO') || clienteStr.includes('💜') || clienteStr.includes('🟪') || clienteStr.includes('🧑🏾‍🦽');
+
+            const prodsRaw = (Array.isArray(os.produtos) && os.produtos.length > 0)
+                ? os.produtos
+                : (os.produto ? [os.produto] : []);
+
+            const parsedProds = [];
+            prodsRaw.forEach(pStr => {
+                const m = String(pStr || '').trim().match(/^(\d+)\s+(.+)/);
+                if (m) {
+                    const qtd = parseInt(m[1], 10) || 1;
+                    const codigo = m[2].trim();
+                    const eq = _rrNormEquipBackend(codigo);
+                    const nomeProd = eq.nome || codigo.toUpperCase();
+                    const iconProd = eq.icon || '🚽';
+                    const prodUp = nomeProd.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const codUp = codigo.toUpperCase().trim();
+                    const prodIsEvento = prodUp.includes('EVENTO') || /\bE$/.test(codUp) || (!prodUp.includes('OBRA') && !/\bO$/.test(codUp) && osIsEvento);
+                    parsedProds.push({ qtd, codigo, nomeProd, iconProd, prodIsEvento });
+                }
+            });
+
+            if (tipo === 'ENTREGA') {
+                stats.clientesEntregaDia++;
+                if (parsedProds.length > 0) {
+                    let hasEv = false, hasOb = false;
+                    parsedProds.forEach(pp => {
+                        if (pp.prodIsEvento) {
+                            stats.banheirosEntreguesEvento += pp.qtd;
+                            eqItem.entregasEventoBanheiros += pp.qtd;
+                            hasEv = true;
+                        } else {
+                            stats.banheirosEntreguesObra += pp.qtd;
+                            eqItem.entregasObraBanheiros += pp.qtd;
+                            hasOb = true;
+                        }
+                    });
+                    if (hasEv) { stats.clientesEntregaEvento++; eqItem.entregasEventoOS++; }
+                    if (hasOb) { stats.clientesEntregaObra++; eqItem.entregasObraOS++; }
+                } else {
+                    if (osIsEvento) {
+                        stats.banheirosEntreguesEvento += 1;
+                        eqItem.entregasEventoBanheiros += 1;
+                        stats.clientesEntregaEvento++;
+                        eqItem.entregasEventoOS++;
+                    } else {
+                        stats.banheirosEntreguesObra += 1;
+                        eqItem.entregasObraBanheiros += 1;
+                        stats.clientesEntregaObra++;
+                        eqItem.entregasObraOS++;
+                    }
+                }
+            } else if (tipo === 'RETIRADA') {
+                stats.clientesRetiradaAgendada++;
+                eqItem.retiradasOS++;
+                if (parsedProds.length > 0) {
+                    parsedProds.forEach(pp => {
+                        stats.banheirosRetirados += pp.qtd;
+                        eqItem.banheirosRetirados += pp.qtd;
+                        if (pp.prodIsEvento) stats.banheirosRetiradosEvento += pp.qtd;
+                        else stats.banheirosRetiradosObra += pp.qtd;
+                    });
+                } else {
+                    stats.banheirosRetirados += 1;
+                    eqItem.banheirosRetirados += 1;
+                    if (osIsEvento) stats.banheirosRetiradosEvento += 1;
+                    else stats.banheirosRetiradosObra += 1;
+                }
+            } else if (tipo === 'MANUTENCAO' || tipo === 'AVULSA') {
+                eqItem.manutencoesOS++;
+                stats.manutencoesOS_Total++;
+                if (parsedProds.length > 0) {
+                    let hasEv = false, hasOb = false;
+                    parsedProds.forEach(pp => {
+                        if (!stats.manutencoesPorProduto[pp.nomeProd]) {
+                            stats.manutencoesPorProduto[pp.nomeProd] = { qtd: 0, icon: pp.iconProd, isEvento: pp.prodIsEvento };
+                        }
+                        stats.manutencoesPorProduto[pp.nomeProd].qtd += pp.qtd;
+
+                        if (!eqItem.manutencoesPorProduto[pp.nomeProd]) {
+                            eqItem.manutencoesPorProduto[pp.nomeProd] = { qtd: 0, icon: pp.iconProd };
+                        }
+                        eqItem.manutencoesPorProduto[pp.nomeProd].qtd += pp.qtd;
+
+                        if (pp.prodIsEvento) {
+                            stats.manutencoesEvento += pp.qtd;
+                            eqItem.manutencoesEvento += pp.qtd;
+                            hasEv = true;
+                        } else {
+                            stats.manutencoesObra += pp.qtd;
+                            eqItem.manutencoesObra += pp.qtd;
+                            hasOb = true;
+                        }
+                        eqItem.manutencoesTotal += pp.qtd;
+                    });
+                    if (hasEv) stats.manutencoesOS_Evento++;
+                    if (hasOb) stats.manutencoesOS_Obra++;
+                } else {
+                    const fbNome = osIsEvento ? 'STD EVENTO' : 'STD OBRA';
+                    const fbIcon = osIsEvento ? '💜' : '💙';
+                    if (!stats.manutencoesPorProduto[fbNome]) {
+                        stats.manutencoesPorProduto[fbNome] = { qtd: 0, icon: fbIcon, isEvento: osIsEvento };
+                    }
+                    stats.manutencoesPorProduto[fbNome].qtd += 1;
+                    if (!eqItem.manutencoesPorProduto[fbNome]) {
+                        eqItem.manutencoesPorProduto[fbNome] = { qtd: 0, icon: fbIcon };
+                    }
+                    eqItem.manutencoesPorProduto[fbNome].qtd += 1;
+
+                    if (osIsEvento) {
+                        stats.manutencoesEvento += 1;
+                        eqItem.manutencoesEvento += 1;
+                        stats.manutencoesOS_Evento++;
+                    } else {
+                        stats.manutencoesObra += 1;
+                        eqItem.manutencoesObra += 1;
+                        stats.manutencoesOS_Obra++;
+                    }
+                    eqItem.manutencoesTotal += 1;
+                }
+            }
+        });
+
+        stats.equipes.push(eqItem);
+    });
+
+    stats.banheirosEntreguesTotal = stats.banheirosEntreguesEvento + stats.banheirosEntreguesObra;
+    stats.somaTotalManutencoes = stats.manutencoesObra + stats.manutencoesEvento;
+    return stats;
+}
+
+async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, veiculos, destinatarios, usuarioNome, automatico }) {
+    let veiculosList = veiculos;
+    if (!Array.isArray(veiculosList)) {
+        let parsed = dadosRaw;
+        if (typeof dadosRaw === 'string') {
+            try { parsed = JSON.parse(dadosRaw); } catch (e) { parsed = {}; }
+        }
+        if (Array.isArray(parsed)) veiculosList = parsed;
+        else if (parsed && Array.isArray(parsed.veiculos)) veiculosList = parsed.veiculos;
+        else veiculosList = [];
+    }
+
+    if (!veiculosList.length) {
+        console.warn('[RR-EMAIL] Nenhum veículo encontrado para gerar relatório.');
+        return;
+    }
+
+    const stats = _rrCalcularMetricasRelatorio(veiculosList);
+
+    // Buscar fotos dos colaboradores no banco para exibir foto do motorista e ajudante
+    const colabMap = {};
+    try {
+        const rows = await new Promise((resolve) => {
+            db.all("SELECT id, nome_completo, foto_base64, foto_path FROM colaboradores WHERE status != 'Desligado'", [], (err, r) => resolve(r || []));
+        });
+        rows.forEach(c => {
+            const key = String(c.nome_completo || '').toLowerCase().trim();
+            if (key) colabMap[key] = c;
+        });
+    } catch (e) {
+        console.warn('[RR-EMAIL] Erro ao buscar fotos de colaboradores:', e.message);
+    }
+
+    const attachments = [];
+    const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    if (fs.existsSync(logoPath)) {
+        attachments.push({ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' });
+    }
+
+    const cidAdded = new Set();
+    function renderMemberAvatar(nome, borderHex, bgHex) {
+        const cleanNome = String(nome || '').trim();
+        const ini = cleanNome
+            ? cleanNome.split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase()
+            : '?';
+        const cRow = cleanNome ? colabMap[cleanNome.toLowerCase()] : null;
+
+        let imgSrc = null;
+        if (cRow) {
+            if (cRow.foto_base64 && cRow.foto_base64.startsWith('data:image')) {
+                const m = cRow.foto_base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                if (m && m.length === 3) {
+                    const cidName = 'colab-foto-' + cRow.id;
+                    if (!cidAdded.has(cidName)) {
+                        cidAdded.add(cidName);
+                        attachments.push({
+                            filename: 'foto_' + cRow.id + '.jpg',
+                            content: Buffer.from(m[2], 'base64'),
+                            contentType: m[1],
+                            cid: cidName
+                        });
+                    }
+                    imgSrc = 'cid:' + cidName;
+                }
+            } else if (cRow.foto_path) {
+                imgSrc = 'https://sistema-america.onrender.com/api/colaboradores/foto/' + cRow.id;
+            }
+        }
+
+        if (imgSrc) {
+            return `<img src="${imgSrc}" alt="${cleanNome}" width="40" height="40" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2.5px solid ${borderHex};display:block;">`;
+        }
+        return `<div style="width:40px;height:40px;border-radius:50%;background:${bgHex};border:2.5px solid ${borderHex};color:#ffffff;font-weight:700;font-size:13px;line-height:40px;text-align:center;display:inline-block;">${ini}</div>`;
+    }
+
+    // Ordenar produtos de manutenção por quantidade decrescente
+    const prodEntries = Object.entries(stats.manutencoesPorProduto)
+        .sort((a, b) => b[1].qtd - a[1].qtd);
+
+    // ── Construir URLs de Gráficos QuickChart.io ──
+    // Gráfico 1: Visão Geral (Entregas Evento, Entregas Obra, Retiradas, Manut. Obra, Manut. Evento)
+    const chart1Cfg = {
+        type: 'bar',
+        data: {
+            labels: ['Entregas Evento', 'Entregas Obra', 'Retiradas', 'Manut. Obra', 'Manut. Evento'],
+            datasets: [{
+                label: 'Qtd. Banheiros',
+                backgroundColor: ['#7c3aed', '#2563eb', '#dc2626', '#0284c7', '#9333ea'],
+                borderRadius: 6,
+                data: [
+                    stats.banheirosEntreguesEvento,
+                    stats.banheirosEntreguesObra,
+                    stats.banheirosRetirados,
+                    stats.manutencoesObra,
+                    stats.manutencoesEvento
+                ]
+            }]
+        },
+        options: {
+            legend: { display: false },
+            title: { display: true, text: 'Volume de Banheiros por Tipo de Operação', fontSize: 14, fontColor: '#1e293b' },
+            plugins: {
+                datalabels: { anchor: 'end', align: 'top', color: '#0f172a', font: { weight: 'bold', size: 12 } }
+            },
+            scales: {
+                yAxes: [{ ticks: { beginAtZero: true } }]
+            }
+        }
+    };
+    const chart1Url = 'https://quickchart.io/chart?w=560&h=240&bkg=white&c=' + encodeURIComponent(JSON.stringify(chart1Cfg));
+
+    // Gráfico 2: Manutenções por Tipo de Produto
+    const chart2Labels = prodEntries.length ? prodEntries.map(([nome]) => nome) : ['Sem manutenções'];
+    const chart2Values = prodEntries.length ? prodEntries.map(([, v]) => v.qtd) : [0];
+    const chart2Colors = prodEntries.map(([, v]) => v.isEvento ? '#7c3aed' : '#0284c7');
+    const chart2Cfg = {
+        type: 'horizontalBar',
+        data: {
+            labels: chart2Labels,
+            datasets: [{
+                label: 'Qtd. Manutenções',
+                backgroundColor: chart2Colors.length ? chart2Colors : ['#cbd5e1'],
+                data: chart2Values
+            }]
+        },
+        options: {
+            legend: { display: false },
+            title: { display: true, text: 'Manutenções × Tipo de Produto', fontSize: 14, fontColor: '#1e293b' },
+            plugins: {
+                datalabels: { anchor: 'end', align: 'right', color: '#0f172a', font: { weight: 'bold', size: 11 } }
+            },
+            scales: {
+                xAxes: [{ ticks: { beginAtZero: true } }]
+            }
+        }
+    };
+    const chart2Height = Math.max(200, prodEntries.length * 36 + 70);
+    const chart2Url = `https://quickchart.io/chart?w=560&h=${chart2Height}&bkg=white&c=` + encodeURIComponent(JSON.stringify(chart2Cfg));
+
+    // Gráfico 3: Desempenho por Equipe (Placa)
+    const eqLabels = stats.equipes.map(e => e.veiculo.split(' - ')[0].substring(0, 14));
+    const chart3Cfg = {
+        type: 'bar',
+        data: {
+            labels: eqLabels,
+            datasets: [
+                { label: 'Manutenções', backgroundColor: '#10b981', data: stats.equipes.map(e => e.manutencoesTotal) },
+                { label: 'Entregas Obra', backgroundColor: '#2563eb', data: stats.equipes.map(e => e.entregasObraBanheiros) },
+                { label: 'Entregas Evento', backgroundColor: '#7c3aed', data: stats.equipes.map(e => e.entregasEventoBanheiros) }
+            ]
+        },
+        options: {
+            title: { display: true, text: 'Manutenções e Entregas por Equipe / Veículo', fontSize: 14, fontColor: '#1e293b' },
+            legend: { position: 'bottom' },
+            scales: {
+                xAxes: [{ stacked: false }],
+                yAxes: [{ ticks: { beginAtZero: true } }]
+            }
+        }
+    };
+    const chart3Url = 'https://quickchart.io/chart?w=560&h=260&bkg=white&c=' + encodeURIComponent(JSON.stringify(chart3Cfg));
+
+    // ── Barras HTML nativas de Manutenções por Produto ──
+    const maxProdQtd = prodEntries.length ? Math.max(...prodEntries.map(([, v]) => v.qtd), 1) : 1;
+    const prodRowsHtml = prodEntries.length
+        ? prodEntries.map(([nome, info]) => {
+            const pct = stats.somaTotalManutencoes > 0 ? Math.round((info.qtd / stats.somaTotalManutencoes) * 100) : 0;
+            const barW = Math.max(6, Math.round((info.qtd / maxProdQtd) * 100));
+            const barColor = info.isEvento ? '#7c3aed' : '#2563eb';
+            const badgeBg  = info.isEvento ? '#f3e8ff' : '#dbeafe';
+            const badgeTxt = info.isEvento ? '#6d28d9' : '#1d4ed8';
+            return `
+            <tr>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;color:#1e293b;width:42%;">
+                    ${info.icon ? info.icon + ' ' : ''}<span style="color:${badgeTxt};">${info.qtd} ×</span> ${nome}
+                </td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;width:43%;">
+                    <div style="background:#f1f5f9;border-radius:99px;height:12px;width:100%;overflow:hidden;">
+                        <div style="background:${barColor};height:12px;width:${barW}%;border-radius:99px;"></div>
+                    </div>
+                </td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;font-weight:700;color:#475569;width:15%;">
+                    <span style="background:${badgeBg};color:${badgeTxt};padding:2px 8px;border-radius:12px;">${info.qtd} (${pct}%)</span>
+                </td>
+            </tr>`;
+        }).join('')
+        : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">Nenhuma manutenção registrada nesta rota.</td></tr>`;
+
+    // ── Cards por Equipe (Motorista + Foto, Ajudante + Foto, Placa, Manutenções, Entregas Evento, Entregas Obra) ──
+    const equipesHtml = stats.equipes.map((eq, idx) => {
+        const motAvatar = renderMemberAvatar(eq.motorista, '#1d4ed8', '#2563eb');
+        const ajuAvatar = renderMemberAvatar(eq.ajudante, '#d97706', '#f59e0b');
+        const prodsManutStr = Object.entries(eq.manutencoesPorProduto)
+            .sort((a, b) => b[1].qtd - a[1].qtd)
+            .map(([n, inf]) => `${inf.icon ? inf.icon + ' ' : ''}${inf.qtd} × ${n}`)
+            .join(' • ');
+
+        return `
+        <div style="border:1px solid #e2e8f0;border-radius:12px;margin-bottom:14px;overflow:hidden;background:#ffffff;">
+            <div style="background:linear-gradient(90deg,#1e3a5f 0%,#2d9e5f 100%);padding:10px 16px;color:#ffffff;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td style="font-size:15px;font-weight:800;color:#ffffff;">
+                            🚚 Placa / Veículo: ${eq.veiculo}
+                        </td>
+                        <td align="right" style="font-size:12px;font-weight:700;color:#dcfce7;">
+                            Equipe #${idx + 1} • ${eq.totalOS} OS na rota
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="padding:14px 16px;">
+                <!-- Motorista e Ajudante com Fotos -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #e2e8f0;">
+                    <tr>
+                        <td width="50%" valign="middle" style="padding-right:8px;">
+                            <table cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-right:10px;" valign="middle">${motAvatar}</td>
+                                    <td valign="middle">
+                                        <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.04em;">Motorista</div>
+                                        <div style="font-size:13px;font-weight:800;color:#0f172a;">${eq.motorista || 'Não informado'}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td width="50%" valign="middle" style="padding-left:8px;border-left:1px solid #e2e8f0;">
+                            <table cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-right:10px;" valign="middle">${ajuAvatar}</td>
+                                    <td valign="middle">
+                                        <div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.04em;">Ajudante</div>
+                                        <div style="font-size:13px;font-weight:800;color:#0f172a;">${eq.ajudante || 'Não informado'}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- 3 Indicadores da Equipe: Manutenções | Entregas Evento | Entregas Obra -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td width="34%" valign="top" style="padding-right:6px;">
+                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center;">
+                                <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;">🔧 Manutenções da Equipe</div>
+                                <div style="font-size:22px;font-weight:800;color:#166534;margin:4px 0;">${eq.manutencoesTotal}</div>
+                                <div style="font-size:11px;color:#15803d;">Obra: <b>${eq.manutencoesObra}</b> • Evento: <b>${eq.manutencoesEvento}</b></div>
+                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.manutencoesOS} paradas/OS)</div>
+                            </div>
+                        </td>
+                        <td width="33%" valign="top" style="padding:0 3px;">
+                            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px;text-align:center;">
+                                <div style="font-size:10px;font-weight:700;color:#6d28d9;text-transform:uppercase;">💜 Entregas Evento</div>
+                                <div style="font-size:22px;font-weight:800;color:#7c3aed;margin:4px 0;">${eq.entregasEventoBanheiros}</div>
+                                <div style="font-size:11px;color:#6d28d9;">banheiros entregues</div>
+                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.entregasEventoOS} entrega${eq.entregasEventoOS === 1 ? '' : 's'}/cliente${eq.entregasEventoOS === 1 ? '' : 's'})</div>
+                            </div>
+                        </td>
+                        <td width="33%" valign="top" style="padding-left:6px;">
+                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center;">
+                                <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">💙 Entregas Obra</div>
+                                <div style="font-size:22px;font-weight:800;color:#2563eb;margin:4px 0;">${eq.entregasObraBanheiros}</div>
+                                <div style="font-size:11px;color:#1d4ed8;">banheiros entregues</div>
+                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.entregasObraOS} entrega${eq.entregasObraOS === 1 ? '' : 's'}/cliente${eq.entregasObraOS === 1 ? '' : 's'})</div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                ${prodsManutStr ? `
+                <div style="margin-top:8px;padding:7px 10px;background:#f8fafc;border-radius:6px;font-size:11px;color:#334155;border-left:3px solid #10b981;">
+                    <b>Produtos em Manutenção nesta equipe:</b> ${prodsManutStr}
+                </div>` : ''}
+                ${eq.banheirosRetirados > 0 ? `
+                <div style="margin-top:6px;padding:6px 10px;background:#fef2f2;border-radius:6px;font-size:11px;color:#991b1b;border-left:3px solid #ef4444;">
+                    <b>⭕ Retiradas desta equipe:</b> ${eq.banheirosRetirados} banheiro(s) em ${eq.retiradasOS} cliente(s)
+                </div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    const tituloResumo = nomeResumo || dataRota || new Date().toLocaleDateString('pt-BR');
+    const subject = `📊 Relatório Resumo da Rota — ${tituloResumo}`;
+
+    const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:650px;margin:0 auto;border:1px solid #dce3eb;border-radius:12px;overflow:hidden;background:#ffffff;color:#1e293b;">
+        <!-- Logo Institucional no Topo -->
+        <div style="text-align:center;background:#ffffff;border-bottom:1px solid #e2e8f0;">
+            <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:650px;height:auto;display:block;">
+        </div>
+
+        <!-- Cabeçalho do Relatório -->
+        <div style="background:linear-gradient(135deg,#155d38 0%,#2d9e5f 100%);padding:22px 24px;color:#ffffff;">
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;">📊 Relatório Operacional — Resumo da Rota</h2>
+            <p style="margin:6px 0 0;font-size:13px;color:#dcfce7;">
+                <b>Resumo / Data:</b> ${tituloResumo} &nbsp;|&nbsp;
+                <b>Equipes:</b> ${stats.equipes.length} veículo(s) &nbsp;|&nbsp;
+                <b>Gerado por:</b> ${usuarioNome || 'Sistema'}
+            </p>
+        </div>
+
+        <div style="padding:22px 24px;">
+            <!-- SEÇÃO 1: ENTREGAS E RETIRADAS NO DIA -->
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
+                🚚 1. Resumo de Entregas e Retiradas do Dia
+            </h3>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
+                <tr>
+                    <td width="33%" valign="top" style="padding-right:6px;">
+                        <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;">💜 Banheiros Entregues (Evento)</div>
+                            <div style="font-size:28px;font-weight:800;color:#7c3aed;margin:6px 0;">${stats.banheirosEntreguesEvento}</div>
+                            <div style="font-size:11px;color:#6b7280;">Em ${stats.clientesEntregaEvento} cliente(s) de evento</div>
+                        </div>
+                    </td>
+                    <td width="34%" valign="top" style="padding:0 3px;">
+                        <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">💙 Banheiros Entregues (Obra)</div>
+                            <div style="font-size:28px;font-weight:800;color:#2563eb;margin:6px 0;">${stats.banheirosEntreguesObra}</div>
+                            <div style="font-size:11px;color:#6b7280;">Em ${stats.clientesEntregaObra} cliente(s) de obra</div>
+                        </div>
+                    </td>
+                    <td width="33%" valign="top" style="padding-left:6px;">
+                        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">🏢 Clientes c/ Entregas no Dia</div>
+                            <div style="font-size:28px;font-weight:800;color:#16a34a;margin:6px 0;">${stats.clientesEntregaDia}</div>
+                            <div style="font-size:11px;color:#6b7280;">Total entregue: <b>${stats.banheirosEntreguesTotal}</b> banheiros</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+                <tr>
+                    <td width="50%" valign="top" style="padding-right:6px;">
+                        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;">⭕ Quantidade de Banheiros Retirados</div>
+                            <div style="font-size:26px;font-weight:800;color:#dc2626;margin:6px 0;">${stats.banheirosRetirados}</div>
+                            <div style="font-size:11px;color:#7f1d1d;">Obra: <b>${stats.banheirosRetiradosObra}</b> • Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
+                        </div>
+                    </td>
+                    <td width="50%" valign="top" style="padding-left:6px;">
+                        <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;">📅 Clientes c/ Retiradas Agendadas</div>
+                            <div style="font-size:26px;font-weight:800;color:#d97706;margin:6px 0;">${stats.clientesRetiradaAgendada}</div>
+                            <div style="font-size:11px;color:#92400e;">Retiradas programadas na rota do dia</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- SEÇÃO 2: MANUTENÇÕES (OBRA + EVENTO + SOMA TOTAL) -->
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
+                🔧 2. Resumo Geral de Manutenções
+            </h3>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+                <tr>
+                    <td width="33%" valign="top" style="padding-right:6px;">
+                        <div style="background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#0369a1;text-transform:uppercase;">💙 Manutenções de Obra</div>
+                            <div style="font-size:28px;font-weight:800;color:#0284c7;margin:6px 0;">${stats.manutencoesObra}</div>
+                            <div style="font-size:11px;color:#64748b;">${stats.manutencoesOS_Obra} parada(s)/cliente(s)</div>
+                        </div>
+                    </td>
+                    <td width="33%" valign="top" style="padding:0 3px;">
+                        <div style="background:#faf5ff;border:1.5px solid #c4b5fd;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;">💜 Manutenções de Evento</div>
+                            <div style="font-size:28px;font-weight:800;color:#7c3aed;margin:6px 0;">${stats.manutencoesEvento}</div>
+                            <div style="font-size:11px;color:#64748b;">${stats.manutencoesOS_Evento} parada(s)/cliente(s)</div>
+                        </div>
+                    </td>
+                    <td width="34%" valign="top" style="padding-left:6px;">
+                        <div style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);border-radius:10px;padding:12px;text-align:center;color:#ffffff;">
+                            <div style="font-size:11px;font-weight:700;color:#dcfce7;text-transform:uppercase;">✅ Soma Total das Manutenções</div>
+                            <div style="font-size:28px;font-weight:800;color:#ffffff;margin:6px 0;">${stats.somaTotalManutencoes}</div>
+                            <div style="font-size:11px;color:#dcfce7;">Obra (${stats.manutencoesObra}) + Evento (${stats.manutencoesEvento})</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- GRÁFICO 1: VISÃO GERAL DE OPERAÇÕES -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:20px;text-align:center;">
+                <img src="${chart1Url}" alt="Gráfico de Operações do Dia" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
+            </div>
+
+            <!-- SEÇÃO 3: QUANTIDADE DE MANUTENÇÕES × POR TIPO DE PRODUTO -->
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
+                🚽 3. Quantidade de Manutenções × por Tipo de Produto
+            </h3>
+
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;">
+                <thead>
+                    <tr style="background:#f1f5f9;">
+                        <th align="left" style="padding:9px 10px;font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;">Qtd × Tipo de Produto</th>
+                        <th align="left" style="padding:9px 10px;font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;">Proporção Visual</th>
+                        <th align="right" style="padding:9px 10px;font-size:11px;font-weight:800;color:#475569;text-transform:uppercase;">Volume (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${prodRowsHtml}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
+                        <td style="padding:10px;font-size:13px;font-weight:800;color:#166534;">SOMA TOTAL DE MANUTENÇÕES</td>
+                        <td></td>
+                        <td align="right" style="padding:10px;font-size:14px;font-weight:800;color:#166534;">${stats.somaTotalManutencoes} (100%)</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            ${prodEntries.length > 0 ? `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:22px;text-align:center;">
+                <img src="${chart2Url}" alt="Gráfico Manutenções por Tipo de Produto" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
+            </div>` : ''}
+
+            <!-- SEÇÃO 4: DETALHAMENTO POR EQUIPE -->
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
+                👷 4. Desempenho por Equipe (Motorista, Ajudante e Placa)
+            </h3>
+
+            ${stats.equipes.length > 0 ? `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;text-align:center;">
+                <img src="${chart3Url}" alt="Gráfico por Equipe" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
+            </div>` : ''}
+
+            ${equipesHtml}
+
+            <hr style="border:none;border-top:1px solid #e2e8f0;margin:22px 0;">
+            <p style="font-size:12px;color:#64748b;text-align:center;margin:0;">
+                Relatório gerado automaticamente pelo módulo <b>Resumo da Rota — América Rental Equipamentos</b>.
+            </p>
+        </div>
+    </div>`;
+
+    const listaDest = Array.isArray(destinatarios)
+        ? destinatarios
+        : String(destinatarios || '').split(/[,;]+/).map(s => s.trim()).filter(s => s.includes('@'));
+
+    for (const emailTo of listaDest) {
+        await sendMailHelper({
+            to: emailTo,
+            subject,
+            html,
+            attachments
+        });
+    }
+    return { sentTo: listaDest, stats };
+}
+
+// POST /api/logistica/resumo-rota/enviar-relatorio - Envio manual pelo botão da tela (Thais.Ricci)
+app.post('/api/logistica/resumo-rota/enviar-relatorio', authenticateToken, async (req, res) => {
+    try {
+        const { email, nome, dataRota, veiculos } = req.body || {};
+        if (!email || !String(email).includes('@')) {
+            return res.status(400).json({ error: 'Informe um e-mail válido para envio.' });
+        }
+        const result = await enviarEmailRelatorioResumoRota({
+            nomeResumo: nome || dataRota || 'Resumo de Rota',
+            dataRota,
+            veiculos,
+            destinatarios: email,
+            usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci',
+            automatico: false
+        });
+        res.json({ success: true, sentTo: result?.sentTo || [email] });
+    } catch (err) {
+        console.error('[RR-EMAIL-MANUAL] Erro ao enviar relatório:', err);
+        res.status(500).json({ error: err.message || 'Erro ao enviar relatório por e-mail.' });
+    }
+});
+
+// POST /api/logistica/resumo-rota - Salva um novo resumo e dispara relatório automático para Thais e Nicolle
 app.post('/api/logistica/resumo-rota', authenticateToken, (req, res) => {
     const { id, nome, dados } = req.body;
     const dadosStr = typeof dados === 'string' ? dados : JSON.stringify(dados);
+    const usuarioLogado = req.user.nome || req.user.username || 'Sistema';
+    const autoDestinatarios = [
+        'thais.ricci@americarental.com.br',
+        'nicolle.mezuraro@americarental.com.br'
+    ];
 
     if (id) {
         db.run("UPDATE logistica_resumo_rota SET dados = ? WHERE id = ?", [dadosStr, id], function (err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, id: id });
+
+            // Buscar nome caso não venha no body e enviar relatório automático
+            db.get("SELECT nome FROM logistica_resumo_rota WHERE id = ?", [id], (errGet, row) => {
+                const nomeFinal = nome || (row && row.nome) || 'Resumo de Rota';
+                enviarEmailRelatorioResumoRota({
+                    nomeResumo: nomeFinal,
+                    dadosRaw: dados,
+                    destinatarios: autoDestinatarios,
+                    usuarioNome: usuarioLogado,
+                    automatico: true
+                }).catch(e => console.error('[RR-EMAIL-AUTO] Erro no envio automático (update):', e.message));
+            });
         });
     } else {
         db.run("INSERT INTO logistica_resumo_rota (nome, dados, usuario_id, usuario_nome) VALUES (?, ?, ?, ?)",
-            [nome, dadosStr, req.user.id, req.user.nome || req.user.username], function (err) {
+            [nome, dadosStr, req.user.id, usuarioLogado], function (err) {
                 if (err) return res.status(500).json({ error: err.message });
                 res.json({ success: true, id: this.lastID });
+
+                // Disparo automático ao salvar novo resumo
+                enviarEmailRelatorioResumoRota({
+                    nomeResumo: nome || 'Resumo de Rota',
+                    dadosRaw: dados,
+                    destinatarios: autoDestinatarios,
+                    usuarioNome: usuarioLogado,
+                    automatico: true
+                }).catch(e => console.error('[RR-EMAIL-AUTO] Erro no envio automático (insert):', e.message));
             });
     }
 });

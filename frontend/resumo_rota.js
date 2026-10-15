@@ -408,6 +408,92 @@ function _rrAuthHeaders() {
 // ══════════════════════════════════════════════════════════════
 //  RENDER DA TELA
 // ══════════════════════════════════════════════════════════════
+window._rrIsThaisRicci = function() {
+    try {
+        const u = window.currentUser || JSON.parse(localStorage.getItem('erp_user') || '{}');
+        const un = String(u.username || u.login || '').toLowerCase().trim();
+        const nm = String(u.nome || '').toLowerCase().trim();
+        return un === 'thais.ricci' || nm === 'thais.ricci' || nm.includes('thais ricci');
+    } catch (e) {
+        return false;
+    }
+};
+
+window.rrAbrirModalEnviarRelatorio = async function() {
+    if (!_rrVeiculos || !_rrVeiculos.length) {
+        showToast('Importe uma planilha ou selecione um resumo salvo primeiro.', 'warning');
+        return;
+    }
+
+    // Sincronizar eventuais edições nos textareas
+    _rrVeiculos.forEach((v, i) => {
+        const ta = document.querySelector(`.rr-textarea-edit[data-index="${i}"]`);
+        if (ta) v.colBEditado = ta.value;
+        const to = document.querySelector(`.rr-textarea-obs[data-index="${i}"]`);
+        if (to) v.obsRoteirizador = to.value;
+        const taAlt = document.querySelector(`.rr-textarea-alt[data-index="${i}"]`);
+        if (taAlt) v.obsAlteracoes = taAlt.value;
+    });
+
+    const { value: emailDest, isConfirmed } = await Swal.fire({
+        title: '📊 Enviar Relatório da Rota',
+        html: '<p style="font-size:0.9rem;color:#475569;margin:0 0 8px;">Para qual e-mail o relatório deve ser enviado?<br><small style="color:#94a3b8;">(Para mais de um destinatário, separe por vírgula)</small></p>',
+        input: 'text',
+        inputPlaceholder: 'exemplo@americarental.com.br',
+        inputValue: 'thais.ricci@americarental.com.br',
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Enviar Relatório',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#7c3aed',
+        inputValidator: (val) => {
+            if (!val || !val.trim() || !val.includes('@')) {
+                return 'Digite pelo menos um e-mail válido.';
+            }
+        }
+    });
+
+    if (!isConfirmed || !emailDest) return;
+
+    const btn = document.getElementById('rr-btn-enviar-relatorio');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    }
+
+    try {
+        const sel = document.getElementById('rr-historico-select');
+        const histOptText = (sel && sel.selectedIndex > 0 && sel.options[sel.selectedIndex])
+            ? sel.options[sel.selectedIndex].textContent.replace(/\s*\([^)]*\)\s*$/, '').trim()
+            : '';
+        const nomeResumo = histOptText || window._rrDefaultNomeResumo || window._rrDataRotaAtual || new Date().toLocaleDateString('pt-BR');
+
+        const res = await fetch('/api/logistica/resumo-rota/enviar-relatorio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ..._rrAuthHeaders() },
+            body: JSON.stringify({
+                email: emailDest.trim(),
+                nome: nomeResumo,
+                dataRota: window._rrDataRotaAtual || null,
+                veiculos: _rrVeiculos
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Erro ao enviar relatório.');
+        }
+        showToast('✅ Relatório enviado com sucesso para ' + (data.sentTo || [emailDest]).join(', ') + '!', 'success');
+    } catch (e) {
+        console.error('[RR] Erro ao enviar relatório:', e);
+        showToast('Erro ao enviar relatório: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+};
+
 window.renderResumoRota = function() {
     const container = document.getElementById('resumo-rota-container');
     if (!container) return;
@@ -438,6 +524,11 @@ window.renderResumoRota = function() {
                 style="background:#2563eb;color:#fff;border:1px solid #1d4ed8;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(37,99,235,0.4);">
                 <i class="ph ph-floppy-disk"></i> Salvar
             </button>
+            ${window._rrIsThaisRicci && window._rrIsThaisRicci() ? `
+            <button id="rr-btn-enviar-relatorio" onclick="window.rrAbrirModalEnviarRelatorio()"
+                style="background:#7c3aed;color:#fff;border:1px solid #6d28d9;border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(124,58,237,0.4);" title="Enviar relatório executivo da rota por e-mail">
+                <i class="ph ph-paper-plane-tilt"></i> Enviar Relatório
+            </button>` : ''}
             <button id="rr-btn-exportar" onclick="window.rrExportarExcel()"
                 style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:9px 18px;font-weight:700;font-size:0.9rem;cursor:pointer;display:none;align-items:center;gap:7px;">
                 <i class="ph ph-microsoft-excel-logo"></i> Exportar Resumo
@@ -553,6 +644,7 @@ window.rrCarregarHistorico = async function(id) {
 
         // Tenta extrair a data do nome (formato "DD-MM-YYYY ...") para re-consultar disponibilidade
         const nomeResumo = data.nome || '';
+        if (nomeResumo) window._rrDefaultNomeResumo = nomeResumo;
         const mData = nomeResumo.match(/(\d{2})-(\d{2})-(\d{4})/);
         const dataHistorico = mData ? `${mData[3]}-${mData[2]}-${mData[1]}` : null;
         window._rrDataRotaAtual = dataHistorico;
