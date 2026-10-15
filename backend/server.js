@@ -8647,6 +8647,7 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
                 const _row = {
                     categoria: _catTipo,
                     oe: _oeEvento ? 'Evento' : 'Obra',
+                    dia: v._dia ? String(v._dia).split('-').reverse().join('/') : '',
                     cliente: clienteStr.replace(/^[^\p{L}\p{N}]+/u, '').trim(),
                     servico: String(os.servico || '').replace(/^[^\p{L}\p{N}]+/u, '').trim() || tipo || 'OUTROS',
                     produtos: prodsRaw.map(p => String(p || '').trim()).filter(Boolean).join(', '),
@@ -8767,7 +8768,8 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
     return stats;
 }
 
-async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, veiculos, destinatarios, usuarioNome, automatico }) {
+async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, veiculos, destinatarios, usuarioNome, automatico, modo, diasMov }) {
+    const isMensal = modo === 'mensal';
     let veiculosList = veiculos;
     if (!Array.isArray(veiculosList)) {
         let parsed = dadosRaw;
@@ -8785,6 +8787,18 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     }
 
     const stats = _rrCalcularMetricasRelatorio(veiculosList);
+    if (isMensal) {
+        // Consolida por equipe (motorista + ajudante) ao longo do mes
+        const mapEq = {};
+        const somar = ['totalOS', 'manutencoesTotal', 'manutencoesObra', 'manutencoesEvento', 'manutencoesOS', 'entregasEventoBanheiros', 'entregasEventoOS', 'entregasObraBanheiros', 'entregasObraOS', 'banheirosRetirados', 'retiradasOS'];
+        stats.equipes.forEach(e => {
+            const key = String(e.motorista || '').toLowerCase().trim() + '|' + String(e.ajudante || '').toLowerCase().trim();
+            if (!mapEq[key]) mapEq[key] = { ...e };
+            else somar.forEach(k => { mapEq[key][k] += e[k]; });
+        });
+        stats.equipes = Object.values(mapEq).sort((a, b) =>
+            (b.manutencoesTotal + b.entregasObraBanheiros + b.entregasEventoBanheiros) - (a.manutencoesTotal + a.entregasObraBanheiros + a.entregasEventoBanheiros));
+    }
 
     // Buscar fotos dos colaboradores no banco para exibir foto do motorista e ajudante
     const colabMap = {};
@@ -8812,6 +8826,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         const wbRr = new ExcelJSrr.Workbook();
         wbRr.creator = 'América Rental';
         const cols = [
+            ...(isMensal ? [{ header: 'Data', key: 'dia', width: 12 }] : []),
             { header: 'Cliente', key: 'cliente', width: 42 },
             { header: 'Serviço', key: 'servico', width: 26 },
             { header: 'Obra/Evento', key: 'oe', width: 13 },
@@ -8838,6 +8853,18 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         addSheet('Outros Serviços', porCat('OUTROS'));
         addSheet('Obra', stats.detalhe.filter(r => r.oe === 'Obra'));
         addSheet('Evento', stats.detalhe.filter(r => r.oe === 'Evento'));
+        if (isMensal && Array.isArray(diasMov) && diasMov.length) {
+            const wsM = wbRr.addWorksheet('Movimento por Dia');
+            wsM.columns = [
+                { header: 'Data', key: 'data', width: 14 }, { header: 'Entregas (banheiros)', key: 'entregas', width: 20 },
+                { header: 'Retiradas (banheiros)', key: 'retiradas', width: 20 }, { header: 'Manutenções', key: 'manutencoes', width: 16 },
+                { header: 'Total', key: 'total', width: 10 }
+            ];
+            const hM = wsM.getRow(1);
+            hM.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            hM.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
+            diasMov.forEach(d => wsM.addRow({ data: String(d.data).split('-').reverse().join('/'), entregas: d.entregas, retiradas: d.retiradas, manutencoes: d.manutencoes, total: d.entregas + d.retiradas + d.manutencoes }));
+        }
         const bufRr = await wbRr.xlsx.writeBuffer();
         const nomeArq = String(nomeResumo || dataRota || 'Resumo').replace(/[^\w\-]+/g, '_').substring(0, 60);
         attachments.push({
@@ -9121,15 +9148,14 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:10px;background:#ffffff;">
             <tr>
                 <td width="215" valign="middle" style="padding:10px;background:#f8fafc;border-right:1px solid #e2e8f0;">
-                    <div style="font-size:12px;font-weight:800;color:#1e3a5f;margin-bottom:8px;">🚚 Equipe #${idx + 1} • ${_escRr(eq.veiculo)}</div>
                     <table cellpadding="0" cellspacing="0" border="0">
                         <tr>
                             <td valign="middle" style="padding-right:8px;">${motAvatar}</td>
-                            <td valign="middle"><div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">Motorista</div><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.motorista || 'Não informado')}</div></td>
+                            <td valign="middle"><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.motorista || 'Não informado')}</div></td>
                         </tr>
                         <tr>
                             <td valign="middle" style="padding:8px 8px 0 0;">${ajuAvatar}</td>
-                            <td valign="middle" style="padding-top:8px;"><div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;">Ajudante</div><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.ajudante || 'Não informado')}</div></td>
+                            <td valign="middle" style="padding-top:8px;"><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.ajudante || 'Não informado')}</div></td>
                         </tr>
                     </table>
                 </td>
@@ -9144,33 +9170,74 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         if (!outrosPorServico[k]) outrosPorServico[k] = [];
         outrosPorServico[k].push(r);
     });
-    const outrosRowsHtml = Object.keys(outrosPorServico).length
-        ? Object.entries(outrosPorServico).sort((a, b) => b[1].length - a[1].length).map(([serv, lista]) => `
-            <tr style="background:#f1f5f9;">
-                <td colspan="3" style="padding:8px 10px;font-size:12px;font-weight:800;color:#1f2937;">⚙️ ${_escRr(serv)} — <span style="color:#7c3aed;font-size:14px;">${lista.length}</span></td>
-            </tr>
-            ${lista.map(r => `
-            <tr>
-                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#1f2937;">${_escRr(r.cliente || '—')}</td>
-                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;">${r.oe === 'Evento' ? '💜 Evento' : '💙 Obra'}</td>
-                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;">🚚 ${_escRr(String(r.veiculo || '').split(' - ')[0])}</td>
-            </tr>`).join('')}`).join('')
-        : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#4b5563;font-size:13px;">Nenhum outro serviço agendado nesta rota.</td></tr>`;
-    const outrosHtml = `
+    const outrosResumoTxt = Object.keys(outrosPorServico).length
+        ? Object.entries(outrosPorServico).sort((a, b) => b[1].length - a[1].length)
+            .map(([k, l]) => _escRr(k.charAt(0) + k.slice(1).toLowerCase()) + ': <b>' + l.length + '</b>').join(' • ')
+        : 'Nenhum outro serviço agendado';
+    const _per = isMensal ? 'do Mês' : 'do Dia';
+
+    // ── Movimento por dia (somente relatorio mensal) ──
+    let movimentoHtml = '';
+    if (isMensal && Array.isArray(diasMov) && diasMov.length) {
+        const fmtD = d => String(d).split('-').reverse().slice(0, 2).join('/');
+        const dowNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const dm = diasMov.map(d => ({ ...d, total: d.entregas + d.retiradas + d.manutencoes, dow: new Date(d.data + 'T12:00:00').getDay() }));
+        const cfgM = {
+            type: 'bar',
+            data: {
+                labels: dm.map(d => fmtD(d.data)),
+                datasets: [
+                    { label: 'Entregas', backgroundColor: '#16a34a', data: dm.map(d => d.entregas) },
+                    { label: 'Retiradas', backgroundColor: '#dc2626', data: dm.map(d => d.retiradas) },
+                    { label: 'Manutenções', backgroundColor: '#0284c7', data: dm.map(d => d.manutencoes) }
+                ]
+            },
+            options: {
+                title: { display: true, text: 'Movimento por Dia (banheiros)', fontSize: 14, fontColor: '#1e293b', padding: 20 },
+                legend: { position: 'bottom' },
+                scales: { yAxes: [{ ticks: { beginAtZero: true } }] }
+            }
+        };
+        const urlM = 'https://quickchart.io/chart?w=620&h=320&bkg=white&c=' + encodeURIComponent(JSON.stringify(cfgM));
+        const top5 = [...dm].sort((a, b) => b.total - a.total).slice(0, 5);
+        const maxTot = Math.max(1, top5[0] ? top5[0].total : 1);
+        const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
+        const top5Html = top5.map((d, i) => {
+            const w = Math.max(6, Math.round((d.total / maxTot) * 100));
+            return `<tr>
+                <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:800;color:#1f2937;white-space:nowrap;">${medals[i]} ${fmtD(d.data)} <span style="font-weight:600;color:#4b5563;font-size:11px;">${dowNames[d.dow]}</span></td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;width:30%;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;"><tr><td width="${w}%" height="10" bgcolor="#7c3aed" style="background:#7c3aed;font-size:1px;line-height:10px;">&nbsp;</td><td height="10" style="font-size:1px;line-height:10px;">&nbsp;</td></tr></table></td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;white-space:nowrap;">🚚 <b>${d.entregas}</b> • ⭕ <b>${d.retiradas}</b> • 🔧 <b>${d.manutencoes}</b></td>
+                <td align="right" style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:800;color:#6d28d9;white-space:nowrap;">${d.total}</td>
+            </tr>`;
+        }).join('');
+        const best = k => dm.reduce((a, b) => (b[k] > a[k] ? b : a), dm[0]);
+        const bE = best('entregas'), bR = best('retiradas'), bM = best('manutencoes');
+        const bestCard = (titulo, d, k, bg, bd, cor) => `<td width="33%" valign="top" style="padding:0 3px;"><div style="background:${bg};border:1.5px solid ${bd};border-radius:10px;padding:10px;text-align:center;"><div style="font-size:10px;font-weight:700;color:${cor};text-transform:uppercase;">${titulo}</div><div style="font-size:22px;font-weight:800;color:${cor};margin:4px 0;">${d[k]}</div><div style="font-size:11px;color:#374151;white-space:nowrap;">em ${fmtD(d.data)} (${dowNames[d.dow]})</div></div></td>`;
+        const porDow = {};
+        dm.forEach(d => { if (!porDow[d.dow]) porDow[d.dow] = { soma: 0, n: 0 }; porDow[d.dow].soma += d.total; porDow[d.dow].n++; });
+        const dowHtml = Object.keys(porDow).map(Number).sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
+            .map(k => `<td align="center" style="padding:8px 4px;border:1px solid #e2e8f0;background:#f8fafc;"><div style="font-size:10px;font-weight:700;color:#4b5563;text-transform:uppercase;">${dowNames[k].substring(0, 3)}</div><div style="font-size:16px;font-weight:800;color:#1f2937;">${Math.round(porDow[k].soma / porDow[k].n)}</div></td>`).join('');
+        movimentoHtml = `
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
-                🧰 Outros Serviços Agendados (${stats.outros.length})
+                📈 Movimento por Dia — Quando há mais fluxo (${dm.length} dia(s) com resumo salvo)
             </h3>
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:22px;">
-                <thead><tr style="background:#e2e8f0;">
-                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Cliente</th>
-                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Tipo</th>
-                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Veículo</th>
-                </tr></thead>
-                <tbody>${outrosRowsHtml}</tbody>
-            </table>`;
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center;">
+                <img src="${urlM}" alt="Movimento por dia" style="width:100%;max-width:620px;height:auto;display:block;margin:0 auto;">
+            </div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr>
+                ${bestCard('🚚 Dia c/ mais entregas', bE, 'entregas', '#f0fdf4', '#86efac', '#15803d')}
+                ${bestCard('⭕ Dia c/ mais retiradas', bR, 'retiradas', '#fef2f2', '#fca5a5', '#b91c1c')}
+                ${bestCard('🔧 Dia c/ mais manutenções', bM, 'manutencoes', '#f0f9ff', '#7dd3fc', '#0369a1')}
+            </tr></table>
+            <div style="font-size:12px;font-weight:800;color:#1f2937;margin:0 0 6px;">🏆 Top 5 dias de maior movimento (entregas + retiradas + manutenções)</div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:14px;">${top5Html}</table>
+            <div style="font-size:12px;font-weight:800;color:#1f2937;margin:0 0 6px;">📅 Média de movimento por dia da semana</div>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;"><tr>${dowHtml}</tr></table>`;
+    }
 
     const tituloResumo = nomeResumo || dataRota || new Date().toLocaleDateString('pt-BR');
-    const subject = `📊 Relatório Resumo da Rota — ${tituloResumo}`;
+    const subject = isMensal ? `📅 Balanço Mensal — Resumo da Rota — ${tituloResumo}` : `📊 Relatório Resumo da Rota — ${tituloResumo}`;
 
     const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;max-width:650px;margin:0 auto;border:1px solid #dce3eb;border-radius:12px;overflow:hidden;background:#ffffff;color:#1e293b;">
@@ -9181,10 +9248,10 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
         <!-- Cabeçalho do Relatório -->
         <div style="background:#dcfce7;border-bottom:3px solid #16a34a;padding:22px 24px;color:#374151;">
-            <h2 style="margin:0;font-size:20px;font-weight:800;color:#1f2937;">📊 Relatório Operacional — Resumo da Rota</h2>
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:#1f2937;">${isMensal ? '📅 Balanço Mensal' : '📊 Relatório Operacional'} — Resumo da Rota</h2>
             <p style="margin:8px 0 0;font-size:13px;color:#374151;">
-                <b>Resumo / Data:</b> ${tituloResumo} &nbsp;|&nbsp;
-                <b>Equipes:</b> ${stats.equipes.length} veículo(s) &nbsp;|&nbsp;
+                <b>${isMensal ? 'Período' : 'Resumo / Data'}:</b> ${tituloResumo} &nbsp;|&nbsp;
+                <b>Equipes:</b> ${stats.equipes.length} ${isMensal ? 'equipe(s)' : 'veículo(s)'} &nbsp;|&nbsp;
                 <b>Gerado por:</b> ${usuarioNome || 'Sistema'}
             </p>
         </div>
@@ -9192,7 +9259,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         <div style="padding:22px 24px;">
             <!-- SEÇÃO 1: ENTREGAS E RETIRADAS NO DIA -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
-                🚚 1. Resumo de Entregas e Retiradas do Dia
+                🚚 1. Resumo de Entregas e Retiradas ${_per}
             </h3>
 
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;">
@@ -9213,7 +9280,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                     </td>
                     <td width="33%" valign="top" style="padding-left:6px;">
                         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">📦 Total Entregue no Dia</div>
+                            <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">📦 Total Entregue ${isMensal ? 'no Mês' : 'no Dia'}</div>
                             <div style="font-size:34px;font-weight:800;color:#16a34a;margin:6px 0;">${stats.banheirosEntreguesTotal}</div>
                             <div style="font-size:13px;color:#166534;font-weight:700;">banheiros entregues em ${stats.clientesEntregaDia} cliente(s)</div>
                         </div>
@@ -9223,24 +9290,30 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
                 <tr>
-                    <td width="50%" valign="top" style="padding-right:6px;">
+                    <td width="33%" valign="top" style="padding-right:6px;">
+                        <div style="background:#ecfeff;border:1.5px solid #67e8f9;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#0e7490;text-transform:uppercase;">💧 Outros Serviços Agendados</div>
+                            <div style="font-size:26px;font-weight:800;color:#0891b2;margin:6px 0;">${stats.outros.length}</div>
+                            <div style="font-size:11px;color:#155e75;">${outrosResumoTxt}</div>
+                        </div>
+                    </td>
+                    <td width="34%" valign="top" style="padding:0 3px;">
                         <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;">⭕ Quantidade de Banheiros Retirados</div>
                             <div style="font-size:26px;font-weight:800;color:#dc2626;margin:6px 0;">${stats.banheirosRetirados}</div>
-                            <div style="font-size:11px;color:#7f1d1d;">💙 Obra: <b>${stats.banheirosRetiradosObra}</b> • 💜 Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
+                            <div style="font-size:11px;color:#7f1d1d;white-space:nowrap;">💙 Obra: <b>${stats.banheirosRetiradosObra}</b> • 💜 Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
                         </div>
                     </td>
-                    <td width="50%" valign="top" style="padding-left:6px;">
+                    <td width="33%" valign="top" style="padding-left:6px;">
                         <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;">📅 Clientes c/ Retiradas Agendadas</div>
                             <div style="font-size:26px;font-weight:800;color:#d97706;margin:6px 0;">${stats.clientesRetiradaAgendada}</div>
-                            <div style="font-size:11px;color:#92400e;">Retiradas programadas na rota do dia</div>
+                            <div style="font-size:11px;color:#92400e;">Retiradas programadas ${isMensal ? 'no período' : 'na rota do dia'}</div>
                         </div>
                     </td>
                 </tr>
             </table>
 
-            ${outrosHtml}
             <!-- SEÇÃO 2: MANUTENÇÕES (OBRA + EVENTO + SOMA TOTAL) -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
                 🔧 2. Resumo Geral de Manutenções
@@ -9263,10 +9336,10 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                         </div>
                     </td>
                     <td width="34%" valign="top" style="padding-left:6px;">
-                        <div style="background:#059669;border-radius:10px;padding:12px;text-align:center;color:#ffffff;">
+                        <div style="background:#059669;border-radius:10px;padding:12px 4px;text-align:center;color:#ffffff;">
                             <div style="font-size:11px;font-weight:700;color:#ffffff;text-transform:uppercase;">✅ Soma Total das Manutenções</div>
                             <div style="font-size:28px;font-weight:800;color:#ffffff;margin:6px 0;">${stats.somaTotalManutencoes}</div>
-                            <div style="font-size:12px;color:#ffffff;font-weight:700;">💙 Obra (${stats.manutencoesObra}) + 💜 Evento (${stats.manutencoesEvento})</div>
+                            <div style="font-size:11px;color:#ffffff;font-weight:700;white-space:nowrap;">💙 Obra (${stats.manutencoesObra}) + 💜 Evento (${stats.manutencoesEvento})</div>
                         </div>
                     </td>
                 </tr>
@@ -9277,6 +9350,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                 <img src="${chart1Url}" alt="Gráfico de Operações do Dia" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
             </div>
 
+            ${movimentoHtml}
             <!-- SEÇÃO 3: QUANTIDADE DE MANUTENÇÕES × POR TIPO DE PRODUTO -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
                 🚽 3. Quantidade de Manutenções × por Tipo de Produto
@@ -9334,6 +9408,51 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     return { sentTo: listaDest, stats };
 }
 
+// Relatorio mensal/acumulado: consolida o ultimo resumo salvo de cada data (dia 1 ate ateDia)
+async function enviarRelatorioMensalResumoRota({ ano, mes, ateDia, destinatarios, usuarioNome }) {
+    const rows = await new Promise(resolve => {
+        db.all("SELECT id, nome, dados, criado_em FROM logistica_resumo_rota ORDER BY id ASC", [], (err, r) => resolve(r || []));
+    });
+    const pad = n => String(n).padStart(2, '0');
+    const porDia = {};
+    rows.forEach(r => {
+        let data = null;
+        const m = String(r.nome || '').match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+        if (m) data = m[3] + '-' + m[2] + '-' + m[1];
+        else if (r.criado_em) data = String(r.criado_em).substring(0, 10);
+        if (!data) return;
+        const [y, mo, d] = data.split('-').map(Number);
+        if (y !== ano || mo !== mes || d > ateDia) return;
+        let parsed;
+        try { parsed = JSON.parse(r.dados); } catch (e) { return; }
+        const v = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.veiculos) ? parsed.veiculos : []);
+        if (!v.length) return;
+        porDia[data] = v; // ordenado por id: o ultimo salvo da data prevalece
+    });
+    const datas = Object.keys(porDia).sort();
+    if (!datas.length) {
+        console.warn('[RR-EMAIL-MENSAL] Nenhum resumo salvo em ' + pad(mes) + '/' + ano + ' ate o dia ' + ateDia);
+        return null;
+    }
+    const veiculosAll = [];
+    const diasMov = [];
+    datas.forEach(dt => {
+        const vs = porDia[dt];
+        const st = _rrCalcularMetricasRelatorio(vs);
+        diasMov.push({ data: dt, entregas: st.banheirosEntreguesTotal, retiradas: st.banheirosRetirados, manutencoes: st.somaTotalManutencoes });
+        vs.forEach(v => veiculosAll.push({ ...v, _dia: dt }));
+    });
+    const periodo = '01/' + pad(mes) + '/' + ano + ' a ' + pad(ateDia) + '/' + pad(mes) + '/' + ano;
+    return enviarEmailRelatorioResumoRota({
+        nomeResumo: periodo,
+        veiculos: veiculosAll,
+        destinatarios,
+        usuarioNome,
+        modo: 'mensal',
+        diasMov
+    });
+}
+
 // POST /api/logistica/resumo-rota/enviar-relatorio - Envio manual pelo botão da tela (Thais.Ricci)
 app.post('/api/logistica/resumo-rota/enviar-relatorio', authenticateToken, async (req, res) => {
     try {
@@ -9349,7 +9468,20 @@ app.post('/api/logistica/resumo-rota/enviar-relatorio', authenticateToken, async
             usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci',
             automatico: false
         });
-        res.json({ success: true, sentTo: result?.sentTo || [email] });
+        // 2º e-mail: acumulado do dia 01 do mes ate hoje
+        let mensalOk = false;
+        try {
+            const hojeSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const rm = await enviarRelatorioMensalResumoRota({
+                ano: hojeSP.getFullYear(), mes: hojeSP.getMonth() + 1, ateDia: hojeSP.getDate(),
+                destinatarios: email,
+                usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci'
+            });
+            mensalOk = !!rm;
+        } catch (eM) {
+            console.error('[RR-EMAIL-MENSAL] Erro no acumulado manual:', eM);
+        }
+        res.json({ success: true, sentTo: result?.sentTo || [email], mensal: mensalOk });
     } catch (err) {
         console.error('[RR-EMAIL-MANUAL] Erro ao enviar relatório:', err);
         res.status(500).json({ error: err.message || 'Erro ao enviar relatório por e-mail.' });
@@ -21378,6 +21510,24 @@ cron.schedule('0 3 * * *', () => {
 }, { timezone: 'America/Sao_Paulo' });
 
 // ── CRON COMISSÃO: Dia 26 às 08h → gera links e envia emails ────────────
+// CRON BALANCO MENSAL (Resumo da Rota): ultimo dia do mes as 23:59 (America/Sao_Paulo), mes completo
+cron.schedule('59 23 28-31 * *', async () => {
+    const agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const amanha = new Date(agora);
+    amanha.setDate(agora.getDate() + 1);
+    if (amanha.getDate() !== 1) return; // so executa no ultimo dia do mes
+    console.log('[CRON-RR-MENSAL] Gerando balanco mensal do Resumo da Rota...');
+    try {
+        await enviarRelatorioMensalResumoRota({
+            ano: agora.getFullYear(), mes: agora.getMonth() + 1, ateDia: agora.getDate(),
+            destinatarios: ['thais.ricci@americarental.com.br', 'nicolle.mezuraro@americarental.com.br'],
+            usuarioNome: 'Sistema (automático)'
+        });
+    } catch (e) {
+        console.error('[CRON-RR-MENSAL] Erro:', e);
+    }
+}, { timezone: 'America/Sao_Paulo' });
+
 cron.schedule('0 8 26 * *', async () => {
     console.log('[CRON-COMISSAO] Dia 26 — gerando links e enviando emails de comissao...');
     const hoje = new Date();

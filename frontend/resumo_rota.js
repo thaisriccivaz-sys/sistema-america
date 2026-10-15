@@ -482,7 +482,7 @@ window.rrAbrirModalEnviarRelatorio = async function() {
         if (!res.ok || !data.success) {
             throw new Error(data.error || 'Erro ao enviar relatório.');
         }
-        showToast('✅ Relatório enviado com sucesso para ' + (data.sentTo || [emailDest]).join(', ') + '!', 'success');
+        showToast((data.mensal ? '✅ 2 relatórios enviados (resumo do dia + acumulado do mês) para ' : '✅ Relatório do dia enviado para ') + (data.sentTo || [emailDest]).join(', ') + '!', 'success');
     } catch (e) {
         console.error('[RR] Erro ao enviar relatório:', e);
         showToast('Erro ao enviar relatório: ' + e.message, 'error');
