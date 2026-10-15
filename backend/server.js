@@ -4328,6 +4328,18 @@ db.run("UPDATE fechamento_mensal SET dsr = NULL WHERE dsr = 'Nao'", function(e) 
 });
 
 // Auto-migration: Tabela fechamento_comissao
+// Histórico de comparativos da folha (PDF no R2 + snapshot das divergências)
+db.run(`CREATE TABLE IF NOT EXISTS fechamento_comparativos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mes INTEGER NOT NULL,
+    ano INTEGER NOT NULL,
+    file_name TEXT,
+    r2_key TEXT,
+    uploaded_by TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    qtd_divergencias INTEGER DEFAULT 0,
+    divergencias_json TEXT DEFAULT '[]'
+)`, (e) => { if (e) console.error('[Migration] fechamento_comparativos:', e.message); });
 db.run(`CREATE TABLE IF NOT EXISTS fechamento_comissao (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mes INTEGER NOT NULL,
@@ -11403,6 +11415,83 @@ app.post('/api/fechamento/gerar-xlsx', authenticateToken, async (req, res) => {
 });
 
 
+// ── Historico de comparativos da folha ──────────────────────────────────────
+// GET: lista os comparativos de um mes/ano (mais antigo primeiro)
+app.get('/api/fechamento/comparativos/:ano/:mes', authenticateToken, (req, res) => {
+    db.all(
+        `SELECT id, mes, ano, file_name, r2_key, uploaded_by, uploaded_at, qtd_divergencias, divergencias_json
+         FROM fechamento_comparativos WHERE ano = ? AND mes = ? ORDER BY id ASC`,
+        [parseInt(req.params.ano, 10), parseInt(req.params.mes, 10)],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const lista = (rows || []).map(r => {
+                let divs = [];
+                try { divs = JSON.parse(r.divergencias_json || '[]'); } catch (e) { divs = []; }
+                return {
+                    id: r.id, mes: r.mes, ano: r.ano, file_name: r.file_name,
+                    uploaded_by: r.uploaded_by, uploaded_at: r.uploaded_at,
+                    qtd_divergencias: r.qtd_divergencias || 0,
+                    tem_pdf: !!r.r2_key,
+                    divergencias: divs
+                };
+            });
+            res.json(lista);
+        }
+    );
+});
+
+// PUT: grava o snapshot das divergencias calculado no navegador
+app.put('/api/fechamento/comparativos/:id', authenticateToken, (req, res) => {
+    const qtd = parseInt(req.body.qtd_divergencias, 10) || 0;
+    const divs = Array.isArray(req.body.divergencias) ? req.body.divergencias : [];
+    db.run(
+        `UPDATE fechamento_comparativos SET qtd_divergencias = ?, divergencias_json = ? WHERE id = ?`,
+        [qtd, JSON.stringify(divs), req.params.id],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ ok: true });
+        }
+    );
+});
+
+// GET: stream do PDF anexado naquela comparacao (privado)
+app.get('/api/fechamento/comparativo-pdf/:id', authenticateToken, (req, res) => {
+    db.get(`SELECT r2_key, file_name FROM fechamento_comparativos WHERE id = ?`, [req.params.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row || !row.r2_key) return res.status(404).json({ error: 'PDF nao encontrado para este comparativo.' });
+        try {
+            const r2c = require('./utils/r2');
+            if (!r2c.isReady()) return res.status(503).json({ error: 'R2 nao configurado' });
+            const fileData = await r2c.downloadStreamFromR2(row.r2_key);
+            const bytes = await fileData.stream.transformToByteArray();
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.file_name || 'comparativo.pdf')}"`);
+            res.end(Buffer.from(bytes));
+        } catch (e) {
+            console.error('[comparativo-pdf]', e.message);
+            res.status(500).json({ error: 'Erro ao ler o PDF do comparativo.' });
+        }
+    });
+});
+
+// DELETE: exclui um comparativo (exige senha). Apaga do R2 antes de apagar do banco.
+app.delete('/api/fechamento/comparativos/:id', authenticateToken, (req, res) => {
+    const senhaOk = process.env.FECH_COMPARATIVO_SENHA || 'rh123!';
+    if (String((req.body && req.body.senha) || '') !== senhaOk) return res.status(403).json({ error: 'Senha incorreta.' });
+    db.get(`SELECT r2_key FROM fechamento_comparativos WHERE id = ?`, [req.params.id], async (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Comparativo nao encontrado.' });
+        try {
+            const r2c = require('./utils/r2');
+            if (row.r2_key && r2c.isReady()) await r2c.deleteFromR2(row.r2_key);
+        } catch (e) { console.error('[comparativo-delete] R2:', e.message); }
+        db.run(`DELETE FROM fechamento_comparativos WHERE id = ?`, [req.params.id], function (e2) {
+            if (e2) return res.status(500).json({ error: e2.message });
+            res.json({ ok: true });
+        });
+    });
+});
+
 // Rota para comparar folha da contabilidade (PDF)
 app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }).single('pdf'), async (req, res) => {
     try {
@@ -11566,7 +11655,42 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
             }
         }
 
-        res.json({ ok: true, colaboradores: results });
+        // Guarda o PDF no R2 e cria o registro de historico (a lista de divergencias e enviada depois pelo front via PUT)
+        let comparativoId = null;
+        try {
+            const _mesC = parseInt(req.body.mes, 10) || null;
+            const _anoC = parseInt(req.body.ano, 10) || null;
+            if (_mesC && _anoC) {
+                const r2c = require('./utils/r2');
+                const nomeOrigC = String(req.file.originalname || 'folha.pdf');
+                let r2KeyC = null;
+                if (r2c.isReady()) {
+                    try {
+                        const safeC = nomeOrigC.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\.pdf$/i, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 60) || 'folha';
+                        const hashC = require('crypto').randomBytes(4).toString('hex');
+                        const keyC = `Fechamento/${_anoC}/${String(_mesC).padStart(2, '0')}/Comparativos/${Date.now()}_${safeC}_${hashC}.pdf`;
+                        await r2c.uploadToR2(keyC, req.file.buffer, 'application/pdf');
+                        r2KeyC = keyC;
+                    } catch (eUp) {
+                        console.error('[comparar-pdf] Falha ao enviar PDF ao R2:', eUp.message);
+                    }
+                } else {
+                    console.warn('[R2] Storage nao configurado - comparativo registrado sem PDF.');
+                }
+                const quemC = req.user ? (req.user.nome || req.user.username || 'Sistema') : 'Sistema';
+                comparativoId = await new Promise((resolveC) => {
+                    db.run(
+                        `INSERT INTO fechamento_comparativos (mes, ano, file_name, r2_key, uploaded_by) VALUES (?,?,?,?,?)`,
+                        [_mesC, _anoC, nomeOrigC, r2KeyC, quemC],
+                        function (eIns) { resolveC(eIns ? null : this.lastID); }
+                    );
+                });
+            }
+        } catch (eComp) {
+            console.error('[comparar-pdf] Falha ao registrar historico:', eComp.message);
+        }
+
+        res.json({ ok: true, colaboradores: results, comparativoId });
 
     } catch (e) {
         console.error('[comparar-pdf]', e);

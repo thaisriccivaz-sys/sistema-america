@@ -839,6 +839,7 @@ function abrirLegenda() {
       <i class="ph ph-files"></i> Comparar
       <input type="file" id="fech-comparar-pdf" style="display:none" accept="application/pdf" onchange="window._fechamento.compararFolhaPDF(event)">
     </label>
+    <div id="fech-comparativos-wrap" style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;"></div>
 
   </div>
   <!-- Filtro por nome -->
@@ -1088,6 +1089,7 @@ function abrirLegenda() {
             });
             console.log('[fechamento] Ponto reconstruído do banco para', Object.keys(_dadosPonto).length, 'colaboradores');
             renderizarTabela(_dados);
+            carregarComparativos();
             // Restaurar eye buttons se há dados persistidos
             (function() {
                 var tF = _dados.some(function(r) { return parseFloat(r.farmacia) > 0; });
@@ -3661,6 +3663,8 @@ function abrirLegenda() {
 
         const formData = new FormData();
         formData.append('pdf', file);
+        formData.append('mes', _mes);
+        formData.append('ano', _ano);
 
         const btn = document.querySelector('label[title="Anexar folha em PDF da contabilidade para comparar"]');
         const oldHtml = btn ? btn.innerHTML : 'Comparar';
@@ -3681,6 +3685,7 @@ function abrirLegenda() {
             const folhaData = res.colaboradores || {};
             let divErros = '';
             let qtdErros = 0;
+            const listaDiv = [];
 
             // Limpar divergências anteriores em memória para o novo arquivo
             _dados.forEach(r => { r.divergencias_comparacao = {}; });
@@ -3917,6 +3922,7 @@ function abrirLegenda() {
                 });
 
                 if (colabErros.length > 0) {
+                    listaDiv.push({ nome: row.nome_completo, itens: colabErros.slice() });
                     divErros += `<div style="margin-bottom:.8rem;">
                         <strong style="color:#1e40af;">${row.nome_completo}</strong>
                         <ul style="margin:0;padding-left:1.2rem;color:#b91c1c;font-size:.9rem;">
@@ -3928,6 +3934,18 @@ function abrirLegenda() {
 
             // Persistir divergências no banco para manter destaque vermelho após refresh (F5)
             await salvarSilencioso();
+
+            // Histórico: grava o snapshot das divergências deste comparativo e atualiza os olhos
+            if (res.comparativoId) {
+                try {
+                    await fetch('/api/fechamento/comparativos/' + res.comparativoId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                        body: JSON.stringify({ qtd_divergencias: qtdErros, divergencias: listaDiv })
+                    });
+                } catch (ePut) { console.warn('[fechamento] Falha ao gravar historico do comparativo:', ePut); }
+            }
+            await carregarComparativos();
 
             if (qtdErros > 0) {
                 Swal.fire({
@@ -3952,6 +3970,172 @@ function abrirLegenda() {
                 btn.innerHTML = oldHtml;
                 btn.style.pointerEvents = 'auto';
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // HISTÓRICO DE COMPARATIVOS DA FOLHA (olhos ao lado do botão Comparar)
+    // ─────────────────────────────────────────────────────────────────
+    let _comparativos = [];
+
+    function _escComp(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function(ch) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+        });
+    }
+
+    function _fmtDataComp(raw, comAno) {
+        if (!raw) return '';
+        var s = String(raw);
+        var d = new Date(s.indexOf('T') >= 0 || s.indexOf('Z') >= 0 ? s : s.replace(' ', 'T') + 'Z');
+        if (isNaN(d.getTime())) return '';
+        var opts = { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' };
+        if (comAno) opts.year = 'numeric';
+        var data = d.toLocaleDateString('pt-BR', opts);
+        var hora = d.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+        return data + ' ' + hora;
+    }
+
+    async function carregarComparativos() {
+        var wrap = document.getElementById('fech-comparativos-wrap');
+        if (!wrap) return;
+        try {
+            var r = await fetch('/api/fechamento/comparativos/' + _ano + '/' + _mes, {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            var j = await r.json();
+            _comparativos = Array.isArray(j) ? j : [];
+        } catch (e) {
+            console.warn('[fechamento] Historico de comparativos:', e);
+            _comparativos = [];
+        }
+        wrap.innerHTML = _comparativos.map(function(c) {
+            var titulo = 'Comparativo de ' + _fmtDataComp(c.uploaded_at, true) + (c.uploaded_by ? ' por ' + c.uploaded_by : '') + ' — ' + (c.qtd_divergencias || 0) + ' divergência(s)';
+            return '<button type="button" onclick="window._fechamento.abrirComparativo(' + c.id + ')" title="' + _escComp(titulo) + '" '
+                + 'style="background:#fff;color:#b45309;border:1px solid #f59e0b;padding:.25rem .55rem;border-radius:.4rem;font-size:.75rem;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:.3rem;height:32px;box-sizing:border-box;">'
+                + '<i class="ph ph-eye"></i> ' + _escComp(_fmtDataComp(c.uploaded_at, true)) + '</button>';
+        }).join('');
+    }
+
+    function _textoComparativo(c) {
+        var linhas = ['Comparativo da folha - ' + _fmtDataComp(c.uploaded_at, true) + (c.file_name ? ' (' + c.file_name + ')' : ''),
+                      (c.qtd_divergencias || 0) + ' divergência(s)', ''];
+        (c.divergencias || []).forEach(function(d) {
+            linhas.push(d.nome);
+            (d.itens || []).forEach(function(it) { linhas.push('  - ' + it); });
+            linhas.push('');
+        });
+        return linhas.join('\n');
+    }
+
+    function abrirComparativo(id) {
+        var c = _comparativos.find(function(x) { return x.id === id; });
+        if (!c) return;
+        var corpo = (c.divergencias || []).map(function(d) {
+            return '<div style="margin-bottom:.8rem;"><strong style="color:#1e40af;">' + _escComp(d.nome) + '</strong>'
+                + '<ul style="margin:0;padding-left:1.2rem;color:#b91c1c;font-size:.9rem;">'
+                + (d.itens || []).map(function(it) { return '<li>' + _escComp(it) + '</li>'; }).join('')
+                + '</ul></div>';
+        }).join('');
+        if (!corpo) corpo = '<p style="color:#16a34a;font-weight:600;">Nenhuma divergência: a tabela batia 100% com a folha.</p>';
+        var btnSt = 'border:none;border-radius:6px;padding:.4rem .8rem;font-size:.8rem;font-weight:600;cursor:pointer;color:#fff;display:inline-flex;align-items:center;gap:.3rem;';
+        var botoes = '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.8rem;">'
+            + '<button type="button" onclick="window._fechamento.copiarComparativo(' + id + ', this)" style="' + btnSt + 'background:#475569;"><i class="ph ph-copy"></i> Copiar</button>'
+            + (c.tem_pdf ? '<button type="button" onclick="window._fechamento.verPdfComparativo(' + id + ')" style="' + btnSt + 'background:#2563eb;"><i class="ph ph-file-pdf"></i> Visualizar PDF</button>' : '<span style="font-size:.78rem;color:#94a3b8;align-self:center;">PDF não disponível</span>')
+            + '<button type="button" onclick="window._fechamento.excluirComparativo(' + id + ')" style="' + btnSt + 'background:#dc2626;margin-left:auto;"><i class="ph ph-trash"></i> Excluir</button>'
+            + '</div>';
+        Swal.fire({
+            title: 'Comparativo de ' + _fmtDataComp(c.uploaded_at, true),
+            html: '<div style="text-align:left;">'
+                + '<p style="margin:0 0 .6rem;color:#4b5563;font-size:.85rem;">' + (c.qtd_divergencias || 0) + ' divergência(s)'
+                + (c.uploaded_by ? ' · anexado por <strong>' + _escComp(c.uploaded_by) + '</strong>' : '')
+                + (c.file_name ? '<br><span style="color:#94a3b8;">' + _escComp(c.file_name) + '</span>' : '') + '</p>'
+                + botoes
+                + '<div style="max-height:50vh;overflow-y:auto;padding:.25rem;">' + corpo + '</div></div>',
+            icon: (c.qtd_divergencias || 0) > 0 ? 'warning' : 'success',
+            confirmButtonText: 'Fechar',
+            width: '640px'
+        });
+    }
+
+    function copiarComparativo(id, btnEl) {
+        var c = _comparativos.find(function(x) { return x.id === id; });
+        if (!c) return;
+        var texto = _textoComparativo(c);
+        var ok = function() {
+            if (!btnEl) return;
+            var orig = btnEl.innerHTML;
+            btnEl.innerHTML = '<i class="ph ph-check"></i> Copiado!';
+            setTimeout(function() { btnEl.innerHTML = orig; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(ok).catch(function() { _copiarFallbackComp(texto); ok(); });
+        } else {
+            _copiarFallbackComp(texto); ok();
+        }
+    }
+
+    function _copiarFallbackComp(texto) {
+        var ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+
+    async function verPdfComparativo(id) {
+        var w = window.open('', '_blank');
+        try {
+            var r = await fetch('/api/fechamento/comparativo-pdf/' + id, {
+                headers: { 'Authorization': 'Bearer ' + getToken() }
+            });
+            if (!r.ok) {
+                var msg = 'Não foi possível abrir o PDF.';
+                try { msg = (await r.json()).error || msg; } catch (e) {}
+                throw new Error(msg);
+            }
+            var blob = await r.blob();
+            var url = URL.createObjectURL(blob);
+            if (w) w.location.href = url; else window.open(url, '_blank');
+        } catch (e) {
+            if (w) w.close();
+            Swal.fire('Erro', e.message, 'error');
+        }
+    }
+
+    async function excluirComparativo(id) {
+        var res = await Swal.fire({
+            title: 'Excluir comparativo?',
+            text: 'Digite a senha para excluir este item do histórico (o PDF também será apagado).',
+            input: 'password',
+            inputPlaceholder: 'Senha',
+            showCancelButton: true,
+            confirmButtonText: 'Excluir',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc2626',
+            showLoaderOnConfirm: true,
+            preConfirm: async function(senha) {
+                try {
+                    var r = await fetch('/api/fechamento/comparativos/' + id, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                        body: JSON.stringify({ senha: senha })
+                    });
+                    var j = await r.json().catch(function() { return {}; });
+                    if (!r.ok) { Swal.showValidationMessage(j.error || 'Erro ao excluir'); return false; }
+                    return true;
+                } catch (e) {
+                    Swal.showValidationMessage(e.message);
+                    return false;
+                }
+            }
+        });
+        if (res.isConfirmed) {
+            await carregarComparativos();
+            Swal.fire({ icon: 'success', title: 'Comparativo excluído', timer: 1500, showConfirmButton: false });
         }
     }
 
@@ -4066,7 +4250,8 @@ function abrirLegenda() {
         reenviarComissao, importarComissaoParaFechamento,
         uploadFolhaContabilidade, conferirFolha,
         calcularColaborador, calcINSS, calcIRRF, parseBRL, formatBRL,
-        atualizarManual, montarTooltipCelula, alternarConfirmacaoDivergencia
+        atualizarManual, montarTooltipCelula, alternarConfirmacaoDivergencia,
+        carregarComparativos, abrirComparativo, copiarComparativo, verPdfComparativo, excluirComparativo
     };
 })();
 
