@@ -8984,23 +8984,21 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             const badgeTxt = info.isEvento ? '#6d28d9' : '#1d4ed8';
             return `
             <tr>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;color:#1e293b;width:42%;">
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;color:#1e293b;width:38%;">
                     ${info.icon ? info.icon + ' ' : ''}<span style="color:${badgeTxt};">${info.qtd} ×</span> ${nome}
                 </td>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;width:43%;">
-                    <div style="background:#f1f5f9;border-radius:99px;height:12px;width:100%;overflow:hidden;">
-                        <div style="background:${barColor};height:12px;width:${barW}%;border-radius:99px;"></div>
-                    </div>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;width:34%;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f5f9;"><tr><td width="${barW}%" height="12" bgcolor="${barColor}" style="background:${barColor};height:12px;font-size:1px;line-height:12px;">&nbsp;</td><td height="12" style="font-size:1px;line-height:12px;">&nbsp;</td></tr></table>
                 </td>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;font-weight:700;color:#475569;width:15%;">
-                    <span style="background:${badgeBg};color:${badgeTxt};padding:2px 8px;border-radius:12px;">${info.qtd} (${pct}%)</span>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;font-weight:700;color:#475569;width:28%;white-space:nowrap;">
+                    <span style="background:${badgeBg};color:${badgeTxt};padding:2px 8px;border-radius:12px;white-space:nowrap;">${info.qtd} (${pct}%)</span>
                 </td>
             </tr>`;
         }).join('')
         : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">Nenhuma manutenção registrada nesta rota.</td></tr>`;
 
     // ── Cards por Equipe (Motorista + Foto, Ajudante + Foto, Placa, Manutenções, Entregas Evento, Entregas Obra) ──
-    const equipesHtml = stats.equipes.map((eq, idx) => {
+    const _equipesHtmlLegacy = () => stats.equipes.map((eq, idx) => {
         const motAvatar = renderMemberAvatar(eq.motorista, '#1d4ed8', '#2563eb');
         const ajuAvatar = renderMemberAvatar(eq.ajudante, '#d97706', '#f59e0b');
         const prodsManutStr = Object.entries(eq.manutencoesPorProduto)
@@ -9095,6 +9093,51 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     }).join('');
 
     const _escRr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // ── Secao 4: por equipe — fotos (motorista/ajudante) ao lado de grafico de barras horizontais ──
+    const _maxEq = Math.max(1, ...stats.equipes.flatMap(e => [e.manutencoesTotal, e.entregasObraBanheiros, e.entregasEventoBanheiros]));
+    const equipesGraficosHtml = stats.equipes.map((eq, idx) => {
+        const motAvatar = renderMemberAvatar(eq.motorista, '#1d4ed8', '#2563eb');
+        const ajuAvatar = renderMemberAvatar(eq.ajudante, '#d97706', '#f59e0b');
+        const cfg = {
+            type: 'horizontalBar',
+            data: {
+                labels: ['Manutenções', 'Entregas Obra', 'Entregas Evento'],
+                datasets: [{
+                    backgroundColor: ['#10b981', '#2563eb', '#7c3aed'],
+                    data: [eq.manutencoesTotal, eq.entregasObraBanheiros, eq.entregasEventoBanheiros]
+                }]
+            },
+            options: {
+                legend: { display: false },
+                plugins: { datalabels: { anchor: 'end', align: 'right', color: '#0f172a', font: { weight: 'bold', size: 12 } } },
+                scales: {
+                    xAxes: [{ ticks: { beginAtZero: true, suggestedMax: Math.ceil(_maxEq * 1.25) } }],
+                    yAxes: [{ ticks: { fontSize: 12 } }]
+                }
+            }
+        };
+        const url = 'https://quickchart.io/chart?w=400&h=130&bkg=white&c=' + encodeURIComponent(JSON.stringify(cfg));
+        return `
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:10px;background:#ffffff;">
+            <tr>
+                <td width="215" valign="middle" style="padding:10px;background:#f8fafc;border-right:1px solid #e2e8f0;">
+                    <div style="font-size:12px;font-weight:800;color:#1e3a5f;margin-bottom:8px;">🚚 Equipe #${idx + 1} • ${_escRr(eq.veiculo)}</div>
+                    <table cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td valign="middle" style="padding-right:8px;">${motAvatar}</td>
+                            <td valign="middle"><div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">Motorista</div><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.motorista || 'Não informado')}</div></td>
+                        </tr>
+                        <tr>
+                            <td valign="middle" style="padding:8px 8px 0 0;">${ajuAvatar}</td>
+                            <td valign="middle" style="padding-top:8px;"><div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;">Ajudante</div><div style="font-size:12px;font-weight:800;color:#0f172a;">${_escRr(eq.ajudante || 'Não informado')}</div></td>
+                        </tr>
+                    </table>
+                </td>
+                <td valign="middle" style="padding:6px 10px;"><img src="${url}" alt="Gráfico da equipe ${idx + 1}" width="400" style="width:100%;max-width:400px;height:auto;display:block;"></td>
+            </tr>
+        </table>`;
+    }).join('');
+
     const outrosPorServico = {};
     stats.outros.forEach(r => {
         const k = (r.servico || 'OUTROS').toUpperCase();
@@ -9252,29 +9295,22 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                 </tbody>
                 <tfoot>
                     <tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
-                        <td style="padding:10px;font-size:13px;font-weight:800;color:#166534;">SOMA TOTAL DE MANUTENÇÕES</td>
-                        <td></td>
-                        <td align="right" style="padding:10px;font-size:14px;font-weight:800;color:#166534;">${stats.somaTotalManutencoes} (100%)</td>
+                        <td colspan="2" style="padding:10px;font-size:13px;font-weight:800;color:#166534;white-space:nowrap;">SOMA TOTAL DE MANUTENÇÕES</td>
+                        <td align="right" style="padding:10px;font-size:14px;font-weight:800;color:#166534;white-space:nowrap;">${stats.somaTotalManutencoes} (100%)</td>
                     </tr>
                 </tfoot>
             </table>
 
-            ${prodEntries.length > 0 ? `
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:22px;text-align:center;">
-                <img src="${chart2Url}" alt="Gráfico Manutenções por Tipo de Produto" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
-            </div>` : ''}
+            
 
             <!-- SEÇÃO 4: DETALHAMENTO POR EQUIPE -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
                 👷 4. Desempenho por Equipe (Motorista, Ajudante e Placa)
             </h3>
 
-            ${stats.equipes.length > 0 ? `
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;text-align:center;">
-                <img src="${chart3Url}" alt="Gráfico por Equipe" style="width:100%;max-width:560px;height:auto;border-radius:8px;display:block;margin:0 auto;">
-            </div>` : ''}
+            
 
-            ${equipesHtml}
+            ${equipesGraficosHtml}
 
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:22px 0;">
             <p style="font-size:12px;color:#64748b;text-align:center;margin:0;">
