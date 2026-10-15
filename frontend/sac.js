@@ -262,44 +262,19 @@
     return businessMsBetween(now,dl);
   }
 
-  // Retorna tempo percorrido ignorando apenas os fins de semana (Sexta 17h ate Seg 08h)
+  // Retorna tempo percorrido contando SOMENTE horas uteis (Seg-Sex 08h-17h).
+  // Congela as 17h (Seg-Qui) e volta as 08h do dia seguinte; Sexta 17h congela ate Segunda 08h.
   function getSlaElapsedMs(startMs, endMs) {
     if (startMs >= endMs) return 0;
-    const from = new Date(startMs);
-    const to = new Date(endMs);
-    let elapsed = 0;
-    let cur = new Date(from);
-    let guard = 0;
-    while (cur < to && ++guard < 5000) {
-      const dow = cur.getDay();
-      const h = cur.getHours();
-      const isWeekendPause = (dow === 5 && h >= 17) || dow === 6 || dow === 0 || (dow === 1 && h < 8);
-      
-      if (isWeekendPause) {
-        const next = new Date(cur);
-        if (dow === 5) next.setDate(next.getDate() + 3);
-        else if (dow === 6) next.setDate(next.getDate() + 2);
-        else if (dow === 0) next.setDate(next.getDate() + 1);
-        next.setHours(8, 0, 0, 0);
-        
-        if (to < next) cur = to;
-        else cur = next;
-      } else {
-        const next = new Date(cur);
-        const daysToFriday = 5 - dow;
-        next.setDate(next.getDate() + daysToFriday);
-        next.setHours(17, 0, 0, 0);
-        
-        if (to < next) {
-          elapsed += (to.getTime() - cur.getTime());
-          cur = to;
-        } else {
-          elapsed += (next.getTime() - cur.getTime());
-          cur = next;
-        }
-      }
-    }
-    return Math.round(elapsed);
+    return Math.round(businessMsBetween(new Date(startMs), new Date(endMs)));
+  }
+  // Icone de congelamento por horario: snowflake = fim de semana (Sex 17h -> Seg 08h); lock = noite (Seg-Qui 17h -> 08h)
+  function _sacPauseIcon() {
+    const d = new Date(), dow = d.getDay(), h = d.getHours();
+    const weekend = (dow === 5 && h >= 17) || dow === 6 || dow === 0 || (dow === 1 && h < 8);
+    if (weekend) return '\u2744\uFE0F';
+    if (h < 8 || h >= 17) return '\uD83D\uDD12';
+    return '';
   }
   // ── HELPERS ──────────────────────────────────────────────────
   function _normDate(str) {
@@ -621,7 +596,7 @@
         const nowD = new Date();
     const dow = nowD.getDay();
     const nowH = nowD.getHours();
-    const isWeekendPause = (dow === 5 && nowH >= 17) || dow === 6 || dow === 0 || (dow === 1 && nowH < 8);
+    const isWeekendPause = _sacPauseIcon() !== '';
 
     // Label: positive hours remaining or negative hours overdue
     let label;
@@ -629,7 +604,7 @@
     if (isFrozen) {
       label = `🔒 ${sign}${fmtHM(remainMs)}`;
     } else if (isWeekendPause) {
-      label = `❄️ ${sign}${fmtHM(remainMs)}`;
+      label = `${_sacPauseIcon()} ${sign}${fmtHM(remainMs)}`;
     } else if (isOverdue) {
       label = `-${fmtHM(remainMs)}`;
     } else {
@@ -1156,7 +1131,7 @@
         const aguardPct = isOverAguard ? 100 : Math.min(100, Math.round((AGUARD_TOTAL_MS - bizMs) / AGUARD_TOTAL_MS * 100));
         const nowD = new Date(), nowDow = nowD.getDay(), nowH = nowD.getHours();
         const isPaused = nowDow===0 || nowDow===6 || nowH<8 || nowH>=17;
-        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `❄️ ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
+        const countLabel = isOverAguard ? `-${hh}:${mm}:${ss}` : isPaused ? `${_sacPauseIcon() || '\uD83D\uDD12'} ${hh}:${mm}:${ss}` : `⏳ ${hh}:${mm}:${ss}`;
         const barColor = isOverAguard ? '#dc2626' : aguardPct > 70 ? '#d97706' : '#eab308';
         const pendSector = hasPendingLog ? 'Logística' : hasPendingCom ? 'Comercial' : hasPendingFin ? 'Financeiro' : '';
         return `<div class="sac-sla-bar" style="margin-top:8px;background:#fef9c3;"><div class="sac-sla-fill" style="width:${aguardPct}%;background:${barColor};transition:width 0.3s;"></div></div>
@@ -2311,7 +2286,7 @@
                     return `<span class="sac-tag" style="background:#e0e7ff;color:#4338ca;"><i class="ph ${type.icon}"></i> ${type.name}</span>`;
                 })()}
                 <span class="sac-tag" style="background:${sla.status==='danger'?'#fee2e2':sla.status==='warning'?'#fef9c3':'#dcfce7'};color:${sla.status==='danger'?'#dc2626':sla.status==='warning'?'#d97706':'#15803d'};"><i class="ph ph-clock"></i> ${sla.label}</span>
-                ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(t.followUpDeadline)}</span>` : ''}
+                ${t.followUpDeadline && t.stage === 'execucao' ? `<span class="sac-tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;cursor:pointer;" title="Clique para alterar o dia/hora do acompanhamento" onclick="SAC.editFollowUp('${t.id}')"><i class="ph ph-calendar-check"></i> Acomp. até ${formatDateShort(t.followUpDeadline)} <i class="ph ph-pencil-simple" style="font-size:0.75rem;"></i></span>` : ''}
             </div>
             <div style="margin-top: 8px; width: 100%; max-width:320px;">
                 <div class="sac-sla-bar" style="height: 6px;"><div class="sac-sla-fill" style="width:${slaConsumedPct}%;background:${slaBarColor};transition:width 0.3s;"></div></div>
@@ -4412,13 +4387,11 @@
 
       if (pt.targetStageId === 'concluido' || isClosing) {
         if (isSlaOverdue && !slaJust) { showToast('Justificativa de SLA vencido é obrigatória.','warning'); return; }
-        if (isSlaOverdue && slaJust.length < 10) { showToast('Justificativa de SLA muito curta (mín. 10 caracteres).','warning'); return; }
       }
 
       if (isClosing) {
         if (!obs) { showToast('O resumo de encerramento é obrigatório.','warning'); return; }
         if (hasUnchecked && !clJust) { showToast('Justificativa do checklist incompleto é obrigatória.','warning'); return; }
-        if (hasUnchecked && clJust.length<10) { showToast('Justificativa muito curta (mín. 10 caracteres).','warning'); return; }
       } else {
         if (!nextSteps) { showToast('Os próximos passos são obrigatórios.','warning'); return; }
       }
@@ -4563,6 +4536,52 @@
         t.description = newDesc;
         updateTicket(t);
         showToast('Descrição salva com sucesso!', 'success');
+    },
+    async editFollowUp(ticketId) {
+      const t = _tickets.find(x => x.id === ticketId);
+      if (!t || !t.followUpDeadline || t.stage !== 'execucao') return;
+      const pad = n => String(n).padStart(2, '0');
+      const cur = new Date(t.followUpDeadline);
+      const toLocal = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      const fmt = d => d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const res = await Swal.fire({
+        title: 'Alterar prazo do acompanhamento',
+        html: '<div style="text-align:left;font-size:0.85rem;color:#475569;">' +
+              '<div style="margin-bottom:8px;">Prazo atual: <b>' + fmt(cur) + '</b></div>' +
+              '<label style="font-weight:700;">Novo dia e hora *</label>' +
+              '<input id="sac-fu-new-dt" type="datetime-local" class="swal2-input" style="margin:6px 0 12px;width:100%;box-sizing:border-box;" value="' + toLocal(cur) + '">' +
+              '<label style="font-weight:700;">Justificativa da mudan\u00e7a *</label>' +
+              '<textarea id="sac-fu-just" class="swal2-textarea" style="margin:6px 0 0;width:100%;box-sizing:border-box;" placeholder="Informe o motivo da altera\u00e7\u00e3o do prazo"></textarea></div>',
+        showCancelButton: true,
+        confirmButtonText: 'Salvar novo prazo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#f97316',
+        focusConfirm: false,
+        preConfirm: () => {
+          const dt = (document.getElementById('sac-fu-new-dt')?.value || '').trim();
+          const just = (document.getElementById('sac-fu-just')?.value || '').trim();
+          if (!dt) { Swal.showValidationMessage('Informe o novo dia e hora.'); return false; }
+          if (new Date(dt).getTime() <= Date.now()) { Swal.showValidationMessage('O novo prazo deve ser no futuro.'); return false; }
+          if (!just) { Swal.showValidationMessage('A justificativa \u00e9 obrigat\u00f3ria.'); return false; }
+          return { dt, just };
+        }
+      });
+      if (!res.isConfirmed || !res.value) return;
+      const newDate = new Date(res.value.dt);
+      const user = currentUsername();
+      if (!t.comments) t.comments = [];
+      t.comments.push({
+        user: user,
+        text: '\u{1F4C5} Prazo do acompanhamento alterado de <b>' + fmt(cur) + '</b> para <b>' + fmt(newDate) + '</b>. Justificativa: <b>"' + esc(res.value.just) + '"</b>',
+        time: new Date().toISOString()
+      });
+      t.followUpDeadline = newDate.toISOString();
+      t.followUpNotified = false;
+      await updateTicket(t);
+      showToast('Prazo do acompanhamento atualizado!', 'success');
+      renderAll();
+      SAC.openDetail(t.id);
     },
     exportCSV() {
       const all = getFilteredTickets();
