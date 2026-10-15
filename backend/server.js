@@ -8811,21 +8811,34 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             const key = motNome.toLowerCase();
             if (!mapMot[key]) {
                 mapMot[key] = {
+                    veiculo: 'Consolidado Mensal',
                     motorista: motNome,
+                    ajudante: '',
                     totalOS: 0,
                     manutencoesTotal: 0,
                     manutencoesObra: 0,
                     manutencoesEvento: 0,
+                    manutencoesOS: 0,
+                    manutencoesPorProduto: {},
                     entregasTotalBanheiros: 0,
-                    banheirosRetirados: 0
+                    entregasObraBanheiros: 0,
+                    entregasEventoBanheiros: 0,
+                    entregasObraOS: 0,
+                    entregasEventoOS: 0,
+                    banheirosRetirados: 0,
+                    retiradasOS: 0
                 };
             }
             mapMot[key].totalOS += (e.totalOS || 0);
             mapMot[key].manutencoesTotal += (e.manutencoesTotal || 0);
             mapMot[key].manutencoesObra += (e.manutencoesObra || 0);
             mapMot[key].manutencoesEvento += (e.manutencoesEvento || 0);
+            mapMot[key].manutencoesOS += (e.manutencoesOS || 0);
+            mapMot[key].entregasObraBanheiros += (e.entregasObraBanheiros || 0);
+            mapMot[key].entregasEventoBanheiros += (e.entregasEventoBanheiros || 0);
             mapMot[key].entregasTotalBanheiros += ((e.entregasObraBanheiros || 0) + (e.entregasEventoBanheiros || 0));
             mapMot[key].banheirosRetirados += (e.banheirosRetirados || 0);
+            mapMot[key].retiradasOS += (e.retiradasOS || 0);
         });
         stats.equipes = Object.values(mapMot).sort((a, b) =>
             (b.manutencoesTotal + b.entregasTotalBanheiros + b.banheirosRetirados) -
@@ -9009,28 +9022,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     const chart2Height = Math.max(200, prodEntries.length * 36 + 70);
     const chart2Url = `https://quickchart.io/chart?w=560&h=${chart2Height}&bkg=white&c=` + encodeURIComponent(JSON.stringify(chart2Cfg));
 
-    // Gráfico 3: Desempenho por Equipe (Placa)
-    const eqLabels = stats.equipes.map(e => e.veiculo.split(' - ')[0].substring(0, 14));
-    const chart3Cfg = {
-        type: 'bar',
-        data: {
-            labels: eqLabels,
-            datasets: [
-                { label: 'Manutenções', backgroundColor: '#10b981', data: stats.equipes.map(e => e.manutencoesTotal) },
-                { label: 'Entregas Obra', backgroundColor: '#2563eb', data: stats.equipes.map(e => e.entregasObraBanheiros) },
-                { label: 'Entregas Evento', backgroundColor: '#7c3aed', data: stats.equipes.map(e => e.entregasEventoBanheiros) }
-            ]
-        },
-        options: {
-            title: { display: true, text: 'Manutenções e Entregas por Equipe / Veículo', fontSize: 14, fontColor: '#1e293b', padding: 24 },
-            legend: { position: 'bottom' },
-            scales: {
-                xAxes: [{ stacked: false }],
-                yAxes: [{ ticks: { beginAtZero: true } }]
-            }
-        }
-    };
-    const chart3Url = 'https://quickchart.io/chart?w=560&h=260&bkg=white&c=' + encodeURIComponent(JSON.stringify(chart3Cfg));
+// (chart3 legado removido)
 
     // ── Barras HTML nativas de Manutenções por Produto ──
     const maxProdQtd = prodEntries.length ? Math.max(...prodEntries.map(([, v]) => v.qtd), 1) : 1;
@@ -9056,100 +9048,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         }).join('')
         : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">Nenhuma manutenção registrada nesta rota.</td></tr>`;
 
-    // ── Cards por Equipe (Motorista + Foto, Ajudante + Foto, Placa, Manutenções, Entregas Evento, Entregas Obra) ──
-    const _equipesHtmlLegacy = () => stats.equipes.map((eq, idx) => {
-        const motAvatar = renderMemberAvatar(eq.motorista, '#1d4ed8', '#2563eb');
-        const ajuAvatar = renderMemberAvatar(eq.ajudante, '#d97706', '#f59e0b');
-        const prodsManutStr = Object.entries(eq.manutencoesPorProduto)
-            .sort((a, b) => b[1].qtd - a[1].qtd)
-            .map(([n, inf]) => `${inf.icon ? inf.icon + ' ' : ''}${inf.qtd} × ${n}`)
-            .join(' • ');
-
-        return `
-        <div style="border:1px solid #e2e8f0;border-radius:12px;margin-bottom:14px;overflow:hidden;background:#ffffff;">
-            <div style="background:#1e3a5f;padding:10px 16px;color:#ffffff;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                        <td style="font-size:15px;font-weight:800;color:#ffffff;">
-                            🚚 Placa / Veículo: ${eq.veiculo}
-                        </td>
-                        <td align="right" style="font-size:12px;font-weight:700;color:#dcfce7;">
-                            Equipe #${idx + 1} • ${eq.totalOS} OS na rota
-                        </td>
-                    </tr>
-                </table>
-            </div>
-
-            <div style="padding:14px 16px;">
-                <!-- Motorista e Ajudante com Fotos -->
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #e2e8f0;">
-                    <tr>
-                        <td width="50%" valign="middle" style="padding-right:8px;">
-                            <table cellpadding="0" cellspacing="0" border="0">
-                                <tr>
-                                    <td style="padding-right:10px;" valign="middle">${motAvatar}</td>
-                                    <td valign="middle">
-                                        <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.04em;">Motorista</div>
-                                        <div style="font-size:13px;font-weight:800;color:#0f172a;">${eq.motorista || 'Não informado'}</div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                        <td width="50%" valign="middle" style="padding-left:8px;border-left:1px solid #e2e8f0;">
-                            <table cellpadding="0" cellspacing="0" border="0">
-                                <tr>
-                                    <td style="padding-right:10px;" valign="middle">${ajuAvatar}</td>
-                                    <td valign="middle">
-                                        <div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.04em;">Ajudante</div>
-                                        <div style="font-size:13px;font-weight:800;color:#0f172a;">${eq.ajudante || 'Não informado'}</div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-
-                <!-- 3 Indicadores da Equipe: Manutenções | Entregas Evento | Entregas Obra -->
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                        <td width="34%" valign="top" style="padding-right:6px;">
-                            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center;">
-                                <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;">🔧 Manutenções da Equipe</div>
-                                <div style="font-size:22px;font-weight:800;color:#166534;margin:4px 0;">${eq.manutencoesTotal}</div>
-                                <div style="font-size:11px;color:#15803d;">💙 Obra: <b>${eq.manutencoesObra}</b> • 💜 Evento: <b>${eq.manutencoesEvento}</b></div>
-                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.manutencoesOS} paradas/OS)</div>
-                            </div>
-                        </td>
-                        <td width="33%" valign="top" style="padding:0 3px;">
-                            <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:10px;text-align:center;">
-                                <div style="font-size:10px;font-weight:700;color:#6d28d9;text-transform:uppercase;">💜 Entregas Evento</div>
-                                <div style="font-size:22px;font-weight:800;color:#7c3aed;margin:4px 0;">${eq.entregasEventoBanheiros}</div>
-                                <div style="font-size:11px;color:#6d28d9;">banheiros entregues</div>
-                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.entregasEventoOS} entrega${eq.entregasEventoOS === 1 ? '' : 's'}/cliente${eq.entregasEventoOS === 1 ? '' : 's'})</div>
-                            </div>
-                        </td>
-                        <td width="33%" valign="top" style="padding-left:6px;">
-                            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center;">
-                                <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">💙 Entregas Obra</div>
-                                <div style="font-size:22px;font-weight:800;color:#2563eb;margin:4px 0;">${eq.entregasObraBanheiros}</div>
-                                <div style="font-size:11px;color:#1d4ed8;">banheiros entregues</div>
-                                <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.entregasObraOS} entrega${eq.entregasObraOS === 1 ? '' : 's'}/cliente${eq.entregasObraOS === 1 ? '' : 's'})</div>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-
-                ${prodsManutStr ? `
-                <div style="margin-top:8px;padding:7px 10px;background:#f8fafc;border-radius:6px;font-size:11px;color:#334155;border-left:3px solid #10b981;">
-                    <b>Produtos em Manutenção nesta equipe:</b> ${prodsManutStr}
-                </div>` : ''}
-                ${eq.banheirosRetirados > 0 ? `
-                <div style="margin-top:6px;padding:6px 10px;background:#fef2f2;border-radius:6px;font-size:11px;color:#991b1b;border-left:3px solid #ef4444;">
-                    <b>⭕ Retiradas desta equipe:</b> ${eq.banheirosRetirados} banheiro(s) em ${eq.retiradasOS} cliente(s)
-                </div>` : ''}
-            </div>
-        </div>`;
-    }).join('');
+// (_equipesHtmlLegacy removido)
 
     const _escRr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // ── Secao 4: por equipe / motorista — fotos ao lado de grafico de barras horizontais ──
@@ -9630,35 +9529,37 @@ app.post('/api/logistica/resumo-rota/enviar-relatorio', authenticateToken, async
         // 2º e-mail: acumulado do dia 01 do mes ate hoje
         let mensalOk = false;
         try {
+            const hojeSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const anoAtual = hojeSP.getFullYear();
+            const mesAtual = hojeSP.getMonth() + 1;
+            const diaAtual = hojeSP.getDate();
+
             let dataRef = dataRota;
             if (!dataRef && nome) {
                 const m = String(nome).match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
                 if (m) dataRef = `${m[3]}-${m[2]}-${m[1]}`;
+                else {
+                    const mIso = String(nome).match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+                    if (mIso) dataRef = `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+                }
             }
-            const hojeSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-            let refY = hojeSP.getFullYear();
-            let refM = hojeSP.getMonth() + 1;
-            let refD = hojeSP.getDate();
-            if (dataRef && /^\d{4}-\d{2}-\d{2}$/.test(dataRef)) {
-                const [y, m, d] = dataRef.split('-').map(Number);
-                refY = y;
-                refM = m;
-                refD = d;
+            if (!dataRef) {
+                dataRef = `${anoAtual}-${String(mesAtual).padStart(2, '0')}-${String(diaAtual).padStart(2, '0')}`;
             }
 
             const rm = await enviarRelatorioMensalResumoRota({
-                ano: refY,
-                mes: refM,
-                ateDia: refD,
+                ano: anoAtual,
+                mes: mesAtual,
+                ateDia: diaAtual,
                 destinatarios: email,
                 usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci',
                 veiculosAtual: veiculos,
-                dataRotaAtual: dataRef || `${refY}-${String(refM).padStart(2, '0')}-${String(refD).padStart(2, '0')}`,
+                dataRotaAtual: dataRef,
                 nomeResumoAtual: nome || 'PADRAO'
             });
             mensalOk = !!rm;
         } catch (eM) {
-            console.error('[RR-EMAIL-MENSAL] Erro no acumulado manual:', eM);
+            console.error('[RR-EMAIL-MENSAL] Erro no acumulado manual:', eM && eM.message, eM && eM.stack);
         }
         res.json({ success: true, sentTo: result?.sentTo || [email], mensal: mensalOk });
     } catch (err) {
