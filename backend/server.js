@@ -33513,6 +33513,7 @@ function _sacBuildTicketsPayload(cb) {
             const _sz = {};
             rows.forEach(r => ['timeline','cost_centers','attachments','checklist','sac_checklist','logistics_task','commercial_task','financial_task','occurrences','comments','tags','description'].forEach(k => { _sz[k] = (_sz[k] || 0) + String(r[k] || '').length; }));
             console.log('[SAC] tamanho por campo (MB): ' + Object.keys(_sz).map(k => k + '=' + (_sz[k] / 1048576).toFixed(2)).join(' | '));
+            { let _n = 0, _b = 0; const _keys = {}; rows.forEach(r => ['logistics_task','commercial_task','financial_task','cost_centers','timeline','comments'].forEach(k => { const v = String(r[k] || ''); const m = v.match(/"data:[^"]{200,}"/g); if (m) { _n += m.length; m.forEach(x => { _b += x.length; }); } const kk = v.match(/"(\w+)":"data:/g); if (kk) kk.forEach(x => { const nm = k + '.' + x.slice(1, x.indexOf('"', 1)); _keys[nm] = (_keys[nm] || 0) + 1; }); })); console.log('[SAC] data-URIs: ' + _n + ' ocorrencias, ' + (_b / 1048576).toFixed(2) + ' MB | ' + JSON.stringify(_keys)); }
             const _top = rows.map(r => ({ id: r.id, p: r.protocol, mb: (JSON.stringify(r).length / 1048576) })).sort((x, y) => y.mb - x.mb).slice(0, 5);
             console.log('[SAC] maiores chamados: ' + _top.map(x => x.p + '=' + x.mb.toFixed(2) + 'MB').join(', '));
         } catch (_e) { }
