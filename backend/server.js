@@ -33507,6 +33507,13 @@ function _sacBuildTicketsPayload(cb) {
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
         } catch (e) { return cb(e); }
+        try {
+            const _sz = {};
+            rows.forEach(r => ['timeline','cost_centers','attachments','checklist','sac_checklist','logistics_task','commercial_task','financial_task','occurrences','comments','tags','description'].forEach(k => { _sz[k] = (_sz[k] || 0) + String(r[k] || '').length; }));
+            console.log('[SAC] tamanho por campo (MB): ' + Object.keys(_sz).map(k => k + '=' + (_sz[k] / 1048576).toFixed(2)).join(' | '));
+            const _top = rows.map(r => ({ id: r.id, p: r.protocol, mb: (JSON.stringify(r).length / 1048576) })).sort((x, y) => y.mb - x.mb).slice(0, 5);
+            console.log('[SAC] maiores chamados: ' + _top.map(x => x.p + '=' + x.mb.toFixed(2) + 'MB').join(', '));
+        } catch (_e) { }
         const _json = JSON.stringify(parsed);
         console.log('[SAC] payload tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
         require('zlib').gzip(Buffer.from(_json), (zErr, gz) => {
