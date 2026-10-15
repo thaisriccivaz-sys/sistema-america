@@ -981,6 +981,11 @@ function abrirLegenda() {
     <div style="margin-bottom:.75rem;">
       <label style="display:block;font-weight:600;margin-bottom:.3rem;font-size:.85rem;">Email da Contabilidade:</label>
       <input id="fech-email-destino" type="email" placeholder="contabilidade@empresa.com" style="width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;box-sizing:border-box;">
+      <div style="margin-top:.4rem;text-align:right;">
+        <a href="javascript:void(0)" onclick="window._fechamento.gerarXlsx()" style="font-size:0.8rem;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+          <i class="ph ph-download-simple"></i> Ou clique aqui para baixar o XLSX agora
+        </a>
+      </div>
     </div>
     <div id="fech-email-status" style="display:none;padding:.5rem .75rem;border-radius:.4rem;margin-bottom:.75rem;font-size:.85rem;"></div>
     <div style="display:flex;gap:.5rem;justify-content:flex-end;">
@@ -2743,10 +2748,12 @@ function abrirLegenda() {
         btn.innerHTML = '<i class="ph ph-spinner"></i> Enviando...';
         if (statusEl) { statusEl.style.display = 'none'; }
         try {
+            // Regra 21: Auto-save antes de gerar/enviar para garantir que edições na tela estejam gravadas no banco
+            await salvarSilencioso();
             const resp = await fetch('/api/fechamento/enviar-email', {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mes: _mes, ano: _ano, email_destino: emailDestino })
+                body: JSON.stringify({ mes: _mes, ano: _ano, email_destino: emailDestino, itens: _dados })
             });
             const json = await resp.json();
             if (!json.ok) throw new Error(json.error);

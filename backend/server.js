@@ -12094,27 +12094,56 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
 
 app.post('/api/fechamento/enviar-email', authenticateToken, async (req, res) => {
     try {
-        const { mes, ano, email_destino } = req.body;
+        const { mes, ano, email_destino, itens } = req.body;
         if (!mes || !ano || !email_destino) return res.status(400).json({ error: 'Parâmetros obrigatórios: mes, ano, email_destino' });
         const mesesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         const mesNome = mesesNomes[parseInt(mes) - 1] || mes;
         // Gerar o buffer do XLSX com novo layout institucional roxo e logo
-        const buffer = await gerarBufferFechamentoXlsx({ mes, ano });
-        // Enviar email
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST, port: parseInt(process.env.SMTP_PORT)||587,
-            secure: false, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        });
-        await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        const buffer = await gerarBufferFechamentoXlsx({ mes, ano, rows: Array.isArray(itens) && itens.length > 0 ? itens : null });
+        const xlsxBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+        // Enviar email utilizando o helper global centralizado (anti-spam, headers completos e texto puro)
+        const mailFrom = process.env.EMAIL_FROM || SMTP_CONFIG.auth.user || 'americasistema48@gmail.com';
+        const replyTo = req.user?.email || process.env.EMAIL_REPLY_TO || mailFrom;
+        const remetenteNome = req.user?.nome || req.user?.username || 'Sistema RH';
+        const htmlCorpo = `
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:0 auto;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#ffffff;">
+    <div style="background:#1e40af;padding:22px 20px;text-align:center;color:#ffffff;">
+        <h2 style="margin:0;font-size:1.3rem;font-weight:700;">Fechamento Mensal de Folha</h2>
+        <p style="margin:6px 0 0;font-size:0.95rem;opacity:0.95;">Competência: <strong>${mesNome} de ${ano}</strong></p>
+    </div>
+    <div style="padding:24px 20px;color:#334155;line-height:1.6;font-size:0.95rem;">
+        <p>Olá,</p>
+        <p>Segue em anexo a planilha consolidada de fechamento de folha de pagamento referente à competência de <strong>${mesNome}/${ano}</strong>.</p>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-left:4px solid #1e40af;padding:14px 16px;margin:18px 0;border-radius:6px;">
+            <p style="margin:0 0 4px;font-size:0.85rem;color:#64748b;"><strong>Documento anexado:</strong></p>
+            <p style="margin:0;font-size:0.95rem;font-weight:600;color:#1e293b;">📎 fechamento_${String(mes).padStart(2,'0')}_${ano}.xlsx</p>
+            <p style="margin:6px 0 0;font-size:0.82rem;color:#64748b;">Enviado por: ${remetenteNome} | Sistema América Rental</p>
+        </div>
+        <p style="font-size:0.85rem;color:#64748b;">Por gentileza, confirme o recebimento deste arquivo.</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;">
+        <p style="margin:0;font-size:0.85rem;color:#475569;">
+            Atenciosamente,<br>
+            <strong>América Rental Equipamentos</strong><br>
+            <span style="color:#64748b;font-size:0.8rem;">Departamento de Recursos Humanos</span>
+        </p>
+    </div>
+</div>`;
+        const info = await sendMailHelper({
+            from: `"América Rental — Fechamento" <${mailFrom}>`,
+            replyTo: replyTo,
             to: email_destino,
             subject: `Fechamento de Folha — ${mesNome}/${ano}`,
-            html: `<p>Prezados,</p><p>Segue em anexo a planilha de fechamento de folha referente a <strong>${mesNome}/${ano}</strong>.</p><p>Att,<br>América Rental — RH</p>`,
-            attachments: [{ filename: `fechamento_${String(mes).padStart(2,'0')}_${ano}.xlsx`, content: buffer, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }]
+            html: htmlCorpo,
+            attachments: [{
+                filename: `fechamento_${String(mes).padStart(2,'0')}_${ano}.xlsx`,
+                content: xlsxBuffer,
+                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }]
         });
+        console.log(`[enviar-email-fechamento] Sucesso! Para: ${email_destino} | MsgId: ${info?.messageId} | Resp: ${info?.response}`);
         // Marcar como enviado
         db.run(`UPDATE fechamento_mensal SET planilha_enviada_em = CURRENT_TIMESTAMP, status = 'enviado' WHERE mes = ? AND ano = ?`, [mes, ano]);
-        res.json({ ok: true, mensagem: `Email enviado para ${email_destino}` });
+        res.json({ ok: true, mensagem: `Email enviado com sucesso para ${email_destino}`, messageId: info?.messageId });
     } catch(e) {
         console.error('[enviar-email-fechamento]', e);
         res.status(500).json({ error: e.message });
