@@ -23217,7 +23217,7 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                     [
                         ticketId, protocol, os || '', cliente_nome || 'N/A', '', '', endereco_instalacao || '',
                         req.user ? req.user.username : 'Comercial', cliente_whatsapp || '', cliente_email || '', 
-                        'whatsapp', 'credenciamento', 0, JSON.stringify(['Solicitação de Cadastro']),
+                        'whatsapp', 'credenciamento', 0, JSON.stringify([{ name: 'Solicitação de Cadastro', note: '', images: [] }]),
                         descr, 'abertura', opendateStr, data_limite_envio || null
                     ], function(errInsert) {
                         if (errInsert) {
@@ -34092,7 +34092,7 @@ function _sacBuildTicketsPayload(cb) {
             logisticsTask: JSON.parse(r.logistics_task||'null'),
             commercialTask: JSON.parse(r.commercial_task||'null'),
             financialTask: JSON.parse(r.financial_task||'null'),
-            occurrences: JSON.parse(r.occurrences||'[]'),
+            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : o),
             comments: JSON.parse(r.comments||'[]'),
             tags: JSON.parse(r.tags||'[]'),
             isUrgent: r.is_urgent === 1,
@@ -34194,7 +34194,7 @@ app.get('/api/sac/tickets/:id', authenticateToken, (req, res) => {
             logisticsTask: JSON.parse(r.logistics_task||'null'),
             commercialTask: JSON.parse(r.commercial_task||'null'),
             financialTask: JSON.parse(r.financial_task||'null'),
-            occurrences: JSON.parse(r.occurrences||'[]'),
+            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : o),
             comments: JSON.parse(r.comments||'[]'),
             tags: JSON.parse(r.tags||'[]'),
             isUrgent: r.is_urgent === 1,

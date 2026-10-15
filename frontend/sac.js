@@ -191,7 +191,15 @@
           // Só substituir _tickets se nenhum save aconteceu DURANTE essa carga de rede.
           // Evita sobrescrever stage='respondido' com dado desatualizado vindo do servidor.
           if ((window._sacLastSaveMs || 0) <= _sacLoadTs) {
-              if (!window._sacUnchanged) { _tickets = _fresh; window._sacLastEtag = _et; }
+              if (!window._sacUnchanged) {
+                  _tickets = (_fresh || []).map(t => ({
+                      ...t,
+                      occurrences: Array.isArray(t.occurrences)
+                          ? t.occurrences.map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : { name: (o && o.name) || '', note: (o && o.note) || '', images: (o && o.images) || [] })
+                          : []
+                  }));
+                  window._sacLastEtag = _et;
+              }
           } else {
               console.warn('[SAC] loadTickets: save detectado durante a carga — dados do servidor descartados para evitar race condition.');
           }
@@ -735,7 +743,8 @@
             if (secsSinceLastSave < 30) return;
             if (document.hidden) return; // aba em segundo plano: não recarrega
             const ov = document.getElementById('sac-modal-overlay');
-            if (!ov || ov.style.display === 'none') {
+            const trOv = document.getElementById('sac-trans-overlay');
+            if ((!ov || ov.style.display === 'none') && (!trOv || trOv.style.display === 'none')) {
                 const _snapSave = window._sacLastSaveMs || 0;
                 window._sacRefreshN = (window._sacRefreshN || 0) + 1;
                 const _heavy = (window._sacRefreshN % 10 === 1);
@@ -2845,7 +2854,7 @@
     if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
     if (pt.targetStageId === 'concluido') {
         window._transOccsState = (ticket && ticket.occurrences && ticket.occurrences.length > 0) 
-            ? JSON.parse(JSON.stringify(ticket.occurrences))
+            ? ticket.occurrences.map(o => typeof o === 'string' ? { name: o, note: '' } : { name: (o && o.name) || '', note: (o && o.note) || '' })
             : [{ name: '', note: '' }];
         setTimeout(() => SAC.renderTransOccsRows(), 0);
     }
@@ -3172,26 +3181,37 @@
       const pt = _pendingTransition;
       const ticket = _tickets.find(t => t.id === pt.ticketId);
       const typeKey = ticket ? ticket.typeKey : '';
-      const opts = (window._sacOccurrencesRaw||[]).filter(o => o.type_key === typeKey);
+      let opts = (window._sacOccurrencesRaw||[]).filter(o => o.type_key === typeKey);
+      if (opts.length === 0 && OCCURRENCES_BY_TYPE[typeKey]) {
+        opts = OCCURRENCES_BY_TYPE[typeKey].map(d => ({ type_key: typeKey, description: d }));
+      }
       
       const state = window._transOccsState || [];
       
       let html = '';
-      state.forEach((item, idx) => {
+      state.forEach((rawItem, idx) => {
+        const item = (rawItem && typeof rawItem === 'object') ? rawItem : (state[idx] = { name: String(rawItem || ''), note: '' });
+        const hasMatchInOpts = opts.some(o => o.description === item.name);
+        if (!hasMatchInOpts && item.name) {
+          // Se a ocorrência inicial não estiver na lista de opções configuradas (ou se houver apenas 1 opção, pré-selecionar se vazio)
+          item.name = opts.length === 1 ? opts[0].description : '';
+        } else if (!item.name && opts.length === 1) {
+          item.name = opts[0].description;
+        }
         const selOpts = opts.map(o => `<option value="${o.description}" ${o.description === item.name ? 'selected' : ''}>${o.description}</option>`).join('');
         html += `
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;position:relative;">
             ${state.length > 1 ? `<button onclick="SAC.removeTransOccRow(${idx})" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ef4444;cursor:pointer;"><i class="ph ph-trash"></i></button>` : ''}
             <div style="margin-bottom:8px;">
               <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Ocorrência <span style="color:#dc2626">*</span></label>
-              <select onchange="window._transOccsState[${idx}].name=this.value" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;outline:none;">
+              <select class="trans-occ-select" onchange="if(!window._transOccsState[${idx}]||typeof window._transOccsState[${idx}]!=='object')window._transOccsState[${idx}]={name:'',note:''};window._transOccsState[${idx}].name=this.value" style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;outline:none;">
                 <option value="">Selecione...</option>
                 ${selOpts}
               </select>
             </div>
             <div>
               <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Informações de conclusão <span style="color:#dc2626">*</span></label>
-              <textarea onchange="window._transOccsState[${idx}].note=this.value" rows="2" placeholder="Descreva os próximos passos ou resolução..." style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;resize:vertical;outline:none;">${item.note}</textarea>
+              <textarea class="trans-occ-note" oninput="if(!window._transOccsState[${idx}]||typeof window._transOccsState[${idx}]!=='object')window._transOccsState[${idx}]={name:'',note:''};window._transOccsState[${idx}].note=this.value" onchange="if(!window._transOccsState[${idx}]||typeof window._transOccsState[${idx}]!=='object')window._transOccsState[${idx}]={name:'',note:''};window._transOccsState[${idx}].note=this.value" rows="2" placeholder="Descreva os próximos passos ou resolução..." style="width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;resize:vertical;outline:none;">${item.note || ''}</textarea>
             </div>
           </div>
         `;
@@ -4365,7 +4385,20 @@
 
       if (pt.targetStageId === 'concluido') {
         const state = window._transOccsState || [];
-        const missing = state.some(o => !o.name || !o.note || !o.note.trim());
+        const occContainer = document.getElementById('trans-concluido-occs');
+        if (occContainer) {
+          const selects = occContainer.querySelectorAll('.trans-occ-select');
+          const notes   = occContainer.querySelectorAll('.trans-occ-note');
+          selects.forEach((sel, idx) => {
+            if (!state[idx] || typeof state[idx] !== 'object') state[idx] = { name: '', note: '' };
+            state[idx].name = sel.value;
+          });
+          notes.forEach((ta, idx) => {
+            if (!state[idx] || typeof state[idx] !== 'object') state[idx] = { name: '', note: '' };
+            state[idx].note = ta.value;
+          });
+        }
+        const missing = state.length === 0 || state.some(o => !o || typeof o !== 'object' || !o.name || !o.note || !o.note.trim());
         if (missing) {
           showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
           return;
@@ -4452,8 +4485,8 @@
       if (pt.targetStageId === 'concluido') {
         const state = window._transOccsState || [];
         ticket.occurrences = state.map(s => {
-           const exist = (ticket.occurrences||[]).find(o => o.name === s.name);
-           return { name: s.name, note: s.note.trim(), images: exist ? exist.images : [] };
+           const exist = (ticket.occurrences||[]).find(o => (typeof o === 'string' ? o : (o && o.name)) === s.name);
+           return { name: s.name, note: s.note.trim(), images: (exist && typeof exist === 'object' && exist.images) ? exist.images : [] };
         });
       }
 
