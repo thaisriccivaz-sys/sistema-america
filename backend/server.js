@@ -8583,6 +8583,8 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
         banheirosRetiradosEvento: 0,
         banheirosRetiradosObra: 0,
         clientesRetiradaAgendada: 0,
+        clientesRetiradaEvento: 0,
+        clientesRetiradaObra: 0,
         manutencoesObra: 0,
         manutencoesEvento: 0,
         somaTotalManutencoes: 0,
@@ -8693,17 +8695,30 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
                 stats.clientesRetiradaAgendada++;
                 eqItem.retiradasOS++;
                 if (parsedProds.length > 0) {
+                    let hasEv = false, hasOb = false;
                     parsedProds.forEach(pp => {
                         stats.banheirosRetirados += pp.qtd;
                         eqItem.banheirosRetirados += pp.qtd;
-                        if (pp.prodIsEvento) stats.banheirosRetiradosEvento += pp.qtd;
-                        else stats.banheirosRetiradosObra += pp.qtd;
+                        if (pp.prodIsEvento) {
+                            stats.banheirosRetiradosEvento += pp.qtd;
+                            hasEv = true;
+                        } else {
+                            stats.banheirosRetiradosObra += pp.qtd;
+                            hasOb = true;
+                        }
                     });
+                    if (hasEv) stats.clientesRetiradaEvento++;
+                    if (hasOb) stats.clientesRetiradaObra++;
                 } else {
                     stats.banheirosRetirados += 1;
                     eqItem.banheirosRetirados += 1;
-                    if (osIsEvento) stats.banheirosRetiradosEvento += 1;
-                    else stats.banheirosRetiradosObra += 1;
+                    if (osIsEvento) {
+                        stats.banheirosRetiradosEvento += 1;
+                        stats.clientesRetiradaEvento++;
+                    } else {
+                        stats.banheirosRetiradosObra += 1;
+                        stats.clientesRetiradaObra++;
+                    }
                 }
             } else if (tipo === 'MANUTENCAO' || tipo === 'AVULSA') {
                 eqItem.manutencoesOS++;
@@ -9183,7 +9198,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         const dowNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const dm = diasMov.map(d => ({ ...d, total: d.entregas + d.retiradas + d.manutencoes, dow: new Date(d.data + 'T12:00:00').getDay() }));
         const cfgM = {
-            type: 'bar',
+            type: 'horizontalBar',
             data: {
                 labels: dm.map(d => fmtD(d.data)),
                 datasets: [
@@ -9195,10 +9210,14 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             options: {
                 title: { display: true, text: 'Movimento por Dia (banheiros)', fontSize: 14, fontColor: '#1e293b', padding: 20 },
                 legend: { position: 'bottom' },
-                scales: { yAxes: [{ ticks: { beginAtZero: true } }] }
+                scales: {
+                    xAxes: [{ ticks: { beginAtZero: true } }],
+                    yAxes: [{ ticks: { fontSize: 11 } }]
+                }
             }
         };
-        const urlM = 'https://quickchart.io/chart?w=620&h=320&bkg=white&c=' + encodeURIComponent(JSON.stringify(cfgM));
+        const chartHeightM = Math.max(340, dm.length * 28 + 90);
+        const urlM = 'https://quickchart.io/chart?w=620&h=' + chartHeightM + '&bkg=white&c=' + encodeURIComponent(JSON.stringify(cfgM));
         const top5 = [...dm].sort((a, b) => b.total - a.total).slice(0, 5);
         const maxTot = Math.max(1, top5[0] ? top5[0].total : 1);
         const medals = ['🥇', '🥈', '🥉', '4º', '5º'];
@@ -9282,37 +9301,41 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">📦 Total Entregue ${isMensal ? 'no Mês' : 'no Dia'}</div>
                             <div style="font-size:34px;font-weight:800;color:#16a34a;margin:6px 0;">${stats.banheirosEntreguesTotal}</div>
-                            <div style="font-size:13px;color:#166534;font-weight:700;">banheiros entregues em ${stats.clientesEntregaDia} cliente(s)</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#16a34a;">${stats.clientesEntregaDia}</b> <b style="color:#374151;">cliente(s)</b></div>
                         </div>
                     </td>
                 </tr>
             </table>
 
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
                 <tr>
                     <td width="33%" valign="top" style="padding-right:6px;">
-                        <div style="background:#ecfeff;border:1.5px solid #67e8f9;border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-size:11px;font-weight:700;color:#0e7490;text-transform:uppercase;">💧 Outros Serviços Agendados</div>
-                            <div style="font-size:26px;font-weight:800;color:#0891b2;margin:6px 0;">${stats.outros.length}</div>
-                            <div style="font-size:11px;color:#155e75;">${outrosResumoTxt}</div>
+                        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;">⭕ Banheiros Retirados (Evento)</div>
+                            <div style="font-size:28px;font-weight:800;color:#dc2626;margin:6px 0;">${stats.banheirosRetiradosEvento}</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#dc2626;">${stats.clientesRetiradaEvento}</b> <b style="color:#374151;">cliente(s) de evento</b></div>
                         </div>
                     </td>
                     <td width="34%" valign="top" style="padding:0 3px;">
-                        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;">⭕ Quantidade de Banheiros Retirados</div>
-                            <div style="font-size:26px;font-weight:800;color:#dc2626;margin:6px 0;">${stats.banheirosRetirados}</div>
-                            <div style="font-size:11px;color:#7f1d1d;white-space:nowrap;">💙 Obra: <b>${stats.banheirosRetiradosObra}</b> • 💜 Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
+                        <div style="background:#fff1f2;border:1.5px solid #fda4af;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#9f1239;text-transform:uppercase;">⭕ Banheiros Retirados (Obra)</div>
+                            <div style="font-size:28px;font-weight:800;color:#e11d48;margin:6px 0;">${stats.banheirosRetiradosObra}</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#e11d48;">${stats.clientesRetiradaObra}</b> <b style="color:#374151;">cliente(s) de obra</b></div>
                         </div>
                     </td>
                     <td width="33%" valign="top" style="padding-left:6px;">
-                        <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;">📅 Clientes c/ Retiradas Agendadas</div>
-                            <div style="font-size:26px;font-weight:800;color:#d97706;margin:6px 0;">${stats.clientesRetiradaAgendada}</div>
-                            <div style="font-size:11px;color:#92400e;">Retiradas programadas ${isMensal ? 'no período' : 'na rota do dia'}</div>
+                        <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:12px;text-align:center;">
+                            <div style="font-size:11px;font-weight:700;color:#c2410c;text-transform:uppercase;">📅 Total de Banheiros Retirados</div>
+                            <div style="font-size:34px;font-weight:800;color:#ea580c;margin:6px 0;">${stats.banheirosRetirados}</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#ea580c;">${stats.clientesRetiradaAgendada}</b> <b style="color:#374151;">cliente(s)</b></div>
                         </div>
                     </td>
                 </tr>
             </table>
+            ${stats.outros.length > 0 ? `
+            <div style="margin:-6px 0 18px;padding:8px 12px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;font-size:12px;color:#0e7490;">
+                💧 <b>Outros Serviços Agendados (${stats.outros.length}):</b> ${outrosResumoTxt}
+            </div>` : ''}
 
             <!-- SEÇÃO 2: MANUTENÇÕES (OBRA + EVENTO + SOMA TOTAL) -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
