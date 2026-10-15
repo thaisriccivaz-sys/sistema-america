@@ -6497,7 +6497,7 @@ app.get('/api/fechamento/sinistros-prontuario/:ano/:mes', authenticateToken, asy
     const mesNum = parseInt(req.params.mes);
     const anoNum = parseInt(req.params.ano);
     try {
-        const sins = await _sinAllP("SELECT id, colaborador_id, numero_boletim, tipo_sinistro, valor_total, parcelas, config_parcelas, data_assinatura_condutor, created_at FROM sinistros WHERE status = 'assinado'");
+        const sins = await _sinAllP("SELECT id, colaborador_id, numero_boletim, tipo_sinistro, valor_total, parcelas, config_parcelas, data_assinatura_condutor, created_at FROM sinistros WHERE LOWER(status) = 'assinado' OR assinaturas_finalizadas = 1");
         const grupos = {};
         for (const s of sins) {
             const valorTotal = _sinParseValor(s.valor_total);

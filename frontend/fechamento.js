@@ -1054,7 +1054,7 @@ function abrirLegenda() {
                         const mJson = await respMultas.json();
                         if (Array.isArray(mJson)) {
                             mJson.forEach(item => {
-                                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
+                                const idx = _dados.findIndex(r => String(r.colaborador_id) === String(item.colaborador_id));
                                 if (idx >= 0 && item.detalhes && item.detalhes.length > 0) {
                                     _dados[idx].multas_detalhes = item.detalhes;
                                 }
@@ -1066,27 +1066,24 @@ function abrirLegenda() {
                 }
             }
 
-            // Se há colaboradores com outros mas sem sinistros_detalhes persistido, busca os detalhes da API
-            const precisaBuscarSinistrosDetalhes = _dados.some(r => parseFloat(r.outros) > 0 && (!r.sinistros_detalhes || r.sinistros_detalhes.length === 0));
-            if (precisaBuscarSinistrosDetalhes) {
-                try {
-                    const respSin = await fetch(`/api/fechamento/sinistros-prontuario/${_ano}/${_mes}`, {
-                        headers: { 'Authorization': 'Bearer ' + getToken() }
-                    });
-                    if (respSin.ok) {
-                        const sJson = await respSin.json();
-                        if (Array.isArray(sJson)) {
-                            sJson.forEach(item => {
-                                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
-                                if (idx >= 0 && item.detalhes && item.detalhes.length > 0) {
-                                    _dados[idx].sinistros_detalhes = item.detalhes;
-                                }
-                            });
-                        }
+            // Busca detalhes de parcelas de sinistros da API para qualquer colaborador com sinistro no mês
+            try {
+                const respSin = await fetch(`/api/fechamento/sinistros-prontuario/${_ano}/${_mes}`, {
+                    headers: { 'Authorization': 'Bearer ' + getToken() }
+                });
+                if (respSin.ok) {
+                    const sJson = await respSin.json();
+                    if (Array.isArray(sJson)) {
+                        sJson.forEach(item => {
+                            const idx = _dados.findIndex(r => String(r.colaborador_id) === String(item.colaborador_id));
+                            if (idx >= 0 && item.detalhes && item.detalhes.length > 0) {
+                                _dados[idx].sinistros_detalhes = item.detalhes;
+                            }
+                        });
                     }
-                } catch(eS) {
-                    console.warn('[fechamento] Detalhes de sinistros:', eS);
                 }
+            } catch(eS) {
+                console.warn('[fechamento] Detalhes de sinistros:', eS);
             }
             _dados.forEach(row => {
                 const f = parseInt(row.dias_falta) || 0;
@@ -1397,6 +1394,7 @@ function abrirLegenda() {
                 inp.style.border = '1px solid #e5e7eb';
                 inp.removeAttribute('data-manual-edit');
                 inp.title = baseTip;
+                if (inp.parentElement && inp.parentElement.tagName === 'DIV') inp.parentElement.title = baseTip;
             }
             var sel = td.querySelector('select');
             if (sel) {
@@ -2371,7 +2369,7 @@ function abrirLegenda() {
                 // (outros atual - sinistros anteriores), por isso clicar varias vezes nao duplica.
                 var antigoSin = _detArr(row.sinistros_detalhes).reduce(function(a, d) { return a + (parseFloat(d.valor_parcela) || 0); }, 0);
                 var manual = Math.max(0, Math.round(((parseFloat(row.outros) || 0) - antigoSin) * 100) / 100);
-                var item = mapa[row.colaborador_id] || mapa[row.id];
+                var item = mapa[row.colaborador_id] || mapa[String(row.colaborador_id)];
                 var novoSin = item ? (parseFloat(item.valor_total) || 0) : 0;
                 if (item) qtd++;
                 row.sinistros_detalhes = item ? (item.detalhes || []) : [];
@@ -2515,7 +2513,7 @@ function abrirLegenda() {
             }
         
             json.forEach(item => {
-                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
+                const idx = _dados.findIndex(r => String(r.colaborador_id) === String(item.colaborador_id));
                 if (idx >= 0) {
                     _dados[idx].multas = item.valor_total;
                     _dados[idx].multas_detalhes = item.detalhes || [];
@@ -2525,7 +2523,10 @@ function abrirLegenda() {
                         if (inp) inp.value = window._fechamento.formatBRL(item.valor_total);
                         const tip = montarTooltipCelula(idx, 'multas');
                         cell.title = tip;
-                        if (inp) inp.title = tip;
+                        if (inp) {
+                            inp.title = tip;
+                            if (inp.parentElement && inp.parentElement.tagName === 'DIV') inp.parentElement.title = tip;
+                        }
                     }
                     atualizar(idx, 'multas', item.valor_total);
                 }
@@ -2669,7 +2670,7 @@ function abrirLegenda() {
                 return;
             }
             json.forEach(item => {
-                const idx = _dados.findIndex(r => r.id === item.colaborador_id || r.colaborador_id === item.colaborador_id);
+                const idx = _dados.findIndex(r => String(r.colaborador_id) === String(item.colaborador_id));
                 if (idx >= 0) {
                     _dados[idx].plr = item.plr_valor;
                     const cell = document.getElementById(`fech-cell-plr-${idx}`);
@@ -3765,7 +3766,7 @@ function abrirLegenda() {
                 { field: 'dias_ferias', cellId: 'dias-ferias', code: '8783', type: 'qty', label: 'Dias Férias' }
             ];
 
-            // Limpar marcações anteriores de comparação
+            // Limpar marcações anteriores de comparação mantendo os tooltips base (sinistros, multas, PTS, edições)
             document.querySelectorAll('td[id^="fech-cell-"]').forEach(td => {
                 if (td.dataset.originalBg) td.style.background = td.dataset.originalBg;
                 else td.style.background = 'transparent';
@@ -3781,20 +3782,15 @@ function abrirLegenda() {
                     el.classList.remove('fech-borda-verde');
                     el.style.background = '';
                     el.style.border = '1px solid #e5e7eb';
-                    if (el.dataset.manualEdit === 'true') {
-                        let mIdx = td.closest('tr') ? td.closest('tr').dataset.idx : null;
-                        let field = td.id.replace('fech-cell-', '').replace(new RegExp('-' + mIdx + '$'), '');
-                        let emTxt = (_dados[mIdx] && _dados[mIdx].edicoes_manuais && _dados[mIdx].edicoes_manuais[field])
-                            ? _dados[mIdx].edicoes_manuais[field].texto
-                            : el.title.split('\n')[0];
-                        el.title = emTxt;
-                        td.title = emTxt;
-                    } else {
-                        el.title = '';
-                        td.title = '';
-                    }
-                } else {
-                    td.title = '';
+                }
+
+                let mIdx = td.closest('tr') ? td.closest('tr').dataset.idx : null;
+                let field = td.id.replace('fech-cell-', '').replace(new RegExp('-' + mIdx + '$'), '');
+                let baseTip = (mIdx !== null && mIdx !== undefined) ? (montarTooltipCelula(parseInt(mIdx), field) || '') : '';
+                td.title = baseTip;
+                if (el) {
+                    el.title = baseTip;
+                    if (el.parentElement && el.parentElement.tagName === 'DIV') el.parentElement.title = baseTip;
                 }
             });
 
@@ -4209,6 +4205,7 @@ function abrirLegenda() {
                     inp.style.fontWeight = 'bold';
                 }
                 inp.title = fullTitle;
+                if (inp.parentElement && inp.parentElement.tagName === 'DIV') inp.parentElement.title = fullTitle;
             }
             let sel = td.querySelector('select');
             if (sel) {
