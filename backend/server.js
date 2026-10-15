@@ -33507,6 +33507,8 @@ function _sacBuildTicketsPayload(cb) {
             gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
         }));
         } catch (e) { return cb(e); }
+            // Remove colunas brutas (strings JSON) que duplicam os campos ja convertidos (camelCase)
+            parsed.forEach(p => { delete p.cost_centers; delete p.logistics_task; delete p.commercial_task; delete p.financial_task; delete p.sac_checklist; });
         try {
             const _sz = {};
             rows.forEach(r => ['timeline','cost_centers','attachments','checklist','sac_checklist','logistics_task','commercial_task','financial_task','occurrences','comments','tags','description'].forEach(k => { _sz[k] = (_sz[k] || 0) + String(r[k] || '').length; }));
