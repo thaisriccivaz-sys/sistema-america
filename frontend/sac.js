@@ -2853,8 +2853,9 @@
       </div>`;
     if (isAguard) setTimeout(() => SAC.filterTransUsers(_transForm.sector, _transForm.assignedUser), 0);
     if (pt.targetStageId === 'concluido') {
+        const _cleanOccVal = v => (!v || v === 'undefined' || v === 'null') ? '' : String(v);
         window._transOccsState = (ticket && ticket.occurrences && ticket.occurrences.length > 0) 
-            ? ticket.occurrences.map(o => typeof o === 'string' ? { name: o, note: '' } : { name: (o && o.name) || '', note: (o && o.note) || '' })
+            ? ticket.occurrences.map(o => typeof o === 'string' ? { name: _cleanOccVal(o), note: '' } : { name: _cleanOccVal(o && o.name), note: _cleanOccVal(o && o.note) })
             : [{ name: '', note: '' }];
         setTimeout(() => SAC.renderTransOccsRows(), 0);
     }
@@ -3189,8 +3190,12 @@
       const state = window._transOccsState || [];
       
       let html = '';
+      const _cleanOccVal = v => (!v || v === 'undefined' || v === 'null') ? '' : String(v);
       state.forEach((rawItem, idx) => {
-        const item = (rawItem && typeof rawItem === 'object') ? rawItem : (state[idx] = { name: String(rawItem || ''), note: '' });
+        const item = (rawItem && typeof rawItem === 'object')
+          ? { name: _cleanOccVal(rawItem.name), note: _cleanOccVal(rawItem.note) }
+          : { name: _cleanOccVal(rawItem), note: '' };
+        state[idx] = item;
         const hasMatchInOpts = opts.some(o => o.description === item.name);
         if (!hasMatchInOpts && item.name) {
           // Se a ocorrência inicial não estiver na lista de opções configuradas (ou se houver apenas 1 opção, pré-selecionar se vazio)
@@ -4384,21 +4389,20 @@
       const isSlaOverdue = ticket ? getSLADetails(ticket).isOverdue : false;
 
       if (pt.targetStageId === 'concluido') {
-        const state = window._transOccsState || [];
+        let state = window._transOccsState || [];
         const occContainer = document.getElementById('trans-concluido-occs');
         if (occContainer) {
-          const selects = occContainer.querySelectorAll('.trans-occ-select');
-          const notes   = occContainer.querySelectorAll('.trans-occ-note');
-          selects.forEach((sel, idx) => {
-            if (!state[idx] || typeof state[idx] !== 'object') state[idx] = { name: '', note: '' };
-            state[idx].name = sel.value;
-          });
-          notes.forEach((ta, idx) => {
-            if (!state[idx] || typeof state[idx] !== 'object') state[idx] = { name: '', note: '' };
-            state[idx].note = ta.value;
-          });
+          const selects = Array.from(occContainer.querySelectorAll('select'));
+          const notes   = Array.from(occContainer.querySelectorAll('textarea'));
+          if (selects.length > 0) {
+            state = selects.map((sel, idx) => ({
+              name: (sel.value || '').trim(),
+              note: (notes[idx] ? notes[idx].value : '').trim()
+            }));
+            window._transOccsState = state;
+          }
         }
-        const missing = state.length === 0 || state.some(o => !o || typeof o !== 'object' || !o.name || !o.note || !o.note.trim());
+        const missing = state.length === 0 || state.some(o => !o || typeof o !== 'object' || !o.name || !o.note || !o.note.trim() || o.note.trim() === 'undefined');
         if (missing) {
           showToast('Preencha a Ocorrência e as Informações de conclusão para todos os itens.', 'warning');
           return;

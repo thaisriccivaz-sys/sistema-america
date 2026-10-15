@@ -16164,7 +16164,13 @@ app.get('/avaliacao-publica.html', (req, res) => {
 });
 
 // --- SERVIR ARQUIVOS ESTÁTICOS ---
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../frontend'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+}));
 // 🔒 SEGURANÇA: Rota /files removida — expunha toda a árvore de arquivos do servidor sem autenticação.
 
 // ====================================================================
@@ -34092,7 +34098,7 @@ function _sacBuildTicketsPayload(cb) {
             logisticsTask: JSON.parse(r.logistics_task||'null'),
             commercialTask: JSON.parse(r.commercial_task||'null'),
             financialTask: JSON.parse(r.financial_task||'null'),
-            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : o),
+            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : { ...o, name: (o && o.name && o.name !== 'undefined') ? o.name : '', note: (o && o.note && o.note !== 'undefined') ? o.note : '' }),
             comments: JSON.parse(r.comments||'[]'),
             tags: JSON.parse(r.tags||'[]'),
             isUrgent: r.is_urgent === 1,
@@ -34194,7 +34200,7 @@ app.get('/api/sac/tickets/:id', authenticateToken, (req, res) => {
             logisticsTask: JSON.parse(r.logistics_task||'null'),
             commercialTask: JSON.parse(r.commercial_task||'null'),
             financialTask: JSON.parse(r.financial_task||'null'),
-            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : o),
+            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : { ...o, name: (o && o.name && o.name !== 'undefined') ? o.name : '', note: (o && o.note && o.note !== 'undefined') ? o.note : '' }),
             comments: JSON.parse(r.comments||'[]'),
             tags: JSON.parse(r.tags||'[]'),
             isUrgent: r.is_urgent === 1,
