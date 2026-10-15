@@ -8590,6 +8590,8 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
         manutencoesOS_Evento: 0,
         manutencoesOS_Total: 0,
         manutencoesPorProduto: {}, // nomeProd -> { qtd, icon, isEvento }
+        detalhe: [],  // todos os clientes atendidos (para planilha anexa)
+        outros: [],   // outros servicos (nao entrega/retirada/manutencao)
         equipes: []
     };
 
@@ -8638,6 +8640,23 @@ function _rrCalcularMetricasRelatorio(veiculosRaw) {
                     parsedProds.push({ qtd, codigo, nomeProd, iconProd, prodIsEvento });
                 }
             });
+
+            {
+                const _catTipo = tipo === 'AVULSA' ? 'MANUTENCAO' : (['ENTREGA', 'RETIRADA', 'MANUTENCAO'].includes(tipo) ? tipo : 'OUTROS');
+                const _oeEvento = parsedProds.length > 0 ? parsedProds.some(pp => pp.prodIsEvento) : osIsEvento;
+                const _row = {
+                    categoria: _catTipo,
+                    oe: _oeEvento ? 'Evento' : 'Obra',
+                    cliente: clienteStr.replace(/^[^\p{L}\p{N}]+/u, '').trim(),
+                    servico: String(os.servico || '').replace(/^[^\p{L}\p{N}]+/u, '').trim() || tipo || 'OUTROS',
+                    produtos: prodsRaw.map(p => String(p || '').trim()).filter(Boolean).join(', '),
+                    veiculo: eqItem.veiculo,
+                    motorista: eqItem.motorista,
+                    ajudante: eqItem.ajudante
+                };
+                stats.detalhe.push(_row);
+                if (_catTipo === 'OUTROS') stats.outros.push(_row);
+            }
 
             if (tipo === 'ENTREGA') {
                 stats.clientesEntregaDia++;
@@ -8787,6 +8806,49 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         attachments.push({ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' });
     }
 
+    // ── Planilha anexa: clientes atendidos no dia separados por categoria ──
+    try {
+        const ExcelJSrr = require('exceljs');
+        const wbRr = new ExcelJSrr.Workbook();
+        wbRr.creator = 'América Rental';
+        const cols = [
+            { header: 'Cliente', key: 'cliente', width: 42 },
+            { header: 'Serviço', key: 'servico', width: 26 },
+            { header: 'Obra/Evento', key: 'oe', width: 13 },
+            { header: 'Produtos', key: 'produtos', width: 40 },
+            { header: 'Veículo', key: 'veiculo', width: 22 },
+            { header: 'Motorista', key: 'motorista', width: 26 },
+            { header: 'Ajudante', key: 'ajudante', width: 26 }
+        ];
+        const addSheet = (nome, rows) => {
+            const ws = wbRr.addWorksheet(nome);
+            ws.columns = cols.map(c => ({ ...c }));
+            const hr = ws.getRow(1);
+            hr.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            hr.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3C2E' } };
+            hr.alignment = { vertical: 'middle', horizontal: 'center' };
+            rows.forEach(r => ws.addRow(r));
+            ws.views = [{ state: 'frozen', ySplit: 1 }];
+            if (!rows.length) ws.addRow({ cliente: '(nenhum registro)' });
+        };
+        const porCat = c => stats.detalhe.filter(r => r.categoria === c);
+        addSheet('Entregas', porCat('ENTREGA'));
+        addSheet('Retiradas', porCat('RETIRADA'));
+        addSheet('Manutenções', porCat('MANUTENCAO'));
+        addSheet('Outros Serviços', porCat('OUTROS'));
+        addSheet('Obra', stats.detalhe.filter(r => r.oe === 'Obra'));
+        addSheet('Evento', stats.detalhe.filter(r => r.oe === 'Evento'));
+        const bufRr = await wbRr.xlsx.writeBuffer();
+        const nomeArq = String(nomeResumo || dataRota || 'Resumo').replace(/[^\w\-]+/g, '_').substring(0, 60);
+        attachments.push({
+            filename: 'Clientes_Atendidos_' + nomeArq + '.xlsx',
+            content: Buffer.from(bufRr),
+            contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+    } catch (eXlsx) {
+        console.warn('[RR-EMAIL] Erro ao gerar planilha anexa:', eXlsx.message);
+    }
+
     const cidAdded = new Set();
     function renderMemberAvatar(nome, borderHex, bgHex) {
         const cleanNome = String(nome || '').trim();
@@ -8829,6 +8891,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
     // ── Construir URLs de Gráficos QuickChart.io ──
     // Gráfico 1: Visão Geral (Entregas Evento, Entregas Obra, Retiradas, Manut. Obra, Manut. Evento)
+    const _c1Max = Math.max(1, stats.banheirosEntreguesEvento, stats.banheirosEntreguesObra, stats.banheirosRetirados, stats.manutencoesObra, stats.manutencoesEvento);
     const chart1Cfg = {
         type: 'bar',
         data: {
@@ -8848,12 +8911,12 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         },
         options: {
             legend: { display: false },
-            title: { display: true, text: 'Volume de Banheiros por Tipo de Operação', fontSize: 14, fontColor: '#1e293b' },
+            title: { display: true, text: 'Volume de Banheiros por Tipo de Operação', fontSize: 14, fontColor: '#1e293b', padding: 28 },
             plugins: {
                 datalabels: { anchor: 'end', align: 'top', color: '#0f172a', font: { weight: 'bold', size: 12 } }
             },
             scales: {
-                yAxes: [{ ticks: { beginAtZero: true } }]
+                yAxes: [{ ticks: { beginAtZero: true, suggestedMax: Math.ceil(_c1Max * 1.2) } }]
             }
         }
     };
@@ -8875,12 +8938,12 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         },
         options: {
             legend: { display: false },
-            title: { display: true, text: 'Manutenções × Tipo de Produto', fontSize: 14, fontColor: '#1e293b' },
+            title: { display: true, text: 'Manutenções × Tipo de Produto', fontSize: 14, fontColor: '#1e293b', padding: 24 },
             plugins: {
                 datalabels: { anchor: 'end', align: 'right', color: '#0f172a', font: { weight: 'bold', size: 11 } }
             },
             scales: {
-                xAxes: [{ ticks: { beginAtZero: true } }]
+                xAxes: [{ ticks: { beginAtZero: true, suggestedMax: Math.ceil(Math.max(...chart2Values, 1) * 1.2) } }]
             }
         }
     };
@@ -8900,7 +8963,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             ]
         },
         options: {
-            title: { display: true, text: 'Manutenções e Entregas por Equipe / Veículo', fontSize: 14, fontColor: '#1e293b' },
+            title: { display: true, text: 'Manutenções e Entregas por Equipe / Veículo', fontSize: 14, fontColor: '#1e293b', padding: 24 },
             legend: { position: 'bottom' },
             scales: {
                 xAxes: [{ stacked: false }],
@@ -8947,7 +9010,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
         return `
         <div style="border:1px solid #e2e8f0;border-radius:12px;margin-bottom:14px;overflow:hidden;background:#ffffff;">
-            <div style="background:linear-gradient(90deg,#1e3a5f 0%,#2d9e5f 100%);padding:10px 16px;color:#ffffff;">
+            <div style="background:#1e3a5f;padding:10px 16px;color:#ffffff;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0">
                     <tr>
                         <td style="font-size:15px;font-weight:800;color:#ffffff;">
@@ -8996,7 +9059,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center;">
                                 <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;">🔧 Manutenções da Equipe</div>
                                 <div style="font-size:22px;font-weight:800;color:#166534;margin:4px 0;">${eq.manutencoesTotal}</div>
-                                <div style="font-size:11px;color:#15803d;">Obra: <b>${eq.manutencoesObra}</b> • Evento: <b>${eq.manutencoesEvento}</b></div>
+                                <div style="font-size:11px;color:#15803d;">💙 Obra: <b>${eq.manutencoesObra}</b> • 💜 Evento: <b>${eq.manutencoesEvento}</b></div>
                                 <div style="font-size:10px;color:#64748b;margin-top:2px;">(${eq.manutencoesOS} paradas/OS)</div>
                             </div>
                         </td>
@@ -9031,6 +9094,38 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         </div>`;
     }).join('');
 
+    const _escRr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const outrosPorServico = {};
+    stats.outros.forEach(r => {
+        const k = (r.servico || 'OUTROS').toUpperCase();
+        if (!outrosPorServico[k]) outrosPorServico[k] = [];
+        outrosPorServico[k].push(r);
+    });
+    const outrosRowsHtml = Object.keys(outrosPorServico).length
+        ? Object.entries(outrosPorServico).sort((a, b) => b[1].length - a[1].length).map(([serv, lista]) => `
+            <tr style="background:#f1f5f9;">
+                <td colspan="3" style="padding:8px 10px;font-size:12px;font-weight:800;color:#1f2937;">⚙️ ${_escRr(serv)} — <span style="color:#7c3aed;font-size:14px;">${lista.length}</span></td>
+            </tr>
+            ${lista.map(r => `
+            <tr>
+                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#1f2937;">${_escRr(r.cliente || '—')}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;">${r.oe === 'Evento' ? '💜 Evento' : '💙 Obra'}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#374151;">🚚 ${_escRr(String(r.veiculo || '').split(' - ')[0])}</td>
+            </tr>`).join('')}`).join('')
+        : `<tr><td colspan="3" style="padding:14px;text-align:center;color:#4b5563;font-size:13px;">Nenhum outro serviço agendado nesta rota.</td></tr>`;
+    const outrosHtml = `
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
+                🧰 Outros Serviços Agendados (${stats.outros.length})
+            </h3>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:22px;">
+                <thead><tr style="background:#e2e8f0;">
+                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Cliente</th>
+                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Tipo</th>
+                    <th align="left" style="padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;">Veículo</th>
+                </tr></thead>
+                <tbody>${outrosRowsHtml}</tbody>
+            </table>`;
+
     const tituloResumo = nomeResumo || dataRota || new Date().toLocaleDateString('pt-BR');
     const subject = `📊 Relatório Resumo da Rota — ${tituloResumo}`;
 
@@ -9042,9 +9137,9 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         </div>
 
         <!-- Cabeçalho do Relatório -->
-        <div style="background:linear-gradient(135deg,#155d38 0%,#2d9e5f 100%);padding:22px 24px;color:#ffffff;">
-            <h2 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;">📊 Relatório Operacional — Resumo da Rota</h2>
-            <p style="margin:6px 0 0;font-size:13px;color:#dcfce7;">
+        <div style="background:#dcfce7;border-bottom:3px solid #16a34a;padding:22px 24px;color:#374151;">
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:#1f2937;">📊 Relatório Operacional — Resumo da Rota</h2>
+            <p style="margin:8px 0 0;font-size:13px;color:#374151;">
                 <b>Resumo / Data:</b> ${tituloResumo} &nbsp;|&nbsp;
                 <b>Equipes:</b> ${stats.equipes.length} veículo(s) &nbsp;|&nbsp;
                 <b>Gerado por:</b> ${usuarioNome || 'Sistema'}
@@ -9063,21 +9158,21 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                         <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;">💜 Banheiros Entregues (Evento)</div>
                             <div style="font-size:28px;font-weight:800;color:#7c3aed;margin:6px 0;">${stats.banheirosEntreguesEvento}</div>
-                            <div style="font-size:11px;color:#6b7280;">Em ${stats.clientesEntregaEvento} cliente(s) de evento</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#6d28d9;">${stats.clientesEntregaEvento}</b> <b style="color:#374151;">cliente(s) de evento</b></div>
                         </div>
                     </td>
                     <td width="34%" valign="top" style="padding:0 3px;">
                         <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">💙 Banheiros Entregues (Obra)</div>
                             <div style="font-size:28px;font-weight:800;color:#2563eb;margin:6px 0;">${stats.banheirosEntreguesObra}</div>
-                            <div style="font-size:11px;color:#6b7280;">Em ${stats.clientesEntregaObra} cliente(s) de obra</div>
+                            <div style="font-size:11px;color:#6b7280;">Em <b style="font-size:20px;color:#1d4ed8;">${stats.clientesEntregaObra}</b> <b style="color:#374151;">cliente(s) de obra</b></div>
                         </div>
                     </td>
                     <td width="33%" valign="top" style="padding-left:6px;">
                         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;text-align:center;">
-                            <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">🏢 Clientes c/ Entregas no Dia</div>
-                            <div style="font-size:28px;font-weight:800;color:#16a34a;margin:6px 0;">${stats.clientesEntregaDia}</div>
-                            <div style="font-size:11px;color:#6b7280;">Total entregue: <b>${stats.banheirosEntreguesTotal}</b> banheiros</div>
+                            <div style="font-size:11px;font-weight:700;color:#15803d;text-transform:uppercase;">📦 Total Entregue no Dia</div>
+                            <div style="font-size:34px;font-weight:800;color:#16a34a;margin:6px 0;">${stats.banheirosEntreguesTotal}</div>
+                            <div style="font-size:13px;color:#166534;font-weight:700;">banheiros entregues em ${stats.clientesEntregaDia} cliente(s)</div>
                         </div>
                     </td>
                 </tr>
@@ -9089,7 +9184,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                         <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;text-align:center;">
                             <div style="font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;">⭕ Quantidade de Banheiros Retirados</div>
                             <div style="font-size:26px;font-weight:800;color:#dc2626;margin:6px 0;">${stats.banheirosRetirados}</div>
-                            <div style="font-size:11px;color:#7f1d1d;">Obra: <b>${stats.banheirosRetiradosObra}</b> • Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
+                            <div style="font-size:11px;color:#7f1d1d;">💙 Obra: <b>${stats.banheirosRetiradosObra}</b> • 💜 Evento: <b>${stats.banheirosRetiradosEvento}</b></div>
                         </div>
                     </td>
                     <td width="50%" valign="top" style="padding-left:6px;">
@@ -9102,6 +9197,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                 </tr>
             </table>
 
+            ${outrosHtml}
             <!-- SEÇÃO 2: MANUTENÇÕES (OBRA + EVENTO + SOMA TOTAL) -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
                 🔧 2. Resumo Geral de Manutenções
@@ -9124,10 +9220,10 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
                         </div>
                     </td>
                     <td width="34%" valign="top" style="padding-left:6px;">
-                        <div style="background:linear-gradient(135deg,#059669 0%,#10b981 100%);border-radius:10px;padding:12px;text-align:center;color:#ffffff;">
-                            <div style="font-size:11px;font-weight:700;color:#dcfce7;text-transform:uppercase;">✅ Soma Total das Manutenções</div>
+                        <div style="background:#059669;border-radius:10px;padding:12px;text-align:center;color:#ffffff;">
+                            <div style="font-size:11px;font-weight:700;color:#ffffff;text-transform:uppercase;">✅ Soma Total das Manutenções</div>
                             <div style="font-size:28px;font-weight:800;color:#ffffff;margin:6px 0;">${stats.somaTotalManutencoes}</div>
-                            <div style="font-size:11px;color:#dcfce7;">Obra (${stats.manutencoesObra}) + Evento (${stats.manutencoesEvento})</div>
+                            <div style="font-size:12px;color:#ffffff;font-weight:700;">💙 Obra (${stats.manutencoesObra}) + 💜 Evento (${stats.manutencoesEvento})</div>
                         </div>
                     </td>
                 </tr>
