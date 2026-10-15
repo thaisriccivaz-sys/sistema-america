@@ -11735,27 +11735,95 @@ async function gerarBufferFechamentoXlsx({ mes, ano, rows }) {
             r.observacao || ''
         ];
 
+                // Parse de divergências da comparação da folha contábil (se houver)
+        let divsObj = {};
+        if (r.divergencias_comparacao) {
+            if (typeof r.divergencias_comparacao === 'object') {
+                divsObj = r.divergencias_comparacao;
+            } else {
+                try { divsObj = JSON.parse(r.divergencias_comparacao) || {}; } catch (e) { divsObj = {}; }
+            }
+        }
+        const mapColToDivKeys = {
+            'intermitente': ['intermitente', 'dias_intermitente', 'dias-intermitente'],
+            'total_trab': ['total_trab', 'total_trabalhado', 'total-trabalhado'],
+            'total_noturno': ['total_noturno', 'horas_noturnas', 'noturno'],
+            'extra_60': ['extra_60', 'extra-60'],
+            'extra_100': ['extra_100', 'extra-100'],
+            'faltas': ['faltas', 'dias_falta', 'dias-falta'],
+            'dias_faltas': ['dias_faltas', 'data_faltas'],
+            'dsr': ['dsr'],
+            'atrasos': ['atrasos', 'horas_atraso', 'horas-atraso'],
+            'vt': ['vt'],
+            'farmacia': ['farmacia'],
+            'mercado': ['mercado'],
+            'multas': ['multas'],
+            'academia': ['academia'],
+            'adiantamento': ['adiantamento'],
+            'consignado': ['consignado', 'consig'],
+            'comissao': ['comissao', 'valor_comissao'],
+            'plr': ['plr'],
+            'premio': ['premio'],
+            'pts': ['pts'],
+            'outros': ['outros'],
+            'insalubridade': ['insalubridade'],
+            'periculosidade': ['periculosidade'],
+            'sindicato': ['sindicato'],
+            'pensao': ['pensao'],
+            'dias_ferias': ['dias_ferias', 'dias-ferias']
+        };
+        const resumoDivsColab = [];
         values.forEach((val, cIdx) => {
             const cell = row.getCell(cIdx + 1);
             const colDef = columnsDef[cIdx];
-
             cell.value = val;
-            cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E1B4B' } };
             cell.alignment = { vertical: 'middle', horizontal: colDef.align };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
             cell.border = {
                 top: { style: 'thin', color: { argb: 'FFE9D5FF' } },
                 bottom: { style: 'thin', color: { argb: 'FFE9D5FF' } },
                 left: { style: 'thin', color: { argb: 'FFE9D5FF' } },
                 right: { style: 'thin', color: { argb: 'FFE9D5FF' } }
             };
-
+            // Verificar se esta coluna possui divergência registrada
+            let divItem = null;
+            const keys = mapColToDivKeys[colDef.key] || [colDef.key];
+            for (const k of keys) {
+                if (divsObj[k]) { divItem = divsObj[k]; break; }
+            }
+            if (divItem) {
+                const divTexto = typeof divItem === 'object' ? (divItem.msg || divItem.texto || '') : String(divItem);
+                if (divTexto) {
+                    resumoDivsColab.push(`• ${colDef.header}: ${divTexto}`);
+                    // Célula destacada em vermelho com nota (comentário da divergência)
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFDC2626' } };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFEF4444' } },
+                        bottom: { style: 'thin', color: { argb: 'FFEF4444' } },
+                        left: { style: 'thin', color: { argb: 'FFEF4444' } },
+                        right: { style: 'thin', color: { argb: 'FFEF4444' } }
+                    };
+                    cell.note = `Divergência (${colDef.header}):\n${divTexto}`;
+                } else {
+                    cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E1B4B' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+                }
+            } else {
+                cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF1E1B4B' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+            }
             if (colDef.isMoney) {
                 cell.numFmt = '"R$" #,##0.00;("R$" #,##0.00);"-"';
             } else if (colDef.isInt) {
                 cell.numFmt = '#,##0;-#,##0;""';
             }
         });
+        // Comentário da linha na célula do Colaborador (Coluna A) se houver divergências
+        if (resumoDivsColab.length > 0) {
+            const colabCell = row.getCell(1);
+            colabCell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FFB91C1C' } };
+            colabCell.note = `DIVERGÊNCIAS NA FOLHA (${resumoDivsColab.length}):\n${resumoDivsColab.join('\n')}`;
+        }
     });
 
     // Linha de Totais gerais
