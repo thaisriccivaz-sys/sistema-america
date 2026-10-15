@@ -116,24 +116,9 @@ function buscarColaboradorPorNome(nomeExtraido, todosColaboradores) {
     );
     if (encontrado) return { colaborador: encontrado, confianca: 'exato' };
 
-    // Match parcial: nome normalizado contém ou está contido no cadastrado
-    encontrado = todosColaboradores.find(c => {
-        const nc = normalizarNome(c.nome_completo);
-        return nc.includes(nomeNorm) || nomeNorm.includes(nc);
-    });
-    if (encontrado) return { colaborador: encontrado, confianca: 'parcial' };
-
-    // Match por primeiro e último nome
-    const partes = nomeNorm.split(' ').filter(Boolean);
-    if (partes.length >= 2) {
-        const primeiro = partes[0];
-        const ultimo = partes[partes.length - 1];
-        encontrado = todosColaboradores.find(c => {
-            const nc = normalizarNome(c.nome_completo);
-            return nc.startsWith(primeiro) && nc.endsWith(ultimo);
-        });
-        if (encontrado) return { colaborador: encontrado, confianca: 'aproximado' };
-    }
+    // Não permitir match parcial ou aproximado por primeiro e último nome
+    // para evitar anexar holerite/adiantamento no colaborador errado (ex: Rafael Lima vs Rafael de Souza Lima).
+    // Apenas match 100% exato no nome completo é aceito.
 
     return null;
 }
