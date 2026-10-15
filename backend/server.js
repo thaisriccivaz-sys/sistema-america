@@ -33458,6 +33458,48 @@ app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 
     }
 });
 
+// ── SAC: fotos de usuario (data-URI) servidas por URL curta e cacheavel, em vez de embutidas no JSON da lista ──
+// Persistidas na tabela sac_photos (SQLite em /data) para que a URL nunca quebre apos restart/deploy.
+db.run("CREATE TABLE IF NOT EXISTS sac_photos (hash TEXT PRIMARY KEY, mime TEXT, data BLOB)");
+global._sacPhotoMap = global._sacPhotoMap || {};
+function _sacPhotoToUrl(dataUri) {
+    try {
+        const m = /^data:([\w\/+.-]+);base64,(.+)$/s.exec(dataUri);
+        if (!m) return dataUri;
+        const hash = require('crypto').createHash('md5').update(m[2]).digest('hex');
+        if (!global._sacPhotoMap[hash]) {
+            const buf = Buffer.from(m[2], 'base64');
+            global._sacPhotoMap[hash] = { mime: m[1], buf };
+            db.run("INSERT OR IGNORE INTO sac_photos (hash, mime, data) VALUES (?,?,?)", [hash, m[1], buf]);
+        }
+        return '/api/sac/foto-cache/' + hash;
+    } catch (e) { return dataUri; }
+}
+function _sacStripDataUris(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    for (const k of Object.keys(obj)) {
+        const v = obj[k];
+        if (typeof v === 'string') { if (v.length > 200 && v.startsWith('data:image')) obj[k] = _sacPhotoToUrl(v); }
+        else if (v && typeof v === 'object') _sacStripDataUris(v);
+    }
+    return obj;
+}
+app.get('/api/sac/foto-cache/:hash', (req, res) => {
+    const h = String(req.params.hash || '').replace(/[^a-f0-9]/gi, '');
+    const send = (p) => {
+        res.setHeader('Content-Type', p.mime || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+        res.end(p.buf);
+    };
+    if (global._sacPhotoMap[h]) return send(global._sacPhotoMap[h]);
+    db.get("SELECT mime, data FROM sac_photos WHERE hash = ?", [h], (err, row) => {
+        if (err || !row) return res.status(404).end();
+        const p = { mime: row.mime, buf: row.data };
+        global._sacPhotoMap[h] = p;
+        send(p);
+    });
+});
+
 // ── SAC: payload da lista de chamados (gzip) construído 1x e reutilizado até a próxima escrita ──
 function _sacBuildTicketsPayload(cb) {
     const ver = global._sacTicketsVersion;
@@ -33509,6 +33551,7 @@ function _sacBuildTicketsPayload(cb) {
         } catch (e) { return cb(e); }
             // Remove colunas brutas (strings JSON) que duplicam os campos ja convertidos (camelCase)
             parsed.forEach(p => { delete p.cost_centers; delete p.logistics_task; delete p.commercial_task; delete p.financial_task; delete p.sac_checklist; });
+            parsed.forEach(p => { _sacStripDataUris(p.logisticsTask); _sacStripDataUris(p.commercialTask); _sacStripDataUris(p.financialTask); _sacStripDataUris(p.costCenters); });
         try {
             const _sz = {};
             rows.forEach(r => ['timeline','cost_centers','attachments','checklist','sac_checklist','logistics_task','commercial_task','financial_task','occurrences','comments','tags','description'].forEach(k => { _sz[k] = (_sz[k] || 0) + String(r[k] || '').length; }));
