@@ -8803,16 +8803,33 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
     const stats = _rrCalcularMetricasRelatorio(veiculosList);
     if (isMensal) {
-        // Consolida por equipe (motorista + ajudante) ao longo do mes
-        const mapEq = {};
-        const somar = ['totalOS', 'manutencoesTotal', 'manutencoesObra', 'manutencoesEvento', 'manutencoesOS', 'entregasEventoBanheiros', 'entregasEventoOS', 'entregasObraBanheiros', 'entregasObraOS', 'banheirosRetirados', 'retiradasOS'];
+        // Consolida estritamente por motorista ao longo do mês (sem ajudante, somando manutenções, entregas e retiradas)
+        const mapMot = {};
         stats.equipes.forEach(e => {
-            const key = String(e.motorista || '').toLowerCase().trim() + '|' + String(e.ajudante || '').toLowerCase().trim();
-            if (!mapEq[key]) mapEq[key] = { ...e };
-            else somar.forEach(k => { mapEq[key][k] += e[k]; });
+            const motNome = String(e.motorista || '').trim();
+            if (!motNome) return;
+            const key = motNome.toLowerCase();
+            if (!mapMot[key]) {
+                mapMot[key] = {
+                    motorista: motNome,
+                    totalOS: 0,
+                    manutencoesTotal: 0,
+                    manutencoesObra: 0,
+                    manutencoesEvento: 0,
+                    entregasTotalBanheiros: 0,
+                    banheirosRetirados: 0
+                };
+            }
+            mapMot[key].totalOS += (e.totalOS || 0);
+            mapMot[key].manutencoesTotal += (e.manutencoesTotal || 0);
+            mapMot[key].manutencoesObra += (e.manutencoesObra || 0);
+            mapMot[key].manutencoesEvento += (e.manutencoesEvento || 0);
+            mapMot[key].entregasTotalBanheiros += ((e.entregasObraBanheiros || 0) + (e.entregasEventoBanheiros || 0));
+            mapMot[key].banheirosRetirados += (e.banheirosRetirados || 0);
         });
-        stats.equipes = Object.values(mapEq).sort((a, b) =>
-            (b.manutencoesTotal + b.entregasObraBanheiros + b.entregasEventoBanheiros) - (a.manutencoesTotal + a.entregasObraBanheiros + a.entregasEventoBanheiros));
+        stats.equipes = Object.values(mapMot).sort((a, b) =>
+            (b.manutencoesTotal + b.entregasTotalBanheiros + b.banheirosRetirados) -
+            (a.manutencoesTotal + a.entregasTotalBanheiros + a.banheirosRetirados));
     }
 
     // Buscar fotos dos colaboradores no banco para exibir foto do motorista e ajudante
@@ -9135,10 +9152,56 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     }).join('');
 
     const _escRr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    // ── Secao 4: por equipe — fotos (motorista/ajudante) ao lado de grafico de barras horizontais ──
-    const _maxEq = Math.max(1, ...stats.equipes.flatMap(e => [e.manutencoesTotal, e.entregasObraBanheiros, e.entregasEventoBanheiros]));
+    // ── Secao 4: por equipe / motorista — fotos ao lado de grafico de barras horizontais ──
+    const _maxEq = isMensal
+        ? Math.max(1, ...stats.equipes.flatMap(e => [e.manutencoesTotal || 0, e.entregasTotalBanheiros || 0, e.banheirosRetirados || 0]))
+        : Math.max(1, ...stats.equipes.flatMap(e => [e.manutencoesTotal || 0, e.entregasObraBanheiros || 0, e.entregasEventoBanheiros || 0]));
+
     const equipesGraficosHtml = stats.equipes.map((eq, idx) => {
         const motAvatar = renderMemberAvatar(eq.motorista, '#1d4ed8', '#2563eb');
+
+        if (isMensal) {
+            // Relatório Mensal: Somente motorista, 3 barras: Manutenções, Entregas, Retiradas
+            const cfg = {
+                type: 'horizontalBar',
+                data: {
+                    labels: ['Manutenções', 'Entregas', 'Retiradas'],
+                    datasets: [{
+                        backgroundColor: ['#10b981', '#2563eb', '#dc2626'],
+                        data: [eq.manutencoesTotal || 0, eq.entregasTotalBanheiros || 0, eq.banheirosRetirados || 0]
+                    }]
+                },
+                options: {
+                    legend: { display: false },
+                    plugins: { datalabels: { anchor: 'end', align: 'right', color: '#0f172a', font: { weight: 'bold', size: 12 } } },
+                    scales: {
+                        xAxes: [{ ticks: { beginAtZero: true, suggestedMax: Math.ceil(_maxEq * 1.25) } }],
+                        yAxes: [{ ticks: { fontSize: 12 } }]
+                    }
+                }
+            };
+            const url = 'https://quickchart.io/chart?w=400&h=130&bkg=white&c=' + encodeURIComponent(JSON.stringify(cfg));
+            return `
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;margin-bottom:10px;background:#ffffff;">
+                <tr>
+                    <td width="200" valign="middle" style="padding:10px 12px;background:#f8fafc;border-right:1px solid #e2e8f0;">
+                        <table cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td valign="middle" style="padding-right:10px;">${motAvatar}</td>
+                                <td valign="middle">
+                                    <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.04em;">Motorista</div>
+                                    <div style="font-size:13px;font-weight:800;color:#0f172a;">${_escRr(eq.motorista || 'Não informado')}</div>
+                                    <div style="font-size:11px;color:#64748b;margin-top:2px;">${(eq.totalOS || 0)} atendimentos</div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td valign="middle" style="padding:6px 10px;"><img src="${url}" alt="Gráfico do motorista ${idx + 1}" width="400" style="width:100%;max-width:400px;height:auto;display:block;"></td>
+                </tr>
+            </table>`;
+        }
+
+        // Relatório Diário: Motorista + Ajudante
         const ajuAvatar = renderMemberAvatar(eq.ajudante, '#d97706', '#f59e0b');
         const cfg = {
             type: 'horizontalBar',
@@ -9197,6 +9260,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
         const fmtD = d => String(d).split('-').reverse().slice(0, 2).join('/');
         const dowNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const dm = diasMov.map(d => ({ ...d, total: d.entregas + d.retiradas + d.manutencoes, dow: new Date(d.data + 'T12:00:00').getDay() }));
+        const _maxDmMov = Math.max(1, ...dm.flatMap(d => [d.entregas, d.retiradas, d.manutencoes]));
         const cfgM = {
             type: 'horizontalBar',
             data: {
@@ -9210,8 +9274,17 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             options: {
                 title: { display: true, text: 'Movimento por Dia (banheiros)', fontSize: 14, fontColor: '#1e293b', padding: 20 },
                 legend: { position: 'bottom' },
+                plugins: {
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'right',
+                        color: '#475569',
+                        font: { size: 9, weight: 'bold' },
+                        formatter: (val) => (val > 0 ? val : '')
+                    }
+                },
                 scales: {
-                    xAxes: [{ ticks: { beginAtZero: true } }],
+                    xAxes: [{ ticks: { beginAtZero: true, suggestedMax: Math.ceil(_maxDmMov * 1.15) } }],
                     yAxes: [{ ticks: { fontSize: 11 } }]
                 }
             }
@@ -9270,7 +9343,7 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
             <h2 style="margin:0;font-size:20px;font-weight:800;color:#1f2937;">${isMensal ? '📅 Balanço Mensal' : '📊 Relatório Operacional'} — Resumo da Rota</h2>
             <p style="margin:8px 0 0;font-size:13px;color:#374151;">
                 <b>${isMensal ? 'Período' : 'Resumo / Data'}:</b> ${tituloResumo} &nbsp;|&nbsp;
-                <b>Equipes:</b> ${stats.equipes.length} ${isMensal ? 'equipe(s)' : 'veículo(s)'} &nbsp;|&nbsp;
+                <b>${isMensal ? 'Motoristas' : 'Equipes'}:</b> ${stats.equipes.length} ${isMensal ? 'motorista(s)' : 'veículo(s)'} &nbsp;|&nbsp;
                 <b>Gerado por:</b> ${usuarioNome || 'Sistema'}
             </p>
         </div>
@@ -9400,9 +9473,9 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
 
             
 
-            <!-- SEÇÃO 4: DETALHAMENTO POR EQUIPE -->
+            <!-- SEÇÃO 4: DETALHAMENTO POR EQUIPE / MOTORISTA -->
             <h3 style="margin:0 0 12px;font-size:14px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">
-                👷 4. Desempenho por Equipe (Motorista, Ajudante e Placa)
+                ${isMensal ? '👷 4. Desempenho por Motorista no Mês (Equipamentos Atendidos)' : '👷 4. Desempenho por Equipe (Motorista, Ajudante e Placa)'}
             </h3>
 
             
@@ -9431,40 +9504,103 @@ async function enviarEmailRelatorioResumoRota({ nomeResumo, dataRota, dadosRaw, 
     return { sentTo: listaDest, stats };
 }
 
-// Relatorio mensal/acumulado: consolida o ultimo resumo salvo de cada data (dia 1 ate ateDia)
-async function enviarRelatorioMensalResumoRota({ ano, mes, ateDia, destinatarios, usuarioNome }) {
+// Relatorio mensal/acumulado: consolida todos os resumos de cada data (dia 1 ate ateDia)
+async function enviarRelatorioMensalResumoRota({ ano, mes, ateDia, destinatarios, usuarioNome, veiculosAtual, dataRotaAtual, nomeResumoAtual }) {
     const rows = await new Promise(resolve => {
         db.all("SELECT id, nome, dados, criado_em FROM logistica_resumo_rota ORDER BY id ASC", [], (err, r) => resolve(r || []));
     });
     const pad = n => String(n).padStart(2, '0');
+
+    function extrairDataResumo(nome, criado_em, dadosParsed) {
+        let str = String(nome || '').trim();
+        // 1. DD-MM-YYYY ou DD/MM/YYYY
+        let m = str.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+        if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+        // 2. YYYY-MM-DD ou YYYY/MM/DD
+        m = str.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+        if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+        // 3. Tenta dentro de originalFileName se houver
+        if (dadosParsed && dadosParsed.originalFileName) {
+            let mo = String(dadosParsed.originalFileName).match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+            if (mo) return `${mo[3]}-${mo[2]}-${mo[1]}`;
+            mo = String(dadosParsed.originalFileName).match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+            if (mo) return `${mo[1]}-${mo[2]}-${mo[3]}`;
+        }
+        // 4. Fallback criado_em no fuso de SP
+        if (criado_em) {
+            try {
+                const dtUtc = new Date(String(criado_em).endsWith('Z') ? criado_em : String(criado_em) + 'Z');
+                const spStr = dtUtc.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+                if (spStr && /^\d{4}-\d{2}-\d{2}$/.test(spStr)) return spStr;
+            } catch(e){}
+            return String(criado_em).substring(0, 10);
+        }
+        return null;
+    }
+
+    function extrairTurnoKey(nome) {
+        return String(nome || 'PADRAO')
+            .replace(/\s*\(\d+\)\s*$/, '') // remove sufixo (2), (3)
+            .replace(/^\d{2}[-\/]\d{2}[-\/]\d{4}\s*/, '') // remove DD-MM-YYYY
+            .replace(/^\d{4}[-\/]\d{2}[-\/]\d{2}\s*/, '') // remove YYYY-MM-DD
+            .trim().toUpperCase() || 'PADRAO';
+    }
+
+    // porDia[dataStr][turnoKey] = veiculosList
     const porDia = {};
     rows.forEach(r => {
-        let data = null;
-        const m = String(r.nome || '').match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
-        if (m) data = m[3] + '-' + m[2] + '-' + m[1];
-        else if (r.criado_em) data = String(r.criado_em).substring(0, 10);
-        if (!data) return;
-        const [y, mo, d] = data.split('-').map(Number);
-        if (y !== ano || mo !== mes || d > ateDia) return;
         let parsed;
         try { parsed = JSON.parse(r.dados); } catch (e) { return; }
         const v = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.veiculos) ? parsed.veiculos : []);
         if (!v.length) return;
-        porDia[data] = v; // ordenado por id: o ultimo salvo da data prevalece
+
+        const data = extrairDataResumo(r.nome, r.criado_em, parsed);
+        if (!data) return;
+        const [y, mo, d] = data.split('-').map(Number);
+        if (y !== ano || mo !== mes || d > ateDia) return;
+
+        const turnoKey = extrairTurnoKey(r.nome);
+        if (!porDia[data]) porDia[data] = {};
+        porDia[data][turnoKey] = v; // ordenado por id ASC: atualização mais recente do mesmo turno substitui
     });
+
+    // Se veiculosAtual veio da tela ativa, mesclar no dia correspondente
+    if (Array.isArray(veiculosAtual) && veiculosAtual.length && dataRotaAtual) {
+        let dStr = dataRotaAtual;
+        const m = String(dStr).match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+        if (m) dStr = `${m[3]}-${m[2]}-${m[1]}`;
+        const parts = dStr.split('-').map(Number);
+        if (parts.length === 3) {
+            const [y, mo, d] = parts;
+            if (y === ano && mo === mes && d <= ateDia) {
+                const turnoKey = extrairTurnoKey(nomeResumoAtual || 'PADRAO');
+                if (!porDia[dStr]) porDia[dStr] = {};
+                porDia[dStr][turnoKey] = veiculosAtual;
+            }
+        }
+    }
+
     const datas = Object.keys(porDia).sort();
     if (!datas.length) {
         console.warn('[RR-EMAIL-MENSAL] Nenhum resumo salvo em ' + pad(mes) + '/' + ano + ' ate o dia ' + ateDia);
         return null;
     }
+
     const veiculosAll = [];
     const diasMov = [];
     datas.forEach(dt => {
-        const vs = porDia[dt];
+        const turnos = Object.values(porDia[dt]);
+        const vs = turnos.flat();
         const st = _rrCalcularMetricasRelatorio(vs);
-        diasMov.push({ data: dt, entregas: st.banheirosEntreguesTotal, retiradas: st.banheirosRetirados, manutencoes: st.somaTotalManutencoes });
+        diasMov.push({
+            data: dt,
+            entregas: st.banheirosEntreguesTotal,
+            retiradas: st.banheirosRetirados,
+            manutencoes: st.somaTotalManutencoes
+        });
         vs.forEach(v => veiculosAll.push({ ...v, _dia: dt }));
     });
+
     const periodo = '01/' + pad(mes) + '/' + ano + ' a ' + pad(ateDia) + '/' + pad(mes) + '/' + ano;
     return enviarEmailRelatorioResumoRota({
         nomeResumo: periodo,
@@ -9494,11 +9630,31 @@ app.post('/api/logistica/resumo-rota/enviar-relatorio', authenticateToken, async
         // 2º e-mail: acumulado do dia 01 do mes ate hoje
         let mensalOk = false;
         try {
+            let dataRef = dataRota;
+            if (!dataRef && nome) {
+                const m = String(nome).match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+                if (m) dataRef = `${m[3]}-${m[2]}-${m[1]}`;
+            }
             const hojeSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            let refY = hojeSP.getFullYear();
+            let refM = hojeSP.getMonth() + 1;
+            let refD = hojeSP.getDate();
+            if (dataRef && /^\d{4}-\d{2}-\d{2}$/.test(dataRef)) {
+                const [y, m, d] = dataRef.split('-').map(Number);
+                refY = y;
+                refM = m;
+                refD = d;
+            }
+
             const rm = await enviarRelatorioMensalResumoRota({
-                ano: hojeSP.getFullYear(), mes: hojeSP.getMonth() + 1, ateDia: hojeSP.getDate(),
+                ano: refY,
+                mes: refM,
+                ateDia: refD,
                 destinatarios: email,
-                usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci'
+                usuarioNome: req.user?.nome || req.user?.username || 'Thais.Ricci',
+                veiculosAtual: veiculos,
+                dataRotaAtual: dataRef || `${refY}-${String(refM).padStart(2, '0')}-${String(refD).padStart(2, '0')}`,
+                nomeResumoAtual: nome || 'PADRAO'
             });
             mensalOk = !!rm;
         } catch (eM) {
