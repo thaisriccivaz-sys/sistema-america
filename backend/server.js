@@ -1755,6 +1755,214 @@ db.get("SELECT id FROM geradores WHERE nome = 'Habilitação Categoria D'", (err
         db.run("INSERT INTO geradores (nome, conteudo, tipo, visibilidade_regra) VALUES (?, ?, 'html', ?)", ['Habilitação Categoria D', habDHtml, '{"dropdown_todos":true,"visivel_automatico":false,"condicao":"habilitacao_d=Sim","departamentos":null,"tipos_departamento":null}'], (err) => {
             if(!err) console.log("[SEED] Gerador Habilitação Categoria D criado.");
         });
+
+const contratoComissaoHtml = `<div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #1e293b; text-align: justify; max-width: 800px; margin: 0 auto; padding: 20px;">
+    
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="font-size: 16px; font-weight: bold; margin: 0; text-transform: uppercase;">TERMO DE ADESÃO À POLÍTICA DE COMISSIONAMENTO COMERCIAL</h2>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 1.5rem;">
+        <p style="margin: 0 0 6px 0; font-weight: bold; font-size: 13px; color: #0f172a; text-transform: uppercase;">DADOS DO COLABORADOR:</p>
+        <table style="width: 100%; border: none; font-size: 13px;">
+            <tr>
+                <td style="padding: 2px 0; border: none; width: 60%;"><b>Nome:</b> {NOME_COMPLETO}</td>
+                <td style="padding: 2px 0; border: none; width: 40%;"><b>CPF:</b> {CPF}</td>
+            </tr>
+            <tr>
+                <td style="padding: 2px 0; border: none;"><b>RG:</b> {RG}</td>
+                <td style="padding: 2px 0; border: none;"><b>Cargo:</b> {CARGO}</td>
+            </tr>
+            <tr>
+                <td style="padding: 2px 0; border: none;" colspan="2"><b>Departamento:</b> {DEPARTAMENTO}</td>
+            </tr>
+        </table>
+    </div>
+
+    <p style="margin-bottom: 1rem;">
+        <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b>, Situada na Rua Salto da Divisa, n° 97, CEP 07252-300, Pq Alvorada - Guarulhos SP, inscrita no CNPJ sob o n° 03.434.448/0001-01, neste ato representado pela sócia proprietária Sra. Nicole Mezuraro Maio, brasileira, solteira, empresária, portadora da cédula de identidade R.G. n° 43.690.066 SSP/SP e CPF/MF n° 355.026.968-47, doravante denominada <b>EMPRESA</b>.
+    </p>
+
+    <p style="margin-bottom: 1.5rem;">
+        Decidem as partes, na melhor forma de direito, celebrar o presente <b>TERMO DE ADESÃO À POLÍTICA DE COMISSIONAMENTO COMERCIAL</b>, para fins de alterar algumas condições do atual contrato de trabalho vigente, que reger-se-á mediante as cláusulas e condições adiante estipuladas.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA PRIMEIRA – DO OBJETO</b></p>
+    <p style="margin-bottom: 1rem;">
+        O presente termo tem por objetivo estabelecer as condições para pagamento de comissões e premiações ao colaborador do setor comercial, em conformidade com as metas, critérios de elegibilidade e regras operacionais definidas pela empresa.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA SEGUNDA – ELEGIBILIDADE PARA RECEBIMENTO DE COMISSÕES</b></p>
+    <p style="margin-bottom: 1rem;">
+        O período de apuração das comissões terá vigência do dia 26 (vinte e seis) de cada mês até o dia 25 (vinte e cinco) do mês subsequente, sendo considerados para fins de cálculo e pagamento apenas os contratos fechados, entregues e devidamente registrados dentro deste período.
+    </p>
+    <p style="margin-bottom: 0.5rem;">
+        O colaborador somente fará jus ao recebimento das comissões quando atender cumulativamente aos seguintes requisitos:
+    </p>
+    <p style="margin: 0.4rem 0;">I. Em caso de desligamento, os critérios de recebimento das comissões serão mantidos conforme a Política de Comissionamento Comercial, respeitadas as regras aplicáveis, o prazo de pagamento e o período de apuração, bem como os direitos legalmente devidos;</p>
+    <p style="margin: 0.4rem 0;">II. Não estar em período de experiência;</p>
+    <p style="margin: 0.4rem 0;">III. Cumprir as metas mínimas de desempenho estabelecidas pela empresa;</p>
+    <p style="margin: 0.4rem 0;">IV. Possuir contratos efetivamente fechados e entregues;</p>
+    <p style="margin: 0.4rem 0;">V. Garantir o correto preenchimento dos contratos, propostas, ordens de serviço e demais documentos internos, incluindo, mas não se limitando a:</p>
+    <div style="padding-left: 1.5rem; margin: 0.4rem 0;">
+        <p style="margin: 0.2rem 0;">a) Anexar ao sistema o contrato, contrato assinado e/ou aditivo devidamente assinado pelas partes;</p>
+        <p style="margin: 0.2rem 0; padding-left: 1.5rem;">a.1) Na impossibilidade de obtenção da assinatura, deverá ser registrada observação justificando o motivo, acompanhada da respectiva autorização da empresa.</p>
+        <p style="margin: 0.2rem 0;">b) Cadastrar corretamente os contatos responsáveis pelo recebimento de faturas, boletos e demais documentos financeiros;</p>
+        <p style="margin: 0.2rem 0;">c) Informar corretamente as datas e horários de entrega, instalação, manutenção e/ou retirada dos equipamentos, bem como o período do evento, quando aplicável;</p>
+        <p style="margin: 0.2rem 0;">d) Preencher de forma completa e correta o endereço de entrega, coleta ou prestação dos serviços;</p>
+        <p style="margin: 0.2rem 0;">e) Aplicar os valores comerciais vigentes e compatíveis com a tabela de preços, região de atendimento, condições comerciais aprovadas e políticas internas da empresa.</p>
+    </div>
+    <p style="margin: 0.5rem 0; font-style: italic;">
+        Os documentos deverão ser conferidos e, quando necessário, corrigidos antes da assinatura do contrato, evitando ajustes ou pendências posteriores.
+    </p>
+    <p style="margin: 0.4rem 0;">VI. Entregar os relatórios de comissão dentro dos prazos estabelecidos;</p>
+    <p style="margin: 0.4rem 0; padding-left: 1.5rem;">
+        Os contratos que não forem entregues ou informados no relatório de comissão pessoal serão desconsiderados para fins de comissionamento, conforme o procedimento de apuração adotado pela empresa e observados os direitos legalmente devidos.
+    </p>
+    <p style="margin: 0.4rem 0;">VII. Cumprir integralmente as regras da Política de Atendimento Comercial.</p>
+    <p style="margin: 0.4rem 0;">VIII. Contratos classificados como cortesia não gerarão direito ao pagamento de comissão.</p>
+    <p style="margin: 0.4rem 0;">IX. As metas individuais serão definidas pela empresa e poderão ser revisadas e alteradas mensalmente, de acordo com as estratégias comerciais, sazonalidade do mercado e demais critérios internos. Eventuais alterações serão comunicadas aos colaboradores previamente, antes do início do período de apuração das comissões ao qual se aplicarão, não produzindo efeitos retroativos.</p>
+    
+    <p style="margin-top: 1rem; margin-bottom: 1rem;">
+        <b>Parágrafo Único.</b> Será considerado erro identificado preventivamente quando qualquer colaborador, setor ou membro da supervisão detectar e comunicar falha, inconsistência ou risco operacional em um contrato antes que o problema gere impacto ao cliente ou à execução do serviço. Para aplicação desta regra, o erro deverá ter sido identificado por pessoa diversa do responsável pelo contrato e possuir potencial para ocasionar falha na prestação dos serviços contratados, prejuízos financeiros para a empresa ou para o cliente, interrupção, atraso ou falta de atendimento, bem como descumprimento de prazos, contratos, procedimentos operacionais ou políticas internas. Quando comprovado que o erro ocorreu em contrato sob responsabilidade do colaborador e foi identificado preventivamente por outro setor, evitando impacto operacional, financeiro ou ao cliente, poderá ser aplicado o desconto da comissão referente ao respectivo contrato, conforme as regras vigentes de remuneração variável da empresa. A aplicação do desconto deverá ser analisada e validada pela gestão responsável, mediante evidências da ocorrência e da identificação preventiva realizada. Esta regra tem por objetivo promover maior responsabilidade sobre os processos internos, incentivar a conferência adequada das informações antes da conclusão das atividades e fortalecer a colaboração entre os setores para prevenir falhas que possam comprometer a operação e a satisfação dos clientes.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA TERCEIRA – REGRAS DE VINCULAÇÃO DA COMISSÃO</b></p>
+    <p style="margin-bottom: 0.5rem;">
+        A comissão será atribuída ao colaborador responsável pelo atendimento conforme as regras de vínculo previstas na Política de Atendimento.
+    </p>
+    <p style="margin-bottom: 0.5rem;">
+        O vínculo comercial será estabelecido mediante emissão da proposta comercial, respeitando:
+    </p>
+    <ul style="margin: 0.4rem 0; padding-left: 2rem; line-height: 1.8;">
+        <li>Atendimento ativo;</li>
+        <li>Regras de prospecção;</li>
+        <li>Follow-up;</li>
+        <li>Validade da proposta;</li>
+        <li>Regras de unificação de atendimento;</li>
+        <li>Identificação correta da finalidade do contrato.</li>
+    </ul>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA QUARTA – PERDA DO DIREITO À COMISSÃO</b></p>
+    <p style="margin-bottom: 0.5rem;">
+        O colaborador perderá totalmente o direito à comissão quando ocorrer uma das situações abaixo:
+    </p>
+    <p style="margin: 0.3rem 0;">I. Cancelamento do contrato;</p>
+    <p style="margin: 0.3rem 0;">II. Descumprimento das regras de atendimento;</p>
+    <p style="margin: 0.3rem 0;">III. Descumprimento dos prazos de resposta estabelecidos pela empresa;</p>
+    <p style="margin: 0.3rem 0;">IV. Transferência do atendimento em razão de perda de SLA;</p>
+    <p style="margin: 0.3rem 0;">V. Informações incorretas ou incompletas no cadastro, proposta, contrato ou ordem de serviço (OS);</p>
+    <p style="margin: 0.3rem 0;">VI. Descumprimento das políticas internas vigentes.</p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA QUINTA – AUSÊNCIAS E SUBSTITUIÇÕES</b></p>
+    <p style="margin-bottom: 0.8rem;">
+        Durante períodos de férias, afastamentos legais ou licença médica do atendente responsável, as propostas já emitidas permanecerão vinculadas ao respectivo colaborador.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        Caso outro atendente dê continuidade ao atendimento, negociação, acompanhamento ou suporte ao cliente durante a ausência do responsável, tal atuação será realizada exclusivamente para garantir a continuidade do atendimento, não gerando direito a comissionamento sobre o contrato originado da proposta já vinculada.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        Entretanto, tratando-se de aditivo de contrato ativo, quando o atendente originalmente responsável estiver em período de férias ou afastamento, a comissão será devida ao colaborador que assumir o atendimento, conduzir a negociação e realizar a emissão do respectivo aditivo.
+    </p>
+    <p style="margin-bottom: 1rem;">
+        A comissão permanecerá integralmente vinculada ao atendente responsável pela emissão da proposta original, observadas as demais regras de elegibilidade previstas nesta política.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA SEXTA – COMISSÕES E PREMIAÇÕES</b></p>
+    <p style="margin-bottom: 0.8rem;">
+        As comissões serão apuradas mensalmente e pagas até o 5º (quinto) dia útil do mês subsequente, juntamente com a folha de pagamento.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        Farão jus ao pagamento da comissão apenas os contratos efetivamente fechados, entregues e mantidos ativos até a data de apuração. Os contratos cancelados antes do pagamento da comissão não gerarão direito ao recebimento de qualquer valor a título de comissão.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        As campanhas extraordinárias poderão possuir regras, valores e datas de pagamento específicas, que serão previamente divulgadas pela empresa.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        A comissão individual corresponderá a um valor fixo por contrato fechado, condicionado ao atingimento da meta individual mensal e à confirmação da entrega do produto ou serviço contratado.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        A meta individual será definida pela empresa e poderá ser revisada e alterada mensalmente, de acordo com as estratégias comerciais, sazonalidade do mercado e demais critérios internos. Eventuais alterações serão comunicadas aos colaboradores previamente, antes do início do período de apuração das comissões ao qual se aplicarão, não produzindo efeitos retroativos.
+    </p>
+    <p style="margin-bottom: 0.8rem;">
+        <b>RELATÓRIO MENSAL DE COMISSIONAMENTO —</b> Ao final de cada período de apuração, será elaborado relatório mensal com os contratos considerados e os respectivos valores de comissão. O relatório será disponibilizado mensalmente aos colaboradores para conferência dos dados e valores apurados. Após a conferência, deverá ser assinado pelo colaborador, para registro de ciência da apuração realizada, sem prejuízo do direito de solicitar correções ou esclarecimentos.
+    </p>
+    <p style="margin-bottom: 0.5rem;">
+        O pagamento da comissão por contrato observará os seguintes critérios:
+    </p>
+    <ul style="margin: 0.4rem 0; padding-left: 2rem; line-height: 1.8;">
+        <li>Abaixo da meta: menos de 40 contratos fechados — não haverá pagamento de comissão;</li>
+        <li>Meta Férias: sem quantidade mínima de contratos — R$ 10,00 (dez reais) por contrato;</li>
+        <li>Meta Baixa: a partir de 40 contratos fechados — R$ 10,00 (dez reais) por contrato;</li>
+        <li>Meta Média: a partir de 55 contratos fechados — R$ 12,00 (doze reais) por contrato;</li>
+        <li>Meta Alta: a partir de 70 contratos fechados — R$ 15,00 (quinze reais) por contrato.</li>
+    </ul>
+    <p style="margin-top: 0.8rem; margin-bottom: 0.5rem;">
+        Além da comissão individual, o colaborador que obtiver o maior número de contratos fechados no período de apuração e atingir a respectiva meta fará jus a uma premiação adicional, conforme a faixa de desempenho alcançada:
+    </p>
+    <ul style="margin: 0.4rem 0; padding-left: 2rem; line-height: 1.8;">
+        <li>Meta Baixa: R$ 100,00 (cem reais);</li>
+        <li>Meta Média: R$ 210,00 (duzentos e dez reais);</li>
+        <li>Meta Alta: R$ 375,00 (trezentos e setenta e cinco reais).</li>
+    </ul>
+    <p style="margin-top: 0.8rem; margin-bottom: 1rem;">
+        Em caso de empate no número de contratos fechados, será considerado vencedor o colaborador que possuir o menor número de erros, inconsistências ou ocorrências passíveis de desconto de comissão no período de apuração. Persistindo o empate, será considerado o colaborador com a maior taxa de conversão de propostas emitidas em contratos no mesmo período.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA SÉTIMA – DESCONTOS E ESTORNOS DE COMISSÃO</b></p>
+    <p style="margin-bottom: 0.5rem;">
+        A empresa poderá descontar ou estornar comissões já pagas nas seguintes situações:
+    </p>
+    <ul style="margin: 0.4rem 0; padding-left: 2rem; line-height: 1.8;">
+        <li>Cancelamento do contrato;</li>
+        <li>Fraude ou irregularidade na contratação;</li>
+        <li>Descumprimento comprovado das políticas internas;</li>
+        <li>Concessão de descontos comerciais sem autorização;</li>
+        <li>Erros que gerem prejuízo financeiro à empresa.</li>
+    </ul>
+    <p style="margin-top: 0.5rem; margin-bottom: 1rem;">
+        O estorno poderá ocorrer no pagamento subsequente, mediante demonstração dos motivos ao colaborador.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA OITAVA – ALTERAÇÃO DAS REGRAS</b></p>
+    <p style="margin-bottom: 1rem;">
+        A empresa poderá revisar metas, campanhas, valores de comissão, premiações e critérios de elegibilidade mediante comunicação prévia aos colaboradores, antes do início do período de apuração ao qual as alterações se aplicarão, sem efeitos retroativos, observados os direitos legalmente assegurados.
+    </p>
+
+    <p style="margin-top: 1.5rem; margin-bottom: 0.5rem;"><b>CLÁUSULA NONA – CIÊNCIA E CONCORDÂNCIA</b></p>
+    <p style="margin-bottom: 1.5rem;">
+        Declaro que recebi, li e compreendi integralmente a Política de Comissionamento Comercial da empresa, comprometendo-me a cumprir todas as regras e procedimentos nelas estabelecidos.
+    </p>
+
+    <p style="text-align: right; margin-top: 2.5rem; margin-bottom: 3.5rem;">{CIDADE}, {DATA_HOJE}.</p>
+
+    <table style="width: 100%; border: none; margin-top: 2rem;">
+        <tr>
+            <td style="width: 45%; text-align: center; vertical-align: bottom; border: none;">
+                ___________________________________________________<br>
+                <b>AMERICA RENTAL EQUIPAMENTOS LTDA</b><br>
+                CNPJ: 03.434.448/0001-01
+            </td>
+            <td style="width: 10%; border: none;"></td>
+            <td style="width: 45%; text-align: center; vertical-align: bottom; border: none;">
+                ___________________________________________________<br>
+                <b>{NOME_COMPLETO}</b><br>
+                CPF: {CPF}
+            </td>
+        </tr>
+    </table>
+</div>`;
+
+db.get("SELECT id FROM geradores WHERE nome = 'Contrato de Comissão'", (err, row) => {
+    if (!row) {
+        db.run("INSERT INTO geradores (nome, conteudo, variaveis, tipo, visibilidade_regra) VALUES (?, ?, '[]', 'html', ?)",
+            ['Contrato de Comissão', contratoComissaoHtml, '{"dropdown_todos":false,"visivel_automatico":true,"condicao":null,"departamentos":["Comercial"],"tipos_departamento":null}'],
+            (err) => {
+                if(!err) console.log("[SEED] Gerador Contrato de Comissão criado.");
+            }
+        );
+    }
+});
     }
 });
 })();

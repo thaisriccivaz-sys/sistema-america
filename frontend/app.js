@@ -6578,6 +6578,7 @@ async function renderCargoDocsChecklist(container) {
                 { nome: 'Responsabilidade Veículo', cond: deptNome.includes('motorista') || deNorm(c.cargo || '').includes('motorista') },
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
+                { nome: 'Contrato de Comissão', cond: deNorm(deptNome).includes('comercial') || deNorm(String(c.departamento || '')).includes('comercial') },
             ];
 
             roxoItems = PERFIL_MAP
@@ -6587,10 +6588,14 @@ async function renderCargoDocsChecklist(container) {
                     color: 'roxo',
                     tabLabel: 'Contratos',
                     tabDataTab: 'Contratos',
-                    found: currentDocs.find(d =>
-                        (d.tab_name === 'CONTRATOS_AVULSOS' || d.tab_name === 'CONTRATOS') &&
-                        norm(d.document_type) === norm(m.nome)
-                    )
+                    found: currentDocs.find(d => {
+                        if (d.tab_name !== 'CONTRATOS_AVULSOS' && d.tab_name !== 'CONTRATOS') return false;
+                        const dt = norm(d.document_type);
+                        const mn = norm(m.nome);
+                        if (dt === mn) return true;
+                        if (mn === 'contrato de comissao' && (dt.includes('comissao') || dt.includes('comissionamento'))) return true;
+                        return false;
+                    })
                 }));
         }
 
@@ -10169,7 +10174,9 @@ window.renderGeradoresList = function (items) {
         'contrato faculdade',
         'contrato academia',
         'acordo de auxílio-combustível',
-        'contrato intermitente'
+        'contrato intermitente',
+        'contrato de comissão',
+        'contrato de comissao'
     ];
 
     const isProtected = (nome) => {
@@ -11833,6 +11840,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                 { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                 // NR1: somente tipo Operacional
                 { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
+                { nome: 'Contrato de Comissão', cond: deNorm(deptNome).includes('comercial') || deNorm(String(c.departamento || '')).includes('comercial') },
             ];
             autoGeradores = LEGACY_MAP
                 .filter(m => m.cond)
@@ -11866,7 +11874,9 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
             const gNorm = _norm(g.nome);
             return filteredDocs.find(d => {
                 const dNorm = _norm(d.document_type);
-                return dNorm === gNorm || dNorm.includes(gNorm) || gNorm.includes(dNorm);
+                if (dNorm === gNorm || dNorm.includes(gNorm) || gNorm.includes(dNorm)) return true;
+                if (gNorm === 'contrato de comissao' && (dNorm.includes('comissao') || dNorm.includes('comissionamento'))) return true;
+                return false;
             });
         };
 
@@ -12042,7 +12052,7 @@ window.renderContratosAvulso = async function (container, searchTerm = '') {
                         <span style="background:#fdf4ff;color:#c026d3;border:1px solid #f0abfc;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:700;white-space:nowrap;">Contratos</span>
                         <div>
                             <span style="font-weight:600; color:#334155; font-size:0.9rem;">${g.nome}</span>
-                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">Necessário pelo perfil do colaborador — aguardando geração</div>
+                            <div id="perfil-status-txt-${g.id}" style="font-size:0.75rem; color:#a21caf; margin-top:1px;">${_norm(g.nome) === 'contrato de comissao' ? 'Documento obrigatório (Comercial) — aguardando geração ou anexo' : 'Necessário pelo perfil do colaborador — aguardando geração'}</div>
                         </div>
                     </div>
                     <div id="pg-action-${g.id}" style="min-width: 160px; text-align: right; display: flex; justify-content: flex-end; gap:0.5rem;">
@@ -14044,6 +14054,7 @@ window.initAdmissaoWorkflow = async function (colabId, step, silent) {
                     { nome: 'Responsabilidade Equipamento', cond: deptTipo.toLowerCase() === 'administrativo' },
                     // NR1: somente tipo Operacional
                     { nome: 'NR1', cond: deptTipo.toLowerCase() === 'operacional' },
+                    { nome: 'Contrato de Comissão', cond: deNorm(deptNome).includes('comercial') || deNorm(String(c.departamento || '')).includes('comercial') },
                 ];
                 autoGeradores = LEGACY_MAP.filter(m => m.cond).map(m => geradoresElegiveis.find(g => deNorm(g.nome) === deNorm(m.nome))).filter(Boolean);
             }
