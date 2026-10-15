@@ -1781,9 +1781,10 @@ function abrirLegenda() {
     // ─────────────────────────────────────────────────────────────────
     function filtrar(texto) {
         const rows = document.querySelectorAll('#fech-tbody tr');
-        const t = texto.toLowerCase().trim();
+        const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const t = norm(texto);
         rows.forEach(tr => {
-            const nome = (tr.querySelector('td')?.textContent || '').toLowerCase();
+            const nome = norm(tr.querySelector('td')?.textContent || '');
             tr.style.display = !t || nome.includes(t) ? '' : 'none';
         });
     }
@@ -3763,12 +3764,22 @@ function abrirLegenda() {
             });
 
             _dados.forEach((row, idx) => {
-                const normName = normalizeName(row.nome_completo).substring(0, 15);
+                const normName = normalizeName(row.nome_completo);
+                const normName15 = normName.substring(0, 15);
                 let folhaRow = null;
                 for (let k in folhaData) {
-                    if (normalizeName(k).substring(0, 15) === normName) {
+                    if (normalizeName(k) === normName) {
                         folhaRow = folhaData[k];
                         break;
+                    }
+                }
+                if (!folhaRow) {
+                    for (let k in folhaData) {
+                        const normK = normalizeName(k);
+                        if (normK.substring(0, 15) === normName15 || normK.startsWith(normName15) || normName.startsWith(normK)) {
+                            folhaRow = folhaData[k];
+                            break;
+                        }
                     }
                 }
 

@@ -11442,19 +11442,26 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
                 currentEmployee = null;
                 continue;
             }
-            // match: Empr.: | 151 ABNER ABRAHÃO | Situaço:
+            // match: Empr.: | 151 ABNER ABRAHÃO | Situaço: (suporta código e nome na mesma célula ou em células separadas)
             if (line.includes('Empr.:') && (line.includes('Situa') || line.includes('Trabalhando'))) {
+                const clean = line.replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+                const mEmp = clean.match(/Empr\.?:\s*(?:\d+\s+)?([A-Za-z\u00C0-\u00FF\s'.]+?)(?=\s+Situa|\s+Trabalhando|\s+CPF|\s+CC:|$)/i);
+                if (mEmp && mEmp[1] && mEmp[1].trim().length >= 3) {
+                    currentEmployee = mEmp[1].trim();
+                    results[currentEmployee] = results[currentEmployee] || {};
+                    continue;
+                }
                 const parts = line.split('|').map(p => p.trim());
                 let namePart = parts.find(p => /^\d+\s+[A-Z\s]+/.test(p));
                 if (!namePart) {
                     const idx = parts.findIndex(p => p.includes('Empr.:'));
                     if (idx !== -1 && parts[idx+1]) {
-                        namePart = parts[idx+1];
+                        namePart = /^\d+$/.test(parts[idx+1]) && parts[idx+2] ? parts[idx+2] : parts[idx+1];
                     }
                 }
                 if (namePart) {
-                    const nameMatch = namePart.match(/^\d+\s+(.+)$/);
-                    if (nameMatch) {
+                    const nameMatch = namePart.match(/^\d+\s+(.+)$/) || [null, namePart];
+                    if (nameMatch && nameMatch[1]) {
                         currentEmployee = nameMatch[1].trim();
                         results[currentEmployee] = results[currentEmployee] || {};
                     }
@@ -11517,7 +11524,7 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
 
                 // Codigo de rubrica = numero sozinho ou seguido de espaco+descricao ("256 Adicional...").
                 // Nao pode ser valor como "256,08" ou "1.000,00" (antes \b casava "256" de "256,08" e gerava rubrica falsa).
-                const codeMatch = parts[i].match(/^(\d{2,4})(?:\s+\S.*)?$/);
+                const codeMatch = parts[i].match(/^(\d{2,4})(?:\s+(.*))?$/);
                 // Se o codigo vier sozinho na celula, a celula seguinte precisa ser a descricao (texto, nao numero)
                 const _soCodigo = codeMatch && /^\d{2,4}$/.test(parts[i]);
                 const _descOk = !_soCodigo || (parts[i + 1] !== undefined && /^[A-Za-z\u00C0-\u00FF]/.test(parts[i + 1]));
@@ -11525,15 +11532,34 @@ app.post('/api/fechamento/comparar', authenticateToken, multer({ storage: multer
                     let code = codeMatch[1];
                     if (code === '8069') code = '8060';
 
-                    let qty = null, val = null;
-                    for (let j = i + 1; j < parts.length; j++) {
-                        if (/^[\d.,:]+/.test(parts[j])) {
-                            if (qty === null) qty = parts[j].match(/^[\d.,:]+/)[0];
-                            else if (val === null) val = parts[j].match(/^[\d.,:]+/)[0];
-                        }
-                        if (val !== null) break;
+                    // Coleta números tanto dentro de parts[i] (se houver) quanto nas partes seguintes
+                    const nums = [];
+                    if (codeMatch[2]) {
+                        const inPartNums = [...codeMatch[2].matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b|\b\d+:\d{2}\b/g)].map(m => m[0]);
+                        nums.push(...inPartNums);
                     }
-                    if (qty && val) {
+                    for (let j = i + 1; j < parts.length; j++) {
+                        if (/^(\d{2,4})(?:\s+[A-Za-z\u00C0-\u00FF])/.test(parts[j])) break; // próxima rubrica
+                        const pNums = [...parts[j].matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b|\b\d+:\d{2}\b/g)].map(m => m[0]);
+                        if (pNums.length > 0) {
+                            nums.push(...pNums);
+                        } else if (/^[\d.,:]+$/.test(parts[j])) {
+                            nums.push(parts[j]);
+                        }
+                        if (nums.length >= 2) break;
+                    }
+
+                    let qty = null, val = null;
+                    if (nums.length >= 2) {
+                        qty = nums[0];
+                        val = nums[1];
+                    } else if (nums.length === 1) {
+                        // Se só tem 1 número (ex: rubrica de desconto direto sem coluna referência), o valor é esse número
+                        qty = nums[0];
+                        val = nums[0];
+                    }
+
+                    if (val !== null) {
                         results[currentEmployee][code] = { qty, val };
                     }
                 }
