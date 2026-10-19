@@ -2259,7 +2259,8 @@ window.mnModalCatChanged = function() {
     }
     cCont.style.display = 'flex';
     const todas = (cid === '__todas__');
-    const catalogo = window._manutCatalogo || [];
+    const tipoModal = (document.getElementById('mn-m-tipo') || {}).value || '';
+    const catalogo = (window._manutCatalogo || []).filter(s => tipoModal === 'corretiva' || s.tipo_controle !== 'Corretiva');
     const catItens = todas ? catalogo : catalogo.filter(s => s.categoria_id == cid);
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');

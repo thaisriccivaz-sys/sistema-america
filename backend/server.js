@@ -23724,9 +23724,12 @@ async function _fmRecalcTotais(manutencaoId) {
     return { custo_mao_obra: totMo, custo_pecas: totPc, custo: Math.round((totMo + totPc) * 100) / 100 };
 }
 
-// Catalogo de servicos de manutencao CORRETIVA (um servico por item da lista do sinistro)
+// Catalogo de servicos de manutencao CORRETIVA (um servico por item da lista do sinistro).
+// Os servicos ficam DENTRO das categorias que ja existem no catalogo (as mesmas do preventivo).
+// Nome final do servico = "Item - Servico". Quando ja existe um servico equivalente na categoria
+// (ver CATALOGO_CORRETIVO_EQUIV) ele e reaproveitado em vez de criar um duplicado.
 const CATALOGO_CORRETIVO = [
-    { cat: 'Lataria e Estética (Corretiva)', icone: 'paint-brush', itens: [
+    { cat: 'Estrutura / Carroceria', icone: 'truck', itens: [
         ['Funilaria (amassados)', ['Reparo de amassado', 'Alinhamento de lataria', 'Substituição de peça de lataria']],
         ['Adesivo', ['Aplicação de adesivo', 'Remoção de adesivo', 'Substituição de adesivo danificado']],
         ['Pintura', ['Pintura de peça', 'Pintura geral', 'Polimento e retoque']],
@@ -23741,62 +23744,148 @@ const CATALOGO_CORRETIVO = [
         ['Lanternas', ['Substituição da lanterna', 'Substituição de lâmpada']],
         ['Setas', ['Substituição da seta', 'Substituição de lâmpada']],
         ['Para-brisa', ['Substituição do para-brisa', 'Reparo de trinca/estrela']],
-        ['Vidros', ['Substituição de vidro', 'Reparo do elevador (máquina de vidro)', 'Aplicação de película']]
-    ] },
-    { cat: 'Mecânica (Corretiva)', icone: 'wrench', itens: [
-        ['Suspensão', ['Substituição de amortecedor', 'Substituição de mola', 'Substituição de bucha', 'Substituição de pivô', 'Substituição de bandeja', 'Substituição de barra estabilizadora/bieleta', 'Substituição de rolamento de roda']],
-        ['Direção', ['Substituição de terminal/barra de direção', 'Reparo da caixa de direção', 'Reparo da bomba de direção', 'Troca de fluido da direção']],
-        ['Alinhamento', ['Alinhamento de direção']],
-        ['Balanceamento', ['Balanceamento de rodas']],
-        ['Pneus', ['Substituição de pneu', 'Reparo de pneu (furo)', 'Rodízio de pneus']],
-        ['Rodas', ['Reparo de roda', 'Substituição de roda', 'Substituição de parafusos/porcas']],
-        ['Freios', ['Substituição de pastilhas', 'Substituição de lonas', 'Substituição de discos/tambores', 'Reparo de cilindro/pinça', 'Sangria do sistema', 'Substituição de cabo do freio de mão']],
-        ['Radiador', ['Substituição do radiador', 'Reparo do radiador', 'Substituição de ventoinha']],
-        ['Arrefecimento', ['Substituição de mangueira', 'Substituição da bomba d\'água', 'Substituição do termostato', 'Troca do líquido de arrefecimento']],
-        ['Motor', ['Reparo do motor', 'Substituição de junta', 'Troca de óleo e filtros', 'Substituição de velas', 'Substituição de correia']],
-        ['Câmbio', ['Reparo do câmbio', 'Substituição de retentor', 'Troca de óleo do câmbio']],
-        ['Transmissão', ['Reparo da transmissão', 'Substituição de embreagem', 'Substituição de junta homocinética']],
-        ['Sistema elétrico', ['Reparo de chicote/fiação', 'Substituição do motor de partida', 'Substituição do alternador', 'Substituição de fusíveis/relés', 'Diagnóstico eletrônico']],
-        ['Bateria', ['Substituição de bateria', 'Teste/carga de bateria']]
-    ] },
-    { cat: 'Operacional (Corretiva)', icone: 'drop', itens: [
-        ['Tanque', ['Reparo do tanque', 'Higienização do tanque', 'Substituição de componente do tanque']],
-        ['Bomba de sucção', ['Reparo da bomba', 'Substituição da bomba', 'Lubrificação e revisão']],
-        ['Motor de sucção', ['Reparo do motor de sucção', 'Revisão do motor de sucção', 'Troca de óleo e filtro']],
-        ['Mangotes', ['Substituição de mangote', 'Reparo de mangote', 'Substituição de abraçadeiras/conexões']],
-        ['Válvulas', ['Reparo de válvula', 'Substituição de válvula']],
-        ['Sistema hidráulico', ['Reparo do sistema hidráulico', 'Substituição de mangueira hidráulica', 'Troca de óleo hidráulico']],
+        ['Vidros', ['Substituição de vidro', 'Reparo do elevador (máquina de vidro)', 'Aplicação de película']],
         ['Estrutura', ['Reparo estrutural', 'Solda/reforço']],
         ['Chassi', ['Reparo do chassi', 'Alinhamento do chassi', 'Solda/reforço']]
     ] },
-    { cat: 'Outros (Corretiva)', icone: 'dots-three-circle', itens: [
+    { cat: 'Suspensão e Direção', icone: 'car', itens: [
+        ['Suspensão', ['Substituição de amortecedor', 'Substituição de mola', 'Substituição de bucha', 'Substituição de pivô', 'Substituição de bandeja', 'Substituição de barra estabilizadora/bieleta', 'Substituição de rolamento de roda']],
+        ['Direção', ['Substituição de terminal/barra de direção', 'Reparo da caixa de direção', 'Reparo da bomba de direção', 'Troca de fluido da direção']]
+    ] },
+    { cat: 'Pneus e Rodagem', icone: 'tire', itens: [
+        ['Alinhamento', ['Alinhamento de direção']],
+        ['Balanceamento', ['Balanceamento de rodas']],
+        ['Pneus', ['Substituição de pneu', 'Reparo de pneu (furo)', 'Rodízio de pneus']],
+        ['Rodas', ['Reparo de roda', 'Substituição de roda', 'Substituição de parafusos/porcas']]
+    ] },
+    { cat: 'Freios', icone: 'disc', itens: [
+        ['Freios', ['Substituição de pastilhas', 'Substituição de lonas', 'Substituição de discos/tambores', 'Reparo de cilindro/pinça', 'Sangria do sistema', 'Substituição de cabo do freio de mão']]
+    ] },
+    { cat: 'Motor', icone: 'engine', itens: [
+        ['Motor', ['Reparo do motor', 'Substituição de junta', 'Troca de óleo e filtros', 'Substituição de velas', 'Substituição de correia']],
+        ['Radiador', ['Substituição do radiador', 'Reparo do radiador', 'Substituição de ventoinha']],
+        ['Arrefecimento', ['Substituição de mangueira', 'Substituição da bomba d\'água', 'Substituição do termostato', 'Troca do líquido de arrefecimento']]
+    ] },
+    { cat: 'Transmissão', icone: 'gear-six', itens: [
+        ['Câmbio', ['Reparo do câmbio', 'Substituição de retentor', 'Troca de óleo do câmbio']],
+        ['Transmissão', ['Reparo da transmissão', 'Substituição de embreagem', 'Substituição de junta homocinética']]
+    ] },
+    { cat: 'Sistema Elétrico', icone: 'lightning', itens: [
+        ['Sistema elétrico', ['Reparo de chicote/fiação', 'Substituição do motor de partida', 'Substituição do alternador', 'Substituição de fusíveis/relés', 'Diagnóstico eletrônico']],
+        ['Bateria', ['Substituição de bateria', 'Teste/carga de bateria']]
+    ] },
+    { cat: 'Hidráulica / Operacional', icone: 'drop', itens: [
+        ['Mangotes', ['Substituição de mangote', 'Reparo de mangote', 'Substituição de abraçadeiras/conexões']],
+        ['Sistema hidráulico', ['Reparo do sistema hidráulico', 'Substituição de mangueira hidráulica', 'Troca de óleo hidráulico']]
+    ] },
+    { cat: 'Sistema de Sucção', icone: 'funnel', itens: [
+        ['Tanque', ['Reparo do tanque', 'Higienização do tanque', 'Substituição de componente do tanque']],
+        ['Bomba de sucção', ['Reparo da bomba', 'Substituição da bomba', 'Lubrificação e revisão']],
+        ['Motor de sucção', ['Reparo do motor de sucção', 'Revisão do motor de sucção', 'Troca de óleo e filtro']],
+        ['Válvulas', ['Reparo de válvula', 'Substituição de válvula']]
+    ] },
+    { cat: 'Outros', icone: 'dots-three-circle', itens: [
         ['Revisão geral pós-sinistro', ['Revisão geral', 'Inspeção de segurança', 'Diagnóstico geral']],
         ['Outros', ['Serviço diverso']]
     ] }
 ];
 
-// Insere (sem duplicar) as categorias e servicos corretivos no catalogo da Frota
+// Servico corretivo => servico que JA existe na mesma categoria (nao cria duplicado)
+const CATALOGO_CORRETIVO_EQUIV = {
+    'Alinhamento - Alinhamento de direção': 'Alinhamento',
+    'Balanceamento - Balanceamento de rodas': 'Balanceamento',
+    'Pneus - Rodízio de pneus': 'Rodízio de pneus',
+    'Pneus - Substituição de pneu': 'Troca de pneus',
+    'Freios - Substituição de pastilhas': 'Troca de pastilhas de freio',
+    'Freios - Substituição de lonas': 'Troca de lonas',
+    'Freios - Substituição de discos/tambores': 'Troca de disco de freio',
+    'Freios - Sangria do sistema': 'Sangria do sistema de freio',
+    'Motor - Troca de óleo e filtros': 'Troca de óleo do motor',
+    'Arrefecimento - Troca do líquido de arrefecimento': 'Troca do líquido de arrefecimento',
+    'Suspensão - Substituição de amortecedor': 'Troca de amortecedores',
+    'Suspensão - Substituição de bucha': 'Troca de buchas',
+    'Suspensão - Substituição de pivô': 'Troca de pivôs',
+    'Câmbio - Troca de óleo do câmbio': 'Troca de óleo do câmbio',
+    'Transmissão - Substituição de embreagem': 'Troca de kit embreagem',
+    'Bateria - Substituição de bateria': 'Troca de bateria',
+    'Bateria - Teste/carga de bateria': 'Teste de bateria',
+    'Sistema hidráulico - Troca de óleo hidráulico': 'Troca de óleo hidráulico',
+    'Tanque - Higienização do tanque': 'Higienização do tanque',
+    'Motor de sucção - Revisão do motor de sucção': 'Revisão do motor de sucção',
+    'Motor de sucção - Troca de óleo e filtro': 'Troca de óleo do motor de sucção'
+};
+
+// Categorias antigas "(Corretiva)" que foram absorvidas pelas categorias existentes
+const CATEGORIAS_CORRETIVAS_ANTIGAS = ['Lataria e Estética (Corretiva)', 'Mecânica (Corretiva)', 'Operacional (Corretiva)', 'Outros (Corretiva)'];
+
+function _fmNorm(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+// Idempotente: move/une/insere os servicos corretivos nas categorias existentes
+async function _fmOrganizarCatalogoCorretivo() {
+    const resumo = { movidos: 0, unidos: 0, criados: 0 };
+    // "Outros (Corretiva)" vira "Outros"
+    const outAntigo = await _fmGet("SELECT id FROM frota_categorias_manutencao WHERE nome = 'Outros (Corretiva)'");
+    const outNovo = await _fmGet("SELECT id FROM frota_categorias_manutencao WHERE nome = 'Outros'");
+    if (outAntigo && !outNovo) await _fmRun("UPDATE frota_categorias_manutencao SET nome = 'Outros' WHERE id = ?", [outAntigo.id]);
+
+    let ordem = 90;
+    for (const grupo of CATALOGO_CORRETIVO) {
+        const todas = await _fmAll('SELECT id, nome FROM frota_categorias_manutencao');
+        const achada = todas.find(c => _fmNorm(c.nome) === _fmNorm(grupo.cat));
+        let catId = achada ? achada.id : null;
+        if (!catId) {
+            const ins = await _fmRun('INSERT INTO frota_categorias_manutencao(nome,icone,ordem) VALUES(?,?,?)', [grupo.cat, grupo.icone, ordem++]);
+            catId = ins.lastID;
+        }
+        for (const par of grupo.itens) {
+            const itemRef = par[0];
+            for (const sv of par[1]) {
+                const nome = itemRef + ' - ' + sv;
+                const legado = await _fmGet("SELECT id, categoria_id FROM frota_servicos_catalogo WHERE nome = ? AND tipo_controle = 'Corretiva'", [nome]);
+                const equiv = CATALOGO_CORRETIVO_EQUIV[nome];
+                if (equiv) {
+                    const doCat = await _fmAll('SELECT id, nome, item_ref FROM frota_servicos_catalogo WHERE categoria_id = ? AND ativo = 1', [catId]);
+                    const existente = doCat.find(s => _fmNorm(s.nome) === _fmNorm(equiv));
+                    if (existente) {
+                        if (!existente.item_ref) await _fmRun('UPDATE frota_servicos_catalogo SET item_ref = ? WHERE id = ?', [itemRef, existente.id]);
+                        if (legado && legado.id !== existente.id) {
+                            await _fmRun('UPDATE frota_manutencao_servicos SET catalogo_id = ? WHERE catalogo_id = ?', [existente.id, legado.id]);
+                            await _fmRun('UPDATE frota_manutencoes SET servico_catalogo_id = ? WHERE servico_catalogo_id = ?', [existente.id, legado.id]);
+                            await _fmRun('DELETE FROM frota_servicos_catalogo WHERE id = ?', [legado.id]);
+                            resumo.unidos++;
+                        }
+                        continue;
+                    }
+                }
+                if (legado) {
+                    if (legado.categoria_id !== catId) {
+                        await _fmRun('UPDATE frota_servicos_catalogo SET categoria_id = ? WHERE id = ?', [catId, legado.id]);
+                        resumo.movidos++;
+                    }
+                    continue;
+                }
+                const r = await _fmRun("INSERT INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao,item_ref) SELECT ?,?,'Corretiva',0,'km','Media',NULL,0,0,0,0,? WHERE NOT EXISTS (SELECT 1 FROM frota_servicos_catalogo WHERE categoria_id = ? AND nome = ?)", [catId, nome, itemRef, catId, nome]);
+                if (r.changes) resumo.criados++;
+            }
+        }
+    }
+    // Desativa as categorias "(Corretiva)" antigas que ficaram sem servicos
+    for (const nomeAntigo of CATEGORIAS_CORRETIVAS_ANTIGAS) {
+        const c = await _fmGet('SELECT id FROM frota_categorias_manutencao WHERE nome = ?', [nomeAntigo]);
+        if (!c) continue;
+        const n = await _fmGet('SELECT COUNT(*) AS n FROM frota_servicos_catalogo WHERE categoria_id = ?', [c.id]);
+        if (!n || !n.n) await _fmRun('UPDATE frota_categorias_manutencao SET ativo = 0 WHERE id = ?', [c.id]);
+    }
+    return resumo;
+}
+
+// Executa a organizacao do catalogo corretivo (aguarda a tabela existir)
 function _seedCatalogoCorretivo(tentativa) {
     db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='frota_servicos_catalogo'", [], (e, t) => {
         if (e || !t) { if (tentativa < 10) setTimeout(() => _seedCatalogoCorretivo(tentativa + 1), 3000); return; }
-        (async () => {
-            try {
-                let ordem = 20;
-                for (const grupo of CATALOGO_CORRETIVO) {
-                    await _fmRun('INSERT OR IGNORE INTO frota_categorias_manutencao(nome,icone,ordem) VALUES(?,?,?)', [grupo.cat, grupo.icone, ordem++]);
-                    const c = await _fmGet('SELECT id FROM frota_categorias_manutencao WHERE nome = ?', [grupo.cat]);
-                    if (!c) continue;
-                    for (const par of grupo.itens) {
-                        const itemRef = par[0];
-                        for (const sv of par[1]) {
-                            const nome = itemRef + ' - ' + sv;
-                            await _fmRun("INSERT INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao,item_ref) SELECT ?,?,'Corretiva',0,'km','Media',NULL,0,0,0,0,? WHERE NOT EXISTS (SELECT 1 FROM frota_servicos_catalogo WHERE categoria_id = ? AND nome = ?)", [c.id, nome, itemRef, c.id, nome]);
-                        }
-                    }
-                }
-                console.log('[SEED] Catalogo corretivo verificado.');
-            } catch (err) { console.error('[SEED] Catalogo corretivo:', err.message); }
-        })();
+        _fmOrganizarCatalogoCorretivo()
+            .then(r => console.log('[SEED] Catalogo corretivo organizado:', JSON.stringify(r)))
+            .catch(err => console.error('[SEED] Catalogo corretivo:', err.message));
     });
 }
 
