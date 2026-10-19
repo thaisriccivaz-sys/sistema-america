@@ -1954,55 +1954,104 @@ window._logSinManut = { ativo: false, itens: [], item: '', outros: '', obs: '', 
 window._logSinEditManut = { ativo: false, itens: [], item: '', outros: '', obs: '', rodando: '', manutencao_id: null };
 window._logSinManutRH = false;
 
-// Categorias de manutencao: sao as MESMAS do cadastro da Frota (22 categorias).
-// Esta lista embutida e apenas reserva; ao abrir o popup ela e atualizada por GET /api/frota/categorias,
-// para a tela de sinistro, "Nova manutencao" e "Editar manutencao" mostrarem sempre as mesmas categorias.
-window._LOG_SIN_CATEGORIAS_RESERVA = [
-    ['Carroceria, funilaria e pintura', 'ph-paint-brush'],
-    ['Iluminação e sinalização', 'ph-flashlight'],
-    ['Vidros, portas e retrovisores', 'ph-frame-corners'],
-    ['Motor e distribuição', 'ph-gear-six'],
-    ['Arrefecimento', 'ph-thermometer-hot'],
-    ['Lubrificação e filtros', 'ph-drop'],
-    ['Freios', 'ph-hand-palm'],
-    ['Pneus e rodas', 'ph-circle-notch'],
-    ['Suspensão e direção', 'ph-activity'],
-    ['Câmbio, embreagem e transmissão', 'ph-sliders'],
-    ['Sistema elétrico e eletrônico', 'ph-lightning'],
-    ['Ar-condicionado e ventilação', 'ph-snowflake'],
-    ['Sistema de combustível e injeção', 'ph-gas-can'],
-    ['Sistema hidráulico e pneumático', 'ph-link'],
-    ['Tanque, bomba de sucção e sistema de vácuo', 'ph-fan'],
-    ['Chassi, estrutura e implementos', 'ph-truck'],
-    ['Manutenção preventiva e revisão geral', 'ph-clipboard-text'],
-    ['Inspeções, segurança e documentação', 'ph-shield-check'],
-    ['Adesivagem e identidade visual', 'ph-tag'],
-    ['Limpeza e higienização técnica', 'ph-sparkle'],
-    ['Revisão geral pós-sinistro', 'ph-hammer'],
-    ['Outros serviços', 'ph-dots-three-circle']
+// Subcategorias de manutencao separadas pelas 4 categorias (mesma lista e mesmos icones da Frota).
+window._LOG_SIN_GRUPOS_PADRAO = [
+    {
+        grupo: 'FUNILARIA, LATARIA E ESTÉTICA',
+        icone: 'ph-paint-brush',
+        itens: [
+            { nome: 'Funilaria (amassados)', icone: 'ph-hammer' },
+            { nome: 'Adesivo', icone: 'ph-tag' },
+            { nome: 'Pintura', icone: 'ph-paint-brush' },
+            { nome: 'Para-choque dianteiro', icone: 'ph-shield' },
+            { nome: 'Para-choque traseiro', icone: 'ph-shield-check' },
+            { nome: 'Capô', icone: 'ph-arrow-up-right' },
+            { nome: 'Porta', icone: 'ph-door' },
+            { nome: 'Paralama', icone: 'ph-arrows-horizontal' },
+            { nome: 'Tampa traseira', icone: 'ph-arrow-down-left' },
+            { nome: 'Retrovisor', icone: 'ph-eye' },
+            { nome: 'Faróis', icone: 'ph-flashlight' },
+            { nome: 'Lanternas', icone: 'ph-lamp' },
+            { nome: 'Setas', icone: 'ph-arrows-left-right' },
+            { nome: 'Para-brisa', icone: 'ph-square-half' },
+            { nome: 'Vidros', icone: 'ph-frame-corners' }
+        ]
+    },
+    {
+        grupo: 'MECÂNICA',
+        icone: 'ph-wrench',
+        itens: [
+            { nome: 'Suspensão', icone: 'ph-activity' },
+            { nome: 'Direção', icone: 'ph-compass' },
+            { nome: 'Alinhamento', icone: 'ph-ruler' },
+            { nome: 'Balanceamento', icone: 'ph-scales' },
+            { nome: 'Pneus', icone: 'ph-circle-notch' },
+            { nome: 'Rodas', icone: 'ph-disc' },
+            { nome: 'Freios', icone: 'ph-hand-palm' },
+            { nome: 'Radiador', icone: 'ph-thermometer-hot' },
+            { nome: 'Arrefecimento', icone: 'ph-snowflake' },
+            { nome: 'Motor', icone: 'ph-gear-six' },
+            { nome: 'Câmbio', icone: 'ph-sliders' },
+            { nome: 'Transmissão', icone: 'ph-shuffle' },
+            { nome: 'Sistema elétrico', icone: 'ph-lightning' },
+            { nome: 'Bateria', icone: 'ph-battery-charging' }
+        ]
+    },
+    {
+        grupo: 'OPERACIONAL',
+        icone: 'ph-gear-six',
+        itens: [
+            { nome: 'Tanque', icone: 'ph-gas-can' },
+            { nome: 'Bomba de sucção', icone: 'ph-fan' },
+            { nome: 'Motor de sucção', icone: 'ph-power' },
+            { nome: 'Mangotes', icone: 'ph-link' },
+            { nome: 'Válvulas', icone: 'ph-funnel' },
+            { nome: 'Sistema hidráulico', icone: 'ph-drop' },
+            { nome: 'Estrutura', icone: 'ph-grid-four' },
+            { nome: 'Chassi', icone: 'ph-truck' }
+        ]
+    },
+    {
+        grupo: 'OUTROS',
+        icone: 'ph-dots-three-circle',
+        itens: [
+            { nome: 'Revisão geral pós-sinistro', icone: 'ph-clipboard-text' },
+            { nome: 'Outros', icone: 'ph-dots-three-circle' }
+        ]
+    }
 ];
 
-// A categoria "Outros serviços" e gravada como "Outros" (com o texto livre: "Outros: descricao")
+window._LOG_SIN_CATEGORIAS_RESERVA = [];
+window._LOG_SIN_GRUPOS_PADRAO.forEach(function(g) {
+    g.itens.forEach(function(it) { window._LOG_SIN_CATEGORIAS_RESERVA.push([it.nome, it.icone, g.grupo, g.icone]); });
+});
+
 window._logSinMontarItens = function(cats) {
-    return [{
-        grupo: 'Categorias de manutenção',
-        itens: cats.map(function(c) {
-            var outros = c.nome === 'Outros serviços';
-            return { nome: outros ? 'Outros' : c.nome, rotulo: c.nome, icone: c.icone };
-        })
-    }];
+    var mapaSub = {};
+    window._LOG_SIN_GRUPOS_PADRAO.forEach(function(g) {
+        g.itens.forEach(function(it) { mapaSub[it.nome] = { grupo: g.grupo, grupoIcone: g.icone, icone: it.icone }; });
+    });
+    var grupos = {}, ordem = [];
+    cats.forEach(function(c) {
+        var nome = c.nome === 'Outros serviços' ? 'Outros' : c.nome;
+        var pad = mapaSub[nome] || {};
+        var grp = c.grupo || pad.grupo || 'OUTROS';
+        var grpIco = c.grupo_icone ? ('ph-' + String(c.grupo_icone).replace(/^ph-/, '')) : (pad.grupoIcone || 'ph-dots-three-circle');
+        var ico = c.icone ? ('ph-' + String(c.icone).replace(/^ph-/, '')) : (pad.icone || 'ph-wrench');
+        if (!grupos[grp]) { grupos[grp] = { grupo: grp, icone: grpIco, itens: [] }; ordem.push(grupos[grp]); }
+        grupos[grp].itens.push({ nome: nome, rotulo: nome, icone: ico });
+    });
+    return ordem.length ? ordem : window._LOG_SIN_GRUPOS_PADRAO;
 };
 
-window._LOG_SIN_MANUT_ITENS = window._logSinMontarItens(window._LOG_SIN_CATEGORIAS_RESERVA.map(function(c) { return { nome: c[0], icone: c[1] }; }));
+window._LOG_SIN_MANUT_ITENS = window._LOG_SIN_GRUPOS_PADRAO;
 
 window._logSinCarregarCategorias = function() {
     return fetch('/api/frota/categorias', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || '') } })
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(rows) {
             if (Array.isArray(rows) && rows.length) {
-                window._LOG_SIN_MANUT_ITENS = window._logSinMontarItens(rows.map(function(r) {
-                    return { nome: r.nome, icone: 'ph-' + (r.icone || 'wrench') };
-                }));
+                window._LOG_SIN_MANUT_ITENS = window._logSinMontarItens(rows);
             }
         })
         .catch(function() { /* mantem a lista embutida */ });
@@ -2233,7 +2282,8 @@ window._logSinManutAbrirPopupInterno = function(origem) {
 
     var lista = '';
     window._LOG_SIN_MANUT_ITENS.forEach(function(g) {
-        lista += '<p style="margin:12px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">' + g.grupo + '</p>';
+        var gIco = g.icone || 'ph-wrench';
+        lista += '<p style="margin:14px 0 6px;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;"><i class="ph ' + gIco + '" style="font-size:1.05rem;color:#d97706;"></i><span>' + g.grupo + '</span></p>';
         lista += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
         g.itens.forEach(function(it) {
             var chk = selecionados.includes(it.nome) ? ' checked' : '';

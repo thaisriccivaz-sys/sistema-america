@@ -1181,8 +1181,13 @@ window._mnEdMontar = function() {
     var veicOpts = '<option value="">Selecione o veículo...</option>' + frota.map(function(v) {
         return '<option value="' + v.id + '"' + (String(m.veiculo_id) === String(v.id) ? ' selected' : '') + '>' + esc(v.placa) + ' — ' + esc(String(v.marca_modelo_versao || '').substring(0, 40)) + '</option>';
     }).join('');
-    var catOpts = '<option value="__todas__">★ Todas as categorias</option>' + (window._manutCategorias || []).map(function(c) {
-        return '<option value="' + c.id + '">' + esc(c.nome) + '</option>';
+    var catOpts = '<option value="__todas__">★ Todas as categorias</option>' + window._mnMontarGruposCategorias(window._manutCategorias).map(function(g) {
+        return '<optgroup label="' + esc(g.grupo) + '">'
+            + '<option value="grupo:' + esc(g.grupo) + '">▸ Toda a categoria: ' + esc(g.grupo) + '</option>'
+            + g.itens.filter(function(it) { return it.id; }).map(function(it) {
+                return '<option value="' + it.id + '">' + esc(it.rotulo || it.nome) + '</option>';
+            }).join('')
+            + '</optgroup>';
     }).join('');
     var ehConcl = ed.status === 'concluida';
 
@@ -1193,7 +1198,7 @@ window._mnEdMontar = function() {
         '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
       +   '<div style="background:#d97706;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench" style="color:#fff;font-size:1.3rem;"></i></div>'
       +   '<div><div id="mned-titulo" style="color:#fff;font-weight:700;font-size:1.1rem;">' + (ed.novo ? 'Nova Manutenção Corretiva' : 'Editar Manutenção Corretiva') + '</div>'
-      +   '<div style="color:rgba(255,255,255,0.7);font-size:0.82rem;">' + esc(m.placa || (ed.novo ? 'Preencha os dados abaixo' : '')) + '</div></div>'
+      +   '<div id="mned-subtitulo" style="color:rgba(255,255,255,0.7);font-size:0.82rem;">' + esc(m.placa || (ed.novo ? 'Preencha os dados abaixo' : '')) + '</div></div>'
       +   '<button type="button" id="mned-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-x"></i></button>'
       + '</div>'
       + '<div style="flex:1;overflow-y:auto;padding:18px 24px;">'
@@ -1255,7 +1260,8 @@ window._mnEdMontar = function() {
       +     '</div>'
       +   '</div>'
       + '</div>'
-      + '<div style="padding:12px 24px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#fff;flex-shrink:0;">'
+      + '<div style="padding:12px 24px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;justify-content:flex-end;background:#fff;flex-shrink:0;">'
+      +   '<span id="mned-save-msg" style="display:none;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:0.85rem;font-weight:700;"></span>'
       +   '<button type="button" id="mned-cancel" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
       +   '<button type="button" id="mned-save" style="padding:10px 26px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>'
       + '</div>';
@@ -1338,33 +1344,149 @@ window._mnEdRenderSolic = function() {
         return;
     }
     box.innerHTML = ed.solicitados.map(function(n) {
-        return '<span style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:4px 12px;font-size:0.78rem;font-weight:600;">' + esc(n) + '</span>';
+        var base = String(n || '').indexOf('Outros:') === 0 ? 'Outros' : n;
+        var ico = window._mnCatMeta ? window._mnCatMeta(base).icone : 'ph-wrench';
+        return '<span style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:4px 12px;font-size:0.78rem;font-weight:600;display:inline-flex;align-items:center;gap:5px;"><i class="ph ' + esc(ico) + '" style="color:#d97706;"></i>' + esc(n) + '</span>';
     }).join('');
 };
 
-// Lista unica de servicos (mesma em "Nova manutencao" e "Editar"): sem duplicados e na ordem das categorias
+// Hierarquia unica (4 categorias -> 39 subcategorias -> 353 servicos) com os mesmos icones na Frota e no Sinistro
+window._MN_GRUPOS_PADRAO = [
+    {
+        grupo: 'FUNILARIA, LATARIA E ESTÉTICA',
+        icone: 'ph-paint-brush',
+        itens: [
+            { nome: 'Funilaria (amassados)', icone: 'ph-hammer' },
+            { nome: 'Adesivo', icone: 'ph-tag' },
+            { nome: 'Pintura', icone: 'ph-paint-brush' },
+            { nome: 'Para-choque dianteiro', icone: 'ph-shield' },
+            { nome: 'Para-choque traseiro', icone: 'ph-shield-check' },
+            { nome: 'Capô', icone: 'ph-arrow-up-right' },
+            { nome: 'Porta', icone: 'ph-door' },
+            { nome: 'Paralama', icone: 'ph-arrows-horizontal' },
+            { nome: 'Tampa traseira', icone: 'ph-arrow-down-left' },
+            { nome: 'Retrovisor', icone: 'ph-eye' },
+            { nome: 'Faróis', icone: 'ph-flashlight' },
+            { nome: 'Lanternas', icone: 'ph-lamp' },
+            { nome: 'Setas', icone: 'ph-arrows-left-right' },
+            { nome: 'Para-brisa', icone: 'ph-square-half' },
+            { nome: 'Vidros', icone: 'ph-frame-corners' }
+        ]
+    },
+    {
+        grupo: 'MECÂNICA',
+        icone: 'ph-wrench',
+        itens: [
+            { nome: 'Suspensão', icone: 'ph-activity' },
+            { nome: 'Direção', icone: 'ph-compass' },
+            { nome: 'Alinhamento', icone: 'ph-ruler' },
+            { nome: 'Balanceamento', icone: 'ph-scales' },
+            { nome: 'Pneus', icone: 'ph-circle-notch' },
+            { nome: 'Rodas', icone: 'ph-disc' },
+            { nome: 'Freios', icone: 'ph-hand-palm' },
+            { nome: 'Radiador', icone: 'ph-thermometer-hot' },
+            { nome: 'Arrefecimento', icone: 'ph-snowflake' },
+            { nome: 'Motor', icone: 'ph-gear-six' },
+            { nome: 'Câmbio', icone: 'ph-sliders' },
+            { nome: 'Transmissão', icone: 'ph-shuffle' },
+            { nome: 'Sistema elétrico', icone: 'ph-lightning' },
+            { nome: 'Bateria', icone: 'ph-battery-charging' }
+        ]
+    },
+    {
+        grupo: 'OPERACIONAL',
+        icone: 'ph-gear-six',
+        itens: [
+            { nome: 'Tanque', icone: 'ph-gas-can' },
+            { nome: 'Bomba de sucção', icone: 'ph-fan' },
+            { nome: 'Motor de sucção', icone: 'ph-power' },
+            { nome: 'Mangotes', icone: 'ph-link' },
+            { nome: 'Válvulas', icone: 'ph-funnel' },
+            { nome: 'Sistema hidráulico', icone: 'ph-drop' },
+            { nome: 'Estrutura', icone: 'ph-grid-four' },
+            { nome: 'Chassi', icone: 'ph-truck' }
+        ]
+    },
+    {
+        grupo: 'OUTROS',
+        icone: 'ph-dots-three-circle',
+        itens: [
+            { nome: 'Revisão geral pós-sinistro', icone: 'ph-clipboard-text' },
+            { nome: 'Outros', icone: 'ph-dots-three-circle' }
+        ]
+    }
+];
+
 window._mnNorm = function(t) {
     return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 };
-window._mnCatalogoLista = function(tipo) {
-    var ordemCat = {};
-    (window._manutCategorias || []).forEach(function(c, i) { ordemCat[c.id] = i; });
+
+window._mnCatMeta = function(catObjOuNome) {
+    var mapa = {};
+    var ord = 0;
+    window._MN_GRUPOS_PADRAO.forEach(function(g) {
+        g.itens.forEach(function(it) {
+            ord++;
+            mapa[window._mnNorm(it.nome)] = { nome: it.nome, icone: it.icone, grupo: g.grupo, grupoIcone: g.icone, ordem: ord };
+        });
+    });
+    var nome = typeof catObjOuNome === 'object' && catObjOuNome ? (catObjOuNome.nome || catObjOuNome.categoria_nome || '') : String(catObjOuNome || '');
+    if (nome === 'Outros serviços') nome = 'Outros';
+    var pad = mapa[window._mnNorm(nome)] || {};
+    var iconeRaw = (typeof catObjOuNome === 'object' && catObjOuNome) ? (catObjOuNome.icone || catObjOuNome.categoria_icone) : null;
+    var gRaw = (typeof catObjOuNome === 'object' && catObjOuNome) ? (catObjOuNome.grupo || catObjOuNome.grupo_nome) : null;
+    var gIcoRaw = (typeof catObjOuNome === 'object' && catObjOuNome) ? (catObjOuNome.grupo_icone) : null;
+    return {
+        nome: pad.nome || nome || 'Outros',
+        icone: iconeRaw ? ('ph-' + String(iconeRaw).replace(/^ph-/, '')) : (pad.icone || 'ph-wrench'),
+        grupo: gRaw || pad.grupo || 'OUTROS',
+        grupoIcone: gIcoRaw ? ('ph-' + String(gIcoRaw).replace(/^ph-/, '')) : (pad.grupoIcone || 'ph-dots-three-circle'),
+        ordem: pad.ordem || 999
+    };
+};
+
+window._mnMontarGruposCategorias = function(cats) {
+    var lista = Array.isArray(cats) && cats.length ? cats : [];
+    if (!lista.length) return window._MN_GRUPOS_PADRAO;
+    var grupos = {}, ordem = [];
+    lista.forEach(function(c) {
+        var meta = window._mnCatMeta(c);
+        if (!grupos[meta.grupo]) {
+            grupos[meta.grupo] = { grupo: meta.grupo, icone: meta.grupoIcone, itens: [] };
+            ordem.push(grupos[meta.grupo]);
+        }
+        grupos[meta.grupo].itens.push({ id: c.id, nome: meta.nome, rotulo: meta.nome, icone: meta.icone, ordem: c.ordem || meta.ordem });
+    });
+    return ordem.length ? ordem : window._MN_GRUPOS_PADRAO;
+};
+
+window._mnCatalogoLista = function() {
+    var catPorId = {};
+    (window._manutCategorias || []).forEach(function(c, i) { catPorId[c.id] = { c: c, idx: i }; });
     var vistos = {};
     return (window._manutCatalogo || []).filter(function(s) {
-        if (tipo !== 'corretiva' && s.tipo_controle === 'Corretiva') return false;
         var k = s.categoria_id + '|' + window._mnNorm(s.nome);
         if (vistos[k]) return false;
         vistos[k] = 1;
         return true;
+    }).map(function(s) {
+        var infoCat = catPorId[s.categoria_id] ? catPorId[s.categoria_id].c : s;
+        var meta = window._mnCatMeta(infoCat);
+        s._subNome = meta.nome;
+        s._subIcone = meta.icone;
+        s._grupoNome = meta.grupo;
+        s._grupoIcone = meta.grupoIcone;
+        s._catOrdem = catPorId[s.categoria_id] !== undefined ? catPorId[s.categoria_id].idx : meta.ordem;
+        return s;
     }).sort(function(a, b) {
-        var oa = ordemCat[a.categoria_id] === undefined ? 999 : ordemCat[a.categoria_id];
-        var ob = ordemCat[b.categoria_id] === undefined ? 999 : ordemCat[b.categoria_id];
-        if (oa !== ob) return oa - ob;
+        if (a._catOrdem !== b._catOrdem) return a._catOrdem - b._catOrdem;
+        var sa = a.ordem || 999, sb = b.ordem || 999;
+        if (sa !== sb) return sa - sb;
         return String(a.nome).localeCompare(String(b.nome), 'pt-BR');
     });
 };
 
-// ---- Selecao de servicos (igual ao "criar manutencao": categoria + busca + selecionar todos + marcar varios)
+// ---- Selecao de servicos (Anexo 4: Categoria + Subcategoria com icones + busca + selecionar todos + marcar varios)
 window._mnEdPickRender = function() {
     var ed = window._mnEd, box = document.getElementById('mned-pick-lista');
     if (!box) return;
@@ -1375,8 +1497,14 @@ window._mnEdPickRender = function() {
     var jaAdd = {};
     ed.realizados.forEach(function(r) { if (r.catalogo_id) jaAdd[r.catalogo_id] = true; });
     var lista = window._mnCatalogoLista('corretiva').filter(function(s) {
-        if (catSel && catSel !== '__todas__' && String(s.categoria_id) !== String(catSel)) return false;
-        var n = norm(s.nome + ' ' + (s.categoria_nome || ''));
+        if (catSel && catSel !== '__todas__') {
+            if (catSel.indexOf('grupo:') === 0) {
+                if (s._grupoNome !== catSel.substring(6)) return false;
+            } else if (String(s.categoria_id) !== String(catSel)) {
+                return false;
+            }
+        }
+        var n = norm(s.nome + ' ' + (s._subNome || '') + ' ' + (s._grupoNome || ''));
         return palavras.every(function(p) { return n.indexOf(p) !== -1; });
     });
     ed.pickVisiveis = lista.filter(function(s) { return !jaAdd[s.id]; }).map(function(s) { return s.id; });
@@ -1391,20 +1519,34 @@ window._mnEdPickRender = function() {
     if (!lista.length) {
         box.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:0.84rem;">Nenhum serviço encontrado' + (texto ? ' para "' + esc(texto) + '"' : '') + '. Você pode adicioná-lo como serviço novo.</div>';
     } else {
-        var html = '', ultimo = null;
-        var porCat = {};
-        lista.forEach(function(s) { (porCat[s.categoria_id] = porCat[s.categoria_id] || []).push(s); });
+        var html = '', ultimoGrupo = null, ultimoCat = null;
+        var porGrupo = {}, porCat = {};
         lista.forEach(function(s) {
-            if (s.categoria_id !== ultimo) {
-                ultimo = s.categoria_id;
-                var doCat = porCat[s.categoria_id].filter(function(x) { return !jaAdd[x.id]; });
+            (porGrupo[s._grupoNome] = porGrupo[s._grupoNome] || []).push(s);
+            (porCat[s.categoria_id] = porCat[s.categoria_id] || []).push(s);
+        });
+        lista.forEach(function(s) {
+            if (s._grupoNome !== ultimoGrupo) {
+                ultimoGrupo = s._grupoNome;
+                ultimoCat = null;
+                var doGrupo = (porGrupo[s._grupoNome] || []).filter(function(x) { return !jaAdd[x.id]; });
+                var todosGrp = doGrupo.length > 0 && doGrupo.every(function(x) { return ed.pickSel[x.id]; });
+                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.76rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.05em;margin-top:10px;padding:7px 8px;background:#f1f5f9;border-radius:6px;cursor:pointer;">'
+                    + '<input type="checkbox" data-pkmacro="' + esc(s._grupoNome) + '"' + (todosGrp ? ' checked' : '') + (doGrupo.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#d97706;">'
+                    + '<i class="ph ' + esc(s._grupoIcone) + '" style="font-size:1.05rem;color:#d97706;"></i>'
+                    + '<span>' + esc(s._grupoNome) + '</span> <span style="font-weight:600;text-transform:none;color:#64748b;">(selecionar todos da categoria)</span></label>';
+            }
+            if (s.categoria_id !== ultimoCat) {
+                ultimoCat = s.categoria_id;
+                var doCat = (porCat[s.categoria_id] || []).filter(function(x) { return !jaAdd[x.id]; });
                 var todosMarc = doCat.length > 0 && doCat.every(function(x) { return ed.pickSel[x.id]; });
-                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:8px;padding:6px 4px 4px;border-top:1px solid #e2e8f0;cursor:pointer;">'
+                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.73rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding:5px 4px 4px 14px;border-top:1px solid #e2e8f0;cursor:pointer;">'
                     + '<input type="checkbox" data-pkcat="' + s.categoria_id + '"' + (todosMarc ? ' checked' : '') + (doCat.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
-                    + esc(s.categoria_nome || 'Outros') + ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da categoria)</span></label>';
+                    + '<i class="ph ' + esc(s._subIcone) + '" style="font-size:1rem;color:#d97706;"></i>'
+                    + '<span>' + esc(s._subNome || s.categoria_nome || 'Outros') + '</span> <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da subcategoria)</span></label>';
             }
             var add = !!jaAdd[s.id];
-            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:' + (add ? '#94a3b8' : '#1e293b') + ';cursor:' + (add ? 'default' : 'pointer') + ';padding:3px 4px 3px 22px;">'
+            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:' + (add ? '#94a3b8' : '#1e293b') + ';cursor:' + (add ? 'default' : 'pointer') + ';padding:3px 4px 3px 32px;">'
                 + '<input type="checkbox" data-pk="' + s.id + '"' + (ed.pickSel[s.id] ? ' checked' : '') + (add ? ' disabled' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
                 + esc(s.nome) + (add ? ' <span style="font-size:0.7rem;background:#f1f5f9;border-radius:999px;padding:1px 8px;">já adicionado</span>' : '') + '</label>';
         });
@@ -1419,6 +1561,13 @@ window._mnEdPickRender = function() {
             c.onchange = function() {
                 var cid = c.getAttribute('data-pkcat');
                 (porCat[cid] || []).forEach(function(x) { if (!jaAdd[x.id]) window._mnEd.pickSel[x.id] = c.checked; });
+                window._mnEdPickRender();
+            };
+        });
+        box.querySelectorAll('[data-pkmacro]').forEach(function(c) {
+            c.onchange = function() {
+                var grp = c.getAttribute('data-pkmacro');
+                (porGrupo[grp] || []).forEach(function(x) { if (!jaAdd[x.id]) window._mnEd.pickSel[x.id] = c.checked; });
                 window._mnEdPickRender();
             };
         });
@@ -1785,10 +1934,11 @@ window._mnVincularPopup = function(linha, cb) {
         lista.style.pointerEvents = rat.checked ? 'none' : 'auto';
         lista.innerHTML = ordem.map(function(k, gi) {
             var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
             return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
               + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
-              +   '<input type="checkbox" data-vcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(k)
-              +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta categoria)</span></label>'
+              +   '<input type="checkbox" data-vcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
+              +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
               + grupos[k].map(function(s) {
                     return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
                       + '<input type="checkbox" data-vid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
@@ -1979,14 +2129,7 @@ window._mnEdRenderTotais = function() {
 window._mnEdAbrirLista = function() {
     var cats = window._manutCategorias || [];
     var ed = window._mnEd, esc = window._mnEdEsc;
-    if (!cats.length) { alert('Lista de categorias indisponível. Atualize a página (Ctrl+F5).'); return; }
-    // mesmas categorias do cadastro e da tela de sinistro ("Outros serviços" e gravado como "Outros")
-    var grupos = [{
-        grupo: 'Categorias de manutenção',
-        itens: cats.map(function(c) {
-            return { nome: c.nome === 'Outros serviços' ? 'Outros' : c.nome, rotulo: c.nome, icone: 'ph-' + (c.icone || 'wrench') };
-        })
-    }];
+    var grupos = window._mnMontarGruposCategorias(cats);
     var nomesLista = [];
     grupos.forEach(function(g) { g.itens.forEach(function(it) { nomesLista.push(it.nome); }); });
     var marcados = [], extras = [], temOutros = false, textoOutros = '';
@@ -1996,13 +2139,14 @@ window._mnEdAbrirLista = function() {
         else marcados.push(n);
     });
     var lista = grupos.map(function(g) {
-        return '<p style="margin:12px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">' + esc(g.grupo) + '</p>'
+        var gIco = g.icone || 'ph-wrench';
+        return '<p style="margin:14px 0 6px;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;"><i class="ph ' + esc(gIco) + '" style="font-size:1.05rem;color:#d97706;"></i><span>' + esc(g.grupo) + '</span></p>'
           + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
           + g.itens.map(function(it) {
                 var chk = (it.nome === 'Outros' ? temOutros : marcados.indexOf(it.nome) !== -1) ? ' checked' : '';
                 return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;cursor:pointer;background:#f8fafc;user-select:none;">'
                   + '<input type="checkbox" data-nome="' + esc(it.nome) + '"' + chk + ' style="width:16px;height:16px;accent-color:#d97706;flex-shrink:0;">'
-                  + '<i class="ph ' + it.icone + '" style="font-size:1.05rem;color:#d97706;flex-shrink:0;"></i><span>' + esc(it.rotulo || it.nome) + '</span></label>';
+                  + '<i class="ph ' + esc(it.icone) + '" style="font-size:1.05rem;color:#d97706;flex-shrink:0;"></i><span>' + esc(it.rotulo || it.nome) + '</span></label>';
             }).join('')
           + '</div>';
     }).join('');
@@ -2426,23 +2570,38 @@ window._mnEdAbrirPecas = async function(servicoId) {
 window.mnCorrSalvarEdicaoInterno = async function() {
     var ed = window._mnEd;
     var btn = document.getElementById('mned-save');
+    var msgEl = document.getElementById('mned-save-msg');
+    var mostrarMsg = function(txt, ok) {
+        if (!msgEl) return;
+        msgEl.style.display = 'inline-flex';
+        msgEl.style.background = ok ? '#ecfdf5' : '#fef2f2';
+        msgEl.style.color = ok ? '#059669' : '#dc2626';
+        msgEl.style.border = '1px solid ' + (ok ? '#a7f3d0' : '#fecaca');
+        msgEl.innerHTML = '<i class="ph ' + (ok ? 'ph-check-circle' : 'ph-warning-circle') + '" style="font-size:1.05rem;"></i> <span>' + window._mnEdEsc(txt) + '</span>';
+        if (window._mnEdMsgTimer) clearTimeout(window._mnEdMsgTimer);
+        if (ok) window._mnEdMsgTimer = setTimeout(function() { if (msgEl) msgEl.style.display = 'none'; }, 6000);
+    };
     var veic = document.getElementById('mned-veic').value;
     var desc = document.getElementById('mned-desc').value.trim();
-    if (!veic) { alert('Selecione o veículo.'); return; }
-    if (!desc) { alert('Informe o defeito / problema.'); return; }
+    if (!veic) { mostrarMsg('Selecione o veículo.', false); alert('Selecione o veículo.'); return; }
+    if (!desc) { mostrarMsg('Informe o defeito / problema.', false); alert('Informe o defeito / problema.'); return; }
+    if (msgEl) msgEl.style.display = 'none';
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
         await window._mnEdGarantirId();
         await window._mnEdSalvarDetalhe();
         var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };
-        var coment = document.getElementById('mned-coment').value.trim();
+        var comentEl = document.getElementById('mned-coment');
+        var coment = comentEl ? comentEl.value.trim() : '';
         if (coment) {
             var rc = await fetch('/api/frota/manutencoes/' + ed.id + '/comentarios', { method: 'POST', headers: hdr, body: JSON.stringify({ texto: coment }) });
             if (!rc.ok) { var ec = await rc.json().catch(function() { return {}; }); throw new Error(ec.error || 'Erro ao salvar o comentário'); }
+            if (comentEl) comentEl.value = '';
         }
         var ehConcl = ed.status === 'concluida';
-        var di = document.getElementById('mned-di').value;
-        if (ed.status === 'em_andamento' && !di) di = window._mnHojeISO();
+        var diEl = document.getElementById('mned-di');
+        var di = diEl ? diEl.value : '';
+        if (ed.status === 'em_andamento' && !di) { di = window._mnHojeISO(); if (diEl) diEl.value = di; }
         var corpo = {
             status: ed.status,
             veiculo_id: veic,
@@ -2455,8 +2614,28 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         if (ehConcl) corpo.data_conclusao = document.getElementById('mned-dc').value || null;
         var rs = await fetch('/api/frota/manutencoes/' + ed.id + '/status', { method: 'PUT', headers: hdr, body: JSON.stringify(corpo) });
         if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar a manutenção'); }
-        window._mnEdFechar();
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção salva!');
+        await window._mnEdRecarregarDetalhe();
+        var vObj = (window._manutFrota || []).find(function(x) { return String(x.id) === String(veic); });
+        ed.m.veiculo_id = veic;
+        ed.m.placa = vObj ? vObj.placa : ed.m.placa;
+        ed.m.descricao = desc;
+        ed.m.status = ed.status;
+        ed.m.data_inicio = corpo.data_inicio;
+        ed.m.data_conclusao = ehConcl ? corpo.data_conclusao : ed.m.data_conclusao;
+        ed.m.km_na_manutencao = corpo.km_na_manutencao;
+        ed.m.km_final_manutencao = corpo.km_final_manutencao;
+        ed.m.fornecedor = corpo.fornecedor;
+        var subTit = document.getElementById('mned-subtitulo');
+        if (subTit && ed.m.placa) subTit.textContent = ed.m.placa;
+        window._mnEdRenderStatus();
+        window._mnEdRenderSolic();
+        window._mnEdPickRender();
+        window._mnEdRenderServ();
+        window._mnEdRenderNotas();
+        window._mnEdRenderMo();
+        window._mnEdRenderHist();
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
+        mostrarMsg('Manutenção salva!', true);
         try {
             var lista = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + window._mnEdTok() } }).then(function(x) { return x.json(); });
             window._manutDados = lista || [];
@@ -2464,6 +2643,7 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         window.mnCarregarCorretivas();
     } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
+        mostrarMsg('Erro: ' + e.message, false);
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); else alert(e.message);
     }
 };
@@ -2874,15 +3054,20 @@ window.mnModalCatChanged = function() {
     if (!todas) {
         htmlCbs = catItens.map(linha).join('');
     } else {
-        // Todas as categorias: serviços agrupados por categoria (corretivas primeiro)
-        const grupos = {}, ordem = [];
+        // Todas as categorias: serviços agrupados por categoria e subcategoria com ícones
+        let uGrp = null, uSub = null;
         catItens.forEach(s => {
-            const k = s.categoria_nome || 'Outros';
-            if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
-            grupos[k].push(s);
+            if (s._grupoNome !== uGrp) {
+                uGrp = s._grupoNome;
+                uSub = null;
+                htmlCbs += `<div class="mn-serv-cat" style="font-size:0.75rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.04em;margin-top:10px;padding:6px 8px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;gap:6px;"><i class="ph ${esc(s._grupoIcone)}" style="color:#d97706;font-size:1rem;"></i>${esc(s._grupoNome)}</div>`;
+            }
+            if (s._subNome !== uSub) {
+                uSub = s._subNome;
+                htmlCbs += `<div class="mn-serv-cat" style="font-size:0.72rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding-top:5px;padding-left:10px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:6px;"><i class="ph ${esc(s._subIcone)}" style="color:#d97706;font-size:0.95rem;"></i>${esc(s._subNome)}</div>`;
+            }
+            htmlCbs += linha(s);
         });
-        // (a ordem das categorias já vem de _mnCatalogoLista)
-        htmlCbs = ordem.map(k => `<div class="mn-serv-cat" style="font-size:0.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">${esc(k)}</div>` + grupos[k].map(linha).join('')).join('');
     }
 
     sBox.innerHTML = htmlBusca + htmlAll + htmlNovo + htmlCbs;

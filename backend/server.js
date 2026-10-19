@@ -24226,10 +24226,10 @@ app.get('/api/frota/categorias', authenticateToken, (req, res) => {
 // GET - listar servicos do catalogo
 app.get('/api/frota/catalogo', authenticateToken, (req, res) => {
     const { categoria_id } = req.query;
-    let sql = 'SELECT s.*, c.nome as categoria_nome FROM frota_servicos_catalogo s LEFT JOIN frota_categorias_manutencao c ON c.id=s.categoria_id WHERE s.ativo=1';
+    let sql = 'SELECT s.*, c.nome as categoria_nome, c.icone as categoria_icone, c.grupo as grupo_nome, c.grupo_icone as grupo_icone, c.ordem as categoria_ordem FROM frota_servicos_catalogo s LEFT JOIN frota_categorias_manutencao c ON c.id=s.categoria_id WHERE s.ativo=1 AND COALESCE(c.ativo, 1)=1';
     const params = [];
     if (categoria_id) { sql += ' AND s.categoria_id=?'; params.push(categoria_id); }
-    sql += ' ORDER BY s.categoria_id, s.nome';
+    sql += ' ORDER BY COALESCE(c.ordem, 999), COALESCE(s.ordem, 999), s.nome';
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
