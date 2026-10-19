@@ -3572,37 +3572,114 @@ function abrirLegenda() {
         function _pad2(n) { return String(n).padStart(2, '0'); }
         var mm = _pad2(_mes);
         var tot = { ponto: 0, ok: 0, faltam: 0, soPront: 0 };
-        var linhasHtml = '';
+        var itens = [];
+        var colabsProcessados = {};
 
-        pontos.slice().sort(function(a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); }).forEach(function(p) {
+        pontos.forEach(function(p) {
+            colabsProcessados[String(p.id)] = true;
             var datasPonto = {};
-            p.dias.forEach(function(dia) { datasPonto[_ano + '-' + mm + '-' + _pad2(dia)] = true; });
+            (p.dias || []).forEach(function(dia) { datasPonto[_ano + '-' + mm + '-' + _pad2(dia)] = true; });
             var datasPront = mapPront[String(p.id)] || {};
-            var todas = Object.keys(datasPonto).concat(Object.keys(datasPront).filter(function(d) { return !datasPonto[d]; })).sort();
-            var nomeCompleto = String(p.nome || '').trim();
-            var nomeExib = nomeCompleto.length > 20 ? (nomeCompleto.substring(0, 20).trim() + '...') : nomeCompleto;
-            todas.forEach(function(d, i) {
+            var todas = Object.keys(datasPonto).concat(Object.keys(datasPront).filter(function(d) { return !datasPonto[d]; }));
+            todas.forEach(function(d) {
                 var noPonto = !!datasPonto[d], noPront = !!datasPront[d];
-                var dt = new Date(d + 'T12:00:00');
-                var dtTxt = d.split('-').reverse().join('/') + ' <span style="color:#94a3b8;">(' + dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ')</span>';
-                var status, acao = '';
-                if (noPonto && noPront) { status = '<span style="color:#15803d;font-weight:700;">✅ Já registrada</span>'; tot.ponto++; tot.ok++; }
-                else if (noPonto) {
-                    status = '<span style="color:#b91c1c;font-weight:700;">⚠️ Não está no prontuário</span>';
-                    acao = '<input type="checkbox" class="fech-falta-chk" checked data-id="' + _escF(p.id) + '" data-data="' + d + '">';
+                var ordemGrupo = 3;
+                if (noPonto && !noPront) {
+                    ordemGrupo = 1; // 1º: Não está no prontuário
                     tot.ponto++; tot.faltam++;
-                } else { status = '<span style="color:#475569;">ℹ️ Só no prontuário (ponto sem falta)</span>'; tot.soPront++; }
-                linhasHtml += '<tr style="border-top:' + (i === 0 ? '2px solid #e2e8f0' : '1px solid #f1f5f9') + ';">'
-                    + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;" title="' + _escF(nomeCompleto) + '">' + (i === 0 ? _escF(nomeExib) : '') + '</td>'
-                    + '<td style="padding:6px 8px;white-space:nowrap;">' + dtTxt + '</td>'
-                    + '<td style="padding:6px 8px;text-align:center;">' + (noPonto ? '✔' : '—') + '</td>'
-                    + '<td style="padding:6px 8px;text-align:center;">' + (noPront ? '✔' : '—') + '</td>'
-                    + '<td style="padding:6px 8px;">' + status + '</td>'
-                    + '<td style="padding:6px 8px;text-align:center;">' + acao + '</td></tr>';
+                } else if (!noPonto && noPront) {
+                    ordemGrupo = 2; // 2º: Apenas no prontuário
+                    tot.soPront++;
+                } else {
+                    ordemGrupo = 3; // 3º: Já no prontuário
+                    tot.ponto++; tot.ok++;
+                }
+                itens.push({
+                    colaborador_id: String(p.id),
+                    nome: p.nome,
+                    data: d,
+                    noPonto: noPonto,
+                    noPront: noPront,
+                    ordemGrupo: ordemGrupo
+                });
             });
         });
 
-        if (!linhasHtml) return false; // nenhuma falta no ponto nem no prontuario
+        // Caso haja faltas no prontuário de colaboradores não incluídos em pontos
+        (Array.isArray(pront) ? pront : []).forEach(function(f) {
+            var cid = String(f.colaborador_id);
+            if (colabsProcessados[cid]) return;
+            var colabObj = _dados.find(function(r) { return String(r.colaborador_id || r.id) === cid; });
+            var nomeColab = (colabObj && colabObj.nome_completo) || f.nome_completo || ('Colaborador #' + cid);
+            var d = String(f.data_falta || '').substring(0, 10);
+            tot.soPront++;
+            itens.push({
+                colaborador_id: cid,
+                nome: nomeColab,
+                data: d,
+                noPonto: false,
+                noPront: true,
+                ordemGrupo: 2
+            });
+        });
+
+        if (!itens.length) return false; // nenhuma falta no ponto nem no prontuario
+
+        itens.sort(function(a, b) {
+            if (a.ordemGrupo !== b.ordemGrupo) return a.ordemGrupo - b.ordemGrupo;
+            var cNome = String(a.nome || '').localeCompare(String(b.nome || ''));
+            if (cNome !== 0) return cNome;
+            return String(a.data).localeCompare(String(b.data));
+        });
+
+        var titulosGrupo = {
+            1: { txt: '⚠️ Não estão no prontuário', bg: '#fef2f2', cor: '#991b1b', borda: '#fecdd3' },
+            2: { txt: 'ℹ️ Apenas no prontuário (ponto sem falta)', bg: '#f8fafc', cor: '#475569', borda: '#e2e8f0' },
+            3: { txt: '✅ Já registradas no prontuário', bg: '#f0fdf4', cor: '#166534', borda: '#bbf7d0' }
+        };
+
+        var linhasHtml = '';
+        var prevColabId = null;
+        var prevGrupo = null;
+
+        itens.forEach(function(item) {
+            if (item.ordemGrupo !== prevGrupo) {
+                var gInfo = titulosGrupo[item.ordemGrupo];
+                linhasHtml += '<tr style="background:' + gInfo.bg + ';border-top:2px solid ' + gInfo.borda + ';border-bottom:1px solid ' + gInfo.borda + ';">'
+                    + '<td colspan="6" style="padding:6px 10px;font-size:12px;font-weight:800;color:' + gInfo.cor + ';letter-spacing:0.3px;">'
+                    + gInfo.txt + '</td></tr>';
+                prevColabId = null;
+            }
+
+            var noPonto = item.noPonto, noPront = item.noPront;
+            var dt = new Date(item.data + 'T12:00:00');
+            var dtTxt = item.data.split('-').reverse().join('/') + ' <span style="color:#94a3b8;">(' + dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ')</span>';
+            var status, acao = '';
+
+            if (item.ordemGrupo === 1) {
+                status = '<span style="color:#b91c1c;font-weight:700;">⚠️ Não está no prontuário</span>';
+                acao = '<input type="checkbox" class="fech-falta-chk" checked data-id="' + _escF(item.colaborador_id) + '" data-data="' + item.data + '">';
+            } else if (item.ordemGrupo === 2) {
+                status = '<span style="color:#475569;">ℹ️ Só no prontuário</span>';
+            } else {
+                status = '<span style="color:#15803d;font-weight:700;">✅ Já registrada</span>';
+            }
+
+            var nomeCompleto = String(item.nome || '').trim();
+            var nomeExib = nomeCompleto.length > 20 ? (nomeCompleto.substring(0, 20).trim() + '...') : nomeCompleto;
+            var ehNovoColab = (item.colaborador_id !== prevColabId);
+
+            linhasHtml += '<tr style="border-top:' + (ehNovoColab ? '2px solid #e2e8f0' : '1px solid #f1f5f9') + ';">'
+                + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;" title="' + _escF(nomeCompleto) + '">' + (ehNovoColab ? _escF(nomeExib) : '') + '</td>'
+                + '<td style="padding:6px 8px;white-space:nowrap;">' + dtTxt + '</td>'
+                + '<td style="padding:6px 8px;text-align:center;">' + (noPonto ? '✔' : '—') + '</td>'
+                + '<td style="padding:6px 8px;text-align:center;">' + (noPront ? '✔' : '—') + '</td>'
+                + '<td style="padding:6px 8px;">' + status + '</td>'
+                + '<td style="padding:6px 8px;text-align:center;">' + acao + '</td></tr>';
+
+            prevColabId = item.colaborador_id;
+            prevGrupo = item.ordemGrupo;
+        });
 
         var badge = function(txt, bg, cor) { return '<span style="background:' + bg + ';color:' + cor + ';padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;">' + txt + '</span>'; };
         var resumoHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;">'
