@@ -1117,8 +1117,9 @@ window._mnEdMontar = function() {
       + '<div style="padding:18px 20px;overflow-y:auto;flex:1;">'
       +   '<div style="margin-bottom:14px;"><label style="' + lbl + '">Defeito / Problema</label><div style="font-size:0.85rem;color:#334155;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;">' + esc(m.descricao || '—') + '</div></div>'
       +   '<div style="margin-bottom:14px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
-      +   '<div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:14px;">'
-      +     '<div><label style="' + lbl + '">KM na manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +   '<div id="mned-grid-km" style="display:grid;grid-template-columns:' + (ed.status === 'concluida' ? '1fr 1fr 2fr' : '1fr 2fr') + ';gap:12px;margin-bottom:14px;">'
+      +     '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +     '<div id="mned-km-final-box" style="display:' + (ed.status === 'concluida' ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
       +     '<div><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
       +   '</div>'
       +   '<div style="' + sec + '">'
@@ -1177,6 +1178,13 @@ window._mnEdRenderStatus = function() {
             + (ativo ? 'background:' + s.c + ';color:#fff;box-shadow:0 2px 8px ' + s.c + '66;' : 'background:' + s.c + '18;color:' + s.c + ';');
         return '<button type="button" data-s="' + s.v + '" style="' + css + '">' + (ativo ? '<i class="ph ph-check"></i> ' : '') + s.l + '</button>';
     }).join('');
+    var kfBox = document.getElementById('mned-km-final-box');
+    var gKm = document.getElementById('mned-grid-km');
+    if (kfBox && gKm) {
+        var ehConcl = ed.status === 'concluida';
+        kfBox.style.display = ehConcl ? 'block' : 'none';
+        gKm.style.gridTemplateColumns = ehConcl ? '1fr 1fr 2fr' : '1fr 2fr';
+    }
     box.querySelectorAll('[data-s]').forEach(function(b) {
         b.onclick = function() {
             window._mnEd.status = b.getAttribute('data-s');
@@ -1865,12 +1873,20 @@ window.mnCorrSalvarEdicaoInterno = async function(id) {
     try {
         await window._mnEdSalvarDetalhe();
         var km = document.getElementById('mned-km').value;
+        var kmFinalEl = document.getElementById('mned-km-final');
+        var kmFinal = (ed.status === 'concluida' && kmFinalEl) ? kmFinalEl.value : null;
         var forn = document.getElementById('mned-forn').value.trim();
         var obs = document.getElementById('mned-obs').value.trim();
         var rs = await fetch('/api/frota/manutencoes/' + id + '/status', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-            body: JSON.stringify({ status: ed.status, km_na_manutencao: km || null, fornecedor: forn || null, observacoes: obs || null })
+            body: JSON.stringify({
+                status: ed.status,
+                km_na_manutencao: km || null,
+                km_final_manutencao: kmFinal || null,
+                fornecedor: forn || null,
+                observacoes: obs || null
+            })
         });
         if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar o status'); }
         window._mnEdFechar();

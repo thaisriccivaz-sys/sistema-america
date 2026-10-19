@@ -23613,7 +23613,7 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
 
 // PUT - atualizar status de manutenção corretiva (iniciar / concluir / cancelar)
 app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
-    const { status, km_na_manutencao, custo, fornecedor, observacoes } = req.body;
+    const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes } = req.body;
     const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
     if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
 
@@ -23634,6 +23634,11 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
         fields.push('km_na_manutencao=?');
         params.push(kmVal);
     }
+    if (km_final_manutencao !== undefined) {
+        const kmFinalVal = (km_final_manutencao !== null && km_final_manutencao !== '' && !isNaN(parseInt(km_final_manutencao))) ? parseInt(km_final_manutencao) : null;
+        fields.push('km_final_manutencao=?');
+        params.push(kmFinalVal);
+    }
     if (custo !== undefined) {
         const custoVal = (custo !== null && custo !== '' && !isNaN(parseFloat(custo))) ? parseFloat(custo) : null;
         fields.push('custo=?');
@@ -23653,10 +23658,10 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
 
     db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });
-        // Se concluída ou cancelada, verificar se o veiculo ainda tem manutenº??es ativas
+        // Se concluída ou cancelada, verificar se o veiculo ainda tem manutenções ativas
         if (status === 'concluida' || status === 'cancelada') {
             db.get(
-                `SELECT fm.veiculo_id FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
+                `SELECT fm.veiculo_id, fm.km_final_manutencao, fm.km_na_manutencao FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
                 (e2, row) => {
                     if (!row) return res.json({ ok: true });
                     db.get(
@@ -23664,6 +23669,12 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
                         [row.veiculo_id], (e3, cnt) => {
                             if ((cnt?.n || 0) === 0) {
                                 db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
+                            }
+                            if (status === 'concluida') {
+                                const kmF = row.km_final_manutencao || row.km_na_manutencao;
+                                if (kmF && kmF > 0) {
+                                    db.run('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, row.veiculo_id]);
+                                }
                             }
                             res.json({ ok: true });
                         }
@@ -32251,7 +32262,8 @@ app.listen(PORT, () => {
         { col: 'observacoes_agendamento', def: 'TEXT' },
         { col: 'sinistro_id', def: 'INTEGER' },
         { col: 'custo_pecas', def: 'REAL' },
-        { col: 'custo_mao_obra', def: 'REAL' }
+        { col: 'custo_mao_obra', def: 'REAL' },
+        { col: 'km_final_manutencao', def: 'INTEGER' }
     ];
     // ---- Manutencao corretiva: servicos realizados, pecas e notas fiscais
     db.run('ALTER TABLE frota_servicos_catalogo ADD COLUMN item_ref TEXT', (e) => { /* coluna ja existe: ignorar */ });
