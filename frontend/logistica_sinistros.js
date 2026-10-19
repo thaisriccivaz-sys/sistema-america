@@ -2229,7 +2229,9 @@ window._logSinManutAbrirPopup = function(origem) {
         + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;">'
         + '<div style="background:#d97706;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench" style="color:#fff;font-size:1.3rem;"></i></div>'
         + '<div><div style="color:#fff;font-weight:700;">Solicitar Manutenção do Veículo</div>'
-        + '<div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (v.placa || '') + ' — ' + String(v.marca_modelo_versao || '').substring(0, 40) + '</div></div></div>'
+        + '<div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (v.placa || '') + ' — ' + String(v.marca_modelo_versao || '').substring(0, 40) + '</div></div>'
+        + '<button type="button" id="log-sin-manut-btn-x" title="Fechar" style="margin-left:auto;align-self:flex-start;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ph ph-x"></i></button>'
+        + '</div>'
         + '<div style="padding:18px 20px;">'
         + '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando? *</p>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
@@ -2249,6 +2251,10 @@ window._logSinManutAbrirPopup = function(origem) {
         + '<button type="button" id="log-sin-manut-btn-confirmar" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
         + '</div></div></div>';
     document.body.appendChild(p);
+
+    var btnX = document.getElementById('log-sin-manut-btn-x');
+    if (btnX) btnX.onclick = function() { window._logSinManutFecharPopup(); };
+    p.addEventListener('mousedown', function(e) { if (e.target === p) window._logSinManutFecharPopup(); });
 
     var btnCanc = document.getElementById('log-sin-manut-btn-cancelar');
     if (btnCanc) btnCanc.onclick = function() { window._logSinManutFecharPopup(); };

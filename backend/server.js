@@ -7121,12 +7121,17 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                             }
                             await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_id=? WHERE id=?',
                                 [manItem, manObs || null, manRodando, manId, sinistroId], () => r()));
+                            await _fmSyncSolicitados(manId, manItem);
                         } else {
+                            const curMan = await new Promise(r => db.get('SELECT status FROM frota_manutencoes WHERE id=?', [sinistro.manutencao_id], (e, row) => r(row)));
+                            const manStatusAtual = curMan ? curMan.status : null;
+                            const statusFinalMan = ['aguardando', 'concluida', 'cancelada'].includes(manStatusAtual) ? manStatusAtual : statusMan;
                             await new Promise(r => db.run('UPDATE frota_manutencoes SET descricao=?, status=?, veiculo_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-                                [descMan, statusMan, manVeiculoId, sinistro.manutencao_id], () => r()));
-                            if (statusMan === 'em_andamento') {
+                                [descMan, statusFinalMan, manVeiculoId, sinistro.manutencao_id], () => r()));
+                            await _fmSyncSolicitados(sinistro.manutencao_id, manItem);
+                            if (statusFinalMan === 'em_andamento') {
                                 await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
-                            } else {
+                            } else if (statusFinalMan === 'agendada') {
                                 const cnt = await new Promise(r => db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?", [manVeiculoId, sinistro.manutencao_id], (e, row) => r(row ? row.cnt : 0)));
                                 if (cnt === 0) {
                                     await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
@@ -23661,6 +23666,213 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
 });
 
 
+// =====================================================================
+// MANUTENCAO CORRETIVA - SERVICOS REALIZADOS, PECAS E NOTAS (detalhe)
+// =====================================================================
+function _fmAll(sql, params) { return new Promise((res, rej) => db.all(sql, params || [], (e, r) => e ? rej(e) : res(r || []))); }
+function _fmGet(sql, params) { return new Promise((res, rej) => db.get(sql, params || [], (e, r) => e ? rej(e) : res(r))); }
+function _fmRun(sql, params) { return new Promise((res, rej) => db.run(sql, params || [], function (e) { e ? rej(e) : res({ lastID: this.lastID, changes: this.changes }); })); }
+
+// Quebra o texto "A, B, Outros: texto livre" em itens (o "Outros:" e sempre o ultimo e pode ter virgulas)
+function _fmSplitSolicitados(texto) {
+    const t = String(texto || '').trim();
+    if (!t) return [];
+    let base = t, outros = '';
+    const idx = t.indexOf('Outros:');
+    if (idx !== -1) { base = t.substring(0, idx).replace(/[,\s]+$/, ''); outros = t.substring(idx).trim(); }
+    const itens = base ? base.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (outros) itens.push(outros);
+    return itens;
+}
+
+// Recria os itens "solicitados" de uma manutencao a partir do texto do sinistro
+async function _fmSyncSolicitados(manutencaoId, texto) {
+    if (!manutencaoId) return;
+    await _fmRun("DELETE FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'solicitado'", [manutencaoId]);
+    for (const nome of _fmSplitSolicitados(texto)) {
+        await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome) VALUES (?, 'solicitado', ?)", [manutencaoId, nome]);
+    }
+}
+
+// Recalcula R$ pecas, R$ mao de obra e o total (custo) da manutencao
+async function _fmRecalcTotais(manutencaoId) {
+    const mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
+    const pc = await _fmGet('SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS n FROM frota_manutencao_pecas WHERE manutencao_id = ?', [manutencaoId]);
+    const totMo = Math.round((mo.t || 0) * 100) / 100;
+    const totPc = Math.round((pc.t || 0) * 100) / 100;
+    if ((mo.n || 0) + (pc.n || 0) > 0) {
+        await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = ?, custo_pecas = ?, custo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [totMo, totPc, Math.round((totMo + totPc) * 100) / 100, manutencaoId]);
+    } else {
+        await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = NULL, custo_pecas = NULL WHERE id = ?', [manutencaoId]);
+    }
+    return { custo_mao_obra: totMo, custo_pecas: totPc, custo: Math.round((totMo + totPc) * 100) / 100 };
+}
+
+// Catalogo de servicos de manutencao CORRETIVA (um servico por item da lista do sinistro)
+const CATALOGO_CORRETIVO = [
+    { cat: 'Lataria e Estética (Corretiva)', icone: 'paint-brush', itens: [
+        ['Funilaria (amassados)', ['Reparo de amassado', 'Alinhamento de lataria', 'Substituição de peça de lataria']],
+        ['Adesivo', ['Aplicação de adesivo', 'Remoção de adesivo', 'Substituição de adesivo danificado']],
+        ['Pintura', ['Pintura de peça', 'Pintura geral', 'Polimento e retoque']],
+        ['Para-choque dianteiro', ['Reparo', 'Substituição', 'Pintura']],
+        ['Para-choque traseiro', ['Reparo', 'Substituição', 'Pintura']],
+        ['Capô', ['Reparo', 'Substituição', 'Pintura']],
+        ['Porta', ['Reparo', 'Substituição', 'Pintura', 'Reparo de fechadura/maçaneta']],
+        ['Paralama', ['Reparo', 'Substituição', 'Pintura']],
+        ['Tampa traseira', ['Reparo', 'Substituição', 'Pintura', 'Reparo de fechadura']],
+        ['Retrovisor', ['Substituição do retrovisor', 'Substituição do espelho/lente', 'Substituição da capa']],
+        ['Faróis', ['Substituição do farol', 'Substituição de lâmpada', 'Regulagem do farol', 'Polimento/restauração']],
+        ['Lanternas', ['Substituição da lanterna', 'Substituição de lâmpada']],
+        ['Setas', ['Substituição da seta', 'Substituição de lâmpada']],
+        ['Para-brisa', ['Substituição do para-brisa', 'Reparo de trinca/estrela']],
+        ['Vidros', ['Substituição de vidro', 'Reparo do elevador (máquina de vidro)', 'Aplicação de película']]
+    ] },
+    { cat: 'Mecânica (Corretiva)', icone: 'wrench', itens: [
+        ['Suspensão', ['Substituição de amortecedor', 'Substituição de mola', 'Substituição de bucha', 'Substituição de pivô', 'Substituição de bandeja', 'Substituição de barra estabilizadora/bieleta', 'Substituição de rolamento de roda']],
+        ['Direção', ['Substituição de terminal/barra de direção', 'Reparo da caixa de direção', 'Reparo da bomba de direção', 'Troca de fluido da direção']],
+        ['Alinhamento', ['Alinhamento de direção']],
+        ['Balanceamento', ['Balanceamento de rodas']],
+        ['Pneus', ['Substituição de pneu', 'Reparo de pneu (furo)', 'Rodízio de pneus']],
+        ['Rodas', ['Reparo de roda', 'Substituição de roda', 'Substituição de parafusos/porcas']],
+        ['Freios', ['Substituição de pastilhas', 'Substituição de lonas', 'Substituição de discos/tambores', 'Reparo de cilindro/pinça', 'Sangria do sistema', 'Substituição de cabo do freio de mão']],
+        ['Radiador', ['Substituição do radiador', 'Reparo do radiador', 'Substituição de ventoinha']],
+        ['Arrefecimento', ['Substituição de mangueira', 'Substituição da bomba d\'água', 'Substituição do termostato', 'Troca do líquido de arrefecimento']],
+        ['Motor', ['Reparo do motor', 'Substituição de junta', 'Troca de óleo e filtros', 'Substituição de velas', 'Substituição de correia']],
+        ['Câmbio', ['Reparo do câmbio', 'Substituição de retentor', 'Troca de óleo do câmbio']],
+        ['Transmissão', ['Reparo da transmissão', 'Substituição de embreagem', 'Substituição de junta homocinética']],
+        ['Sistema elétrico', ['Reparo de chicote/fiação', 'Substituição do motor de partida', 'Substituição do alternador', 'Substituição de fusíveis/relés', 'Diagnóstico eletrônico']],
+        ['Bateria', ['Substituição de bateria', 'Teste/carga de bateria']]
+    ] },
+    { cat: 'Operacional (Corretiva)', icone: 'drop', itens: [
+        ['Tanque', ['Reparo do tanque', 'Higienização do tanque', 'Substituição de componente do tanque']],
+        ['Bomba de sucção', ['Reparo da bomba', 'Substituição da bomba', 'Lubrificação e revisão']],
+        ['Motor de sucção', ['Reparo do motor de sucção', 'Revisão do motor de sucção', 'Troca de óleo e filtro']],
+        ['Mangotes', ['Substituição de mangote', 'Reparo de mangote', 'Substituição de abraçadeiras/conexões']],
+        ['Válvulas', ['Reparo de válvula', 'Substituição de válvula']],
+        ['Sistema hidráulico', ['Reparo do sistema hidráulico', 'Substituição de mangueira hidráulica', 'Troca de óleo hidráulico']],
+        ['Estrutura', ['Reparo estrutural', 'Solda/reforço']],
+        ['Chassi', ['Reparo do chassi', 'Alinhamento do chassi', 'Solda/reforço']]
+    ] },
+    { cat: 'Outros (Corretiva)', icone: 'dots-three-circle', itens: [
+        ['Revisão geral pós-sinistro', ['Revisão geral', 'Inspeção de segurança', 'Diagnóstico geral']],
+        ['Outros', ['Serviço diverso']]
+    ] }
+];
+
+// Insere (sem duplicar) as categorias e servicos corretivos no catalogo da Frota
+function _seedCatalogoCorretivo(tentativa) {
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='frota_servicos_catalogo'", [], (e, t) => {
+        if (e || !t) { if (tentativa < 10) setTimeout(() => _seedCatalogoCorretivo(tentativa + 1), 3000); return; }
+        (async () => {
+            try {
+                let ordem = 20;
+                for (const grupo of CATALOGO_CORRETIVO) {
+                    await _fmRun('INSERT OR IGNORE INTO frota_categorias_manutencao(nome,icone,ordem) VALUES(?,?,?)', [grupo.cat, grupo.icone, ordem++]);
+                    const c = await _fmGet('SELECT id FROM frota_categorias_manutencao WHERE nome = ?', [grupo.cat]);
+                    if (!c) continue;
+                    for (const par of grupo.itens) {
+                        const itemRef = par[0];
+                        for (const sv of par[1]) {
+                            const nome = itemRef + ' - ' + sv;
+                            await _fmRun("INSERT INTO frota_servicos_catalogo(categoria_id,nome,tipo_controle,periodicidade_padrao,unidade,criticidade,tempo_medio_horas,exige_parada,obrigatorio,impede_operacao,padrao,item_ref) SELECT ?,?,'Corretiva',0,'km','Media',NULL,0,0,0,0,? WHERE NOT EXISTS (SELECT 1 FROM frota_servicos_catalogo WHERE categoria_id = ? AND nome = ?)", [c.id, nome, itemRef, c.id, nome]);
+                        }
+                    }
+                }
+                console.log('[SEED] Catalogo corretivo verificado.');
+            } catch (err) { console.error('[SEED] Catalogo corretivo:', err.message); }
+        })();
+    });
+}
+
+// GET - detalhe da manutencao (servicos solicitados/realizados, pecas e notas)
+app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const m = await _fmGet('SELECT fm.*, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        let servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
+        if (servicos.length === 0 && m.sinistro_id) {
+            const s = await _fmGet('SELECT manutencao_item FROM sinistros WHERE id = ?', [m.sinistro_id]);
+            if (s && s.manutencao_item) {
+                await _fmSyncSolicitados(id, s.manutencao_item);
+                servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
+            }
+        }
+        const pecas = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
+        const notas = await _fmAll('SELECT id, manutencao_id, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id', [id]);
+        res.json({
+            manutencao: m,
+            solicitados: servicos.filter(s => s.tipo === 'solicitado'),
+            realizados: servicos.filter(s => s.tipo === 'realizado'),
+            pecas: pecas,
+            notas: notas
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT - salva servicos solicitados/realizados (mao de obra e garantia) e recalcula os totais
+app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const m = await _fmGet('SELECT id, sinistro_id FROM frota_manutencoes WHERE id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        const body = req.body || {};
+        const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
+
+        // Itens solicitados (e espelho no sinistro de origem)
+        if (Array.isArray(body.solicitados)) {
+            const nomes = body.solicitados.map(s => String(s || '').trim()).filter(Boolean);
+            await _fmRun("DELETE FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'solicitado'", [id]);
+            for (const nome of nomes) {
+                await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome) VALUES (?, 'solicitado', ?)", [id, nome]);
+            }
+            if (m.sinistro_id) {
+                const texto = nomes.join(', ');
+                await _fmRun('UPDATE sinistros SET manutencao_item = ? WHERE id = ?', [texto || null, m.sinistro_id]);
+                if (texto) {
+                    const sOrig = await _fmGet('SELECT manutencao_obs FROM sinistros WHERE id = ?', [m.sinistro_id]);
+                    const desc = 'Sinistro #' + m.sinistro_id + ' - ' + texto + (sOrig && sOrig.manutencao_obs ? ': ' + sOrig.manutencao_obs : '');
+                    await _fmRun('UPDATE frota_manutencoes SET descricao = ? WHERE id = ?', [desc, id]);
+                }
+            }
+        }
+
+        // Servicos realizados (diff por id para nao perder o vinculo com as pecas)
+        if (Array.isArray(body.realizados)) {
+            const existentes = await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id]);
+            const idsExist = existentes.map(r => r.id);
+            const lista = body.realizados.filter(r => r && String(r.nome || '').trim());
+            const idsMantidos = lista.map(r => parseInt(r.id)).filter(n => idsExist.includes(n));
+            for (const exId of idsExist) {
+                if (!idsMantidos.includes(exId)) {
+                    await _fmRun('UPDATE frota_manutencao_pecas SET servico_id = NULL WHERE servico_id = ?', [exId]);
+                    await _fmRun('DELETE FROM frota_manutencao_servicos WHERE id = ?', [exId]);
+                }
+            }
+            for (const r of lista) {
+                const gv = parseInt(r.garantia_valor);
+                const gValor = gv > 0 ? gv : null;
+                const gUni = gValor ? (r.garantia_unidade === 'meses' ? 'meses' : 'dias') : null;
+                const nome = String(r.nome).trim();
+                const catId = parseInt(r.catalogo_id) || null;
+                const itemRef = r.item_ref ? String(r.item_ref) : null;
+                const rid = parseInt(r.id);
+                if (idsExist.includes(rid)) {
+                    await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, garantia_valor = ?, garantia_unidade = ? WHERE id = ? AND manutencao_id = ?',
+                        [nome, catId, itemRef, num(r.mao_obra), gValor, gUni, rid, id]);
+                } else {
+                    await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?)",
+                        [id, nome, catId, itemRef, num(r.mao_obra), gValor, gUni]);
+                }
+            }
+        }
+
+        const totais = await _fmRecalcTotais(id);
+        const realizados = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
+        res.json({ ok: true, totais: totais, realizados: realizados });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // DELETE - excluir veiculo
 app.delete('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     db.run('DELETE FROM frota_veiculos WHERE id = ?', [req.params.id], function (err) {
@@ -31771,8 +31983,17 @@ app.listen(PORT, () => {
         { col: 'data_inicio', def: 'TEXT' },
         { col: 'apenas_vistoria', def: 'INTEGER DEFAULT 0' },
         { col: 'observacoes_agendamento', def: 'TEXT' },
-        { col: 'sinistro_id', def: 'INTEGER' }
+        { col: 'sinistro_id', def: 'INTEGER' },
+        { col: 'custo_pecas', def: 'REAL' },
+        { col: 'custo_mao_obra', def: 'REAL' }
     ];
+    // ---- Manutencao corretiva: servicos realizados, pecas e notas fiscais
+    db.run('ALTER TABLE frota_servicos_catalogo ADD COLUMN item_ref TEXT', (e) => { /* coluna ja existe: ignorar */ });
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'realizado\', nome TEXT NOT NULL, catalogo_id INTEGER, item_ref TEXT, mao_obra REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_notas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, r2_key TEXT, nome_arquivo TEXT, numero TEXT, serie TEXT, fornecedor TEXT, cnpj TEXT, data_emissao TEXT, valor_total REAL, chave_acesso TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    setTimeout(() => _seedCatalogoCorretivo(0), 4000);
+
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {
             if (err && !err.message.includes('duplicate column')) {
