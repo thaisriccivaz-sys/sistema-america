@@ -2160,6 +2160,7 @@ window._logSinManutFecharPopup = function() {
 
 window._logSinManutAbrirPopup = function(origem) {
     origem = (origem === 'edit') ? 'edit' : 'novo';
+    window._logSinManutOrigemAtual = origem;
     var v = null;
     if (origem === 'edit') {
         var placaInp = document.getElementById('edit-sin-placa');
@@ -2230,13 +2231,20 @@ window._logSinManutAbrirPopup = function(origem) {
         + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Observação (opcional)</p>'
         + '<textarea id="log-sin-manut-obs" class="form-control" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;font-size:0.85rem;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;" placeholder="Detalhes adicionais...">' + String(st.obs || '').replace(/</g, '&lt;') + '</textarea>'
         + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">'
-        + '<button type="button" onclick="window._logSinManutFecharPopup()" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
-        + '<button type="button" onclick="window._logSinManutConfirmar(\'" + origem + "\')" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
+        + '<button type="button" id="log-sin-manut-btn-cancelar" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+        + '<button type="button" id="log-sin-manut-btn-confirmar" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
         + '</div></div></div>';
     document.body.appendChild(p);
+
+    var btnCanc = document.getElementById('log-sin-manut-btn-cancelar');
+    if (btnCanc) btnCanc.onclick = function() { window._logSinManutFecharPopup(); };
+
+    var btnConf = document.getElementById('log-sin-manut-btn-confirmar');
+    if (btnConf) btnConf.onclick = function() { window._logSinManutConfirmar(origem); };
 };
 
 window._logSinManutConfirmar = function(origem) {
+    origem = origem || window._logSinManutOrigemAtual || 'novo';
     origem = (origem === 'edit') ? 'edit' : 'novo';
     var chks = document.querySelectorAll('input[name="log-sin-manut-item"]:checked');
     if (!chks || chks.length === 0) return alert('Selecione pelo menos um item de manutenção.');
