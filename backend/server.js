@@ -935,6 +935,11 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN config_parcelas TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN status_rh TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN colaborador_outro TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN necessita_manutencao INTEGER DEFAULT 0', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN manutencao_item TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN manutencao_obs TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN manutencao_rodando TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN manutencao_id INTEGER', (e) => { });
         db.run(`CREATE TABLE IF NOT EXISTS sinistros_cobranca_historico (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sinistro_id INTEGER NOT NULL,
@@ -7082,6 +7087,43 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
             );
         });
 
+
+        // Solicitação de manutenção vinculada ao sinistro (Logística)
+        if (String(body.necessita_manutencao) === '1' && !sinistro.manutencao_id) {
+            try {
+                const manItem = String(body.manutencao_item || '').trim();
+                const manObs = String(body.manutencao_obs || '').trim();
+                const manRodando = body.manutencao_rodando === 'nao' ? 'nao' : 'sim';
+                let manVeiculoId = parseInt(body.veiculo_id) || null;
+                if (!manVeiculoId) {
+                    const placaNorm = String(body.placa || sinistro.placa || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    if (placaNorm) {
+                        const vRow = await new Promise(r => db.get("SELECT id FROM frota_veiculos WHERE UPPER(REPLACE(REPLACE(placa,'-',''),' ',''))=?", [placaNorm], (e, row) => r(row)));
+                        manVeiculoId = vRow ? vRow.id : null;
+                    }
+                }
+                if (manItem && manVeiculoId) {
+                    const hojeMan = new Date().toISOString().split('T')[0];
+                    const statusMan = manRodando === 'nao' ? 'em_andamento' : 'agendada';
+                    const descMan = 'Sinistro #' + sinistroId + ' - ' + manItem + (manObs ? ': ' + manObs : '');
+                    const usuarioMan = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
+                    const manId = await new Promise((resolve, reject) => {
+                        db.run(`INSERT INTO frota_manutencoes
+                            (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, sinistro_id, created_at, updated_at)
+                            VALUES (?, 'corretiva', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                            [manVeiculoId, descMan, statusMan, hojeMan, hojeMan, usuarioMan, sinistroId],
+                            function (err) { err ? reject(err) : resolve(this.lastID); });
+                    });
+                    if (statusMan === 'em_andamento') {
+                        await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                    }
+                    await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_id=? WHERE id=?',
+                        [manItem, manObs || null, manRodando, manId, sinistroId], () => r()));
+                } else {
+                    console.warn('[SINISTRO MANUT] Item ou veiculo nao identificado; manutencao nao criada. item=', manItem, 'veiculo=', manVeiculoId);
+                }
+            } catch (eMan) { console.error('[SINISTRO MANUT] Erro ao criar manutencao:', eMan.message); }
+        }
 
         // Upload do arquivo BO se enviado
         if (req.file && typeof onedrive !== 'undefined' && sinistro.boletim_path) {
@@ -31698,7 +31740,8 @@ app.listen(PORT, () => {
         { col: 'criticidade', def: 'TEXT' },
         { col: 'data_inicio', def: 'TEXT' },
         { col: 'apenas_vistoria', def: 'INTEGER DEFAULT 0' },
-        { col: 'observacoes_agendamento', def: 'TEXT' }
+        { col: 'observacoes_agendamento', def: 'TEXT' },
+        { col: 'sinistro_id', def: 'INTEGER' }
     ];
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {

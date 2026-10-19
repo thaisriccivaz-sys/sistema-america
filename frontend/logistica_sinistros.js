@@ -228,6 +228,7 @@ window._logSinRenderCardGeral = function(s, container) {
         <div style="background:#f8fafc; border-top:1px dashed #cbd5e1; padding-top:0.75rem; display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
             <div style="font-size:0.8rem; color:#475569; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 ${s.tipo_sinistro ? `<strong>Tipo:</strong> ${s.tipo_sinistro}` : ''}
+                ${s.necessita_manutencao ? `<span style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:12px; background:#ffedd5; color:#c2410c; border:1px solid #fdba74;">🔧 Manutenção: ${String(s.manutencao_item || '').replace(/</g,'&lt;')} (${s.manutencao_rodando === 'nao' ? 'veículo parado' : 'veículo rodando'})</span>` : ''}
                 ${(() => {
                     const sit = s.situacao_sinistro || 'Novo';
                     const styles = {
@@ -430,6 +431,19 @@ window.logSinAbrirModalNovo = function() {
                                     </select>
                                 </div>
 
+                                <!-- Manutenção do veículo (somente Logística) -->
+                                <div id="log-sin-manut-box" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:1rem;">
+                                    <p style="margin:0 0 10px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-wrench" style="color:#d97706;"></i> Manutenção do veículo</p>
+                                    <div style="display:flex;align-items:center;gap:12px;">
+                                        <div id="log-sin-manut-track" onclick="window._logSinManutToggle()" role="switch" style="position:relative;width:44px;height:24px;border-radius:12px;background:#cbd5e1;cursor:pointer;transition:all .2s;flex-shrink:0;">
+                                            <div id="log-sin-manut-knob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);transition:all .2s;"></div>
+                                        </div>
+                                        <span id="log-sin-manut-label" style="font-weight:600;font-size:0.9rem;color:#64748b;">Não necessita manutenção</span>
+                                    </div>
+                                    <div id="log-sin-manut-resumo" style="display:none;margin-top:10px;"></div>
+                                    <p id="log-sin-manut-aviso" style="display:none;margin:10px 0 0;font-size:0.78rem;color:#92400e;"><i class="ph ph-info"></i> Selecione um veículo (placa) no Passo 1 para poder solicitar manutenção.</p>
+                                </div>
+
                                 <!-- Observações -->
                                 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;flex:1;">
                                     <p style="margin:0 0 8px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-note-pencil" style="color:#6366f1;"></i> Observações</p>
@@ -483,6 +497,9 @@ window.logSinAbrirModalNovo = function() {
     window._logSinOrcFiles = [];
     window._logSinistroAtualId = null;
     window._logSinistroAtualColabId = null;
+    window._logSinManutRH = (window._logSinOrigemRH === true);
+    window._logSinOrigemRH = false;
+    window._logSinManutReset();
     if (typeof window._logSinAtualizarPreviewMidias === 'function') window._logSinAtualizarPreviewMidias();
 
     // Preencher dados fixos do declarante e ocultar/limpar seções dinâmicas
@@ -535,6 +552,7 @@ window.logSinAbrirModalNovo = function() {
     if (logVeicDD) logVeicDD.style.display = 'none';
     window._logSinPreencherDadosVeiculo();
     window._logSinCarregarVeiculos();
+    window._logSinManutRender();
 
     m.style.display = 'flex';
 };
@@ -892,6 +910,7 @@ window.logSinSalvarIniciado = async function() {
         window._logSinistroAtualId = data.id;
         window._logSinistroAtualColabId = colabId;
         window._logSinistroAtualColabOutro = colabOutro;
+        window._logSinManutRender();
 
         document.getElementById('log-sinistro-step-1').style.display = 'none';
         document.getElementById('log-sinistro-step-2').style.display = 'block';
@@ -943,6 +962,14 @@ window.logSinFinalizarSinistro = async function() {
         var fvtot= document.getElementById('log-sin-valor-total');if (fvtot && fvtot.value) formData.append('valor_total', fvtot.value);
         var ftipo = document.getElementById('log-sin-tipo'); if (ftipo && ftipo.value) formData.append('tipo_sinistro', ftipo.value);
         var fobs = document.getElementById('log-sin-observacoes'); if (fobs && fobs.value.trim()) formData.append('observacoes', fobs.value.trim());
+        var _man = window._logSinManut;
+        if (_man && _man.ativo && !window._logSinManutRH) {
+            formData.append('necessita_manutencao', '1');
+            formData.append('manutencao_item', window._logSinManutItemTexto());
+            if (_man.obs) formData.append('manutencao_obs', _man.obs);
+            formData.append('manutencao_rodando', _man.rodando === 'nao' ? 'nao' : 'sim');
+            if (window._logSinVeiculoSelecionado && window._logSinVeiculoSelecionado.id) formData.append('veiculo_id', String(window._logSinVeiculoSelecionado.id));
+        }
 
         // Orçamentos
         const filesOrc = window._logSinOrcFiles || [];
@@ -1862,3 +1889,149 @@ if (!window._sinExcluirOrc) {
         } catch (e) { alert('Erro ao excluir: ' + e.message); }
     };
 }
+
+// ============================================================
+// SOLICITAÇÃO DE MANUTENÇÃO DO VEÍCULO (Logística › Novo Sinistro)
+// ============================================================
+window._logSinManut = { ativo: false, item: '', outros: '', obs: '', rodando: '' };
+window._logSinManutRH = false;
+window._LOG_SIN_MANUT_ITENS = [
+    { grupo: 'Lataria e estética', itens: ['Funilaria (amassados)', 'Pintura', 'Para-choque dianteiro / traseiro', 'Capô / Porta / Paralama / Tampa traseira', 'Retrovisor', 'Faróis / Lanternas / Setas', 'Para-brisa / Vidros'] },
+    { grupo: 'Mecânica', itens: ['Suspensão / Direção', 'Alinhamento / Balanceamento', 'Pneus / Rodas', 'Freios', 'Radiador / Arrefecimento', 'Motor / Câmbio / Transmissão', 'Sistema elétrico / Bateria'] },
+    { grupo: 'Operacional', itens: ['Tanque', 'Bomba / Motor de sucção', 'Mangotes / Válvulas / Sistema hidráulico', 'Estrutura / Chassi'] },
+    { grupo: 'Outros', itens: ['Revisão geral pós-sinistro', 'Outros'] }
+];
+
+window._logSinManutItemTexto = function() {
+    var st = window._logSinManut;
+    return st.item === 'Outros' ? ('Outros: ' + (st.outros || '')) : st.item;
+};
+
+window._logSinManutReset = function() {
+    window._logSinManut = { ativo: false, item: '', outros: '', obs: '', rodando: '' };
+};
+
+window._logSinManutRender = function() {
+    var box = document.getElementById('log-sin-manut-box');
+    if (!box) return;
+    box.style.display = window._logSinManutRH ? 'none' : 'block';
+    var temVeic = !!window._logSinVeiculoSelecionado;
+    if (!temVeic && window._logSinManut.ativo) window._logSinManutReset();
+    var st = window._logSinManut;
+    var track = document.getElementById('log-sin-manut-track');
+    var knob = document.getElementById('log-sin-manut-knob');
+    var lbl = document.getElementById('log-sin-manut-label');
+    var resumo = document.getElementById('log-sin-manut-resumo');
+    var aviso = document.getElementById('log-sin-manut-aviso');
+    if (track) {
+        track.style.background = st.ativo ? '#d97706' : '#cbd5e1';
+        track.style.opacity = temVeic ? '1' : '0.5';
+        track.style.cursor = temVeic ? 'pointer' : 'not-allowed';
+    }
+    if (knob) knob.style.left = st.ativo ? '22px' : '2px';
+    if (lbl) {
+        lbl.textContent = st.ativo ? 'Necessita manutenção' : 'Não necessita manutenção';
+        lbl.style.color = st.ativo ? '#c2410c' : '#64748b';
+    }
+    if (aviso) aviso.style.display = temVeic ? 'none' : 'block';
+    if (resumo) {
+        if (st.ativo) {
+            var txt = String(window._logSinManutItemTexto()).replace(/</g, '&lt;');
+            var rod = st.rodando === 'nao' ? 'Veículo parado (ficará indisponível)' : 'Veículo rodando (manutenção agendada)';
+            resumo.style.display = 'block';
+            resumo.innerHTML = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#7c2d12;">'
+                + '<b>' + txt + '</b><br>' + rod
+                + ' <button type="button" onclick="window._logSinManutAbrirPopup()" style="margin-left:6px;background:none;border:none;color:#2563eb;cursor:pointer;font-weight:600;font-size:0.8rem;">Editar</button></div>';
+        } else {
+            resumo.style.display = 'none';
+            resumo.innerHTML = '';
+        }
+    }
+};
+
+window._logSinManutToggle = function() {
+    if (!window._logSinVeiculoSelecionado) {
+        alert('Para solicitar manutenção, selecione um veículo (placa) no Passo 1.');
+        return;
+    }
+    if (window._logSinManut.ativo) {
+        window._logSinManutReset();
+        window._logSinManutRender();
+        return;
+    }
+    window._logSinManutAbrirPopup();
+};
+
+window._logSinManutItemChange = function() {
+    var sel = document.querySelector('input[name="log-sin-manut-item"]:checked');
+    var wrap = document.getElementById('log-sin-manut-outros-wrap');
+    if (wrap) wrap.style.display = (sel && sel.value === 'Outros') ? 'block' : 'none';
+};
+
+window._logSinManutFecharPopup = function() {
+    var p = document.getElementById('log-sin-manut-popup');
+    if (p) p.remove();
+};
+
+window._logSinManutAbrirPopup = function() {
+    var v = window._logSinVeiculoSelecionado;
+    if (!v) return;
+    var st = window._logSinManut;
+    window._logSinManutFecharPopup();
+    var lista = '';
+    window._LOG_SIN_MANUT_ITENS.forEach(function(g) {
+        lista += '<p style="margin:10px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">' + g.grupo + '</p>';
+        lista += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+        g.itens.forEach(function(it) {
+            var chk = (st.item === it) ? ' checked' : '';
+            lista += '<label style="display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;cursor:pointer;background:#f8fafc;">'
+                + '<input type="radio" name="log-sin-manut-item" value="' + it + '"' + chk + ' onchange="window._logSinManutItemChange()"> ' + it + '</label>';
+        });
+        lista += '</div>';
+    });
+    var rodSim = (st.rodando === 'sim') ? ' checked' : '';
+    var rodNao = (st.rodando === 'nao') ? ' checked' : '';
+    var p = document.createElement('div');
+    p.id = 'log-sin-manut-popup';
+    p.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px;';
+    p.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
+        + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;">'
+        + '<div style="background:#d97706;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench" style="color:#fff;font-size:1.3rem;"></i></div>'
+        + '<div><div style="color:#fff;font-weight:700;">Qual manutenção é necessária?</div>'
+        + '<div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (v.placa || '') + ' — ' + String(v.marca_modelo_versao || '').substring(0, 40) + '</div></div></div>'
+        + '<div style="padding:18px 20px;">'
+        + '<p style="margin:0;font-size:0.8rem;color:#64748b;">Selecione apenas uma opção:</p>'
+        + lista
+        + '<div id="log-sin-manut-outros-wrap" style="display:' + (st.item === 'Outros' ? 'block' : 'none') + ';margin-top:10px;">'
+        + '<input type="text" id="log-sin-manut-outros" class="form-control" placeholder="Descreva a manutenção necessária..." value="' + String(st.outros || '').replace(/"/g, '&quot;') + '"></div>'
+        + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando?</p>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+        + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#f0fdf4;"><input type="radio" name="log-sin-manut-rodando" value="sim"' + rodSim + '> Sim, está rodando <small style="color:#64748b;">(agendar)</small></label>'
+        + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #fecaca;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fef2f2;"><input type="radio" name="log-sin-manut-rodando" value="nao"' + rodNao + '> Não, está parado <small style="color:#64748b;">(indisponível)</small></label>'
+        + '</div>'
+        + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Observação (opcional)</p>'
+        + '<textarea id="log-sin-manut-obs" class="form-control" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="Detalhes adicionais...">' + String(st.obs || '').replace(/</g, '&lt;') + '</textarea>'
+        + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">'
+        + '<button type="button" onclick="window._logSinManutFecharPopup()" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+        + '<button type="button" onclick="window._logSinManutConfirmar()" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
+        + '</div></div></div>';
+    document.body.appendChild(p);
+};
+
+window._logSinManutConfirmar = function() {
+    var selItem = document.querySelector('input[name="log-sin-manut-item"]:checked');
+    if (!selItem) return alert('Selecione qual manutenção é necessária.');
+    var outros = (document.getElementById('log-sin-manut-outros') || { value: '' }).value.trim();
+    if (selItem.value === 'Outros' && !outros) return alert('Descreva a manutenção no campo "Outros".');
+    var selRod = document.querySelector('input[name="log-sin-manut-rodando"]:checked');
+    if (!selRod) return alert('Informe se o veículo está rodando ou parado.');
+    window._logSinManut = {
+        ativo: true,
+        item: selItem.value,
+        outros: selItem.value === 'Outros' ? outros : '',
+        obs: (document.getElementById('log-sin-manut-obs') || { value: '' }).value.trim(),
+        rodando: selRod.value
+    };
+    window._logSinManutFecharPopup();
+    window._logSinManutRender();
+};

@@ -250,6 +250,7 @@ window.rhSinAbrirModalNovo = function() {
         if (_rhSinListaColabs.length > 0 && typeof window._logSinListaColabs !== 'undefined') {
             window._logSinListaColabs = _rhSinListaColabs;
         }
+        window._logSinOrigemRH = true;
         window.logSinAbrirModalNovo();
         var _origSalvar = window.logSinSalvarFinal;
         window.logSinSalvarFinal = async function() {
