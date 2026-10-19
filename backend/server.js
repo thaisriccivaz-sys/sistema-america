@@ -23881,15 +23881,16 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 if (idsEx.includes(pid)) {
                     const qtd = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
                     const vu = _fmNumero(p.valor_unit);
-                    const vt = Math.round(qtd * vu * 100) / 100;
+                    let vt = _fmNumero(p.valor_total);
+                    if (!vt) vt = Math.round(qtd * vu * 100) / 100;
                     const g = _fmGarantia(p.garantia_valor, p.garantia_unidade);
                     let sid = parseInt(p.servico_id) || null;
                     if (sid) {
                         const sv = await _fmGet("SELECT id FROM frota_manutencao_servicos WHERE id = ? AND manutencao_id = ? AND tipo = 'realizado'", [sid, id]);
                         if (!sv) sid = null;
                     }
-                    await _fmRun('UPDATE frota_manutencao_pecas SET servico_id = ?, descricao = ?, quantidade = ?, valor_unit = ?, valor_total = ?, garantia_valor = ?, garantia_unidade = ? WHERE id = ? AND manutencao_id = ?',
-                        [sid, String(p.descricao).trim().substring(0, 300), qtd, vu, vt, g.v, g.u, pid, id]);
+                    await _fmRun('UPDATE frota_manutencao_pecas SET servico_id = ?, descricao = ?, unidade = ?, quantidade = ?, valor_unit = ?, valor_total = ?, garantia_valor = ?, garantia_unidade = ? WHERE id = ? AND manutencao_id = ?',
+                        [sid, String(p.descricao).trim().substring(0, 300), String(p.unidade || '').trim() || null, qtd, vu, vt, g.v, g.u, pid, id]);
                 } else {
                     await _fmInserirPecas(id, null, [p]);
                 }
