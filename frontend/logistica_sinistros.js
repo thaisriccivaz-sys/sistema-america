@@ -1116,7 +1116,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         Edição disponível apenas antes das assinaturas do colaborador e da testemunha.
                     </div>
 
-                    <div id="edit-sin-msg" style="display:none; margin-bottom:0.5rem;"></div>
+                    <div id="edit-sin-bo-msg" style="display:none; margin-bottom:0.5rem;"></div>
 
                     <!-- BO Upload -->
                     <div class="input-group" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
@@ -1341,6 +1341,9 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                             <i class="ph ph-floppy-disk"></i> Salvar Alterações
                         </button>
                     </div>
+
+                    <!-- Mensagem de confirmação embaixo do botão Salvar Alterações -->
+                    <div id="edit-sin-msg" style="display:none; margin-top:0.6rem; text-align:center;"></div>
                 </div>
             </div>
         </div>
@@ -1390,7 +1393,7 @@ window.logSinEditProcessarLeituraBO = async function(btn) {
 
         window._logSinEditBOFile = fileInput.files[0];
 
-        const notif = document.getElementById('edit-sin-msg');
+        const notif = document.getElementById('edit-sin-bo-msg') || document.getElementById('edit-sin-msg');
         if (notif) {
             notif.innerHTML = '<i class="ph ph-check-circle"></i> Leitura concluída! O PDF também será salvo ao enviar.';
             notif.style.cssText = 'display:block; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; background:#d1fae5; border:1px solid #6ee7b7; color:#065f46; margin-bottom:10px;';
@@ -1627,12 +1630,14 @@ window.logSinSalvarEdicao = async function() {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
 
     function showMsg(txt, ok) {
+        if (!msgEl) msgEl = document.getElementById('edit-sin-msg');
         if (!msgEl) return;
         msgEl.style.display = 'block';
-        msgEl.style.cssText = 'display:block; padding:0.6rem 0.85rem; border-radius:8px; font-size:0.82rem; ' +
+        msgEl.style.cssText = 'display:block; padding:0.65rem 0.9rem; border-radius:8px; font-size:0.85rem; font-weight:600; margin-top:0.6rem; text-align:center; ' +
             (ok ? 'background:#d1fae5; border:1px solid #6ee7b7; color:#065f46;'
                 : 'background:#fee2e2; border:1px solid #fca5a5; color:#991b1b;');
-        msgEl.innerHTML = (ok ? '<i class="ph ph-check-circle"></i> ' : '<i class="ph ph-warning"></i> ') + txt;
+        msgEl.innerHTML = (ok ? '<i class="ph ph-check-circle" style="font-size:1.1rem;vertical-align:middle;margin-right:4px;"></i> ' : '<i class="ph ph-warning" style="font-size:1.1rem;vertical-align:middle;margin-right:4px;"></i> ') + txt;
+        try { msgEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(_) {}
     }
 
     try {
@@ -1719,6 +1724,15 @@ window.logSinSalvarEdicao = async function() {
         }
 
         showMsg('Sinistro atualizado com sucesso!', true);
+        if (typeof Toastify === 'function') {
+            Toastify({
+                text: '✅ Sinistro atualizado com sucesso!',
+                backgroundColor: '#059669',
+                duration: 4000,
+                gravity: 'top',
+                position: 'right'
+            }).showToast();
+        }
 
         // Toast especial quando liberado para o RH
         var _novaSituacaoEl = document.getElementById('edit-sin-situacao');
