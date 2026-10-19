@@ -3579,6 +3579,8 @@ function abrirLegenda() {
             p.dias.forEach(function(dia) { datasPonto[_ano + '-' + mm + '-' + _pad2(dia)] = true; });
             var datasPront = mapPront[String(p.id)] || {};
             var todas = Object.keys(datasPonto).concat(Object.keys(datasPront).filter(function(d) { return !datasPonto[d]; })).sort();
+            var nomeCompleto = String(p.nome || '').trim();
+            var nomeExib = nomeCompleto.length > 20 ? (nomeCompleto.substring(0, 20).trim() + '...') : nomeCompleto;
             todas.forEach(function(d, i) {
                 var noPonto = !!datasPonto[d], noPront = !!datasPront[d];
                 var dt = new Date(d + 'T12:00:00');
@@ -3591,7 +3593,7 @@ function abrirLegenda() {
                     tot.ponto++; tot.faltam++;
                 } else { status = '<span style="color:#475569;">ℹ️ Só no prontuário (ponto sem falta)</span>'; tot.soPront++; }
                 linhasHtml += '<tr style="border-top:' + (i === 0 ? '2px solid #e2e8f0' : '1px solid #f1f5f9') + ';">'
-                    + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;">' + (i === 0 ? _escF(p.nome) : '') + '</td>'
+                    + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;" title="' + _escF(nomeCompleto) + '">' + (i === 0 ? _escF(nomeExib) : '') + '</td>'
                     + '<td style="padding:6px 8px;white-space:nowrap;">' + dtTxt + '</td>'
                     + '<td style="padding:6px 8px;text-align:center;">' + (noPonto ? '✔' : '—') + '</td>'
                     + '<td style="padding:6px 8px;text-align:center;">' + (noPront ? '✔' : '—') + '</td>'
@@ -3614,7 +3616,7 @@ function abrirLegenda() {
             + '<thead style="position:sticky;top:0;background:#f8fafc;"><tr>'
             + '<th style="padding:8px;">Colaborador</th><th style="padding:8px;">Data</th><th style="padding:8px;text-align:center;">Ponto</th>'
             + '<th style="padding:8px;text-align:center;">Prontuário</th><th style="padding:8px;">Situação</th>'
-            + '<th style="padding:8px;text-align:center;">' + (tot.faltam ? '<input type="checkbox" id="fech-falta-chk-todas" checked title="Marcar/desmarcar todas">' : '') + '</th>'
+            + '<th style="padding:8px;text-align:center;font-size:11px;" title="Marcar as faltas que deseja incluir no prontuário">Incluir?<br>' + (tot.faltam ? '<input type="checkbox" id="fech-falta-chk-todas" checked title="Marcar/desmarcar todas">' : '') + '</th>'
             + '</tr></thead><tbody>' + linhasHtml + '</tbody></table></div>';
         var perguntaHtml = tot.faltam
             ? '<p style="margin:12px 0 0;font-size:14px;color:#0f172a;"><b>Deseja incluir no prontuário as ' + tot.faltam + ' falta(s) que ainda não estão registradas?</b><br><span style="font-size:12px;color:#64748b;">Desmarque as que não deseja incluir.</span></p>'
