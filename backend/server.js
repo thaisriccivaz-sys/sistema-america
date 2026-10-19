@@ -23599,7 +23599,7 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     const params = [];
     if (status) { sql += ' AND fm.status = ?'; params.push(status); }
     if (veiculo_id) { sql += ' AND fm.veiculo_id = ?'; params.push(veiculo_id); }
-    sql += ' ORDER BY CASE fm.status WHEN \'em_andamento\' THEN 1 WHEN \'agendada\' THEN 2 WHEN \'concluida\' THEN 3 ELSE 4 END, fm.created_at DESC';
+    sql += ' ORDER BY CASE fm.status WHEN \'em_andamento\' THEN 1 WHEN \'aguardando\' THEN 2 WHEN \'agendada\' THEN 3 WHEN \'concluida\' THEN 4 ELSE 5 END, fm.created_at DESC';
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
@@ -23609,7 +23609,7 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
 // PUT - atualizar status de manutenção corretiva (iniciar / concluir / cancelar)
 app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
     const { status, km_na_manutencao, custo, fornecedor, observacoes } = req.body;
-    const statusValidos = ['agendada', 'em_andamento', 'concluida', 'cancelada'];
+    const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
     if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
 
     const now = new Date().toISOString().split('T')[0];
@@ -23620,12 +23620,14 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
         fields.push('data_inicio=?'); params.push(now);
     }
     if (status === 'concluida') {
-        fields.push('data_conclusao=?'); params.push(now);
-        if (km_na_manutencao) { fields.push('km_na_manutencao=?'); params.push(km_na_manutencao); }
-        if (custo != null) { fields.push('custo=?'); params.push(custo); }
-        if (fornecedor) { fields.push('fornecedor=?'); params.push(fornecedor); }
-        if (observacoes) { fields.push('observacoes=?'); params.push(observacoes); }
+        fields.push('data_conclusao=COALESCE(data_conclusao,?)'); params.push(now);
+    } else if (status !== 'cancelada') {
+        fields.push('data_conclusao=NULL');
     }
+    if (km_na_manutencao) { fields.push('km_na_manutencao=?'); params.push(km_na_manutencao); }
+    if (custo != null && custo !== '') { fields.push('custo=?'); params.push(custo); }
+    if (fornecedor) { fields.push('fornecedor=?'); params.push(fornecedor); }
+    if (observacoes) { fields.push('observacoes=?'); params.push(observacoes); }
     params.push(req.params.id);
 
     db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
@@ -23637,7 +23639,7 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
                 (e2, row) => {
                     if (!row) return res.json({ ok: true });
                     db.get(
-                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veiculo_id=? AND status IN ('agendada','em_andamento')`,
+                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veiculo_id=? AND status IN ('agendada','em_andamento','aguardando')`,
                         [row.veiculo_id], (e3, cnt) => {
                             if ((cnt?.n || 0) === 0) {
                                 db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);

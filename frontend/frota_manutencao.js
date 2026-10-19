@@ -777,9 +777,10 @@ function mnRenderCorretivaTela(sub) {
             </select>
             <select id="mn-corr-status" onchange="window.mnCarregarCorretivas()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;outline:none;background:#fff;">
                 <option value="">Todos Status</option>
-                <option value="agendada">Agendada</option>
+                <option value="agendada">Novo</option>
                 <option value="em_andamento">Em Andamento</option>
-                <option value="concluida">Concluída</option>
+                <option value="aguardando">Aguardando</option>
+                <option value="concluida">Concluído</option>
                 <option value="cancelada">Cancelada</option>
             </select>
             <button onclick="window.mnCarregarCorretivas()" style="padding:6px 12px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.8rem;cursor:pointer;display:flex;align-items:center;gap:4px;">
@@ -841,7 +842,8 @@ function _mnRenderCorretivaDados(lista) {
         const maxDias     = lista.filter(m => m.status === 'em_andamento').reduce((mx, m) => Math.max(mx, m.dias_parado || 0), 0);
         cardsEl.innerHTML = [
             { cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Andamento',         val: emAndamento },
-            { cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Agendadas',             val: agendadas },
+            { cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',                 val: agendadas },
+            { cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',            val: lista.filter(m => m.status === 'aguardando').length },
             { cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',   val: concluidasMes },
             { cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-clock',         label: 'Máx. dias parado',      val: maxDias + ' dia' + (maxDias !== 1 ? 's' : '') },
         ].map(c => `
@@ -859,8 +861,8 @@ function _mnRenderCorretivaDados(lista) {
     const count = document.getElementById('mn-corr-count');
     if (count) count.textContent = lista.length + ' registro' + (lista.length !== 1 ? 's' : '');
 
-    const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', concluida:'#10b981', cancelada:'#94a3b8' };
-    const statusLbl = { agendada:'Agendada', em_andamento:'Em Andamento', concluida:'Concluída', cancelada:'Cancelada' };
+    const statusCor = { agendada:'#d97706', em_andamento:'#dc2626', aguardando:'#2563eb', concluida:'#10b981', cancelada:'#94a3b8' };
+    const statusLbl = { agendada:'Novo', em_andamento:'Em Andamento', aguardando:'Aguardando', concluida:'Concluído', cancelada:'Cancelada' };
     const fmtD = d => {
         if (!d) return '<span style="color:#94a3b8;">—</span>';
         const p = d.split('T')[0].split('-');
@@ -883,16 +885,13 @@ function _mnRenderCorretivaDados(lista) {
         const dias = m.dias_parado || 0;
         const diasCor = dias >= 7 ? '#dc2626' : dias >= 3 ? '#d97706' : '#10b981';
         const diasBadge = sKey === 'agendada'
-            ? '<span style="color:#d97706;font-size:0.8rem;font-weight:700;">Agendada</span>'
+            ? '<span style="color:#d97706;font-size:0.8rem;font-weight:700;">Novo</span>'
             : `<span style="background:${diasCor}18;color:${diasCor};padding:2px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;">${dias} dia${dias !== 1 ? 's' : ''}</span>`;
 
         let acoes = '';
-        if (sKey === 'agendada') {
-            acoes += `<button onclick="window.mnCorrAcaoInterno(${m.id},'em_andamento')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-play"></i> Iniciar</button>`;
-            acoes += ` <button onclick="window.mnCorrAcaoInterno(${m.id},'cancelada')" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-x"></i></button>`;
-        } else if (sKey === 'em_andamento') {
-            acoes += `<button onclick="window.mnCorrConcluirInterno(${m.id})" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check"></i> Concluir</button>`;
-            acoes += ` <button onclick="window.mnCorrAcaoInterno(${m.id},'cancelada')" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-x"></i></button>`;
+        acoes += '<button onclick="window.mnCorrEditarInterno(' + m.id + ')" style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-pencil-simple"></i> Editar</button>';
+        if (sKey !== 'concluida' && sKey !== 'cancelada') {
+            acoes += ' <button title="Cancelar manutenção" onclick="window.mnCorrCancelarInterno(' + m.id + ')" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;"><i class="ph ph-x"></i></button>';
         }
 
         return `<tr style="background:${bgRow};border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#fefce8'" onmouseout="this.style.background='${bgRow}'">
@@ -974,6 +973,77 @@ window._mnCorrSalvarConclInterno = async function(id) {
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção concluída!');
         window.mnCarregarCorretivas();
     } catch(e) { if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); }
+};
+
+window.mnCorrCancelarInterno = function(id) {
+    window.mnCorrAcaoInterno(id, 'cancelada');
+};
+
+window.mnCorrEditarInterno = function(id) {
+    var m = (window._mnCorrDados || []).find(function(x) { return x.id == id; });
+    if (!m) return;
+    var esc = function(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); };
+    var sAtual = m.status || 'agendada';
+    var opts = [['agendada', 'Novo'], ['em_andamento', 'Em andamento'], ['aguardando', 'Aguardando'], ['concluida', 'Concluído']];
+    if (sAtual === 'cancelada') opts.push(['cancelada', 'Cancelada']);
+    var optsHtml = opts.map(function(o) {
+        return '<option value="' + o[0] + '"' + (o[0] === sAtual ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+    var lblCss = 'font-size:0.8rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;';
+    var inpCss = 'width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;font-family:inherit;';
+    var modal = document.getElementById('mn-corr-edit-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'mn-corr-edit-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    modal.innerHTML = '<div style="background:#fff;border-radius:14px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,0.2);">'
+        + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:10px;">'
+        + '<i class="ph ph-pencil-simple" style="color:#fff;font-size:1.3rem;"></i>'
+        + '<div><div style="color:#fff;font-weight:700;font-size:1rem;">Editar Manutenção</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + esc(m.placa || '') + '</div></div>'
+        + '<button type="button" id="mn-corre-fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+        + '</div>'
+        + '<div style="padding:20px;">'
+        + '<div style="margin-bottom:12px;"><label style="' + lblCss + '">Defeito / Problema</label><div style="font-size:0.85rem;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;">' + esc(m.descricao || '—') + '</div></div>'
+        + '<div style="margin-bottom:12px;"><label style="' + lblCss + '">Status *</label><select id="mn-corre-status" style="' + inpCss + 'background:#fff;">' + optsHtml + '</select></div>'
+        + '<div style="margin-bottom:12px;"><label style="' + lblCss + '">KM na Manutenção</label><input type="number" id="mn-corre-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inpCss + '"></div>'
+        + '<div style="margin-bottom:12px;"><label style="' + lblCss + '">Custo (R$)</label><input type="number" step="0.01" id="mn-corre-custo" placeholder="Ex: 350.00" value="' + esc(m.custo || '') + '" style="' + inpCss + '"></div>'
+        + '<div style="margin-bottom:12px;"><label style="' + lblCss + '">Fornecedor</label><input type="text" id="mn-corre-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inpCss + '"></div>'
+        + '<div style="margin-bottom:18px;"><label style="' + lblCss + '">Observações</label><textarea id="mn-corre-obs" rows="3" placeholder="O que foi feito / situação atual..." style="' + inpCss + 'resize:vertical;">' + esc(m.observacoes || '') + '</textarea></div>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+        + '<button type="button" id="mn-corre-cancelar" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+        + '<button type="button" id="mn-corre-salvar" style="padding:9px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>'
+        + '</div></div></div>';
+    document.body.appendChild(modal);
+    var fechar = function() { var el = document.getElementById('mn-corr-edit-modal'); if (el) el.remove(); };
+    document.getElementById('mn-corre-fechar').onclick = fechar;
+    document.getElementById('mn-corre-cancelar').onclick = fechar;
+    document.getElementById('mn-corre-salvar').onclick = function() { window.mnCorrSalvarEdicaoInterno(id); };
+    modal.addEventListener('click', function(e) { if (e.target === modal) fechar(); });
+};
+
+window.mnCorrSalvarEdicaoInterno = async function(id) {
+    var tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    var status = document.getElementById('mn-corre-status').value;
+    var km = document.getElementById('mn-corre-km').value;
+    var custo = document.getElementById('mn-corre-custo').value;
+    var forn = document.getElementById('mn-corre-forn').value.trim();
+    var obs = document.getElementById('mn-corre-obs').value.trim();
+    var btn = document.getElementById('mn-corre-salvar');
+    if (btn) btn.disabled = true;
+    try {
+        var r = await fetch('/api/frota/manutencoes/' + id + '/status', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ status: status, km_na_manutencao: km || null, custo: custo || null, fornecedor: forn || null, observacoes: obs || null })
+        });
+        if (!r.ok) { var er = await r.json().catch(function() { return {}; }); throw new Error(er.error || 'Erro ao salvar'); }
+        var el = document.getElementById('mn-corr-edit-modal'); if (el) el.remove();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção atualizada!');
+        window.mnCarregarCorretivas();
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); else alert(e.message);
+    }
 };
 
 async function mnCarregarPreventivo(vid, tok) {
