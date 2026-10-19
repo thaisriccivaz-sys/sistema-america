@@ -23611,85 +23611,72 @@ app.get('/api/frota/manutencoes/corretivas', authenticateToken, (req, res) => {
     });
 });
 
-// PUT - atualizar status de manutenção corretiva (iniciar / concluir / cancelar)
-app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
-    const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes } = req.body;
-    const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
-    if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+// PUT - atualiza a manutencao corretiva (situacao, veiculo, defeito, datas, KM, fornecedor...) e registra a mudanca de situacao no historico
+app.put('/api/frota/manutencoes/:id/status', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { status, km_na_manutencao, km_final_manutencao, custo, fornecedor, observacoes, veiculo_id, descricao, data_inicio, data_conclusao } = req.body;
+        const statusValidos = ['agendada', 'em_andamento', 'aguardando', 'concluida', 'cancelada'];
+        if (!statusValidos.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+        const prev = await _fmGet('SELECT status, veiculo_id, data_inicio FROM frota_manutencoes WHERE id = ?', [id]);
+        if (!prev) return res.status(404).json({ error: 'Manutenção não encontrada' });
 
-    const now = new Date().toISOString().split('T')[0];
-    let fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
-    const params = [status];
+        const now = new Date().toISOString().split('T')[0];
+        const fields = ['status=?', 'updated_at=CURRENT_TIMESTAMP'];
+        const params = [status];
 
-    if (status === 'em_andamento' && !req.body.data_inicio) {
-        fields.push('data_inicio=?'); params.push(now);
-    }
-    if (status === 'concluida') {
-        fields.push('data_conclusao=COALESCE(data_conclusao,?)'); params.push(now);
-    } else if (status !== 'cancelada') {
-        fields.push('data_conclusao=NULL');
-    }
-    if (km_na_manutencao !== undefined) {
-        const kmVal = (km_na_manutencao !== null && km_na_manutencao !== '' && !isNaN(parseInt(km_na_manutencao))) ? parseInt(km_na_manutencao) : null;
-        fields.push('km_na_manutencao=?');
-        params.push(kmVal);
-    }
-    if (km_final_manutencao !== undefined) {
-        const kmFinalVal = (km_final_manutencao !== null && km_final_manutencao !== '' && !isNaN(parseInt(km_final_manutencao))) ? parseInt(km_final_manutencao) : null;
-        fields.push('km_final_manutencao=?');
-        params.push(kmFinalVal);
-    }
-    if (custo !== undefined) {
-        const custoVal = (custo !== null && custo !== '' && !isNaN(parseFloat(custo))) ? parseFloat(custo) : null;
-        fields.push('custo=?');
-        params.push(custoVal);
-    }
-    if (fornecedor !== undefined) {
-        const fornVal = typeof fornecedor === 'string' ? fornecedor.trim() : fornecedor;
-        fields.push('fornecedor=?');
-        params.push(fornVal || null);
-    }
-    if (observacoes !== undefined) {
-        const obsVal = typeof observacoes === 'string' ? observacoes.trim() : observacoes;
-        fields.push('observacoes=?');
-        params.push(obsVal || null);
-    }
-    params.push(req.params.id);
-
-    db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        // Se concluída ou cancelada, verificar se o veiculo ainda tem manutenções ativas
-        if (status === 'concluida' || status === 'cancelada') {
-            db.get(
-                `SELECT fm.veiculo_id, fm.km_final_manutencao, fm.km_na_manutencao FROM frota_manutencoes fm WHERE fm.id=?`, [req.params.id],
-                (e2, row) => {
-                    if (!row) return res.json({ ok: true });
-                    db.get(
-                        `SELECT COUNT(*) as n FROM frota_manutencoes WHERE veiculo_id=? AND status IN ('agendada','em_andamento','aguardando')`,
-                        [row.veiculo_id], (e3, cnt) => {
-                            if ((cnt?.n || 0) === 0) {
-                                db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
-                            }
-                            if (status === 'concluida') {
-                                const kmF = row.km_final_manutencao || row.km_na_manutencao;
-                                if (kmF && kmF > 0) {
-                                    db.run('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, row.veiculo_id]);
-                                }
-                            }
-                            res.json({ ok: true });
-                        }
-                    );
-                }
-            );
-        } else {
-            if (status === 'em_andamento') {
-                db.get('SELECT veiculo_id FROM frota_manutencoes WHERE id=?', [req.params.id], (e2, row) => {
-                    if (row) db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.veiculo_id]);
-                });
-            }
-            res.json({ ok: true });
+        if (data_inicio !== undefined) { fields.push('data_inicio=?'); params.push(data_inicio || null); }
+        else if (status === 'em_andamento' && !prev.data_inicio) { fields.push('data_inicio=?'); params.push(now); }
+        if (status === 'concluida') {
+            if (data_conclusao) { fields.push('data_conclusao=?'); params.push(data_conclusao); }
+            else { fields.push('data_conclusao=COALESCE(data_conclusao,?)'); params.push(now); }
+        } else if (status !== 'cancelada') {
+            fields.push('data_conclusao=NULL');
         }
-    });
+        const novoVeic = veiculo_id ? parseInt(veiculo_id) : null;
+        if (novoVeic) { fields.push('veiculo_id=?'); params.push(novoVeic); }
+        if (descricao !== undefined && String(descricao).trim()) { fields.push('descricao=?'); params.push(String(descricao).trim()); }
+        if (km_na_manutencao !== undefined) {
+            const kmVal = (km_na_manutencao !== null && km_na_manutencao !== '' && !isNaN(parseInt(km_na_manutencao))) ? parseInt(km_na_manutencao) : null;
+            fields.push('km_na_manutencao=?'); params.push(kmVal);
+        }
+        if (km_final_manutencao !== undefined) {
+            const kmFinalVal = (km_final_manutencao !== null && km_final_manutencao !== '' && !isNaN(parseInt(km_final_manutencao))) ? parseInt(km_final_manutencao) : null;
+            fields.push('km_final_manutencao=?'); params.push(kmFinalVal);
+        }
+        if (custo !== undefined) {
+            const custoVal = (custo !== null && custo !== '' && !isNaN(parseFloat(custo))) ? parseFloat(custo) : null;
+            fields.push('custo=?'); params.push(custoVal);
+        }
+        if (fornecedor !== undefined) {
+            const fornVal = typeof fornecedor === 'string' ? fornecedor.trim() : fornecedor;
+            fields.push('fornecedor=?'); params.push(fornVal || null);
+        }
+        if (observacoes !== undefined) {
+            const obsVal = typeof observacoes === 'string' ? observacoes.trim() : observacoes;
+            fields.push('observacoes=?'); params.push(obsVal || null);
+        }
+        params.push(id);
+        await _fmRun('UPDATE frota_manutencoes SET ' + fields.join(',') + ' WHERE id=?', params);
+
+        // historico: quem mudou a situacao e quando
+        if (prev.status !== status) await _fmHist(id, 'status', null, _fmUsuario(req), prev.status, status);
+
+        // marca "em manutencao" dos veiculos
+        const vidAtual = novoVeic || prev.veiculo_id;
+        if (novoVeic && novoVeic !== prev.veiculo_id) await _fmAtualizaEmManutencao(prev.veiculo_id);
+        if (status === 'concluida' || status === 'cancelada') {
+            await _fmAtualizaEmManutencao(vidAtual);
+            if (status === 'concluida') {
+                const row = await _fmGet('SELECT km_final_manutencao, km_na_manutencao FROM frota_manutencoes WHERE id = ?', [id]);
+                const kmF = row ? (row.km_final_manutencao || row.km_na_manutencao) : null;
+                if (kmF && kmF > 0) await _fmRun('UPDATE frota_veiculos SET km_atual = MAX(COALESCE(km_atual, 0), ?), updated_at=CURRENT_TIMESTAMP WHERE id=?', [kmF, vidAtual]);
+            }
+        } else if (status === 'em_andamento') {
+            await _fmRun('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [vidAtual]);
+        }
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 
@@ -23716,18 +23703,92 @@ async function _fmSyncSolicitados(manutencaoId, texto) {
     }
 }
 
+// Usuario logado (para historico e notas)
+function _fmUsuario(req) { return req && req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema'; }
+
+// Historico da manutencao (comentarios, mudancas de situacao e eventos). Nunca e apagado.
+async function _fmHist(manId, tipo, texto, usuario, de, para) {
+    await _fmRun('INSERT INTO frota_manutencao_historico (manutencao_id, tipo, texto, status_de, status_para, usuario_nome) VALUES (?,?,?,?,?,?)',
+        [manId, tipo, texto || null, de || null, para || null, usuario || null]);
+}
+async function _fmHistLista(manId) {
+    return _fmAll('SELECT * FROM frota_manutencao_historico WHERE manutencao_id = ? ORDER BY created_at DESC, id DESC', [manId]);
+}
+// Historico de manutencoes antigas: registra a criacao e a observacao que ja existia como 1o comentario
+async function _fmHistGarantir(m) {
+    const qtd = await _fmGet('SELECT COUNT(*) AS n FROM frota_manutencao_historico WHERE manutencao_id = ?', [m.id]);
+    if (qtd && qtd.n > 0) return;
+    await _fmRun('INSERT INTO frota_manutencao_historico (manutencao_id, tipo, texto, usuario_nome, created_at) VALUES (?,?,?,?,COALESCE(?, CURRENT_TIMESTAMP))',
+        [m.id, 'evento', 'Manutenção registrada', m.usuario_nome || null, m.created_at || null]);
+    if (m.observacoes && String(m.observacoes).trim()) {
+        await _fmRun('INSERT INTO frota_manutencao_historico (manutencao_id, tipo, texto, usuario_nome, created_at) VALUES (?,?,?,?,COALESCE(?, CURRENT_TIMESTAMP))',
+            [m.id, 'comentario', String(m.observacoes).trim(), m.usuario_nome || null, m.updated_at || m.created_at || null]);
+    }
+}
+
+// Linhas de mao de obra (notas de servico) e seus vinculos com os servicos realizados
+async function _fmMoLinhas(id) {
+    const linhas = await _fmAll('SELECT * FROM frota_manutencao_mo WHERE manutencao_id = ? ORDER BY id', [id]);
+    for (const l of linhas) {
+        const rows = await _fmAll('SELECT servico_id, valor FROM frota_manutencao_mo_servicos WHERE mo_id = ? ORDER BY id', [l.id]);
+        l.servicos = rows.map(r => r.servico_id);
+        l.alocacoes = rows;
+    }
+    return linhas;
+}
+async function _fmRealizadosComMo(id) {
+    const rs = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
+    const aloc = await _fmAll('SELECT ms.servico_id, COALESCE(SUM(ms.valor), 0) AS t FROM frota_manutencao_mo_servicos ms JOIN frota_manutencao_mo mo ON mo.id = ms.mo_id WHERE mo.manutencao_id = ? GROUP BY ms.servico_id', [id]);
+    rs.forEach(r => { const a = aloc.find(x => x.servico_id === r.id); r.mo_alocado = a ? Math.round(a.t * 100) / 100 : 0; });
+    return rs;
+}
+// Divide o valor de cada linha de mao de obra, em partes iguais, entre os servicos vinculados
+// (ou entre TODOS os servicos realizados quando a linha esta marcada para ratear)
+async function _fmRecalcMo(manId) {
+    const servs = await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [manId]);
+    const ids = servs.map(x => x.id);
+    const linhas = await _fmAll('SELECT id, valor, ratear FROM frota_manutencao_mo WHERE manutencao_id = ?', [manId]);
+    for (const l of linhas) {
+        let alvo;
+        if (l.ratear) alvo = ids;
+        else {
+            const rows = await _fmAll('SELECT servico_id FROM frota_manutencao_mo_servicos WHERE mo_id = ? ORDER BY id', [l.id]);
+            alvo = rows.map(r => r.servico_id).filter(sid => ids.includes(sid));
+        }
+        await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id = ?', [l.id]);
+        if (!alvo.length) continue;
+        const cents = Math.round((l.valor || 0) * 100);
+        const base = Math.floor(cents / alvo.length);
+        let resto = cents - base * alvo.length;
+        for (const sid of alvo) {
+            const c = base + (resto > 0 ? 1 : 0);
+            if (resto > 0) resto--;
+            await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,?)', [l.id, sid, c / 100]);
+        }
+    }
+}
+
 // Recalcula R$ pecas, R$ mao de obra e o total (custo) da manutencao
 async function _fmRecalcTotais(manutencaoId) {
+    await _fmRecalcMo(manutencaoId);
     const mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
+    const mol = await _fmGet('SELECT COALESCE(SUM(valor), 0) AS t, COUNT(*) AS n FROM frota_manutencao_mo WHERE manutencao_id = ?', [manutencaoId]);
     const pc = await _fmGet('SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS n FROM frota_manutencao_pecas WHERE manutencao_id = ?', [manutencaoId]);
-    const totMo = Math.round((mo.t || 0) * 100) / 100;
+    const totMo = Math.round(((mo.t || 0) + (mol.t || 0)) * 100) / 100;
     const totPc = Math.round((pc.t || 0) * 100) / 100;
-    if ((mo.n || 0) + (pc.n || 0) > 0) {
+    if ((mo.n || 0) + (mol.n || 0) + (pc.n || 0) > 0) {
         await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = ?, custo_pecas = ?, custo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [totMo, totPc, Math.round((totMo + totPc) * 100) / 100, manutencaoId]);
     } else {
         await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = NULL, custo_pecas = NULL WHERE id = ?', [manutencaoId]);
     }
     return { custo_mao_obra: totMo, custo_pecas: totPc, custo: Math.round((totMo + totPc) * 100) / 100 };
+}
+
+// Se o veiculo nao tem mais manutencao ativa, tira a marca "em manutencao"
+async function _fmAtualizaEmManutencao(veiculoId) {
+    if (!veiculoId) return;
+    const cnt = await _fmGet("SELECT COUNT(*) AS n FROM frota_manutencoes WHERE veiculo_id = ? AND status IN ('agendada','em_andamento','aguardando')", [veiculoId]);
+    if (!cnt || !cnt.n) await _fmRun('UPDATE frota_veiculos SET em_manutencao = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [veiculoId]);
 }
 
 // Catalogo unico de manutencao (22 categorias) - ver backend/utils/catalogoManutencao.js
@@ -23760,14 +23821,17 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 servicos = await _fmAll('SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? ORDER BY id', [id]);
             }
         }
+        await _fmHistGarantir(m);
         const pecas = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
-        const notas = await _fmAll('SELECT id, manutencao_id, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id', [id]);
+        const notas = await _fmAll("SELECT id, manutencao_id, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, COALESCE(tipo, 'pecas') AS tipo, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id", [id]);
         res.json({
             manutencao: m,
             solicitados: servicos.filter(s => s.tipo === 'solicitado'),
-            realizados: servicos.filter(s => s.tipo === 'realizado'),
+            realizados: await _fmRealizadosComMo(id),
             pecas: pecas,
-            notas: notas
+            notas: notas,
+            mo: await _fmMoLinhas(id),
+            historico: await _fmHistLista(id)
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -23794,7 +23858,7 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 if (texto) {
                     const sOrig = await _fmGet('SELECT manutencao_obs FROM sinistros WHERE id = ?', [m.sinistro_id]);
                     const desc = 'Sinistro #' + m.sinistro_id + ' - ' + texto + (sOrig && sOrig.manutencao_obs ? ': ' + sOrig.manutencao_obs : '');
-                    await _fmRun('UPDATE frota_manutencoes SET descricao = ? WHERE id = ?', [desc, id]);
+                    await _fmRun("UPDATE frota_manutencoes SET descricao = ? WHERE id = ? AND (descricao IS NULL OR descricao LIKE ?)", [desc, id, 'Sinistro #' + m.sinistro_id + ' - %']);
                 }
             }
         }
@@ -23859,10 +23923,44 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             }
         }
 
+        // Linhas de mao de obra (valor, vinculo com servicos ou rateio igual entre todos)
+        if (Array.isArray(body.mo)) {
+            const existentes = await _fmAll('SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ?', [id]);
+            const idsEx = existentes.map(r => r.id);
+            const listaMo = body.mo.filter(l => l && String(l.descricao || '').trim());
+            const mantidosMo = listaMo.map(l => parseInt(l.id)).filter(n => idsEx.includes(n));
+            for (const eid of idsEx) {
+                if (!mantidosMo.includes(eid)) {
+                    await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id = ?', [eid]);
+                    await _fmRun('DELETE FROM frota_manutencao_mo WHERE id = ?', [eid]);
+                }
+            }
+            const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id])).map(r => r.id);
+            for (const l of listaMo) {
+                const valorMo = num(l.valor);
+                const ratear = l.ratear ? 1 : 0;
+                const descMo = String(l.descricao).trim().substring(0, 300);
+                let lid = parseInt(l.id);
+                if (idsEx.includes(lid)) {
+                    await _fmRun('UPDATE frota_manutencao_mo SET descricao = ?, valor = ?, ratear = ? WHERE id = ? AND manutencao_id = ?', [descMo, valorMo, ratear, lid, id]);
+                } else {
+                    const ins = await _fmRun('INSERT INTO frota_manutencao_mo (manutencao_id, nota_id, descricao, valor, ratear) VALUES (?,?,?,?,?)', [id, null, descMo, valorMo, ratear]);
+                    lid = ins.lastID;
+                }
+                await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id = ?', [lid]);
+                if (!ratear) {
+                    for (const sidRaw of (Array.isArray(l.servicos) ? l.servicos : [])) {
+                        const sid = parseInt(sidRaw);
+                        if (servValidos.includes(sid)) await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,0)', [lid, sid]);
+                    }
+                }
+            }
+        }
+
         const totais = await _fmRecalcTotais(id);
-        const realizados = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
+        const realizados = await _fmRealizadosComMo(id);
         const pecasOut = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
-        res.json({ ok: true, totais: totais, realizados: realizados, pecas: pecasOut });
+        res.json({ ok: true, totais: totais, realizados: realizados, pecas: pecasOut, mo: await _fmMoLinhas(id) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -23941,9 +24039,91 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
         }
         await _fmInserirPecas(id, notaId, pecas);
         const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', (notaId ? 'Nota fiscal de peças anexada (NF ' + (dados.numero || 's/n') + ')' : 'Peças incluídas') + ' — ' + pecas.length + ' item(ns)', _fmUsuario(req));
         res.json({ ok: true, nota_id: notaId, totais: totais });
     } catch (e) {
         console.error('[NF] salvar:', e);
+        if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
+        res.status(500).json({ error: 'Erro ao salvar a nota: ' + e.message });
+    }
+});
+
+// POST - adiciona um comentario ao historico (data/hora e usuario ficam registrados)
+app.post('/api/frota/manutencoes/:id/comentarios', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const m = await _fmGet('SELECT * FROM frota_manutencoes WHERE id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        const texto = String((req.body && req.body.texto) || '').trim();
+        if (!texto) return res.status(400).json({ error: 'Escreva o comentário.' });
+        await _fmHistGarantir(m);
+        await _fmHist(id, 'comentario', texto.substring(0, 4000), _fmUsuario(req));
+        res.json({ ok: true, historico: await _fmHistLista(id) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST - analisa o PDF da nota fiscal de MAO DE OBRA (servico). NAO grava nada
+app.post('/api/frota/manutencoes/:id/notas-mo/analisar', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Envie o PDF da nota fiscal.' });
+        if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+        const { analisarNotaServico } = require('./utils/nfParser');
+        res.json(await analisarNotaServico(req.file.buffer));
+    } catch (e) {
+        console.error('[NF-MO] analisar:', e);
+        res.status(500).json({ error: 'Erro ao analisar a nota: ' + e.message });
+    }
+});
+
+// POST - grava as linhas de mao de obra e (se enviado) o PDF da nota no R2
+app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const id = parseInt(req.params.id);
+        const m = await _fmGet('SELECT fm.id, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        let dados = {};
+        try { dados = JSON.parse(req.body.dados || '{}'); } catch (e) { return res.status(400).json({ error: 'Dados da nota inválidos.' }); }
+        const linhas = (Array.isArray(dados.linhas) ? dados.linhas : []).filter(l => l && String(l.descricao || '').trim());
+        if (!linhas.length) return res.status(400).json({ error: 'Informe ao menos uma linha de mão de obra.' });
+
+        let notaId = null;
+        if (req.file) {
+            if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+            if (dados.numero) {
+                const dup = await _fmGet("SELECT id FROM frota_manutencao_notas WHERE manutencao_id = ? AND COALESCE(tipo,'pecas') = 'mao_obra' AND numero = ? AND COALESCE(cnpj,'') = ?", [id, String(dados.numero), String(dados.cnpj || '')]);
+                if (dup) return res.status(409).json({ error: 'Esta nota fiscal de mão de obra já foi anexada a esta manutenção.' });
+            }
+            const r2 = require('./utils/r2');
+            if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado. A nota fiscal não foi salva.' });
+            const safe = (v) => String(v || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+            const agora = new Date();
+            const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                + String(agora.getDate()).padStart(2, '0') + '_NFMO_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
+            await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+            keyEnviada = key;
+            const somaLinhas = Math.round(linhas.reduce((t, l) => t + _fmNumero(l.valor), 0) * 100) / 100;
+            const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || somaLinhas || null, dados.chave_acesso || null, _fmUsuario(req), 'mao_obra']);
+            notaId = ins.lastID;
+        }
+        const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id])).map(r => r.id);
+        for (const l of linhas) {
+            const ratear = l.ratear ? 1 : 0;
+            const ins = await _fmRun('INSERT INTO frota_manutencao_mo (manutencao_id, nota_id, descricao, valor, ratear) VALUES (?,?,?,?,?)',
+                [id, notaId, String(l.descricao).trim().substring(0, 300), Math.max(0, _fmNumero(l.valor)), ratear]);
+            if (!ratear) {
+                for (const sidRaw of (Array.isArray(l.servicos) ? l.servicos : [])) {
+                    const sid = parseInt(sidRaw);
+                    if (servValidos.includes(sid)) await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,0)', [ins.lastID, sid]);
+                }
+            }
+        }
+        const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', (notaId ? 'Nota fiscal de mão de obra anexada (NF ' + (dados.numero || 's/n') + ')' : 'Mão de obra lançada') + ' — ' + linhas.length + ' linha(s)', _fmUsuario(req));
+        res.json({ ok: true, nota_id: notaId, totais: totais });
+    } catch (e) {
+        console.error('[NF-MO] salvar:', e);
         if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
         res.status(500).json({ error: 'Erro ao salvar a nota: ' + e.message });
     }
@@ -23990,7 +24170,10 @@ app.delete('/api/frota/manutencoes/notas/:notaId', authenticateToken, async (req
             catch (e) { return res.status(500).json({ error: 'Não foi possível excluir o arquivo no R2: ' + e.message }); }
         }
         await _fmRun('DELETE FROM frota_manutencao_pecas WHERE nota_id = ?', [nid]);
+        await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (SELECT id FROM frota_manutencao_mo WHERE nota_id = ?)', [nid]);
+        await _fmRun('DELETE FROM frota_manutencao_mo WHERE nota_id = ?', [nid]);
         await _fmRun('DELETE FROM frota_manutencao_notas WHERE id = ?', [nid]);
+        await _fmHist(n.manutencao_id, 'evento', 'Nota fiscal excluída', _fmUsuario(req));
         const totais = await _fmRecalcTotais(n.manutencao_id);
         res.json({ ok: true, totais: totais });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -24242,6 +24425,7 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
             if (status === 'em_andamento') {
                 db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [veiculo_id]);
             }
+            _fmHist(this.lastID, 'evento', 'Manutenção registrada', _fmUsuario(req)).catch(() => {});
             res.json({ id: this.lastID, message: 'Manutenção registrada' });
         }
     );
@@ -32116,6 +32300,12 @@ app.listen(PORT, () => {
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'realizado\', nome TEXT NOT NULL, catalogo_id INTEGER, item_ref TEXT, mao_obra REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_notas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, r2_key TEXT, nome_arquivo TEXT, numero TEXT, serie TEXT, fornecedor TEXT, cnpj TEXT, data_emissao TEXT, valor_total REAL, chave_acesso TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    // Historico (comentarios, mudancas de situacao, eventos) e mao de obra por nota fiscal
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_historico (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'comentario\', texto TEXT, status_de TEXT, status_para TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE INDEX IF NOT EXISTS idx_frota_man_hist ON frota_manutencao_historico (manutencao_id)');
+    db.run('ALTER TABLE frota_manutencao_notas ADD COLUMN tipo TEXT DEFAULT \'pecas\'', (e) => { /* coluna ja existe: ignorar */ });
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_mo (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, nota_id INTEGER, descricao TEXT NOT NULL, valor REAL DEFAULT 0, ratear INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_mo_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, mo_id INTEGER NOT NULL, servico_id INTEGER NOT NULL, valor REAL DEFAULT 0)');
     setTimeout(() => _seedCatalogoCorretivo(0), 4000);
 
     // Migracao unica: quem ja tinha 'Frota' passa a ter tambem 'Frota (Manutencao)' (mantem o acesso atual).

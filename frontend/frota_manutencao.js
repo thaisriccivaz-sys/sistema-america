@@ -18,9 +18,6 @@ window.initFrotaManutencoes = async function(containerEl) {
         </div>
         Manutenções
     </h2>
-    <button onclick="window.abrirModalManutencao(null)" style="background:#d97706;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        <i class="ph ph-plus"></i> Nova Manutenção
-    </button>
 </div>
 
 <!-- Sub-abas -->
@@ -392,6 +389,11 @@ window._mnCalDiaClick = function(dia, y, m) {
 function mnRenderPreventivaTela(sub) {
     const prevSubAba = window._mnPrevSubAba || 'plano';
     sub.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <button onclick="window.abrirModalManutencao(null,{tipo:'preventiva'})" style="padding:7px 14px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-plus"></i> Nova Manutenção Preventiva
+        </button>
+    </div>
     <!-- Sub-tabs da Preventiva -->
     <div style="display:flex;gap:4px;margin-bottom:1rem;background:#fff;padding:5px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
         <button id="mn-prev-sub-plano" onclick="window.mnPrevMudarSub('plano')"
@@ -787,6 +789,9 @@ function mnRenderCorretivaTela(sub) {
                 <i class="ph ph-arrows-clockwise"></i> Atualizar
             </button>
             <span id="mn-corr-count" style="margin-left:auto;font-size:0.8rem;color:#94a3b8;"></span>
+            <button onclick="window.mnCorrNovaInterno()" style="padding:7px 14px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <i class="ph ph-plus"></i> Nova Manutenção Corretiva
+            </button>
         </div>
         <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
@@ -1065,37 +1070,103 @@ window._mnGarantiaAte = function(dataConclusao, valor, unidade, status) {
     return { txt: 'Garantia de ' + rotulo + ' — vencida em ' + dd, cor: '#dc2626' };
 };
 
+// =====================================================================================================
+// MANUTENCAO CORRETIVA - TELA UNICA (criar e editar sao a mesma tela, em tela cheia)
+// =====================================================================================================
+window._mnFmtDH = function(v) {
+    if (!v) return '';
+    var t = String(v);
+    var d = /Z|[+-]\d\d:\d\d$/.test(t) ? new Date(t) : new Date(t.replace(' ', 'T') + 'Z');
+    if (isNaN(d.getTime())) return t;
+    try {
+        return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+    } catch (e) { return d.toLocaleString('pt-BR'); }
+};
+window._mnDataInput = function(v) { return String(v || '').split('T')[0].split(' ')[0]; };
+window._mnHojeISO = function() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+};
+window._mnEdMapRealizado = function(s) {
+    return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias', mo_alocado: s.mo_alocado || 0 };
+};
+window._mnEdMapMo = function(l) {
+    return { id: l.id, nota_id: l.nota_id || null, descricao: l.descricao || '', valor: l.valor || 0, ratear: l.ratear ? 1 : 0, servicos: Array.isArray(l.servicos) ? l.servicos.slice() : [] };
+};
+
+window._mnEdCarregarCatalogo = async function() {
+    var hdr = { Authorization: 'Bearer ' + window._mnEdTok() };
+    try {
+        var rc = await fetch('/api/frota/catalogo', { headers: hdr });
+        if (rc.ok) window._manutCatalogo = await rc.json();
+        var rcat = await fetch('/api/frota/categorias', { headers: hdr });
+        if (rcat.ok) window._manutCategorias = await rcat.json();
+    } catch (e) { /* mantem o que ja estava carregado */ }
+};
+
+// Botao "+ Nova Manutencao Corretiva": abre a MESMA tela da edicao, vazia. O registro so e criado ao salvar
+// (ou quando for preciso anexar nota/peca/comentario, que exigem a manutencao ja gravada).
+window.mnCorrNovaInterno = async function(opts) {
+    opts = opts || {};
+    await window._mnEdCarregarCatalogo();
+    window._mnEd = {
+        id: null, novo: true,
+        m: { tipo: 'corretiva', status: 'agendada', veiculo_id: opts.vid || '', descricao: opts.descricao || '', km_na_manutencao: '', km_final_manutencao: '', fornecedor: '', data_inicio: '', data_conclusao: '' },
+        status: 'agendada', solicitados: [], realizados: [], pecas: [], notas: [], mo: [], historico: [], pickSel: {}
+    };
+    window._mnEdMontar();
+};
+
 window.mnCorrEditarInterno = async function(id) {
-    var tok = window._manutTok || window.currentToken || localStorage.getItem('token');
-    var hdr = { Authorization: 'Bearer ' + tok };
+    var hdr = { Authorization: 'Bearer ' + window._mnEdTok() };
     var det;
     try {
         var r = await fetch('/api/frota/manutencoes/' + id + '/detalhe', { headers: hdr });
         if (!r.ok) throw new Error('Erro ao carregar a manutenção');
         det = await r.json();
-        var rc = await fetch('/api/frota/catalogo', { headers: hdr });
-        if (rc.ok) window._manutCatalogo = await rc.json();
-        var rcat = await fetch('/api/frota/categorias', { headers: hdr });
-        if (rcat.ok) window._manutCategorias = await rcat.json();
     } catch (e) { alert(e.message); return; }
+    await window._mnEdCarregarCatalogo();
     var m = det.manutencao;
     window._mnEd = {
-        id: id,
-        m: m,
+        id: id, novo: false, m: m,
         status: m.status || 'agendada',
         solicitados: (det.solicitados || []).map(function(s) { return s.nome; }),
-        realizados: (det.realizados || []).map(function(s) {
-            return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias' };
-        }),
+        realizados: (det.realizados || []).map(window._mnEdMapRealizado),
         pecas: det.pecas || [],
-        notas: det.notas || []
+        notas: det.notas || [],
+        mo: (det.mo || []).map(window._mnEdMapMo),
+        historico: det.historico || [],
+        pickSel: {}
     };
     window._mnEdMontar();
 };
 
+// Cria o registro quando ainda e novo (necessario para anexar nota, incluir pecas, comentar...)
+window._mnEdGarantirId = async function() {
+    var ed = window._mnEd;
+    if (ed.id) return ed.id;
+    var veic = document.getElementById('mned-veic').value;
+    var desc = document.getElementById('mned-desc').value.trim();
+    if (!veic) throw new Error('Selecione o veículo antes de continuar.');
+    if (!desc) throw new Error('Informe o defeito / problema antes de continuar.');
+    var r = await fetch('/api/frota/manutencoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
+        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: 'agendada' })
+    });
+    if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao criar a manutenção'); }
+    var j = await r.json();
+    ed.id = j.id;
+    ed.novo = false;
+    var t = document.getElementById('mned-titulo');
+    if (t) t.textContent = 'Editar Manutenção Corretiva';
+    return ed.id;
+};
+
 window._mnEdFechar = function() {
-    var el = document.getElementById('mn-corr-edit-modal'); if (el) el.remove();
-    var pop = document.getElementById('mned-lista-pop'); if (pop) pop.remove();
+    ['mn-corr-edit-modal', 'mned-lista-pop', 'mnp-pop', 'mno-pop', 'mnv-pop'].forEach(function(i) {
+        var el = document.getElementById(i); if (el) el.remove();
+    });
 };
 
 window._mnEdMontar = function() {
@@ -1103,93 +1174,156 @@ window._mnEdMontar = function() {
     window._mnEdFechar();
     var lbl = 'font-size:0.78rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;';
     var inp = 'width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
-    var sec = 'border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px;background:#fff;';
-    var secT = 'font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px;';
+    var sec = 'border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px;background:#fff;';
+    var secT = 'font-size:0.82rem;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px;';
     var btnSec = 'padding:6px 12px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.78rem;display:inline-flex;align-items:center;gap:5px;';
+    var frota = window._manutFrota || [];
+    var veicOpts = '<option value="">Selecione o veículo...</option>' + frota.map(function(v) {
+        return '<option value="' + v.id + '"' + (String(m.veiculo_id) === String(v.id) ? ' selected' : '') + '>' + esc(v.placa) + ' — ' + esc(String(v.marca_modelo_versao || '').substring(0, 40)) + '</option>';
+    }).join('');
+    var catOpts = '<option value="__todas__">★ Todas as categorias</option>' + (window._manutCategorias || []).map(function(c) {
+        return '<option value="' + c.id + '">' + esc(c.nome) + '</option>';
+    }).join('');
+    var ehConcl = ed.status === 'concluida';
+
     var modal = document.createElement('div');
     modal.id = 'mn-corr-edit-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    modal.style.cssText = 'position:fixed;inset:0;background:#f1f5f9;display:flex;flex-direction:column;z-index:9999;';
     modal.innerHTML =
-        '<div style="background:#f8fafc;border-radius:14px;width:100%;max-width:940px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.25);">'
-      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
-      + '<i class="ph ph-pencil-simple" style="color:#fff;font-size:1.3rem;"></i>'
-      + '<div><div style="color:#fff;font-weight:700;font-size:1rem;">Editar Manutenção</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + esc(m.placa || '') + '</div></div>'
-      + '<button type="button" id="mned-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
+        '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
+      +   '<div style="background:#d97706;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench" style="color:#fff;font-size:1.3rem;"></i></div>'
+      +   '<div><div id="mned-titulo" style="color:#fff;font-weight:700;font-size:1.1rem;">' + (ed.novo ? 'Nova Manutenção Corretiva' : 'Editar Manutenção Corretiva') + '</div>'
+      +   '<div style="color:rgba(255,255,255,0.7);font-size:0.82rem;">' + esc(m.placa || (ed.novo ? 'Preencha os dados abaixo' : '')) + '</div></div>'
+      +   '<button type="button" id="mned-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;"><i class="ph ph-x"></i></button>'
       + '</div>'
-      + '<div style="padding:18px 20px;overflow-y:auto;flex:1;">'
-      +   '<div style="margin-bottom:14px;"><label style="' + lbl + '">Defeito / Problema</label><div style="font-size:0.85rem;color:#334155;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;">' + esc(m.descricao || '—') + '</div></div>'
-      +   '<div style="margin-bottom:14px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
-      +   '<div id="mned-grid-km" style="display:grid;grid-template-columns:' + (ed.status === 'concluida' ? '1fr 1fr 2fr' : '1fr 2fr') + ';gap:12px;margin-bottom:14px;">'
-      +     '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
-      +     '<div id="mned-km-final-box" style="display:' + (ed.status === 'concluida' ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
-      +     '<div><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
-      +   '</div>'
-      +   '<div style="' + sec + '">'
-      +     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="' + secT + '"><i class="ph ph-list-checks" style="color:#d97706;"></i> Manutenções solicitadas</div><button type="button" id="mned-alt-lista" style="margin-left:auto;' + btnSec + '"><i class="ph ph-pencil-simple"></i> Alterar lista</button></div>'
-      +     '<div id="mned-solic" style="display:flex;flex-wrap:wrap;gap:6px;"></div>'
-      +   '</div>'
-      +   '<div style="' + sec + '">'
-      +     '<div style="' + secT + 'margin-bottom:10px;"><i class="ph ph-wrench" style="color:#d97706;"></i> Serviços realizados</div>'
-      +     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
-      +       '<select id="mned-add-sel" style="' + inp + 'flex:1;min-width:260px;width:auto;"></select>'
-      +       '<input type="text" id="mned-add-outro" placeholder="Digite o serviço realizado" style="' + inp + 'flex:1;min-width:200px;width:auto;display:none;">'
-      +       '<button type="button" id="mned-add-btn" style="padding:8px 14px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;font-size:0.82rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-plus"></i> Adicionar serviço</button>'
+      + '<div style="flex:1;overflow-y:auto;padding:18px 24px;">'
+      +   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:18px;align-items:start;max-width:1900px;margin:0 auto;">'
+      +     '<div>'
+      +       '<div style="' + sec + '">'
+      +         '<div style="' + secT + 'margin-bottom:12px;"><i class="ph ph-truck" style="color:#d97706;"></i> Dados da manutenção</div>'
+      +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Veículo *</label><select id="mned-veic" style="' + inp + '">' + veicOpts + '</select></div>'
+      +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Defeito / Problema *</label><textarea id="mned-desc" rows="2" placeholder="Descreva o defeito ou problema do veículo..." style="' + inp + 'resize:vertical;">' + esc(m.descricao || '') + '</textarea></div>'
+      +         '<div style="margin-bottom:12px;"><label style="' + lbl + '">Status *</label><div id="mned-status" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>'
+      +         '<div id="mned-grid-km" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">'
+      +           '<div><label style="' + lbl + '">Data de início</label><input type="date" id="mned-di" value="' + esc(window._mnDataInput(m.data_inicio)) + '" style="' + inp + '"></div>'
+      +           '<div id="mned-dc-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">Data de conclusão</label><input type="date" id="mned-dc" value="' + esc(window._mnDataInput(m.data_conclusao)) + '" style="' + inp + '"></div>'
+      +           '<div><label style="' + lbl + '">KM antes da manutenção</label><input type="number" id="mned-km" placeholder="Ex: 45000" value="' + esc(m.km_na_manutencao || '') + '" style="' + inp + '"></div>'
+      +           '<div id="mned-km-final-box" style="display:' + (ehConcl ? 'block' : 'none') + ';"><label style="' + lbl + '">KM final da manutenção</label><input type="number" id="mned-km-final" placeholder="Ex: 45100" value="' + esc(m.km_final_manutencao || '') + '" style="' + inp + '"></div>'
+      +           '<div style="grid-column:1/-1;"><label style="' + lbl + '">Fornecedor / Oficina</label><input type="text" id="mned-forn" placeholder="Ex: Oficina Central" value="' + esc(m.fornecedor || '') + '" style="' + inp + '"></div>'
+      +         '</div>'
+      +       '</div>'
+      +       '<div style="' + sec + '">'
+      +         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="' + secT + '"><i class="ph ph-list-checks" style="color:#d97706;"></i> Manutenções solicitadas</div><button type="button" id="mned-alt-lista" style="margin-left:auto;' + btnSec + '"><i class="ph ph-pencil-simple"></i> Alterar lista</button></div>'
+      +         '<div id="mned-solic" style="display:flex;flex-wrap:wrap;gap:6px;"></div>'
+      +       '</div>'
+      +       '<div style="' + sec + '">'
+      +         '<div style="' + secT + 'margin-bottom:10px;"><i class="ph ph-chats-circle" style="color:#2563eb;"></i> Observações e histórico</div>'
+      +         '<textarea id="mned-coment" rows="2" placeholder="Escreva um comentário (fica registrado com data, hora e usuário)..." style="' + inp + 'resize:vertical;"></textarea>'
+      +         '<div style="display:flex;justify-content:flex-end;margin:6px 0 10px;"><button type="button" id="mned-coment-btn" style="padding:7px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-paper-plane-tilt"></i> Adicionar comentário</button></div>'
+      +         '<div id="mned-hist" style="max-height:420px;overflow-y:auto;"></div>'
+      +       '</div>'
       +     '</div>'
-      +     '<div id="mned-serv"></div>'
+      +     '<div>'
+      +       '<div style="' + sec + '">'
+      +         '<div style="' + secT + 'margin-bottom:10px;"><i class="ph ph-wrench" style="color:#d97706;"></i> Serviços realizados</div>'
+      +         '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px;">'
+      +           '<div style="display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:10px;margin-bottom:8px;">'
+      +             '<div><label style="' + lbl + '">Categoria</label><select id="mned-pick-cat" style="' + inp + '">' + catOpts + '</select></div>'
+      +             '<div><label style="' + lbl + '">Buscar serviço (digite o nome)</label><input type="text" id="mned-pick-busca" autocomplete="off" placeholder="Digite para filtrar a lista..." style="' + inp + '"></div>'
+      +           '</div>'
+      +           '<div id="mned-pick-lista" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px;max-height:300px;overflow-y:auto;"></div>'
+      +           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">'
+      +             '<label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;color:#0284c7;cursor:pointer;"><input type="checkbox" id="mned-pick-all" style="width:16px;height:16px;accent-color:#0284c7;"> Selecionar todos (da lista mostrada)</label>'
+      +             '<span id="mned-pick-cont" style="font-size:0.78rem;color:#64748b;"></span>'
+      +             '<button type="button" id="mned-pick-novo" style="display:none;' + btnSec + 'color:#d97706;border-color:#fcd34d;"><i class="ph ph-plus"></i> <span></span></button>'
+      +             '<button type="button" id="mned-pick-add" style="margin-left:auto;padding:9px 16px;border:none;border-radius:8px;background:#0284c7;color:#fff;cursor:pointer;font-weight:700;font-size:0.82rem;">Adicionar serviços selecionados à lista</button>'
+      +           '</div>'
+      +         '</div>'
+      +         '<div id="mned-serv"></div>'
+      +       '</div>'
+      +       '<div style="' + sec + '">'
+      +         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;"><div style="' + secT + '"><i class="ph ph-receipt" style="color:#2563eb;"></i> Peças e notas fiscais</div>'
+      +           '<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">'
+      +             '<button type="button" id="mned-pecas-geral" style="' + btnSec + '"><i class="ph ph-plus"></i> Incluir peças</button>'
+      +             '<button type="button" id="mned-mo-nf" style="' + btnSec + 'border-color:#fcd34d;color:#b45309;"><i class="ph ph-paperclip"></i> NF de mão de obra</button>'
+      +           '</div></div>'
+      +         '<div id="mned-notas"></div>'
+      +         '<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;"><div style="' + secT + '"><i class="ph ph-hammer" style="color:#d97706;"></i> Mão de obra (notas e lançamentos)</div><button type="button" id="mned-mo-add" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Linha de mão de obra</button></div>'
+      +         '<div id="mned-mo"></div>'
+      +       '</div>'
+      +       '<div id="mned-total" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>'
+      +     '</div>'
       +   '</div>'
-      +   '<div style="' + sec + '">'
-      +     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="' + secT + '"><i class="ph ph-receipt" style="color:#2563eb;"></i> Peças e notas fiscais</div><button type="button" id="mned-pecas-geral" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Incluir peças</button></div>'
-      +     '<div id="mned-notas"></div>'
-      +   '</div>'
-      +   '<div id="mned-total" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;"></div>'
-      +   '<div><label style="' + lbl + '">Observações</label><textarea id="mned-obs" rows="3" placeholder="O que foi feito / situação atual..." style="' + inp + 'resize:vertical;">' + esc(m.observacoes || '') + '</textarea></div>'
       + '</div>'
-      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#fff;border-radius:0 0 14px 14px;flex-shrink:0;">'
-      +   '<button type="button" id="mned-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
-      +   '<button type="button" id="mned-save" style="padding:9px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>'
-      + '</div>'
+      + '<div style="padding:12px 24px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#fff;flex-shrink:0;">'
+      +   '<button type="button" id="mned-cancel" style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+      +   '<button type="button" id="mned-save" style="padding:10px 26px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar</button>'
       + '</div>';
     document.body.appendChild(modal);
 
     document.getElementById('mned-x').onclick = window._mnEdFechar;
     document.getElementById('mned-cancel').onclick = window._mnEdFechar;
-    modal.addEventListener('mousedown', function(e) { if (e.target === modal) window._mnEdFechar(); });
     document.getElementById('mned-alt-lista').onclick = window._mnEdAbrirLista;
-    document.getElementById('mned-add-btn').onclick = window._mnEdAdicionar;
-    document.getElementById('mned-save').onclick = function() { window.mnCorrSalvarEdicaoInterno(ed.id); };
-    document.getElementById('mned-add-sel').onchange = function() {
-        document.getElementById('mned-add-outro').style.display = (this.value === '__outro__') ? 'block' : 'none';
-    };
-
+    document.getElementById('mned-save').onclick = function() { window.mnCorrSalvarEdicaoInterno(); };
     document.getElementById('mned-pecas-geral').onclick = function() { window._mnEdAbrirPecas(null); };
+    document.getElementById('mned-mo-nf').onclick = window._mnEdAbrirMoNf;
+    document.getElementById('mned-mo-add').onclick = function() {
+        window._mnEd.mo.push({ id: null, nota_id: null, descricao: '', valor: 0, ratear: 0, servicos: [] });
+        window._mnEdRenderMo();
+        var ins = document.querySelectorAll('#mned-mo [data-mof="descricao"]');
+        if (ins.length) ins[ins.length - 1].focus();
+    };
+    document.getElementById('mned-coment-btn').onclick = window._mnEdComentar;
+    document.getElementById('mned-pick-cat').onchange = window._mnEdPickRender;
+    document.getElementById('mned-pick-busca').oninput = window._mnEdPickRender;
+    document.getElementById('mned-pick-add').onclick = window._mnEdPickAdicionar;
+    document.getElementById('mned-pick-novo').onclick = window._mnEdPickNovo;
+    document.getElementById('mned-pick-all').onchange = function() {
+        var marcar = this.checked;
+        (window._mnEd.pickVisiveis || []).forEach(function(id) { window._mnEd.pickSel[id] = marcar; });
+        window._mnEdPickRender();
+    };
+    document.getElementById('mned-veic').onchange = function() {
+        var kmEl = document.getElementById('mned-km');
+        var v = (window._manutFrota || []).find(function(x) { return String(x.id) === String(this.value); }.bind(this));
+        if (window._mnEd.novo && v && v.km_atual && kmEl && !kmEl.value) kmEl.value = v.km_atual;
+    };
+    document.getElementById('mned-di').onchange = function() { window._mnEd.m.data_inicio = this.value; };
+    document.getElementById('mned-dc').onchange = function() { window._mnEd.m.data_conclusao = this.value; window._mnEdRenderServ(); };
+    if (ed.novo && m.veiculo_id) document.getElementById('mned-veic').onchange.call(document.getElementById('mned-veic'));
+
     window._mnEdRenderStatus();
     window._mnEdRenderSolic();
-    window._mnEdRenderAdd();
+    window._mnEdPickRender();
     window._mnEdRenderServ();
     window._mnEdRenderNotas();
+    window._mnEdRenderMo();
+    window._mnEdRenderHist();
 };
 
 window._mnEdRenderStatus = function() {
     var ed = window._mnEd, box = document.getElementById('mned-status');
     if (!box) return;
     var lista = window._MN_STATUS.slice();
-    if (ed.m.status === 'cancelada') lista.push({ v: 'cancelada', l: 'Cancelada', c: '#94a3b8' });
+    if (ed.m.status === 'cancelada' || ed.status === 'cancelada') lista.push({ v: 'cancelada', l: 'Cancelada', c: '#94a3b8' });
     box.innerHTML = lista.map(function(s) {
         var ativo = ed.status === s.v;
         var css = 'padding:8px 18px;border-radius:999px;font-size:0.84rem;font-weight:700;cursor:pointer;transition:all .15s;border:2px solid ' + s.c + ';'
             + (ativo ? 'background:' + s.c + ';color:#fff;box-shadow:0 2px 8px ' + s.c + '66;' : 'background:' + s.c + '18;color:' + s.c + ';');
         return '<button type="button" data-s="' + s.v + '" style="' + css + '">' + (ativo ? '<i class="ph ph-check"></i> ' : '') + s.l + '</button>';
     }).join('');
-    var kfBox = document.getElementById('mned-km-final-box');
-    var gKm = document.getElementById('mned-grid-km');
-    if (kfBox && gKm) {
-        var ehConcl = ed.status === 'concluida';
-        kfBox.style.display = ehConcl ? 'block' : 'none';
-        gKm.style.gridTemplateColumns = ehConcl ? '1fr 1fr 2fr' : '1fr 2fr';
-    }
+    var ehConcl = ed.status === 'concluida';
+    var dcBox = document.getElementById('mned-dc-box'), kfBox = document.getElementById('mned-km-final-box');
+    if (dcBox) dcBox.style.display = ehConcl ? 'block' : 'none';
+    if (kfBox) kfBox.style.display = ehConcl ? 'block' : 'none';
     box.querySelectorAll('[data-s]').forEach(function(b) {
         b.onclick = function() {
-            window._mnEd.status = b.getAttribute('data-s');
+            var novo = b.getAttribute('data-s');
+            window._mnEd.status = novo;
+            var di = document.getElementById('mned-di'), dc = document.getElementById('mned-dc');
+            if (novo === 'em_andamento' && di && !di.value) { di.value = window._mnHojeISO(); window._mnEd.m.data_inicio = di.value; }
+            if (novo === 'concluida' && dc && !dc.value) { dc.value = window._mnHojeISO(); }
+            if (dc) window._mnEd.m.data_conclusao = dc.value;
             window._mnEdRenderStatus();
             window._mnEdRenderServ();
         };
@@ -1230,49 +1364,154 @@ window._mnCatalogoLista = function(tipo) {
     });
 };
 
-window._mnEdRenderAdd = function() {
-    var ed = window._mnEd, sel = document.getElementById('mned-add-sel'), esc = window._mnEdEsc;
-    if (!sel) return;
-    var cat = window._mnCatalogoLista('corretiva');
-    var refs = ed.solicitados.map(function(n) { return (n === 'Outros' || n.indexOf('Outros:') === 0) ? 'Outros serviços' : n; });
-    var sug = cat.filter(function(s) { return s.item_ref && refs.indexOf(s.item_ref) !== -1; });
-    var opt = function(s) { return '<option value="' + s.id + '">' + esc(s.nome) + '</option>'; };
-    var html = '<option value="">Selecione o serviço realizado...</option>';
-    if (sug.length) html += '<optgroup label="★ Sugeridos para os itens solicitados">' + sug.map(opt).join('') + '</optgroup>';
-    var grupos = {}, ordem = [];
-    cat.forEach(function(s) {
-        if (sug.indexOf(s) !== -1) return;
-        var k = s.categoria_nome || 'Outros';
-        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
-        grupos[k].push(s);
+// ---- Selecao de servicos (igual ao "criar manutencao": categoria + busca + selecionar todos + marcar varios)
+window._mnEdPickRender = function() {
+    var ed = window._mnEd, box = document.getElementById('mned-pick-lista');
+    if (!box) return;
+    var esc = window._mnEdEsc, norm = window._mnNorm;
+    var catSel = document.getElementById('mned-pick-cat').value;
+    var buscaEl = document.getElementById('mned-pick-busca');
+    var palavras = norm(buscaEl.value).split(' ').filter(Boolean);
+    var jaAdd = {};
+    ed.realizados.forEach(function(r) { if (r.catalogo_id) jaAdd[r.catalogo_id] = true; });
+    var lista = window._mnCatalogoLista('corretiva').filter(function(s) {
+        if (catSel && catSel !== '__todas__' && String(s.categoria_id) !== String(catSel)) return false;
+        var n = norm(s.nome + ' ' + (s.categoria_nome || ''));
+        return palavras.every(function(p) { return n.indexOf(p) !== -1; });
     });
-    ordem.forEach(function(k) { html += '<optgroup label="' + esc(k) + '">' + grupos[k].map(opt).join('') + '</optgroup>'; });
-    html += '<option value="__outro__">✏ Outro serviço (digitar)</option>';
-    sel.innerHTML = html;
+    ed.pickVisiveis = lista.filter(function(s) { return !jaAdd[s.id]; }).map(function(s) { return s.id; });
+
+    var btnNovo = document.getElementById('mned-pick-novo');
+    var texto = buscaEl.value.trim();
+    var exato = texto && lista.some(function(s) { return norm(s.nome) === norm(texto); });
+    if (btnNovo) {
+        btnNovo.style.display = (texto && !exato) ? 'inline-flex' : 'none';
+        btnNovo.querySelector('span').textContent = 'Adicionar "' + texto + '" como serviço novo';
+    }
+    if (!lista.length) {
+        box.innerHTML = '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:0.84rem;">Nenhum serviço encontrado' + (texto ? ' para "' + esc(texto) + '"' : '') + '. Você pode adicioná-lo como serviço novo.</div>';
+    } else {
+        var html = '', ultimo = null;
+        var porCat = {};
+        lista.forEach(function(s) { (porCat[s.categoria_id] = porCat[s.categoria_id] || []).push(s); });
+        lista.forEach(function(s) {
+            if (s.categoria_id !== ultimo) {
+                ultimo = s.categoria_id;
+                var doCat = porCat[s.categoria_id].filter(function(x) { return !jaAdd[x.id]; });
+                var todosMarc = doCat.length > 0 && doCat.every(function(x) { return ed.pickSel[x.id]; });
+                html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:8px;padding:6px 4px 4px;border-top:1px solid #e2e8f0;cursor:pointer;">'
+                    + '<input type="checkbox" data-pkcat="' + s.categoria_id + '"' + (todosMarc ? ' checked' : '') + (doCat.length ? '' : ' disabled') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
+                    + esc(s.categoria_nome || 'Outros') + ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(selecionar todos da categoria)</span></label>';
+            }
+            var add = !!jaAdd[s.id];
+            html += '<label style="display:flex;align-items:center;gap:8px;font-size:0.86rem;color:' + (add ? '#94a3b8' : '#1e293b') + ';cursor:' + (add ? 'default' : 'pointer') + ';padding:3px 4px 3px 22px;">'
+                + '<input type="checkbox" data-pk="' + s.id + '"' + (ed.pickSel[s.id] ? ' checked' : '') + (add ? ' disabled' : '') + ' style="width:15px;height:15px;accent-color:#0284c7;">'
+                + esc(s.nome) + (add ? ' <span style="font-size:0.7rem;background:#f1f5f9;border-radius:999px;padding:1px 8px;">já adicionado</span>' : '') + '</label>';
+        });
+        box.innerHTML = html;
+        box.querySelectorAll('[data-pk]').forEach(function(c) {
+            c.onchange = function() {
+                window._mnEd.pickSel[c.getAttribute('data-pk')] = c.checked;
+                window._mnEdPickRender();
+            };
+        });
+        box.querySelectorAll('[data-pkcat]').forEach(function(c) {
+            c.onchange = function() {
+                var cid = c.getAttribute('data-pkcat');
+                (porCat[cid] || []).forEach(function(x) { if (!jaAdd[x.id]) window._mnEd.pickSel[x.id] = c.checked; });
+                window._mnEdPickRender();
+            };
+        });
+    }
+    var selecionados = Object.keys(ed.pickSel).filter(function(k) { return ed.pickSel[k]; }).length;
+    var cont = document.getElementById('mned-pick-cont');
+    if (cont) cont.textContent = selecionados + ' selecionado(s) · ' + lista.length + ' na lista';
+    var all = document.getElementById('mned-pick-all');
+    if (all) all.checked = ed.pickVisiveis.length > 0 && ed.pickVisiveis.every(function(id) { return ed.pickSel[id]; });
 };
 
-window._mnEdAdicionar = function() {
+window._mnEdPickAdicionar = function() {
     var ed = window._mnEd;
-    var sel = document.getElementById('mned-add-sel');
-    var v = sel.value;
-    if (!v) { alert('Selecione o serviço realizado.'); return; }
-    var novo;
-    if (v === '__outro__') {
-        var txt = document.getElementById('mned-add-outro').value.trim();
-        if (!txt) { alert('Digite o serviço realizado.'); return; }
-        novo = { id: null, nome: txt, catalogo_id: null, item_ref: null };
-    } else {
-        var s = (window._manutCatalogo || []).find(function(x) { return String(x.id) === String(v); });
+    var ids = Object.keys(ed.pickSel).filter(function(k) { return ed.pickSel[k]; });
+    if (!ids.length) { alert('Marque ao menos um serviço da lista.'); return; }
+    var catalogo = window._manutCatalogo || [];
+    ids.forEach(function(k) {
+        var s = catalogo.find(function(x) { return String(x.id) === String(k); });
         if (!s) return;
-        if (ed.realizados.some(function(r) { return String(r.catalogo_id) === String(s.id); })) { alert('Esse serviço já foi adicionado.'); return; }
-        novo = { id: null, nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || null };
-    }
-    novo.mao_obra = ''; novo.garantia_valor = ''; novo.garantia_unidade = 'dias';
-    ed.realizados.push(novo);
-    sel.value = '';
-    document.getElementById('mned-add-outro').value = '';
-    document.getElementById('mned-add-outro').style.display = 'none';
+        if (ed.realizados.some(function(r) { return String(r.catalogo_id) === String(s.id); })) return;
+        ed.realizados.push({ id: null, nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', mo_alocado: 0 });
+    });
+    ed.pickSel = {};
     window._mnEdRenderServ();
+    window._mnEdPickRender();
+};
+
+window._mnEdPickNovo = function() {
+    var ed = window._mnEd;
+    var buscaEl = document.getElementById('mned-pick-busca');
+    var txt = buscaEl.value.trim();
+    if (!txt) return;
+    if (ed.realizados.some(function(r) { return window._mnNorm(r.nome) === window._mnNorm(txt); })) { alert('Esse serviço já foi adicionado.'); return; }
+    ed.realizados.push({ id: null, nome: txt, catalogo_id: null, item_ref: null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', mo_alocado: 0 });
+    buscaEl.value = '';
+    window._mnEdRenderServ();
+    window._mnEdPickRender();
+};
+
+// ---- Historico (comentarios + mudancas de situacao + eventos)
+window._mnEdRenderHist = function() {
+    var ed = window._mnEd, box = document.getElementById('mned-hist'), esc = window._mnEdEsc;
+    if (!box) return;
+    var rotulo = function(v) {
+        var x = window._MN_STATUS.filter(function(s) { return s.v === v; })[0];
+        if (x) return { l: x.l, c: x.c };
+        if (v === 'cancelada') return { l: 'Cancelada', c: '#94a3b8' };
+        return { l: v || '—', c: '#64748b' };
+    };
+    var badge = function(o) { return '<span style="background:' + o.c + '22;color:' + o.c + ';border-radius:999px;padding:1px 10px;font-weight:700;font-size:0.76rem;">' + esc(o.l) + '</span>'; };
+    if (!ed.historico.length) {
+        box.innerHTML = '<div style="font-size:0.82rem;color:#94a3b8;padding:6px 2px;">Nenhum comentário ou alteração registrada ainda.</div>';
+        return;
+    }
+    box.innerHTML = ed.historico.map(function(h) {
+        var quando = window._mnFmtDH(h.created_at);
+        var quem = h.usuario_nome ? esc(h.usuario_nome) : 'Sistema';
+        var cab = '<div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;"><i class="ph ph-clock"></i> ' + esc(quando) + ' · <i class="ph ph-user"></i> <b>' + quem + '</b></div>';
+        var cor = '#cbd5e1', corpo = '';
+        if (h.tipo === 'status') {
+            cor = '#d97706';
+            corpo = '<div style="font-size:0.84rem;color:#334155;"><i class="ph ph-arrows-left-right"></i> Situação alterada: ' + badge(rotulo(h.status_de)) + ' → ' + badge(rotulo(h.status_para)) + '</div>';
+        } else if (h.tipo === 'comentario') {
+            cor = '#2563eb';
+            corpo = '<div style="font-size:0.86rem;color:#1e293b;white-space:pre-wrap;word-break:break-word;">' + esc(h.texto) + '</div>';
+        } else {
+            corpo = '<div style="font-size:0.82rem;color:#475569;">' + esc(h.texto) + '</div>';
+        }
+        return '<div style="border-left:3px solid ' + cor + ';padding:7px 12px;background:#f8fafc;border-radius:0 8px 8px 0;margin-bottom:6px;">' + cab + corpo + '</div>';
+    }).join('');
+};
+
+window._mnEdComentar = async function() {
+    var ed = window._mnEd;
+    var ta = document.getElementById('mned-coment');
+    var btn = document.getElementById('mned-coment-btn');
+    var txt = ta.value.trim();
+    if (!txt) { alert('Escreva o comentário.'); return; }
+    btn.disabled = true;
+    try {
+        await window._mnEdGarantirId();
+        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/comentarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
+            body: JSON.stringify({ texto: txt })
+        });
+        if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar o comentário'); }
+        var j = await r.json();
+        ed.historico = j.historico || [];
+        ta.value = '';
+        window._mnEdRenderHist();
+    } catch (err) { alert(err.message); }
+    btn.disabled = false;
 };
 
 window._mnEdSvcOptions = function(sel) {
@@ -1317,7 +1556,7 @@ window._mnEdRenderServ = function() {
     var orfas = [];
     ed.pecas.forEach(function(p, i) { if (!p.servico_id || !temServico(p.servico_id)) orfas.push(i); });
     if (!ed.realizados.length && !orfas.length) {
-        box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado informado ainda. Escolha um serviço acima e clique em "Adicionar serviço".</div>';
+        box.innerHTML = '<div style="padding:14px;text-align:center;color:#94a3b8;font-size:0.82rem;">Nenhum serviço realizado ainda. Marque os serviços na lista acima e clique em "Adicionar serviços selecionados à lista".</div>';
         window._mnEdRenderTotais();
         return;
     }
@@ -1332,7 +1571,8 @@ window._mnEdRenderServ = function() {
         }
         return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
           + '<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">'
-          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>' + (s.item_ref ? '<div style="font-size:0.72rem;color:#94a3b8;">Categoria: ' + esc(s.item_ref) + '</div>' : '') + '</div>'
+          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>' + (s.item_ref ? '<div style="font-size:0.72rem;color:#94a3b8;">Categoria: ' + esc(s.item_ref) + '</div>' : '')
+          +   (s.mo_alocado > 0 ? '<div style="font-size:0.72rem;color:#d97706;font-weight:600;"><i class="ph ph-hammer"></i> + ' + window._mnFmtMoeda(s.mo_alocado) + ' de mão de obra (nota fiscal)</div>' : '') + '</div>'
           +   '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + fm(window._mnNum(s.mao_obra)) + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;"></div>'
           +   '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
           +   '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
@@ -1371,6 +1611,7 @@ window._mnEdRenderServ = function() {
             var i = parseInt(b.getAttribute('data-rm'));
             var rem = window._mnEd.realizados[i];
             if (rem && rem.id) window._mnEd.pecas.forEach(function(p) { if (String(p.servico_id) === String(rem.id)) p.servico_id = null; });
+            if (rem && rem.id) (window._mnEd.mo || []).forEach(function(l) { l.servicos = (l.servicos || []).filter(function(x) { return String(x) !== String(rem.id); }); });
             window._mnEd.realizados.splice(i, 1);
             window._mnEdRenderServ();
         };
@@ -1416,22 +1657,28 @@ window._mnEdRenderServ = function() {
         };
     });
     window._mnEdRenderTotais();
+    if (document.getElementById('mned-mo')) window._mnEdRenderMo();
 };
 
 window._mnEdRenderNotas = function() {
     var ed = window._mnEd, box = document.getElementById('mned-notas'), esc = window._mnEdEsc;
     if (!box) return;
     if (!ed.notas.length) {
-        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma nota fiscal anexada. Use "Incluir peças" e escolha a aba "Nota fiscal (PDF)".</div>';
+        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma nota fiscal anexada. Use "Incluir peças" (nota de peças) ou "NF de mão de obra".</div>';
         return;
     }
     var btn = 'padding:6px 10px;border-radius:8px;cursor:pointer;';
     box.innerHTML = ed.notas.map(function(n) {
-        var emi = n.data_emissao ? ' · ' + esc(n.data_emissao) : '';
+        var mo = n.tipo === 'mao_obra';
+        var emi = n.data_emissao ? ' · emissão ' + esc(n.data_emissao) : '';
+        var tag = mo
+            ? '<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span>'
+            : '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span>';
+        var anexo = '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-paperclip"></i> Anexada em ' + esc(window._mnFmtDH(n.created_at)) + (n.usuario_nome ? ' por <b>' + esc(n.usuario_nome) + '</b>' : '') + '</div>';
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;">'
-          + '<i class="ph ph-receipt" style="color:#2563eb;font-size:1.2rem;"></i>'
-          + '<div style="flex:1;font-size:0.82rem;color:#1e293b;"><b>NF ' + esc(n.numero || '—') + '</b> · ' + esc(n.fornecedor || 'Fornecedor não identificado') + emi
-          +   (n.valor_total ? ' · <b style="color:#059669;">' + window._mnFmtMoeda(n.valor_total) + '</b>' : '') + '</div>'
+          + '<i class="ph ph-receipt" style="color:' + (mo ? '#d97706' : '#2563eb') + ';font-size:1.2rem;"></i>'
+          + '<div style="flex:1;font-size:0.82rem;color:#1e293b;"><b>NF ' + esc(n.numero || '—') + '</b> ' + tag + ' · ' + esc(n.fornecedor || 'Fornecedor não identificado') + emi
+          +   (n.valor_total ? ' · <b style="color:#059669;">' + window._mnFmtMoeda(n.valor_total) + '</b>' : '') + anexo + '</div>'
           + '<button type="button" data-nv="' + n.id + '" title="Ver nota fiscal" style="' + btn + 'border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;"><i class="ph ph-eye"></i></button>'
           + '<button type="button" data-nd="' + n.id + '" title="Excluir nota fiscal" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
           + '</div>';
@@ -1440,13 +1687,285 @@ window._mnEdRenderNotas = function() {
     box.querySelectorAll('[data-nd]').forEach(function(b) { b.onclick = function() { window._mnEdExcluirNota(parseInt(b.getAttribute('data-nd'))); }; });
 };
 
+// Linhas de mao de obra (da nota fiscal de servico ou lancadas a mao): valor + vinculo com servicos ou rateio igual
+window._mnEdResumoVinculo = function(l) {
+    if (l.ratear) return { txt: 'Rateio igual entre todos os serviços', cor: '#2563eb' };
+    var n = (l.servicos || []).length;
+    if (n) return { txt: n + (n === 1 ? ' serviço vinculado' : ' serviços vinculados'), cor: '#2563eb' };
+    return { txt: 'Vincular a serviços', cor: '#d97706' };
+};
+window._mnEdRenderMo = function() {
+    var ed = window._mnEd, box = document.getElementById('mned-mo'), esc = window._mnEdEsc, fm = window._mnMoneyFmt;
+    if (!box) return;
+    if (!ed.mo.length) {
+        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma linha de mão de obra. Use "NF de mão de obra" (PDF) ou "Linha de mão de obra".</div>';
+        window._mnEdRenderTotais();
+        return;
+    }
+    var ipt = 'padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.84rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
+    box.innerHTML = ed.mo.map(function(l, i) {
+        var rv = window._mnEdResumoVinculo(l);
+        return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid #fde68a;border-radius:8px;background:#fffbeb;margin-bottom:6px;">'
+          + '<i class="ph ph-hammer" style="color:#d97706;"></i>'
+          + '<input type="text" data-moi="' + i + '" data-mof="descricao" value="' + esc(l.descricao) + '" placeholder="Descrição do serviço (mão de obra)" style="' + ipt + 'flex:1;min-width:220px;">'
+          + '<span style="font-size:0.78rem;color:#64748b;">R$</span>'
+          + '<input type="text" data-money="1" data-moi="' + i + '" data-mof="valor" value="' + fm(l.valor) + '" style="' + ipt + 'width:110px;text-align:right;font-weight:700;color:#b45309;">'
+          + '<button type="button" data-movinc="' + i + '" style="padding:6px 10px;border:1.5px solid ' + rv.cor + ';border-radius:8px;background:#fff;color:' + rv.cor + ';cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-link"></i> ' + esc(rv.txt) + '</button>'
+          + (l.nota_id ? '<i class="ph ph-receipt" title="Veio de nota fiscal" style="color:#d97706;"></i>' : '')
+          + '<button type="button" data-morm="' + i + '" title="Remover linha" style="padding:5px 8px;border:1px solid #fecaca;border-radius:6px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
+          + '</div>';
+    }).join('');
+    box.querySelectorAll('[data-moi]').forEach(function(el) {
+        var i = parseInt(el.getAttribute('data-moi')), f = el.getAttribute('data-mof');
+        if (f === 'valor') {
+            window._mnMask(el, function(n) { window._mnEd.mo[i].valor = n; window._mnEdRenderTotais(); });
+        } else {
+            el.oninput = function() { window._mnEd.mo[i].descricao = el.value; };
+        }
+    });
+    box.querySelectorAll('[data-movinc]').forEach(function(b) {
+        b.onclick = async function() {
+            var i = parseInt(b.getAttribute('data-movinc'));
+            try { await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
+            window._mnEdRenderServ();
+            var linha = window._mnEd.mo[i];
+            if (!linha) return;
+            window._mnVincularPopup(linha, function() { window._mnEdRenderMo(); });
+        };
+    });
+    box.querySelectorAll('[data-morm]').forEach(function(b) {
+        b.onclick = function() {
+            window._mnEd.mo.splice(parseInt(b.getAttribute('data-morm')), 1);
+            window._mnEdRenderMo();
+        };
+    });
+    window._mnEdRenderTotais();
+};
+
+// Popup "Vincular servicos": marque varios servicos (ou todos de uma categoria) ou use rateio igual entre todos
+window._mnVincularPopup = function(linha, cb) {
+    var ed = window._mnEd, esc = window._mnEdEsc;
+    var servs = ed.realizados.filter(function(s) { return s.id; });
+    if (!servs.length) { alert('Adicione e salve os serviços realizados antes de vincular a mão de obra.'); return; }
+    var antigo = document.getElementById('mnv-pop'); if (antigo) antigo.remove();
+    var sel = {};
+    (linha.servicos || []).forEach(function(id) { sel[id] = true; });
+    var grupos = {}, ordem = [];
+    servs.forEach(function(s) {
+        var k = s.item_ref || 'Sem categoria';
+        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
+        grupos[k].push(s);
+    });
+    var pop = document.createElement('div');
+    pop.id = 'mnv-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:10010;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<i class="ph ph-link" style="color:#fff;font-size:1.3rem;"></i><div style="color:#fff;font-weight:700;">Vincular serviços</div>'
+      +   '<button type="button" id="mnv-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
+      +   '<div style="font-size:0.84rem;font-weight:700;color:#1e293b;margin-bottom:10px;">' + esc(linha.descricao || 'Linha de mão de obra') + '</div>'
+      +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
+      +     '<input type="checkbox" id="mnv-ratear" style="width:17px;height:17px;accent-color:#2563eb;"> Ratear igualmente entre TODOS os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<div id="mnv-lista"></div>'
+      +   '<div style="font-size:0.74rem;color:#64748b;margin-top:8px;">O valor é dividido em partes iguais entre os serviços marcados.</div>'
+      + '</div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">'
+      +   '<button type="button" id="mnv-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+      +   '<button type="button" id="mnv-ok" style="padding:9px 20px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;">Aplicar</button>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var p = document.getElementById('mnv-pop'); if (p) p.remove(); };
+    var rat = document.getElementById('mnv-ratear');
+    rat.checked = !!linha.ratear;
+    var lista = document.getElementById('mnv-lista');
+    var desenhar = function() {
+        lista.style.opacity = rat.checked ? '0.4' : '1';
+        lista.style.pointerEvents = rat.checked ? 'none' : 'auto';
+        lista.innerHTML = ordem.map(function(k, gi) {
+            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
+              + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
+              +   '<input type="checkbox" data-vcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(k)
+              +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta categoria)</span></label>'
+              + grupos[k].map(function(s) {
+                    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
+                      + '<input type="checkbox" data-vid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
+                }).join('')
+              + '</div>';
+        }).join('');
+        lista.querySelectorAll('[data-vid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-vid')] = c.checked; desenhar(); }; });
+        lista.querySelectorAll('[data-vcat]').forEach(function(c) {
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-vcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+        });
+    };
+    rat.onchange = desenhar;
+    desenhar();
+    document.getElementById('mnv-x').onclick = fechar;
+    document.getElementById('mnv-cancel').onclick = fechar;
+    pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
+    document.getElementById('mnv-ok').onclick = function() {
+        linha.ratear = rat.checked ? 1 : 0;
+        linha.servicos = rat.checked ? [] : Object.keys(sel).filter(function(k) { return sel[k]; }).map(function(k) { return parseInt(k); });
+        fechar();
+        if (cb) cb();
+    };
+};
+
+// Popup da NOTA FISCAL DE MAO DE OBRA: anexa o PDF, le as linhas e vincula cada uma a servicos (ou rateio igual)
+window._mnoFechar = function() { var p = document.getElementById('mno-pop'); if (p) p.remove(); };
+window._mnEdAbrirMoNf = async function() {
+    try { await window._mnEdGarantirId(); await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
+    window._mnEdRenderServ();
+    var ed = window._mnEd, esc = window._mnEdEsc;
+    if (!ed.realizados.length) { alert('Adicione primeiro os serviços realizados para poder vincular a nota de mão de obra a eles.'); return; }
+    window._mnoFechar();
+    window._mnMo = { arquivo: null, cnpj: '', linhas: [] };
+    var ipt = 'padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.86rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
+    var pop = document.createElement('div');
+    pop.id = 'mno-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:10002;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:980px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
+      +   '<div style="background:#d97706;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-hammer" style="color:#fff;font-size:1.3rem;"></i></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Nota fiscal de mão de obra</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">Anexe o PDF, confira as linhas e vincule aos serviços</div></div>'
+      +   '<button type="button" id="mno-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
+      +   '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+      +     '<input type="file" id="mno-file" accept="application/pdf,.pdf" style="flex:1;min-width:240px;padding:8px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#f8fafc;font-size:0.84rem;">'
+      +     '<button type="button" id="mno-analisar" style="padding:9px 18px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-scan"></i> Analisar nota fiscal</button>'
+      +   '</div>'
+      +   '<div id="mno-aviso" style="margin-top:10px;"></div>'
+      +   '<div style="display:grid;grid-template-columns:120px 1fr 140px;gap:10px;margin-top:12px;">'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Nº da nota</label><input type="text" id="mno-num" style="' + ipt + 'width:100%;"></div>'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Prestador (fornecedor)</label><input type="text" id="mno-forn" style="' + ipt + 'width:100%;"></div>'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Emissão</label><input type="text" id="mno-emi" placeholder="dd/mm/aaaa" style="' + ipt + 'width:100%;"></div>'
+      +   '</div>'
+      +   '<div style="font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;margin:16px 0 6px;">Linhas de serviço da nota</div>'
+      +   '<div id="mno-linhas"></div>'
+      +   '<button type="button" id="mno-add" style="margin-top:4px;padding:7px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.8rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
+      + '</div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<div id="mno-total" style="font-size:0.88rem;color:#334155;"></div>'
+      +   '<button type="button" id="mno-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar nota e linhas</button>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    document.getElementById('mno-x').onclick = window._mnoFechar;
+    pop.addEventListener('mousedown', function(e) { if (e.target === pop) window._mnoFechar(); });
+    document.getElementById('mno-file').onchange = function() { window._mnMo.arquivo = this.files[0] || null; };
+    document.getElementById('mno-analisar').onclick = window._mnoAnalisar;
+    document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] }); window._mnoRenderLinhas(); };
+    document.getElementById('mno-salvar').onclick = window._mnoSalvar;
+    window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
+    window._mnoRenderLinhas();
+};
+
+window._mnoRenderLinhas = function() {
+    var box = document.getElementById('mno-linhas'), esc = window._mnEdEsc, fm = window._mnMoneyFmt;
+    if (!box) return;
+    var L = window._mnMo.linhas;
+    var ipt = 'padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.84rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
+    box.innerHTML = L.map(function(l, i) {
+        var rv = window._mnEdResumoVinculo(l);
+        return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid #fde68a;border-radius:8px;background:#fffbeb;margin-bottom:6px;">'
+          + '<input type="text" data-li="' + i + '" data-lf="descricao" value="' + esc(l.descricao) + '" placeholder="Serviço executado" style="' + ipt + 'flex:1;min-width:240px;">'
+          + '<span style="font-size:0.78rem;color:#64748b;">R$</span>'
+          + '<input type="text" data-money="1" data-li="' + i + '" data-lf="valor" value="' + fm(l.valor) + '" style="' + ipt + 'width:110px;text-align:right;font-weight:700;color:#b45309;">'
+          + '<button type="button" data-lvinc="' + i + '" style="padding:6px 10px;border:1.5px solid ' + rv.cor + ';border-radius:8px;background:#fff;color:' + rv.cor + ';cursor:pointer;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-link"></i> ' + esc(rv.txt) + '</button>'
+          + '<button type="button" data-lrm="' + i + '" title="Remover linha" style="padding:5px 8px;border:1px solid #fecaca;border-radius:6px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
+          + '</div>';
+    }).join('');
+    box.querySelectorAll('[data-li]').forEach(function(el) {
+        var i = parseInt(el.getAttribute('data-li')), f = el.getAttribute('data-lf');
+        if (f === 'valor') window._mnMask(el, function(n) { window._mnMo.linhas[i].valor = n; window._mnoTotal(); });
+        else el.oninput = function() { window._mnMo.linhas[i].descricao = el.value; };
+    });
+    box.querySelectorAll('[data-lvinc]').forEach(function(b) {
+        b.onclick = function() { window._mnVincularPopup(window._mnMo.linhas[parseInt(b.getAttribute('data-lvinc'))], window._mnoRenderLinhas); };
+    });
+    box.querySelectorAll('[data-lrm]').forEach(function(b) {
+        b.onclick = function() { window._mnMo.linhas.splice(parseInt(b.getAttribute('data-lrm')), 1); window._mnoRenderLinhas(); };
+    });
+    window._mnoTotal();
+};
+window._mnoTotal = function() {
+    var el = document.getElementById('mno-total'); if (!el) return;
+    var soma = window._mnMo.linhas.reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
+    el.innerHTML = 'Total das linhas: <b style="color:#b45309;">' + window._mnFmtMoeda(soma) + '</b>';
+};
+
+window._mnoAnalisar = async function() {
+    var ed = window._mnEd, esc = window._mnEdEsc;
+    var fileEl = document.getElementById('mno-file'), btn = document.getElementById('mno-analisar'), aviso = document.getElementById('mno-aviso');
+    var f = fileEl.files[0];
+    if (!f) { alert('Escolha o PDF da nota fiscal.'); return; }
+    window._mnMo.arquivo = f;
+    btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Analisando...';
+    try {
+        var fd = new FormData(); fd.append('arquivo', f);
+        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/notas-mo/analisar', { method: 'POST', headers: { Authorization: 'Bearer ' + window._mnEdTok() }, body: fd });
+        var d = await r.json().catch(function() { return {}; });
+        if (!r.ok) throw new Error(d.error || 'Erro ao analisar a nota');
+        document.getElementById('mno-num').value = d.numero || '';
+        document.getElementById('mno-forn').value = d.fornecedor || '';
+        document.getElementById('mno-emi').value = d.emissao || '';
+        window._mnMo.cnpj = d.cnpj || '';
+        window._mnMo.linhas = (d.itens || []).map(function(i) { return { descricao: i.descricao, valor: i.valor, ratear: 0, servicos: [] }; });
+        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
+        var av = (d.avisos || []).map(function(a) { return esc(a); }).join('<br>');
+        aviso.innerHTML = av ? '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + av + '</div>'
+            : '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota lida. Confira os valores e vincule cada linha aos serviços.</div>';
+        window._mnoRenderLinhas();
+    } catch (err) { alert(err.message); }
+    btn.disabled = false; btn.innerHTML = '<i class="ph ph-scan"></i> Analisar nota fiscal';
+};
+
+window._mnoSalvar = async function() {
+    var ed = window._mnEd;
+    var linhas = window._mnMo.linhas.filter(function(l) { return String(l.descricao || '').trim(); });
+    if (!linhas.length) { alert('Informe ao menos uma linha de serviço com a descrição.'); return; }
+    var semVinculo = linhas.filter(function(l) { return !l.ratear && !(l.servicos || []).length; }).length;
+    if (semVinculo && !confirm(semVinculo + ' linha(s) sem vínculo com serviço (o valor entra no total, mas não é dividido entre serviços). Salvar mesmo assim?')) return;
+    if (!window._mnMo.arquivo && !confirm('Nenhum PDF foi anexado. As linhas serão lançadas como mão de obra sem nota fiscal. Continuar?')) return;
+    var btn = document.getElementById('mno-salvar');
+    btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
+    try {
+        var fd = new FormData();
+        if (window._mnMo.arquivo) fd.append('arquivo', window._mnMo.arquivo);
+        var soma = linhas.reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
+        fd.append('dados', JSON.stringify({
+            numero: document.getElementById('mno-num').value.trim(),
+            fornecedor: document.getElementById('mno-forn').value.trim(),
+            data_emissao: document.getElementById('mno-emi').value.trim(),
+            cnpj: window._mnMo.cnpj || '',
+            valor_total: soma,
+            linhas: linhas.map(function(l) { return { descricao: l.descricao, valor: Number(l.valor) || 0, ratear: l.ratear ? 1 : 0, servicos: l.servicos || [] }; })
+        }));
+        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/notas-mo', { method: 'POST', headers: { Authorization: 'Bearer ' + window._mnEdTok() }, body: fd });
+        if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar a nota'); }
+        await window._mnEdRecarregarDetalhe();
+        window._mnoFechar();
+        window._mnEdRenderServ();
+        window._mnEdRenderNotas();
+        window._mnEdRenderMo();
+        window._mnEdRenderHist();
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Mão de obra lançada!');
+    } catch (err) {
+        btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar nota e linhas';
+        alert(err.message);
+    }
+};
+
 window._mnEdRenderTotais = function() {
     var ed = window._mnEd, box = document.getElementById('mned-total');
     if (!box) return;
     var mo = 0, pc = 0;
     ed.realizados.forEach(function(s) { mo += window._mnNum(s.mao_obra); });
+    (ed.mo || []).forEach(function(l) { mo += Number(l.valor) || 0; });
     (ed.pecas || []).forEach(function(p) { pc += Number(p.valor_total) || 0; });
-    var legado = (!ed.realizados.length && !(ed.pecas || []).length && Number(ed.m.custo) > 0);
+    var legado = (!ed.realizados.length && !(ed.pecas || []).length && !(ed.mo || []).length && Number(ed.m.custo) > 0);
     var total = legado ? Number(ed.m.custo) : (mo + pc);
     var card = function(titulo, valor, cor, fundo) {
         return '<div style="background:' + fundo + ';border:1px solid ' + cor + '40;border-radius:12px;padding:12px 14px;"><div style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;">' + titulo + '</div><div style="font-size:1.25rem;font-weight:800;color:' + cor + ';">' + window._mnFmtMoeda(valor) + '</div></div>';
@@ -1529,7 +2048,6 @@ window._mnEdAbrirLista = function() {
         window._mnEd.solicitados = sel;
         fechar();
         window._mnEdRenderSolic();
-        window._mnEdRenderAdd();
     };
 };
 
@@ -1537,8 +2055,9 @@ window._mnEdTok = function() {
     return window._manutTok || window.currentToken || localStorage.getItem('token');
 };
 
-// Salva servicos, mao de obra, garantia e pecas (edicoes) e devolve os ids gravados
+// Salva servicos, mao de obra, garantia, pecas e linhas de mao de obra e devolve os ids gravados
 window._mnEdSalvarDetalhe = async function() {
+    await window._mnEdGarantirId();
     var ed = window._mnEd, N = window._mnNum;
     var r = await fetch('/api/frota/manutencoes/' + ed.id + '/detalhe', {
         method: 'PUT',
@@ -1550,19 +2069,21 @@ window._mnEdSalvarDetalhe = async function() {
             }),
             pecas: ed.pecas.map(function(p) {
                 return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
+            }),
+            mo: (ed.mo || []).map(function(l) {
+                return { id: l.id, descricao: l.descricao, valor: N(l.valor), ratear: l.ratear ? 1 : 0, servicos: l.servicos || [] };
             })
         })
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar os serviços'); }
     var j = await r.json();
-    ed.realizados = (j.realizados || []).map(function(s) {
-        return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || 0, garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias' };
-    });
+    ed.realizados = (j.realizados || []).map(window._mnEdMapRealizado);
     ed.pecas = j.pecas || [];
+    ed.mo = (j.mo || []).map(window._mnEdMapMo);
     return j;
 };
 
-// Recarrega pecas e notas do servidor (apos incluir/excluir nota ou pecas)
+// Recarrega tudo do servidor (apos incluir/excluir nota, pecas ou mao de obra)
 window._mnEdRecarregarDetalhe = async function() {
     var ed = window._mnEd;
     var r = await fetch('/api/frota/manutencoes/' + ed.id + '/detalhe', { headers: { Authorization: 'Bearer ' + window._mnEdTok() } });
@@ -1570,6 +2091,9 @@ window._mnEdRecarregarDetalhe = async function() {
     var d = await r.json();
     ed.pecas = d.pecas || [];
     ed.notas = d.notas || [];
+    ed.mo = (d.mo || []).map(window._mnEdMapMo);
+    ed.realizados = (d.realizados || []).map(window._mnEdMapRealizado);
+    ed.historico = d.historico || [];
 };
 
 // Botao de olho: abre o PDF da nota (stream privado do R2)
@@ -1588,7 +2112,9 @@ window._mnEdVerNota = async function(id) {
 };
 
 window._mnEdExcluirNota = async function(id) {
-    if (!confirm('Excluir esta nota fiscal?\n\nAs peças lançadas por ela também serão excluídas. Esta ação não pode ser desfeita.')) return;
+    var nota = (window._mnEd.notas || []).find(function(n) { return n.id === id; });
+    var mo = nota && nota.tipo === 'mao_obra';
+    if (!confirm('Excluir esta nota fiscal?\n\n' + (mo ? 'As linhas de mão de obra lançadas por ela também serão excluídas.' : 'As peças lançadas por ela também serão excluídas.') + ' Esta ação não pode ser desfeita.')) return;
     try {
         await window._mnEdSalvarDetalhe();
         var r = await fetch('/api/frota/manutencoes/notas/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + window._mnEdTok() } });
@@ -1596,6 +2122,8 @@ window._mnEdExcluirNota = async function(id) {
         await window._mnEdRecarregarDetalhe();
         window._mnEdRenderServ();
         window._mnEdRenderNotas();
+        window._mnEdRenderMo();
+        window._mnEdRenderHist();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Nota fiscal excluída.');
     } catch (err) { alert(err.message); }
 };
@@ -1609,6 +2137,8 @@ window._mnpAposSalvar = async function(msg) {
     window._mnpFechar();
     window._mnEdRenderServ();
     window._mnEdRenderNotas();
+    window._mnEdRenderMo();
+    window._mnEdRenderHist();
     if (typeof mostrarToastAviso === 'function') mostrarToastAviso(msg);
 };
 
@@ -1893,31 +2423,44 @@ window._mnEdAbrirPecas = async function(servicoId) {
     window._mnpAddLinha();
 };
 
-window.mnCorrSalvarEdicaoInterno = async function(id) {
+window.mnCorrSalvarEdicaoInterno = async function() {
     var ed = window._mnEd;
     var btn = document.getElementById('mned-save');
+    var veic = document.getElementById('mned-veic').value;
+    var desc = document.getElementById('mned-desc').value.trim();
+    if (!veic) { alert('Selecione o veículo.'); return; }
+    if (!desc) { alert('Informe o defeito / problema.'); return; }
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
+        await window._mnEdGarantirId();
         await window._mnEdSalvarDetalhe();
-        var km = document.getElementById('mned-km').value;
-        var kmFinalEl = document.getElementById('mned-km-final');
-        var kmFinal = (ed.status === 'concluida' && kmFinalEl) ? kmFinalEl.value : null;
-        var forn = document.getElementById('mned-forn').value.trim();
-        var obs = document.getElementById('mned-obs').value.trim();
-        var rs = await fetch('/api/frota/manutencoes/' + id + '/status', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-            body: JSON.stringify({
-                status: ed.status,
-                km_na_manutencao: km || null,
-                km_final_manutencao: kmFinal || null,
-                fornecedor: forn || null,
-                observacoes: obs || null
-            })
-        });
-        if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar o status'); }
+        var hdr = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() };
+        var coment = document.getElementById('mned-coment').value.trim();
+        if (coment) {
+            var rc = await fetch('/api/frota/manutencoes/' + ed.id + '/comentarios', { method: 'POST', headers: hdr, body: JSON.stringify({ texto: coment }) });
+            if (!rc.ok) { var ec = await rc.json().catch(function() { return {}; }); throw new Error(ec.error || 'Erro ao salvar o comentário'); }
+        }
+        var ehConcl = ed.status === 'concluida';
+        var di = document.getElementById('mned-di').value;
+        if (ed.status === 'em_andamento' && !di) di = window._mnHojeISO();
+        var corpo = {
+            status: ed.status,
+            veiculo_id: veic,
+            descricao: desc,
+            data_inicio: di || null,
+            km_na_manutencao: document.getElementById('mned-km').value || null,
+            km_final_manutencao: ehConcl ? (document.getElementById('mned-km-final').value || null) : null,
+            fornecedor: document.getElementById('mned-forn').value.trim() || null
+        };
+        if (ehConcl) corpo.data_conclusao = document.getElementById('mned-dc').value || null;
+        var rs = await fetch('/api/frota/manutencoes/' + ed.id + '/status', { method: 'PUT', headers: hdr, body: JSON.stringify(corpo) });
+        if (!rs.ok) { var e2 = await rs.json().catch(function() { return {}; }); throw new Error(e2.error || 'Erro ao salvar a manutenção'); }
         window._mnEdFechar();
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção atualizada!');
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção salva!');
+        try {
+            var lista = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + window._mnEdTok() } }).then(function(x) { return x.json(); });
+            window._manutDados = lista || [];
+        } catch (e3) { /* lista sera recarregada abaixo */ }
         window.mnCarregarCorretivas();
     } catch (e) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
@@ -2050,6 +2593,9 @@ window.mnAtualizarKm = async function() {
 
 window.abrirModalManutencao = async function(id, opts = {}) {
     const tok = window._manutTok;
+    // Corretiva (criar ou editar) usa sempre a tela unica
+    if (!id && (opts.tipo === 'corretiva' || (!opts.tipo && window._mnSubAba === 'corretiva'))) return window.mnCorrNovaInterno({ vid: opts.vid, descricao: opts.descricao });
+    if (id) { const mm = (window._manutDados || []).find(x => x.id === id); if (mm && mm.tipo === 'corretiva') return window.mnCorrEditarInterno(id); }
     
     // Sempre recarrega (evita lista desatualizada na sessao quando o catalogo muda)
     window._manutCategorias = await fetch('/api/frota/categorias', { headers: { Authorization: 'Bearer ' + tok } }).then(r => r.ok ? r.json() : (window._manutCategorias || [])).catch(() => (window._manutCategorias || []));
@@ -2128,9 +2674,9 @@ window.abrirModalManutencao = async function(id, opts = {}) {
 
     let ov = document.getElementById('modal-manut-ov'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.id = 'modal-manut-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:stretch;justify-content:stretch;padding:0;';
 
-    ov.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);overflow:hidden;">
+    ov.innerHTML = `<div style="background:#fff;border-radius:0;width:100%;max-width:none;height:100vh;display:flex;flex-direction:column;overflow:hidden;">
 <div style="padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;background:#fffbeb;flex-shrink:0;">
     <div style="font-size:1rem;font-weight:700;color:#92400e;display:flex;align-items:center;gap:8px;">
         <div style="background:#d97706;color:#fff;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-wrench"></i></div>
@@ -2179,7 +2725,6 @@ window.abrirModalManutencao = async function(id, opts = {}) {
   </div>
 </div></div>`;
     document.body.appendChild(ov);
-    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
     if (!id && m.tipo === 'corretiva') window.mnModalCatChanged();
     
     // Add event listeners for new modal logic

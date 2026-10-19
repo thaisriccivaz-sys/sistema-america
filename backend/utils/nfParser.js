@@ -292,4 +292,111 @@ async function analisarNotaFiscal(buffer) {
     return base;
 }
 
-module.exports = { analisarNotaFiscal, analisarLocal, analisarComGemini, parseBR };
+// ---------------------------------------------------------------------------
+// Nota fiscal de SERVICO (mao de obra) - NFS-e: o layout muda por prefeitura, entao a IA e o caminho principal
+// e a leitura local (texto do PDF) serve de reserva. Em ultimo caso o usuario digita as linhas.
+// ---------------------------------------------------------------------------
+async function textoDoPdf(buffer) {
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), verbosity: 0 }).promise;
+    let texto = '';
+    let itens = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        const linhas = agruparLinhas(tokenizarPagina(tc.items));
+        texto += linhas.map(l => l.texto).join('\n') + '\n';
+        try { itens = itens.concat(itensDaPagina(linhas)); } catch (e) { /* layout sem tabela de itens */ }
+    }
+    return { texto: texto, itensDanfe: itens };
+}
+
+function dadosServicoLocal(texto, itensDanfe) {
+    const r = { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', valor_total: 0, itens: [], fonte: 'local' };
+    const mNum = texto.match(/N[úu]mero\s+da\s+Nota[^\d]{0,40}(\d{1,12})/i) || texto.match(/NFS-?e[^\d]{0,40}(\d{1,12})/i) || texto.match(/N[ºo°]\.?\s*:?\s*(\d{1,12})/i);
+    if (mNum) r.numero = String(parseInt(mNum[1], 10));
+    const mCnpj = texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
+    if (mCnpj) r.cnpj = mCnpj[0];
+    const mData = texto.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (mData) r.emissao = mData[1];
+    const mForn = texto.match(/(?:Prestador[^\n]*\n|Raz[ãa]o\s+Social[^\n:]*:?\s*)([^\n]{4,80})/i);
+    if (mForn) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
+    // total da nota
+    const mTot = texto.match(/VALOR\s+(?:TOTAL\s+DA\s+NOTA|TOTAL\s+DOS\s+SERVI[ÇC]OS|DOS\s+SERVI[ÇC]OS|L[ÍI]QUIDO)[^\d]{0,40}(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    if (mTot) r.valor_total = parseBR(mTot[1]) || 0;
+    if (itensDanfe && itensDanfe.length) {
+        r.itens = itensDanfe.map(i => ({ descricao: String(i.descricao || '').substring(0, 200), valor: i.valor_total }));
+        if (!r.valor_total) r.valor_total = Math.round(r.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
+    } else {
+        const mDisc = texto.match(/DISCRIMINA[ÇC][ÃA]O(?:\s+DOS\s+SERVI[ÇC]OS)?[^\n]*\n([\s\S]{5,400}?)(?=\n\s*(?:VALOR|BASE\s+DE|C[ÓO]DIGO|AL[ÍI]QUOTA|TRIBUTA|PIS|COFINS|INSS|ISS)\b|$)/i);
+        const desc = mDisc ? mDisc[1].replace(/\s+/g, ' ').trim().substring(0, 200) : '';
+        if (desc && r.valor_total) r.itens = [{ descricao: desc, valor: r.valor_total }];
+    }
+    return r;
+}
+
+async function analisarServicoGemini(buffer) {
+    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY nao configurada');
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const prompt = 'Voce recebe uma NOTA FISCAL DE SERVICO (NFS-e) brasileira de MAO DE OBRA de manutencao de veiculos. Extraia os dados e responda SOMENTE com JSON valido, sem markdown, neste formato: '
+        + '{"numero":"","emissao":"dd/mm/aaaa","fornecedor":"razao social do prestador","cnpj":"cnpj do prestador","valor_total":0,'
+        + '"itens":[{"descricao":"servico executado","valor":0}]}. '
+        + 'Regras: liste cada servico discriminado na nota com o seu valor (numero com ponto decimal); se a nota trouxer um unico valor para varios servicos, '
+        + 'retorne UMA linha com a discriminacao resumida e o valor total dos servicos; nao inclua impostos retidos como itens.';
+    const modelos = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash'];
+    let ultimoErro = null;
+    for (const nome of modelos) {
+        try {
+            const model = genAI.getGenerativeModel({ model: nome, generationConfig: { responseMimeType: 'application/json' } });
+            const result = await model.generateContent([
+                { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
+                { text: prompt }
+            ]);
+            const txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+            const j = JSON.parse(txt);
+            const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
+                descricao: String(i.descricao || '').trim().substring(0, 200),
+                valor: Math.round((Number(i.valor) || 0) * 100) / 100
+            })).filter(i => i.descricao);
+            const soma = Math.round(itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
+            return {
+                numero: String(j.numero || '').replace(/\D/g, '').replace(/^0+/, ''), serie: '', emissao: String(j.emissao || ''),
+                fornecedor: String(j.fornecedor || ''), cnpj: String(j.cnpj || ''), chave_acesso: '',
+                valor_total: Math.round((Number(j.valor_total) || soma) * 100) / 100, itens: itens, fonte: 'ia'
+            };
+        } catch (e) {
+            ultimoErro = e;
+            const msg = String(e.message || '');
+            if (!(msg.includes('503') || msg.includes('404') || msg.includes('high demand') || msg.includes('no longer available'))) break;
+        }
+    }
+    throw ultimoErro || new Error('Falha ao consultar o Gemini');
+}
+
+async function analisarNotaServico(buffer) {
+    let local = null, ia = null, erroIa = null;
+    try {
+        const t = await textoDoPdf(buffer);
+        local = dadosServicoLocal(t.texto, t.itensDanfe);
+    } catch (e) { console.error('[NF-MO] leitor local falhou:', e.message); }
+    if (process.env.GEMINI_API_KEY) {
+        try { ia = await analisarServicoGemini(buffer); } catch (e) { erroIa = e; console.error('[NF-MO] Gemini falhou:', e.message); }
+    }
+    const vazio = { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', valor_total: 0, itens: [], fonte: 'nenhum' };
+    const base = (ia && ia.itens.length) ? ia : (local && local.itens.length ? local : (ia || local || vazio));
+    const outro = base === ia ? local : ia;
+    if (outro) ['numero', 'emissao', 'fornecedor', 'cnpj'].forEach(k => { if (!base[k] && outro[k]) base[k] = outro[k]; });
+    if (base.itens.length) {
+        const soma = Math.round(base.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
+        base.avisos = (base.valor_total && Math.abs(soma - base.valor_total) > 0.05)
+            ? ['A soma das linhas (' + soma.toFixed(2).replace('.', ',') + ') difere do total da nota. Confira os valores antes de salvar.']
+            : (base.fonte === 'ia' ? ['Linhas lidas por IA. Confira descrição e valores antes de salvar.'] : []);
+    } else {
+        base.avisos = ['Não foi possível ler as linhas desta nota automaticamente. Digite os serviços e valores manualmente.'
+            + (erroIa ? ' (IA: ' + String(erroIa.message).substring(0, 80) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
+    }
+    return base;
+}
+
+module.exports = { analisarNotaFiscal, analisarLocal, analisarComGemini, analisarNotaServico, parseBR };
