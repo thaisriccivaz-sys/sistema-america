@@ -1234,7 +1234,7 @@ window._mnEdRenderAdd = function() {
     var ed = window._mnEd, sel = document.getElementById('mned-add-sel'), esc = window._mnEdEsc;
     if (!sel) return;
     var cat = window._mnCatalogoLista('corretiva');
-    var refs = ed.solicitados.map(function(n) { return n.indexOf('Outros') === 0 ? 'Outros' : n; });
+    var refs = ed.solicitados.map(function(n) { return (n === 'Outros' || n.indexOf('Outros:') === 0) ? 'Outros serviços' : n; });
     var sug = cat.filter(function(s) { return s.item_ref && refs.indexOf(s.item_ref) !== -1; });
     var opt = function(s) { return '<option value="' + s.id + '">' + esc(s.nome) + '</option>'; };
     var html = '<option value="">Selecione o serviço realizado...</option>';
@@ -1332,7 +1332,7 @@ window._mnEdRenderServ = function() {
         }
         return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
           + '<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">'
-          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>' + (s.item_ref ? '<div style="font-size:0.72rem;color:#94a3b8;">Item: ' + esc(s.item_ref) + '</div>' : '') + '</div>'
+          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>' + (s.item_ref ? '<div style="font-size:0.72rem;color:#94a3b8;">Categoria: ' + esc(s.item_ref) + '</div>' : '') + '</div>'
           +   '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + fm(window._mnNum(s.mao_obra)) + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;"></div>'
           +   '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
           +   '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
@@ -1458,14 +1458,21 @@ window._mnEdRenderTotais = function() {
 };
 
 window._mnEdAbrirLista = function() {
-    var grupos = window._LOG_SIN_MANUT_ITENS;
+    var cats = window._manutCategorias || [];
     var ed = window._mnEd, esc = window._mnEdEsc;
-    if (!grupos) { alert('Lista de manutenções indisponível. Atualize a página (Ctrl+F5).'); return; }
+    if (!cats.length) { alert('Lista de categorias indisponível. Atualize a página (Ctrl+F5).'); return; }
+    // mesmas categorias do cadastro e da tela de sinistro ("Outros serviços" e gravado como "Outros")
+    var grupos = [{
+        grupo: 'Categorias de manutenção',
+        itens: cats.map(function(c) {
+            return { nome: c.nome === 'Outros serviços' ? 'Outros' : c.nome, rotulo: c.nome, icone: 'ph-' + (c.icone || 'wrench') };
+        })
+    }];
     var nomesLista = [];
     grupos.forEach(function(g) { g.itens.forEach(function(it) { nomesLista.push(it.nome); }); });
     var marcados = [], extras = [], temOutros = false, textoOutros = '';
     ed.solicitados.forEach(function(n) {
-        if (n.indexOf('Outros') === 0) { temOutros = true; textoOutros = n.replace(/^Outros:?\s*/, ''); }
+        if (n === 'Outros' || n.indexOf('Outros:') === 0) { temOutros = true; textoOutros = n.replace(/^Outros:?\s*/, ''); }
         else if (nomesLista.indexOf(n) === -1) extras.push(n);
         else marcados.push(n);
     });
@@ -1476,7 +1483,7 @@ window._mnEdAbrirLista = function() {
                 var chk = (it.nome === 'Outros' ? temOutros : marcados.indexOf(it.nome) !== -1) ? ' checked' : '';
                 return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;cursor:pointer;background:#f8fafc;user-select:none;">'
                   + '<input type="checkbox" data-nome="' + esc(it.nome) + '"' + chk + ' style="width:16px;height:16px;accent-color:#d97706;flex-shrink:0;">'
-                  + '<i class="ph ' + it.icone + '" style="font-size:1.05rem;color:#d97706;flex-shrink:0;"></i><span>' + esc(it.nome) + '</span></label>';
+                  + '<i class="ph ' + it.icone + '" style="font-size:1.05rem;color:#d97706;flex-shrink:0;"></i><span>' + esc(it.rotulo || it.nome) + '</span></label>';
             }).join('')
           + '</div>';
     }).join('');

@@ -1954,71 +1954,98 @@ window._logSinManut = { ativo: false, itens: [], item: '', outros: '', obs: '', 
 window._logSinEditManut = { ativo: false, itens: [], item: '', outros: '', obs: '', rodando: '', manutencao_id: null };
 window._logSinManutRH = false;
 
-window._LOG_SIN_MANUT_ITENS = [
-    {
-        grupo: 'Lataria e estética',
-        itens: [
-            { nome: 'Funilaria (amassados)', icone: 'ph-hammer' },
-            { nome: 'Adesivo', icone: 'ph-tag' },
-            { nome: 'Pintura', icone: 'ph-paint-brush' },
-            { nome: 'Para-choque dianteiro', icone: 'ph-shield' },
-            { nome: 'Para-choque traseiro', icone: 'ph-shield-check' },
-            { nome: 'Capô', icone: 'ph-arrow-up-right' },
-            { nome: 'Porta', icone: 'ph-door' },
-            { nome: 'Paralama', icone: 'ph-arrows-horizontal' },
-            { nome: 'Tampa traseira', icone: 'ph-arrow-down-left' },
-            { nome: 'Retrovisor', icone: 'ph-eye' },
-            { nome: 'Faróis', icone: 'ph-flashlight' },
-            { nome: 'Lanternas', icone: 'ph-lamp' },
-            { nome: 'Setas', icone: 'ph-arrows-left-right' },
-            { nome: 'Para-brisa', icone: 'ph-square-half' },
-            { nome: 'Vidros', icone: 'ph-frame-corners' }
-        ]
-    },
-    {
-        grupo: 'Mecânica',
-        itens: [
-            { nome: 'Suspensão', icone: 'ph-activity' },
-            { nome: 'Direção', icone: 'ph-compass' },
-            { nome: 'Alinhamento', icone: 'ph-ruler' },
-            { nome: 'Balanceamento', icone: 'ph-scales' },
-            { nome: 'Pneus', icone: 'ph-circle-notch' },
-            { nome: 'Rodas', icone: 'ph-disc' },
-            { nome: 'Freios', icone: 'ph-hand-palm' },
-            { nome: 'Radiador', icone: 'ph-thermometer-hot' },
-            { nome: 'Arrefecimento', icone: 'ph-snowflake' },
-            { nome: 'Motor', icone: 'ph-gear-six' },
-            { nome: 'Câmbio', icone: 'ph-sliders' },
-            { nome: 'Transmissão', icone: 'ph-shuffle' },
-            { nome: 'Sistema elétrico', icone: 'ph-lightning' },
-            { nome: 'Bateria', icone: 'ph-battery-charging' }
-        ]
-    },
-    {
-        grupo: 'Operacional',
-        itens: [
-            { nome: 'Tanque', icone: 'ph-gas-can' },
-            { nome: 'Bomba de sucção', icone: 'ph-fan' },
-            { nome: 'Motor de sucção', icone: 'ph-power' },
-            { nome: 'Mangotes', icone: 'ph-link' },
-            { nome: 'Válvulas', icone: 'ph-funnel' },
-            { nome: 'Sistema hidráulico', icone: 'ph-drop' },
-            { nome: 'Estrutura', icone: 'ph-grid-four' },
-            { nome: 'Chassi', icone: 'ph-truck' }
-        ]
-    },
-    {
-        grupo: 'Outros',
-        itens: [
-            { nome: 'Revisão geral pós-sinistro', icone: 'ph-clipboard-text' },
-            { nome: 'Outros', icone: 'ph-dots-three-circle' }
-        ]
-    }
+// Categorias de manutencao: sao as MESMAS do cadastro da Frota (22 categorias).
+// Esta lista embutida e apenas reserva; ao abrir o popup ela e atualizada por GET /api/frota/categorias,
+// para a tela de sinistro, "Nova manutencao" e "Editar manutencao" mostrarem sempre as mesmas categorias.
+window._LOG_SIN_CATEGORIAS_RESERVA = [
+    ['Carroceria, funilaria e pintura', 'ph-paint-brush'],
+    ['Iluminação e sinalização', 'ph-flashlight'],
+    ['Vidros, portas e retrovisores', 'ph-frame-corners'],
+    ['Motor e distribuição', 'ph-gear-six'],
+    ['Arrefecimento', 'ph-thermometer-hot'],
+    ['Lubrificação e filtros', 'ph-drop'],
+    ['Freios', 'ph-hand-palm'],
+    ['Pneus e rodas', 'ph-circle-notch'],
+    ['Suspensão e direção', 'ph-activity'],
+    ['Câmbio, embreagem e transmissão', 'ph-sliders'],
+    ['Sistema elétrico e eletrônico', 'ph-lightning'],
+    ['Ar-condicionado e ventilação', 'ph-snowflake'],
+    ['Sistema de combustível e injeção', 'ph-gas-can'],
+    ['Sistema hidráulico e pneumático', 'ph-link'],
+    ['Tanque, bomba de sucção e sistema de vácuo', 'ph-fan'],
+    ['Chassi, estrutura e implementos', 'ph-truck'],
+    ['Manutenção preventiva e revisão geral', 'ph-clipboard-text'],
+    ['Inspeções, segurança e documentação', 'ph-shield-check'],
+    ['Adesivagem e identidade visual', 'ph-tag'],
+    ['Limpeza e higienização técnica', 'ph-sparkle'],
+    ['Revisão geral pós-sinistro', 'ph-hammer'],
+    ['Outros serviços', 'ph-dots-three-circle']
 ];
+
+// A categoria "Outros serviços" e gravada como "Outros" (com o texto livre: "Outros: descricao")
+window._logSinMontarItens = function(cats) {
+    return [{
+        grupo: 'Categorias de manutenção',
+        itens: cats.map(function(c) {
+            var outros = c.nome === 'Outros serviços';
+            return { nome: outros ? 'Outros' : c.nome, rotulo: c.nome, icone: c.icone };
+        })
+    }];
+};
+
+window._LOG_SIN_MANUT_ITENS = window._logSinMontarItens(window._LOG_SIN_CATEGORIAS_RESERVA.map(function(c) { return { nome: c[0], icone: c[1] }; }));
+
+window._logSinCarregarCategorias = function() {
+    return fetch('/api/frota/categorias', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('erp_token') || '') } })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(rows) {
+            if (Array.isArray(rows) && rows.length) {
+                window._LOG_SIN_MANUT_ITENS = window._logSinMontarItens(rows.map(function(r) {
+                    return { nome: r.nome, icone: 'ph-' + (r.icone || 'wrench') };
+                }));
+            }
+        })
+        .catch(function() { /* mantem a lista embutida */ });
+};
+
+// Varias categorias tem virgula no nome (ex.: "Carroceria, funilaria e pintura"): o separador ", " so vale
+// fora dos nomes de categoria conhecidos. "Outros: texto livre" e sempre o ultimo item.
+window._logSinSplitItens = function(str) {
+    var t = String(str || '').trim();
+    if (!t) return [];
+    var base = t, outros = '';
+    var idx = t.indexOf('Outros:');
+    if (idx !== -1) { base = t.substring(0, idx).replace(/[,\s]+$/, ''); outros = t.substring(idx).trim(); }
+    var nomes = {};
+    window._LOG_SIN_CATEGORIAS_RESERVA.forEach(function(c) { nomes[c[0]] = 1; });
+    (window._LOG_SIN_MANUT_ITENS || []).forEach(function(g) { g.itens.forEach(function(it) { nomes[it.rotulo || it.nome] = 1; }); });
+    var lista = Object.keys(nomes).sort(function(a, b) { return b.length - a.length; });
+    var itens = [], i = 0;
+    while (i < base.length) {
+        while (i < base.length && (base[i] === ',' || base[i] === ' ')) i++;
+        if (i >= base.length) break;
+        var achou = null;
+        for (var k = 0; k < lista.length; k++) {
+            var n = lista[k];
+            if (base.substr(i, n.length) === n) {
+                var fim = i + n.length;
+                if (fim === base.length || base[fim] === ',') { achou = n; break; }
+            }
+        }
+        if (achou) { itens.push(achou); i += achou.length; continue; }
+        var j = base.indexOf(', ', i);
+        if (j === -1) j = base.length;
+        var tok = base.substring(i, j).trim();
+        if (tok) itens.push(tok);
+        i = j;
+    }
+    if (outros) itens.push(outros);
+    return itens;
+};
 
 window._logSinParseItens = function(str) {
     if (!str) return { itens: [], outros: '' };
-    var partes = String(str).split(', ').map(function(s) { return s.trim(); }).filter(Boolean);
+    var partes = window._logSinSplitItens(str).map(function(s) { return s.trim(); }).filter(Boolean);
     var itens = [];
     var outros = '';
     partes.forEach(function(p) {
@@ -2036,7 +2063,7 @@ window._logSinParseItens = function(str) {
 
 window._logSinManutItemTexto = function(st) {
     st = st || window._logSinManut || {};
-    var itens = Array.isArray(st.itens) ? st.itens.slice() : (st.item ? String(st.item).split(', ') : []);
+    var itens = Array.isArray(st.itens) ? st.itens.slice() : (st.item ? window._logSinSplitItens(st.item) : []);
     var partes = [];
     itens.forEach(function(it) {
         it = it.trim();
@@ -2172,7 +2199,7 @@ window._logSinManutFecharPopup = function() {
     if (p) p.remove();
 };
 
-window._logSinManutAbrirPopup = function(origem) {
+window._logSinManutAbrirPopupInterno = function(origem) {
     origem = (origem === 'edit') ? 'edit' : 'novo';
     window._logSinManutOrigemAtual = origem;
     var v = null;
@@ -2213,7 +2240,7 @@ window._logSinManutAbrirPopup = function(origem) {
             lista += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.83rem;cursor:pointer;background:#f8fafc;transition:all .15s;user-select:none;">'
                 + '<input type="checkbox" name="log-sin-manut-item" value="' + it.nome + '"' + chk + ' onchange="window._logSinManutItemChange()" style="width:16px;height:16px;accent-color:#d97706;cursor:pointer;flex-shrink:0;">'
                 + '<i class="ph ' + it.icone + '" style="font-size:1.1rem;color:#d97706;flex-shrink:0;"></i>'
-                + '<span style="color:#1e293b;font-weight:500;">' + it.nome + '</span>'
+                + '<span style="color:#1e293b;font-weight:500;">' + (it.rotulo || it.nome) + '</span>'
                 + '</label>';
         });
         lista += '</div>';
@@ -2261,6 +2288,10 @@ window._logSinManutAbrirPopup = function(origem) {
 
     var btnConf = document.getElementById('log-sin-manut-btn-confirmar');
     if (btnConf) btnConf.onclick = function() { window._logSinManutConfirmar(origem); };
+};
+
+window._logSinManutAbrirPopup = function(origem) {
+    window._logSinCarregarCategorias().then(function() { window._logSinManutAbrirPopupInterno(origem); });
 };
 
 window._logSinManutConfirmar = function(origem) {
