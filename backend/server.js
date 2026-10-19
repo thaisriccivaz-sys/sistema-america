@@ -7089,7 +7089,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
 
 
         // Solicitação de manutenção vinculada ao sinistro (Logística)
-        if (String(body.necessita_manutencao) === '1' && !sinistro.manutencao_id) {
+        if (body.necessita_manutencao !== undefined && body.necessita_manutencao !== null && body.necessita_manutencao !== '') {
             try {
                 const manItem = String(body.manutencao_item || '').trim();
                 const manObs = String(body.manutencao_obs || '').trim();
@@ -7102,27 +7102,55 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                         manVeiculoId = vRow ? vRow.id : null;
                     }
                 }
-                if (manItem && manVeiculoId) {
-                    const hojeMan = new Date().toISOString().split('T')[0];
-                    const statusMan = manRodando === 'nao' ? 'em_andamento' : 'agendada';
-                    const descMan = 'Sinistro #' + sinistroId + ' - ' + manItem + (manObs ? ': ' + manObs : '');
-                    const usuarioMan = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
-                    const manId = await new Promise((resolve, reject) => {
-                        db.run(`INSERT INTO frota_manutencoes
-                            (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, sinistro_id, created_at, updated_at)
-                            VALUES (?, 'corretiva', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                            [manVeiculoId, descMan, statusMan, hojeMan, hojeMan, usuarioMan, sinistroId],
-                            function (err) { err ? reject(err) : resolve(this.lastID); });
-                    });
-                    if (statusMan === 'em_andamento') {
-                        await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                if (String(body.necessita_manutencao) === '1') {
+                    if (manItem && manVeiculoId) {
+                        const hojeMan = new Date().toISOString().split('T')[0];
+                        const statusMan = manRodando === 'nao' ? 'em_andamento' : 'agendada';
+                        const descMan = 'Sinistro #' + sinistroId + ' - ' + manItem + (manObs ? ': ' + manObs : '');
+                        const usuarioMan = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
+                        if (!sinistro.manutencao_id) {
+                            const manId = await new Promise((resolve, reject) => {
+                                db.run(`INSERT INTO frota_manutencoes
+                                    (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, sinistro_id, created_at, updated_at)
+                                    VALUES (?, 'corretiva', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                                    [manVeiculoId, descMan, statusMan, hojeMan, hojeMan, usuarioMan, sinistroId],
+                                    function (err) { err ? reject(err) : resolve(this.lastID); });
+                            });
+                            if (statusMan === 'em_andamento') {
+                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                            }
+                            await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_id=? WHERE id=?',
+                                [manItem, manObs || null, manRodando, manId, sinistroId], () => r()));
+                        } else {
+                            await new Promise(r => db.run('UPDATE frota_manutencoes SET descricao=?, status=?, veiculo_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                                [descMan, statusMan, manVeiculoId, sinistro.manutencao_id], () => r()));
+                            if (statusMan === 'em_andamento') {
+                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                            } else {
+                                const cnt = await new Promise(r => db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?", [manVeiculoId, sinistro.manutencao_id], (e, row) => r(row ? row.cnt : 0)));
+                                if (cnt === 0) {
+                                    await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                                }
+                            }
+                            await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=? WHERE id=?',
+                                [manItem, manObs || null, manRodando, sinistroId], () => r()));
+                        }
+                    } else {
+                        console.warn('[SINISTRO MANUT] Item ou veiculo nao identificado; manutencao nao criada. item=', manItem, 'veiculo=', manVeiculoId);
                     }
-                    await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=1, manutencao_item=?, manutencao_obs=?, manutencao_rodando=?, manutencao_id=? WHERE id=?',
-                        [manItem, manObs || null, manRodando, manId, sinistroId], () => r()));
-                } else {
-                    console.warn('[SINISTRO MANUT] Item ou veiculo nao identificado; manutencao nao criada. item=', manItem, 'veiculo=', manVeiculoId);
+                } else if (String(body.necessita_manutencao) === '0') {
+                    if (sinistro.manutencao_id) {
+                        await new Promise(r => db.run("UPDATE frota_manutencoes SET status='cancelada', updated_at=CURRENT_TIMESTAMP WHERE id=?", [sinistro.manutencao_id], () => r()));
+                        if (manVeiculoId) {
+                            const cnt = await new Promise(r => db.get("SELECT COUNT(*) as cnt FROM frota_manutencoes WHERE veiculo_id=? AND status='em_andamento' AND id!=?", [manVeiculoId, sinistro.manutencao_id], (e, row) => r(row ? row.cnt : 0)));
+                            if (cnt === 0) {
+                                await new Promise(r => db.run('UPDATE frota_veiculos SET em_manutencao=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [manVeiculoId], () => r()));
+                            }
+                        }
+                    }
+                    await new Promise(r => db.run('UPDATE sinistros SET necessita_manutencao=0, manutencao_item=NULL, manutencao_obs=NULL, manutencao_rodando=NULL, manutencao_id=NULL WHERE id=?', [sinistroId], () => r()));
                 }
-            } catch (eMan) { console.error('[SINISTRO MANUT] Erro ao criar manutencao:', eMan.message); }
+            } catch (eMan) { console.error('[SINISTRO MANUT] Erro ao criar/atualizar manutencao:', eMan.message); }
         }
 
         // Upload do arquivo BO se enviado

@@ -1055,6 +1055,20 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
         return;
     }
 
+    // Inicializar estado de manutenção da edição
+    window._logSinManutRH = (window._logSinOrigemRH === true);
+    var _jaTemManut = (sinistro.necessita_manutencao == 1);
+    var _itemSalvo = sinistro.manutencao_item || '';
+    var _isOutros = _itemSalvo.startsWith('Outros: ');
+    window._logSinEditManut = {
+        ativo: _jaTemManut,
+        item: _isOutros ? 'Outros' : _itemSalvo,
+        outros: _isOutros ? _itemSalvo.replace(/^Outros:\s*/, '') : '',
+        obs: sinistro.manutencao_obs || '',
+        rodando: sinistro.manutencao_rodando || 'sim',
+        manutencao_id: sinistro.manutencao_id || null
+    };
+
     // Orçamentos existentes
     let orcsExistentes = [];
     try { if (sinistro.orcamentos_paths) orcsExistentes = JSON.parse(sinistro.orcamentos_paths); } catch(e) {}
@@ -1137,7 +1151,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         </div>
                         <div class="input-group">
                             <label>Placa</label>
-                            <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}">
+                            <input type="text" id="edit-sin-placa" class="form-control" value="${sinistro.placa || ''}" oninput="window._logSinEditManutRender()">
                         </div>
                     </div>
 
@@ -1250,6 +1264,19 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         </div>
                     </div>
 
+                    <!-- Manutenção do veículo (somente Logística) -->
+                    <div id="edit-sin-manut-box" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:10px;padding:1rem;">
+                        <p style="margin:0 0 10px;font-weight:700;font-size:0.85rem;color:#334155;"><i class="ph ph-wrench" style="color:#d97706;"></i> Manutenção do veículo</p>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div id="edit-sin-manut-track" onclick="window._logSinEditManutToggle()" role="switch" style="position:relative;width:44px;height:24px;border-radius:12px;background:#cbd5e1;cursor:pointer;transition:all .2s;flex-shrink:0;">
+                                <div id="edit-sin-manut-knob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);transition:all .2s;"></div>
+                            </div>
+                            <span id="edit-sin-manut-label" style="font-weight:600;font-size:0.9rem;color:#64748b;">Não necessita manutenção</span>
+                        </div>
+                        <div id="edit-sin-manut-resumo" style="display:none;margin-top:10px;"></div>
+                        <p id="edit-sin-manut-aviso" style="display:none;margin:10px 0 0;font-size:0.78rem;color:#92400e;"><i class="ph ph-info"></i> Preencha o veículo (placa) para poder solicitar manutenção.</p>
+                    </div>
+
                     <!-- Histórico de Observações -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; flex:1;">
                         <p style="margin:0 0 10px; font-weight:700; font-size:0.85rem; color:#334155; display:flex; align-items:center; gap:6px;">
@@ -1318,6 +1345,9 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
 
 
     modal.style.display = 'flex';
+
+    // Renderizar estado de manutenção da edição
+    window._logSinEditManutRender();
 
     // Renderizar grade de mídias existentes
     window._logSinEditRenderMidiasExistentes();
@@ -1622,6 +1652,16 @@ window.logSinSalvarEdicao = async function() {
             formData.append('autor_observacao', nomeAutor);
         }
 
+        // Manutenção do veículo na edição
+        if (window._logSinEditManut && !window._logSinManutRH) {
+            formData.append('necessita_manutencao', window._logSinEditManut.ativo ? '1' : '0');
+            if (window._logSinEditManut.ativo) {
+                formData.append('manutencao_item', window._logSinEditManutItemTexto());
+                formData.append('manutencao_rodando', window._logSinEditManut.rodando || 'sim');
+                formData.append('manutencao_obs', window._logSinEditManut.obs || '');
+            }
+        }
+
         if (window._logSinEditBOFile) {
             formData.append('arquivo', window._logSinEditBOFile);
         } else {
@@ -1894,6 +1934,7 @@ if (!window._sinExcluirOrc) {
 // SOLICITAÇÃO DE MANUTENÇÃO DO VEÍCULO (Logística › Novo Sinistro)
 // ============================================================
 window._logSinManut = { ativo: false, item: '', outros: '', obs: '', rodando: '' };
+window._logSinEditManut = { ativo: false, item: '', outros: '', obs: '', rodando: '', manutencao_id: null };
 window._logSinManutRH = false;
 window._LOG_SIN_MANUT_ITENS = [
     { grupo: 'Lataria e estética', itens: ['Funilaria (amassados)', 'Adesivo', 'Pintura', 'Para-choque dianteiro', 'Para-choque traseiro', 'Capô', 'Porta', 'Paralama', 'Tampa traseira', 'Retrovisor', 'Faróis', 'Lanternas', 'Setas', 'Para-brisa', 'Vidros'] },
@@ -1973,10 +2014,24 @@ window._logSinManutFecharPopup = function() {
     if (p) p.remove();
 };
 
-window._logSinManutAbrirPopup = function() {
-    var v = window._logSinVeiculoSelecionado;
-    if (!v) return;
-    var st = window._logSinManut;
+window._logSinManutAbrirPopup = function(origem) {
+    origem = (origem === 'edit') ? 'edit' : 'novo';
+    var v = null;
+    if (origem === 'edit') {
+        var placaInp = document.getElementById('edit-sin-placa');
+        var veicInp = document.getElementById('edit-sin-veiculo');
+        var pl = placaInp ? placaInp.value.trim() : '';
+        var mod = veicInp ? veicInp.value.trim() : '';
+        if (!pl) {
+            alert('Para solicitar manutenção, preencha a placa do veículo.');
+            return;
+        }
+        v = { placa: pl, marca_modelo_versao: mod };
+    } else {
+        v = window._logSinVeiculoSelecionado;
+        if (!v) return;
+    }
+    var st = (origem === 'edit') ? (window._logSinEditManut || {}) : (window._logSinManut || {});
     window._logSinManutFecharPopup();
     var lista = '';
     window._LOG_SIN_MANUT_ITENS.forEach(function(g) {
@@ -1989,7 +2044,7 @@ window._logSinManutAbrirPopup = function() {
         });
         lista += '</div>';
     });
-    var rodSim = (st.rodando === 'sim') ? ' checked' : '';
+    var rodSim = (st.rodando === 'sim' || !st.rodando) ? ' checked' : '';
     var rodNao = (st.rodando === 'nao') ? ' checked' : '';
     var p = document.createElement('div');
     p.id = 'log-sin-manut-popup';
@@ -2013,25 +2068,93 @@ window._logSinManutAbrirPopup = function() {
         + '<textarea id="log-sin-manut-obs" class="form-control" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="Detalhes adicionais...">' + String(st.obs || '').replace(/</g, '&lt;') + '</textarea>'
         + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">'
         + '<button type="button" onclick="window._logSinManutFecharPopup()" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
-        + '<button type="button" onclick="window._logSinManutConfirmar()" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
+        + '<button type="button" onclick="window._logSinManutConfirmar(\'' + origem + '\')" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;"><i class="ph ph-check"></i> Confirmar</button>'
         + '</div></div></div>';
     document.body.appendChild(p);
 };
 
-window._logSinManutConfirmar = function() {
+window._logSinManutConfirmar = function(origem) {
+    origem = (origem === 'edit') ? 'edit' : 'novo';
     var selItem = document.querySelector('input[name="log-sin-manut-item"]:checked');
     if (!selItem) return alert('Selecione qual manutenção é necessária.');
     var outros = (document.getElementById('log-sin-manut-outros') || { value: '' }).value.trim();
     if (selItem.value === 'Outros' && !outros) return alert('Descreva a manutenção no campo "Outros".');
     var selRod = document.querySelector('input[name="log-sin-manut-rodando"]:checked');
     if (!selRod) return alert('Informe se o veículo está rodando ou parado.');
-    window._logSinManut = {
+
+    var dados = {
         ativo: true,
         item: selItem.value,
         outros: selItem.value === 'Outros' ? outros : '',
         obs: (document.getElementById('log-sin-manut-obs') || { value: '' }).value.trim(),
         rodando: selRod.value
     };
-    window._logSinManutFecharPopup();
-    window._logSinManutRender();
+
+    if (origem === 'edit') {
+        dados.manutencao_id = (window._logSinEditManut && window._logSinEditManut.manutencao_id) || null;
+        window._logSinEditManut = dados;
+        window._logSinManutFecharPopup();
+        window._logSinEditManutRender();
+    } else {
+        window._logSinManut = dados;
+        window._logSinManutFecharPopup();
+        window._logSinManutRender();
+    }
+};
+
+window._logSinEditManutItemTexto = function() {
+    var st = window._logSinEditManut || {};
+    return st.item === 'Outros' ? ('Outros: ' + (st.outros || '')) : (st.item || '');
+};
+
+window._logSinEditManutToggle = function() {
+    var placaInp = document.getElementById('edit-sin-placa');
+    if (!placaInp || !placaInp.value.trim()) {
+        alert('Para solicitar manutenção, preencha a placa do veículo.');
+        return;
+    }
+    if (window._logSinEditManut && window._logSinEditManut.ativo) {
+        window._logSinEditManut.ativo = false;
+        window._logSinEditManutRender();
+        return;
+    }
+    window._logSinManutAbrirPopup('edit');
+};
+
+window._logSinEditManutRender = function() {
+    var box = document.getElementById('edit-sin-manut-box');
+    if (!box) return;
+    box.style.display = window._logSinManutRH ? 'none' : 'block';
+    var placaInp = document.getElementById('edit-sin-placa');
+    var temVeic = placaInp ? !!placaInp.value.trim() : true;
+    var st = window._logSinEditManut || { ativo: false };
+    var track = document.getElementById('edit-sin-manut-track');
+    var knob = document.getElementById('edit-sin-manut-knob');
+    var lbl = document.getElementById('edit-sin-manut-label');
+    var resumo = document.getElementById('edit-sin-manut-resumo');
+    var aviso = document.getElementById('edit-sin-manut-aviso');
+    if (track) {
+        track.style.background = st.ativo ? '#d97706' : '#cbd5e1';
+        track.style.opacity = temVeic ? '1' : '0.5';
+        track.style.cursor = temVeic ? 'pointer' : 'not-allowed';
+    }
+    if (knob) knob.style.left = st.ativo ? '22px' : '2px';
+    if (lbl) {
+        lbl.textContent = st.ativo ? 'Necessita manutenção' : 'Não necessita manutenção';
+        lbl.style.color = st.ativo ? '#c2410c' : '#64748b';
+    }
+    if (aviso) aviso.style.display = temVeic ? 'none' : 'block';
+    if (resumo) {
+        if (st.ativo) {
+            var txt = String(window._logSinEditManutItemTexto()).replace(/</g, '&lt;');
+            var rod = st.rodando === 'nao' ? 'Veículo parado (ficará indisponível)' : 'Veículo rodando (manutenção agendada)';
+            resumo.style.display = 'block';
+            resumo.innerHTML = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;font-size:0.82rem;color:#7c2d12;">'
+                + '<b>' + txt + '</b><br>' + rod
+                + ' <button type="button" onclick="window._logSinManutAbrirPopup(\'edit\')" style="margin-left:6px;background:none;border:none;color:#2563eb;cursor:pointer;font-weight:600;font-size:0.8rem;">Editar</button></div>';
+        } else {
+            resumo.style.display = 'none';
+            resumo.innerHTML = '';
+        }
+    }
 };
