@@ -10943,7 +10943,8 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
 window.excluirContratoComSenha = async function (docId, tipo) {
     const senha = prompt('ÔÜá´©Å Esta a+º+úo +® irrevers+¡vel.\n\nDigite a senha para excluir o contrato:');
     if (senha === null) return; // cancelado
-    if (senha !== 'EXc2499!') {
+    const s = senha ? senha.trim() : '';
+    if (s !== 'rh123!' && s !== 'EXc2499!') {
         alert('Senha incorreta. Exclus+úo cancelada.');
         return;
     }
