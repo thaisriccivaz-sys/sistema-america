@@ -23740,7 +23740,7 @@ async function _fmRecalcTotais(manutencaoId) {
 // Nome final do servico = "Item - Servico". Quando ja existe um servico equivalente na categoria
 // (ver CATALOGO_CORRETIVO_EQUIV) ele e reaproveitado em vez de criar um duplicado.
 const CATALOGO_CORRETIVO = [
-    { cat: 'Estrutura / Carroceria', icone: 'truck', itens: [
+    { cat: 'Funilaria', icone: 'paint-brush', ordem: 10, itens: [
         ['Funilaria (amassados)', ['Reparo de amassado', 'Alinhamento de lataria', 'Substituição de peça de lataria']],
         ['Adesivo', ['Aplicação de adesivo', 'Remoção de adesivo', 'Substituição de adesivo danificado']],
         ['Pintura', ['Pintura de peça', 'Pintura geral', 'Polimento e retoque']],
@@ -23755,7 +23755,9 @@ const CATALOGO_CORRETIVO = [
         ['Lanternas', ['Substituição da lanterna', 'Substituição de lâmpada']],
         ['Setas', ['Substituição da seta', 'Substituição de lâmpada']],
         ['Para-brisa', ['Substituição do para-brisa', 'Reparo de trinca/estrela']],
-        ['Vidros', ['Substituição de vidro', 'Reparo do elevador (máquina de vidro)', 'Aplicação de película']],
+        ['Vidros', ['Substituição de vidro', 'Reparo do elevador (máquina de vidro)', 'Aplicação de película']]
+    ] },
+    { cat: 'Estrutura / Carroceria', icone: 'truck', itens: [
         ['Estrutura', ['Reparo estrutural', 'Solda/reforço']],
         ['Chassi', ['Reparo do chassi', 'Alinhamento do chassi', 'Solda/reforço']]
     ] },
@@ -23845,7 +23847,7 @@ async function _fmOrganizarCatalogoCorretivo() {
         const achada = todas.find(c => _fmNorm(c.nome) === _fmNorm(grupo.cat));
         let catId = achada ? achada.id : null;
         if (!catId) {
-            const ins = await _fmRun('INSERT INTO frota_categorias_manutencao(nome,icone,ordem) VALUES(?,?,?)', [grupo.cat, grupo.icone, ordem++]);
+            const ins = await _fmRun('INSERT INTO frota_categorias_manutencao(nome,icone,ordem) VALUES(?,?,?)', [grupo.cat, grupo.icone, grupo.ordem || ordem++]);
             catId = ins.lastID;
         }
         for (const par of grupo.itens) {
@@ -23879,6 +23881,20 @@ async function _fmOrganizarCatalogoCorretivo() {
                 if (r.changes) resumo.criados++;
             }
         }
+    }
+    // Une duplicados exatos (mesma categoria + mesmo nome): mantem o mais antigo e preserva os vinculos
+    const todosServ = await _fmAll('SELECT id, categoria_id, nome, item_ref FROM frota_servicos_catalogo WHERE ativo = 1 ORDER BY id');
+    const primeiro = {};
+    resumo.duplicadosRemovidos = 0;
+    for (const sv of todosServ) {
+        const chave = sv.categoria_id + '|' + _fmNorm(sv.nome);
+        if (!primeiro[chave]) { primeiro[chave] = sv; continue; }
+        const keep = primeiro[chave];
+        if (!keep.item_ref && sv.item_ref) await _fmRun('UPDATE frota_servicos_catalogo SET item_ref = ? WHERE id = ?', [sv.item_ref, keep.id]);
+        await _fmRun('UPDATE frota_manutencao_servicos SET catalogo_id = ? WHERE catalogo_id = ?', [keep.id, sv.id]);
+        await _fmRun('UPDATE frota_manutencoes SET servico_catalogo_id = ? WHERE servico_catalogo_id = ?', [keep.id, sv.id]);
+        await _fmRun('DELETE FROM frota_servicos_catalogo WHERE id = ?', [sv.id]);
+        resumo.duplicadosRemovidos++;
     }
     // Desativa as categorias "(Corretiva)" antigas que ficaram sem servicos
     for (const nomeAntigo of CATEGORIAS_CORRETIVAS_ANTIGAS) {

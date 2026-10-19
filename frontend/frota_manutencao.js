@@ -1075,6 +1075,8 @@ window.mnCorrEditarInterno = async function(id) {
         det = await r.json();
         var rc = await fetch('/api/frota/catalogo', { headers: hdr });
         if (rc.ok) window._manutCatalogo = await rc.json();
+        var rcat = await fetch('/api/frota/categorias', { headers: hdr });
+        if (rcat.ok) window._manutCategorias = await rcat.json();
     } catch (e) { alert(e.message); return; }
     var m = det.manutencao;
     window._mnEd = {
@@ -1206,10 +1208,32 @@ window._mnEdRenderSolic = function() {
     }).join('');
 };
 
+// Lista unica de servicos (mesma em "Nova manutencao" e "Editar"): sem duplicados e na ordem das categorias
+window._mnNorm = function(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+};
+window._mnCatalogoLista = function(tipo) {
+    var ordemCat = {};
+    (window._manutCategorias || []).forEach(function(c, i) { ordemCat[c.id] = i; });
+    var vistos = {};
+    return (window._manutCatalogo || []).filter(function(s) {
+        if (tipo !== 'corretiva' && s.tipo_controle === 'Corretiva') return false;
+        var k = s.categoria_id + '|' + window._mnNorm(s.nome);
+        if (vistos[k]) return false;
+        vistos[k] = 1;
+        return true;
+    }).sort(function(a, b) {
+        var oa = ordemCat[a.categoria_id] === undefined ? 999 : ordemCat[a.categoria_id];
+        var ob = ordemCat[b.categoria_id] === undefined ? 999 : ordemCat[b.categoria_id];
+        if (oa !== ob) return oa - ob;
+        return String(a.nome).localeCompare(String(b.nome), 'pt-BR');
+    });
+};
+
 window._mnEdRenderAdd = function() {
     var ed = window._mnEd, sel = document.getElementById('mned-add-sel'), esc = window._mnEdEsc;
     if (!sel) return;
-    var cat = window._manutCatalogo || [];
+    var cat = window._mnCatalogoLista('corretiva');
     var refs = ed.solicitados.map(function(n) { return n.indexOf('Outros') === 0 ? 'Outros' : n; });
     var sug = cat.filter(function(s) { return s.item_ref && refs.indexOf(s.item_ref) !== -1; });
     var opt = function(s) { return '<option value="' + s.id + '">' + esc(s.nome) + '</option>'; };
@@ -1221,10 +1245,6 @@ window._mnEdRenderAdd = function() {
         var k = s.categoria_nome || 'Outros';
         if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
         grupos[k].push(s);
-    });
-    ordem.sort(function(a, b) {
-        var ca = a.indexOf('(Corretiva)') !== -1 ? 0 : 1, cb = b.indexOf('(Corretiva)') !== -1 ? 0 : 1;
-        return ca - cb;
     });
     ordem.forEach(function(k) { html += '<optgroup label="' + esc(k) + '">' + grupos[k].map(opt).join('') + '</optgroup>'; });
     html += '<option value="__outro__">✏ Outro serviço (digitar)</option>';
@@ -2276,7 +2296,7 @@ window.mnModalCatChanged = function() {
     cCont.style.display = 'flex';
     const todas = (cid === '__todas__');
     const tipoModal = (document.getElementById('mn-m-tipo') || {}).value || '';
-    const catalogo = (window._manutCatalogo || []).filter(s => tipoModal === 'corretiva' || s.tipo_controle !== 'Corretiva');
+    const catalogo = window._mnCatalogoLista(tipoModal);
     const catItens = todas ? catalogo : catalogo.filter(s => s.categoria_id == cid);
     const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const esc = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -2309,7 +2329,7 @@ window.mnModalCatChanged = function() {
             if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
             grupos[k].push(s);
         });
-        ordem.sort((a, b) => (a.indexOf('(Corretiva)') !== -1 ? 0 : 1) - (b.indexOf('(Corretiva)') !== -1 ? 0 : 1));
+        // (a ordem das categorias já vem de _mnCatalogoLista)
         htmlCbs = ordem.map(k => `<div class="mn-serv-cat" style="font-size:0.72rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">${esc(k)}</div>` + grupos[k].map(linha).join('')).join('');
     }
 
