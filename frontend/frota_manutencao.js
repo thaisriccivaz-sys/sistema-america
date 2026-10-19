@@ -1861,7 +1861,7 @@ window._mnEdAbrirPecas = async function(servicoId) {
 window.mnCorrSalvarEdicaoInterno = async function(id) {
     var ed = window._mnEd;
     var btn = document.getElementById('mned-save');
-    if (btn) btn.disabled = true;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
     try {
         await window._mnEdSalvarDetalhe();
         var km = document.getElementById('mned-km').value;
@@ -1877,7 +1877,7 @@ window.mnCorrSalvarEdicaoInterno = async function(id) {
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Manutenção atualizada!');
         window.mnCarregarCorretivas();
     } catch (e) {
-        if (btn) btn.disabled = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('❌ ' + e.message); else alert(e.message);
     }
 };

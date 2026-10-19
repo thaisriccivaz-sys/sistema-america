@@ -23629,10 +23629,26 @@ app.put('/api/frota/manutencoes/:id/status', authenticateToken, (req, res) => {
     } else if (status !== 'cancelada') {
         fields.push('data_conclusao=NULL');
     }
-    if (km_na_manutencao) { fields.push('km_na_manutencao=?'); params.push(km_na_manutencao); }
-    if (custo != null && custo !== '') { fields.push('custo=?'); params.push(custo); }
-    if (fornecedor) { fields.push('fornecedor=?'); params.push(fornecedor); }
-    if (observacoes) { fields.push('observacoes=?'); params.push(observacoes); }
+    if (km_na_manutencao !== undefined) {
+        const kmVal = (km_na_manutencao !== null && km_na_manutencao !== '' && !isNaN(parseInt(km_na_manutencao))) ? parseInt(km_na_manutencao) : null;
+        fields.push('km_na_manutencao=?');
+        params.push(kmVal);
+    }
+    if (custo !== undefined) {
+        const custoVal = (custo !== null && custo !== '' && !isNaN(parseFloat(custo))) ? parseFloat(custo) : null;
+        fields.push('custo=?');
+        params.push(custoVal);
+    }
+    if (fornecedor !== undefined) {
+        const fornVal = typeof fornecedor === 'string' ? fornecedor.trim() : fornecedor;
+        fields.push('fornecedor=?');
+        params.push(fornVal || null);
+    }
+    if (observacoes !== undefined) {
+        const obsVal = typeof observacoes === 'string' ? observacoes.trim() : observacoes;
+        fields.push('observacoes=?');
+        params.push(obsVal || null);
+    }
     params.push(req.params.id);
 
     db.run(`UPDATE frota_manutencoes SET ${fields.join(',')} WHERE id=?`, params, function(err) {
