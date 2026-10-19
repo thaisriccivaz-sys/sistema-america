@@ -23737,8 +23737,18 @@ async function _fmMoLinhas(id) {
     return linhas;
 }
 async function _fmRealizadosComMo(id) {
-    const rs = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
+    let rs = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
     const aloc = await _fmAll('SELECT ms.servico_id, COALESCE(SUM(ms.valor), 0) AS t FROM frota_manutencao_mo_servicos ms JOIN frota_manutencao_mo mo ON mo.id = ms.mo_id WHERE mo.manutencao_id = ? GROUP BY ms.servico_id', [id]);
+    const somaMo = rs.reduce((s, r) => s + (Number(r.mao_obra) || 0), 0);
+    const somaAloc = aloc.reduce((s, a) => s + (Number(a.t) || 0), 0);
+    if (rs.length > 0 && somaMo === 0 && somaAloc > 0) {
+        for (const a of aloc) {
+            if (a.servico_id && a.t > 0) {
+                await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ? WHERE id = ? AND manutencao_id = ?', [Math.round(a.t * 100) / 100, a.servico_id, id]);
+            }
+        }
+        rs = await _fmAll("SELECT * FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id]);
+    }
     rs.forEach(r => { const a = aloc.find(x => x.servico_id === r.id); r.mo_alocado = a ? Math.round(a.t * 100) / 100 : 0; });
     return rs;
 }
@@ -23770,11 +23780,20 @@ async function _fmRecalcMo(manId) {
 
 // Recalcula R$ pecas, R$ mao de obra e o total (custo) da manutencao
 async function _fmRecalcTotais(manutencaoId) {
-    await _fmRecalcMo(manutencaoId);
-    const mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
+    let mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
     const mol = await _fmGet('SELECT COALESCE(SUM(valor), 0) AS t, COUNT(*) AS n FROM frota_manutencao_mo WHERE manutencao_id = ?', [manutencaoId]);
+    if ((mo.n || 0) > 0 && (mo.t || 0) === 0 && (mol.t || 0) > 0) {
+        await _fmRecalcMo(manutencaoId);
+        const alocs = await _fmAll('SELECT ms.servico_id, COALESCE(SUM(ms.valor), 0) AS t FROM frota_manutencao_mo_servicos ms JOIN frota_manutencao_mo mo ON mo.id = ms.mo_id WHERE mo.manutencao_id = ? GROUP BY ms.servico_id', [manutencaoId]);
+        for (const a of alocs) {
+            if (a.servico_id && a.t > 0) {
+                await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ? WHERE id = ? AND manutencao_id = ?', [Math.round(a.t * 100) / 100, a.servico_id, manutencaoId]);
+            }
+        }
+        mo = await _fmGet("SELECT COALESCE(SUM(mao_obra), 0) AS t, COUNT(*) AS n FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [manutencaoId]);
+    }
     const pc = await _fmGet('SELECT COALESCE(SUM(valor_total), 0) AS t, COUNT(*) AS n FROM frota_manutencao_pecas WHERE manutencao_id = ?', [manutencaoId]);
-    const totMo = Math.round(((mo.t || 0) + (mol.t || 0)) * 100) / 100;
+    const totMo = Math.round(((mo.n || 0) > 0 ? (mo.t || 0) : (mol.t || 0)) * 100) / 100;
     const totPc = Math.round((pc.t || 0) * 100) / 100;
     if ((mo.n || 0) + (mol.n || 0) + (pc.n || 0) > 0) {
         await _fmRun('UPDATE frota_manutencoes SET custo_mao_obra = ?, custo_pecas = ?, custo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [totMo, totPc, Math.round((totMo + totPc) * 100) / 100, manutencaoId]);
@@ -23882,13 +23901,14 @@ app.put('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
                 const nome = String(r.nome).trim();
                 const catId = parseInt(r.catalogo_id) || null;
                 const itemRef = r.item_ref ? String(r.item_ref) : null;
+                const obs = r.observacao ? String(r.observacao).trim() : null;
                 const rid = parseInt(r.id);
                 if (idsExist.includes(rid)) {
-                    await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, garantia_valor = ?, garantia_unidade = ? WHERE id = ? AND manutencao_id = ?',
-                        [nome, catId, itemRef, num(r.mao_obra), gValor, gUni, rid, id]);
+                    await _fmRun('UPDATE frota_manutencao_servicos SET nome = ?, catalogo_id = ?, item_ref = ?, mao_obra = ?, garantia_valor = ?, garantia_unidade = ?, observacao = ? WHERE id = ? AND manutencao_id = ?',
+                        [nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs, rid, id]);
                 } else {
-                    await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?)",
-                        [id, nome, catId, itemRef, num(r.mao_obra), gValor, gUni]);
+                    await _fmRun("INSERT INTO frota_manutencao_servicos (manutencao_id, tipo, nome, catalogo_id, item_ref, mao_obra, garantia_valor, garantia_unidade, observacao) VALUES (?, 'realizado', ?, ?, ?, ?, ?, ?, ?)",
+                        [id, nome, catId, itemRef, num(r.mao_obra), gValor, gUni, obs]);
                 }
             }
         }
@@ -24107,15 +24127,27 @@ app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota
                 [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || somaLinhas || null, dados.chave_acesso || null, _fmUsuario(req), 'mao_obra']);
             notaId = ins.lastID;
         }
-        const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado'", [id])).map(r => r.id);
+        const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id])).map(r => r.id);
         for (const l of linhas) {
             const ratear = l.ratear ? 1 : 0;
+            const valLinha = Math.max(0, _fmNumero(l.valor));
             const ins = await _fmRun('INSERT INTO frota_manutencao_mo (manutencao_id, nota_id, descricao, valor, ratear) VALUES (?,?,?,?,?)',
-                [id, notaId, String(l.descricao).trim().substring(0, 300), Math.max(0, _fmNumero(l.valor)), ratear]);
-            if (!ratear) {
-                for (const sidRaw of (Array.isArray(l.servicos) ? l.servicos : [])) {
-                    const sid = parseInt(sidRaw);
-                    if (servValidos.includes(sid)) await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,0)', [ins.lastID, sid]);
+                [id, notaId, String(l.descricao).trim().substring(0, 300), valLinha, ratear]);
+            let alvo = [];
+            if (!ratear && Array.isArray(l.servicos)) {
+                alvo = l.servicos.map(s => parseInt(s)).filter(sid => servValidos.includes(sid));
+            }
+            if (!alvo.length) alvo = servValidos.slice();
+            if (alvo.length > 0 && valLinha > 0) {
+                const cents = Math.round(valLinha * 100);
+                const base = Math.floor(cents / alvo.length);
+                let resto = cents - base * alvo.length;
+                for (const sid of alvo) {
+                    const c = base + (resto > 0 ? 1 : 0);
+                    if (resto > 0) resto--;
+                    const valParcela = c / 100;
+                    await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,?)', [ins.lastID, sid, valParcela]);
+                    await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ROUND(COALESCE(mao_obra, 0) + ?, 2) WHERE id = ? AND manutencao_id = ?', [valParcela, sid, id]);
                 }
             }
         }
@@ -24170,6 +24202,12 @@ app.delete('/api/frota/manutencoes/notas/:notaId', authenticateToken, async (req
             catch (e) { return res.status(500).json({ error: 'Não foi possível excluir o arquivo no R2: ' + e.message }); }
         }
         await _fmRun('DELETE FROM frota_manutencao_pecas WHERE nota_id = ?', [nid]);
+        const alocsNota = await _fmAll('SELECT servico_id, COALESCE(SUM(valor), 0) AS t FROM frota_manutencao_mo_servicos WHERE mo_id IN (SELECT id FROM frota_manutencao_mo WHERE nota_id = ?) GROUP BY servico_id', [nid]);
+        for (const a of alocsNota) {
+            if (a.servico_id && a.t > 0) {
+                await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = MAX(0, ROUND(COALESCE(mao_obra, 0) - ?, 2)) WHERE id = ? AND manutencao_id = ?', [a.t, a.servico_id, n.manutencao_id]);
+            }
+        }
         await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (SELECT id FROM frota_manutencao_mo WHERE nota_id = ?)', [nid]);
         await _fmRun('DELETE FROM frota_manutencao_mo WHERE nota_id = ?', [nid]);
         await _fmRun('DELETE FROM frota_manutencao_notas WHERE id = ?', [nid]);
@@ -32297,7 +32335,8 @@ app.listen(PORT, () => {
     ];
     // ---- Manutencao corretiva: servicos realizados, pecas e notas fiscais
     db.run('ALTER TABLE frota_servicos_catalogo ADD COLUMN item_ref TEXT', (e) => { /* coluna ja existe: ignorar */ });
-    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'realizado\', nome TEXT NOT NULL, catalogo_id INTEGER, item_ref TEXT, mao_obra REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_servicos (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, tipo TEXT NOT NULL DEFAULT \'realizado\', nome TEXT NOT NULL, catalogo_id INTEGER, item_ref TEXT, mao_obra REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, observacao TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+    db.run('ALTER TABLE frota_manutencao_servicos ADD COLUMN observacao TEXT', (e) => { /* coluna ja existe: ignorar */ });
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_notas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, r2_key TEXT, nome_arquivo TEXT, numero TEXT, serie TEXT, fornecedor TEXT, cnpj TEXT, data_emissao TEXT, valor_total REAL, chave_acesso TEXT, usuario_nome TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     // Historico (comentarios, mudancas de situacao, eventos) e mao de obra por nota fiscal

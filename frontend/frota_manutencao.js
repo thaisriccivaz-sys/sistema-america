@@ -1088,7 +1088,7 @@ window._mnHojeISO = function() {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 };
 window._mnEdMapRealizado = function(s) {
-    return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias', mo_alocado: s.mo_alocado || 0 };
+    return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: s.mao_obra || '', garantia_valor: s.garantia_valor || '', garantia_unidade: s.garantia_unidade || 'dias', observacao: s.observacao || '', mo_alocado: s.mo_alocado || 0 };
 };
 window._mnEdMapMo = function(l) {
     return { id: l.id, nota_id: l.nota_id || null, descricao: l.descricao || '', valor: l.valor || 0, ratear: l.ratear ? 1 : 0, servicos: Array.isArray(l.servicos) ? l.servicos.slice() : [] };
@@ -1253,8 +1253,7 @@ window._mnEdMontar = function() {
       +             '<button type="button" id="mned-mo-nf" style="' + btnSec + 'border-color:#fcd34d;color:#b45309;"><i class="ph ph-paperclip"></i> NF de mão de obra</button>'
       +           '</div></div>'
       +         '<div id="mned-notas"></div>'
-      +         '<div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px;"><div style="' + secT + '"><i class="ph ph-hammer" style="color:#d97706;"></i> Mão de obra (notas e lançamentos)</div><button type="button" id="mned-mo-add" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Linha de mão de obra</button></div>'
-      +         '<div id="mned-mo"></div>'
+      +         '<div style="display:none;"><div style="' + secT + '"><i class="ph ph-hammer" style="color:#d97706;"></i> Mão de obra (notas e lançamentos)</div><button type="button" id="mned-mo-add" style="margin-left:auto;' + btnSec + '"><i class="ph ph-plus"></i> Linha de mão de obra</button><div id="mned-mo"></div></div>'
       +       '</div>'
       +       '<div id="mned-total" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>'
       +     '</div>'
@@ -1588,7 +1587,7 @@ window._mnEdPickAdicionar = function() {
         var s = catalogo.find(function(x) { return String(x.id) === String(k); });
         if (!s) return;
         if (ed.realizados.some(function(r) { return String(r.catalogo_id) === String(s.id); })) return;
-        ed.realizados.push({ id: null, nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', mo_alocado: 0 });
+        ed.realizados.push({ id: null, nome: s.nome, catalogo_id: s.id, item_ref: s.item_ref || s.categoria_nome || null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
     });
     ed.pickSel = {};
     window._mnEdRenderServ();
@@ -1601,7 +1600,7 @@ window._mnEdPickNovo = function() {
     var txt = buscaEl.value.trim();
     if (!txt) return;
     if (ed.realizados.some(function(r) { return window._mnNorm(r.nome) === window._mnNorm(txt); })) { alert('Esse serviço já foi adicionado.'); return; }
-    ed.realizados.push({ id: null, nome: txt, catalogo_id: null, item_ref: null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', mo_alocado: 0 });
+    ed.realizados.push({ id: null, nome: txt, catalogo_id: null, item_ref: null, mao_obra: '', garantia_valor: '', garantia_unidade: 'dias', observacao: '', mo_alocado: 0 });
     buscaEl.value = '';
     window._mnEdRenderServ();
     window._mnEdPickRender();
@@ -1718,19 +1717,31 @@ window._mnEdRenderServ = function() {
         if (s.id) {
             ed.pecas.forEach(function(p, pi) { if (String(p.servico_id) === String(s.id)) pecasHtml += window._mnEdPecaHtml(p, pi); });
         }
+        var catRef = s.item_ref;
+        if (!catRef && s.catalogo_id && window._manutCatalogo) {
+            var cObj = window._manutCatalogo.find(function(x) { return String(x.id) === String(s.catalogo_id); });
+            if (cObj) catRef = cObj.categoria_nome || cObj.item_ref || '';
+        }
+        var subMeta = catRef && window._mnCatMeta ? window._mnCatMeta(catRef) : null;
         return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#f8fafc;">'
-          + '<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">'
-          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>' + (s.item_ref ? '<div style="font-size:0.72rem;color:#94a3b8;">Categoria: ' + esc(s.item_ref) + '</div>' : '')
-          +   (s.mo_alocado > 0 ? '<div style="font-size:0.72rem;color:#d97706;font-weight:600;"><i class="ph ph-hammer"></i> + ' + window._mnFmtMoeda(s.mo_alocado) + ' de mão de obra (nota fiscal)</div>' : '') + '</div>'
-          +   '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + fm(window._mnNum(s.mao_obra)) + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;"></div>'
-          +   '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
-          +   '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
+          + '<div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">'
+          +   '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#1e293b;font-size:0.87rem;">' + esc(s.nome) + '</div>'
+          +   (subMeta ? '<div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:5px;margin-top:2px;"><i class="ph ' + esc(subMeta.icone) + '" style="color:#d97706;font-size:0.92rem;"></i><span>' + esc(subMeta.nome) + '</span></div>' : '')
+          +   '<div style="margin-top:8px;">' + (s.id
+                ? '<button type="button" data-ip="' + s.id + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>'
+                : '<button type="button" data-ipn="' + i + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>') + '</div>'
+          +   '</div>'
+          +   '<div style="display:flex;flex-direction:column;gap:6px;">'
+          +     '<div style="display:flex;align-items:flex-end;gap:10px;">'
+          +       '<div><label style="' + lbl + '">Mão de obra (R$)</label><input type="text" data-money="1" data-i="' + i + '" data-f="mao_obra" value="' + fm(window._mnNum(s.mao_obra)) + '" placeholder="0,00" style="' + ipt + 'width:130px;text-align:right;background:#fff;"></div>'
+          +       '<div><label style="' + lbl + '">Garantia do serviço</label><div style="display:flex;gap:4px;"><input type="number" min="0" step="1" data-i="' + i + '" data-f="garantia_valor" value="' + esc(s.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:70px;background:#fff;"><select data-i="' + i + '" data-f="garantia_unidade" style="' + ipt + 'background:#fff;"><option value="dias"' + (s.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (s.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></div></div>'
+          +       '<button type="button" data-rm="' + i + '" title="Remover serviço" style="padding:7px 10px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>'
+          +     '</div>'
+          +     '<input type="text" data-i="' + i + '" data-f="observacao" value="' + esc(s.observacao || '') + '" placeholder="Observação do serviço..." style="' + ipt + 'width:100%;background:#fff;">'
+          +   '</div>'
           + '</div>'
           + (g ? '<div style="margin-top:6px;font-size:0.74rem;font-weight:600;color:' + g.cor + ';"><i class="ph ph-shield-check"></i> ' + g.txt + '</div>' : '')
           + pecasHtml
-          + '<div style="margin-top:8px;">' + (s.id
-                ? '<button type="button" data-ip="' + s.id + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>'
-                : '<button type="button" data-ipn="' + i + '" style="' + btnPeca + '"><i class="ph ph-plus"></i> Incluir peças</button>') + '</div>'
           + '</div>';
     }).join('');
     if (orfas.length) {
@@ -1752,7 +1763,7 @@ window._mnEdRenderServ = function() {
         el.oninput = function() { window._mnEd.realizados[i][f] = el.value; };
         el.onchange = function() {
             window._mnEd.realizados[i][f] = el.value;
-            window._mnEdRenderServ();
+            if (f !== 'observacao') window._mnEdRenderServ();
         };
     });
     box.querySelectorAll('[data-rm]').forEach(function(b) {
@@ -2006,9 +2017,9 @@ window._mnEdAbrirMoNf = async function() {
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) window._mnoFechar(); });
     document.getElementById('mno-file').onchange = function() { window._mnMo.arquivo = this.files[0] || null; };
     document.getElementById('mno-analisar').onclick = window._mnoAnalisar;
-    document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] }); window._mnoRenderLinhas(); };
+    document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 1, servicos: [] }); window._mnoRenderLinhas(); };
     document.getElementById('mno-salvar').onclick = window._mnoSalvar;
-    window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
+    window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 1, servicos: [] });
     window._mnoRenderLinhas();
 };
 
@@ -2062,8 +2073,8 @@ window._mnoAnalisar = async function() {
         document.getElementById('mno-forn').value = d.fornecedor || '';
         document.getElementById('mno-emi').value = d.emissao || '';
         window._mnMo.cnpj = d.cnpj || '';
-        window._mnMo.linhas = (d.itens || []).map(function(i) { return { descricao: i.descricao, valor: i.valor, ratear: 0, servicos: [] }; });
-        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
+        window._mnMo.linhas = (d.itens || []).map(function(i) { return { descricao: i.descricao || 'Mão de obra', valor: i.valor, ratear: 1, servicos: [] }; });
+        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: d.fornecedor ? ('Mão de obra - ' + d.fornecedor) : 'Mão de obra', valor: d.valor_total || 0, ratear: 1, servicos: [] });
         var av = (d.avisos || []).map(function(a) { return esc(a); }).join('<br>');
         aviso.innerHTML = av ? '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + av + '</div>'
             : '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota lida. Confira os valores e vincule cada linha aos serviços.</div>';
@@ -2074,10 +2085,12 @@ window._mnoAnalisar = async function() {
 
 window._mnoSalvar = async function() {
     var ed = window._mnEd;
-    var linhas = window._mnMo.linhas.filter(function(l) { return String(l.descricao || '').trim(); });
-    if (!linhas.length) { alert('Informe ao menos uma linha de serviço com a descrição.'); return; }
-    var semVinculo = linhas.filter(function(l) { return !l.ratear && !(l.servicos || []).length; }).length;
-    if (semVinculo && !confirm(semVinculo + ' linha(s) sem vínculo com serviço (o valor entra no total, mas não é dividido entre serviços). Salvar mesmo assim?')) return;
+    window._mnMo.linhas.forEach(function(l) {
+        if (!String(l.descricao || '').trim() && Number(l.valor) > 0) l.descricao = 'Mão de obra';
+        if (!l.ratear && !(l.servicos || []).length) l.ratear = 1;
+    });
+    var linhas = window._mnMo.linhas.filter(function(l) { return String(l.descricao || '').trim() || Number(l.valor) > 0; });
+    if (!linhas.length) { alert('Informe ao menos uma linha de serviço com valor.'); return; }
     if (!window._mnMo.arquivo && !confirm('Nenhum PDF foi anexado. As linhas serão lançadas como mão de obra sem nota fiscal. Continuar?')) return;
     var btn = document.getElementById('mno-salvar');
     btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
@@ -2113,7 +2126,9 @@ window._mnEdRenderTotais = function() {
     if (!box) return;
     var mo = 0, pc = 0;
     ed.realizados.forEach(function(s) { mo += window._mnNum(s.mao_obra); });
-    (ed.mo || []).forEach(function(l) { mo += Number(l.valor) || 0; });
+    if (!ed.realizados.length) {
+        (ed.mo || []).forEach(function(l) { mo += Number(l.valor) || 0; });
+    }
     (ed.pecas || []).forEach(function(p) { pc += Number(p.valor_total) || 0; });
     var legado = (!ed.realizados.length && !(ed.pecas || []).length && !(ed.mo || []).length && Number(ed.m.custo) > 0);
     var total = legado ? Number(ed.m.custo) : (mo + pc);
@@ -2209,13 +2224,10 @@ window._mnEdSalvarDetalhe = async function() {
         body: JSON.stringify({
             solicitados: ed.solicitados,
             realizados: ed.realizados.map(function(s) {
-                return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade };
+                return { id: s.id, nome: s.nome, catalogo_id: s.catalogo_id, item_ref: s.item_ref, mao_obra: N(s.mao_obra), garantia_valor: s.garantia_valor, garantia_unidade: s.garantia_unidade, observacao: s.observacao || '' };
             }),
             pecas: ed.pecas.map(function(p) {
                 return { id: p.id, codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, quantidade: N(p.quantidade) || 1, valor_unit: N(p.valor_unit), valor_total: N(p.valor_total), garantia_valor: p.garantia_valor, garantia_unidade: p.garantia_unidade, servico_id: p.servico_id };
-            }),
-            mo: (ed.mo || []).map(function(l) {
-                return { id: l.id, descricao: l.descricao, valor: N(l.valor), ratear: l.ratear ? 1 : 0, servicos: l.servicos || [] };
             })
         })
     });
