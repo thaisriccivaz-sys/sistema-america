@@ -3560,12 +3560,12 @@ function abrirLegenda() {
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         var pront = await resp.json();
 
-        var mapPront = {}; // colaborador_id -> { 'YYYY-MM-DD': true }
+        var mapPront = {}; // colaborador_id -> { 'YYYY-MM-DD': { id: f.id } }
         (Array.isArray(pront) ? pront : []).forEach(function(f) {
             var k = String(f.colaborador_id);
             var d = String(f.data_falta || '').substring(0, 10);
             if (!mapPront[k]) mapPront[k] = {};
-            mapPront[k][d] = true;
+            mapPront[k][d] = { id: f.id };
         });
 
         function _escF(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -3583,6 +3583,7 @@ function abrirLegenda() {
             var todas = Object.keys(datasPonto).concat(Object.keys(datasPront).filter(function(d) { return !datasPonto[d]; }));
             todas.forEach(function(d) {
                 var noPonto = !!datasPonto[d], noPront = !!datasPront[d];
+                var faltaId = (datasPront[d] && datasPront[d].id) || '';
                 var ordemGrupo = 3;
                 if (noPonto && !noPront) {
                     ordemGrupo = 1; // 1º: Não está no prontuário
@@ -3598,6 +3599,7 @@ function abrirLegenda() {
                     colaborador_id: String(p.id),
                     nome: p.nome,
                     data: d,
+                    falta_id: faltaId,
                     noPonto: noPonto,
                     noPront: noPront,
                     ordemGrupo: ordemGrupo
@@ -3617,6 +3619,7 @@ function abrirLegenda() {
                 colaborador_id: cid,
                 nome: nomeColab,
                 data: d,
+                falta_id: f.id,
                 noPonto: false,
                 noPront: true,
                 ordemGrupo: 2
@@ -3658,9 +3661,10 @@ function abrirLegenda() {
 
             if (item.ordemGrupo === 1) {
                 status = '<span style="color:#b91c1c;font-weight:700;">⚠️ Não está no prontuário</span>';
-                acao = '<input type="checkbox" class="fech-falta-chk" checked data-id="' + _escF(item.colaborador_id) + '" data-data="' + item.data + '">';
+                acao = '<input type="checkbox" class="fech-falta-chk fech-falta-incluir" checked data-tipo="incluir" data-id="' + _escF(item.colaborador_id) + '" data-data="' + item.data + '" title="Marcar para incluir no prontuário">';
             } else if (item.ordemGrupo === 2) {
-                status = '<span style="color:#475569;">ℹ️ Só no prontuário</span>';
+                status = '<span style="color:#c2410c;font-weight:700;">ℹ️ Só no prontuário</span>';
+                acao = '<input type="checkbox" class="fech-falta-chk fech-falta-excluir" checked data-tipo="excluir" data-id="' + _escF(item.colaborador_id) + '" data-data="' + item.data + '" data-falta-id="' + _escF(item.falta_id || '') + '" title="Marcar para retirar do prontuário">';
             } else {
                 status = '<span style="color:#15803d;font-weight:700;">✅ Já registrada</span>';
             }
@@ -3686,28 +3690,29 @@ function abrirLegenda() {
             + badge(tot.ponto + ' falta(s) no ponto', '#e0f2fe', '#0369a1')
             + badge(tot.ok + ' já no prontuário', '#dcfce7', '#15803d')
             + badge(tot.faltam + ' faltando no prontuário', tot.faltam ? '#fee2e2' : '#f1f5f9', tot.faltam ? '#b91c1c' : '#475569')
-            + (tot.soPront ? badge(tot.soPront + ' só no prontuário', '#f1f5f9', '#475569') : '')
+            + (tot.soPront ? badge(tot.soPront + ' só no prontuário', '#ffedd5', '#c2410c') : '')
             + '</div>';
+        var temAtualizacao = (tot.faltam > 0 || tot.soPront > 0);
         var tabelaHtml = '<div style="max-height:50vh;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">'
             + '<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">'
             + '<thead style="position:sticky;top:0;background:#f8fafc;"><tr>'
             + '<th style="padding:8px;">Colaborador</th><th style="padding:8px;">Data</th><th style="padding:8px;text-align:center;">Ponto</th>'
             + '<th style="padding:8px;text-align:center;">Prontuário</th><th style="padding:8px;">Situação</th>'
-            + '<th style="padding:8px;text-align:center;font-size:11px;" title="Marcar as faltas que deseja incluir no prontuário">Incluir?<br>' + (tot.faltam ? '<input type="checkbox" id="fech-falta-chk-todas" checked title="Marcar/desmarcar todas">' : '') + '</th>'
+            + '<th style="padding:8px;text-align:center;font-size:11px;" title="Marcar / desmarcar para atualizar no prontuário">Atualizar?<br>' + (temAtualizacao ? '<input type="checkbox" id="fech-falta-chk-todas" checked title="Marcar/desmarcar todas">' : '') + '</th>'
             + '</tr></thead><tbody>' + linhasHtml + '</tbody></table></div>';
-        var perguntaHtml = tot.faltam
-            ? '<p style="margin:12px 0 0;font-size:14px;color:#0f172a;"><b>Deseja incluir no prontuário as ' + tot.faltam + ' falta(s) que ainda não estão registradas?</b><br><span style="font-size:12px;color:#64748b;">Desmarque as que não deseja incluir.</span></p>'
-            : '<p style="margin:12px 0 0;font-size:14px;color:#15803d;"><b>Todas as faltas do ponto já estão registradas no prontuário.</b></p>';
+        var perguntaHtml = temAtualizacao
+            ? '<p style="margin:12px 0 0;font-size:14px;color:#0f172a;"><b>Deseja incluir ou retirar alguma falta no prontuário?</b><br><span style="font-size:12px;color:#64748b;">Desmarque as que não deseja atualizar.</span></p>'
+            : '<p style="margin:12px 0 0;font-size:14px;color:#15803d;"><b>Todas as faltas do ponto conferem com o prontuário.</b></p>';
 
         var r = await Swal.fire({
             title: 'Faltas: Ponto × Prontuário — ' + mm + '/' + _ano,
             html: '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">' + _escF(String(msgResumo || '').split('\n')[0]) + '</div>' + resumoHtml + tabelaHtml + perguntaHtml,
             width: 860,
-            icon: tot.faltam ? 'warning' : 'success',
-            showCancelButton: tot.faltam > 0,
-            confirmButtonText: tot.faltam ? 'Sim, incluir no prontuário' : 'OK',
+            icon: temAtualizacao ? 'warning' : 'success',
+            showCancelButton: temAtualizacao,
+            confirmButtonText: temAtualizacao ? 'Atualizar o prontuário' : 'OK',
             cancelButtonText: 'Agora não',
-            confirmButtonColor: tot.faltam ? '#16a34a' : '#2563eb',
+            confirmButtonColor: temAtualizacao ? '#16a34a' : '#2563eb',
             didOpen: function() {
                 var todas = document.getElementById('fech-falta-chk-todas');
                 if (todas) todas.addEventListener('change', function() {
@@ -3715,33 +3720,48 @@ function abrirLegenda() {
                 });
             },
             preConfirm: function() {
-                return Array.from(document.querySelectorAll('.fech-falta-chk')).filter(function(c) { return c.checked; })
+                var chks = Array.from(document.querySelectorAll('.fech-falta-chk')).filter(function(c) { return c.checked; });
+                var incluir = chks.filter(function(c) { return c.getAttribute('data-tipo') === 'incluir'; })
                     .map(function(c) { return { colaborador_id: c.getAttribute('data-id'), data_falta: c.getAttribute('data-data') }; });
+                var excluir = chks.filter(function(c) { return c.getAttribute('data-tipo') === 'excluir'; })
+                    .map(function(c) { return { colaborador_id: c.getAttribute('data-id'), data_falta: c.getAttribute('data-data'), falta_id: c.getAttribute('data-falta-id') }; });
+                return { incluir: incluir, excluir: excluir };
             }
         });
-        if (!r.isConfirmed || !tot.faltam) return true;
+        if (!r.isConfirmed || !temAtualizacao) return true;
 
-        var selecionadas = r.value || [];
-        if (!selecionadas.length) { Swal.fire({ icon: 'info', title: 'Nenhuma falta selecionada', timer: 2500, showConfirmButton: false }); return true; }
+        var dadosAtu = r.value || { incluir: [], excluir: [] };
+        var totalSel = (dadosAtu.incluir ? dadosAtu.incluir.length : 0) + (dadosAtu.excluir ? dadosAtu.excluir.length : 0);
+        if (!totalSel) {
+            Swal.fire({ icon: 'info', title: 'Nenhuma falta selecionada para atualizar', timer: 2500, showConfirmButton: false });
+            return true;
+        }
 
-        Swal.fire({ title: 'Incluindo faltas no prontuário...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+        Swal.fire({ title: 'Atualizando prontuário...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
         try {
-            var rp = await fetch('/api/fechamento/incluir-faltas-prontuario', {
+            var rp = await fetch('/api/fechamento/atualizar-faltas-prontuario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
-                body: JSON.stringify({ mes: _mes, ano: _ano, faltas: selecionadas })
+                body: JSON.stringify({ mes: _mes, ano: _ano, incluir: dadosAtu.incluir, excluir: dadosAtu.excluir })
             });
             var jp = await rp.json();
             if (!rp.ok) throw new Error(jp.error || ('HTTP ' + rp.status));
+
+            var partesMsg = [];
+            if (jp.incluidas) partesMsg.push(jp.incluidas + ' incluída(s)');
+            if (jp.excluidas) partesMsg.push(jp.excluidas + ' retirada(s)');
+            var msgTitulo = partesMsg.length ? ('Prontuário atualizado: ' + partesMsg.join(' e ')) : 'Nenhuma alteração realizada';
+            var msgDetalhe = (jp.jaExistiam ? (jp.jaExistiam + ' já existia(m). ') : '') + (jp.erros ? (jp.erros + ' com erro.') : '');
+
             Swal.fire({
                 icon: jp.erros ? 'warning' : 'success',
-                title: jp.incluidas + ' falta(s) incluída(s) no prontuário',
-                text: (jp.jaExistiam ? jp.jaExistiam + ' já existia(m). ' : '') + (jp.erros ? jp.erros + ' com erro.' : ''),
+                title: msgTitulo,
+                text: msgDetalhe || undefined,
                 timer: jp.erros ? undefined : 4000,
                 showConfirmButton: !!jp.erros
             });
         } catch (e) {
-            Swal.fire({ icon: 'error', title: 'Erro ao incluir faltas', text: e.message });
+            Swal.fire({ icon: 'error', title: 'Erro ao atualizar faltas no prontuário', text: e.message });
         }
         return true;
     }

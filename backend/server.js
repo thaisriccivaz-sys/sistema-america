@@ -11801,15 +11801,21 @@ app.get('/api/fechamento/faltas-prontuario', authenticateToken, (req, res) => {
     );
 });
 
-// POST: inclui no prontuario as faltas do ponto que ainda nao estao registradas (sem duplicar colaborador+data)
-app.post('/api/fechamento/incluir-faltas-prontuario', authenticateToken, async (req, res) => {
-    const { faltas, mes, ano } = req.body || {};
-    if (!Array.isArray(faltas) || !faltas.length) return res.status(400).json({ error: 'Nenhuma falta informada.' });
+// POST: inclui e/ou exclui faltas no prontuario a partir do comparativo do Fechamento
+const handlerAtualizarFaltasProntuario = async (req, res) => {
+    const { incluir = [], excluir = [], faltas = [], mes, ano } = req.body || {};
+    const listaIncluir = Array.isArray(incluir) && incluir.length ? incluir : (Array.isArray(faltas) ? faltas : []);
+    const listaExcluir = Array.isArray(excluir) ? excluir : [];
+    if (!listaIncluir.length && !listaExcluir.length) {
+        return res.status(400).json({ error: 'Nenhuma falta informada para inclusão ou exclusão.' });
+    }
     const usuario = (req.user && (req.user.nome || req.user.username)) || 'Sistema';
     const mm = String(mes || '').padStart(2, '0');
     const obs = 'Incluída pelo Fechamento (ponto RHID ' + mm + '/' + ano + ') por ' + usuario;
-    let incluidas = 0, jaExistiam = 0, erros = 0;
-    for (const f of faltas) {
+    let incluidas = 0, jaExistiam = 0, excluidas = 0, erros = 0;
+
+    // 1. Processar inclusões
+    for (const f of listaIncluir) {
         const colabId = parseInt(f && f.colaborador_id, 10);
         const dataFalta = String((f && f.data_falta) || '').substring(0, 10);
         if (!colabId || !/^\d{4}-\d{2}-\d{2}$/.test(dataFalta)) { erros++; continue; }
@@ -11830,9 +11836,40 @@ app.post('/api/fechamento/incluir-faltas-prontuario', authenticateToken, async (
             console.error('[FECHAMENTO-FALTAS] Erro ao incluir falta:', e.message);
         }
     }
-    console.log('[FECHAMENTO-FALTAS] ' + usuario + ' incluiu ' + incluidas + ' falta(s) (' + jaExistiam + ' ja existiam, ' + erros + ' erros)');
-    res.json({ ok: true, incluidas, jaExistiam, erros });
-});
+
+    // 2. Processar exclusões (faltas apenas no prontuário retiradas)
+    for (const f of listaExcluir) {
+        const colabId = parseInt(f && f.colaborador_id, 10);
+        const dataFalta = String((f && f.data_falta) || '').substring(0, 10);
+        const faltaId = parseInt(f && f.falta_id, 10);
+        try {
+            if (faltaId > 0) {
+                await new Promise((resolve, reject) => {
+                    db.run('DELETE FROM faltas WHERE id = ?', [faltaId],
+                        function (e) { e ? reject(e) : resolve(); });
+                });
+                excluidas++;
+            } else if (colabId && /^\d{4}-\d{2}-\d{2}$/.test(dataFalta)) {
+                await new Promise((resolve, reject) => {
+                    db.run('DELETE FROM faltas WHERE colaborador_id = ? AND substr(data_falta,1,10) = ?', [colabId, dataFalta],
+                        function (e) { e ? reject(e) : resolve(); });
+                });
+                excluidas++;
+            } else {
+                erros++;
+            }
+        } catch (e) {
+            erros++;
+            console.error('[FECHAMENTO-FALTAS] Erro ao excluir falta:', e.message);
+        }
+    }
+
+    console.log('[FECHAMENTO-FALTAS] ' + usuario + ': ' + incluidas + ' incluída(s), ' + excluidas + ' excluída(s) (' + jaExistiam + ' já existiam, ' + erros + ' erros)');
+    res.json({ ok: true, incluidas, excluidas, jaExistiam, erros });
+};
+
+app.post('/api/fechamento/atualizar-faltas-prontuario', authenticateToken, handlerAtualizarFaltasProntuario);
+app.post('/api/fechamento/incluir-faltas-prontuario', authenticateToken, handlerAtualizarFaltasProntuario);
 
 // POST: Salvar apuração diária do ponto por colaborador (slim — apenas campos da conferência)
 app.post('/api/fechamento/salvar-ponto', authenticateToken, (req, res) => {
