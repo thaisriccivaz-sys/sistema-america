@@ -11783,6 +11783,57 @@ app.get('/api/fechamento/:ano(\\d+)/:mes(\\d+)', authenticateToken, (req, res) =
     );
 });
 
+// GET: faltas registradas no prontuario dentro do mes (comparativo Ponto x Prontuario no Fechamento)
+app.get('/api/fechamento/faltas-prontuario', authenticateToken, (req, res) => {
+    const mes = parseInt(req.query.mes, 10);
+    const ano = parseInt(req.query.ano, 10);
+    if (!mes || !ano) return res.status(400).json({ error: 'Parâmetros inválidos' });
+    const mm = String(mes).padStart(2, '0');
+    const ini = ano + '-' + mm + '-01';
+    const fim = ano + '-' + mm + '-31';
+    db.all(
+        'SELECT id, colaborador_id, data_falta, turno, observacao FROM faltas WHERE substr(data_falta,1,10) >= ? AND substr(data_falta,1,10) <= ?',
+        [ini, fim],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows || []);
+        }
+    );
+});
+
+// POST: inclui no prontuario as faltas do ponto que ainda nao estao registradas (sem duplicar colaborador+data)
+app.post('/api/fechamento/incluir-faltas-prontuario', authenticateToken, async (req, res) => {
+    const { faltas, mes, ano } = req.body || {};
+    if (!Array.isArray(faltas) || !faltas.length) return res.status(400).json({ error: 'Nenhuma falta informada.' });
+    const usuario = (req.user && (req.user.nome || req.user.username)) || 'Sistema';
+    const mm = String(mes || '').padStart(2, '0');
+    const obs = 'Incluída pelo Fechamento (ponto RHID ' + mm + '/' + ano + ') por ' + usuario;
+    let incluidas = 0, jaExistiam = 0, erros = 0;
+    for (const f of faltas) {
+        const colabId = parseInt(f && f.colaborador_id, 10);
+        const dataFalta = String((f && f.data_falta) || '').substring(0, 10);
+        if (!colabId || !/^\d{4}-\d{2}-\d{2}$/.test(dataFalta)) { erros++; continue; }
+        try {
+            const existente = await new Promise((resolve, reject) => {
+                db.get('SELECT id FROM faltas WHERE colaborador_id = ? AND substr(data_falta,1,10) = ?', [colabId, dataFalta],
+                    (e, r) => e ? reject(e) : resolve(r));
+            });
+            if (existente) { jaExistiam++; continue; }
+            await new Promise((resolve, reject) => {
+                db.run('INSERT INTO faltas (colaborador_id, data_falta, turno, observacao, avisado_previamente) VALUES (?, ?, ?, ?, ?)',
+                    [colabId, dataFalta, 'Dia todo', obs, 'Nao'],
+                    function (e) { e ? reject(e) : resolve(); });
+            });
+            incluidas++;
+        } catch (e) {
+            erros++;
+            console.error('[FECHAMENTO-FALTAS] Erro ao incluir falta:', e.message);
+        }
+    }
+    console.log('[FECHAMENTO-FALTAS] ' + usuario + ' incluiu ' + incluidas + ' falta(s) (' + jaExistiam + ' ja existiam, ' + erros + ' erros)');
+    res.json({ ok: true, incluidas, jaExistiam, erros });
+});
+
 // POST: Salvar apuração diária do ponto por colaborador (slim — apenas campos da conferência)
 app.post('/api/fechamento/salvar-ponto', authenticateToken, (req, res) => {
     const { mes, ano, itens } = req.body;

@@ -3552,6 +3552,121 @@ function abrirLegenda() {
         // Insalubridade proporcional removida a pedido
     }
 
+    // -- Comparativo Faltas do Ponto (RHID) x Faltas do Prontuario ------------
+    // Retorna true quando exibiu o popup de comparativo (false = nada a mostrar).
+    async function compararFaltasPontoProntuario(pontos, msgResumo) {
+        var resp = await fetch('/api/fechamento/faltas-prontuario?mes=' + _mes + '&ano=' + _ano,
+            { headers: { 'Authorization': 'Bearer ' + getToken() } });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var pront = await resp.json();
+
+        var mapPront = {}; // colaborador_id -> { 'YYYY-MM-DD': true }
+        (Array.isArray(pront) ? pront : []).forEach(function(f) {
+            var k = String(f.colaborador_id);
+            var d = String(f.data_falta || '').substring(0, 10);
+            if (!mapPront[k]) mapPront[k] = {};
+            mapPront[k][d] = true;
+        });
+
+        function _escF(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+        function _pad2(n) { return String(n).padStart(2, '0'); }
+        var mm = _pad2(_mes);
+        var tot = { ponto: 0, ok: 0, faltam: 0, soPront: 0 };
+        var linhasHtml = '';
+
+        pontos.slice().sort(function(a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); }).forEach(function(p) {
+            var datasPonto = {};
+            p.dias.forEach(function(dia) { datasPonto[_ano + '-' + mm + '-' + _pad2(dia)] = true; });
+            var datasPront = mapPront[String(p.id)] || {};
+            var todas = Object.keys(datasPonto).concat(Object.keys(datasPront).filter(function(d) { return !datasPonto[d]; })).sort();
+            todas.forEach(function(d, i) {
+                var noPonto = !!datasPonto[d], noPront = !!datasPront[d];
+                var dt = new Date(d + 'T12:00:00');
+                var dtTxt = d.split('-').reverse().join('/') + ' <span style="color:#94a3b8;">(' + dt.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '') + ')</span>';
+                var status, acao = '';
+                if (noPonto && noPront) { status = '<span style="color:#15803d;font-weight:700;">✅ Já registrada</span>'; tot.ponto++; tot.ok++; }
+                else if (noPonto) {
+                    status = '<span style="color:#b91c1c;font-weight:700;">⚠️ Não está no prontuário</span>';
+                    acao = '<input type="checkbox" class="fech-falta-chk" checked data-id="' + _escF(p.id) + '" data-data="' + d + '">';
+                    tot.ponto++; tot.faltam++;
+                } else { status = '<span style="color:#475569;">ℹ️ Só no prontuário (ponto sem falta)</span>'; tot.soPront++; }
+                linhasHtml += '<tr style="border-top:' + (i === 0 ? '2px solid #e2e8f0' : '1px solid #f1f5f9') + ';">'
+                    + '<td style="padding:6px 8px;font-weight:700;color:#0f172a;">' + (i === 0 ? _escF(p.nome) : '') + '</td>'
+                    + '<td style="padding:6px 8px;white-space:nowrap;">' + dtTxt + '</td>'
+                    + '<td style="padding:6px 8px;text-align:center;">' + (noPonto ? '✔' : '—') + '</td>'
+                    + '<td style="padding:6px 8px;text-align:center;">' + (noPront ? '✔' : '—') + '</td>'
+                    + '<td style="padding:6px 8px;">' + status + '</td>'
+                    + '<td style="padding:6px 8px;text-align:center;">' + acao + '</td></tr>';
+            });
+        });
+
+        if (!linhasHtml) return false; // nenhuma falta no ponto nem no prontuario
+
+        var badge = function(txt, bg, cor) { return '<span style="background:' + bg + ';color:' + cor + ';padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;">' + txt + '</span>'; };
+        var resumoHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;">'
+            + badge(tot.ponto + ' falta(s) no ponto', '#e0f2fe', '#0369a1')
+            + badge(tot.ok + ' já no prontuário', '#dcfce7', '#15803d')
+            + badge(tot.faltam + ' faltando no prontuário', tot.faltam ? '#fee2e2' : '#f1f5f9', tot.faltam ? '#b91c1c' : '#475569')
+            + (tot.soPront ? badge(tot.soPront + ' só no prontuário', '#f1f5f9', '#475569') : '')
+            + '</div>';
+        var tabelaHtml = '<div style="max-height:50vh;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">'
+            + '<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">'
+            + '<thead style="position:sticky;top:0;background:#f8fafc;"><tr>'
+            + '<th style="padding:8px;">Colaborador</th><th style="padding:8px;">Data</th><th style="padding:8px;text-align:center;">Ponto</th>'
+            + '<th style="padding:8px;text-align:center;">Prontuário</th><th style="padding:8px;">Situação</th>'
+            + '<th style="padding:8px;text-align:center;">' + (tot.faltam ? '<input type="checkbox" id="fech-falta-chk-todas" checked title="Marcar/desmarcar todas">' : '') + '</th>'
+            + '</tr></thead><tbody>' + linhasHtml + '</tbody></table></div>';
+        var perguntaHtml = tot.faltam
+            ? '<p style="margin:12px 0 0;font-size:14px;color:#0f172a;"><b>Deseja incluir no prontuário as ' + tot.faltam + ' falta(s) que ainda não estão registradas?</b><br><span style="font-size:12px;color:#64748b;">Desmarque as que não deseja incluir.</span></p>'
+            : '<p style="margin:12px 0 0;font-size:14px;color:#15803d;"><b>Todas as faltas do ponto já estão registradas no prontuário.</b></p>';
+
+        var r = await Swal.fire({
+            title: 'Faltas: Ponto × Prontuário — ' + mm + '/' + _ano,
+            html: '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">' + _escF(String(msgResumo || '').split('\n')[0]) + '</div>' + resumoHtml + tabelaHtml + perguntaHtml,
+            width: 860,
+            icon: tot.faltam ? 'warning' : 'success',
+            showCancelButton: tot.faltam > 0,
+            confirmButtonText: tot.faltam ? 'Sim, incluir no prontuário' : 'OK',
+            cancelButtonText: 'Agora não',
+            confirmButtonColor: tot.faltam ? '#16a34a' : '#2563eb',
+            didOpen: function() {
+                var todas = document.getElementById('fech-falta-chk-todas');
+                if (todas) todas.addEventListener('change', function() {
+                    document.querySelectorAll('.fech-falta-chk').forEach(function(c) { c.checked = todas.checked; });
+                });
+            },
+            preConfirm: function() {
+                return Array.from(document.querySelectorAll('.fech-falta-chk')).filter(function(c) { return c.checked; })
+                    .map(function(c) { return { colaborador_id: c.getAttribute('data-id'), data_falta: c.getAttribute('data-data') }; });
+            }
+        });
+        if (!r.isConfirmed || !tot.faltam) return true;
+
+        var selecionadas = r.value || [];
+        if (!selecionadas.length) { Swal.fire({ icon: 'info', title: 'Nenhuma falta selecionada', timer: 2500, showConfirmButton: false }); return true; }
+
+        Swal.fire({ title: 'Incluindo faltas no prontuário...', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+        try {
+            var rp = await fetch('/api/fechamento/incluir-faltas-prontuario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+                body: JSON.stringify({ mes: _mes, ano: _ano, faltas: selecionadas })
+            });
+            var jp = await rp.json();
+            if (!rp.ok) throw new Error(jp.error || ('HTTP ' + rp.status));
+            Swal.fire({
+                icon: jp.erros ? 'warning' : 'success',
+                title: jp.incluidas + ' falta(s) incluída(s) no prontuário',
+                text: (jp.jaExistiam ? jp.jaExistiam + ' já existia(m). ' : '') + (jp.erros ? jp.erros + ' com erro.' : ''),
+                timer: jp.erros ? undefined : 4000,
+                showConfirmButton: !!jp.erros
+            });
+        } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Erro ao incluir faltas', text: e.message });
+        }
+        return true;
+    }
+
     async function buscarPontoTodos() {
         if (!_mes || !_ano) { Swal.fire({ icon: "warning", text: "Busque um mês antes de carregar o ponto." }); return; }
         limparDivergenciasComparacao();
@@ -3563,6 +3678,7 @@ function abrirLegenda() {
         var colabsComCpf = _dados.filter(function(r) { return r.cpf || r.colaborador_id; });
         var ok = 0, semCadastro = 0, erros = 0;
         var nomesOk = [], nomesSem = [];
+        var pontosCarregados = []; // { id, nome, dias[] } para comparar faltas com o prontuario
 
         Swal.fire({ title: "Buscando ponto...", html: "0 / " + colabsComCpf.length + " colaboradores", allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
 
@@ -3582,6 +3698,9 @@ function abrirLegenda() {
                     aplicarPontoNaTabela(idx, dados);
                     ok++;
                     nomesOk.push(row.nome_completo);
+                    var _diasFaltaPonto = [];
+                    try { _diasFaltaPonto = JSON.parse(dados.data_faltas || '[]'); } catch (eDf) { _diasFaltaPonto = []; }
+                    pontosCarregados.push({ id: row.colaborador_id || row.id, nome: row.nome_completo, dias: Array.isArray(_diasFaltaPonto) ? _diasFaltaPonto : [] });
                 } else {
                     semCadastro++;
                     nomesSem.push(row.nome_completo + (dados.aviso ? ' (sem apuração)' : ''));
@@ -3626,7 +3745,10 @@ function abrirLegenda() {
         var msgTxt = ok + " colaborador(es) com ponto carregado.";
         if (semCadastro > 0) msgTxt += "\n" + semCadastro + " sem cadastro no RHID: " + nomesSem.slice(0,3).join(", ") + (nomesSem.length > 3 ? "..." : "");
         if (erros > 0) msgTxt += "\n" + erros + " erros de conexão.";
-        Swal.fire({ icon: msgTipo, title: "Ponto " + mesFmt, text: msgTxt, timer: 5000, showConfirmButton: ok === 0 });
+        var _mostrouFaltas = false;
+        try { _mostrouFaltas = await compararFaltasPontoProntuario(pontosCarregados, msgTxt); }
+        catch (eFalt) { console.warn('[fechamento] Comparativo de faltas falhou:', eFalt); }
+        if (!_mostrouFaltas) Swal.fire({ icon: msgTipo, title: "Ponto " + mesFmt, text: msgTxt, timer: 5000, showConfirmButton: ok === 0 });
     }
 
     // -- Observacao no Fechamento ---------------------------------------
