@@ -31994,6 +31994,20 @@ app.listen(PORT, () => {
     db.run('CREATE TABLE IF NOT EXISTS frota_manutencao_pecas (id INTEGER PRIMARY KEY AUTOINCREMENT, manutencao_id INTEGER NOT NULL, servico_id INTEGER, nota_id INTEGER, codigo TEXT, descricao TEXT NOT NULL, unidade TEXT, quantidade REAL DEFAULT 1, valor_unit REAL DEFAULT 0, valor_total REAL DEFAULT 0, garantia_valor INTEGER, garantia_unidade TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
     setTimeout(() => _seedCatalogoCorretivo(0), 4000);
 
+    // Migracao unica: quem ja tinha 'Frota' passa a ter tambem 'Frota (Manutencao)' (mantem o acesso atual).
+    setTimeout(() => {
+        db.run('CREATE TABLE IF NOT EXISTS configuracoes_sistema (chave TEXT PRIMARY KEY, valor TEXT)', () => {
+            db.get("SELECT valor FROM configuracoes_sistema WHERE chave = 'migr_frota_manutencao_perm'", [], (e, row) => {
+                if (e || row) return;
+                db.run("INSERT INTO permissoes_grupo (grupo_id, modulo, pagina_id, pagina_nome, visualizar, alterar, incluir, excluir) SELECT p.grupo_id, p.modulo, 'logistica-frota-manutencao', 'Frota (Manutenção)', p.visualizar, p.alterar, p.incluir, p.excluir FROM permissoes_grupo p WHERE p.pagina_id = 'logistica-frota' AND NOT EXISTS (SELECT 1 FROM permissoes_grupo q WHERE q.grupo_id = p.grupo_id AND q.pagina_id = 'logistica-frota-manutencao')", [], (e2) => {
+                    if (e2) { console.error('[MIGRATE] Permissao Frota (Manutencao):', e2.message); return; }
+                    db.run("INSERT OR REPLACE INTO configuracoes_sistema (chave, valor) VALUES ('migr_frota_manutencao_perm', '1')");
+                    console.log('[MIGRATE] Permissao Frota (Manutencao) copiada dos grupos com Frota.');
+                });
+            });
+        });
+    }, 6000);
+
     colsMigration.forEach(({ col, def }) => {
         db.run(`ALTER TABLE frota_manutencoes ADD COLUMN ${col} ${def}`, (err) => {
             if (err && !err.message.includes('duplicate column')) {

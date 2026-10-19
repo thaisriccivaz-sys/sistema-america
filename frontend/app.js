@@ -926,6 +926,11 @@ window.carregarPermissoesOnline = async function () {
             mapPerms['sac'] = true;
         }
 
+        // Frota: duas liberacoes independentes (Gestao e Manutencao).
+        // O item do menu aparece se o usuario tiver qualquer uma; as abas internas respeitam cada uma.
+        window.frotaPerms = { gestao: !!mapPerms['logistica-frota'], manutencao: !!mapPerms['logistica-frota-manutencao'] };
+        if (window.frotaPerms.manutencao) mapPerms['logistica-frota'] = true;
+
         window.activeUserPerms = mapPerms;
 
         // Percorre todos os botões de navegação (.nav-item)

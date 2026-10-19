@@ -47,7 +47,8 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-rota-redonda', pagina_nome: 'OS', icone: 'ph-clipboard-text' },
     { modulo: 'Logística', pagina_id: 'logistica-videos-os',  pagina_nome: 'Observações OS', icone: 'ph-video-camera' },
     { modulo: 'Logística', pagina_id: 'logistica-resumo-rota',  pagina_nome: 'Resumo de Rota', icone: 'ph-list-numbers' },
-    { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota',         icone: 'ph-truck' },
+    { modulo: 'Logística', pagina_id: 'logistica-frota',        pagina_nome: 'Frota (Gestão)',         icone: 'ph-truck' },
+    { modulo: 'Logística', pagina_id: 'logistica-frota-manutencao', pagina_nome: 'Frota (Manutenção)', icone: 'ph-wrench' },
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
     { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
     { modulo: 'Logística', pagina_id: 'logistica-senhas',         pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
@@ -625,7 +626,7 @@ const MENU_HIERARQUIA = [
         modulo: 'Logística', icone: 'ph-truck', cor: '#2b8a3e',
         grupos: [{ titulo: 'Telas', telas: [
                     'logistica-dashboard', 'logistica-agenda', 'logistica-epi', 
-                    'logistica-multas', 'logistica-equipes', 'logistica-frota', 
+                    'logistica-multas', 'logistica-equipes', 'logistica-frota', 'logistica-frota-manutencao', 
                     'logistica-credenciamento', 'logistica-senhas', 
                     'logistica-itinerantes', 'logistica-sinistros'
                 ]

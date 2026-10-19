@@ -809,6 +809,8 @@ function popularFiltros() {
 window._frotaAbaAtiva = 'veiculos';
 
 window.trocarAbaFrota = function(aba) {
+    const _fpt = window.frotaPerms || { gestao: true, manutencao: true };
+    if ((aba === 'manutencoes' && !_fpt.manutencao) || (aba === 'veiculos' && !_fpt.gestao)) return;
     window._frotaAbaAtiva = aba;
     document.querySelectorAll('.frota-aba-btn').forEach(b => {
         const isActive = b.dataset.aba === aba;
@@ -860,6 +862,19 @@ window.initFrotaVeiculos = async function() {
   
   const c = document.getElementById('frota-conteudo');
   if (!c) return;
+
+  // Abas visiveis conforme as liberacoes Frota (Gestao) e Frota (Manutencao)
+  const _fp = window.frotaPerms || { gestao: true, manutencao: true };
+  document.querySelectorAll('.frota-aba-btn').forEach(b => {
+      const ok = (b.dataset.aba === 'veiculos' && _fp.gestao) || (b.dataset.aba === 'manutencoes' && _fp.manutencao);
+      b.style.display = ok ? 'flex' : 'none';
+  });
+  if (!_fp.gestao) {
+      if (_fp.manutencao) { window.trocarAbaFrota('manutencoes'); }
+      else { c.innerHTML = '<div style="padding:2rem;color:#dc2626;font-weight:600;">Voc\u00ea n\u00e3o tem libera\u00e7\u00e3o para esta tela.</div>'; }
+      return;
+  }
+
   window._frotaAbaAtiva = 'veiculos';
   await carregarPDFjs();
   const tok = window.currentToken || localStorage.getItem('token');
