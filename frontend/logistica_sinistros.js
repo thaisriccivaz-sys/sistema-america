@@ -1896,9 +1896,9 @@ if (!window._sinExcluirOrc) {
 window._logSinManut = { ativo: false, item: '', outros: '', obs: '', rodando: '' };
 window._logSinManutRH = false;
 window._LOG_SIN_MANUT_ITENS = [
-    { grupo: 'Lataria e estética', itens: ['Funilaria (amassados)', 'Pintura', 'Para-choque dianteiro / traseiro', 'Capô / Porta / Paralama / Tampa traseira', 'Retrovisor', 'Faróis / Lanternas / Setas', 'Para-brisa / Vidros'] },
-    { grupo: 'Mecânica', itens: ['Suspensão / Direção', 'Alinhamento / Balanceamento', 'Pneus / Rodas', 'Freios', 'Radiador / Arrefecimento', 'Motor / Câmbio / Transmissão', 'Sistema elétrico / Bateria'] },
-    { grupo: 'Operacional', itens: ['Tanque', 'Bomba / Motor de sucção', 'Mangotes / Válvulas / Sistema hidráulico', 'Estrutura / Chassi'] },
+    { grupo: 'Lataria e estética', itens: ['Funilaria (amassados)', 'Adesivo', 'Pintura', 'Para-choque dianteiro', 'Para-choque traseiro', 'Capô', 'Porta', 'Paralama', 'Tampa traseira', 'Retrovisor', 'Faróis', 'Lanternas', 'Setas', 'Para-brisa', 'Vidros'] },
+    { grupo: 'Mecânica', itens: ['Suspensão', 'Direção', 'Alinhamento', 'Balanceamento', 'Pneus', 'Rodas', 'Freios', 'Radiador', 'Arrefecimento', 'Motor', 'Câmbio', 'Transmissão', 'Sistema elétrico', 'Bateria'] },
+    { grupo: 'Operacional', itens: ['Tanque', 'Bomba de sucção', 'Motor de sucção', 'Mangotes', 'Válvulas', 'Sistema hidráulico', 'Estrutura', 'Chassi'] },
     { grupo: 'Outros', itens: ['Revisão geral pós-sinistro', 'Outros'] }
 ];
 
@@ -2000,15 +2000,15 @@ window._logSinManutAbrirPopup = function() {
         + '<div><div style="color:#fff;font-weight:700;">Qual manutenção é necessária?</div>'
         + '<div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (v.placa || '') + ' — ' + String(v.marca_modelo_versao || '').substring(0, 40) + '</div></div></div>'
         + '<div style="padding:18px 20px;">'
-        + '<p style="margin:0;font-size:0.8rem;color:#64748b;">Selecione apenas uma opção:</p>'
-        + lista
-        + '<div id="log-sin-manut-outros-wrap" style="display:' + (st.item === 'Outros' ? 'block' : 'none') + ';margin-top:10px;">'
-        + '<input type="text" id="log-sin-manut-outros" class="form-control" placeholder="Descreva a manutenção necessária..." value="' + String(st.outros || '').replace(/"/g, '&quot;') + '"></div>'
-        + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando?</p>'
+        + '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando? *</p>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
         + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #bbf7d0;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#f0fdf4;"><input type="radio" name="log-sin-manut-rodando" value="sim"' + rodSim + '> Sim, está rodando <small style="color:#64748b;">(agendar)</small></label>'
         + '<label style="display:flex;align-items:center;gap:6px;padding:9px 10px;border:1px solid #fecaca;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fef2f2;"><input type="radio" name="log-sin-manut-rodando" value="nao"' + rodNao + '> Não, está parado <small style="color:#64748b;">(indisponível)</small></label>'
         + '</div>'
+        + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Qual manutenção é necessária? (selecione uma) *</p>'
+        + lista
+        + '<div id="log-sin-manut-outros-wrap" style="display:' + (st.item === 'Outros' ? 'block' : 'none') + ';margin-top:10px;">'
+        + '<input type="text" id="log-sin-manut-outros" class="form-control" placeholder="Descreva a manutenção necessária..." value="' + String(st.outros || '').replace(/"/g, '&quot;') + '"></div>'
         + '<p style="margin:16px 0 6px;font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Observação (opcional)</p>'
         + '<textarea id="log-sin-manut-obs" class="form-control" rows="2" style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="Detalhes adicionais...">' + String(st.obs || '').replace(/</g, '&lt;') + '</textarea>'
         + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">'
