@@ -276,7 +276,9 @@ window.sinAbrirDetalhes = async function(sinId, colabId) {
     // Buscar sinistro atualizado
     let sinistro = null;
     try {
-        const lista = await apiGet('/colaboradores/' + colabId + '/sinistros');
+        const lista = (colabId && colabId != '0')
+            ? await apiGet('/colaboradores/' + colabId + '/sinistros')
+            : await apiGet('/logistica/sinistros');
         sinistro = (lista || []).find(function(s) { return s.id == sinId; });
     } catch(e) { return alert('Erro ao carregar sinistro.'); }
     if (!sinistro) return alert('Sinistro não encontrado.');

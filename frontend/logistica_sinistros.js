@@ -188,7 +188,7 @@ window._logSinRenderCardGeral = function(s, container) {
                     <i class="ph ph-caret-right"></i>
                 </button>
                 <div>
-                    <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#059669;"></i> ${s.nome_completo || 'Colaborador Desconhecido'}</h5>
+                    <h5 style="margin:0; font-size:1.1rem; color:#0f172a; font-weight:700;"><i class="ph ph-user" style="color:#059669;"></i> ${s.nome_completo || s.colaborador_outro || 'Colaborador Desconhecido'}</h5>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;"><i class="ph ph-file-text"></i> BO: ${s.numero_boletim || 'N/A'} &nbsp;|&nbsp; <i class="ph ph-calendar"></i> Ocorrido: ${s.data_hora || '—'}</p>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">${s.veiculo || '—'} &nbsp;|&nbsp; Placa: ${s.placa || '—'}</p>
                     ${(function() {
@@ -243,10 +243,10 @@ window._logSinRenderCardGeral = function(s, container) {
             </div>
             ${(s.status === 'pendente' || s.status === 'iniciado') ? `
             <div style="display:flex; gap:8px;">
-                <button onclick="window.logSinExcluirSinistro(${s.id}, ${s.colaborador_id})" title="Excluir sinistro" style="background:#fef2f2; border:1px solid #fecaca; color:#ef4444; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
+                <button onclick="window.logSinExcluirSinistro(${s.id}, ${s.colaborador_id || 0})" title="Excluir sinistro" style="background:#fef2f2; border:1px solid #fecaca; color:#ef4444; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'">
                     <i class="ph ph-trash"></i> Excluir
                 </button>
-                <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id})" title="Editar sinistro"
+                <button onclick="window.logSinAbrirModalEditar(${s.id}, ${s.colaborador_id || 0})" title="Editar sinistro"
                     style="background:#f1f5f9; border:1.5px solid #cbd5e1; color:#475569; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
                     onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b'" onmouseout="this.style.background='#f1f5f9'; this.style.color='#475569'">
                     <i class="ph ph-pencil-simple"></i> Editar
@@ -256,7 +256,7 @@ window._logSinRenderCardGeral = function(s, container) {
                 <span style="font-size:0.72rem; color:#94a3b8; display:flex; align-items:center; gap:4px; margin-right:8px;">
                     <i class="ph ph-lock"></i> Assinado — edição bloqueada
                 </span>
-                <button onclick="if(window.sinAbrirDetalhes) { window.sinAbrirDetalhes(${s.id}, ${s.colaborador_id}); } else { alert('Função de detalhes não carregada.'); }" title="Ver Detalhes"
+                <button onclick="if(window.sinAbrirDetalhes) { window.sinAbrirDetalhes(${s.id}, ${s.colaborador_id || 0}); } else { alert('Função de detalhes não carregada.'); }" title="Ver Detalhes"
                     style="background:#f0fdf4; border:1px solid #86efac; color:#166534; border-radius:8px; padding:5px 14px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all .2s;"
                     onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">
                     <i class="ph ph-list-magnifying-glass"></i> Ver Detalhes
@@ -294,8 +294,13 @@ window.logSinAbrirModalNovo = function() {
                             <label>Selecionar Colaborador *</label>
                             <select id="log-sin-colab-select" class="form-control" style="font-size: 0.9rem; padding: 10px;">
                                 <option value="">-- Selecione o colaborador envolvido --</option>
+                                <option value="Outros">Outros</option>
                                 ${colabsOptions}
                             </select>
+                            <div id="log-sin-colab-outro-wrap" style="display:none; margin-top:0.75rem;">
+                                <label style="font-weight:600; color:#0f172a; font-size:0.85rem;"><i class="ph ph-user-plus" style="color:#059669;"></i> Nome do Envolvido *</label>
+                                <input type="text" id="log-sin-colab-outro" class="form-control" placeholder="Digite o nome completo do envolvido..." style="font-size:0.9rem; padding:9px 12px;" oninput="if(document.getElementById('log-sin-colab-select').value === 'Outros') window._logSinAtualizarDadosColab('Outros');">
+                            </div>
                         </div>
                         <!-- Busca de veículo por placa -->
                         <div class="input-group" style="margin-bottom:1rem;">
@@ -456,7 +461,24 @@ window.logSinAbrirModalNovo = function() {
     if (logBoInput) logBoInput.value = '';
     var logProtoInput = document.getElementById('log-sin-protocolo');
     if (logProtoInput) logProtoInput.value = '';
-    document.getElementById('log-sin-colab-select').value = '';
+    var selColabEl = document.getElementById('log-sin-colab-select');
+    if (selColabEl) {
+        var _colabsOpts = (_logSinListaColabs || [])
+            .slice()
+            .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
+            .map(c => `<option value="${c.id}">${c.nome_completo} (${c.cpf || ''})</option>`)
+            .join('');
+        selColabEl.innerHTML = `
+            <option value="">-- Selecione o colaborador envolvido --</option>
+            <option value="Outros">Outros</option>
+            ${_colabsOpts}
+        `;
+        selColabEl.value = '';
+    }
+    var outroWrapInit = document.getElementById('log-sin-colab-outro-wrap');
+    if (outroWrapInit) outroWrapInit.style.display = 'none';
+    var outroInpInit = document.getElementById('log-sin-colab-outro');
+    if (outroInpInit) outroInpInit.value = '';
     window._logSinMidiasFiles = [];
     window._logSinOrcFiles = [];
     window._logSinistroAtualId = null;
@@ -488,10 +510,21 @@ window.logSinAbrirModalNovo = function() {
     if (veicS2) { veicS2.style.display = 'none'; }
     if (veicS2Rows) { veicS2Rows.innerHTML = ''; }
 
-    // Ao selecionar colaborador, atualizar dados exibidos
+    // Ao selecionar colaborador, atualizar dados exibidos e alternar campo Outros
     var selColab = document.getElementById('log-sin-colab-select');
     if (selColab) {
-        selColab.onchange = function() { window._logSinAtualizarDadosColab(this.value); };
+        selColab.onchange = function() {
+            var isOutros = this.value === 'Outros';
+            var wrap = document.getElementById('log-sin-colab-outro-wrap');
+            if (wrap) wrap.style.display = isOutros ? 'block' : 'none';
+            var inp = document.getElementById('log-sin-colab-outro');
+            if (isOutros) {
+                if (inp) inp.focus();
+            } else {
+                if (inp) inp.value = '';
+            }
+            window._logSinAtualizarDadosColab(this.value);
+        };
     }
 
     // Reset veículo e carregar lista
@@ -536,6 +569,20 @@ window._logSinAtualizarDadosColab = function(colabId) {
     ];
     if (!colabId) {
         pares.forEach(function(p) { var s = document.getElementById(p.section); if (s) s.style.display='none'; });
+        return;
+    }
+    if (colabId === 'Outros') {
+        var outroNome = document.getElementById('log-sin-colab-outro') ? document.getElementById('log-sin-colab-outro').value.trim() : '';
+        var dados = [
+            { label: 'Nome Envolvido', value: outroNome || 'Outros (informe no campo)' },
+            { label: 'Tipo', value: 'Externo / Não cadastrado' }
+        ];
+        var html = dados.map(function(d) { return window._logSinLinhaCopiavel(d.label, d.value, 'colab'); }).join('');
+        pares.forEach(function(p) {
+            var section = document.getElementById(p.section);
+            var rows    = document.getElementById(p.rows);
+            if (section && rows) { rows.innerHTML = html; section.style.display = 'block'; }
+        });
         return;
     }
     var c = (_logSinListaColabs || []).find(function(x) { return String(x.id) === String(colabId); });
@@ -808,8 +855,16 @@ window.logSinProcessarLeituraBO = async function() {
 
 // Step 1: Salvar sinistro logistica com status 'iniciado'
 window.logSinSalvarIniciado = async function() {
-    const colabId = document.getElementById('log-sin-colab-select').value;
-    if (!colabId) return alert('Selecione o colaborador envolvido.');
+    const colabSelectVal = document.getElementById('log-sin-colab-select').value;
+    if (!colabSelectVal) return alert('Selecione o colaborador envolvido.');
+
+    let colabId = colabSelectVal;
+    let colabOutro = '';
+    if (colabSelectVal === 'Outros') {
+        colabOutro = (document.getElementById('log-sin-colab-outro') ? document.getElementById('log-sin-colab-outro').value : '').trim();
+        if (!colabOutro) return alert('Por favor, digite o nome do envolvido no campo.');
+        colabId = '0';
+    }
 
     const btn = document.getElementById('log-sin-btn-iniciar');
     const oldText = btn ? btn.innerHTML : '';
@@ -818,6 +873,7 @@ window.logSinSalvarIniciado = async function() {
     try {
         const formData = new FormData();
         formData.append('status', 'iniciado');
+        if (colabOutro) formData.append('colaborador_outro', colabOutro);
         const proto = document.getElementById('log-sin-protocolo');
         if (proto && proto.value) formData.append('numero_boletim', proto.value);
         if (window._logSinVeiculoSelecionado) {
@@ -835,6 +891,7 @@ window.logSinSalvarIniciado = async function() {
 
         window._logSinistroAtualId = data.id;
         window._logSinistroAtualColabId = colabId;
+        window._logSinistroAtualColabOutro = colabOutro;
 
         document.getElementById('log-sinistro-step-1').style.display = 'none';
         document.getElementById('log-sinistro-step-2').style.display = 'block';
@@ -859,7 +916,7 @@ window.logSinSalvarIniciado = async function() {
 window.logSinFinalizarSinistro = async function() {
     const sinId   = window._logSinistroAtualId;
     const colabId = window._logSinistroAtualColabId;
-    if (!sinId || !colabId) return alert('Sinistro não identificado. Salve o Passo 1 primeiro.');
+    if (!sinId || (colabId === undefined || colabId === null || colabId === '')) return alert('Sinistro não identificado. Salve o Passo 1 primeiro.');
 
     if (window._isSavingSinistro) return;
     window._isSavingSinistro = true;
@@ -872,6 +929,9 @@ window.logSinFinalizarSinistro = async function() {
         const formData = new FormData();
         formData.append('status', 'pendente');
         formData.append('desconto', 'Sim');
+        if (window._logSinistroAtualColabOutro) {
+            formData.append('colaborador_outro', window._logSinistroAtualColabOutro);
+        }
 
         var fbo  = document.getElementById('log-sin-bo');      if (fbo && fbo.value)  formData.append('numero_boletim', fbo.value);
         var fdt  = document.getElementById('log-sin-data');    if (fdt && fdt.value)  formData.append('data_hora', fdt.value);
@@ -951,7 +1011,7 @@ window._logSinEditNovasMidias   = []; // File objects
 
 window.logSinAbrirModalEditar = async function(sinId, colabId) {
     window._logSinEditandoId       = sinId;
-    window._logSinEditColabId      = colabId;
+    window._logSinEditColabId      = (colabId !== undefined && colabId !== null) ? colabId : 0;
     window._logSinEditOrcFiles     = [];
     window._logSinEditNovasMidias  = [];
     window._logSinEditBOFile       = null;
@@ -997,7 +1057,7 @@ window.logSinAbrirModalEditar = async function(sinId, colabId) {
                         <span style="font-size:0.75rem; background:#fbbf24; color:#1e293b; border-radius:12px; padding:2px 10px; font-weight:700; margin-left:6px;">PENDENTE</span>
                     </h3>
                     <div style="color:#94a3b8; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
-                        <i class="ph ph-user"></i> ${sinistro.nome_completo || 'Colaborador não identificado'}
+                        <i class="ph ph-user"></i> ${sinistro.nome_completo || sinistro.colaborador_outro || 'Colaborador não identificado'}
                     </div>
                 </div>
                 <button onclick="document.getElementById('modal-log-sin-editar').style.display='none'" class="btn-close" style="background:rgba(255,255,255,0.15); color:#fff; align-self:flex-start;"><i class="ph ph-x"></i></button>
@@ -1498,8 +1558,8 @@ window._logSinEditAtualizarPreviewOrcs = function() {
 
 window.logSinSalvarEdicao = async function() {
     var sinId   = window._logSinEditandoId;
-    var colabId = window._logSinEditColabId;
-    if (!sinId || !colabId) return;
+    var colabId = (window._logSinEditColabId !== undefined && window._logSinEditColabId !== null) ? window._logSinEditColabId : 0;
+    if (!sinId) return;
 
     var btn    = document.getElementById('btn-edit-sin-salvar');
     var msgEl  = document.getElementById('edit-sin-msg');

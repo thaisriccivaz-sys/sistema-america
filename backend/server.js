@@ -934,6 +934,7 @@ db.run(`CREATE TABLE IF NOT EXISTS sinistros (
         db.run('ALTER TABLE sinistros ADD COLUMN descricao_ocorrencia TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN config_parcelas TEXT', (e) => { });
         db.run('ALTER TABLE sinistros ADD COLUMN status_rh TEXT', (e) => { });
+        db.run('ALTER TABLE sinistros ADD COLUMN colaborador_outro TEXT', (e) => { });
         db.run(`CREATE TABLE IF NOT EXISTS sinistros_cobranca_historico (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sinistro_id INTEGER NOT NULL,
@@ -6557,7 +6558,7 @@ app.put('/api/colaboradores/:id/santander-status', authenticateToken, (req, res)
 app.get('/api/logistica/sinistros', authenticateToken, (req, res) => {
     // Fetch all sinistros globally, joined with colaborador to get nome and cpf
     const sql = `
-        SELECT s.*, c.nome_completo, c.cpf
+        SELECT s.*, COALESCE(c.nome_completo, s.colaborador_outro) AS nome_completo, c.cpf
         FROM sinistros s
         LEFT JOIN colaboradores c ON s.colaborador_id = c.id
         ORDER BY s.created_at DESC
@@ -6569,7 +6570,13 @@ app.get('/api/logistica/sinistros', authenticateToken, (req, res) => {
 });
 
 app.get('/api/colaboradores/:id/sinistros', authenticateToken, (req, res) => {
-    db.all('SELECT * FROM sinistros WHERE colaborador_id = ? ORDER BY created_at DESC', [req.params.id], (err, rows) => {
+    const id = req.params.id;
+    const isOutros = (id === '0' || id === 0 || id === 'outros');
+    const sql = isOutros
+        ? 'SELECT *, COALESCE(colaborador_outro, "Outros") AS nome_completo FROM sinistros WHERE colaborador_id = 0 OR colaborador_id IS NULL ORDER BY created_at DESC'
+        : 'SELECT * FROM sinistros WHERE colaborador_id = ? ORDER BY created_at DESC';
+    const params = isOutros ? [] : [id];
+    db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -6859,14 +6866,14 @@ app.delete('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, (r
 
     // Nao deixamos excluir se ja estiver assinado, por seguranca da assinatura digital, a menos que a senha de exclusao seja fornecida
     const senha = req.headers['x-delete-password'];
-    db.get('SELECT status FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], (err, row) => {
+    db.get('SELECT status FROM sinistros WHERE id = ?', [sinistroId], (err, row) => {
         if (err || !row) return res.status(404).json({ error: 'Sinistro nao encontrado' });
         
         if ((row.status === 'assinado' || row.status === 'assinado_testemunhas') && senha !== 'EXL2499!') {
             return res.status(403).json({ error: 'Nao eh possivel excluir um sinistro ja assinado sem a senha de exclusao correta.' });
         }
 
-        db.run('DELETE FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, id], function (err2) {
+        db.run('DELETE FROM sinistros WHERE id = ?', [sinistroId], function (err2) {
             if (err2) return res.status(500).json({ error: err2.message });
             db.run('DELETE FROM sinistros_cobranca_historico WHERE sinistro_id = ?', [sinistroId], () => {});
             res.json({ sucesso: true });
@@ -6878,15 +6885,29 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
     try {
         const { id } = req.params;
         const body = req.body;
+        const isOutros = (id === '0' || id === 0 || id === 'outros' || !id || String(id).toLowerCase() === 'outros');
 
-        const colab = await new Promise((resolve, reject) => {
-            db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
-        });
-        if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+        let colab = null;
+        let nomeFormatado = 'OUTROS';
 
-        const nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
-            .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+        if (!isOutros) {
+            colab = await new Promise((resolve, reject) => {
+                db.get('SELECT * FROM colaboradores WHERE id = ?', [id], (err, row) => err ? reject(err) : resolve(row));
+            });
+            if (!colab) return res.status(404).json({ error: 'Colaborador nao encontrado.' });
+
+            nomeFormatado = (colab.nome_completo || colab.nome || 'COLAB')
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+        } else {
+            const outroNome = (body.colaborador_outro || 'OUTROS').trim();
+            nomeFormatado = outroNome
+                .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '') || 'OUTROS';
+        }
+
+        const finalColabId = (colab && colab.id) ? colab.id : 0;
+        const finalColabOutro = isOutros ? (body.colaborador_outro || 'Outros').trim() : (body.colaborador_outro || null);
 
         let dataFormatada = (body.data_hora || '').split(' ')[0].replace(/\D/g, '');
         if (!dataFormatada) dataFormatada = String(new Date().getDate()).padStart(2, '0') + String(new Date().getMonth() + 1).padStart(2, '0') + new Date().getFullYear();
@@ -6897,14 +6918,14 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         let targetDir = pastaRoot + '/' + nomeFormatado + '/SINISTROS/' + (pastaDataStr || dataFormatada);
 
         // Garantir unique numero se ja existir a mesma data - fazemos isso procurando o count
-        const qtdNoDia = await new Promise(r => db.get("SELECT count(*) as c FROM sinistros WHERE colaborador_id=? AND data_hora LIKE ?", [id, (body.data_hora || '').split(' ')[0] + '%'], (e, row) => r(row ? row.c : 0)));
+        const qtdNoDia = await new Promise(r => db.get("SELECT count(*) as c FROM sinistros WHERE (colaborador_id=? OR (colaborador_id=0 AND colaborador_outro=?)) AND data_hora LIKE ?", [finalColabId, finalColabOutro || '', (body.data_hora || '').split(' ')[0] + '%'], (e, row) => r(row ? row.c : 0)));
         if (qtdNoDia > 0) {
             targetDir += '_' + (qtdNoDia + 1);
         }
 
-        const stmt = `INSERT INTO sinistros (colaborador_id, numero_boletim, data_hora, natureza, placa, veiculo,
+        const stmt = `INSERT INTO sinistros (colaborador_id, colaborador_outro, numero_boletim, data_hora, natureza, placa, veiculo,
             desconto, parcelas, valor_parcela, valor_total, tipo_sinistro, boletim_path, processo_iniciado, usuario_abertura, status, observacoes, situacao_sinistro, descricao_ocorrencia)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         // Nome padrão do doc: Sinistro_Datadoocorrido_Nome_do_Colaborador.pdf
         const pnome = 'BO_Sinistro_' + (pastaDataStr || dataFormatada).replace(/-/g, '') + '_' + nomeFormatado + '.pdf';
@@ -6912,7 +6933,7 @@ app.post('/api/colaboradores/:id/sinistros', authenticateToken, multerUploadMemo
         const usuarioAbertura = req.user ? (req.user.nome || req.user.username) : 'Sistema';
         const statusInserir = body.status || (req.file ? 'pendente' : 'iniciado');
 
-        db.run(stmt, [id, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
+        db.run(stmt, [finalColabId, finalColabOutro, body.numero_boletim, body.data_hora, body.natureza, body.placa, body.veiculo,
             body.desconto, body.parcelas || null, body.valor_parcela, body.valor_total || null, body.tipo_sinistro, docOnedrivePath, 0, usuarioAbertura, statusInserir, body.observacoes || null, 'Novo', body.descricao_ocorrencia || null],
             async function (err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -6977,7 +6998,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
 
         // Buscar o sinistro atual
         const sinistro = await new Promise((resolve, reject) => {
-            db.get('SELECT * FROM sinistros WHERE id = ? AND colaborador_id = ?', [sinistroId, colabId], (err, row) => {
+            db.get('SELECT * FROM sinistros WHERE id = ?', [sinistroId], (err, row) => {
                 if (err) reject(err); else resolve(row);
             });
         });
@@ -7019,6 +7040,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE sinistros SET
+                    colaborador_outro = COALESCE(?, colaborador_outro),
                     numero_boletim   = COALESCE(?, numero_boletim),
                     data_hora        = COALESCE(?, data_hora),
                     natureza         = COALESCE(?, natureza),
@@ -7037,6 +7059,7 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                     processo_iniciado = ?
                 WHERE id = ?`,
                 [
+                    body.colaborador_outro || null,
                     body.numero_boletim || null,
                     body.data_hora      || null,
                     body.natureza       || null,
@@ -7108,10 +7131,11 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
         // Se a situação foi alterada para "Finalizado - Passar para RH" e nao era isso antes
         if (body.situacao_sinistro === 'Finalizado - Passar para RH' && sinistro.situacao_sinistro !== 'Finalizado - Passar para RH') {
             db.get(`SELECT nome_completo FROM colaboradores WHERE id = ?`, [colabId], (errC, colab) => {
-                if (!errC && colab) {
+                if (!errC) {
+                    const nomeEnvolvido = (colab && colab.nome_completo) ? colab.nome_completo : (sinistro.colaborador_outro || body.colaborador_outro || 'Outros');
                     db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'novo_sinistro'", [], (errConfig, rowsC) => {
                         if (!errConfig && rowsC && rowsC.length > 0) {
-                            const msg = `Novo sinistro registrado e finalizado para RH para ${colab.nome_completo || 'Colaborador'}`;
+                            const msg = `Novo sinistro registrado e finalizado para RH para ${nomeEnvolvido}`;
                             const dadosStr = JSON.stringify({ sinistro_id: sinistroId, colaborador_id: colabId });
                             
                             const idsArr = rowsC.map(c => c.usuario_id);
