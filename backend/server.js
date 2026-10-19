@@ -14068,6 +14068,36 @@ try {
 } catch (e) {
     console.error('[PAGAMENTOS-MASSA] ERRO ao carregar módulo:', e.message);
 }
+
+// Relatório de Comissão (Comercial → Comissão): gerado por colaborador que tenha contratos no mês/ano
+let comissaoRelatorio = null;
+try {
+    comissaoRelatorio = require('./comissao_relatorio_pdf');
+} catch (e) {
+    console.error('[COMISSAO-RELATORIO] ERRO ao carregar módulo:', e.message);
+}
+
+// Anexa ao PDF (basePdfDoc) as páginas do Relatório de Comissão do colaborador, quando ele tiver contratos.
+// Retorna { paginas, resumo } — paginas = 0 quando não há contratos (não gera) ou em caso de falha (não bloqueia o holerite).
+async function anexarRelatorioComissao(basePdfDoc, colaboradorId, mes, ano) {
+    if (!comissaoRelatorio) return { paginas: 0 };
+    try {
+        const colabRow = await new Promise(r => db.get('SELECT nome_completo FROM colaboradores WHERE id = ?', [colaboradorId], (e, row) => r(row)));
+        const rel = await comissaoRelatorio.gerarRelatorioComissao(db, {
+            colaboradorId, nomeColab: colabRow && colabRow.nome_completo, mes, ano,
+        });
+        if (!rel) return { paginas: 0 };
+        const { PDFDocument } = require('pdf-lib');
+        const relDoc = await PDFDocument.load(rel.bytes);
+        const pgs = await basePdfDoc.copyPages(relDoc, relDoc.getPageIndices());
+        pgs.forEach(p => basePdfDoc.addPage(p));
+        console.log('[COMISSAO-RELATORIO] Anexado relatorio (' + pgs.length + ' pag.) colaborador ' + colaboradorId + ' ' + mes + '/' + ano + ' — ' + rel.resumo.contratos + ' contrato(s), ' + rel.resumo.estornos + ' estorno(s)');
+        return { paginas: pgs.length, resumo: rel.resumo };
+    } catch (e) {
+        console.error('[COMISSAO-RELATORIO] Falha ao gerar/anexar relatorio do colaborador ' + colaboradorId + ':', e.message);
+        return { paginas: 0, erro: e.message };
+    }
+}
 const _massaJobs = {}; // jobId ??? { total, done, erros, resultados }
 
 app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } }).any(), async (req, res) => {
@@ -14152,6 +14182,30 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
     }
 });
 
+// GET: Colaboradores com contratos na tela Comercial → Comissão para o mês/ano (id resolvido por id ou nome)
+app.get('/api/pagamentos-massa/comissao-resumo', authenticateToken, async (req, res) => {
+    try {
+        const mes = parseInt(req.query.mes, 10), ano = parseInt(req.query.ano, 10);
+        if (!mes || !ano || !comissaoRelatorio) return res.json({ ok: true, colaboradores: [] });
+        const resumo = await comissaoRelatorio.resumoComissaoDoMes(db, mes, ano);
+        const colabs = await new Promise(r => db.all('SELECT id, nome_completo FROM colaboradores', [], (e, rows) => r(rows || [])));
+        const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
+        const out = resumo.map(r => {
+            let id = r.colaborador_id;
+            if (!id) {
+                const alvo = norm(String(r.colaborador_nome || '').trim().substring(0, 15));
+                const m = colabs.find(c => norm(String(c.nome_completo || '').trim().substring(0, 15)) === alvo);
+                id = m ? m.id : null;
+            }
+            return { colaborador_id: id, nome: r.colaborador_nome, contratos: r.contratos, estornos: r.estornos, final: r.final };
+        }).filter(r => r.colaborador_id);
+        res.json({ ok: true, colaboradores: out });
+    } catch (e) {
+        console.error('[PAGAMENTOS-MASSA] Erro comissao-resumo:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // GET: Buscar recibos/documentos pre-anexados que ainda nao foram enviados
 app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) => {
     try {
@@ -14162,7 +14216,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
                    d.upload_date, d.assinafy_sent_at, d.assinafy_signed_at, d.assinafy_status,
-                   d.tem_adiantamento, d.tem_pagamento, d.tem_emprestimo, d.tem_comunicacao,
+                   d.tem_adiantamento, d.tem_pagamento, d.tem_emprestimo, d.tem_comunicacao, d.tem_comissao,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d
@@ -14218,6 +14272,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             temPagamento:    r.tem_pagamento    ? true : false,
             temEmprestimo:   r.tem_emprestimo   ? true : false,
             temComunicacao:  r.tem_comunicacao  ? true : false,
+            temComissao:     parseInt(r.tem_comissao, 10) || 0,
         }));
         
         res.json({ ok: true, resultado });
@@ -14343,7 +14398,7 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
         const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento, pdfEmprestimo, paginaEmprestimo } = req.body;
         if (!docId) return res.status(400).send('Doc ID nao fornecido');
 
-        const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
+        const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path, colaborador_id, month, year FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
         if (!rowBase || !rowBase.file_path) return res.status(404).send('Documento base nao encontrado');
 
         const fs = require('fs').promises;
@@ -14379,6 +14434,11 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
             const emprPdfDoc = await PDFDocument.load(bufExtraidaEmpr);
             const emprPages = await basePdfDoc.copyPages(emprPdfDoc, emprPdfDoc.getPageIndices());
             emprPages.forEach(p => basePdfDoc.addPage(p));
+        }
+
+        // Relatório de Comissão (antes do comunicado) — mesmo comportamento do envio real
+        if (rowBase.colaborador_id && rowBase.month && rowBase.year) {
+            await anexarRelatorioComissao(basePdfDoc, rowBase.colaborador_id, rowBase.month, rowBase.year);
         }
 
         // Merge Comunicação (genérico) if provided (todas as páginas)
@@ -14427,6 +14487,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
         try {
             let docId = item.docId;
             let colabNome = item.colaborador_nome;
+            let comissaoInfo = null; // resultado do anexo do Relatório de Comissão (se houver)
 
             // Garantir que temos o nome mesmo quando o docId já existe
             if (!colabNome && item.colaborador_id) {
@@ -14443,7 +14504,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
                 console.log(`[PAGAMENTOS-MASSA] forcarAnexar=true para colaborador ${item.colaborador_id}, doc ${docId}. hasNewHolerites=${hasNewHolerites}`);
                 if (hasNewHolerites) {
-                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowOld && rowOld.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -14459,7 +14520,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             } else if (fsSync.existsSync(fullPath)) {
                                 baseBytes = await fsP.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0) + (rowOld.tem_comunicacao ? 1 : 0);
+                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0) + (rowOld.tem_comunicacao ? 1 : 0) + (parseInt(rowOld.tem_comissao, 10) || 0);
                                 if (paginasHolAnt > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHolAnt);
@@ -14477,7 +14538,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 baseBytes = Buffer.concat(r2ChFA);
                                 console.log('[PM] Base do R2 (forcarAnexar):', rowOld.r2_key);
                                 const tmpFA = await PDFDocument.load(baseBytes);
-                                const holAntFA = (rowOld.tem_adiantamento?1:0)+(rowOld.tem_pagamento?1:0)+(rowOld.tem_emprestimo?1:0)+(rowOld.tem_comunicacao?1:0);
+                                const holAntFA = (rowOld.tem_adiantamento?1:0)+(rowOld.tem_pagamento?1:0)+(rowOld.tem_emprestimo?1:0)+(rowOld.tem_comunicacao?1:0)+(parseInt(rowOld.tem_comissao,10)||0);
                                 if (holAntFA > 0) {
                                     const totFA = tmpFA.getPageCount(), baseFA = Math.max(1, totFA-holAntFA);
                                     const limFA = await PDFDocument.create();
@@ -14514,6 +14575,9 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 temEmprFlag = true;
                             }
                             
+                            // Relatório de Comissão: antes do comunicado (somente quem tem contratos no mês)
+                            comissaoInfo = await anexarRelatorioComissao(basePdfDoc, item.colaborador_id, mesDoc, anoDoc);
+
                             // Comunicação genérica: por último de tudo
                             let temComFlag = false;
                             if (bufCom) {
@@ -14547,6 +14611,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 temPagamento: temPgFlag,
                                 temEmprestimo: temEmprFlag,
                             temComunicacao: temComFlag,
+                                temComissao: comissaoInfo ? comissaoInfo.paginas : 0,
                             });
                             docId = dbRes2.docId;
                             try { await uploadDocToOneDrive(docId); } catch(e2) { console.warn('[PAGAMENTOS-MASSA] OneDrive forcarAnexar skip:', e2.message); }
@@ -14565,7 +14630,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                 const _massaJob = _massaJobs[jobId];
                 if (_massaJob) {
                     _massaJob.done++;
-                    _massaJob.resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome, ok: true, docId });
+                    _massaJob.resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome, ok: true, docId, comissao: comissaoInfo });
                 }
                 continue;
             }
@@ -14619,7 +14684,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
 
                 if (hasNewHolerites) {
                     // Sempre reconstrói a partir do _base.pdf para nunca duplicar
-                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowBase && rowBase.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -14644,7 +14709,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 baseBytes = Buffer.concat(r2ChMG);
                                 console.log('[PM] Base do R2 (merge normal):', rowBase.r2_key);
                                 const tmpMG = await PDFDocument.load(baseBytes);
-                                const holAntMG = (rowBase.tem_adiantamento?1:0)+(rowBase.tem_pagamento?1:0)+(rowBase.tem_emprestimo?1:0)+(rowBase.tem_comunicacao?1:0);
+                                const holAntMG = (rowBase.tem_adiantamento?1:0)+(rowBase.tem_pagamento?1:0)+(rowBase.tem_emprestimo?1:0)+(rowBase.tem_comunicacao?1:0)+(parseInt(rowBase.tem_comissao,10)||0);
                                 if (holAntMG > 0) {
                                     const totMG = tmpMG.getPageCount(), baseMG = Math.max(1, totMG-holAntMG);
                                     const limMG = await PDFDocument.create();
@@ -14655,7 +14720,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 // Fallback: usa o arquivo atual e tenta remover páginas de holerite
                                 baseBytes = await fs.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0) + (rowBase.tem_comunicacao ? 1 : 0);
+                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0) + (rowBase.tem_comunicacao ? 1 : 0) + (parseInt(rowBase.tem_comissao, 10) || 0);
                                 if (paginasHoleriteAnteriores > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHoleriteAnteriores);
@@ -14693,6 +14758,9 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 temEmprMerged = true;
                             }
 
+                             // Relatório de Comissão: antes do comunicado (somente quem tem contratos no mês)
+                             comissaoInfo = await anexarRelatorioComissao(basePdfDoc, item.colaborador_id, mesDoc, anoDoc);
+
                              // Comunicação genérica: por último de tudo
                              let temComMerged = false;
                              if (bufCom) {
@@ -14728,8 +14796,8 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             const temAd = !!(bufAd && item.paginaAdiantamento);
                             const temPg = !!(bufPg && item.paginaPagamento);
                             await new Promise(r => db.run(
-                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ?, r2_key = ? WHERE id = ?',
-                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, newR2Key, docId], () => r()
+                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ?, tem_comissao = ?, r2_key = ? WHERE id = ?',
+                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, (comissaoInfo ? comissaoInfo.paginas : 0), newR2Key, docId], () => r()
                             ));
 
                             // Opcional: Atualizar no OneDrive se configurado
@@ -14774,7 +14842,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             }
 
             _massaJobs[jobId].done++;
-            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome || 'Colaborador', ok: true, docId, urlAssinatura });
+            _massaJobs[jobId].resultados.push({ colaborador_id: item.colaborador_id, nome: colabNome || 'Colaborador', ok: true, docId, urlAssinatura, comissao: comissaoInfo });
         } catch (e) {
             // Garantir que temos o nome mesmo no catch (colabNome pode ser undefined se erro foi muito cedo)
             let nomeErro = (typeof colabNome !== 'undefined' && colabNome) ? colabNome : null;

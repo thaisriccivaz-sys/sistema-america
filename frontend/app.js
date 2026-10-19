@@ -19662,6 +19662,7 @@ window._pmRestaurarPdfs = async function() {
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#166534;" title="Documento de Empréstimos associado por CPF">EMPRÉSTIMO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#475569;" title="Documento genérico enviado a todos">COMUNICAÇÃO</th>
+                      <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#0f766e;" title="Relatório de Comissão (Comercial → Comissão) anexado antes do comunicado, para quem tem contratos no mês">COMISSÃO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#16a34a;">SALVO</th>
                        <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#a21caf;">ENVIADO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">AÇÕES</th>
@@ -19923,6 +19924,9 @@ window._pmRestaurarPdfs = async function() {
                     return;
                 }
 
+                // Busca quem tem contratos na tela Comercial → Comissão (relatório é anexado antes do comunicado)
+                await window._pmBuscarComissao();
+
                 // Aviso se PDF de empréstimos foi enviado mas nenhum CPF foi identificado
                 const algumComEmprestimo = data.resultado.some(r => r.paginaEmprestimo);
                 if (fileEmpr && !algumComEmprestimo) {
@@ -20040,6 +20044,31 @@ window._pmRestaurarPdfs = async function() {
         }
     };
 
+    // Busca na tela Comercial → Comissão quem tem contratos no mês/ano e preenche a coluna COMISSÃO
+    window._pmBuscarComissao = async function () {
+        try {
+            const mes = document.getElementById('pm-mes')?.value || '';
+            const ano = document.getElementById('pm-ano')?.value || '';
+            if (!mes || !ano) return 0;
+            const r = await fetch('/api/pagamentos-massa/comissao-resumo?mes=' + encodeURIComponent(mes) + '&ano=' + encodeURIComponent(ano), {
+                headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) }
+            });
+            if (!r.ok) return 0;
+            const d = await r.json();
+            const mapa = {};
+            (d.colaboradores || []).forEach(function (x) { mapa[String(x.colaborador_id)] = x; });
+            let n = 0;
+            _itensProcessados.forEach(function (i) {
+                const x = i.colaborador_id ? mapa[String(i.colaborador_id)] : null;
+                i.comissaoContratos = x ? x.contratos : 0;
+                i.comissaoEstornos = x ? x.estornos : 0;
+                if (x) n++;
+            });
+            _pmFiltrar();
+            return n;
+        } catch (e) { console.warn("[PM] Erro ao buscar comissão:", e); return 0; }
+    };
+
     window._pmCarregarDocumentos = async function() {
         if (!window._pmTipoOk()) {
             Swal.fire({ icon:'warning', title:'Selecione o tipo', text:'Escolha o Tipo de Documento antes de carregar do banco.', timer:2500, showConfirmButton:false });
@@ -20109,6 +20138,7 @@ window._pmRestaurarPdfs = async function() {
 
         document.getElementById('pm-review-section').style.display = 'block';
         _pmFiltrar();
+        window._pmBuscarComissao();
         
         // Ativar alerta se tentar recarregar/fechar a página sem salvar
         if (window._pdfDuploBase64) {
@@ -20225,6 +20255,9 @@ window._pmRestaurarPdfs = async function() {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
               ${temComAoVivo ? '<span style="color:#475569;">OK</span>' : (item.temComunicacao ? '<span style="color:#475569;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
             </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
+              ${item.comissaoContratos ? '<span style="color:#0f766e;" title="' + item.comissaoContratos + ' contrato(s) / ' + (item.comissaoEstornos || 0) + ' estorno(s) — relatório será anexado antes do comunicado">OK (' + item.comissaoContratos + ')</span>' : (item.temComissao ? '<span style="color:#0f766e;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
+            </td>
             ${celulaSalvo}
             ${celulaEnviado}
             <td style="padding:0.5rem 0.75rem;text-align:center;">
@@ -20233,7 +20266,7 @@ window._pmRestaurarPdfs = async function() {
               </button>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
+    }).join('') || '<tr><td colspan="11" style="text-align:center;padding:2rem;color:#9ca3af;">Nenhum item encontrado com os filtros.</td></tr>';
     }
 
     // ÔöÇÔöÇ Helpers de estado ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -20453,7 +20486,7 @@ window._pmRestaurarPdfs = async function() {
                           display:flex;align-items:center;gap:0.5rem;">
                           <i class="ph ${res.ok?'ph-check-circle':'ph-x-circle'}"></i>
                           <strong>${res.nome || 'ID ' + res.colaborador_id}</strong>
-                          ${res.ok ? (res.urlAssinatura ? '— link enviado' : '— salvo (sem e-mail)') : '— ' + (res.erro||'erro')}
+                          ${res.ok ? (res.urlAssinatura ? '— link enviado' : '— salvo (sem e-mail)') : '— ' + (res.erro||'erro')}${res.ok && res.comissao && res.comissao.paginas ? ' • 📋 relatório de comissão anexado' : ''}${res.ok && res.comissao && res.comissao.erro ? ' • ⚠️ falha no relatório de comissão' : ''}
                         </div>`).join('');
                 }
 
@@ -20494,8 +20527,11 @@ window._pmRestaurarPdfs = async function() {
 
                     const txt2 = document.getElementById('pm-progress-text');
                     const operacaoStr = isSalvarOnly ? 'salvo(s)' : 'enviado(s)';
+                    const _nCom = (job.resultados || []).filter(function (x) { return x.ok && x.comissao && x.comissao.paginas > 0; }).length;
+                    const _nComErro = (job.resultados || []).filter(function (x) { return x.comissao && x.comissao.erro; }).length;
+                    const comissaoStr = (_nCom ? ' • 📋 ' + _nCom + ' com relatório de comissão' : '') + (_nComErro ? ' • ⚠️ ' + _nComErro + ' falha(s) no relatório de comissão' : '');
                     if (txt2) txt2.innerHTML = `<strong style="color:${job.erros?'#ef4444':'#16a34a'}">
-                        ✅ Concluído! ${job.done - job.erros} ${operacaoStr} com sucesso${job.erros?' • '+job.erros+' erro(s)':''}</strong>`;
+                        ✅ Concluído! ${job.done - job.erros} ${operacaoStr} com sucesso${job.erros?' • '+job.erros+' erro(s)':''}${comissaoStr}</strong>`;
                     const btn1 = document.getElementById('pm-btn-salvar');
                     const btn2 = document.getElementById('pm-btn-enviar');
                     if (btn1) { btn1.disabled = false; btn1.style.opacity = '1'; }
