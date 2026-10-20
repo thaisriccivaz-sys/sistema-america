@@ -90,7 +90,7 @@ async function initNotificacoesView() {
                             <div>
                                 <h3 style="margin: 0; font-size: 1rem; color: #334155; line-height: 1.2;">${tipo.nome}</h3>
                                 ${tipo.descricao ? `<p style="margin:2px 0 0;font-size:0.76rem;color:#94a3b8;line-height:1.3;">${tipo.descricao}</p>` : ''}
-                                ${selectedUsers.length > 0 ? `<span style="font-size:0.75rem;color:#16a34a;font-weight:600;">${selectedUsers.length} destinatário(s) configurado(s)</span>` : '<span style="font-size:0.75rem;color:#ef4444;">Nenhum destinatário</span>'}
+                                ${selectedUsers.length > 0 ? `<span class="notif-count-badge" data-count-tipo="${tipo.id}" style="font-size:0.75rem;color:#16a34a;font-weight:600;">${selectedUsers.length} destinatário(s) configurado(s)</span>` : `<span class="notif-count-badge" data-count-tipo="${tipo.id}" style="font-size:0.75rem;color:#ef4444;">Nenhum destinatário</span>`}
                             </div>
                         </div>
                         <i class="ph ph-caret-down arrow" style="color: #94a3b8; transition: transform 0.2s;"></i>
@@ -100,7 +100,7 @@ async function initNotificacoesView() {
                         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                             ${globalUsuariosConfig.map(u => {
                                 const isChecked = selectedUsers.includes(u.id) ? 'checked' : '';
-                                return `<div class="notif-user-row" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;" onclick="const cb = this.querySelector('.config-notif-cb'); cb.checked = !cb.checked;">
+                                return `<div class="notif-user-row" style="display: flex; align-items: center; gap: 0.5rem; background: #fff; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;" onclick="const cb = this.querySelector('.config-notif-cb'); cb.checked = !cb.checked; if(window._autoSalvarTipoNotif) window._autoSalvarTipoNotif('${tipo.id}');">
                                     <input type="checkbox" class="config-notif-cb" data-tipo="${tipo.id}" data-uid="${u.id}" ${isChecked} style="flex-shrink:0; pointer-events: none;">
                                     <span style="font-size: 0.9rem; color: #475569; min-width: 160px; flex-shrink:0;">${u.nome || u.username}</span>
                                 </div>`;
@@ -148,6 +148,38 @@ async function initNotificacoesView() {
         document.getElementById('notificacoes-container').innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`;
     }
 }
+
+window._autoSalvarTipoNotif = async function(tipoId) {
+    try {
+        const cbs = document.querySelectorAll(`.config-notif-cb[data-tipo="${tipoId}"]`);
+        const usuarios = [];
+        cbs.forEach(cb => {
+            if (cb.checked) {
+                usuarios.push({ usuario_id: parseInt(cb.getAttribute('data-uid')), email_override: null });
+            }
+        });
+        const badge = document.querySelector(`.notif-count-badge[data-count-tipo="${tipoId}"]`);
+        if (badge) {
+            if (usuarios.length > 0) {
+                badge.textContent = `${usuarios.length} destinatário(s) configurado(s)`;
+                badge.style.color = '#16a34a';
+                badge.style.fontWeight = '600';
+            } else {
+                badge.textContent = 'Nenhum destinatário';
+                badge.style.color = '#ef4444';
+                badge.style.fontWeight = '400';
+            }
+        }
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        await fetch(`${API_URL}/config-notificacoes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ tipo: tipoId, usuarios })
+        });
+    } catch (e) {
+        console.error('[Notif AutoSave]', e);
+    }
+};
 
 window.salvarConfigNotificacoes = async function() {
     const checkboxes = document.querySelectorAll('.config-notif-cb');

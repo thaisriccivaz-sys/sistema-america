@@ -167,7 +167,14 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
             
             db.all(`SELECT id, nome_completo, email_corporativo, email FROM colaboradores`, [], async (errC, colabs) => {
                 if (errC) { console.error('[Notif Email] Erro colabs:', errC.message); return; }
-                const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() : "";
+                const norm = (s) => s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[._-]+/g, " ").replace(/\s+/g, " ").toLowerCase().trim() : "";
+                const matchNome = (shortStr, fullStr) => {
+                    if (!shortStr || !fullStr) return false;
+                    if (fullStr === shortStr || fullStr.includes(shortStr) || shortStr.includes(fullStr)) return true;
+                    const parts = shortStr.split(' ').filter(p => p.length >= 2);
+                    const fullParts = fullStr.split(' ');
+                    return parts.length >= 2 && parts.every(p => fullParts.includes(p));
+                };
                 
                 const emails = new Set();
                 rows.forEach(r => {
@@ -178,7 +185,7 @@ async function sendEmailParaNotificados(tipo, mailOpts) {
                     const uUser = norm(r.username);
                     let colab = colabs.find(c => {
                         const cNome = norm(c.nome_completo);
-                        return cNome === uNome || cNome === uUser || cNome.includes(uNome) || cNome.includes(uUser) || uNome.includes(cNome);
+                        return matchNome(uNome, cNome) || matchNome(uUser, cNome);
                     });
                     
                     if (colab && tryAdd(colab.email_corporativo)) return;
@@ -21021,7 +21028,7 @@ app.put('/api/experiencia/notificacoes/:id/lida', authenticateToken, (req, res) 
 
 // GET /api/notificacoes/me
 app.get('/api/notificacoes/me', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM notificacoes_usuarios WHERE usuario_id = ? AND lida = 0 ORDER BY criado_em DESC LIMIT 20", [req.user.id], (err, rows) => {
+    db.all("SELECT * FROM notificacoes_usuarios WHERE usuario_id = ? AND lida = 0 ORDER BY id DESC LIMIT 30", [req.user.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows || []);
     });
@@ -23633,16 +23640,16 @@ async function _fmNotificarSolicitacaoManutencao(opts) {
         });
 
         // 1. Inserir popup na tabela notificacoes_usuarios para todos os usuários do quadro "Solicitação de manutenção"
-        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'solicitacao_manutencao'", [], (errCR, rowsCR) => {
-            if (!errCR && Array.isArray(rowsCR) && rowsCR.length > 0) {
-                rowsCR.forEach(c => {
-                    db.run(
-                        "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'solicitacao_manutencao', ?, ?)",
-                        [c.usuario_id, msg, dadosStr]
-                    );
-                });
+        const rowsCR = await new Promise(r => db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'solicitacao_manutencao'", [], (errCR, rows) => r(errCR ? [] : (rows || []))));
+        if (Array.isArray(rowsCR) && rowsCR.length > 0) {
+            for (const c of rowsCR) {
+                await new Promise(r => db.run(
+                    "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'solicitacao_manutencao', ?, ?)",
+                    [c.usuario_id, msg, dadosStr],
+                    () => r()
+                ));
             }
-        });
+        }
 
         // 2. Enviar e-mail padrão de notificações para todos os usuários configurados
         const dataHoraBr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -23946,7 +23953,7 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
             }
             await _fmAtualizaEmManutencao(veiculo_id);
 
-            _fmNotificarSolicitacaoManutencao({
+            await _fmNotificarSolicitacaoManutencao({
                 manutencao_id: newManutId,
                 veiculo_id,
                 descricao: descFinal,
@@ -25212,7 +25219,7 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
         `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, data_fim, parar_no_inicio, auto_parou_inicio, auto_liberou_fim, tipo_conclusao, veiculo_rodando, parado_desde, parado_segundos_acum)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [veiculo_id, tipoEfetivo, descricao, stEfetivo, km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||calc.dtIni, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, calc.dtIni, calc.dtFim, calc.pararNoInicio, calc.autoParouInicio, calc.autoLiberouFim, tipo_conclusao||null, rodEfetivo, calc.pDesde, calc.pAcum],
-        function(err) {
+        async function(err) {
             if (err) return res.status(500).json({ error: err.message });
             const newId = this.lastID;
             _fmAtualizaEmManutencao(veiculo_id).catch(() => {});
@@ -25221,12 +25228,14 @@ app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
                 _fmHist(newId, 'comentario', calc.notaAuto, 'Sistema (Automático)').catch(() => {});
             }
             if (tipoEfetivo === 'corretiva') {
-                _fmNotificarSolicitacaoManutencao({
+                const itensNotif = req.body.itens_solicitados ? String(req.body.itens_solicitados).trim() : descricao;
+                const obsNotif = observacoes || (req.body.itens_solicitados && String(req.body.itens_solicitados).trim() !== String(descricao).trim() ? descricao : null);
+                await _fmNotificarSolicitacaoManutencao({
                     manutencao_id: newId,
                     veiculo_id,
                     descricao,
-                    itens: descricao,
-                    observacoes: observacoes || null,
+                    itens: itensNotif || descricao,
+                    observacoes: obsNotif,
                     veiculo_rodando: rodEfetivo,
                     usuario_nome: _fmUsuario(req),
                     origem: 'Frota — Manutenções Corretivas'

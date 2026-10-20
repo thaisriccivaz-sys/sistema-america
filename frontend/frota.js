@@ -660,11 +660,11 @@ window.abrirPopupManutencaoCard = async function(vid, emManutencao, statusAtivo)
             <div id="mn-card-sec-corretiva" style="display:none;margin-bottom:18px;">
                 <p style="margin:0 0 6px;font-size:0.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">O veículo está rodando? *</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-                    <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#f0fdf4;">
+                    <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #22c55e;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600;">
                         <input type="radio" name="mn-card-corr-rodando" value="sim" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;">
                         <span>Sim, está rodando <small style="color:#64748b;">(agendar)</small></span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #fecaca;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fef2f2;">
+                    <label style="display:flex;align-items:center;gap:6px;padding:10px 12px;border:1.5px solid #ef4444;border-radius:8px;font-size:0.84rem;cursor:pointer;background:#fee2e2;color:#b91c1c;font-weight:600;">
                         <input type="radio" name="mn-card-corr-rodando" value="nao" style="width:16px;height:16px;accent-color:#dc2626;cursor:pointer;">
                         <span>Não, está parado <small style="color:#64748b;">(indisponível)</small></span>
                     </label>

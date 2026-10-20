@@ -15719,8 +15719,9 @@ function _userNotifMarkSeen(id) {
     } catch(e) {}
 }
 let _checkUserNotifRunning = false;
+let _checkUserNotifPending = false;
 async function checkUserNotificacoes() {
-    if (_checkUserNotifRunning) return; // evitar execução concorrente
+    if (_checkUserNotifRunning) { _checkUserNotifPending = true; return; } // agendar nova checagem ao concluir
     _checkUserNotifRunning = true;
     const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     if (!token) { _checkUserNotifRunning = false; return; }
@@ -15811,7 +15812,7 @@ async function checkUserNotificacoes() {
 
                 const popup = document.createElement('div');
                 popup.classList.add('custom-user-popup-toast');
-                const offset = 24 + (document.querySelectorAll('.custom-user-popup-toast').length * 150);
+                const offset = Math.min(24 + (document.querySelectorAll('.custom-user-popup-toast').length * 150), Math.max(24, (window.innerHeight || 720) - 240));
                 popup.style.cssText = `
                     position:fixed; bottom:${offset}px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
@@ -16111,7 +16112,13 @@ async function checkUserNotificacoes() {
             } catch (parseErr) { }
         }
     } catch (e) { }
-    finally { _checkUserNotifRunning = false; }
+    finally {
+        _checkUserNotifRunning = false;
+        if (_checkUserNotifPending) {
+            _checkUserNotifPending = false;
+            setTimeout(checkUserNotificacoes, 250);
+        }
+    }
 }
 
 window.markUserNotifLida = function (id) {

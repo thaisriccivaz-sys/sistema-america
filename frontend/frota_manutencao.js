@@ -1554,16 +1554,22 @@ window._mnEdGarantirId = async function() {
     }
     var diVal = document.getElementById('mned-di') ? document.getElementById('mned-di').value : '';
     var dfVal = document.getElementById('mned-df') ? document.getElementById('mned-df').value : '';
+    var itensSolic = (ed.solicitados && ed.solicitados.length)
+        ? ed.solicitados.join(', ')
+        : ((ed.realizados && ed.realizados.length) ? ed.realizados.map(function(s) { return s.nome; }).join(', ') : desc);
     var r = await fetch('/api/frota/manutencoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, status: ed.status || 'agendada', veiculo_rodando: ed.veiculo_rodando, data_inicio: diVal || null, data_fim: dfVal || null })
+        body: JSON.stringify({ veiculo_id: veic, tipo: 'corretiva', descricao: desc, itens_solicitados: itensSolic, status: ed.status || 'agendada', veiculo_rodando: ed.veiculo_rodando, data_inicio: diVal || null, data_fim: dfVal || null })
     });
     if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao criar a manutenção'); }
     var j = await r.json();
     ed.id = j.id;
     ed.novo = false;
-    if (typeof window.checkUserNotificacoes === 'function') setTimeout(window.checkUserNotificacoes, 400);
+    if (typeof window.checkUserNotificacoes === 'function') {
+        window.checkUserNotificacoes();
+        setTimeout(window.checkUserNotificacoes, 800);
+    }
     var t = document.getElementById('mned-titulo');
     if (t) t.textContent = 'Editar Manutenção Corretiva';
     return ed.id;
@@ -1626,13 +1632,13 @@ window._mnEdMontar = function() {
       +           '<div style="grid-column:1/-1;margin-top:2px;">'
       +             '<label style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">O veículo está rodando? *</label>'
       +             '<div id="mned-rodando-box" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      +               '<label id="mned-rod-lbl-sim" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#f8fafc;color:#475569;font-weight:500;transition:all .15s;">'
+      +               '<label id="mned-rod-lbl-sim" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #22c55e;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600;transition:all .15s;">'
       +                 '<input type="radio" name="mned_veiculo_rodando" value="sim" style="width:16px;height:16px;accent-color:#16a34a;">'
-      +                 '<span>Sim, está rodando <small style="opacity:0.8;">(agendar)</small></span>'
+      +                 '<span>Sim, está rodando <small style="opacity:0.85;">(agendar)</small></span>'
       +               '</label>'
-      +               '<label id="mned-rod-lbl-nao" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#f8fafc;color:#475569;font-weight:500;transition:all .15s;">'
+      +               '<label id="mned-rod-lbl-nao" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #ef4444;border-radius:10px;font-size:0.86rem;cursor:pointer;background:#fee2e2;color:#b91c1c;font-weight:600;transition:all .15s;">'
       +                 '<input type="radio" name="mned_veiculo_rodando" value="nao" style="width:16px;height:16px;accent-color:#dc2626;">'
-      +                 '<span>Não, está parado <small style="opacity:0.8;">(indisponível)</small></span>'
+      +                 '<span>Não, está parado <small style="opacity:0.85;">(indisponível)</small></span>'
       +               '</label>'
       +             '</div>'
       +           '</div>'
@@ -1791,20 +1797,20 @@ window._mnEdRenderRodando = function() {
     if (rSim) rSim.checked = ehSim;
     if (rNao) rNao.checked = ehNao;
     if (lSim) {
-        lSim.style.background = ehSim ? '#dcfce7' : '#f8fafc';
-        lSim.style.borderColor = ehSim ? '#16a34a' : '#cbd5e1';
-        lSim.style.borderWidth = ehSim ? '2px' : '1.5px';
-        lSim.style.color = ehSim ? '#14532d' : '#64748b';
-        lSim.style.fontWeight = ehSim ? '700' : '500';
-        lSim.style.boxShadow = ehSim ? '0 2px 8px rgba(22,163,74,0.2)' : 'none';
+        lSim.style.background = ehSim ? '#bbf7d0' : '#dcfce7';
+        lSim.style.borderColor = ehSim ? '#15803d' : '#22c55e';
+        lSim.style.borderWidth = ehSim ? '2.5px' : '1.5px';
+        lSim.style.color = ehSim ? '#14532d' : '#15803d';
+        lSim.style.fontWeight = ehSim ? '800' : '600';
+        lSim.style.boxShadow = ehSim ? '0 0 0 3px rgba(22,163,74,0.22)' : 'none';
     }
     if (lNao) {
-        lNao.style.background = ehNao ? '#fee2e2' : '#f8fafc';
-        lNao.style.borderColor = ehNao ? '#dc2626' : '#cbd5e1';
-        lNao.style.borderWidth = ehNao ? '2px' : '1.5px';
-        lNao.style.color = ehNao ? '#7f1d1d' : '#64748b';
-        lNao.style.fontWeight = ehNao ? '700' : '500';
-        lNao.style.boxShadow = ehNao ? '0 2px 8px rgba(220,38,38,0.2)' : 'none';
+        lNao.style.background = ehNao ? '#fecaca' : '#fee2e2';
+        lNao.style.borderColor = ehNao ? '#b91c1c' : '#ef4444';
+        lNao.style.borderWidth = ehNao ? '2.5px' : '1.5px';
+        lNao.style.color = ehNao ? '#7f1d1d' : '#b91c1c';
+        lNao.style.fontWeight = ehNao ? '800' : '600';
+        lNao.style.boxShadow = ehNao ? '0 0 0 3px rgba(220,38,38,0.22)' : 'none';
     }
 };
 
@@ -3903,6 +3909,10 @@ window.mnCorrSalvarEdicaoInterno = async function() {
         window._mnEdRenderHist();
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
         mostrarMsg('Manutenção salva!', true);
+        if (typeof window.checkUserNotificacoes === 'function') {
+            window.checkUserNotificacoes();
+            setTimeout(window.checkUserNotificacoes, 800);
+        }
         try {
             var lista = await fetch('/api/frota/manutencoes', { headers: { Authorization: 'Bearer ' + window._mnEdTok() } }).then(function(x) { return x.json(); });
             window._manutDados = lista || [];
