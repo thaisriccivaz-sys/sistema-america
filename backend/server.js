@@ -24269,7 +24269,7 @@ app.get('/api/frota/manutencoes/:id/detalhe', authenticateToken, async (req, res
             if (mAt) { m.custo = mAt.custo; m.custo_pecas = mAt.custo_pecas; m.custo_mao_obra = mAt.custo_mao_obra; }
         }
         const pecas = await _fmAll('SELECT * FROM frota_manutencao_pecas WHERE manutencao_id = ? ORDER BY id', [id]);
-        const notas = await _fmAll("SELECT id, manutencao_id, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, COALESCE(tipo, 'pecas') AS tipo, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id", [id]);
+        const notas = await _fmAll("SELECT id, manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, COALESCE(tipo, 'pecas') AS tipo, created_at FROM frota_manutencao_notas WHERE manutencao_id = ? ORDER BY id", [id]);
         res.json({
             manutencao: m,
             solicitados: servicos.filter(s => s.tipo === 'solicitado'),
@@ -24684,6 +24684,242 @@ app.delete('/api/frota/manutencoes/notas/:notaId', authenticateToken, async (req
         await _fmRun('DELETE FROM frota_manutencao_notas WHERE id = ?', [nid]);
         await _fmHist(n.manutencao_id, 'evento', 'Nota fiscal excluída', _fmUsuario(req));
         const totais = await _fmRecalcTotais(n.manutencao_id);
+        res.json({ ok: true, totais: totais });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT - edita pecas e vinculacao aos servicos de uma nota/recibo de pecas (ou pecas sem nota)
+app.put('/api/frota/manutencoes/:id/notas/:notaId', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const id = parseInt(req.params.id);
+        const notaIdParam = String(req.params.notaId || '');
+        const m = await _fmGet('SELECT fm.id, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        let dados = {};
+        try { dados = JSON.parse(req.body.dados || '{}'); } catch (e) { return res.status(400).json({ error: 'Dados da nota inválidos.' }); }
+        const pecas = Array.isArray(dados.pecas) ? dados.pecas : [];
+        if (!pecas.length) return res.status(400).json({ error: 'Informe ao menos uma peça.' });
+
+        const somaPecas = Math.round(pecas.reduce((t, p) => {
+            const q = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
+            const vu = _fmNumero(p.valor_unit);
+            const vt = _fmNumero(p.valor_total) || Math.round(q * vu * 100) / 100;
+            return t + vt;
+        }, 0) * 100) / 100;
+
+        let nidFinal = null;
+        if (notaIdParam === 'sem_nota') {
+            if (req.file) {
+                if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+                const r2 = require('./utils/r2');
+                if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado.' });
+                const safe = (s) => String(s || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+                const agora = new Date();
+                const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                    + String(agora.getDate()).padStart(2, '0') + '_NF_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
+                await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+                keyEnviada = key;
+                const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || somaPecas || null, dados.chave_acesso || null, _fmUsuario(req), 'pecas']);
+                nidFinal = ins.lastID;
+            }
+            await _fmRun('DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ? AND nota_id IS NULL', [id]);
+            await _fmInserirPecas(id, nidFinal, pecas);
+        } else {
+            const nid = parseInt(notaIdParam);
+            const notaAnt = await _fmGet('SELECT * FROM frota_manutencao_notas WHERE id = ? AND manutencao_id = ?', [nid, id]);
+            if (!notaAnt) return res.status(404).json({ error: 'Nota fiscal / recibo não encontrado.' });
+            let novaR2Key = notaAnt.r2_key;
+            let novoNomeArq = notaAnt.nome_arquivo;
+            if (req.file) {
+                if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+                const r2 = require('./utils/r2');
+                if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado.' });
+                const safe = (s) => String(s || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+                const agora = new Date();
+                const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                    + String(agora.getDate()).padStart(2, '0') + '_NF_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
+                await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+                keyEnviada = key;
+                if (notaAnt.r2_key) { try { await r2.deleteFromR2(notaAnt.r2_key); } catch (eDel) { /* ignora */ } }
+                novaR2Key = key;
+                novoNomeArq = req.file.originalname || notaAnt.nome_arquivo;
+            }
+            await _fmRun(
+                'UPDATE frota_manutencao_notas SET r2_key = ?, nome_arquivo = ?, numero = ?, serie = ?, fornecedor = ?, cnpj = ?, data_emissao = ?, valor_total = ?, chave_acesso = ? WHERE id = ? AND manutencao_id = ?',
+                [
+                    novaR2Key,
+                    novoNomeArq,
+                    dados.numero || null,
+                    dados.serie || notaAnt.serie || null,
+                    dados.fornecedor || null,
+                    dados.cnpj || notaAnt.cnpj || null,
+                    dados.data_emissao || null,
+                    _fmNumero(dados.valor_total) || somaPecas || null,
+                    dados.chave_acesso || notaAnt.chave_acesso || null,
+                    nid,
+                    id
+                ]
+            );
+            await _fmRun('DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ? AND nota_id = ?', [id, nid]);
+            await _fmInserirPecas(id, nid, pecas);
+            nidFinal = nid;
+        }
+        const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', 'Peças / nota fiscal editada — ' + pecas.length + ' item(ns)', _fmUsuario(req));
+        res.json({ ok: true, nota_id: nidFinal, totais: totais });
+    } catch (e) {
+        console.error('[NF] editar:', e);
+        if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
+        res.status(500).json({ error: 'Erro ao atualizar as peças: ' + e.message });
+    }
+});
+
+// PUT - edita linhas de mao de obra e vinculacao aos servicos de uma nota/recibo de mao de obra (ou sem nota)
+app.put('/api/frota/manutencoes/:id/notas-mo/:notaId', authenticateToken, multerNfFrota.single('arquivo'), async (req, res) => {
+    let keyEnviada = null;
+    try {
+        const id = parseInt(req.params.id);
+        const notaIdParam = String(req.params.notaId || '');
+        const m = await _fmGet('SELECT fm.id, fv.placa FROM frota_manutencoes fm LEFT JOIN frota_veiculos fv ON fv.id = fm.veiculo_id WHERE fm.id = ?', [id]);
+        if (!m) return res.status(404).json({ error: 'Manutenção não encontrada' });
+        let dados = {};
+        try { dados = JSON.parse(req.body.dados || '{}'); } catch (e) { return res.status(400).json({ error: 'Dados da nota inválidos.' }); }
+        const linhas = (Array.isArray(dados.linhas) ? dados.linhas : []).filter(l => l && (String(l.descricao || '').trim() || _fmNumero(l.valor) > 0));
+        if (!linhas.length) return res.status(400).json({ error: 'Informe ao menos uma linha de mão de obra.' });
+
+        const somaLinhas = Math.round(linhas.reduce((t, l) => t + _fmNumero(l.valor), 0) * 100) / 100;
+        const ehSemNota = notaIdParam === 'sem_nota';
+        const nidOrig = ehSemNota ? null : parseInt(notaIdParam);
+        let nidFinal = nidOrig;
+
+        if (!ehSemNota) {
+            const notaAnt = await _fmGet('SELECT * FROM frota_manutencao_notas WHERE id = ? AND manutencao_id = ?', [nidOrig, id]);
+            if (!notaAnt) return res.status(404).json({ error: 'Nota fiscal / recibo não encontrado.' });
+            let novaR2Key = notaAnt.r2_key;
+            let novoNomeArq = notaAnt.nome_arquivo;
+            if (req.file) {
+                if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+                const r2 = require('./utils/r2');
+                if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado.' });
+                const safe = (v) => String(v || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+                const agora = new Date();
+                const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                    + String(agora.getDate()).padStart(2, '0') + '_NFMO_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
+                await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+                keyEnviada = key;
+                if (notaAnt.r2_key) { try { await r2.deleteFromR2(notaAnt.r2_key); } catch (eDel) { /* ignora */ } }
+                novaR2Key = key;
+                novoNomeArq = req.file.originalname || notaAnt.nome_arquivo;
+            }
+            await _fmRun(
+                'UPDATE frota_manutencao_notas SET r2_key = ?, nome_arquivo = ?, numero = ?, fornecedor = ?, cnpj = ?, data_emissao = ?, valor_total = ? WHERE id = ? AND manutencao_id = ?',
+                [
+                    novaR2Key,
+                    novoNomeArq,
+                    dados.numero || null,
+                    dados.fornecedor || null,
+                    dados.cnpj || notaAnt.cnpj || null,
+                    dados.data_emissao || null,
+                    _fmNumero(dados.valor_total) || somaLinhas || null,
+                    nidOrig,
+                    id
+                ]
+            );
+        } else if (req.file) {
+            if (!_fmEhPdf(req.file.buffer)) return res.status(400).json({ error: 'O arquivo precisa ser um PDF.' });
+            const r2 = require('./utils/r2');
+            if (!r2.isReady()) return res.status(503).json({ error: 'Armazenamento de arquivos (R2) não configurado.' });
+            const safe = (v) => String(v || 'sem-numero').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 40);
+            const agora = new Date();
+            const key = 'Frota/Manutencoes/' + safe(m.placa || 'veiculo') + '/' + agora.getFullYear() + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/'
+                + String(agora.getDate()).padStart(2, '0') + '_NFMO_' + safe(dados.numero) + '_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6) + '.pdf';
+            await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
+            keyEnviada = key;
+            const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || somaLinhas || null, dados.chave_acesso || null, _fmUsuario(req), 'mao_obra']);
+            nidFinal = ins.lastID;
+        }
+
+        const moAntigas = await _fmAll(
+            nidOrig ? 'SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ? AND nota_id = ?'
+                    : 'SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ? AND nota_id IS NULL',
+            nidOrig ? [id, nidOrig] : [id]
+        );
+        const idsMoAnt = moAntigas.map(r => r.id);
+        if (idsMoAnt.length > 0) {
+            const ph = idsMoAnt.map(() => '?').join(',');
+            const alocsAnt = await _fmAll('SELECT servico_id, COALESCE(SUM(valor), 0) AS t FROM frota_manutencao_mo_servicos WHERE mo_id IN (' + ph + ') GROUP BY servico_id', idsMoAnt);
+            for (const a of alocsAnt) {
+                if (a.servico_id && a.t > 0) {
+                    await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = MAX(0, ROUND(COALESCE(mao_obra, 0) - ?, 2)) WHERE id = ? AND manutencao_id = ?', [a.t, a.servico_id, id]);
+                }
+            }
+            await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (' + ph + ')', idsMoAnt);
+            await _fmRun('DELETE FROM frota_manutencao_mo WHERE id IN (' + ph + ')', idsMoAnt);
+        }
+
+        const servValidos = (await _fmAll("SELECT id FROM frota_manutencao_servicos WHERE manutencao_id = ? AND tipo = 'realizado' ORDER BY id", [id])).map(r => r.id);
+        for (const l of linhas) {
+            const ratear = l.ratear ? 1 : 0;
+            const valLinha = Math.max(0, _fmNumero(l.valor));
+            const descMo = String(l.descricao || 'Mão de obra').trim().substring(0, 300);
+            const ins = await _fmRun('INSERT INTO frota_manutencao_mo (manutencao_id, nota_id, descricao, valor, ratear) VALUES (?,?,?,?,?)',
+                [id, nidFinal, descMo, valLinha, ratear]);
+            let alvo = [];
+            if (!ratear && Array.isArray(l.servicos)) {
+                alvo = l.servicos.map(s => parseInt(s)).filter(sid => servValidos.includes(sid));
+            }
+            if (!alvo.length) alvo = servValidos.slice();
+            if (alvo.length > 0 && valLinha > 0) {
+                const cents = Math.round(valLinha * 100);
+                const base = Math.floor(cents / alvo.length);
+                let resto = cents - base * alvo.length;
+                for (const sid of alvo) {
+                    const c = base + (resto > 0 ? 1 : 0);
+                    if (resto > 0) resto--;
+                    const valParcela = c / 100;
+                    await _fmRun('INSERT INTO frota_manutencao_mo_servicos (mo_id, servico_id, valor) VALUES (?,?,?)', [ins.lastID, sid, valParcela]);
+                    await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = ROUND(COALESCE(mao_obra, 0) + ?, 2) WHERE id = ? AND manutencao_id = ?', [valParcela, sid, id]);
+                }
+            }
+        }
+        const totais = await _fmRecalcTotais(id);
+        await _fmHist(id, 'evento', 'Mão de obra / nota fiscal editada — ' + linhas.length + ' linha(s)', _fmUsuario(req));
+        res.json({ ok: true, nota_id: nidFinal, totais: totais });
+    } catch (e) {
+        console.error('[NF-MO] editar:', e);
+        if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) { /* ignora */ } }
+        res.status(500).json({ error: 'Erro ao atualizar a mão de obra: ' + e.message });
+    }
+});
+
+// DELETE - exclui itens lancados sem anexo (pecas ou mao_obra com nota_id IS NULL)
+app.delete('/api/frota/manutencoes/:id/sem-nota/:tipo', authenticateToken, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const tipo = String(req.params.tipo || '');
+        if (tipo === 'mao_obra') {
+            const moAntigas = await _fmAll('SELECT id FROM frota_manutencao_mo WHERE manutencao_id = ? AND nota_id IS NULL', [id]);
+            const idsMoAnt = moAntigas.map(r => r.id);
+            if (idsMoAnt.length > 0) {
+                const ph = idsMoAnt.map(() => '?').join(',');
+                const alocsAnt = await _fmAll('SELECT servico_id, COALESCE(SUM(valor), 0) AS t FROM frota_manutencao_mo_servicos WHERE mo_id IN (' + ph + ') GROUP BY servico_id', idsMoAnt);
+                for (const a of alocsAnt) {
+                    if (a.servico_id && a.t > 0) {
+                        await _fmRun('UPDATE frota_manutencao_servicos SET mao_obra = MAX(0, ROUND(COALESCE(mao_obra, 0) - ?, 2)) WHERE id = ? AND manutencao_id = ?', [a.t, a.servico_id, id]);
+                    }
+                }
+                await _fmRun('DELETE FROM frota_manutencao_mo_servicos WHERE mo_id IN (' + ph + ')', idsMoAnt);
+                await _fmRun('DELETE FROM frota_manutencao_mo WHERE id IN (' + ph + ')', idsMoAnt);
+            }
+            await _fmHist(id, 'evento', 'Lançamentos de mão de obra (sem anexo) excluídos', _fmUsuario(req));
+        } else {
+            await _fmRun('DELETE FROM frota_manutencao_pecas WHERE manutencao_id = ? AND nota_id IS NULL', [id]);
+            await _fmHist(id, 'evento', 'Peças (sem anexo) excluídas', _fmUsuario(req));
+        }
+        const totais = await _fmRecalcTotais(id);
         res.json({ ok: true, totais: totais });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
