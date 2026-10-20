@@ -15507,7 +15507,7 @@ async function checkExperienciaNotificacoes() {
                     position:fixed; bottom:24px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(29,78,216,0.25), 0 0 0 1px rgba(29,78,216,0.1);
-                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    max-width:430px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid #1d4ed8;
                 `;
                 popup.innerHTML = `
@@ -15578,7 +15578,7 @@ async function checkComercialNotificacoes() {
                     position:fixed; bottom:24px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(22,163,74,0.25), 0 0 0 1px rgba(22,163,74,0.1);
-                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    max-width:430px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid #16a34a;
                 `;
 
@@ -15663,7 +15663,7 @@ async function checkLogisticaNotificacoes() {
                     position:fixed; bottom:24px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(112,72,232,0.25), 0 0 0 1px rgba(112,72,232,0.1);
-                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    max-width:430px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid #7048e8;
                 `;
                 popup.innerHTML = `
@@ -15817,7 +15817,7 @@ async function checkUserNotificacoes() {
                     position:fixed; bottom:${offset}px; right:24px; z-index:99999;
                     background:#fff; border-radius:16px; padding:1.5rem;
                     box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
-                    max-width:380px; animation: slideInRight 0.4s ease-out;
+                    max-width:430px; animation: slideInRight 0.4s ease-out;
                     border-left: 4px solid ${color};
                 `;
 
@@ -15996,27 +15996,22 @@ async function checkUserNotificacoes() {
                     `;
                 } else if (notif.tipo === 'solicitacao_manutencao') {
                     const placaTxt = dados.placa || 'Veículo';
-                    const modTxt = dados.modelo ? ' — ' + dados.modelo : '';
+                    const modTxt = dados.modelo ? ' - ' + dados.modelo : '';
                     const isParado = dados.veiculo_rodando === 'nao';
                     const rodBadge = isParado
-                        ? '<span style="background:#fee2e2;color:#dc2626;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🔴 Não, está parado (indisponível)</span>'
-                        : '<span style="background:#dcfce7;color:#15803d;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🟢 Sim, está rodando (agendar)</span>';
-                    const itensTxt = dados.itens || dados.descricao || notif.mensagem || '';
+                        ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🔴 Não, está parado (indisponível)</span>'
+                        : '<span style="display:inline-block;background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:700;padding:3px 10px;border-radius:999px;font-size:0.78rem;white-space:nowrap;">🟢 Sim, está rodando (agendar)</span>';
                     contentHTML = `
-                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                        <div style="font-weight:800;font-size:0.95rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;">
                             <i class="ph ${icon}"></i> ${titulo}
                         </div>
-                        <div style="color:#0f172a;font-weight:800;font-size:1.05rem;margin-bottom:6px;">
+                        <div style="color:#0f172a;font-weight:800;font-size:0.98rem;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${placaTxt}${modTxt}">
                             <i class="ph ph-truck" style="color:#d97706;"></i> ${placaTxt}${modTxt}
                         </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-                            <span style="background:#fef3c7;color:#b45309;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🆕 Novo</span>
+                        <div style="margin-bottom:8px;">
                             ${rodBadge}
                         </div>
-                        ${dados.origem ? `<div style="color:#475569;font-size:0.78rem;margin-bottom:4px;"><b>Origem:</b> ${dados.origem}${dados.usuario_nome ? ' · <b>Por:</b> ' + dados.usuario_nome : ''}</div>` : ''}
-                        <div style="color:#334155;font-size:0.83rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-top:4px;max-height:70px;overflow-y:auto;">
-                            ${itensTxt}
-                        </div>
+                        ${dados.origem ? `<div style="color:#475569;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><b>Origem:</b> ${dados.origem}</div>` : ''}
                     `;
                 } else if (notif.tipo === 'crlv_vencidos') {
                     const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
@@ -16086,7 +16081,7 @@ async function checkUserNotificacoes() {
                         <div style="width:44px;height:44px;border-radius:12px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem;color:${color};">
                             <i class="ph ${icon}"></i>
                         </div>` : ''}
-                        <div style="flex:1;">
+                        <div style="flex:1;min-width:0;">
                             ${contentHTML}
                             <div style="display:flex;gap:8px;margin-top:12px;">
                                 <button onclick="${btnOnClick}" 
@@ -16104,7 +16099,7 @@ async function checkUserNotificacoes() {
 
                 popup.setAttribute('data-notif-id', notif.id);
                 document.body.appendChild(popup);
-                if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && !notif.tipo.includes('sac')) {
+                if (notif.tipo !== 'novo_sinistro' && notif.tipo !== 'nova_ocorrencia' && notif.tipo !== 'solicitacao_manutencao' && !notif.tipo.includes('sac')) {
     if (!(notif.tipo === 'testes_candidatos' && dados && (dados.isAguardandoData || dados.isDataInformada || dados.isTesteAgendado || dados.isAvaliacao || dados.isSla))) {
         setTimeout(() => { if (popup.parentNode) popup.remove(); }, 30000);
     }
