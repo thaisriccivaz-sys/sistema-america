@@ -481,19 +481,10 @@ window._mnPrevCardsHtml = function(modo) {
                     <span style="font-weight:600;color:#94a3b8;">Plano preventivo:</span>
                     <span style="font-weight:700;color:${nPrev ? '#0284c7' : '#d97706'};">${nPrev ? nPrev + (nPrev === 1 ? ' item' : ' itens') : 'N\u00e3o cadastrado'}</span>
                 </div>`;
-        const linhaGarantia = `
-                <div style="display:flex;flex-direction:column;gap:4px;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                        <span style="font-weight:600;color:#94a3b8;">Na garantia de f\u00e1brica?</span>
-                        <select id="mn-gar-sel-${v.id}" onchange="window.mnGarantiaAlterar(${v.id})" style="padding:0.2rem 0.4rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;font-weight:700;outline:none;color:${temGar ? '#16a34a' : '#64748b'};">
-                            <option value="0"${temGar ? '' : ' selected'}>N\u00e3o</option>
-                            <option value="1"${temGar ? ' selected' : ''}>Sim</option>
-                        </select>
-                    </div>
-                    <div id="mn-gar-box-${v.id}" style="display:${temGar ? 'flex' : 'none'};justify-content:space-between;align-items:center;gap:8px;">
-                        <span style="font-weight:600;color:#94a3b8;">Garantia at\u00e9:</span>
-                        <input type="date" id="mn-gar-dt-${v.id}" value="${garAte}" onchange="window.mnGarantiaSalvar(${v.id})" style="padding:0.2rem 0.4rem;border:1px solid ${garVencida ? '#fca5a5' : '#e2e8f0'};border-radius:6px;font-size:0.8rem;outline:none;color:${garVencida ? '#dc2626' : '#1e293b'};">
-                    </div>
+        const linhaGarantia = !ehRevisao ? '' : `
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;">
+                    <span style="font-weight:600;color:#94a3b8;">Garantia at\u00e9:</span>
+                    <input type="date" id="mn-gar-dt-${v.id}" value="${garAte}" onchange="window.mnGarantiaSalvar(${v.id}, false)" onblur="window.mnGarantiaSalvar(${v.id}, true)" onkeydown="if(event.key==='Enter')this.blur()" style="padding:0.2rem 0.4rem;border:1px solid ${garVencida ? '#fca5a5' : '#e2e8f0'};border-radius:6px;font-size:0.8rem;outline:none;color:${garVencida ? '#dc2626' : '#1e293b'};">
                 </div>`;
         const btnAcao = ehRevisao
             ? `<button onclick="window.mnRevisaoAbrirVeiculo(${v.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-seal-check"></i> Ver revis\u00e3o</button>`
@@ -526,50 +517,49 @@ window._mnPrevCardsHtml = function(modo) {
     }).join('');
 };
 
-// Garantia de fabrica: Nao -> salva na hora; Sim -> pede a data final e salva ao informar
-window.mnGarantiaAlterar = function(vid) {
-    const sel = document.getElementById('mn-gar-sel-' + vid);
-    const box = document.getElementById('mn-gar-box-' + vid);
-    if (!sel) return;
-    if (sel.value === '1') {
-        if (box) box.style.display = 'flex';
-        sel.style.color = '#16a34a';
-        const dt = document.getElementById('mn-gar-dt-' + vid);
-        if (dt && dt.value) window.mnGarantiaSalvar(vid); else if (dt) dt.focus();
-    } else {
-        if (box) box.style.display = 'none';
-        sel.style.color = '#64748b';
-        window.mnGarantiaSalvar(vid);
-    }
-};
-
-window.mnGarantiaSalvar = async function(vid) {
-    const sel = document.getElementById('mn-gar-sel-' + vid);
+window.mnGarantiaSalvar = async function(vid, fromBlur) {
     const dt = document.getElementById('mn-gar-dt-' + vid);
-    if (!sel) return;
-    const tem = sel.value === '1';
-    if (tem && (!dt || !dt.value)) return;
+    if (!dt) return;
+    const val = String(dt.value || '').trim();
+    if (val) {
+        const ano = parseInt(val.split('-')[0], 10);
+        if (!ano || ano < 2000) return;
+    }
+    const prev = (window._manutFrota || []).find(function(x) { return String(x.id) === String(vid); });
+    const prevAte = prev ? String(prev.garantia_fabrica_ate || '').split('T')[0] : '';
+    if (val === prevAte) {
+        if (fromBlur && (!val || val < window._mnHojeISO())) {
+            const gridRev0 = document.getElementById('mn-rev-cards');
+            if (gridRev0) gridRev0.innerHTML = window._mnPrevCardsHtml('revisao');
+        }
+        return;
+    }
+    const tem = !!val;
+    [window._manutFrota, window._frotaDados].forEach(function(arr) {
+        const v = (arr || []).find(function(x) { return String(x.id) === String(vid); });
+        if (v) { v.garantia_fabrica = tem ? 1 : 0; v.garantia_fabrica_ate = tem ? val : null; }
+    });
+    const inpFrota = document.getElementById('fv-garantia-ate');
+    if (inpFrota) inpFrota.value = tem ? val : '';
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
         const res = await fetch('/api/frota/veiculos/' + vid + '/garantia', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
-            body: JSON.stringify({ garantia_fabrica: tem ? 1 : 0, garantia_fabrica_ate: tem ? dt.value : null })
+            body: JSON.stringify({ garantia_fabrica: tem ? 1 : 0, garantia_fabrica_ate: tem ? val : null })
         });
         const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar a garantia');
-        [window._manutFrota, window._frotaDados].forEach(function(arr) {
-            const v = (arr || []).find(function(x) { return String(x.id) === String(vid); });
-            if (v) { v.garantia_fabrica = tem ? 1 : 0; v.garantia_fabrica_ate = tem ? dt.value : null; }
-        });
         if (dt) {
-            const venc = tem && dt.value < window._mnHojeISO();
+            const venc = tem && val < window._mnHojeISO();
             dt.style.borderColor = venc ? '#fca5a5' : '#e2e8f0';
             dt.style.color = venc ? '#dc2626' : '#1e293b';
         }
-        const gridRev = document.getElementById('mn-rev-cards');
-        if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Garantia de f\u00e1brica atualizada!');
+        if (fromBlur && (!tem || val < window._mnHojeISO())) {
+            const gridRev = document.getElementById('mn-rev-cards');
+            if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
+        }
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Data de garantia atualizada!');
     } catch (e) { alert(e.message); }
 };
 
@@ -587,7 +577,7 @@ window.mnRevisaoAbrirVeiculo = function(id) {
 window._mnPrevAtualizarFrota = async function() {
     try {
         const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
-        const r = await fetch('/api/frota/veiculos', { headers: { Authorization: 'Bearer ' + tok } });
+        const r = await fetch('/api/frota/veiculos?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
         const lista = await r.json();
         if (!Array.isArray(lista)) return;
         window._manutFrota = lista;

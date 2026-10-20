@@ -25724,9 +25724,8 @@ db.run("ALTER TABLE frota_veiculos ADD COLUMN garantia_fabrica_ate TEXT", (err) 
 });
 app.put('/api/frota/veiculos/:id/garantia', authenticateToken, (req, res) => {
     const { garantia_fabrica, garantia_fabrica_ate } = req.body || {};
-    const tem = (garantia_fabrica === true || garantia_fabrica === 1 || garantia_fabrica === '1') ? 1 : 0;
-    const ate = tem ? (String(garantia_fabrica_ate || '').trim() || null) : null;
-    if (tem && !ate) return res.status(400).json({ error: 'Informe a data final da garantia de fábrica.' });
+    const ate = String(garantia_fabrica_ate || '').trim() || null;
+    const tem = ate ? 1 : ((garantia_fabrica === true || garantia_fabrica === 1 || garantia_fabrica === '1') ? 1 : 0);
     db.run('UPDATE frota_veiculos SET garantia_fabrica=?, garantia_fabrica_ate=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [tem, ate, req.params.id], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ ok: true, garantia_fabrica: tem, garantia_fabrica_ate: ate });

@@ -1267,7 +1267,7 @@ window.initFrotaVeiculos = async function() {
 window.abrirModalFrota=async function(id){
   const tok = window.currentToken || localStorage.getItem('token');
   let v={};
-  if(id){const r=await fetch('/api/frota/veiculos/'+id,{headers:{Authorization:'Bearer '+tok}});v=await r.json();}
+  if(id){const r=await fetch('/api/frota/veiculos/'+id+'?_='+Date.now(),{headers:{Authorization:'Bearer '+tok},cache:'no-store'});v=await r.json();}
   
   window._frotaB64=null;
   window._frotaFN=null;
