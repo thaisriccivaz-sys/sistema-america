@@ -23321,7 +23321,7 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
                fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
                fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
-               fv.created_at, fv.updated_at, fv.km_atual,
+               fv.created_at, fv.updated_at, fv.km_atual, fv.garantia_fabrica, fv.garantia_fabrica_ate,
                CASE
                    WHEN EXISTS (
                        SELECT 1 FROM frota_manutencoes fm0
@@ -25703,6 +25703,24 @@ app.get('/api/frota/alertas-todos', authenticateToken, (req, res) => {
 
             Promise.all(checks).then(result => res.json(result));
         });
+    });
+});
+
+// PUT - garantia de fabrica do veiculo (sim/nao + data final da garantia)
+db.run("ALTER TABLE frota_veiculos ADD COLUMN garantia_fabrica INTEGER DEFAULT 0", (err) => {
+    if (err && !String(err.message).includes('duplicate column')) console.error('[MIGRATION frota_veiculos garantia_fabrica]', err.message);
+});
+db.run("ALTER TABLE frota_veiculos ADD COLUMN garantia_fabrica_ate TEXT", (err) => {
+    if (err && !String(err.message).includes('duplicate column')) console.error('[MIGRATION frota_veiculos garantia_fabrica_ate]', err.message);
+});
+app.put('/api/frota/veiculos/:id/garantia', authenticateToken, (req, res) => {
+    const { garantia_fabrica, garantia_fabrica_ate } = req.body || {};
+    const tem = (garantia_fabrica === true || garantia_fabrica === 1 || garantia_fabrica === '1') ? 1 : 0;
+    const ate = tem ? (String(garantia_fabrica_ate || '').trim() || null) : null;
+    if (tem && !ate) return res.status(400).json({ error: 'Informe a data final da garantia de fábrica.' });
+    db.run('UPDATE frota_veiculos SET garantia_fabrica=?, garantia_fabrica_ate=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [tem, ate, req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ ok: true, garantia_fabrica: tem, garantia_fabrica_ate: ate });
     });
 });
 

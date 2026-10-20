@@ -22,13 +22,17 @@ window.initFrotaManutencoes = async function(containerEl) {
 
 <!-- Sub-abas -->
 <div style="display:flex;gap:4px;margin-bottom:1.5rem;background:#fff;padding:6px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
+    <button id="mn-sub-btn-corretiva" onclick="window.mnMudarSubAba('corretiva')" 
+        style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
+        <i class="ph ph-wrench"></i> Corretiva
+    </button>
     <button id="mn-sub-btn-preventiva" onclick="window.mnMudarSubAba('preventiva')" 
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:#d97706;color:#fff;">
         <i class="ph ph-calendar-check"></i> Preventiva
     </button>
-    <button id="mn-sub-btn-corretiva" onclick="window.mnMudarSubAba('corretiva')" 
+    <button id="mn-sub-btn-revisao" onclick="window.mnMudarSubAba('revisao')" 
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
-        <i class="ph ph-wrench"></i> Corretiva
+        <i class="ph ph-seal-check"></i> Revisão
     </button>
     <button id="mn-sub-btn-historico" onclick="window.mnMudarSubAba('historico')" 
         style="padding:0.5rem 1.2rem;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;gap:6px;background:transparent;color:#64748b;">
@@ -55,8 +59,9 @@ window.initFrotaManutencoes = async function(containerEl) {
 
 
 window.mnMudarSubAba = function(aba) {
+    if (aba === 'corretivas') aba = 'corretiva';
     window._mnSubAba = aba;
-    ['preventiva','corretiva','historico'].forEach(a => {
+    ['corretiva','preventiva','revisao','historico'].forEach(a => {
         const btn = document.getElementById('mn-sub-btn-' + a);
         if (!btn) return;
         btn.style.background = a === aba ? '#d97706' : 'transparent';
@@ -66,6 +71,7 @@ window.mnMudarSubAba = function(aba) {
     if (!sub) return;
     if (aba === 'preventiva') mnRenderPreventivaTela(sub);
     else if (aba === 'corretiva') mnRenderCorretivaTela(sub);
+    else if (aba === 'revisao') window.mnRenderRevisaoTela(sub);
     else mnRenderHistoricoTela(sub);
 };
 
@@ -387,39 +393,23 @@ window._mnCalDiaClick = function(dia, y, m) {
 
 
 function mnRenderPreventivaTela(sub) {
-    const prevSubAba = window._mnPrevSubAba || 'plano';
     sub.innerHTML = `
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
         <button onclick="window.abrirModalManutencao(null,{tipo:'preventiva'})" style="padding:7px 14px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
             <i class="ph ph-plus"></i> Nova Manutenção Preventiva
         </button>
     </div>
-    <!-- Sub-tabs da Preventiva -->
-    <div style="display:flex;gap:4px;margin-bottom:1rem;background:#fff;padding:5px;border-radius:10px;border:1px solid #e2e8f0;width:fit-content;">
-        <button id="mn-prev-sub-plano" onclick="window.mnPrevMudarSub('plano')"
-            style="padding:7px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-size:0.87rem;display:flex;align-items:center;gap:6px;background:${prevSubAba==='plano'?'#0284c7':'transparent'};color:${prevSubAba==='plano'?'#fff':'#64748b'};">
-            <i class="ph ph-calendar-check"></i> Plano Preventivo
-        </button>
-        <button id="mn-prev-sub-hist" onclick="window.mnPrevMudarSub('historico')"
-            style="padding:7px 18px;border:none;border-radius:7px;font-weight:600;cursor:pointer;font-size:0.87rem;display:flex;align-items:center;gap:6px;background:${prevSubAba==='historico'?'#0284c7':'transparent'};color:${prevSubAba==='historico'?'#fff':'#64748b'};">
-            <i class="ph ph-clock-counter-clockwise"></i> Histórico de Preventivas
-        </button>
-    </div>
     <div id="mn-prev-sub-conteudo"></div>`;
 
-    window.mnPrevMudarSub(prevSubAba);
+    window.mnPrevMudarSub('plano');
 }
 
+// A aba Preventiva mostra direto os cards; os historicos ficam somente na aba Historico
 window.mnPrevMudarSub = function(aba) {
-    window._mnPrevSubAba = aba;
-    ['plano','historico'].forEach(a => {
-        const btn = document.getElementById('mn-prev-sub-' + a);
-        if (btn) { btn.style.background = a===aba?'#0284c7':'transparent'; btn.style.color = a===aba?'#fff':'#64748b'; }
-    });
+    window._mnPrevSubAba = 'plano';
     const c = document.getElementById('mn-prev-sub-conteudo');
     if (!c) return;
-    if (aba === 'plano') mnPrevRenderPlano(c);
-    else mnPrevRenderHistorico(c);
+    mnPrevRenderPlano(c);
 };
 
 window._mnOrdenarFrota = function(lista) {
@@ -462,8 +452,9 @@ function mnPrevRenderPlano(c) {
     window._mnPrevAtualizarFrota();
 }
 
-// Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota)
-window._mnPrevCardsHtml = function() {
+// Cards de todos os ve\u00edculos (layout semelhante ao da Gest\u00e3o de Frota). modo: 'preventiva' (padrao) ou 'revisao'
+window._mnPrevCardsHtml = function(modo) {
+    const ehRevisao = modo === 'revisao';
     const frota = window._mnOrdenarFrota(window._manutFrota || []);
     if (!frota.length) return '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:#94a3b8;">Nenhum ve\u00edculo cadastrado.</div>';
     const prevPorVeic = {};
@@ -472,9 +463,34 @@ window._mnPrevCardsHtml = function() {
         const foto = v.foto_url || v.foto_base64 || '';
         const parado = (v.em_manutencao == 1 || v.em_manutencao === '1' || v.em_manutencao === true);
         const nPrev = prevPorVeic[String(v.id)] || 0;
+        const temGar = (v.garantia_fabrica == 1 || v.garantia_fabrica === '1' || v.garantia_fabrica === true);
+        const garAte = String(v.garantia_fabrica_ate || '').split('T')[0];
+        const garVencida = temGar && garAte && garAte < window._mnHojeISO();
         const fotoHtml = foto
             ? `<div onclick="if(window.abrirFotoVeiculoFrota)window.abrirFotoVeiculoFrota(${v.id})" title="Clique para abrir e salvar a foto" style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;cursor:pointer;"></div>`
             : `<div style="height:140px;width:100%;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:3rem;"><i class="ph ph-truck"></i></div>`;
+        const linhaPlano = ehRevisao ? '' : `
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
+                    <span style="font-weight:600;color:#94a3b8;">Plano preventivo:</span>
+                    <span style="font-weight:700;color:${nPrev ? '#0284c7' : '#d97706'};">${nPrev ? nPrev + (nPrev === 1 ? ' item' : ' itens') : 'N\u00e3o cadastrado'}</span>
+                </div>`;
+        const linhaGarantia = `
+                <div style="display:flex;flex-direction:column;gap:4px;border-bottom:1px solid #f1f5f9;padding-bottom:0.4rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <span style="font-weight:600;color:#94a3b8;">Na garantia de f\u00e1brica?</span>
+                        <select id="mn-gar-sel-${v.id}" onchange="window.mnGarantiaAlterar(${v.id})" style="padding:0.2rem 0.4rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.8rem;font-weight:700;outline:none;color:${temGar ? '#16a34a' : '#64748b'};">
+                            <option value="0"${temGar ? '' : ' selected'}>N\u00e3o</option>
+                            <option value="1"${temGar ? ' selected' : ''}>Sim</option>
+                        </select>
+                    </div>
+                    <div id="mn-gar-box-${v.id}" style="display:${temGar ? 'flex' : 'none'};justify-content:space-between;align-items:center;gap:8px;">
+                        <span style="font-weight:600;color:#94a3b8;">Garantia at\u00e9:</span>
+                        <input type="date" id="mn-gar-dt-${v.id}" value="${garAte}" onchange="window.mnGarantiaSalvar(${v.id})" style="padding:0.2rem 0.4rem;border:1px solid ${garVencida ? '#fca5a5' : '#e2e8f0'};border-radius:6px;font-size:0.8rem;outline:none;color:${garVencida ? '#dc2626' : '#1e293b'};">
+                    </div>
+                </div>`;
+        const btnAcao = ehRevisao
+            ? `<button onclick="window.mnRevisaoAbrirVeiculo(${v.id})" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-seal-check"></i> Ver revis\u00e3o</button>`
+            : `<button onclick="window.mnPrevAbrirVeiculo(${v.id})" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Ver plano</button>`;
         return `
         <div style="background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);overflow:hidden;border:${parado ? '2px solid #fca5a5' : '1px solid #e2e8f0'};position:relative;display:flex;flex-direction:column;transition:transform .2s, box-shadow .2s;" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
             ${fotoHtml}
@@ -485,11 +501,7 @@ window._mnPrevCardsHtml = function() {
                 </div>
                 <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:0.6rem;border-radius:8px;">
                     <span style="font-weight:700;color:#1e293b;line-height:1.2;">${v.marca_modelo_versao || 'N/D'}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding-bottom:0.3rem;">
-                    <span style="font-weight:600;color:#94a3b8;">Plano preventivo:</span>
-                    <span style="font-weight:700;color:${nPrev ? '#0284c7' : '#d97706'};">${nPrev ? nPrev + (nPrev === 1 ? ' item' : ' itens') : 'N\u00e3o cadastrado'}</span>
-                </div>
+                </div>${linhaPlano}${linhaGarantia}
             </div>
             <div style="background:#f8fafc;padding:0.6rem 1rem;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">
                 <i class="ph ph-gauge" style="color:#d97706;font-size:1rem;"></i>
@@ -501,10 +513,66 @@ window._mnPrevCardsHtml = function() {
             </div>
             <div style="background:#f8fafc;padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
                 <div style="font-weight:800;color:#cbd5e1;font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;">${v.tipo_veiculo || 'VE\u00cdCULO'}</div>
-                <button onclick="window.mnPrevAbrirVeiculo(${v.id})" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="ph ph-calendar-check"></i> Ver plano</button>
+                ${btnAcao}
             </div>
         </div>`;
     }).join('');
+};
+
+// Garantia de fabrica: Nao -> salva na hora; Sim -> pede a data final e salva ao informar
+window.mnGarantiaAlterar = function(vid) {
+    const sel = document.getElementById('mn-gar-sel-' + vid);
+    const box = document.getElementById('mn-gar-box-' + vid);
+    if (!sel) return;
+    if (sel.value === '1') {
+        if (box) box.style.display = 'flex';
+        sel.style.color = '#16a34a';
+        const dt = document.getElementById('mn-gar-dt-' + vid);
+        if (dt && dt.value) window.mnGarantiaSalvar(vid); else if (dt) dt.focus();
+    } else {
+        if (box) box.style.display = 'none';
+        sel.style.color = '#64748b';
+        window.mnGarantiaSalvar(vid);
+    }
+};
+
+window.mnGarantiaSalvar = async function(vid) {
+    const sel = document.getElementById('mn-gar-sel-' + vid);
+    const dt = document.getElementById('mn-gar-dt-' + vid);
+    if (!sel) return;
+    const tem = sel.value === '1';
+    if (tem && (!dt || !dt.value)) return;
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/frota/veiculos/' + vid + '/garantia', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+            body: JSON.stringify({ garantia_fabrica: tem ? 1 : 0, garantia_fabrica_ate: tem ? dt.value : null })
+        });
+        const j = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(j.error || 'Erro ao salvar a garantia');
+        [window._manutFrota, window._frotaDados].forEach(function(arr) {
+            const v = (arr || []).find(function(x) { return String(x.id) === String(vid); });
+            if (v) { v.garantia_fabrica = tem ? 1 : 0; v.garantia_fabrica_ate = tem ? dt.value : null; }
+        });
+        if (dt) {
+            const venc = tem && dt.value < window._mnHojeISO();
+            dt.style.borderColor = venc ? '#fca5a5' : '#e2e8f0';
+            dt.style.color = venc ? '#dc2626' : '#1e293b';
+        }
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Garantia de f\u00e1brica atualizada!');
+    } catch (e) { alert(e.message); }
+};
+
+// Aba Revis\u00e3o: mesmos cards da Preventiva
+window.mnRenderRevisaoTela = function(sub) {
+    sub.innerHTML = `<div id="mn-rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;">${window._mnPrevCardsHtml('revisao')}</div>`;
+    window._mnPrevAtualizarFrota();
+};
+
+window.mnRevisaoAbrirVeiculo = function(id) {
+    if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2139\uFE0F O plano de revis\u00e3o ser\u00e1 definido em breve.');
+    else alert('O plano de revis\u00e3o ser\u00e1 definido em breve.');
 };
 
 window._mnPrevAtualizarFrota = async function() {
@@ -516,6 +584,8 @@ window._mnPrevAtualizarFrota = async function() {
         window._manutFrota = lista;
         const grid = document.getElementById('mn-prev-cards');
         if (grid && grid.style.display !== 'none') grid.innerHTML = window._mnPrevCardsHtml();
+        const gridRev = document.getElementById('mn-rev-cards');
+        if (gridRev) gridRev.innerHTML = window._mnPrevCardsHtml('revisao');
     } catch (e) { /* mantem os dados ja carregados */ }
 };
 
@@ -4831,6 +4901,9 @@ window.salvarManutencao = async function(idEdit) {
         if (window._mnSubAba === 'corretiva') {
             const sub = document.getElementById('mn-sub-conteudo');
             if (sub) mnRenderCorretivaTela(sub);
+        } else if (window._mnSubAba === 'revisao') {
+            const sub = document.getElementById('mn-sub-conteudo');
+            if (sub) window.mnRenderRevisaoTela(sub);
         } else {
             // Re-renderiza a aba preventiva COMPLETA (incluindo dropdown de veículos)
             const sub = document.getElementById('mn-sub-conteudo');
