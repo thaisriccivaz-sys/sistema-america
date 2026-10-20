@@ -2484,7 +2484,7 @@ window._mnEdRenderNotas = function() {
         return '<div style="font-size:0.73rem;color:#2563eb;font-weight:600;margin-top:2px;"><i class="ph ph-link"></i> Vinculado a: <b>' + esc(nomes.join(', ')) + '</b></div>';
     };
     var btn = 'padding:6px 10px;border-radius:8px;cursor:pointer;';
-    var btnEdit = 'padding:6px 10px;border-radius:8px;cursor:pointer;border:1px solid #cbd5e1;background:#fff;color:#1e293b;font-weight:700;font-size:0.76rem;display:inline-flex;align-items:center;gap:4px;';
+    var btnEdit = btn + 'border:1px solid #cbd5e1;background:#fff;color:#2563eb;';
     var cardsHtml = ed.notas.map(function(n) {
         var mo = n.tipo === 'mao_obra';
         var emi = n.data_emissao ? ' · emissão ' + esc(n.data_emissao) : '';
@@ -2492,7 +2492,7 @@ window._mnEdRenderNotas = function() {
             ? '<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span>'
             : '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span>';
         var tituloDoc = n.numero ? ('NF ' + esc(n.numero)) : ('Recibo / PDF' + (n.nome_arquivo ? ' (' + esc(n.nome_arquivo) + ')' : ''));
-        var fornTxt = n.fornecedor ? esc(n.fornecedor) : (n.numero ? 'Fornecedor não identificado' : 'Comprovante anexado');
+        var fornTxt = n.fornecedor ? (' · ' + esc(n.fornecedor)) : (n.numero ? ' · Fornecedor não identificado' : '');
         var sidsVinc = [];
         if (mo) {
             (ed.mo || []).filter(function(l) { return String(l.nota_id) === String(n.id); }).forEach(function(l) {
@@ -2508,10 +2508,10 @@ window._mnEdRenderNotas = function() {
         var anexo = '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-paperclip"></i> Anexado em ' + esc(window._mnFmtDH(n.created_at)) + (n.usuario_nome ? ' por <b>' + esc(n.usuario_nome) + '</b>' : '') + '</div>';
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;flex-wrap:wrap;">'
           + '<i class="ph ph-receipt" style="color:' + (mo ? '#d97706' : '#2563eb') + ';font-size:1.2rem;"></i>'
-          + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>' + tituloDoc + '</b> ' + tag + ' · ' + fornTxt + emi
+          + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>' + tituloDoc + '</b> ' + tag + fornTxt + emi
           +   (n.valor_total ? ' · <b style="color:#059669;">' + window._mnFmtMoeda(n.valor_total) + '</b>' : '') + vincHtml + anexo + '</div>'
           + '<button type="button" data-nv="' + n.id + '" title="Ver PDF (nota fiscal ou recibo)" style="' + btn + 'border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;"><i class="ph ph-eye"></i></button>'
-          + '<button type="button" data-ne="' + n.id + '" data-netipo="' + (mo ? 'mao_obra' : 'pecas') + '" title="Editar itens e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple" style="color:#2563eb;"></i> Editar</button>'
+          + '<button type="button" data-ne="' + n.id + '" data-netipo="' + (mo ? 'mao_obra' : 'pecas') + '" title="Editar itens e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
           + '<button type="button" data-nd="' + n.id + '" title="Excluir anexo e itens vinculados" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
           + '</div>';
     });
@@ -2524,7 +2524,7 @@ window._mnEdRenderNotas = function() {
           + '<i class="ph ph-gear-six" style="color:#2563eb;font-size:1.2rem;"></i>'
           + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>Peças lançadas manualmente</b> <span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span> · ' + pecasAgrup.length + ' item(ns) · <b style="color:#059669;">' + window._mnFmtMoeda(somaPcSem) + '</b>'
           + resumoServicosIds(sidsPc) + '</div>'
-          + '<button type="button" data-ne-sem="pecas" title="Editar peças e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple" style="color:#2563eb;"></i> Editar</button>'
+          + '<button type="button" data-ne-sem="pecas" title="Editar peças e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
           + '<button type="button" data-nd-sem="pecas" title="Excluir peças sem anexo" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
           + '</div>');
     }
@@ -2540,7 +2540,7 @@ window._mnEdRenderNotas = function() {
           + '<i class="ph ph-hammer" style="color:#d97706;font-size:1.2rem;"></i>'
           + '<div style="flex:1;min-width:200px;font-size:0.82rem;color:#1e293b;"><b>Mão de obra lançada manualmente</b> <span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span> · ' + moSemNota.length + ' linha(s) · <b style="color:#059669;">' + window._mnFmtMoeda(somaMoSem) + '</b>'
           + resumoServicosIds(sidsMo) + '</div>'
-          + '<button type="button" data-ne-sem="mao_obra" title="Editar mão de obra e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple" style="color:#d97706;"></i> Editar</button>'
+          + '<button type="button" data-ne-sem="mao_obra" title="Editar mão de obra e mudar vinculação aos serviços" style="' + btnEdit + '"><i class="ph ph-pencil-simple"></i></button>'
           + '<button type="button" data-nd-sem="mao_obra" title="Excluir mão de obra sem anexo" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
           + '</div>');
     }
