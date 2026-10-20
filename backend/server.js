@@ -25776,6 +25776,33 @@ db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_anexos (
 )`, (err) => {
     if (err) console.error('[MIGRATION frota_revisao_anexos]', err.message);
 });
+db.run(`CREATE TABLE IF NOT EXISTS frota_revisao_lancamentos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    revisao_id INTEGER NOT NULL,
+    veiculo_id INTEGER NOT NULL,
+    anexo_id INTEGER,
+    tipo TEXT DEFAULT 'peca',
+    codigo TEXT,
+    descricao TEXT,
+    quantidade REAL DEFAULT 1,
+    valor_total REAL DEFAULT 0,
+    servicos_json TEXT,
+    modo_rateio TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (err) => {
+    if (err) console.error('[MIGRATION frota_revisao_lancamentos]', err.message);
+});
+
+// Recalcula valor de peças / mão de obra / total da revisão a partir dos lançamentos das notas
+async function _frRecalcRevisao(revisaoId) {
+    const r = await _fmGet(
+        "SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN tipo='peca' THEN valor_total ELSE 0 END),0) AS p, COALESCE(SUM(CASE WHEN tipo='mao_obra' THEN valor_total ELSE 0 END),0) AS m FROM frota_revisao_lancamentos WHERE revisao_id = ?",
+        [revisaoId]
+    );
+    if (!r || !r.n) return;
+    const p = Math.round(r.p * 100) / 100, m = Math.round(r.m * 100) / 100;
+    await _fmRun('UPDATE frota_revisoes SET valor_pecas=?, valor_mao_obra=?, valor_total=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [p, m, Math.round((p + m) * 100) / 100, revisaoId]);
+}
 
 // GET - retorna dados do veículo, revisões registradas e anexos de notas/OS
 app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) => {
@@ -25791,9 +25818,15 @@ app.get('/api/frota/revisoes/:veiculoId', authenticateToken, async (req, res) =>
             'SELECT id, revisao_id, veiculo_id, tipo_documento, numero_nota, fornecedor, valor, nome_arquivo, r2_key, usuario_nome, created_at FROM frota_revisao_anexos WHERE veiculo_id = ? ORDER BY id DESC',
             [vid]
         );
+        const lancs = await _fmAll('SELECT * FROM frota_revisao_lancamentos WHERE veiculo_id = ? ORDER BY id ASC', [vid]);
         revisoes.forEach(r => {
             try { r.itens = JSON.parse(r.itens_json || '{}'); } catch (e) { r.itens = {}; }
             r.anexos = anexos.filter(a => Number(a.revisao_id) === Number(r.id));
+            r.lancamentos = lancs.filter(l => Number(l.revisao_id) === Number(r.id)).map(l => {
+                let sv = [];
+                try { sv = JSON.parse(l.servicos_json || '[]'); } catch (e) { sv = []; }
+                return Object.assign({}, l, { servicos: Array.isArray(sv) ? sv : [] });
+            });
         });
         res.json({ veiculo, revisoes, anexos });
     } catch (e) {
@@ -25917,6 +25950,24 @@ app.post('/api/frota/revisoes/:revisaoId/anexos', authenticateToken, multerNfFro
             [revId, rev.veiculo_id, tipoDoc, numNota, forn, val, req.file.originalname || 'nota_revisao.pdf', r2Key, usuario]
         );
         const anexo = await _fmGet('SELECT * FROM frota_revisao_anexos WHERE id = ?', [ins.lastID]);
+
+        // Lançamentos (peças / mão de obra) lidos da nota e vinculados aos serviços da revisão
+        let dadosNota = {};
+        try { dadosNota = JSON.parse(req.body.dados || '{}'); } catch (e) { dadosNota = {}; }
+        const lancs = Array.isArray(dadosNota.lancamentos) ? dadosNota.lancamentos : [];
+        for (const l of lancs) {
+            const desc = String(l.descricao || '').trim();
+            const vt = _fmNumero(l.valor_total);
+            if (!desc || !(vt > 0)) continue;
+            const tipoL = l.tipo === 'mao_obra' ? 'mao_obra' : 'peca';
+            const svs = Array.isArray(l.servicos) ? l.servicos.map(s => String(s)).filter(Boolean) : [];
+            const modo = ['produto', 'mao_obra', 'total'].includes(l.modo_rateio) ? l.modo_rateio : null;
+            await _fmRun(
+                'INSERT INTO frota_revisao_lancamentos (revisao_id, veiculo_id, anexo_id, tipo, codigo, descricao, quantidade, valor_total, servicos_json, modo_rateio) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [revId, rev.veiculo_id, anexo.id, tipoL, String(l.codigo || '').trim() || null, desc.substring(0, 300), _fmNumero(l.quantidade) > 0 ? _fmNumero(l.quantidade) : 1, Math.round(vt * 100) / 100, JSON.stringify(svs), modo]
+            );
+        }
+        await _frRecalcRevisao(revId);
         res.json({ ok: true, anexo });
     } catch (e) {
         if (keyEnviada) { try { await require('./utils/r2').deleteFromR2(keyEnviada); } catch (e2) {} }
@@ -25944,13 +25995,18 @@ app.get('/api/frota/revisoes/anexos/:anexoId/pdf', authenticateToken, async (req
 // DELETE - remove anexo da revisão do Cloudflare R2 e do banco
 app.delete('/api/frota/revisoes/anexos/:anexoId', authenticateToken, async (req, res) => {
     try {
-        const row = await _fmGet('SELECT id, r2_key FROM frota_revisao_anexos WHERE id = ?', [req.params.anexoId]);
+        const row = await _fmGet('SELECT id, r2_key, revisao_id FROM frota_revisao_anexos WHERE id = ?', [req.params.anexoId]);
         if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
         const r2 = require('./utils/r2');
         if (row.r2_key && r2.isReady()) {
             await r2.deleteFromR2(row.r2_key).catch(() => {});
         }
+        await _fmRun('DELETE FROM frota_revisao_lancamentos WHERE anexo_id = ?', [row.id]);
         await _fmRun('DELETE FROM frota_revisao_anexos WHERE id = ?', [row.id]);
+        // Recalcula valores a partir dos lançamentos restantes (se não restar nenhum, zera os valores vindos de notas)
+        const restam = await _fmGet('SELECT COUNT(*) AS n FROM frota_revisao_lancamentos WHERE revisao_id = ?', [row.revisao_id]);
+        if (restam && restam.n > 0) await _frRecalcRevisao(row.revisao_id);
+        else await _fmRun('UPDATE frota_revisoes SET valor_pecas=0, valor_mao_obra=0, valor_total=0, updated_at=CURRENT_TIMESTAMP WHERE id=?', [row.revisao_id]);
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ error: e.message });

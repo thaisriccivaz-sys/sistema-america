@@ -826,8 +826,8 @@ window._mnRenderPainelRevisaoVeiculo = function() {
         const nAnexos = reg && Array.isArray(reg.anexos) ? reg.anexos.length : 0;
         const vTotal = reg ? Number(reg.valor_total || 0) : 0;
         const itensObj = (reg && reg.itens) || {};
-        const qtdVerif = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].verificado === 'sim' || itensObj[k].realizado === 'sim')).length;
-        const qtdTrocaManut = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].acao === 'manutencao' || itensObj[k].acao === 'troca' || itensObj[k].realizado === 'sim')).length;
+        const qtdVerif = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].realizado === true || itensObj[k].realizado === 'true')).length;
+        const qtdTrocaManut = Object.keys(itensObj).filter(k => itensObj[k] && (itensObj[k].realizado === true || itensObj[k].realizado === 'true') && itensObj[k].tipo === 'troca_manutencao').length;
 
         return `
         <div style="background:#fff;border:2px solid ${sitBorda};border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:0.75rem;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
@@ -971,29 +971,107 @@ window._mnRenderPainelRevisaoVeiculo = function() {
     </div>`;
 };
 
-// Abre o modal completo para registrar/editar uma revisão específica (ex: 10.000 km) + checklist + notas R2
+// Abre o modal completo para registrar/editar uma revisao especifica (ex: 10.000 km): 1) execucao, 2) servicos, 3) notas/OS, 4) valores
+window._mnRevEsc = function(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
+// Lista de servicos da revisao: obrigatorios (trocas previstas no marco + verificacoes obrigatorias) e opcionais (demais)
+window._mnRevServicosDoMarco = function(marcoKm) {
+    const lista = [];
+    const mk = Number(marcoKm);
+    window._mnRevCatTrocas.forEach(function(it) {
+        const previsto = (it.marcosTroca || []).includes(mk)
+            || (it.marcosTroca || []).length === 0
+            || (mk % 10000 !== 0 && ['oleo_motor', 'filtro_oleo'].includes(it.id));
+        lista.push({
+            id: it.id, nome: it.nome, desc: it.oQueFazer, risco: it.risco,
+            grupo: previsto ? 'obrigatorio' : 'opcional',
+            origem: previsto ? 'Troca/inspeção prevista neste marco' : 'Não prevista neste marco (somente se necessário)',
+            tipoPadrao: previsto && (it.marcosTroca || []).includes(mk) ? 'troca_manutencao' : 'vistoriado'
+        });
+    });
+    window._mnRevCatVerificacoes.forEach(function(it) {
+        lista.push({ id: it.id, nome: it.nome, desc: it.oQueFazer, risco: it.risco, grupo: 'obrigatorio', origem: 'Verificação obrigatória', tipoPadrao: 'vistoriado' });
+    });
+    window._mnRevCatOpcionais.forEach(function(it) {
+        lista.push({ id: it.id, nome: it.nome, desc: it.obrigatorio + ' — ' + it.quando, risco: '', grupo: 'opcional', origem: 'Opcional / condicional', tipoPadrao: 'troca_manutencao' });
+    });
+    return lista;
+};
+
+window._mnRevLinhaServicoHtml = function(s, st) {
+    const E = window._mnRevEsc;
+    const marcado = st.realizado === true || st.realizado === 'true';
+    const tipo = st.tipo || s.tipoPadrao;
+    const obrig = s.grupo === 'obrigatorio';
+    return `
+    <tr data-rev-row="${s.id}" style="border-bottom:1px solid #e2e8f0;background:${marcado ? '#f0fdf4' : '#fff'};">
+        <td style="padding:8px 10px;width:34px;text-align:center;">
+            <input type="checkbox" data-rev-item="${s.id}" data-rev-field="realizado" ${marcado ? 'checked' : ''} onchange="window._mnRevServicoMarcou('${s.id}')" style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
+        </td>
+        <td style="padding:8px 10px;">
+            <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${E(s.nome)}
+                ${obrig ? '<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:800;">OBRIGATÓRIO</span>' : '<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.66rem;font-weight:700;">OPCIONAL</span>'}
+            </div>
+            <div style="font-size:0.74rem;color:#64748b;">${E(s.desc)}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;">${E(s.origem)}${s.risco ? ' • Risco p/ garantia: ' + E(s.risco) : ''}</div>
+        </td>
+        <td style="padding:8px 10px;width:260px;">
+            <select data-rev-item="${s.id}" data-rev-field="tipo" ${marcado ? '' : 'disabled'} style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;${marcado ? '' : 'background:#f1f5f9;color:#94a3b8;'}">
+                <option value="troca_manutencao"${tipo === 'troca_manutencao' ? ' selected' : ''}>Manutenção / troca realizada</option>
+                <option value="vistoriado"${tipo === 'vistoriado' ? ' selected' : ''}>Vistoriado (sem manutenção/troca)</option>
+            </select>
+        </td>
+        <td style="padding:8px 10px;width:200px;">
+            <input type="text" data-rev-item="${s.id}" data-rev-field="obs" value="${E(st.obs || '')}" placeholder="Obs / marca / detalhe..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
+        </td>
+    </tr>`;
+};
+
+window._mnRevServicoMarcou = function(id) {
+    const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + id + '"][data-rev-field="realizado"]');
+    const sel = document.querySelector('#mn-rev-modal-ov select[data-rev-item="' + id + '"][data-rev-field="tipo"]');
+    const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + id + '"]');
+    if (!cb) return;
+    if (sel) { sel.disabled = !cb.checked; sel.style.background = cb.checked ? '' : '#f1f5f9'; sel.style.color = cb.checked ? '' : '#94a3b8'; }
+    if (row) row.style.background = cb.checked ? '#f0fdf4' : '#fff';
+    window._mnRevAtualizarContadorObrig();
+};
+
+window._mnRevAtualizarContadorObrig = function() {
+    const servs = window._mnRevServicosModal || [];
+    const obrig = servs.filter(function(s) { return s.grupo === 'obrigatorio'; });
+    let ok = 0;
+    obrig.forEach(function(s) {
+        const cb = document.querySelector('#mn-rev-modal-ov input[data-rev-item="' + s.id + '"][data-rev-field="realizado"]');
+        if (cb && cb.checked) ok++;
+    });
+    const el = document.getElementById('mn-rev-cont-obrig');
+    if (el) {
+        const completo = ok === obrig.length;
+        el.textContent = ok + ' de ' + obrig.length + ' obrigatórios marcados';
+        el.style.background = completo ? '#dcfce7' : '#fef2f2';
+        el.style.color = completo ? '#15803d' : '#b91c1c';
+    }
+};
+
 window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     const ctx = window._mnRevAtual;
     if (!ctx || !ctx.veiculo) return;
+    const E = window._mnRevEsc;
     const v = ctx.veiculo;
-    const reg = (ctx.revisoes || []).find(r => Number(r.marco_km) === Number(marcoKm)) || {
-        id: null,
-        veiculo_id: v.id,
-        marco_km: marcoKm,
-        marco_meses: marcoMeses,
-        status: 'pendente',
-        data_revisao: '',
-        km_revisao: '',
-        concessionaria: 'Concessionária Autorizada Fiat',
-        numero_os: '',
-        valor_pecas: 0,
-        valor_mao_obra: 0,
-        valor_total: 0,
-        itens: {},
-        observacoes: '',
-        anexos: []
+    const reg = (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(marcoKm); }) || {
+        id: null, veiculo_id: v.id, marco_km: marcoKm, marco_meses: marcoMeses, status: 'pendente', data_revisao: '', km_revisao: '',
+        concessionaria: 'Concessionária Autorizada Fiat', numero_os: '', valor_pecas: 0, valor_mao_obra: 0, valor_total: 0,
+        itens: {}, observacoes: '', anexos: [], lancamentos: []
     };
     const itensSalvos = reg.itens || {};
+    window._mnRevMarcoAtual = { km: marcoKm, meses: marcoMeses };
+    window._mnRevNotaStage = null;
+    window._mnRevRateioSel = [];
+    const servicos = window._mnRevServicosDoMarco(marcoKm);
+    window._mnRevServicosModal = servicos;
 
     let ov = document.getElementById('mn-rev-modal-ov');
     if (ov) ov.remove();
@@ -1001,112 +1079,28 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     ov.id = 'mn-rev-modal-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(3px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;';
 
-    const linhasTrocasHtml = window._mnRevCatTrocas.map(item => {
-        const ehPrevistoNesteMarco = (item.marcosTroca || []).includes(Number(marcoKm));
-        const st = itensSalvos[item.id] || {};
-        const realizadoVal = st.realizado || (ehPrevistoNesteMarco ? 'sim' : 'inspecionado');
-        const acaoVal = st.acao || (ehPrevistoNesteMarco ? 'troca' : 'nao_necessario');
-        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
-        const badgeMarco = ehPrevistoNesteMarco
-            ? `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 7px;border-radius:999px;font-size:0.68rem;font-weight:800;">Previsto aos ${marcoKm.toLocaleString('pt-BR')} km</span>`
-            : `<span style="background:#f1f5f9;color:#64748b;padding:1px 7px;border-radius:999px;font-size:0.68rem;font-weight:700;">Conforme marco/condição</span>`;
-
-        return `
-        <tr style="border-bottom:1px solid #e2e8f0;background:${ehPrevistoNesteMarco ? '#fffdf9' : '#fff'};">
-            <td style="padding:8px 10px;">
-                <div style="font-weight:700;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${item.nome} ${badgeMarco}</div>
-                <div style="font-size:0.74rem;color:#64748b;">${item.oQueFazer}</div>
-            </td>
-            <td style="padding:8px 10px;font-size:0.74rem;color:#991b1b;font-weight:600;">${item.risco}</td>
-            <td style="padding:8px 10px;">
-                <select data-rev-item="${item.id}" data-rev-field="realizado" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                    <option value="sim"${realizadoVal === 'sim' ? ' selected' : ''}>Sim — Verificado / Executado</option>
-                    <option value="inspecionado"${realizadoVal === 'inspecionado' ? ' selected' : ''}>Inspecionado (Dentro do prazo)</option>
-                    <option value="nao"${realizadoVal === 'nao' ? ' selected' : ''}>Não realizado</option>
-                </select>
-            </td>
-            <td style="padding:8px 10px;">
-                <select data-rev-item="${item.id}" data-rev-field="acao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                    <option value="troca"${acaoVal === 'troca' ? ' selected' : ''}>Sim — Realizada troca</option>
-                    <option value="manutencao"${acaoVal === 'manutencao' ? ' selected' : ''}>Sim — Realizada manutenção</option>
-                    <option value="nao_necessario"${acaoVal === 'nao_necessario' ? ' selected' : ''}>Não foi necessário trocar</option>
-                </select>
-            </td>
-            <td style="padding:8px 10px;">
-                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Obs / marca / OS..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
-            </td>
-        </tr>`;
-    }).join('');
-
-    const linhasVerifHtml = window._mnRevCatVerificacoes.map(item => {
-        const st = itensSalvos[item.id] || {};
-        const verifVal = st.verificado || 'sim';
-        const acaoVal = st.acao || 'nao_necessario';
-        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
-        return `
-        <tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:8px 10px;">
-                <div style="font-weight:700;color:#1e293b;">${item.nome}</div>
-                <div style="font-size:0.74rem;color:#64748b;">${item.oQueFazer}</div>
-            </td>
-            <td style="padding:8px 10px;font-size:0.74rem;color:#475569;">${item.risco}</td>
-            <td style="padding:8px 10px;">
-                <select data-rev-item="${item.id}" data-rev-field="verificado" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                    <option value="sim"${verifVal === 'sim' ? ' selected' : ''}>Sim — Verificado</option>
-                    <option value="nao"${verifVal === 'nao' ? ' selected' : ''}>Não verificado</option>
-                </select>
-            </td>
-            <td style="padding:8px 10px;">
-                <select data-rev-item="${item.id}" data-rev-field="acao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                    <option value="nao_necessario"${acaoVal === 'nao_necessario' ? ' selected' : ''}>Não foi necessário (Em bom estado)</option>
-                    <option value="manutencao"${acaoVal === 'manutencao' ? ' selected' : ''}>Sim — Realizada manutenção/ajuste</option>
-                    <option value="troca"${acaoVal === 'troca' ? ' selected' : ''}>Sim — Realizada troca de peça</option>
-                    <option value="pendente"${acaoVal === 'pendente' ? ' selected' : ''}>Necessário, mas pendente/recusado</option>
-                </select>
-            </td>
-            <td style="padding:8px 10px;">
-                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Detalhe da verificação/troca..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
-            </td>
-        </tr>`;
-    }).join('');
-
-    const linhasOptHtml = window._mnRevCatOpcionais.map(item => {
-        const st = itensSalvos[item.id] || {};
-        const decVal = st.decisao || 'nao_aplicavel';
-        const obsVal = String(st.obs || '').replace(/"/g, '&quot;');
-        return `
-        <tr style="border-bottom:1px solid #e2e8f0;">
-            <td style="padding:7px 10px;font-weight:700;color:#1e293b;">${item.nome}</td>
-            <td style="padding:7px 10px;font-size:0.75rem;color:#475569;">${item.obrigatorio} — ${item.quando}</td>
-            <td style="padding:7px 10px;">
-                <select data-rev-item="${item.id}" data-rev-field="decisao" style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
-                    <option value="nao_aplicavel"${decVal === 'nao_aplicavel' ? ' selected' : ''}>Não ofertado / Sem necessidade</option>
-                    <option value="recusado_opcional"${decVal === 'recusado_opcional' ? ' selected' : ''}>Ofertado e Recusado (Opcional)</option>
-                    <option value="realizado"${decVal === 'realizado' ? ' selected' : ''}>Autorizado e Realizado</option>
-                </select>
-            </td>
-            <td style="padding:7px 10px;">
-                <input type="text" data-rev-item="${item.id}" data-rev-field="obs" value="${obsVal}" placeholder="Motivo / observação..." style="width:100%;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;box-sizing:border-box;">
-            </td>
-        </tr>`;
-    }).join('');
+    const obrig = servicos.filter(function(s) { return s.grupo === 'obrigatorio'; });
+    const opcio = servicos.filter(function(s) { return s.grupo === 'opcional'; });
+    const thServ = `<thead><tr style="background:#f1f5f9;text-align:left;color:#475569;">
+        <th style="padding:8px 10px;width:34px;text-align:center;">OK</th>
+        <th style="padding:8px 10px;">Serviço / O que fazer</th>
+        <th style="padding:8px 10px;width:260px;">Foi realizado como?</th>
+        <th style="padding:8px 10px;width:200px;">Observações</th></tr></thead>`;
 
     ov.innerHTML = `
     <div style="background:#fff;border-radius:16px;width:100%;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
-        <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+        <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;padding:1.1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
             <div>
-                <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${v.placa} • ${v.marca_modelo_versao || ''} • KM Atual: ${Number(v.km_atual || 0).toLocaleString('pt-BR')} km</div>
-                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">Revisão de ${marcoKm.toLocaleString('pt-BR')} km (${marcoMeses} meses)</h3>
+                <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;">${E(v.placa)} • ${E(v.marca_modelo_versao || '')} • KM Atual: ${Number(v.km_atual || 0).toLocaleString('pt-BR')} km</div>
+                <h3 style="margin:2px 0 0;font-size:1.2rem;font-weight:800;">Revisão de ${Number(marcoKm).toLocaleString('pt-BR')} km (${marcoMeses} meses)</h3>
             </div>
             <button onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:1.2rem;">&times;</button>
         </div>
 
-        <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:1.25rem;">
-            <!-- 1. Dados Gerais da Revisão -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
-                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-Wrench" style="color:#7c3aed;"></i> 1. Registro de Execução da Revisão
-                </div>
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;display:block;">
+            <!-- 1. Registro de execucao -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-wrench" style="color:#7c3aed;"></i> 1. Registro de Execução da Revisão</div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.75rem;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Situação da Revisão *</label>
@@ -1126,21 +1120,57 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Concessionária / Autorizada</label>
-                        <input type="text" id="mn-rev-f-conc" value="${String(reg.concessionaria || '').replace(/"/g, '&quot;')}" placeholder="Ex: Concessionária Fiat" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <input type="text" id="mn-rev-f-conc" value="${E(reg.concessionaria || '')}" placeholder="Ex: Concessionária Fiat" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Nº Ordem de Serviço (OS)</label>
-                        <input type="text" id="mn-rev-f-os" value="${String(reg.numero_os || '').replace(/"/g, '&quot;')}" placeholder="Nº da OS" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
+                        <input type="text" id="mn-rev-f-os" value="${E(reg.numero_os || '')}" placeholder="Nº da OS" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
                     </div>
                 </div>
             </div>
 
-            <!-- 2. Precificação e Anexo de Notas Fiscais / OS (Cloudflare R2) -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
-                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;display:flex;align-items:center;gap:6px;">
-                    <i class="ph ph-receipt" style="color:#0284c7;"></i> 2. Precificação e Notas Fiscais / Ordem de Serviço (PDF)
+            <!-- 2. Servicos obrigatorios e opcionais -->
+            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:1.25rem;">
+                <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;"><i class="ph ph-list-checks" style="color:#7c3aed;"></i> 2. Serviços da Revisão — marque o que foi realizado</div>
+                    <span id="mn-rev-cont-obrig" style="font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;"></span>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem;margin-bottom:1rem;">
+                <div style="padding:6px 12px;background:#fef2f2;color:#991b1b;font-size:0.78rem;font-weight:800;border-bottom:1px solid #fecaca;">Serviços OBRIGATÓRIOS (todos devem ser marcados como realizados para salvar a revisão como Realizada)</div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${obrig.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+                <div style="padding:6px 12px;background:#f1f5f9;color:#475569;font-size:0.78rem;font-weight:800;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">Serviços OPCIONAIS / condicionais (marque apenas se foram vistoriados ou realizados)</div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">${thServ}<tbody>${opcio.map(function(s) { return window._mnRevLinhaServicoHtml(s, itensSalvos[s.id] || {}); }).join('')}</tbody></table></div>
+            </div>
+
+            <!-- 3. Anexar notas / OS -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-receipt" style="color:#0284c7;"></i> 3. Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF)</div>
+                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
+                    <div style="font-size:0.76rem;color:#475569;margin-bottom:8px;">Selecione o PDF: o sistema lê a nota e preenche as peças e a mão de obra (valores podem estar separados ou juntos, em uma ou várias notas). Depois vincule cada item a um serviço da revisão.</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;align-items:end;">
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Tipo de Documento</label>
+                            <select id="mn-rev-anx-tipo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;">
+                                <option value="nota_servico">Nota Fiscal de Serviço (Mão de Obra)</option>
+                                <option value="nota_pecas">Nota Fiscal de Peças (DANFE)</option>
+                                <option value="ordem_servico">Ordem de Serviço (OS Concessionária)</option>
+                                <option value="outro">Outro Comprovante</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Arquivo PDF</label>
+                            <input type="file" id="mn-rev-anx-file" accept="application/pdf" onchange="window._mnRevAoEscolherPdf(this)" style="width:100%;font-size:0.76rem;">
+                        </div>
+                    </div>
+                    <div id="mn-rev-stage" style="margin-top:0.75rem;"></div>
+                    <div style="font-size:0.78rem;font-weight:700;color:#334155;margin:0.9rem 0 6px;">Notas / OS já anexadas nesta revisão:</div>
+                    <div id="mn-rev-anx-lista" style="display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+            </div>
+
+            <!-- 4. Valores -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                <div style="font-weight:800;color:#1e293b;margin-bottom:0.75rem;font-size:0.9rem;"><i class="ph ph-currency-circle-dollar" style="color:#16a34a;"></i> 4. Valores da Revisão (preenchidos a partir das notas anexadas)</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem;">
                     <div>
                         <label style="font-size:0.75rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Valor de Peças (R$)</label>
                         <input type="number" step="0.01" id="mn-rev-f-vpecas" value="${reg.valor_pecas || 0}" oninput="window._mnRevCalcTotalModal()" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">
@@ -1154,119 +1184,16 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
                         <input type="number" step="0.01" id="mn-rev-f-vtotal" value="${reg.valor_total || 0}" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;font-weight:800;color:#0f172a;background:#fff;box-sizing:border-box;">
                     </div>
                 </div>
-
-                <!-- Upload de Nota / OS -->
-                <div style="background:#fff;border:1px dashed #94a3b8;border-radius:10px;padding:0.85rem;">
-                    <div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:8px;">Anexar Nota Fiscal de Serviço, Nota de Peças ou Ordem de Serviço (PDF):</div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
-                        <div>
-                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Tipo de Documento</label>
-                            <select id="mn-rev-anx-tipo" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;">
-                                <option value="nota_servico">Nota Fiscal de Serviço (Mão de Obra)</option>
-                                <option value="nota_pecas">Nota Fiscal de Peças (DANFE)</option>
-                                <option value="ordem_servico">Ordem de Serviço (OS Concessionária)</option>
-                                <option value="outro">Outro Comprovante</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label>
-                            <input type="text" id="mn-rev-anx-num" placeholder="Preenchido pelo PDF ou manual" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Valor do Documento (R$)</label>
-                            <input type="number" step="0.01" id="mn-rev-anx-val" placeholder="0,00" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Arquivo PDF</label>
-                            <input type="file" id="mn-rev-anx-file" accept="application/pdf" onchange="window._mnRevAoEscolherPdf(this)" style="width:100%;font-size:0.76rem;">
-                        </div>
-                        <div>
-                            <button type="button" id="mn-rev-anx-btn" onclick="window._mnRevAnexarPdf(${marcoKm}, ${marcoMeses})" style="width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:0.5rem 0.8rem;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-                                <i class="ph ph-upload-simple"></i> Anexar PDF
-                            </button>
-                        </div>
-                    </div>
-                    <div id="mn-rev-anx-lista" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:6px;">
-                        ${window._mnRevRenderListaAnexos(reg.anexos || [])}
-                    </div>
-                </div>
+                <div id="mn-rev-custos-serv" style="margin-top:0.9rem;"></div>
             </div>
-
-            <!-- 3. Checklist de Trocas Programadas Obrigatórias -->
-            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-                <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;">
-                        <i class="ph ph-arrows-clockwise" style="color:#dc2626;"></i> 3. Trocas Programadas Obrigatórias (Plano Motor 1.3 Flex)
-                    </div>
-                    <span style="font-size:0.75rem;color:#64748b;">Informe se foi verificado/executado e se houve troca</span>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
-                                <th style="padding:8px 10px;">Item / Prescrição do Manual</th>
-                                <th style="padding:8px 10px;width:140px;">Risco p/ Garantia?</th>
-                                <th style="padding:8px 10px;width:190px;">Foi verificado / realizado?</th>
-                                <th style="padding:8px 10px;width:210px;">Precisou de manutenção/troca?</th>
-                                <th style="padding:8px 10px;width:180px;">Observações</th>
-                            </tr>
-                        </thead>
-                        <tbody>${linhasTrocasHtml}</tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 4. Checklist de Verificações Obrigatórias -->
-            <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-                <div style="background:#f8fafc;padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <div style="font-weight:800;color:#1e293b;font-size:0.9rem;">
-                        <i class="ph ph-check-square-offset" style="color:#0284c7;"></i> 4. Verificações Obrigatórias — O que verificar e se precisou de manutenção ou troca
-                    </div>
-                    <span style="font-size:0.75rem;color:#64748b;">Registre na OS todas as verificações e se houve necessidade de intervenção</span>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
-                                <th style="padding:8px 10px;">Item a Verificar</th>
-                                <th style="padding:8px 10px;width:170px;">Risco p/ Garantia?</th>
-                                <th style="padding:8px 10px;width:160px;">Foi verificado?</th>
-                                <th style="padding:8px 10px;width:230px;">Precisou de manutenção ou troca?</th>
-                                <th style="padding:8px 10px;width:180px;">Detalhes / Peça</th>
-                            </tr>
-                        </thead>
-                        <tbody>${linhasVerifHtml}</tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 5. O que é opcional e condicional -->
-            <details style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-                <summary style="background:#f8fafc;padding:0.75rem 1rem;cursor:pointer;font-weight:800;color:#1e293b;font-size:0.9rem;">
-                    <i class="ph ph-shield-check" style="color:#16a34a;"></i> 5. Serviços Condicionais / Opcionais de Concessionária (Clique para abrir/registrar)
-                </summary>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr style="background:#f1f5f9;text-align:left;color:#475569;">
-                                <th style="padding:8px 10px;">Serviço ou Peça</th>
-                                <th style="padding:8px 10px;">Regra do Manual / Quando realizar</th>
-                                <th style="padding:8px 10px;width:230px;">Decisão na Revisão</th>
-                                <th style="padding:8px 10px;width:200px;">Observações</th>
-                            </tr>
-                        </thead>
-                        <tbody>${linhasOptHtml}</tbody>
-                    </table>
-                </div>
-            </details>
 
             <div>
                 <label style="font-size:0.78rem;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Observações Gerais da Revisão / Recomendações da Concessionária</label>
-                <textarea id="mn-rev-f-obs" rows="2" placeholder="Anote detalhes da Ordem de Serviço, pendências ou observações..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">${String(reg.observacoes || '')}</textarea>
+                <textarea id="mn-rev-f-obs" rows="2" placeholder="Anote detalhes da Ordem de Serviço, pendências ou observações..." style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.85rem;box-sizing:border-box;">${E(reg.observacoes || '')}</textarea>
             </div>
         </div>
 
-        <div style="background:#f8fafc;padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">
+        <div style="background:#f8fafc;padding:1rem 1.5rem;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;">
             <button type="button" onclick="document.getElementById('mn-rev-modal-ov').remove()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 1.2rem;font-weight:700;cursor:pointer;">Cancelar</button>
             <button type="button" id="mn-rev-btn-salvar" onclick="window.mnRevSalvarMarco(${marcoKm}, ${marcoMeses}, false)" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="ph ph-floppy-disk"></i> Salvar Revisão
@@ -1275,6 +1202,59 @@ window.mnRevAbrirModalMarco = function(marcoKm, marcoMeses) {
     </div>`;
 
     document.body.appendChild(ov);
+    window._mnRevAtualizarModalDados(false);
+    window._mnRevAtualizarContadorObrig();
+};
+
+// Revisao do marco aberto (dados mais recentes vindos do servidor)
+window._mnRevRegAtual = function() {
+    const m = window._mnRevMarcoAtual;
+    const ctx = window._mnRevAtual;
+    if (!m || !ctx) return null;
+    return (ctx.revisoes || []).find(function(r) { return Number(r.marco_km) === Number(m.km); }) || null;
+};
+
+// Atualiza lista de anexos e custo por servico (e, se pedido, os campos de valores) a partir dos dados do servidor
+window._mnRevAtualizarModalDados = function(atualizaValores) {
+    const reg = window._mnRevRegAtual();
+    const listaEl = document.getElementById('mn-rev-anx-lista');
+    if (listaEl) listaEl.innerHTML = window._mnRevRenderListaAnexos(reg ? (reg.anexos || []) : [], reg ? (reg.lancamentos || []) : []);
+    if (atualizaValores && reg) {
+        const set = function(id, val) { const el = document.getElementById(id); if (el) el.value = Number(val || 0).toFixed(2); };
+        set('mn-rev-f-vpecas', reg.valor_pecas); set('mn-rev-f-vmo', reg.valor_mao_obra); set('mn-rev-f-vtotal', reg.valor_total);
+    }
+    const custEl = document.getElementById('mn-rev-custos-serv');
+    if (custEl) custEl.innerHTML = window._mnRevCustosPorServicoHtml(reg ? (reg.lancamentos || []) : []);
+};
+
+window._mnRevCustosPorServicoHtml = function(lancs) {
+    if (!lancs || !lancs.length) return '<div style="font-size:0.78rem;color:#94a3b8;">Os custos por serviço aparecem aqui depois de anexar e vincular as notas.</div>';
+    const nomes = {};
+    (window._mnRevServicosModal || []).forEach(function(s) { nomes[s.id] = s; });
+    const acc = {};
+    let semVinculo = 0;
+    lancs.forEach(function(l) {
+        const sv = Array.isArray(l.servicos) ? l.servicos : [];
+        const val = Number(l.valor_total || 0);
+        if (!sv.length) { semVinculo += val; return; }
+        const parte = val / sv.length;
+        sv.forEach(function(id) {
+            if (!acc[id]) acc[id] = { pecas: 0, mo: 0 };
+            if (l.tipo === 'mao_obra') acc[id].mo += parte; else acc[id].pecas += parte;
+        });
+    });
+    const fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    const E = window._mnRevEsc;
+    const linhas = Object.keys(acc).map(function(id) {
+        const s = nomes[id];
+        const a = acc[id];
+        return `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:5px 8px;font-weight:600;color:#1e293b;">${E(s ? s.nome : id)} <span style="font-size:0.66rem;font-weight:800;color:${s && s.grupo === 'obrigatorio' ? '#dc2626' : '#64748b'};">${s ? (s.grupo === 'obrigatorio' ? 'OBRIGATÓRIO' : 'OPCIONAL') : ''}</span></td><td style="padding:5px 8px;text-align:right;">${fmt(a.pecas)}</td><td style="padding:5px 8px;text-align:right;">${fmt(a.mo)}</td><td style="padding:5px 8px;text-align:right;font-weight:800;">${fmt(a.pecas + a.mo)}</td></tr>`;
+    }).join('');
+    return `<div style="font-size:0.78rem;font-weight:700;color:#334155;margin-bottom:4px;">Custo por serviço (rateado entre os serviços vinculados)</div>
+    <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;"><table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+    <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 8px;">Serviço</th><th style="padding:5px 8px;text-align:right;">Peças</th><th style="padding:5px 8px;text-align:right;">Mão de obra</th><th style="padding:5px 8px;text-align:right;">Total</th></tr></thead>
+    <tbody>${linhas}</tbody></table></div>
+    ${semVinculo > 0 ? `<div style="font-size:0.74rem;color:#b45309;margin-top:4px;">Valor sem vínculo a serviço: ${fmt(semVinculo)}</div>` : ''}`;
 };
 
 window._mnRevCalcTotalModal = function() {
@@ -1284,62 +1264,239 @@ window._mnRevCalcTotalModal = function() {
     if (vtEl) vtEl.value = (Math.round((vp + vm) * 100) / 100).toFixed(2);
 };
 
-window._mnRevRenderListaAnexos = function(anexos) {
+window._mnRevRenderListaAnexos = function(anexos, lancs) {
     if (!anexos || !anexos.length) {
-        return `<div style="font-size:0.78rem;color:#94a3b8;padding:4px 0;">Nenhuma nota ou OS anexada ainda nesta revisão.</div>`;
+        return '<div style="font-size:0.78rem;color:#94a3b8;padding:4px 0;">Nenhuma nota ou OS anexada ainda nesta revisão.</div>';
     }
+    const E = window._mnRevEsc;
+    const nomes = {};
+    (window._mnRevServicosModal || []).forEach(function(s) { nomes[s.id] = s.nome; });
     const tipoLbl = { nota_servico: 'NF Serviço (Mão de Obra)', nota_pecas: 'NF Peças (DANFE)', ordem_servico: 'Ordem de Serviço (OS)', outro: 'Comprovante' };
-    return anexos.map(a => `
-        <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;gap:8px;flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>
-                <span style="font-weight:700;color:#1e293b;">${tipoLbl[a.tipo_documento] || a.tipo_documento}</span>
-                ${a.numero_nota ? `<span style="color:#475569;">Nº <b>${a.numero_nota}</b></span>` : ''}
-                ${Number(a.valor || 0) > 0 ? `<span style="color:#15803d;font-weight:700;">${Number(a.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>` : ''}
-                <span style="color:#94a3b8;">(${a.nome_arquivo || 'PDF'})</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <button type="button" onclick="window._mnRevAbrirPdfAnexo(${a.id})" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;font-weight:700;cursor:pointer;">Abrir PDF</button>
-                <button type="button" onclick="window._mnRevExcluirAnexo(${a.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>
-            </div>
-        </div>`).join('');
+    const fmt = function(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    return anexos.map(function(a) {
+        const ls = (lancs || []).filter(function(l) { return Number(l.anexo_id) === Number(a.id); });
+        const linhasHtml = ls.length ? `<div style="margin-top:6px;border-top:1px dashed #cbd5e1;padding-top:6px;display:flex;flex-direction:column;gap:3px;">${ls.map(function(l) {
+            const sv = (l.servicos || []).map(function(id) { return E(nomes[id] || id); }).join(', ') || '<span style="color:#b45309;">sem vínculo</span>';
+            return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.74rem;color:#475569;"><span><b>${l.tipo === 'mao_obra' ? 'Mão de obra' : 'Peça'}:</b> ${E(l.descricao)} <span style="color:#94a3b8;">→ ${sv}</span></span><span style="font-weight:700;">${fmt(l.valor_total)}</span></div>`;
+        }).join('')}</div>` : '';
+        return `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.78rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <i class="ph ph-file-pdf" style="color:#dc2626;font-size:1.1rem;"></i>
+                    <span style="font-weight:700;color:#1e293b;">${tipoLbl[a.tipo_documento] || E(a.tipo_documento)}</span>
+                    ${a.numero_nota ? `<span style="color:#475569;">Nº <b>${E(a.numero_nota)}</b></span>` : ''}
+                    ${Number(a.valor || 0) > 0 ? `<span style="color:#15803d;font-weight:700;">${fmt(a.valor)}</span>` : ''}
+                    <span style="color:#94a3b8;">(${E(a.nome_arquivo || 'PDF')})</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <button type="button" onclick="window._mnRevAbrirPdfAnexo(${a.id})" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:3px 9px;font-size:0.74rem;font-weight:700;cursor:pointer;">Abrir PDF</button>
+                    <button type="button" onclick="window._mnRevExcluirAnexo(${a.id})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;padding:3px 8px;font-size:0.74rem;font-weight:700;cursor:pointer;">Excluir</button>
+                </div>
+            </div>${linhasHtml}
+        </div>`;
+    }).join('');
 };
 
+// ── Leitura do PDF e vinculo das linhas aos servicos ─────────────────────────
 window._mnRevAoEscolherPdf = async function(inp) {
     const file = inp && inp.files && inp.files[0];
-    if (!file) return;
+    const stageEl = document.getElementById('mn-rev-stage');
+    if (!file) { window._mnRevNotaStage = null; if (stageEl) stageEl.innerHTML = ''; return; }
+    if (stageEl) stageEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#64748b;font-size:0.82rem;"><i class="ph ph-circle-notch ph-spin" style="color:#0284c7;"></i> Lendo a nota fiscal... (pode levar alguns segundos)</div>';
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    let j = {};
     try {
         const fd = new FormData();
         fd.append('arquivo', file);
-        const r = await fetch('/api/frota/revisoes/analisar-nota', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + tok },
-            body: fd
-        });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok) return;
-        const tipo = document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico';
-        const d = tipo === 'nota_pecas' ? (j.nf_pecas || j.nf_servico) : (j.nf_servico || j.nf_pecas);
-        if (d) {
-            const numEl = document.getElementById('mn-rev-anx-num');
-            const valEl = document.getElementById('mn-rev-anx-val');
-            const concEl = document.getElementById('mn-rev-f-conc');
-            if (numEl && d.numero && !numEl.value) numEl.value = d.numero;
-            if (valEl && d.valor_total && !valEl.value) valEl.value = Number(d.valor_total).toFixed(2);
-            if (concEl && d.fornecedor && (!concEl.value || concEl.value === 'Concessionária Autorizada Fiat')) concEl.value = d.fornecedor;
-        }
-    } catch (e) {}
+        const r = await fetch('/api/frota/revisoes/analisar-nota', { method: 'POST', headers: { Authorization: 'Bearer ' + tok }, body: fd });
+        j = await r.json().catch(function() { return {}; });
+        if (!r.ok) j = {};
+    } catch (e) { j = {}; }
+
+    const nfP = j.nf_pecas || {}, nfS = j.nf_servico || {};
+    const lancs = [];
+    const chave = function(s) { return String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '').substring(0, 14); };
+    (nfP.itens || []).forEach(function(it) {
+        if (Number(it.valor_total) > 0) lancs.push({ tipo: 'peca', codigo: it.codigo || '', descricao: it.descricao || '', quantidade: Number(it.quantidade) || 1, valor_total: Number(it.valor_total), servicos: [], incluir: true });
+    });
+    (nfS.itens || []).forEach(function(it) {
+        const val = Number(it.valor) || 0;
+        if (!(val > 0)) return;
+        const dup = lancs.some(function(l) { return Math.abs(l.valor_total - val) < 0.005 && chave(l.descricao) === chave(it.descricao); });
+        if (!dup) lancs.push({ tipo: 'mao_obra', codigo: '', descricao: it.descricao || '', quantidade: 1, valor_total: val, servicos: [], incluir: true });
+    });
+    const tipoSel = document.getElementById('mn-rev-anx-tipo');
+    if (tipoSel) {
+        const temP = lancs.some(function(l) { return l.tipo === 'peca'; }), temM = lancs.some(function(l) { return l.tipo === 'mao_obra'; });
+        if (temP && !temM) tipoSel.value = 'nota_pecas'; else if (temM) tipoSel.value = 'nota_servico';
+    }
+    window._mnRevNotaStage = {
+        file: file,
+        numero: nfS.numero || nfP.numero || '',
+        fornecedor: nfS.fornecedor || nfP.fornecedor || '',
+        lancs: lancs,
+        avisos: [].concat(nfP.avisos || [], nfS.avisos || []).filter(function(a, i, arr) { return a && arr.indexOf(a) === i; })
+    };
+    window._mnRevRateioSel = [];
+    const concEl = document.getElementById('mn-rev-f-conc');
+    if (concEl && window._mnRevNotaStage.fornecedor && (!concEl.value || concEl.value === 'Concessionária Autorizada Fiat')) concEl.value = window._mnRevNotaStage.fornecedor;
+    window._mnRevRenderStage();
+};
+
+window._mnRevServicosOpcoesHtml = function(selecionados, prefixo, handler) {
+    const E = window._mnRevEsc;
+    const servs = window._mnRevServicosModal || [];
+    const bloco = function(titulo, lista) {
+        return `<div style="font-size:0.66rem;font-weight:800;color:#64748b;margin:4px 0 2px;">${titulo}</div>` + lista.map(function(s) {
+            const ck = selecionados.indexOf(s.id) >= 0;
+            return `<label style="display:flex;align-items:center;gap:6px;font-size:0.76rem;color:#1e293b;padding:2px 0;cursor:pointer;"><input type="checkbox" ${ck ? 'checked' : ''} onchange="${handler.replace('__ID__', s.id)}" style="accent-color:#7c3aed;"> ${E(s.nome)}</label>`;
+        }).join('');
+    };
+    return bloco('OBRIGATÓRIOS', servs.filter(function(s) { return s.grupo === 'obrigatorio'; })) + bloco('OPCIONAIS', servs.filter(function(s) { return s.grupo === 'opcional'; }));
+};
+
+window._mnRevRenderStage = function() {
+    const el = document.getElementById('mn-rev-stage');
+    const st = window._mnRevNotaStage;
+    if (!el) return;
+    if (!st) { el.innerHTML = ''; return; }
+    const E = window._mnRevEsc;
+    const sel = window._mnRevRateioSel || [];
+    const linhas = st.lancs.map(function(l, i) {
+        const resumo = l.servicos.length ? (l.servicos.length + ' serviço(s)') : 'Vincular serviço...';
+        return `<tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:5px 6px;text-align:center;"><input type="checkbox" ${l.incluir ? 'checked' : ''} onchange="window._mnRevStageSet(${i},'incluir',this.checked)" style="accent-color:#0284c7;"></td>
+            <td style="padding:5px 6px;"><select onchange="window._mnRevStageSet(${i},'tipo',this.value)" style="padding:3px 4px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;"><option value="peca"${l.tipo === 'peca' ? ' selected' : ''}>Peça</option><option value="mao_obra"${l.tipo === 'mao_obra' ? ' selected' : ''}>Mão de obra</option></select></td>
+            <td style="padding:5px 6px;"><input type="text" value="${E(l.descricao)}" onchange="window._mnRevStageSet(${i},'descricao',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;box-sizing:border-box;"></td>
+            <td style="padding:5px 6px;width:110px;"><input type="number" step="0.01" value="${Number(l.valor_total || 0).toFixed(2)}" onchange="window._mnRevStageSet(${i},'valor_total',this.value)" style="width:100%;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.76rem;text-align:right;box-sizing:border-box;"></td>
+            <td style="padding:5px 6px;width:190px;">
+                <details style="position:relative;">
+                    <summary id="mn-stg-sum-${i}" style="cursor:pointer;font-size:0.76rem;font-weight:700;color:${l.servicos.length ? '#15803d' : '#b45309'};border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;background:#fff;list-style:none;">${resumo}</summary>
+                    <div style="position:absolute;right:0;z-index:5;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,0.15);padding:6px 10px;max-height:240px;overflow-y:auto;min-width:260px;">
+                        ${window._mnRevServicosOpcoesHtml(l.servicos, 'l' + i, "window._mnRevStageToggleServ(" + i + ",'__ID__',this.checked)")}
+                    </div>
+                </details>
+            </td>
+            <td style="padding:5px 6px;width:30px;text-align:center;"><button type="button" onclick="window._mnRevStageRemove(${i})" title="Remover linha" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;">&times;</button></td>
+        </tr>`;
+    }).join('');
+    el.innerHTML = `
+    <div style="border:1.5px solid #bae6fd;background:#f0f9ff;border-radius:10px;padding:0.8rem;">
+        <div style="font-weight:800;color:#075985;font-size:0.85rem;margin-bottom:6px;"><i class="ph ph-file-pdf"></i> ${E(st.file.name)} — confira o que foi lido e vincule aos serviços</div>
+        ${(st.avisos || []).map(function(a) { return `<div style="font-size:0.74rem;color:#b45309;margin-bottom:3px;">\u26A0\uFE0F ${E(a)}</div>`; }).join('')}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:6px 0 10px;">
+            <div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Nº da Nota / OS</label><input type="text" value="${E(st.numero)}" onchange="window._mnRevNotaStage.numero=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;"></div>
+            <div><label style="font-size:0.7rem;font-weight:600;color:#64748b;display:block;margin-bottom:2px;">Fornecedor</label><input type="text" value="${E(st.fornecedor)}" onchange="window._mnRevNotaStage.fornecedor=this.value" style="width:100%;padding:0.4rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.8rem;box-sizing:border-box;"></div>
+        </div>
+        <div style="overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                <thead><tr style="background:#f1f5f9;color:#475569;text-align:left;"><th style="padding:5px 6px;width:34px;text-align:center;">Usar</th><th style="padding:5px 6px;width:110px;">Tipo</th><th style="padding:5px 6px;">Descrição (peça / serviço)</th><th style="padding:5px 6px;">Valor (R$)</th><th style="padding:5px 6px;">Serviço vinculado *</th><th></th></tr></thead>
+                <tbody>${linhas || '<tr><td colspan="6" style="padding:10px;text-align:center;color:#94a3b8;">Nenhuma linha foi lida automaticamente. Adicione as linhas manualmente.</td></tr>'}</tbody>
+            </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">
+            <button type="button" onclick="window._mnRevStageAdd()" style="background:#fff;color:#0284c7;border:1px solid #7dd3fc;border-radius:6px;padding:3px 10px;font-size:0.76rem;font-weight:700;cursor:pointer;">+ Adicionar linha manual</button>
+            <div id="mn-rev-stage-tot" style="font-size:0.8rem;font-weight:800;color:#0f172a;"></div>
+        </div>
+        <div style="margin-top:10px;border-top:1px dashed #7dd3fc;padding-top:8px;">
+            <div style="font-size:0.78rem;font-weight:800;color:#075985;margin-bottom:4px;">Ratear entre serviços selecionados</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+                <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;max-height:150px;overflow-y:auto;min-width:240px;">
+                    ${window._mnRevServicosOpcoesHtml(sel, 'r', "window._mnRevRateioToggleServ('__ID__',this.checked)")}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <select id="mn-rev-rateio-escopo" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.78rem;font-weight:600;">
+                        <option value="produto">Ratear por produto (todas as peças)</option>
+                        <option value="mao_obra">Ratear por mão de obra (todas as linhas de serviço)</option>
+                        <option value="total">Ratear pelo valor total da nota (peças + mão de obra)</option>
+                    </select>
+                    <button type="button" onclick="window._mnRevAplicarRateio()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:0.78rem;font-weight:700;cursor:pointer;">Aplicar rateio nos serviços selecionados</button>
+                    <div style="font-size:0.7rem;color:#64748b;max-width:300px;">O valor de cada linha é dividido igualmente entre os serviços marcados. Você também pode vincular linha a linha na coluna "Serviço vinculado".</div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:10px;text-align:right;">
+            <button type="button" id="mn-rev-anx-btn" onclick="window._mnRevAnexarPdf()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:0.55rem 1.1rem;font-size:0.82rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-upload-simple"></i> Anexar PDF e lançar valores</button>
+        </div>
+    </div>`;
+    window._mnRevStageTotais();
+};
+
+window._mnRevStageTotais = function() {
+    const st = window._mnRevNotaStage;
+    const el = document.getElementById('mn-rev-stage-tot');
+    if (!st || !el) return;
+    let p = 0, m = 0;
+    st.lancs.forEach(function(l) { if (!l.incluir) return; if (l.tipo === 'mao_obra') m += Number(l.valor_total) || 0; else p += Number(l.valor_total) || 0; });
+    const f = function(n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+    el.textContent = 'Peças: ' + f(p) + '  •  Mão de obra: ' + f(m) + '  •  Total da nota: ' + f(p + m);
+};
+
+window._mnRevStageSet = function(i, campo, valor) {
+    const st = window._mnRevNotaStage;
+    if (!st || !st.lancs[i]) return;
+    if (campo === 'valor_total') st.lancs[i][campo] = parseFloat(valor) || 0;
+    else st.lancs[i][campo] = valor;
+    window._mnRevStageTotais();
+};
+
+window._mnRevStageToggleServ = function(i, id, marcado) {
+    const st = window._mnRevNotaStage;
+    if (!st || !st.lancs[i]) return;
+    const arr = st.lancs[i].servicos;
+    const pos = arr.indexOf(id);
+    if (marcado && pos < 0) arr.push(id);
+    if (!marcado && pos >= 0) arr.splice(pos, 1);
+    const sum = document.getElementById('mn-stg-sum-' + i);
+    if (sum) { sum.textContent = arr.length ? (arr.length + ' serviço(s)') : 'Vincular serviço...'; sum.style.color = arr.length ? '#15803d' : '#b45309'; }
+};
+
+window._mnRevStageAdd = function() {
+    const st = window._mnRevNotaStage;
+    if (!st) return;
+    const tipoDoc = document.getElementById('mn-rev-anx-tipo')?.value;
+    st.lancs.push({ tipo: tipoDoc === 'nota_pecas' ? 'peca' : 'mao_obra', codigo: '', descricao: '', quantidade: 1, valor_total: 0, servicos: [], incluir: true });
+    window._mnRevRenderStage();
+};
+
+window._mnRevStageRemove = function(i) {
+    const st = window._mnRevNotaStage;
+    if (!st) return;
+    st.lancs.splice(i, 1);
+    window._mnRevRenderStage();
+};
+
+window._mnRevRateioToggleServ = function(id, marcado) {
+    const arr = window._mnRevRateioSel = window._mnRevRateioSel || [];
+    const pos = arr.indexOf(id);
+    if (marcado && pos < 0) arr.push(id);
+    if (!marcado && pos >= 0) arr.splice(pos, 1);
+};
+
+window._mnRevAplicarRateio = function() {
+    const st = window._mnRevNotaStage;
+    const sel = window._mnRevRateioSel || [];
+    if (!st) return;
+    if (!sel.length) return alert('Marque ao menos um serviço para ratear.');
+    const escopo = document.getElementById('mn-rev-rateio-escopo')?.value || 'total';
+    st.lancs.forEach(function(l) {
+        if (!l.incluir) return;
+        const alvo = escopo === 'total' || (escopo === 'produto' && l.tipo === 'peca') || (escopo === 'mao_obra' && l.tipo === 'mao_obra');
+        if (alvo) { l.servicos = sel.slice(); l.modo_rateio = escopo; }
+    });
+    window._mnRevRenderStage();
+    if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Rateio aplicado às linhas.');
 };
 
 window._mnRevColetarItensModal = function() {
     const itens = {};
-    document.querySelectorAll('#mn-rev-modal-ov [data-rev-item]').forEach(el => {
+    document.querySelectorAll('#mn-rev-modal-ov [data-rev-item]').forEach(function(el) {
         const id = el.getAttribute('data-rev-item');
         const field = el.getAttribute('data-rev-field');
         if (!id || !field) return;
         if (!itens[id]) itens[id] = {};
-        itens[id][field] = el.value;
+        itens[id][field] = el.type === 'checkbox' ? el.checked : el.value;
     });
     return itens;
 };
@@ -1349,13 +1506,28 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     if (!ctx || !ctx.veiculo) return null;
     const vid = ctx.veiculo.id;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const status = document.getElementById('mn-rev-f-status')?.value || 'pendente';
+    const itens = window._mnRevColetarItensModal();
+
+    // Para concluir a revisao, todos os servicos obrigatorios precisam estar marcados como realizados
+    if (!silencioso && status === 'realizada') {
+        const faltando = (window._mnRevServicosModal || []).filter(function(s) { return s.grupo === 'obrigatorio' && !(itens[s.id] && itens[s.id].realizado); });
+        if (faltando.length) {
+            faltando.forEach(function(s) { const row = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + s.id + '"]'); if (row) row.style.background = '#fee2e2'; });
+            const row0 = document.querySelector('#mn-rev-modal-ov tr[data-rev-row="' + faltando[0].id + '"]');
+            if (row0) row0.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert('Para salvar a revisão como Realizada, marque como realizados todos os serviços obrigatórios.\n\nFaltam (' + faltando.length + '):\n- ' + faltando.map(function(s) { return s.nome; }).join('\n- '));
+            return null;
+        }
+    }
+
     const btn = document.getElementById('mn-rev-btn-salvar');
     if (btn && !silencioso) { btn.disabled = true; btn.textContent = 'Salvando...'; }
 
     const body = {
         marco_km: marcoKm,
         marco_meses: marcoMeses,
-        status: document.getElementById('mn-rev-f-status')?.value || 'pendente',
+        status: status,
         data_revisao: document.getElementById('mn-rev-f-data')?.value || null,
         km_revisao: document.getElementById('mn-rev-f-km')?.value || null,
         concessionaria: document.getElementById('mn-rev-f-conc')?.value || null,
@@ -1363,7 +1535,7 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
         valor_pecas: parseFloat(document.getElementById('mn-rev-f-vpecas')?.value || '0') || 0,
         valor_mao_obra: parseFloat(document.getElementById('mn-rev-f-vmo')?.value || '0') || 0,
         valor_total: parseFloat(document.getElementById('mn-rev-f-vtotal')?.value || '0') || 0,
-        itens: window._mnRevColetarItensModal(),
+        itens: itens,
         observacoes: document.getElementById('mn-rev-f-obs')?.value || null
     };
 
@@ -1373,7 +1545,7 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
             body: JSON.stringify(body)
         });
-        const j = await res.json().catch(() => ({}));
+        const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao salvar revisão');
         if (!silencioso) {
             if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Revisão salva com sucesso!');
@@ -1388,102 +1560,73 @@ window.mnRevSalvarMarco = async function(marcoKm, marcoMeses, silencioso) {
     }
 };
 
-window._mnRevAnexarPdf = async function(marcoKm, marcoMeses) {
-    const fileInp = document.getElementById('mn-rev-anx-file');
-    const file = fileInp && fileInp.files && fileInp.files[0];
-    if (!file) return alert('Selecione um arquivo PDF para anexar.');
+window._mnRevRecarregarDados = async function() {
+    const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
+    const vid = window._mnRevAtual.veiculo.id;
+    const r = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
+    window._mnRevAtual = await r.json();
+};
+
+window._mnRevAnexarPdf = async function() {
+    const st = window._mnRevNotaStage;
+    const m = window._mnRevMarcoAtual;
+    if (!st || !m) return alert('Selecione um arquivo PDF para anexar.');
+    const usadas = st.lancs.filter(function(l) { return l.incluir && (Number(l.valor_total) > 0); });
+    const semDesc = usadas.filter(function(l) { return !String(l.descricao || '').trim(); });
+    if (semDesc.length) return alert('Preencha a descrição de todas as linhas utilizadas.');
+    const semVinculo = usadas.filter(function(l) { return !l.servicos.length; });
+    if (semVinculo.length) return alert('Vincule cada peça / serviço da nota a pelo menos um serviço da revisão (obrigatório ou opcional).\n\nSem vínculo (' + semVinculo.length + '):\n- ' + semVinculo.map(function(l) { return l.descricao; }).join('\n- '));
 
     const btn = document.getElementById('mn-rev-anx-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
-
     try {
-        // Garante que a revisão já existe no banco antes de anexar
-        const savedRev = await window.mnRevSalvarMarco(marcoKm, marcoMeses, true);
+        const savedRev = await window.mnRevSalvarMarco(m.km, m.meses, true);
         if (!savedRev || !savedRev.id) throw new Error('Não foi possível criar o registro da revisão.');
-
-        const tipo = document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico';
-        const num = document.getElementById('mn-rev-anx-num')?.value || '';
-        const val = parseFloat(document.getElementById('mn-rev-anx-val')?.value || '0') || 0;
-        const conc = document.getElementById('mn-rev-f-conc')?.value || '';
-
+        const total = usadas.reduce(function(t, l) { return t + (Number(l.valor_total) || 0); }, 0);
         const fd = new FormData();
-        fd.append('arquivo', file);
-        fd.append('tipo_documento', tipo);
-        fd.append('numero_nota', num);
-        fd.append('valor', String(val));
-        fd.append('fornecedor', conc);
-
+        fd.append('arquivo', st.file);
+        fd.append('tipo_documento', document.getElementById('mn-rev-anx-tipo')?.value || 'nota_servico');
+        fd.append('numero_nota', st.numero || '');
+        fd.append('valor', String(Math.round(total * 100) / 100));
+        fd.append('fornecedor', st.fornecedor || '');
+        fd.append('dados', JSON.stringify({ lancamentos: usadas.map(function(l) { return { tipo: l.tipo, codigo: l.codigo, descricao: l.descricao, quantidade: l.quantidade, valor_total: l.valor_total, servicos: l.servicos, modo_rateio: l.modo_rateio || null }; }) }));
         const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
-        const res = await fetch('/api/frota/revisoes/' + savedRev.id + '/anexos', {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + tok },
-            body: fd
-        });
-        const j = await res.json().catch(() => ({}));
+        const res = await fetch('/api/frota/revisoes/' + savedRev.id + '/anexos', { method: 'POST', headers: { Authorization: 'Bearer ' + tok }, body: fd });
+        const j = await res.json().catch(function() { return {}; });
         if (!res.ok) throw new Error(j.error || 'Erro ao enviar PDF');
 
-        // Se informou valor no anexo, soma no campo correspondente (peças ou mão de obra) se ainda estiver zerado
-        if (val > 0) {
-            if (tipo === 'nota_pecas') {
-                const elP = document.getElementById('mn-rev-f-vpecas');
-                if (elP) elP.value = (Math.round(((parseFloat(elP.value || '0') || 0) + val) * 100) / 100).toFixed(2);
-            } else if (tipo === 'nota_servico') {
-                const elM = document.getElementById('mn-rev-f-vmo');
-                if (elM) elM.value = (Math.round(((parseFloat(elM.value || '0') || 0) + val) * 100) / 100).toFixed(2);
-            }
-            window._mnRevCalcTotalModal();
-            await window.mnRevSalvarMarco(marcoKm, marcoMeses, true);
-        }
-
-        // Recarrega dados do veículo em memória e atualiza lista de anexos no modal
-        const vid = window._mnRevAtual.veiculo.id;
-        const r2 = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
-        window._mnRevAtual = await r2.json();
-        const revAtualizada = (window._mnRevAtual.revisoes || []).find(r => Number(r.marco_km) === Number(marcoKm));
-        const listaEl = document.getElementById('mn-rev-anx-lista');
-        if (listaEl && revAtualizada) listaEl.innerHTML = window._mnRevRenderListaAnexos(revAtualizada.anexos || []);
+        await window._mnRevRecarregarDados();
+        window._mnRevNotaStage = null;
+        const fileInp = document.getElementById('mn-rev-anx-file');
         if (fileInp) fileInp.value = '';
-        if (document.getElementById('mn-rev-anx-num')) document.getElementById('mn-rev-anx-num').value = '';
-        if (document.getElementById('mn-rev-anx-val')) document.getElementById('mn-rev-anx-val').value = '';
+        window._mnRevRenderStage();
+        window._mnRevAtualizarModalDados(true);
         window._mnRenderPainelRevisaoVeiculo();
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Nota / OS anexada no R2 com sucesso!');
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Nota / OS anexada e valores lançados!');
     } catch (e) {
         alert('Erro ao anexar PDF: ' + e.message);
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-upload-simple"></i> Anexar PDF'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-upload-simple"></i> Anexar PDF e lançar valores'; }
     }
 };
 
 window._mnRevAbrirPdfAnexo = async function(anexoId) {
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
-        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId + '/pdf', {
-            headers: { Authorization: 'Bearer ' + tok }
-        });
+        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId + '/pdf', { headers: { Authorization: 'Bearer ' + tok } });
         if (!res.ok) throw new Error('Não foi possível abrir o PDF.');
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        window.open(URL.createObjectURL(blob), '_blank');
     } catch (e) { alert(e.message); }
 };
 
 window._mnRevExcluirAnexo = async function(anexoId) {
-    if (!confirm('Deseja realmente excluir este PDF anexado?')) return;
+    if (!confirm('Deseja realmente excluir este PDF anexado e os valores lançados por ele?')) return;
     const tok = window._manutTok || window.currentToken || localStorage.getItem('token');
     try {
-        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId, {
-            method: 'DELETE',
-            headers: { Authorization: 'Bearer ' + tok }
-        });
+        const res = await fetch('/api/frota/revisoes/anexos/' + anexoId, { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } });
         if (!res.ok) throw new Error('Erro ao excluir anexo');
-        const vid = window._mnRevAtual.veiculo.id;
-        const r2 = await fetch('/api/frota/revisoes/' + vid + '?_=' + Date.now(), { headers: { Authorization: 'Bearer ' + tok }, cache: 'no-store' });
-        window._mnRevAtual = await r2.json();
-        const listaEl = document.getElementById('mn-rev-anx-lista');
-        if (listaEl) {
-            const todosAnexos = (window._mnRevAtual.revisoes || []).flatMap(r => r.anexos || []);
-            listaEl.innerHTML = window._mnRevRenderListaAnexos(todosAnexos);
-        }
+        await window._mnRevRecarregarDados();
+        window._mnRevAtualizarModalDados(true);
         window._mnRenderPainelRevisaoVeiculo();
         if (typeof mostrarToastAviso === 'function') mostrarToastAviso('\u2705 Anexo removido!');
     } catch (e) { alert(e.message); }
