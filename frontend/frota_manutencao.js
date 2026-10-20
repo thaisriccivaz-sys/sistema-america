@@ -855,7 +855,7 @@ window.mnCorrOrdenar = function(col) {
 };
 
 window.mnCorrFiltrarCard = function(chave) {
-    if (window._mnCorrCardFiltro === chave) {
+    if (chave === 'todos' || window._mnCorrCardFiltro === chave) {
         window._mnCorrCardFiltro = '';
     } else {
         window._mnCorrCardFiltro = chave;
@@ -901,15 +901,15 @@ window._mnRenderCorretivaDados = function(listaBase) {
         const agendadas   = todas.filter(m => m.status === 'agendada').length;
         const aguardando  = todas.filter(m => m.status === 'aguardando').length;
         const concluidasMes = todas.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual)).length;
-        const maxDias     = todas.filter(m => m.status !== 'concluida' && m.status !== 'cancelada').reduce((mx, m) => Math.max(mx, getTempos(m).parado.dias || 0), 0);
+        const totalTodos  = todas.length;
         cardsEl.innerHTML = [
             { key: 'em_andamento',  cor: '#dc2626', bg: '#fef2f2', icone: 'ph-wrench',        label: 'Em Manutenção',      val: emAndamento },
             { key: 'agendada',      cor: '#d97706', bg: '#fffbeb', icone: 'ph-calendar-plus', label: 'Novos',              val: agendadas },
             { key: 'aguardando',    cor: '#2563eb', bg: '#eff6ff', icone: 'ph-hourglass',     label: 'Aguardando',         val: aguardando },
             { key: 'concluidas_mes',cor: '#10b981', bg: '#ecfdf5', icone: 'ph-check-circle',  label: 'Concluídas este mês',val: concluidasMes },
-            { key: 'sem_rodar',     cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-clock',         label: 'Máx. dias sem rodar',val: maxDias + ' dia' + (maxDias !== 1 ? 's' : '') },
+            { key: 'todos',         cor: '#7c3aed', bg: '#f5f3ff', icone: 'ph-list-bullets',  label: 'Todos',              val: totalTodos },
         ].map(c => {
-            const ativo = fCard === c.key;
+            const ativo = c.key !== 'todos' && fCard === c.key;
             return `
             <div onclick="window.mnCorrFiltrarCard('${c.key}')" title="Clique para filtrar por ${c.label}" style="background:${c.bg};border:${ativo ? '2px solid ' + c.cor : '1px solid ' + c.cor + '30'};box-shadow:${ativo ? '0 4px 12px ' + c.cor + '33' : 'none'};border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .15s;user-select:none;position:relative;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
                 <div style="background:${c.cor}18;border-radius:10px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -928,12 +928,7 @@ window._mnRenderCorretivaDados = function(listaBase) {
     let lista = todas.slice();
     if (fCard === 'concluidas_mes') {
         lista = lista.filter(m => m.status === 'concluida' && (m.data_conclusao || '').startsWith(mesAtual));
-    } else if (fCard === 'sem_rodar') {
-        lista = lista.filter(m => {
-            const tp = getTempos(m);
-            return m.status !== 'concluida' && m.status !== 'cancelada' && (tp.parado.ativo || tp.parado.dias > 0);
-        });
-    } else if (fCard) {
+    } else if (fCard && fCard !== 'todos') {
         lista = lista.filter(m => m.status === fCard);
     }
 
