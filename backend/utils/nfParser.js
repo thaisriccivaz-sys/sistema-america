@@ -413,10 +413,20 @@ async function analisarServicoGemini(buffer) {
     for (const nome of MODELOS_GEMINI) {
         try {
             const model = genAI.getGenerativeModel({ model: nome, generationConfig: { responseMimeType: 'application/json' } });
-            const result = await model.generateContent([
-                { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
-                { text: prompt }
-            ]);
+            let result = null, errTent = null;
+            for (let tent = 0; tent < 3 && !result; tent++) {
+                try {
+                    result = await model.generateContent([
+                        { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
+                        { text: prompt }
+                    ]);
+                } catch (e2) {
+                    errTent = e2;
+                    if (/API_KEY_INVALID|404|not found/i.test(String(e2.message || ''))) break;
+                    await new Promise(r => setTimeout(r, 1500 * (tent + 1)));
+                }
+            }
+            if (!result) throw errTent || new Error('Sem resposta do Gemini');
             const txt = result.response.text().trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
             const j = JSON.parse(txt);
             const itens = (Array.isArray(j.itens) ? j.itens : []).map(i => ({
@@ -458,7 +468,7 @@ async function analisarNotaServico(buffer) {
             : (base.fonte === 'ia' ? ['Linhas lidas por IA. Confira descrição e valores antes de salvar.'] : []);
     } else {
         base.avisos = ['Não foi possível ler as linhas desta nota automaticamente. Digite os serviços e valores manualmente.'
-            + (erroIa ? ' (IA: ' + String(erroIa.message).substring(0, 80) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
+            + (erroIa ? ' (IA: ' + String(erroIa.message).substring(0, 300) + ')' : (process.env.GEMINI_API_KEY ? '' : ' (IA não configurada)'))];
     }
     return base;
 }
