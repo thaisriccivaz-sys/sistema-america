@@ -24478,13 +24478,22 @@ app.post('/api/frota/manutencoes/:id/notas', authenticateToken, multerNfFrota.si
             await r2.uploadToR2(key, req.file.buffer, 'application/pdf');
             keyEnviada = key;
             const usuario = req.user ? (req.user.username || req.user.nome || 'Sistema') : 'Sistema';
-            const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || null, dados.chave_acesso || null, usuario]);
+            const somaPecas = Math.round(pecas.reduce((t, p) => {
+                const q = _fmNumero(p.quantidade) > 0 ? _fmNumero(p.quantidade) : 1;
+                const vu = _fmNumero(p.valor_unit);
+                const vt = _fmNumero(p.valor_total) || Math.round(q * vu * 100) / 100;
+                return t + vt;
+            }, 0) * 100) / 100;
+            const ins = await _fmRun('INSERT INTO frota_manutencao_notas (manutencao_id, r2_key, nome_arquivo, numero, serie, fornecedor, cnpj, data_emissao, valor_total, chave_acesso, usuario_nome, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                [id, key, req.file.originalname || null, dados.numero || null, dados.serie || null, dados.fornecedor || null, dados.cnpj || null, dados.data_emissao || null, _fmNumero(dados.valor_total) || somaPecas || null, dados.chave_acesso || null, usuario, 'pecas']);
             notaId = ins.lastID;
         }
         await _fmInserirPecas(id, notaId, pecas);
         const totais = await _fmRecalcTotais(id);
-        await _fmHist(id, 'evento', (notaId ? 'Nota fiscal de peças anexada (NF ' + (dados.numero || 's/n') + ')' : 'Peças incluídas') + ' — ' + pecas.length + ' item(ns)', _fmUsuario(req));
+        const descHistPecas = notaId
+            ? (dados.numero ? 'Nota fiscal de peças anexada (NF ' + dados.numero + ')' : 'PDF/Recibo de peças anexado (' + (req.file.originalname || 'PDF') + ')')
+            : 'Peças incluídas';
+        await _fmHist(id, 'evento', descHistPecas + ' — ' + pecas.length + ' item(ns)', _fmUsuario(req));
         res.json({ ok: true, nota_id: notaId, totais: totais });
     } catch (e) {
         console.error('[NF] salvar:', e);
@@ -24577,7 +24586,7 @@ app.post('/api/frota/manutencoes/:id/notas-mo', authenticateToken, multerNfFrota
             }
         }
         const totais = await _fmRecalcTotais(id);
-        await _fmHist(id, 'evento', (notaId ? 'Nota fiscal de mão de obra anexada (NF ' + (dados.numero || 's/n') + ')' : 'Mão de obra lançada') + ' — ' + linhas.length + ' linha(s)', _fmUsuario(req));
+        await _fmHist(id, 'evento', (notaId ? (dados.numero ? 'Nota fiscal de mão de obra anexada (NF ' + dados.numero + ')' : 'PDF/Recibo de mão de obra anexado (' + (req.file.originalname || 'PDF') + ')') : 'Mão de obra lançada') + ' — ' + linhas.length + ' linha(s)', _fmUsuario(req));
         res.json({ ok: true, nota_id: notaId, totais: totais });
     } catch (e) {
         console.error('[NF-MO] salvar:', e);

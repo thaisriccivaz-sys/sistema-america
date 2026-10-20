@@ -2391,7 +2391,7 @@ window._mnEdRenderNotas = function() {
     var ed = window._mnEd, box = document.getElementById('mned-notas'), esc = window._mnEdEsc;
     if (!box) return;
     if (!ed.notas.length) {
-        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma nota fiscal anexada. Use "Incluir peças" (nota de peças) ou "NF de mão de obra".</div>';
+        box.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;">Nenhuma nota fiscal ou recibo anexado. Use "Incluir peças" ou "NF de mão de obra".</div>';
         return;
     }
     var btn = 'padding:6px 10px;border-radius:8px;cursor:pointer;';
@@ -2401,25 +2401,27 @@ window._mnEdRenderNotas = function() {
         var tag = mo
             ? '<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Mão de obra</span>'
             : '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:1px 9px;font-size:0.7rem;font-weight:700;">Peças</span>';
-        var anexo = '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-paperclip"></i> Anexada em ' + esc(window._mnFmtDH(n.created_at)) + (n.usuario_nome ? ' por <b>' + esc(n.usuario_nome) + '</b>' : '') + '</div>';
+        var tituloDoc = n.numero ? ('NF ' + esc(n.numero)) : ('Recibo / PDF' + (n.nome_arquivo ? ' (' + esc(n.nome_arquivo) + ')' : ''));
+        var fornTxt = n.fornecedor ? esc(n.fornecedor) : (n.numero ? 'Fornecedor não identificado' : 'Comprovante anexado');
+        var anexo = '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;"><i class="ph ph-paperclip"></i> Anexado em ' + esc(window._mnFmtDH(n.created_at)) + (n.usuario_nome ? ' por <b>' + esc(n.usuario_nome) + '</b>' : '') + '</div>';
         return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;margin-bottom:6px;">'
           + '<i class="ph ph-receipt" style="color:' + (mo ? '#d97706' : '#2563eb') + ';font-size:1.2rem;"></i>'
-          + '<div style="flex:1;font-size:0.82rem;color:#1e293b;"><b>NF ' + esc(n.numero || '—') + '</b> ' + tag + ' · ' + esc(n.fornecedor || 'Fornecedor não identificado') + emi
+          + '<div style="flex:1;font-size:0.82rem;color:#1e293b;"><b>' + tituloDoc + '</b> ' + tag + ' · ' + fornTxt + emi
           +   (n.valor_total ? ' · <b style="color:#059669;">' + window._mnFmtMoeda(n.valor_total) + '</b>' : '') + anexo + '</div>'
-          + '<button type="button" data-nv="' + n.id + '" title="Ver nota fiscal" style="' + btn + 'border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;"><i class="ph ph-eye"></i></button>'
-          + '<button type="button" data-nd="' + n.id + '" title="Excluir nota fiscal" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
+          + '<button type="button" data-nv="' + n.id + '" title="Ver PDF (nota fiscal ou recibo)" style="' + btn + 'border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;"><i class="ph ph-eye"></i></button>'
+          + '<button type="button" data-nd="' + n.id + '" title="Excluir anexo e itens vinculados" style="' + btn + 'border:1px solid #fecaca;background:#fef2f2;color:#dc2626;"><i class="ph ph-trash"></i></button>'
           + '</div>';
     }).join('');
     box.querySelectorAll('[data-nv]').forEach(function(b) { b.onclick = function() { window._mnEdVerNota(parseInt(b.getAttribute('data-nv'))); }; });
     box.querySelectorAll('[data-nd]').forEach(function(b) { b.onclick = function() { window._mnEdExcluirNota(parseInt(b.getAttribute('data-nd'))); }; });
 };
 
-// Linhas de mao de obra (da nota fiscal de servico ou lancadas a mao): valor + vinculo com servicos ou rateio igual
+// Linhas de mao de obra (da nota fiscal de servico ou lancadas a mao): valor + vinculo com servicos
 window._mnEdResumoVinculo = function(l) {
-    if (l.ratear) return { txt: 'Rateio igual entre todos os serviços', cor: '#2563eb' };
     var n = (l.servicos || []).length;
-    if (n) return { txt: n + (n === 1 ? ' serviço vinculado' : ' serviços vinculados'), cor: '#2563eb' };
-    return { txt: 'Vincular a serviços', cor: '#d97706' };
+    if (n === 1) return { txt: '1 serviço vinculado', cor: '#2563eb' };
+    if (n > 1) return { txt: n + ' serviços vinculados (rateio)', cor: '#2563eb' };
+    return { txt: 'Vincular a serviços', cor: '#2563eb' };
 };
 window._mnEdRenderMo = function() {
     var ed = window._mnEd, box = document.getElementById('mned-mo'), esc = window._mnEdEsc, fm = window._mnMoneyFmt;
@@ -2469,34 +2471,42 @@ window._mnEdRenderMo = function() {
     window._mnEdRenderTotais();
 };
 
-// Popup "Vincular servicos": marque varios servicos (ou todos de uma categoria) ou use rateio igual entre todos
+// Popup "Vincular a servicos": se selecionar 1 servico aloca 100% nele; se selecionar >1 servicos faz o rateio entre os selecionados
 window._mnVincularPopup = function(linha, cb) {
     var ed = window._mnEd, esc = window._mnEdEsc;
     var servs = ed.realizados.filter(function(s) { return s.id; });
     if (!servs.length) { alert('Adicione e salve os serviços realizados antes de vincular a mão de obra.'); return; }
     var antigo = document.getElementById('mnv-pop'); if (antigo) antigo.remove();
     var sel = {};
-    (linha.servicos || []).forEach(function(id) { sel[id] = true; });
+    if (Array.isArray(linha.servicos) && linha.servicos.length) {
+        linha.servicos.forEach(function(id) { sel[id] = true; });
+    } else if (linha.ratear) {
+        servs.forEach(function(s) { sel[s.id] = true; });
+    }
     var grupos = {}, ordem = [];
     servs.forEach(function(s) {
         var k = s.item_ref || 'Sem categoria';
         if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
         grupos[k].push(s);
     });
+    var valLinha = Number(linha.valor) || 0;
     var pop = document.createElement('div');
     pop.id = 'mnv-pop';
     pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:10010;padding:16px;';
     pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
       + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
-      +   '<i class="ph ph-link" style="color:#fff;font-size:1.3rem;"></i><div style="color:#fff;font-weight:700;">Vincular serviços</div>'
+      +   '<i class="ph ph-link" style="color:#fff;font-size:1.3rem;"></i><div style="color:#fff;font-weight:700;">Vincular a serviços</div>'
       +   '<button type="button" id="mnv-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
       + '</div>'
       + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
-      +   '<div style="font-size:0.84rem;font-weight:700;color:#1e293b;margin-bottom:10px;">' + esc(linha.descricao || 'Linha de mão de obra') + '</div>'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap;">'
+      +     '<div style="font-size:0.86rem;font-weight:700;color:#1e293b;">' + esc(linha.descricao || 'Linha de mão de obra') + '</div>'
+      +     '<div style="font-size:0.86rem;font-weight:800;color:#b45309;">' + window._mnFmtMoeda(valLinha) + '</div>'
+      +   '</div>'
       +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
-      +     '<input type="checkbox" id="mnv-ratear" style="width:17px;height:17px;accent-color:#2563eb;"> Ratear igualmente entre TODOS os serviços da manutenção (' + servs.length + ')</label>'
+      +     '<input type="checkbox" id="mnv-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
       +   '<div id="mnv-lista"></div>'
-      +   '<div style="font-size:0.74rem;color:#64748b;margin-top:8px;">O valor é dividido em partes iguais entre os serviços marcados.</div>'
+      +   '<div id="mnv-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;"></div>'
       + '</div>'
       + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">'
       +   '<button type="button" id="mnv-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
@@ -2504,12 +2514,12 @@ window._mnVincularPopup = function(linha, cb) {
       + '</div></div>';
     document.body.appendChild(pop);
     var fechar = function() { var p = document.getElementById('mnv-pop'); if (p) p.remove(); };
-    var rat = document.getElementById('mnv-ratear');
-    rat.checked = !!linha.ratear;
+    var chkAll = document.getElementById('mnv-all');
     var lista = document.getElementById('mnv-lista');
+    var resumoEl = document.getElementById('mnv-resumo');
     var desenhar = function() {
-        lista.style.opacity = rat.checked ? '0.4' : '1';
-        lista.style.pointerEvents = rat.checked ? 'none' : 'auto';
+        var todosMarcados = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
+        chkAll.checked = todosMarcados;
         lista.innerHTML = ordem.map(function(k, gi) {
             var todos = grupos[k].every(function(s) { return sel[s.id]; });
             var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
@@ -2527,29 +2537,175 @@ window._mnVincularPopup = function(linha, cb) {
         lista.querySelectorAll('[data-vcat]').forEach(function(c) {
             c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-vcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
         });
+        var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
+        if (!idsSel.length) {
+            resumoEl.style.background = '#fffbeb';
+            resumoEl.style.border = '1px solid #fde68a';
+            resumoEl.style.color = '#92400e';
+            resumoEl.innerHTML = '<i class="ph ph-info"></i> Selecione <b>1 serviço</b> para atribuir o valor total a ele, ou <b>mais de 1 serviço</b> para fazer o rateio igual entre os selecionados.';
+        } else if (idsSel.length === 1) {
+            var svUnico = servs.find(function(s) { return String(s.id) === String(idsSel[0]); });
+            resumoEl.style.background = '#ecfdf5';
+            resumoEl.style.border = '1px solid #a7f3d0';
+            resumoEl.style.color = '#065f46';
+            resumoEl.innerHTML = '<i class="ph ph-check-circle"></i> <b>1 serviço selecionado</b> (' + esc(svUnico ? svUnico.nome : '') + '): receberá o valor integral de <b>' + window._mnFmtMoeda(valLinha) + '</b>.';
+        } else {
+            resumoEl.style.background = '#eff6ff';
+            resumoEl.style.border = '1px solid #bfdbfe';
+            resumoEl.style.color = '#1e40af';
+            resumoEl.innerHTML = '<i class="ph ph-arrows-split"></i> <b>' + idsSel.length + ' serviços selecionados</b>: rateio de <b>' + window._mnFmtMoeda(valLinha / idsSel.length) + '</b> para cada serviço selecionado.';
+        }
     };
-    rat.onchange = desenhar;
+    chkAll.onchange = function() {
+        var v = chkAll.checked;
+        servs.forEach(function(s) { sel[s.id] = v; });
+        desenhar();
+    };
     desenhar();
     document.getElementById('mnv-x').onclick = fechar;
     document.getElementById('mnv-cancel').onclick = fechar;
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
     document.getElementById('mnv-ok').onclick = function() {
-        linha.ratear = rat.checked ? 1 : 0;
-        linha.servicos = rat.checked ? [] : Object.keys(sel).filter(function(k) { return sel[k]; }).map(function(k) { return parseInt(k); });
+        var escolhidos = Object.keys(sel).filter(function(k) { return sel[k]; }).map(function(k) { return parseInt(k); });
+        if (!escolhidos.length) { alert('Selecione ao menos um serviço.'); return; }
+        linha.ratear = 0;
+        linha.servicos = escolhidos;
         fechar();
         if (cb) cb();
     };
 };
 
-// Popup da NOTA FISCAL DE MAO DE OBRA: anexa o PDF, le as linhas e vincula cada uma a servicos (ou rateio igual)
+// Popup "Ratear total da nota": rateia o valor total da nota fiscal de servico entre os servicos selecionados
+window._mnoRatearTotalPopup = function() {
+    var ed = window._mnEd, esc = window._mnEdEsc, fm = window._mnMoneyFmt;
+    var servs = ed.realizados.filter(function(s) { return s.id; });
+    if (!servs.length) { alert('Adicione primeiro os serviços realizados na manutenção.'); return; }
+    var antigo = document.getElementById('mnrt-pop'); if (antigo) antigo.remove();
+    var somaAtual = (window._mnMo.linhas || []).reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
+    var sel = {};
+    var prevSel = window._mnMo.rateioTotalServicos || [];
+    if (prevSel.length) {
+        prevSel.forEach(function(id) { sel[id] = true; });
+    } else {
+        servs.forEach(function(s) { sel[s.id] = true; });
+    }
+    var grupos = {}, ordem = [];
+    servs.forEach(function(s) {
+        var k = s.item_ref || 'Sem categoria';
+        if (!grupos[k]) { grupos[k] = []; ordem.push(k); }
+        grupos[k].push(s);
+    });
+    var ipt = 'padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
+    var pop = document.createElement('div');
+    pop.id = 'mnrt-pop';
+    pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);display:flex;align-items:center;justify-content:center;z-index:10012;padding:16px;';
+    pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);">'
+      + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<div style="background:#d97706;border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-arrows-split" style="color:#fff;font-size:1.2rem;"></i></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Ratear total da nota</div><div style="color:rgba(255,255,255,0.75);font-size:0.76rem;">Divide o valor total da nota fiscal de serviço entre os serviços selecionados</div></div>'
+      +   '<button type="button" id="mnrt-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
+      + '</div>'
+      + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;margin-bottom:12px;flex-wrap:wrap;">'
+      +     '<div style="font-size:0.84rem;font-weight:700;color:#92400e;">Valor total da nota a ratear (R$):</div>'
+      +     '<input type="text" id="mnrt-val" value="' + fm(somaAtual) + '" style="' + ipt + 'width:150px;text-align:right;font-weight:800;color:#b45309;">'
+      +   '</div>'
+      +   '<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #bfdbfe;border-radius:10px;background:#eff6ff;cursor:pointer;margin-bottom:12px;font-size:0.85rem;font-weight:700;color:#1d4ed8;">'
+      +     '<input type="checkbox" id="mnrt-all" style="width:17px;height:17px;accent-color:#2563eb;"> Selecionar todos os serviços da manutenção (' + servs.length + ')</label>'
+      +   '<div id="mnrt-lista"></div>'
+      +   '<div id="mnrt-resumo" style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;"></div>'
+      + '</div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">'
+      +   '<button type="button" id="mnrt-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
+      +   '<button type="button" id="mnrt-ok" style="padding:9px 20px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-check"></i> Aplicar rateio do total</button>'
+      + '</div></div>';
+    document.body.appendChild(pop);
+    var fechar = function() { var p = document.getElementById('mnrt-pop'); if (p) p.remove(); };
+    var valNum = somaAtual;
+    var valEl = document.getElementById('mnrt-val');
+    var chkAll = document.getElementById('mnrt-all');
+    var lista = document.getElementById('mnrt-lista');
+    var resumoEl = document.getElementById('mnrt-resumo');
+    var atualizarResumo = function() {
+        var idsSel = Object.keys(sel).filter(function(k) { return sel[k]; });
+        if (!idsSel.length) {
+            resumoEl.style.background = '#fef2f2';
+            resumoEl.style.border = '1px solid #fecaca';
+            resumoEl.style.color = '#991b1b';
+            resumoEl.innerHTML = '<i class="ph ph-warning"></i> Selecione ao menos um serviço para receber o rateio.';
+        } else if (idsSel.length === 1) {
+            var sv = servs.find(function(s) { return String(s.id) === String(idsSel[0]); });
+            resumoEl.style.background = '#ecfdf5';
+            resumoEl.style.border = '1px solid #a7f3d0';
+            resumoEl.style.color = '#065f46';
+            resumoEl.innerHTML = '<i class="ph ph-check-circle"></i> <b>1 serviço selecionado</b> (' + esc(sv ? sv.nome : '') + '): receberá 100% do total da nota (<b>' + window._mnFmtMoeda(valNum) + '</b>).';
+        } else {
+            resumoEl.style.background = '#eff6ff';
+            resumoEl.style.border = '1px solid #bfdbfe';
+            resumoEl.style.color = '#1e40af';
+            resumoEl.innerHTML = '<i class="ph ph-arrows-split"></i> <b>' + idsSel.length + ' serviços selecionados</b>: o total de <b>' + window._mnFmtMoeda(valNum) + '</b> será rateado em <b>' + window._mnFmtMoeda(valNum / idsSel.length) + '</b> para cada serviço.';
+        }
+    };
+    var desenhar = function() {
+        chkAll.checked = servs.length > 0 && servs.every(function(s) { return !!sel[s.id]; });
+        lista.innerHTML = ordem.map(function(k, gi) {
+            var todos = grupos[k].every(function(s) { return sel[s.id]; });
+            var ico = window._mnCatMeta ? window._mnCatMeta(k).icone : 'ph-wrench';
+            return '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;">'
+              + '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f1f5f9;font-size:0.76rem;font-weight:800;color:#475569;text-transform:uppercase;cursor:pointer;">'
+              +   '<input type="checkbox" data-rtcat="' + gi + '"' + (todos ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> <i class="ph ' + esc(ico) + '" style="color:#d97706;font-size:1rem;"></i> ' + esc(k)
+              +   ' <span style="font-weight:600;text-transform:none;color:#94a3b8;">(todos desta subcategoria)</span></label>'
+              + grupos[k].map(function(s) {
+                    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;font-size:0.85rem;color:#1e293b;cursor:pointer;">'
+                      + '<input type="checkbox" data-rtid="' + s.id + '"' + (sel[s.id] ? ' checked' : '') + ' style="width:15px;height:15px;accent-color:#2563eb;"> ' + esc(s.nome) + '</label>';
+                }).join('')
+              + '</div>';
+        }).join('');
+        lista.querySelectorAll('[data-rtid]').forEach(function(c) { c.onchange = function() { sel[c.getAttribute('data-rtid')] = c.checked; desenhar(); }; });
+        lista.querySelectorAll('[data-rtcat]').forEach(function(c) {
+            c.onchange = function() { grupos[ordem[parseInt(c.getAttribute('data-rtcat'))]].forEach(function(s) { sel[s.id] = c.checked; }); desenhar(); };
+        });
+        atualizarResumo();
+    };
+    window._mnMask(valEl, function(n) { valNum = n; atualizarResumo(); });
+    chkAll.onchange = function() {
+        var v = chkAll.checked;
+        servs.forEach(function(s) { sel[s.id] = v; });
+        desenhar();
+    };
+    desenhar();
+    document.getElementById('mnrt-x').onclick = fechar;
+    document.getElementById('mnrt-cancel').onclick = fechar;
+    pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
+    document.getElementById('mnrt-ok').onclick = function() {
+        var escolhidos = Object.keys(sel).filter(function(k) { return sel[k]; }).map(function(k) { return parseInt(k); });
+        if (!escolhidos.length) { alert('Selecione ao menos um serviço.'); return; }
+        window._mnMo.rateioTotalServicos = escolhidos;
+        var linhasComValor = (window._mnMo.linhas || []).filter(function(l) { return (Number(l.valor) || 0) > 0 || String(l.descricao || '').trim(); });
+        var somaLinhas = (window._mnMo.linhas || []).reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
+        if (!linhasComValor.length || (valNum > 0 && Math.abs(valNum - somaLinhas) >= 0.01 && window._mnMo.linhas.length <= 1)) {
+            var descPadrao = (window._mnMo.linhas[0] && String(window._mnMo.linhas[0].descricao || '').trim()) || 'Mão de obra (total da nota)';
+            window._mnMo.linhas = [{ descricao: descPadrao, valor: valNum, ratear: 0, servicos: escolhidos.slice() }];
+        } else {
+            window._mnMo.linhas.forEach(function(l) {
+                l.ratear = 0;
+                l.servicos = escolhidos.slice();
+            });
+        }
+        fechar();
+        window._mnoRenderLinhas();
+    };
+};
+
+// Popup da NOTA FISCAL / RECIBO DE MAO DE OBRA: anexa o PDF (com ou sem leitura de NF), edita linhas e vincula aos servicos
 window._mnoFechar = function() { var p = document.getElementById('mno-pop'); if (p) p.remove(); };
 window._mnEdAbrirMoNf = async function() {
     try { await window._mnEdGarantirId(); await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
     window._mnEdRenderServ();
     var ed = window._mnEd, esc = window._mnEdEsc;
-    if (!ed.realizados.length) { alert('Adicione primeiro os serviços realizados para poder vincular a nota de mão de obra a eles.'); return; }
+    if (!ed.realizados.length) { alert('Adicione primeiro os serviços realizados para poder vincular a mão de obra a eles.'); return; }
     window._mnoFechar();
-    window._mnMo = { arquivo: null, cnpj: '', linhas: [] };
+    window._mnMo = { arquivo: null, cnpj: '', linhas: [], rateioTotalServicos: null };
     var ipt = 'padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.86rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
     var pop = document.createElement('div');
     pop.id = 'mno-pop';
@@ -2557,7 +2713,7 @@ window._mnEdAbrirMoNf = async function() {
     pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:980px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
       + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
       +   '<div style="background:#d97706;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-hammer" style="color:#fff;font-size:1.3rem;"></i></div>'
-      +   '<div><div style="color:#fff;font-weight:700;">Nota fiscal de mão de obra</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">Anexe o PDF, confira as linhas e vincule aos serviços</div></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Nota fiscal / Recibo de mão de obra</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">Anexe o PDF (nota fiscal ou recibo), confira ou digite as linhas e vincule aos serviços</div></div>'
       +   '<button type="button" id="mno-x" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;"><i class="ph ph-x"></i></button>'
       + '</div>'
       + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
@@ -2565,18 +2721,25 @@ window._mnEdAbrirMoNf = async function() {
       +     '<input type="file" id="mno-file" accept="application/pdf,.pdf" style="flex:1;min-width:240px;padding:8px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#f8fafc;font-size:0.84rem;">'
       +     '<button type="button" id="mno-analisar" style="padding:9px 18px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-scan"></i> Analisar nota fiscal</button>'
       +   '</div>'
+      +   '<div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Se o arquivo for um recibo/comprovante sem nota fiscal, basta escolher o PDF acima e preencher os valores abaixo (não precisa clicar em "Analisar nota fiscal").</div>'
       +   '<div id="mno-aviso" style="margin-top:10px;"></div>'
-      +   '<div style="display:grid;grid-template-columns:120px 1fr 140px;gap:10px;margin-top:12px;">'
-      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Nº da nota</label><input type="text" id="mno-num" style="' + ipt + 'width:100%;"></div>'
+      +   '<div style="display:grid;grid-template-columns:140px 1fr 140px;gap:10px;margin-top:12px;">'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Nº da nota / recibo</label><input type="text" id="mno-num" placeholder="Opcional" style="' + ipt + 'width:100%;"></div>'
       +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Prestador (fornecedor)</label><input type="text" id="mno-forn" style="' + ipt + 'width:100%;"></div>'
       +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Emissão</label><input type="text" id="mno-emi" placeholder="dd/mm/aaaa" style="' + ipt + 'width:100%;"></div>'
       +   '</div>'
-      +   '<div style="font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;margin:16px 0 6px;">Linhas de serviço da nota</div>'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:16px 0 8px;">'
+      +     '<div style="font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;">Linhas de serviço da nota</div>'
+      +     '<button type="button" id="mno-ratear-total" style="padding:7px 14px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
+      +   '</div>'
       +   '<div id="mno-linhas"></div>'
-      +   '<button type="button" id="mno-add" style="margin-top:4px;padding:7px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.8rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
+      +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">'
+      +     '<button type="button" id="mno-add" style="padding:7px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.8rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
+      +   '</div>'
       + '</div>'
-      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">'
       +   '<div id="mno-total" style="font-size:0.88rem;color:#334155;"></div>'
+      +   '<button type="button" id="mno-ratear-total-rodape" style="padding:8px 14px;border:1.5px solid #d97706;border-radius:8px;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
       +   '<button type="button" id="mno-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar nota e linhas</button>'
       + '</div></div>';
     document.body.appendChild(pop);
@@ -2584,9 +2747,11 @@ window._mnEdAbrirMoNf = async function() {
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) window._mnoFechar(); });
     document.getElementById('mno-file').onchange = function() { window._mnMo.arquivo = this.files[0] || null; };
     document.getElementById('mno-analisar').onclick = window._mnoAnalisar;
-    document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 1, servicos: [] }); window._mnoRenderLinhas(); };
+    document.getElementById('mno-ratear-total').onclick = window._mnoRatearTotalPopup;
+    document.getElementById('mno-ratear-total-rodape').onclick = window._mnoRatearTotalPopup;
+    document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] }); window._mnoRenderLinhas(); };
     document.getElementById('mno-salvar').onclick = window._mnoSalvar;
-    window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 1, servicos: [] });
+    window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
     window._mnoRenderLinhas();
 };
 
@@ -2640,30 +2805,45 @@ window._mnoAnalisar = async function() {
         document.getElementById('mno-forn').value = d.fornecedor || '';
         document.getElementById('mno-emi').value = d.emissao || '';
         window._mnMo.cnpj = d.cnpj || '';
-        window._mnMo.linhas = (d.itens || []).map(function(i) { return { descricao: i.descricao || 'Mão de obra', valor: i.valor, ratear: 1, servicos: [] }; });
-        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: d.fornecedor ? ('Mão de obra - ' + d.fornecedor) : 'Mão de obra', valor: d.valor_total || 0, ratear: 1, servicos: [] });
+        window._mnMo.linhas = (d.itens || []).map(function(i) { return { descricao: i.descricao || 'Mão de obra', valor: i.valor, ratear: 0, servicos: [] }; });
+        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: d.fornecedor ? ('Mão de obra - ' + d.fornecedor) : 'Mão de obra', valor: d.valor_total || 0, ratear: 0, servicos: [] });
         var av = (d.avisos || []).map(function(a) { return esc(a); }).join('<br>');
         aviso.innerHTML = av ? '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + av + '</div>'
-            : '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota lida. Confira os valores e vincule cada linha aos serviços.</div>';
+            : '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota lida. Confira os valores e use "Vincular a serviços" ou "Ratear total da nota".</div>';
         window._mnoRenderLinhas();
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+        aviso.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-info"></i> Não foi possível ler itens automáticos deste PDF (' + esc(err.message) + '). O PDF continuará anexado como recibo/comprovante — preencha as linhas abaixo manualmente.</div>';
+        if (!window._mnMo.linhas.length) window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] });
+        window._mnoRenderLinhas();
+    }
     btn.disabled = false; btn.innerHTML = '<i class="ph ph-scan"></i> Analisar nota fiscal';
 };
 
 window._mnoSalvar = async function() {
     var ed = window._mnEd;
+    var fileEl = document.getElementById('mno-file');
+    var arq = window._mnMo.arquivo || (fileEl && fileEl.files && fileEl.files[0]) || null;
+    window._mnMo.arquivo = arq;
+    var servsValidos = (ed.realizados || []).filter(function(s) { return s.id; });
     window._mnMo.linhas.forEach(function(l) {
         if (!String(l.descricao || '').trim() && Number(l.valor) > 0) l.descricao = 'Mão de obra';
-        if (!l.ratear && !(l.servicos || []).length) l.ratear = 1;
+        if (!l.ratear && !(l.servicos || []).length && servsValidos.length === 1) {
+            l.servicos = [servsValidos[0].id];
+        }
     });
     var linhas = window._mnMo.linhas.filter(function(l) { return String(l.descricao || '').trim() || Number(l.valor) > 0; });
     if (!linhas.length) { alert('Informe ao menos uma linha de serviço com valor.'); return; }
-    if (!window._mnMo.arquivo && !confirm('Nenhum PDF foi anexado. As linhas serão lançadas como mão de obra sem nota fiscal. Continuar?')) return;
+    var semVinculo = linhas.some(function(l) { return !l.ratear && !(l.servicos || []).length; });
+    if (semVinculo && servsValidos.length > 1) {
+        alert('Vincule as linhas aos serviços realizados clicando em "Vincular a serviços" na linha ou no botão "Ratear total da nota".');
+        return;
+    }
+    if (!arq && !confirm('Nenhum PDF foi anexado. As linhas serão lançadas como mão de obra sem anexo. Continuar?')) return;
     var btn = document.getElementById('mno-salvar');
     btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...';
     try {
         var fd = new FormData();
-        if (window._mnMo.arquivo) fd.append('arquivo', window._mnMo.arquivo);
+        if (arq) fd.append('arquivo', arq);
         var soma = linhas.reduce(function(t, l) { return t + (Number(l.valor) || 0); }, 0);
         fd.append('dados', JSON.stringify({
             numero: document.getElementById('mno-num').value.trim(),
@@ -2841,7 +3021,7 @@ window._mnEdVerNota = async function(id) {
 window._mnEdExcluirNota = async function(id) {
     var nota = (window._mnEd.notas || []).find(function(n) { return n.id === id; });
     var mo = nota && nota.tipo === 'mao_obra';
-    if (!confirm('Excluir esta nota fiscal?\n\n' + (mo ? 'As linhas de mão de obra lançadas por ela também serão excluídas.' : 'As peças lançadas por ela também serão excluídas.') + ' Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Excluir este anexo/nota fiscal?\n\n' + (mo ? 'As linhas de mão de obra lançadas por ele também serão excluídas.' : 'As peças lançadas por ele também serão excluídas.') + ' Esta ação não pode ser desfeita.')) return;
     try {
         await window._mnEdSalvarDetalhe();
         var r = await fetch('/api/frota/manutencoes/notas/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + window._mnEdTok() } });
@@ -2851,7 +3031,7 @@ window._mnEdExcluirNota = async function(id) {
         window._mnEdRenderNotas();
         window._mnEdRenderMo();
         window._mnEdRenderHist();
-        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Nota fiscal excluída.');
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('✅ Anexo excluído.');
     } catch (err) { alert(err.message); }
 };
 
@@ -2869,284 +3049,248 @@ window._mnpAposSalvar = async function(msg) {
     if (typeof mostrarToastAviso === 'function') mostrarToastAviso(msg);
 };
 
-window._mnpMostrarAba = function(aba) {
-    var dig = document.getElementById('mnp-aba-dig'), nf = document.getElementById('mnp-aba-nf');
-    var bd = document.getElementById('mnp-tab-dig'), bn = document.getElementById('mnp-tab-nf');
-    if (!dig || !nf) return;
-    dig.style.display = aba === 'dig' ? 'block' : 'none';
-    nf.style.display = aba === 'nf' ? 'block' : 'none';
-    var on = 'padding:9px 18px;border:none;border-bottom:3px solid #2563eb;background:#eff6ff;color:#2563eb;font-weight:700;cursor:pointer;font-size:0.85rem;';
-    var off = 'padding:9px 18px;border:none;border-bottom:3px solid transparent;background:#fff;color:#64748b;font-weight:600;cursor:pointer;font-size:0.85rem;';
-    bd.style.cssText = aba === 'dig' ? on : off;
-    bn.style.cssText = aba === 'nf' ? on : off;
+window._mnpAtualizarTotal = function() {
+    var el = document.getElementById('mnp-total');
+    if (!el) return;
+    var N = window._mnNum;
+    var soma = 0, qtdItens = 0;
+    document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
+        var descEl = r.querySelector('[data-k="descricao"]');
+        var o = r._obj || {};
+        var qEl = r.querySelector('[data-k="quantidade"]');
+        var qtd = N(qEl ? qEl.value : 1) || 1;
+        var vu = N(o.valor_unit);
+        var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
+        if ((descEl && descEl.value.trim()) || vt > 0) qtdItens++;
+        soma += vt;
+    });
+    el.innerHTML = 'Total das peças' + (qtdItens ? ' (' + qtdItens + ')' : '') + ': <b style="color:#2563eb;">' + window._mnFmtMoeda(soma) + '</b>';
 };
 
-window._mnpAddLinha = function() {
+window._mnpAddLinha = function(init) {
     var box = document.getElementById('mnp-rows');
     if (!box) return;
     window._mnGarantirDatalist();
-    var fm = window._mnMoneyFmt;
+    var fm = window._mnMoneyFmt, esc = window._mnEdEsc, N = window._mnNum;
+    var d = init || {};
+    var qtdIni = d.quantidade !== undefined && d.quantidade !== null && d.quantidade !== '' ? N(d.quantidade) || 1 : 1;
+    var vuIni = N(d.valor_unit);
+    var vtIni = N(d.valor_total) || Math.round(qtdIni * vuIni * 100) / 100;
+    var unidIni = String(d.unidade || 'UN').toUpperCase();
+    var garVal = d.garantia_valor !== undefined && d.garantia_valor !== null ? d.garantia_valor : '';
+    var garUni = d.garantia_unidade === 'meses' ? 'meses' : 'dias';
+    var svcSel = d.servico_id !== undefined ? d.servico_id : (window._mnp ? window._mnp.servicoId : null);
     var ipt = 'padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.83rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
     var row = document.createElement('div');
     row.className = 'mnp-row';
     row.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;margin-bottom:8px;';
-    row.innerHTML = '<input type="text" data-k="descricao" placeholder="Descrição da peça *" style="' + ipt + 'flex:2;min-width:200px;">'
-      + '<input type="number" data-k="quantidade" min="0" step="1" value="1" title="Quantidade" style="' + ipt + 'width:70px;">'
-      + '<input type="text" list="mn-unidades" data-k="unidade" value="UN" placeholder="Un." title="Unidade de medida" style="' + ipt + 'width:58px;text-transform:uppercase;">'
+    row.innerHTML = '<input type="hidden" data-k="codigo" value="' + esc(d.codigo || '') + '">'
+      + '<input type="text" data-k="descricao" value="' + esc(d.descricao || '') + '" placeholder="Descrição da peça *" style="' + ipt + 'flex:2;min-width:200px;">'
+      + '<input type="number" data-k="quantidade" min="0" step="1" value="' + esc(qtdIni) + '" title="Quantidade" style="' + ipt + 'width:70px;">'
+      + '<input type="text" list="mn-unidades" data-k="unidade" value="' + esc(unidIni) + '" placeholder="Un." title="Unidade de medida" style="' + ipt + 'width:58px;text-transform:uppercase;">'
       + '<span style="font-size:0.78rem;color:#64748b;">× R$</span>'
-      + '<input type="text" data-k="valor_unit" value="0,00" title="Valor unitário" style="' + ipt + 'width:100px;text-align:right;">'
+      + '<input type="text" data-k="valor_unit" value="' + fm(vuIni) + '" title="Valor unitário" style="' + ipt + 'width:100px;text-align:right;">'
       + '<span style="font-size:0.78rem;color:#64748b;">= R$</span>'
-      + '<input type="text" data-k="valor_total" value="0,00" title="Total" style="' + ipt + 'width:108px;text-align:right;font-weight:700;color:#2563eb;">'
-      + '<input type="number" data-k="garantia_valor" min="0" step="1" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:84px;">'
-      + '<select data-k="garantia_unidade" style="' + ipt + '"><option value="dias">dias</option><option value="meses">meses</option></select>'
-      + '<select data-k="servico_id" title="Serviço ao qual a peça pertence" style="' + ipt + 'max-width:210px;">' + window._mnEdSvcOptions(window._mnp.servicoId) + '</select>'
+      + '<input type="text" data-k="valor_total" value="' + fm(vtIni) + '" title="Total" style="' + ipt + 'width:108px;text-align:right;font-weight:700;color:#2563eb;">'
+      + '<input type="number" data-k="garantia_valor" min="0" step="1" value="' + esc(garVal) + '" placeholder="Garantia" title="Garantia da peça" style="' + ipt + 'width:84px;">'
+      + '<select data-k="garantia_unidade" style="' + ipt + '"><option value="dias"' + (garUni !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (garUni === 'meses' ? ' selected' : '') + '>meses</option></select>'
+      + '<select data-k="servico_id" title="Serviço ao qual a peça pertence" style="' + ipt + 'max-width:210px;">' + window._mnEdSvcOptions(svcSel) + '</select>'
       + '<button type="button" data-x="1" title="Remover linha" style="padding:6px 9px;border:1px solid #fecaca;border-radius:8px;background:#fef2f2;color:#dc2626;cursor:pointer;"><i class="ph ph-trash"></i></button>';
     box.appendChild(row);
-    var obj = { quantidade: 1, valor_unit: 0, valor_total: 0 };
+    var obj = { quantidade: qtdIni, valor_unit: vuIni, valor_total: vtIni };
     row._obj = obj;
+    var descEl = row.querySelector('[data-k="descricao"]');
     var q = row.querySelector('[data-k="quantidade"]'), un = row.querySelector('[data-k="valor_unit"]'), tt = row.querySelector('[data-k="valor_total"]');
     var sync = function(campo) {
         window._mnCalcPeca(obj, campo);
         if (campo !== 'valor_unit') un.value = fm(obj.valor_unit);
         if (campo !== 'valor_total') tt.value = fm(obj.valor_total);
+        window._mnpAtualizarTotal();
     };
+    if (descEl) descEl.addEventListener('input', window._mnpAtualizarTotal);
     q.addEventListener('input', function() { obj.quantidade = q.value; sync('quantidade'); });
     window._mnMask(un, function(n) { obj.valor_unit = n; sync('valor_unit'); });
     window._mnMask(tt, function(n) { obj.valor_total = n; sync('valor_total'); });
-    row.querySelector('[data-x]').onclick = function() { row.remove(); };
-};
-
-window._mnpSalvarManual = async function() {
-    var ed = window._mnEd, N = window._mnNum;
-    var pecas = [];
-    document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
-        var g = function(k) { var el = r.querySelector('[data-k="' + k + '"]'); return el ? el.value : ''; };
-        var desc = g('descricao').trim();
-        if (!desc) return;
-        var o = r._obj || {};
-        var qtd = N(g('quantidade')) || 1;
-        var vu = N(o.valor_unit);
-        var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
-        pecas.push({ descricao: desc, unidade: g('unidade').trim().toUpperCase(), quantidade: qtd, valor_unit: vu, valor_total: vt,
-                     garantia_valor: g('garantia_valor'), garantia_unidade: g('garantia_unidade'), servico_id: g('servico_id') || null });
-    });
-    if (!pecas.length) { alert('Informe ao menos uma peça (descrição).'); return; }
-    var btn = document.getElementById('mnp-salvar-dig');
-    if (btn) btn.disabled = true;
-    try {
-        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/pecas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + window._mnEdTok() },
-            body: JSON.stringify({ pecas: pecas })
-        });
-        if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar as peças'); }
-        await window._mnpAposSalvar('✅ Peças incluídas!');
-    } catch (err) {
-        if (btn) btn.disabled = false;
-        alert(err.message);
-    }
+    row.querySelector('[data-x]').onclick = function() { row.remove(); window._mnpAtualizarTotal(); };
+    window._mnpAtualizarTotal();
 };
 
 window._mnpAnalisar = async function() {
     var ed = window._mnEd, esc = window._mnEdEsc;
     var f = document.getElementById('mnp-file').files[0];
     if (!f) { alert('Selecione o PDF da nota fiscal.'); return; }
-    var btn = document.getElementById('mnp-analisar'), res = document.getElementById('mnp-nf-res');
+    window._mnp.arquivo = f;
+    var btn = document.getElementById('mnp-analisar'), aviso = document.getElementById('mnp-aviso');
     var original = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Analisando...';
-    res.innerHTML = '';
+    aviso.innerHTML = '';
     var fd = new FormData();
     fd.append('arquivo', f);
     try {
         var r = await fetch('/api/frota/manutencoes/' + ed.id + '/notas/analisar', { method: 'POST', headers: { Authorization: 'Bearer ' + window._mnEdTok() }, body: fd });
         var j = await r.json().catch(function() { return {}; });
         if (!r.ok) throw new Error(j.error || 'Erro ao analisar a nota');
+        window._mnp.nfDados = j;
+        if (document.getElementById('mnp-num')) document.getElementById('mnp-num').value = j.numero || '';
+        if (document.getElementById('mnp-forn')) document.getElementById('mnp-forn').value = j.fornecedor || '';
+        if (document.getElementById('mnp-emi')) document.getElementById('mnp-emi').value = j.emissao || '';
         var g = j.garantia_sugerida;
-        window._mnp.arquivo = f;
-        window._mnp.nf = {
-            dados: j,
-            itens: (j.itens || []).map(function(it) {
-                return { sel: true, codigo: it.codigo, descricao: it.descricao, unidade: it.unidade, quantidade: it.quantidade, valor_unit: it.valor_unit, valor_total: it.valor_total,
-                         garantia_valor: g ? g.valor : '', garantia_unidade: g ? g.unidade : 'dias', servico_id: window._mnp.servicoId || '' };
-            })
-        };
-        window._mnpRenderNf();
+        var itens = j.itens || [];
+        var avisosTxt = (j.avisos || []).map(function(a) { return esc(a); }).join('<br>');
+        if (itens.length > 0) {
+            var box = document.getElementById('mnp-rows');
+            if (box) {
+                var existentes = Array.from(box.querySelectorAll('.mnp-row'));
+                existentes.forEach(function(rEl) {
+                    var dEl = rEl.querySelector('[data-k="descricao"]');
+                    var o = rEl._obj || {};
+                    if ((!dEl || !dEl.value.trim()) && !(Number(o.valor_total) > 0)) rEl.remove();
+                });
+            }
+            itens.forEach(function(it) {
+                window._mnpAddLinha({
+                    codigo: it.codigo || '',
+                    descricao: it.descricao || '',
+                    unidade: it.unidade || 'UN',
+                    quantidade: it.quantidade || 1,
+                    valor_unit: it.valor_unit || 0,
+                    valor_total: it.valor_total || 0,
+                    garantia_valor: g ? g.valor : '',
+                    garantia_unidade: g ? g.unidade : 'dias',
+                    servico_id: window._mnp.servicoId || ''
+                });
+            });
+            aviso.innerHTML = j.soma_confere
+                ? '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Nota fiscal lida (' + itens.length + ' peça(s) carregada(s), soma ' + window._mnFmtMoeda(j.soma_itens) + '). Confira ou edite os campos abaixo antes de salvar.</div>'
+                : '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-warning"></i> ' + (avisosTxt || 'Nota lida. Confira os valores das peças abaixo antes de salvar.') + '</div>';
+        } else {
+            aviso.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-info"></i> ' + (avisosTxt || 'Nenhum item identificado automaticamente no PDF.') + ' O arquivo continuará anexado como recibo/comprovante — digite as peças abaixo manualmente.</div>';
+        }
     } catch (err) {
-        res.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px 12px;font-size:0.84rem;"><i class="ph ph-warning"></i> ' + esc(err.message) + '</div>';
+        aviso.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;"><i class="ph ph-info"></i> Não foi possível extrair itens automáticos deste PDF (' + esc(err.message) + '). O PDF continuará anexado como recibo/comprovante — preencha as peças abaixo manualmente.</div>';
     } finally {
         btn.disabled = false;
         btn.innerHTML = original;
     }
 };
 
-window._mnpTotalSel = function() {
-    var nf = window._mnp.nf, t = 0, n = 0;
-    nf.itens.forEach(function(i) { if (i.sel) { t += Number(i.valor_total) || 0; n++; } });
-    var el = document.getElementById('mnp-sel-total');
-    if (el) el.innerHTML = n + ' item(ns) selecionado(s) · <b>' + window._mnFmtMoeda(t) + '</b>';
-};
-
-window._mnpRenderNf = function() {
-    var nf = window._mnp.nf, d = nf.dados, esc = window._mnEdEsc, res = document.getElementById('mnp-nf-res'), fm = window._mnMoneyFmt;
-    if (!res) return;
-    window._mnGarantirDatalist();
-    var avisos = (d.avisos || []).map(function(a) { return esc(a); }).join('<br>');
-    if (!nf.itens.length) {
-        res.innerHTML = '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:10px 12px;font-size:0.84rem;"><i class="ph ph-warning"></i> ' + (avisos || 'Nenhum item identificado.') + ' Use a aba "Digitar peças".</div>';
-        return;
-    }
-    var chip = function(t) { return '<span style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;padding:3px 10px;font-size:0.76rem;color:#334155;">' + t + '</span>'; };
-    var chips = chip('<b>NF ' + esc(d.numero || '—') + '</b>' + (d.serie ? ' / série ' + esc(d.serie) : ''))
-        + chip(esc(d.fornecedor || 'Fornecedor não identificado'))
-        + (d.cnpj ? chip('CNPJ ' + esc(d.cnpj)) : '')
-        + (d.emissao ? chip('Emissão ' + esc(d.emissao)) : '')
-        + chip(d.fonte === 'ia' ? '<i class="ph ph-sparkle"></i> Leitura por IA' : '<i class="ph ph-scan"></i> Leitura automática');
-    var status = d.soma_confere
-        ? '<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:8px 12px;font-size:0.82rem;margin:8px 0;"><i class="ph ph-check-circle"></i> A soma dos itens lidos (' + window._mnFmtMoeda(d.soma_itens) + ') confere com o total de produtos da nota. Os campos abaixo podem ser ajustados.</div>'
-        : '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;font-size:0.82rem;margin:8px 0;"><i class="ph ph-warning"></i> ' + (avisos || 'Confira os valores antes de salvar.') + '</div>';
-    var ipt = 'padding:5px 7px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.8rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
-    var th = 'padding:8px;text-align:left;color:#475569;font-weight:700;font-size:0.74rem;white-space:nowrap;';
-    var rows = nf.itens.map(function(it, i) {
-        return '<tr style="border-bottom:1px solid #e2e8f0;">'
-          + '<td style="padding:6px 8px;"><input type="checkbox" data-ni="' + i + '" data-nk="sel"' + (it.sel ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:#2563eb;"></td>'
-          + '<td style="padding:6px 8px;color:#64748b;white-space:nowrap;">' + esc(it.codigo) + '</td>'
-          + '<td style="padding:6px 8px;"><input type="text" data-ni="' + i + '" data-nk="descricao" value="' + esc(it.descricao) + '" style="' + ipt + 'width:100%;min-width:220px;"></td>'
-          + '<td style="padding:6px 8px;white-space:nowrap;"><input type="number" min="0" step="1" data-ni="' + i + '" data-nk="quantidade" value="' + esc(it.quantidade) + '" title="Quantidade" style="' + ipt + 'width:66px;"> '
-          +   '<input type="text" list="mn-unidades" data-ni="' + i + '" data-nk="unidade" value="' + esc(it.unidade) + '" placeholder="Un." title="Unidade de medida" style="' + ipt + 'width:52px;text-transform:uppercase;"></td>'
-          + '<td style="padding:6px 8px;white-space:nowrap;"><input type="text" data-money="1" data-ni="' + i + '" data-nk="valor_unit" value="' + fm(it.valor_unit) + '" title="Valor unitário" style="' + ipt + 'width:96px;text-align:right;"></td>'
-          + '<td style="padding:6px 8px;white-space:nowrap;"><input type="text" data-money="1" data-ni="' + i + '" data-nk="valor_total" value="' + fm(it.valor_total) + '" title="Total" style="' + ipt + 'width:104px;text-align:right;font-weight:700;"></td>'
-          + '<td style="padding:6px 8px;white-space:nowrap;"><input type="number" min="0" step="1" data-ni="' + i + '" data-nk="garantia_valor" value="' + esc(it.garantia_valor) + '" placeholder="0" style="' + ipt + 'width:58px;"> '
-          +   '<select data-ni="' + i + '" data-nk="garantia_unidade" style="' + ipt + '"><option value="dias"' + (it.garantia_unidade !== 'meses' ? ' selected' : '') + '>dias</option><option value="meses"' + (it.garantia_unidade === 'meses' ? ' selected' : '') + '>meses</option></select></td>'
-          + '<td style="padding:6px 8px;"><select data-ni="' + i + '" data-nk="servico_id" style="' + ipt + 'max-width:200px;">' + window._mnEdSvcOptions(it.servico_id) + '</select></td>'
-          + '</tr>';
-    }).join('');
-    res.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + chips + '</div>' + status
-      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
-      +   '<label style="font-size:0.8rem;font-weight:600;color:#334155;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="mnp-all" checked style="width:16px;height:16px;accent-color:#2563eb;"> Marcar todos</label>'
-      +   '<span style="margin-left:auto;font-size:0.8rem;color:#64748b;">Serviço para os marcados:</span>'
-      +   '<select id="mnp-bulk" style="' + ipt + 'max-width:240px;">' + window._mnEdSvcOptions('') + '</select>'
-      +   '<button type="button" id="mnp-bulk-ok" style="padding:6px 12px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.78rem;">Aplicar</button>'
-      + '</div>'
-      + '<div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;">'
-      +   '<thead><tr style="background:#f1f5f9;"><th style="' + th + '"></th><th style="' + th + '">Código</th><th style="' + th + '">Descrição</th><th style="' + th + '">Qtd / Un.</th><th style="' + th + '">Valor unit. (R$)</th><th style="' + th + '">Total (R$)</th><th style="' + th + '">Garantia da peça</th><th style="' + th + '">Serviço</th></tr></thead>'
-      +   '<tbody>' + rows + '</tbody></table></div>'
-      + '<div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">'
-      +   '<div id="mnp-sel-total" style="font-size:0.84rem;color:#334155;"></div>'
-      +   '<button type="button" id="mnp-salvar-nf" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar peças selecionadas e anexar a nota</button>'
-      + '</div>';
-
-    res.querySelectorAll('[data-ni]').forEach(function(el) {
-        var i = parseInt(el.getAttribute('data-ni')), k = el.getAttribute('data-nk');
-        var dinheiro = el.hasAttribute('data-money');
-        var h = function() {
-            var it = window._mnp.nf.itens[i];
-            if (!it) return;
-            if (k === 'sel') it.sel = el.checked;
-            else if (dinheiro) it[k] = window._mnNum(el.value);
-            else if (k === 'unidade') it[k] = el.value.toUpperCase();
-            else it[k] = el.value;
-            if (k === 'quantidade' || k === 'valor_unit' || k === 'valor_total') {
-                window._mnCalcPeca(it, k);
-                var tr = el.closest('tr');
-                var u = tr.querySelector('[data-nk="valor_unit"]'), t = tr.querySelector('[data-nk="valor_total"]');
-                if (k !== 'valor_unit' && u) u.value = fm(it.valor_unit);
-                if (k !== 'valor_total' && t) t.value = fm(it.valor_total);
-            }
-            if (k === 'sel' || k === 'quantidade' || k === 'valor_unit' || k === 'valor_total') window._mnpTotalSel();
-        };
-        if (dinheiro) { window._mnMask(el, h); return; }
-        el.oninput = h;
-        el.onchange = h;
+window._mnpSalvar = async function() {
+    var ed = window._mnEd, N = window._mnNum;
+    var fileEl = document.getElementById('mnp-file');
+    var arq = (window._mnp && window._mnp.arquivo) || (fileEl && fileEl.files && fileEl.files[0]) || null;
+    var pecas = [];
+    document.querySelectorAll('#mnp-rows .mnp-row').forEach(function(r) {
+        var g = function(k) { var el = r.querySelector('[data-k="' + k + '"]'); return el ? el.value : ''; };
+        var desc = g('descricao').trim();
+        var o = r._obj || {};
+        var qtd = N(g('quantidade')) || 1;
+        var vu = N(o.valor_unit);
+        var vt = N(o.valor_total) || Math.round(qtd * vu * 100) / 100;
+        if (!desc && vt > 0 && arq) desc = 'Peças conforme anexo';
+        if (!desc) return;
+        pecas.push({
+            codigo: g('codigo').trim() || null,
+            descricao: desc,
+            unidade: g('unidade').trim().toUpperCase() || 'UN',
+            quantidade: qtd,
+            valor_unit: vu,
+            valor_total: vt,
+            garantia_valor: g('garantia_valor'),
+            garantia_unidade: g('garantia_unidade'),
+            servico_id: g('servico_id') || null
+        });
     });
-    document.getElementById('mnp-all').onchange = function() {
-        var v = this.checked;
-        window._mnp.nf.itens.forEach(function(it) { it.sel = v; });
-        res.querySelectorAll('[data-nk="sel"]').forEach(function(c) { c.checked = v; });
-        window._mnpTotalSel();
-    };
-    document.getElementById('mnp-bulk-ok').onclick = function() {
-        var v = document.getElementById('mnp-bulk').value;
-        window._mnp.nf.itens.forEach(function(it) { if (it.sel) it.servico_id = v; });
-        window._mnpRenderNf();
-    };
-    document.getElementById('mnp-salvar-nf').onclick = window._mnpSalvarNf;
-    window._mnpTotalSel();
-};
-
-window._mnpSalvarNf = async function() {
-    var ed = window._mnEd, nf = window._mnp.nf;
-    var sel = nf.itens.filter(function(i) { return i.sel && String(i.descricao || '').trim(); });
-    if (!sel.length) { alert('Marque ao menos um item da nota.'); return; }
-    var d = nf.dados;
-    var btn = document.getElementById('mnp-salvar-nf');
+    if (!pecas.length) { alert('Informe ao menos uma peça (descrição).'); return; }
+    var btn = document.getElementById('mnp-salvar');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Salvando...'; }
-    var fd = new FormData();
-    fd.append('arquivo', window._mnp.arquivo);
-    fd.append('dados', JSON.stringify({
-        numero: d.numero, serie: d.serie, fornecedor: d.fornecedor, cnpj: d.cnpj, data_emissao: d.emissao, valor_total: d.soma_itens, chave_acesso: d.chave_acesso,
-        pecas: sel.map(function(i) {
-            return { codigo: i.codigo, descricao: i.descricao, unidade: i.unidade, quantidade: window._mnNum(i.quantidade) || 1, valor_unit: window._mnNum(i.valor_unit), valor_total: window._mnNum(i.valor_total),
-                     garantia_valor: i.garantia_valor, garantia_unidade: i.garantia_unidade, servico_id: i.servico_id || null };
-        })
-    }));
     try {
-        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/notas', { method: 'POST', headers: { Authorization: 'Bearer ' + window._mnEdTok() }, body: fd });
-        if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar a nota'); }
-        await window._mnpAposSalvar('✅ Nota fiscal anexada e peças incluídas!');
+        var nfDados = (window._mnp && window._mnp.nfDados) || {};
+        var numTxt = document.getElementById('mnp-num') ? document.getElementById('mnp-num').value.trim() : (nfDados.numero || '');
+        var fornTxt = document.getElementById('mnp-forn') ? document.getElementById('mnp-forn').value.trim() : (nfDados.fornecedor || '');
+        var emiTxt = document.getElementById('mnp-emi') ? document.getElementById('mnp-emi').value.trim() : (nfDados.emissao || '');
+        var somaPecas = pecas.reduce(function(t, p) { return t + (Number(p.valor_total) || 0); }, 0);
+        var fd = new FormData();
+        if (arq) fd.append('arquivo', arq);
+        fd.append('dados', JSON.stringify({
+            numero: numTxt || null,
+            serie: nfDados.serie || null,
+            fornecedor: fornTxt || null,
+            cnpj: nfDados.cnpj || null,
+            data_emissao: emiTxt || null,
+            valor_total: somaPecas,
+            chave_acesso: nfDados.chave_acesso || null,
+            pecas: pecas
+        }));
+        var r = await fetch('/api/frota/manutencoes/' + ed.id + '/notas', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + window._mnEdTok() },
+            body: fd
+        });
+        if (!r.ok) { var e = await r.json().catch(function() { return {}; }); throw new Error(e.error || 'Erro ao salvar as peças'); }
+        await window._mnpAposSalvar(arq ? '✅ Anexo salvo e peças incluídas!' : '✅ Peças incluídas!');
     } catch (err) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar peças selecionadas e anexar a nota'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar peças'; }
         alert(err.message);
     }
 };
 
 window._mnEdAbrirPecas = async function(servicoId) {
-    try { await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
+    try { await window._mnEdGarantirId(); await window._mnEdSalvarDetalhe(); } catch (e) { alert(e.message); return; }
     window._mnEdRenderServ();
     window._mnpFechar();
-    window._mnp = { servicoId: servicoId || null, arquivo: null, nf: null };
+    window._mnp = { servicoId: servicoId || null, arquivo: null, nfDados: null };
     var nomeSvc = '';
     if (servicoId) { var s = window._mnEd.realizados.find(function(x) { return String(x.id) === String(servicoId); }); if (s) nomeSvc = s.nome; }
     var esc = window._mnEdEsc;
+    var ipt = 'padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.86rem;outline:none;box-sizing:border-box;font-family:inherit;background:#fff;';
     var pop = document.createElement('div');
     pop.id = 'mnp-pop';
     pop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.6);display:flex;align-items:center;justify-content:center;z-index:10002;padding:16px;';
     pop.innerHTML = '<div style="background:#fff;border-radius:16px;width:100%;max-width:1040px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.3);">'
       + '<div style="background:linear-gradient(135deg,#1e293b,#334155);padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:12px;flex-shrink:0;">'
       +   '<div style="background:#2563eb;border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;"><i class="ph ph-gear-six" style="color:#fff;font-size:1.3rem;"></i></div>'
-      +   '<div><div style="color:#fff;font-weight:700;">Incluir peças</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (nomeSvc ? 'Serviço: ' + esc(nomeSvc) : 'Peças da manutenção') + '</div></div>'
+      +   '<div><div style="color:#fff;font-weight:700;">Incluir peças</div><div style="color:rgba(255,255,255,0.7);font-size:0.8rem;">' + (nomeSvc ? 'Serviço: ' + esc(nomeSvc) + ' · ' : '') + 'Anexe a nota fiscal / recibo em PDF ou inclua as peças manualmente</div></div>'
       +   '<button type="button" id="mnp-x" title="Fechar" style="margin-left:auto;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;"><i class="ph ph-x"></i></button>'
       + '</div>'
-      + '<div style="display:flex;border-bottom:1px solid #e2e8f0;flex-shrink:0;">'
-      +   '<button type="button" id="mnp-tab-dig"><i class="ph ph-pencil-simple"></i> Digitar peças</button>'
-      +   '<button type="button" id="mnp-tab-nf"><i class="ph ph-receipt"></i> Nota fiscal (PDF)</button>'
-      + '</div>'
       + '<div style="padding:16px 20px;overflow-y:auto;flex:1;">'
-      +   '<div id="mnp-aba-dig">'
-      +     '<div id="mnp-rows"></div>'
-      +     '<div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:6px;">'
-      +       '<button type="button" id="mnp-add-linha" style="padding:8px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.82rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
-      +       '<button type="button" id="mnp-salvar-dig" style="padding:9px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar peças</button>'
+      +   '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+      +     '<input type="file" id="mnp-file" accept="application/pdf,.pdf" style="flex:1;min-width:240px;padding:8px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#f8fafc;font-size:0.84rem;">'
+      +     '<button type="button" id="mnp-analisar" style="padding:9px 18px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-scan"></i> Analisar nota fiscal</button>'
+      +   '</div>'
+      +   '<div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Você pode clicar em "Analisar nota fiscal" para ler os itens automaticamente do PDF, ou apenas anexar um recibo/PDF (sem analisar) e preencher as peças abaixo manualmente.</div>'
+      +   '<div id="mnp-aviso" style="margin-top:10px;"></div>'
+      +   '<div style="display:grid;grid-template-columns:140px 1fr 140px;gap:10px;margin-top:12px;">'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Nº da nota / recibo</label><input type="text" id="mnp-num" placeholder="Opcional" style="' + ipt + 'width:100%;"></div>'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Fornecedor</label><input type="text" id="mnp-forn" placeholder="Opcional" style="' + ipt + 'width:100%;"></div>'
+      +     '<div><label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Emissão</label><input type="text" id="mnp-emi" placeholder="dd/mm/aaaa" style="' + ipt + 'width:100%;"></div>'
+      +   '</div>'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:16px 0 8px;">'
+      +     '<div style="font-size:0.8rem;font-weight:800;color:#1e293b;text-transform:uppercase;">Peças da manutenção</div>'
+      +     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+      +       '<span style="font-size:0.76rem;color:#64748b;">Vincular todas ao serviço:</span>'
+      +       '<select id="mnp-bulk" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.8rem;background:#fff;max-width:220px;">' + window._mnEdSvcOptions(servicoId || '') + '</select>'
+      +       '<button type="button" id="mnp-bulk-ok" style="padding:5px 10px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.76rem;">Aplicar a todas</button>'
       +     '</div>'
       +   '</div>'
-      +   '<div id="mnp-aba-nf" style="display:none;">'
-      +     '<p style="margin:0 0 10px;font-size:0.82rem;color:#64748b;">Anexe o PDF da nota fiscal (DANFE). O sistema lê os itens e os valores; você escolhe quais peças entram e a qual serviço cada uma pertence. O PDF fica guardado e pode ser consultado pelo botão de olho.</p>'
-      +     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
-      +       '<input type="file" id="mnp-file" accept="application/pdf,.pdf" style="flex:1;min-width:240px;padding:8px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#f8fafc;font-size:0.84rem;">'
-      +       '<button type="button" id="mnp-analisar" style="padding:9px 18px;border:none;border-radius:8px;background:#d97706;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-scan"></i> Analisar nota fiscal</button>'
-      +     '</div>'
-      +     '<div id="mnp-nf-res" style="margin-top:12px;"></div>'
-      +   '</div>'
+      +   '<div id="mnp-rows"></div>'
+      +   '<button type="button" id="mnp-add-linha" style="margin-top:4px;padding:7px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:600;font-size:0.8rem;"><i class="ph ph-plus"></i> Adicionar linha</button>'
+      + '</div>'
+      + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;">'
+      +   '<div id="mnp-total" style="font-size:0.88rem;color:#334155;"></div>'
+      +   '<button type="button" id="mnp-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> Salvar peças</button>'
       + '</div></div>';
     document.body.appendChild(pop);
     document.getElementById('mnp-x').onclick = window._mnpFechar;
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) window._mnpFechar(); });
-    document.getElementById('mnp-tab-dig').onclick = function() { window._mnpMostrarAba('dig'); };
-    document.getElementById('mnp-tab-nf').onclick = function() { window._mnpMostrarAba('nf'); };
-    document.getElementById('mnp-add-linha').onclick = window._mnpAddLinha;
-    document.getElementById('mnp-salvar-dig').onclick = window._mnpSalvarManual;
+    document.getElementById('mnp-file').onchange = function() { window._mnp.arquivo = this.files[0] || null; };
     document.getElementById('mnp-analisar').onclick = window._mnpAnalisar;
-    window._mnpMostrarAba('dig');
+    document.getElementById('mnp-add-linha').onclick = function() { window._mnpAddLinha(); };
+    document.getElementById('mnp-bulk-ok').onclick = function() {
+        var v = document.getElementById('mnp-bulk').value;
+        document.querySelectorAll('#mnp-rows .mnp-row [data-k="servico_id"]').forEach(function(selEl) { selEl.value = v; });
+    };
+    document.getElementById('mnp-salvar').onclick = window._mnpSalvar;
     window._mnpAddLinha();
 };
 
