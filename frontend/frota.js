@@ -259,7 +259,7 @@ function renderCardsFrota() {
             ${statusLabel}
         </div>
 
-        <div style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;"></div>
+        <div onclick="window.abrirFotoVeiculoFrota(${v.id})" title="Clique para abrir e salvar a foto" style="height:140px;width:100%;background-image:url('${foto}');background-size:cover;background-position:center;border-bottom:1px solid #e2e8f0;cursor:pointer;"></div>
         
         <div style="padding:1rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem;color:#475569;">
             
@@ -338,6 +338,88 @@ function renderCardsFrota() {
 
 
 // ── Formulário de Finalização de Manutenção (pelo Card) ─────────────────────
+window.abrirFotoVeiculoFrota = function(vid) {
+    const lista = (window._frotaDados && window._frotaDados.length) ? window._frotaDados : (window._manutFrota || []);
+    const v = lista.find(x => String(x.id) === String(vid)) || {};
+    const foto = v.foto_url || v.foto_base64 || '';
+    if (!foto) {
+        if (typeof mostrarToastAviso === 'function') mostrarToastAviso('⚠️ Este veículo não possui foto cadastrada.');
+        else alert('Este veículo não possui foto cadastrada.');
+        return;
+    }
+    const placa = v.placa || 'VEICULO';
+    const modelo = v.marca_modelo_versao || '';
+    let modal = document.getElementById('frota-foto-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'frota-foto-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.75);display:flex;align-items:center;justify-content:center;z-index:10050;padding:16px;';
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:680px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;display:flex;flex-direction:column;">
+        <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:14px 20px;display:flex;align-items:center;gap:12px;">
+            <div style="background:#0284c7;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex-shrink:0;">
+                <i class="ph ph-image"></i>
+            </div>
+            <div style="min-width:0;flex:1;">
+                <div style="color:#fff;font-weight:800;font-size:1rem;">${placa}</div>
+                <div style="color:rgba(255,255,255,0.75);font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${modelo}</div>
+            </div>
+            <button type="button" onclick="document.getElementById('frota-foto-modal').remove()" style="background:rgba(255,255,255,0.18);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;"><i class="ph ph-x"></i></button>
+        </div>
+        <div style="padding:20px;background:#f8fafc;display:flex;align-items:center;justify-content:center;max-height:70vh;overflow:auto;">
+            <img src="${foto}" alt="${placa}" style="max-width:100%;max-height:62vh;object-fit:contain;border-radius:10px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+        </div>
+        <div style="padding:14px 20px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px;">
+            <button type="button" onclick="document.getElementById('frota-foto-modal').remove()" style="padding:9px 18px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-weight:700;">Fechar</button>
+            <button type="button" onclick="window.baixarFotoVeiculoFrota(${v.id})" style="padding:9px 20px;border:none;border-radius:8px;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-download-simple"></i> Salvar Foto</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+};
+
+window.baixarFotoVeiculoFrota = async function(vid) {
+    const lista = (window._frotaDados && window._frotaDados.length) ? window._frotaDados : (window._manutFrota || []);
+    const v = lista.find(x => String(x.id) === String(vid)) || {};
+    const foto = v.foto_url || v.foto_base64 || '';
+    if (!foto) return;
+    const placa = String(v.placa || 'veiculo').replace(/[^a-zA-Z0-9_-]/g, '');
+    try {
+        let ext = 'png';
+        if (foto.startsWith('data:image/')) {
+            const m = foto.match(/^data:image\/([a-zA-Z0-9+]+);/);
+            if (m && m[1]) ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+            const a = document.createElement('a');
+            a.href = foto;
+            a.download = 'veiculo_' + placa + '.' + ext;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            return;
+        }
+        const r = await fetch(foto);
+        const blob = await r.blob();
+        if (blob.type && blob.type.includes('jpeg')) ext = 'jpg';
+        else if (blob.type && blob.type.includes('webp')) ext = 'webp';
+        const urlObj = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = urlObj;
+        a.download = 'veiculo_' + placa + '.' + ext;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(urlObj), 3000);
+    } catch (e) {
+        const a = document.createElement('a');
+        a.href = foto;
+        a.target = '_blank';
+        a.download = 'veiculo_' + placa + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+};
+
 function _abrirFormFinalizacaoManutencao(vid, statusAtivo) {
     const v = (window._frotaDados||[]).find(x => x.id === vid) || {};
     const statusLabel = statusAtivo === 'em_andamento' ? '🔴 Em Andamento' : '🟡 Agendada';
