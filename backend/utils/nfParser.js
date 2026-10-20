@@ -410,11 +410,14 @@ async function analisarServicoGemini(buffer) {
         + 'retorne UMA linha com a discriminacao resumida e o valor total dos servicos; nao inclua impostos retidos como itens; '
         + 'limpe a descricao do servico removendo cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD VR. UNIT.".';
     let ultimoErro = null;
-    for (const nome of MODELOS_GEMINI) {
+    const modelosRapidos = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+    for (const nome of modelosRapidos) {
         try {
-            const model = genAI.getGenerativeModel({ model: nome, generationConfig: { responseMimeType: 'application/json' } });
+            const genCfg = { responseMimeType: 'application/json', temperature: 0 };
+            if (/2\.5/.test(nome)) genCfg.thinkingConfig = { thinkingBudget: 0 };
+            const model = genAI.getGenerativeModel({ model: nome, generationConfig: genCfg });
             let result = null, errTent = null;
-            for (let tent = 0; tent < 3 && !result; tent++) {
+            for (let tent = 0; tent < 2 && !result; tent++) {
                 try {
                     result = await model.generateContent([
                         { inlineData: { mimeType: 'application/pdf', data: Buffer.from(buffer).toString('base64') } },
@@ -423,7 +426,7 @@ async function analisarServicoGemini(buffer) {
                 } catch (e2) {
                     errTent = e2;
                     if (/API_KEY_INVALID|404|not found/i.test(String(e2.message || ''))) break;
-                    await new Promise(r => setTimeout(r, 1500 * (tent + 1)));
+                    await new Promise(r => setTimeout(r, 800));
                 }
             }
             if (!result) throw errTent || new Error('Sem resposta do Gemini');
@@ -449,12 +452,18 @@ async function analisarServicoGemini(buffer) {
 }
 
 async function analisarNotaServico(buffer) {
-    let local = null, ia = null, erroIa = null;
+    let local = null, ia = null, erroIa = null, tabelaLida = false;
     try {
         const t = await textoDoPdf(buffer);
+        tabelaLida = !!(t.itensServ && t.itensServ.length);
         local = dadosServicoLocal(t.texto, t.itensServ);
     } catch (e) { console.error('[NF-MO] leitor local falhou:', e.message); }
-    if (process.env.GEMINI_API_KEY) {
+    let localConfiavel = false;
+    if (local && local.itens.length && local.numero && local.fornecedor && local.valor_total > 0 && tabelaLida) {
+        const somaL = Math.round(local.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
+        localConfiavel = Math.abs(somaL - local.valor_total) <= 0.05;
+    }
+    if (process.env.GEMINI_API_KEY && !localConfiavel) {
         try { ia = await analisarServicoGemini(buffer); } catch (e) { erroIa = e; console.error('[NF-MO] Gemini falhou:', e.message); }
     }
     const vazio = { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', valor_total: 0, itens: [], fonte: 'nenhum' };
