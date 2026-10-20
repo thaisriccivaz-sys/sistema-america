@@ -15802,6 +15802,8 @@ async function checkUserNotificacoes() {
                     navTarget = (dados.cargo || '').toLowerCase().includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
                 } else if (notif.tipo === 'solicitacao_manutencao') {
                     bg = '#fff7ed'; color = '#d97706'; icon = 'ph-wrench'; titulo = 'Solicitação de Manutenção'; navTarget = 'frota';
+                } else if (notif.tipo === 'crlv_vencidos') {
+                    bg = '#fef2f2'; color = '#dc2626'; icon = 'ph-file-pdf'; titulo = 'CRLV Vencido'; navTarget = 'frota';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16015,6 +16017,22 @@ async function checkUserNotificacoes() {
                             ${itensTxt}
                         </div>
                     `;
+                } else if (notif.tipo === 'crlv_vencidos') {
+                    const veics = Array.isArray(dados.veiculos) ? dados.veiculos : [];
+                    const listaPlacasHtml = veics.length
+                        ? veics.map(v => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px dashed #fecaca;font-size:0.8rem;"><span style="font-weight:800;color:#dc2626;">${v.placa}</span><span style="color:#475569;">Ex. ${v.exercicio || '-'}</span></div>`).join('')
+                        : `<div style="font-size:0.82rem;color:#334155;">${notif.mensagem || ''}</div>`;
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo} (${veics.length || 1})
+                        </div>
+                        <div style="color:#0f172a;font-size:0.83rem;font-weight:600;margin-bottom:6px;">
+                            O(s) CRLV(s) abaixo está(ão) vencido(s) e deve(m) ser anexado(s) no sistema:
+                        </div>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;max-height:110px;overflow-y:auto;">
+                            ${listaPlacasHtml}
+                        </div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16055,6 +16073,8 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'solicitacao_manutencao') {
                     const _manId = Number(dados.manutencao_id) || 0;
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
+                } else if (notif.tipo === 'crlv_vencidos') {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('gestao'); }, 200);`;
                 }
 
                 const hasEmojiIcon = ['sac_atribuicao', 'sac_atribuicao_gestor', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);

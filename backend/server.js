@@ -18562,6 +18562,9 @@ app.post('/api/config-notificacoes/batch', authenticateToken, (req, res) => {
                     db.run('COMMIT', (errCommit) => {
                         if (errCommit) return res.status(500).json({ error: errCommit.message });
                         res.json({ message: 'Configuracoes salvas com sucesso' });
+                        if (configuracoes.some(cfg => cfg && cfg.tipo === 'crlv_vencidos' && Array.isArray(cfg.usuarios) && cfg.usuarios.length > 0)) {
+                            setTimeout(() => { try { verificarCRLVVencidoCron({ apenasSeNaoEnviouHoje: true }); } catch (e) {} }, 300);
+                        }
                     });
                     return;
                 }
@@ -21401,105 +21404,139 @@ function verificarAtestadosVencidos() {
         });
     });
 }
-// CRON JOB - Verificar CRLV Vencido (Logística)
-function verificarCRLVVencidoCron() {
+// CRON JOB - Verificar CRLV Vencido (Quadro: 'crlv_vencidos' na tela de Notificacoes)
+let _ultimoDisparoCRLVData = null;
+
+function verificarCRLVVencidoCron(opts) {
+    const opcoes = opts || {};
+    const agoraSP = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const hojeStr = `${agoraSP.getFullYear()}-${String(agoraSP.getMonth() + 1).padStart(2, '0')}-${String(agoraSP.getDate()).padStart(2, '0')}`;
+    if (opcoes.apenasSeNaoEnviouHoje && _ultimoDisparoCRLVData === hojeStr) return;
+
     console.log('[CRON] Verificando vencimento de CRLV...');
-    db.all(`SELECT id, placa, marca_modelo_versao, exercicio, crlv_alerta_enviado FROM frota_veiculos WHERE exercicio IS NOT NULL AND exercicio != ''`, [], (err, veiculos) => {
+    db.all(`SELECT id, placa, marca_modelo_versao, tipo_veiculo, exercicio FROM frota_veiculos WHERE exercicio IS NOT NULL AND TRIM(exercicio) != '' ORDER BY placa ASC`, [], (err, veiculos) => {
         if (err) { console.error('[CRON CRLV]', err.message); return; }
 
-        const now = new Date();
-        const anoAtual = now.getFullYear();
-        const mesAtual = now.getMonth(); // 0 a 11
+        const hoje = new Date(agoraSP.getFullYear(), agoraSP.getMonth(), agoraSP.getDate(), 0, 0, 0, 0);
+        const mapaMesVenc = { '1': 7, '2': 7, '3': 8, '4': 8, '5': 9, '6': 9, '7': 10, '8': 10, '9': 11, '0': 12 };
+        const nomesMeses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-        veiculos.forEach(v => {
-            if (v.crlv_alerta_enviado) return; // Ja enviou alerta
-
-            let p = v.placa.replace(/[^a-zA-Z0-9]/g, '');
-            if (p.length < 7) return;
+        const vencidos = [];
+        (veiculos || []).forEach(v => {
+            const p = String(v.placa || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            if (!p) return;
             const last = p[p.length - 1];
-            let mesV = null;
-            if (last === '1') mesV = 3;
-            else if (last === '2') mesV = 4;
-            else if (last === '3') mesV = 5;
-            else if (last === '4') mesV = 6;
-            else if (last === '5' || last === '6') mesV = 7;
-            else if (last === '7') mesV = 8;
-            else if (last === '8') mesV = 9;
-            else if (last === '9') mesV = 10;
-            else if (last === '0') mesV = 11;
+            const mesVenc = mapaMesVenc[last] || null;
+            const exAno = parseInt(v.exercicio, 10);
+            if (!mesVenc || !exAno) return;
 
-            if (mesV === null) return;
+            const anoVencimento = exAno + 1;
+            const dtVenc = new Date(anoVencimento, mesVenc, 0, 0, 0, 0, 0);
+            if (hoje.getTime() > dtVenc.getTime()) {
+                vencidos.push({
+                    id: v.id,
+                    placa: v.placa,
+                    marca_modelo_versao: v.marca_modelo_versao || '-',
+                    tipo_veiculo: v.tipo_veiculo || '-',
+                    exercicio: String(v.exercicio),
+                    vencimentoFmt: `${nomesMeses[mesVenc]}/${anoVencimento}`
+                });
+            }
+        });
 
-            const anoVencimento = parseInt(v.exercicio) + 1;
+        if (vencidos.length === 0) {
+            db.run("DELETE FROM notificacoes_usuarios WHERE tipo = 'crlv_vencidos' AND lida = 0");
+            console.log('[CRON CRLV] Nenhum veículo com CRLV vencido.');
+            return;
+        }
 
-            // Fica vencido (vermelho) no mês seguinte ao mesV do ano de vencimento
-            let estaVencido = false;
-            if (anoAtual > anoVencimento) estaVencido = true;
-            else if (anoAtual === anoVencimento && mesAtual > mesV) estaVencido = true;
+        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'crlv_vencidos'", [], (errC, rowsC) => {
+            if (errC) { console.error('[CRON CRLV] Erro ao consultar config_notificacoes:', errC.message); return; }
+            if (!rowsC || rowsC.length === 0) {
+                console.log(`[CRON CRLV] ${vencidos.length} CRLV(s) vencido(s), mas nenhum usuário selecionado em 'crlv_vencidos'.`);
+                return;
+            }
 
-            if (estaVencido) {
-                enviarEmailAlertaCRLV(v);
+            const placasStr = vencidos.map(v => v.placa).join(', ');
+            const msg = vencidos.length === 1
+                ? `O CRLV do veículo ${vencidos[0].placa} está vencido (Exercício ${vencidos[0].exercicio}) e deve ser anexado no sistema.`
+                : `Existem ${vencidos.length} veículos com CRLV vencido (${placasStr}). Os CRLVs atualizados devem ser anexados no sistema.`;
+            const dadosStr = JSON.stringify({
+                quantidade: vencidos.length,
+                placas: vencidos.map(v => v.placa),
+                veiculos: vencidos
+            });
+
+            // 1. Inserir UM ÚNICO popup consolidado por usuário selecionado
+            rowsC.forEach(c => {
+                db.run("DELETE FROM notificacoes_usuarios WHERE usuario_id = ? AND tipo = 'crlv_vencidos' AND lida = 0", [c.usuario_id], () => {
+                    db.run("INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'crlv_vencidos', ?, ?)",
+                        [c.usuario_id, msg, dadosStr]);
+                });
+            });
+
+            // 2. Enviar UM ÚNICO e-mail consolidado se não for apenas atualização de popup
+            if (!opcoes.apenasPopup) {
+                _ultimoDisparoCRLVData = hojeStr;
+                enviarEmailAlertaCRLV(vencidos);
             }
         });
     });
 }
 
-function enviarEmailAlertaCRLV(v) {
-    db.get(`SELECT (SELECT email_corporativo FROM colaboradores WHERE id = d.responsavel_id) as email 
-            FROM departamentos d WHERE d.nome LIKE '%Log_stica%' LIMIT 1`, [], async (err, row) => {
-        if (err || !row || !row.email) {
-            console.log('[CRON CRLV] E-mail do responsavel de Logística nao encontrado para o veiculo:', v.placa);
-            return;
-        }
+function enviarEmailAlertaCRLV(listaVencidos) {
+    const vencidos = Array.isArray(listaVencidos) ? listaVencidos : (listaVencidos ? [listaVencidos] : []);
+    if (!vencidos.length) return;
 
-        const emailDestino = row.email;
-        const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+    const linhasTabela = vencidos.map(v => `
+        <tr>
+            <td style="padding:10px 12px;border:1px solid #fecaca;font-weight:bold;color:#dc2626;">${v.placa}</td>
+            <td style="padding:10px 12px;border:1px solid #fecaca;color:#334155;">${v.marca_modelo_versao || '-'}</td>
+            <td style="padding:10px 12px;border:1px solid #fecaca;text-align:center;color:#334155;">${v.exercicio || '-'}</td>
+            <td style="padding:10px 12px;border:1px solid #fecaca;text-align:center;color:#b91c1c;font-weight:bold;">${v.vencimentoFmt || 'Vencido'}</td>
+        </tr>
+    `).join('');
 
-        const htmlContent = `
-            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <img src="cid:empresa-logo" style="max-height: 80px;">
-                </div>
-                <h2 style="color: #c0392b; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">Aviso de Vencimento CRLV</h2>
-                <p>O documento CRLV do veiculo abaixo consta como <strong>vencido</strong> no sistema. Por favor, providencie a atualização do documento.</p>
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 640px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;">
+            <div style="text-align: center; padding: 20px 20px 10px;">
+                <img src="cid:empresa-logo" style="max-height: 80px;">
+            </div>
+            <div style="padding: 20px 24px;">
+                <h2 style="color: #dc2626; border-bottom: 2px solid #ef4444; padding-bottom: 10px; margin-top: 0;">⚠️ Aviso de CRLV Vencido (${vencidos.length} veículo${vencidos.length > 1 ? 's' : ''})</h2>
+                <p>O(s) documento(s) <strong>CRLV</strong> do(s) veículo(s) listado(s) abaixo consta(m) como <strong>vencido(s)</strong> no sistema e <strong>deve(m) ser anexado(s) no sistema</strong> para regularizar a situação:</p>
                 
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Placa:</strong> ${v.placa}</p>
-                    <p><strong>Veículo:</strong> ${v.marca_modelo_versao || '-'}</p>
-                    <p><strong>Exercício Atual:</strong> ${v.exercicio}</p>
-                </div>
+                <table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;">
+                    <thead>
+                        <tr style="background:#fef2f2;color:#991b1b;">
+                            <th style="padding:10px 12px;border:1px solid #fecaca;text-align:left;">Placa</th>
+                            <th style="padding:10px 12px;border:1px solid #fecaca;text-align:left;">Veículo / Modelo</th>
+                            <th style="padding:10px 12px;border:1px solid #fecaca;text-align:center;">Exercício Atual</th>
+                            <th style="padding:10px 12px;border:1px solid #fecaca;text-align:center;">Vencimento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${linhasTabela}
+                    </tbody>
+                </table>
 
-                <div style="margin-top: 30px; padding: 15px; border: 2px solid #3498db; border-radius: 8px; background: #ebf5fb; text-align: center;">
-                    <p style="color: #2980b9; font-weight: bold; margin: 0;">
-                        Por favor, acesse o módulo de Frota e atualize o ano de Exercício, anexando o novo CRLV.
+                <div style="margin-top: 24px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; text-align: center;">
+                    <p style="color: #1d4ed8; font-weight: bold; margin: 0;">
+                        Acesse o módulo de Frota no sistema e anexe o CRLV atualizado de cada veículo listado acima.
                     </p>
                 </div>
 
-                <p style="margin-top: 30px; font-size: 0.9em; color: #7f8c8d;">Atenciosamente,<br>Sistema América Rental</p>
+                <p style="margin-top: 24px; font-size: 0.9em; color: #64748b;">Atenciosamente,<br>Sistema América Rental</p>
             </div>
-        `;
+        </div>
+    `;
 
-        try {
-            const transporter = nodemailer.createTransport(SMTP_CONFIG);
-            await sendMailHelper({
-                from: `"América Rental - Sistema" <${process.env.EMAIL_FROM || "naoresponder@americarental.com.br"}>`,
-                to: emailDestino,
-                subject: `Aviso de CRLV Vencido - Veículo ${v.placa}`,
-                html: htmlContent,
-                attachments: [
-                    {
-                        filename: 'logo.png',
-                        path: logoPath,
-                        cid: 'empresa-logo'
-                    }
-                ]
-            });
-
-            db.run("UPDATE frota_veiculos SET crlv_alerta_enviado = 1 WHERE id = ?", [v.id]);
-            console.log(`[CRON CRLV] E-mail de alerta enviado para ${emailDestino} (Placa: ${v.placa})`);
-        } catch (e) {
-            console.error('[CRON CRLV] Erro ao enviar e-mail:', e.message);
-        }
+    const placasAssunto = vencidos.map(v => v.placa).join(', ');
+    sendEmailParaNotificados('crlv_vencidos', {
+        subject: vencidos.length === 1
+            ? `⚠️ CRLV Vencido - Placa ${vencidos[0].placa} (Anexar no sistema)`
+            : `⚠️ CRLVs Vencidos (${vencidos.length} veículos: ${placasAssunto}) - Anexar no sistema`,
+        html: htmlContent
     });
 }
 
@@ -23487,6 +23524,7 @@ app.put('/api/frota/veiculos/:id/crlv', authenticateToken, async (req, res) => {
             function (err2) {
                 if (err2) return res.status(500).json({ error: err2.message });
                 res.json({ message: 'CRLV atualizado com sucesso' });
+                setTimeout(() => { try { verificarCRLVVencidoCron({ apenasPopup: true }); } catch (e) {} }, 200);
             });
     });
 });
