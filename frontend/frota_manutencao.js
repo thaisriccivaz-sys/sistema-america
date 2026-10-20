@@ -2931,7 +2931,6 @@ window._mnEdAbrirMoNf = async function(editNotaId) {
       + '</div>'
       + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">'
       +   '<div id="mno-total" style="font-size:0.88rem;color:#334155;"></div>'
-      +   '<button type="button" id="mno-ratear-total-rodape" style="padding:8px 14px;border:1.5px solid #d97706;border-radius:8px;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
       +   '<button type="button" id="mno-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> ' + (editNotaId ? 'Salvar alterações' : 'Salvar nota e linhas') + '</button>'
       + '</div></div>';
     document.body.appendChild(pop);
@@ -2943,7 +2942,6 @@ window._mnEdAbrirMoNf = async function(editNotaId) {
     document.getElementById('mno-file').onchange = function() { window._mnMo.arquivo = this.files[0] || null; };
     document.getElementById('mno-analisar').onclick = window._mnoAnalisar;
     document.getElementById('mno-ratear-total').onclick = window._mnoRatearTotalPopup;
-    document.getElementById('mno-ratear-total-rodape').onclick = window._mnoRatearTotalPopup;
     document.getElementById('mno-add').onclick = function() { window._mnMo.linhas.push({ descricao: '', valor: 0, ratear: 0, servicos: [] }); window._mnoRenderLinhas(); };
     document.getElementById('mno-salvar').onclick = window._mnoSalvar;
     window._mnoRenderLinhas();
@@ -3671,7 +3669,6 @@ window._mnEdAbrirPecas = async function(servicoId, editNotaId) {
       + '</div>'
       + '<div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">'
       +   '<div id="mnp-total" style="font-size:0.88rem;color:#334155;"></div>'
-      +   '<button type="button" id="mnp-ratear-total-rodape" style="padding:8px 14px;border:1.5px solid #2563eb;border-radius:8px;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:700;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;"><i class="ph ph-arrows-split"></i> Ratear total da nota</button>'
       +   '<button type="button" id="mnp-salvar" style="margin-left:auto;padding:10px 22px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="ph ph-floppy-disk"></i> ' + (editNotaId ? 'Salvar alterações' : 'Salvar peças') + '</button>'
       + '</div></div>';
     document.body.appendChild(pop);
@@ -3683,7 +3680,6 @@ window._mnEdAbrirPecas = async function(servicoId, editNotaId) {
     document.getElementById('mnp-file').onchange = function() { window._mnp.arquivo = this.files[0] || null; };
     document.getElementById('mnp-analisar').onclick = window._mnpAnalisar;
     document.getElementById('mnp-ratear-total').onclick = window._mnpRatearTotalPopup;
-    document.getElementById('mnp-ratear-total-rodape').onclick = window._mnpRatearTotalPopup;
     document.getElementById('mnp-add-linha').onclick = function() { window._mnpAddLinha(); };
     document.getElementById('mnp-salvar').onclick = window._mnpSalvar;
     if (editNotaId) {

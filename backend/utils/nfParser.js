@@ -2,12 +2,13 @@
 /**
  * Leitor de Nota Fiscal / Ordem de Serviço / Orçamento em PDF:
  *  - analisarNotaFiscal(buffer): extrai SOMENTE PEÇAS / PRODUTOS / MATERIAIS (nunca serviços/mão de obra).
- *  - analisarNotaServico(buffer): extrai SOMENTE SERVIÇOS / MÃO DE OBRA (nunca peças/produtos).
+ *  - analisarNotaServico(buffer): extrai SERVIÇOS / MÃO DE OBRA (com fallback local completo e IA).
  */
 
 const SOMA_TOL = 0.011;
-const UNIDADES = new Set(['UN', 'UND', 'UNID', 'PC', 'PÇ', 'PCS', 'PCT', 'JG', 'LT', 'L', 'KT', 'CX', 'KG', 'MT', 'M', 'PAR', 'CJ', 'FR', 'GL', 'BD', 'RL', 'TB', 'SC', 'PR']);
+const UNIDADES = new Set(['UN', 'UND', 'UNID', 'PC', 'PÇ', 'PCS', 'PCT', 'JG', 'LT', 'L', 'KT', 'CX', 'KG', 'MT', 'M', 'PAR', 'CJ', 'FR', 'GL', 'BD', 'RL', 'TB', 'SC', 'PR', 'HR', 'H', 'SV', 'SERV']);
 const FIM_TABELA = /DADOS ADICIONAIS|C[AÁ]LCULO DO ISSQN|INFORMA[CÇ][OÕ]ES COMPLEMENTARES|RESERVADO (AO|PARA O) FISCO|INFORMA[CÇ]OES COMPLEMENTARES|SERVI[CÇ]OS A EXECUTAR|DISCRIMINA[CÇ][AÃ]O DOS SERVI[CÇ]OS/i;
+const FIM_TABELA_SERVICO = /DADOS ADICIONAIS|INFORMA[CÇ][OÕ]ES COMPLEMENTARES|RESERVADO (AO|PARA O) FISCO|INFORMA[CÇ]OES COMPLEMENTARES|PE[CÇ]AS A APLICAR|REQUISI[CÇ][AÃ]O DE PE[CÇ]AS/i;
 const RUIDO = /ICMS|\bBC\b|\bVl\.|\bVLR|\bVlr|C[oó]d\.? ?Barras|Vendedor|Digitador|Cond\.? ?Pag|\bIBS\b|\bCBS\b|IBPT|IMPOSTO|RICMS|\bSUBS\b|TRIBUT|ARTIGO|\bFonte\b|^Ref:|COD\.? ?FABRICA|PEDIDO|\bFCI\b|EXTERNO\s*\[|GARANTIA\s+P[CÇ]|SERVI[CÇ]O\s+AUTORIZADO\s+PELO\s+CLIENTE|SERVI[CÇ]OS\s+A\s+EXECUTAR|C[OÓ]DIGO\s+DESCRI[CÇ][AÃ]O\s+QTD|VR\.\s*UNIT|VR\.\s*LIQUIDO|COFC\s+CLIENTE/i;
 
 const CABECALHO_LIXO_RE = /^(?:.*?\b(?:EXTERNO\s*\[[^\]]*\]|GARANTIA\s+P[CÇ]\.?\s*BALC[AÃ]O\s*\[[^\]]*\]|Servi[cç]o\s+Autorizado\s+pelo\s+Cliente(?:\s+Sem\s+Pr[eé]vio\s+Or[cç]amento)?|SERVI[CÇ]OS\s+A\s+EXECUTAR|PE[CÇ]AS\s+A\s+APLICAR|C[OÓ]DIGO\s+DESCRI[CÇ][AÃ]O\s+QTD\s+VR\.?\s*UNIT\.?\s*(?:GD\s*%?\s*DESC\.?\s*VR\.?\s*LIQUIDO\s*(?:COFC\s+CLIENTE)?)?)\s*)+/i;
@@ -112,18 +113,10 @@ function acharTriple(tokens) {
     return melhor;
 }
 
-function itensDaPagina(linhas) {
-    // Somente processa localmente se houver cabecalho real de tabela de produtos DANFE (NCM + DESCRI)
-    // ou cabecalho explicito de tabela de PECAS/PRODUTOS (nunca "SERVICOS A EXECUTAR")
-    let ini = linhas.findIndex(l => l.norm.includes('NCM') && l.norm.includes('DESCRI'));
-    if (ini === -1) {
-        const idxPecas = linhas.findIndex(l => /\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|TABELA\s+DE\s+PECAS)\b/.test(l.norm));
-        if (idxPecas >= 0) ini = idxPecas;
-        else return [];
-    }
+function extrairLinhasTabela(linhas, ini, fimRegex) {
     let fim = linhas.length;
     for (let i = ini + 1; i < linhas.length; i++) {
-        if (FIM_TABELA.test(linhas[i].norm) && i > ini) { fim = i; break; }
+        if (fimRegex.test(linhas[i].norm) && i > ini) { fim = i; break; }
     }
     const itens = [];
     let pendente = null;
@@ -174,7 +167,19 @@ function itensDaPagina(linhas) {
             valor_unit: Math.round(it.valor_unit * 10000) / 10000,
             valor_total: Math.round(it.valor_total * 100) / 100
         };
-    }).filter(it => it.descricao && !ehItemDeMaoDeObra(it.descricao));
+    });
+}
+
+function itensDaPagina(linhas) {
+    // Somente processa localmente como PECAS se houver cabecalho de tabela de produtos DANFE (NCM + DESCRI)
+    // ou cabecalho explicito de tabela de PECAS/PRODUTOS (nunca "SERVICOS A EXECUTAR")
+    let ini = linhas.findIndex(l => l.norm.includes('NCM') && l.norm.includes('DESCRI'));
+    if (ini === -1) {
+        const idxPecas = linhas.findIndex(l => /\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|TABELA\s+DE\s+PECAS)\b/.test(l.norm));
+        if (idxPecas >= 0) ini = idxPecas;
+        else return [];
+    }
+    return extrairLinhasTabela(linhas, ini, FIM_TABELA).filter(it => it.descricao && !ehItemDeMaoDeObra(it.descricao));
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +243,7 @@ async function analisarLocal(buffer) {
 // ---------------------------------------------------------------------------
 // Plano B: Gemini para PECAS / PRODUTOS (exclui servicos/mao de obra)
 // ---------------------------------------------------------------------------
-const MODELOS_GEMINI = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+const MODELOS_GEMINI = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
 async function analisarComGemini(buffer) {
     if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY nao configurada');
@@ -283,7 +288,7 @@ async function analisarComGemini(buffer) {
         } catch (e) {
             ultimoErro = e;
             const msg = String(e.message || '');
-            if (!(msg.includes('503') || msg.includes('404') || msg.includes('high demand') || msg.includes('no longer available'))) break;
+            if (msg.includes('API_KEY_INVALID')) break;
         }
     }
     throw ultimoErro || new Error('Falha ao consultar o Gemini');
@@ -329,27 +334,18 @@ async function analisarNotaFiscal(buffer) {
 // ---------------------------------------------------------------------------
 function extrairServicosDeLinhas(linhas) {
     let ini = linhas.findIndex(l => /\b(?:SERVICOS?\s+A\s+EXECUTAR|SERVICOS?\s+EXECUTADOS?|DISCRIMINACAO\s+DOS\s+SERVICOS|MAO\s+DE\s+OBRA)\b/.test(l.norm));
-    if (ini === -1) return [];
-    let fim = linhas.length;
-    for (let i = ini + 1; i < linhas.length; i++) {
-        if (/\b(?:PECAS\s+A\s+APLICAR|REQUISICAO\s+DE\s+PECAS|ITENS\s+DE\s+PECAS|DADOS\s+ADICIONAIS|INFORMACOES\s+COMPLEMENTARES)\b/.test(linhas[i].norm)) {
-            fim = i;
-            break;
-        }
+    if (ini >= 0) {
+        const extraidos = extrairLinhasTabela(linhas, ini, FIM_TABELA_SERVICO)
+            .map(i => ({ descricao: limparDescricaoItem(i.descricao), valor: i.valor_total }))
+            .filter(i => i.descricao);
+        if (extraidos.length) return extraidos;
     }
-    const servs = [];
-    for (let i = ini + 1; i < fim; i++) {
-        const l = linhas[i];
-        if (/C[OÓ]DIGO\s+DESCRI[CÇ][AÃ]O\s+QTD/i.test(l.texto)) continue;
-        const tr = acharTriple(l.tokens);
-        if (tr) {
-            const usados = new Set(tr.usados);
-            const toks = l.tokens.filter((tk, idx) => !usados.has(idx) && !UNIDADES.has(tk.t.toUpperCase()) && parseBR(tk.t) === null).map(tk => tk.t);
-            const desc = limparDescricaoItem(juntaTexto(toks));
-            if (desc) servs.push({ descricao: desc, valor: Math.round(tr.t * 100) / 100 });
-        }
-    }
-    return servs;
+    // Fallback para outros layouts de NF/OS/Pedido de servico: varre a pagina procurando linhas qtd x unit = total
+    let iniGeral = linhas.findIndex(l => l.norm.includes('NCM') && l.norm.includes('DESCRI'));
+    if (iniGeral === -1) iniGeral = -1;
+    return extrairLinhasTabela(linhas, iniGeral, FIM_TABELA_SERVICO)
+        .map(i => ({ descricao: limparDescricaoItem(i.descricao), valor: i.valor_total }))
+        .filter(i => i.descricao);
 }
 
 async function textoDoPdf(buffer) {
@@ -368,24 +364,36 @@ async function textoDoPdf(buffer) {
 }
 
 function dadosServicoLocal(texto, itensServ) {
-    const r = { numero: '', serie: '', emissao: '', fornecedor: '', cnpj: '', chave_acesso: '', valor_total: 0, itens: [], fonte: 'local' };
+    const cab = dadosCabecalho(texto);
+    const r = {
+        numero: cab.numero || '',
+        serie: cab.serie || '',
+        emissao: cab.emissao || '',
+        fornecedor: cab.fornecedor || '',
+        cnpj: cab.cnpj || '',
+        chave_acesso: cab.chave_acesso || '',
+        valor_total: 0,
+        itens: [],
+        fonte: 'local'
+    };
     const mNum = texto.match(/N[úu]mero\s+da\s+Nota[^\d]{0,40}(\d{1,12})/i) || texto.match(/NFS-?e[^\d]{0,40}(\d{1,12})/i) || texto.match(/N[ºo°]\.?\s*:?\s*(\d{1,12})/i);
-    if (mNum) r.numero = String(parseInt(mNum[1], 10));
+    if (mNum && !r.numero) r.numero = String(parseInt(mNum[1], 10));
     const mCnpj = texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
-    if (mCnpj) r.cnpj = mCnpj[0];
+    if (mCnpj && !r.cnpj) r.cnpj = mCnpj[0];
     const mData = texto.match(/(\d{2}\/\d{2}\/\d{4})/);
-    if (mData) r.emissao = mData[1];
-    const mForn = texto.match(/(?:Prestador[^\n]*\n|Raz[ãa]o\s+Social[^\n:]*:?\s*)([^\n]{4,80})/i);
-    if (mForn) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
-    const mTot = texto.match(/VALOR\s+(?:TOTAL\s+DA\s+NOTA|TOTAL\s+DOS\s+SERVI[ÇC]OS|DOS\s+SERVI[ÇC]OS|L[ÍI]QUIDO)[^\d]{0,40}(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    if (mData && !r.emissao) r.emissao = mData[1];
+    const mForn = texto.match(/(?:Prestador[^\n]*\n|Raz[ãa]o\s+Social[^\n:]*:?\s*|Fornecedor[^\n:]*:?\s*|Emitente[^\n:]*:?\s*)([^\n]{4,80})/i);
+    if (mForn && !r.fornecedor) r.fornecedor = mForn[1].replace(/\s+/g, ' ').trim();
+    const mTot = texto.match(/(?:VALOR\s+(?:TOTAL\s+DA\s+NOTA|TOTAL\s+DOS\s+SERVI[ÇC]OS|DOS\s+SERVI[ÇC]OS|L[ÍI]QUIDO|TOTAL)|TOTAL\s+(?:DA\s+NOTA|DOS\s+SERVI[ÇC]OS|GERAL|L[ÍI]QUIDO|DO\s+PEDIDO|DO\s+OR[ÇC]AMENTO)|VLR\.?\s*TOTAL)[^\d]{0,40}(\d{1,3}(?:\.\d{3})*,\d{2})/i);
     if (mTot) r.valor_total = parseBR(mTot[1]) || 0;
     if (itensServ && itensServ.length) {
         r.itens = itensServ.map(i => ({ descricao: limparDescricaoItem(i.descricao), valor: i.valor })).filter(i => i.descricao);
         if (!r.valor_total) r.valor_total = Math.round(r.itens.reduce((s, i) => s + i.valor, 0) * 100) / 100;
     } else {
-        const mDisc = texto.match(/DISCRIMINA[ÇC][ÃA]O(?:\s+DOS\s+SERVI[ÇC]OS)?[^\n]*\n([\s\S]{5,400}?)(?=\n\s*(?:VALOR|BASE\s+DE|C[ÓO]DIGO|AL[ÍI]QUOTA|TRIBUTA|PIS|COFINS|INSS|ISS)\b|$)/i);
+        const mDisc = texto.match(/(?:DISCRIMINA[ÇC][ÃA]O(?:\s+DOS\s+SERVI[ÇC]OS)?|DESCRI[ÇC][ÃA]O\s+DOS\s+SERVI[ÇC]OS|SERVI[ÇC]OS\s+EXECUTADOS)[^\n]*\n([\s\S]{5,400}?)(?=\n\s*(?:VALOR|BASE\s+DE|C[ÓO]DIGO|AL[ÍI]QUOTA|TRIBUTA|PIS|COFINS|INSS|ISS|TOTAL)\b|$)/i);
         const desc = mDisc ? limparDescricaoItem(mDisc[1]) : '';
         if (desc && r.valor_total) r.itens = [{ descricao: desc, valor: r.valor_total }];
+        else if (r.valor_total > 0) r.itens = [{ descricao: r.fornecedor ? ('Mão de obra - ' + r.fornecedor) : 'Mão de obra', valor: r.valor_total }];
     }
     return r;
 }
@@ -395,13 +403,12 @@ async function analisarServicoGemini(buffer) {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const prompt = 'Voce recebe uma NOTA FISCAL DE SERVICO (NFS-e) ou ORDEM DE SERVICO / ORCAMENTO de MAO DE OBRA de manutencao de veiculos. '
-        + 'Extraia SOMENTE os servicos / mao de obra e responda SOMENTE com JSON valido, sem markdown, neste formato: '
+        + 'Extraia os dados e responda SOMENTE com JSON valido, sem markdown, neste formato: '
         + '{"numero":"","emissao":"dd/mm/aaaa","fornecedor":"razao social do prestador","cnpj":"cnpj do prestador","valor_total":0,'
         + '"itens":[{"descricao":"servico executado","valor":0}]}. '
-        + 'REGRAS OBRIGATORIAS: '
-        + '1) Liste cada servico / mao de obra discriminado (inclusive da secao "SERVICOS A EXECUTAR") com seu valor liquido total (numero com ponto decimal). '
-        + '2) NAO inclua pecas ou produtos fisicos. '
-        + '3) Limpe a descricao do servico: NAO inclua textos de cabecalho como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "Servico Autorizado pelo Cliente" ou "CODIGO DESCRICAO QTD VR. UNIT.".';
+        + 'Regras: liste cada servico discriminado na nota com o seu valor (numero com ponto decimal); se a nota trouxer um unico valor para varios servicos, '
+        + 'retorne UMA linha com a discriminacao resumida e o valor total dos servicos; nao inclua impostos retidos como itens; '
+        + 'limpe a descricao do servico removendo cabecalhos como "EXTERNO [ NAO ]", "GARANTIA PC. BALCAO", "CODIGO DESCRICAO QTD VR. UNIT.".';
     let ultimoErro = null;
     for (const nome of MODELOS_GEMINI) {
         try {
@@ -425,7 +432,7 @@ async function analisarServicoGemini(buffer) {
         } catch (e) {
             ultimoErro = e;
             const msg = String(e.message || '');
-            if (!(msg.includes('503') || msg.includes('404') || msg.includes('high demand') || msg.includes('no longer available'))) break;
+            if (msg.includes('API_KEY_INVALID')) break;
         }
     }
     throw ultimoErro || new Error('Falha ao consultar o Gemini');
