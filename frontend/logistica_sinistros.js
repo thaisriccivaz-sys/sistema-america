@@ -1013,6 +1013,7 @@ window.logSinFinalizarSinistro = async function() {
 
         if (typeof Toastify !== 'undefined') Toastify({ text: 'Sinistro finalizado!', backgroundColor: '#10b981' }).showToast();
         document.getElementById('modal-logistica-novo-sinistro').style.display = 'none';
+        if (typeof window.checkUserNotificacoes === 'function') setTimeout(window.checkUserNotificacoes, 400);
         await window.logSinCarregarListaGeral();
     } catch(e) {
         alert('Erro ao finalizar: ' + e.message);
@@ -1724,6 +1725,7 @@ window.logSinSalvarEdicao = async function() {
         }
 
         showMsg('Sinistro atualizado com sucesso!', true);
+        if (typeof window.checkUserNotificacoes === 'function') setTimeout(window.checkUserNotificacoes, 400);
         if (typeof Toastify === 'function') {
             Toastify({
                 text: '✅ Sinistro atualizado com sucesso!',

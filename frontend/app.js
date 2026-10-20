@@ -15800,6 +15800,8 @@ async function checkUserNotificacoes() {
                 } else if (notif.tipo === 'rota_sucesso_formulario') {
                     bg = '#dcfce7'; color = '#15803d'; icon = 'ph-rocket'; titulo = '🚀 Rota de Sucesso';
                     navTarget = (dados.cargo || '').toLowerCase().includes('motorista') ? 'rota-sucesso-motoristas' : 'rota-sucesso-ajudantes';
+                } else if (notif.tipo === 'solicitacao_manutencao') {
+                    bg = '#fff7ed'; color = '#d97706'; icon = 'ph-wrench'; titulo = 'Solicitação de Manutenção'; navTarget = 'frota';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -15989,6 +15991,30 @@ async function checkUserNotificacoes() {
                         ${dados.isAvaliacao ? `<div style="color:#3b82f6;font-weight:bold;font-size:0.9rem;">${dados.diaAvaliado.toString().toLowerCase() === 'extra' ? 'Teste Extra:' : dados.diaAvaliado + 'º Dia'} ${dados.dataRealizada}</div>` : ''}
                         ${dados.isSla ? `<div style="color:#dc2626;font-weight:bold;font-size:0.9rem;">O candidato está na coluna "Aguardando Data" há mais de 2 minutos úteis.</div>` : ''}
                     `;
+                } else if (notif.tipo === 'solicitacao_manutencao') {
+                    const placaTxt = dados.placa || 'Veículo';
+                    const modTxt = dados.modelo ? ' — ' + dados.modelo : '';
+                    const isParado = dados.veiculo_rodando === 'nao';
+                    const rodBadge = isParado
+                        ? '<span style="background:#fee2e2;color:#dc2626;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🔴 Não, está parado (indisponível)</span>'
+                        : '<span style="background:#dcfce7;color:#15803d;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🟢 Sim, está rodando (agendar)</span>';
+                    const itensTxt = dados.itens || dados.descricao || notif.mensagem || '';
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.1rem;color:${color};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ${titulo}
+                        </div>
+                        <div style="color:#0f172a;font-weight:800;font-size:1.05rem;margin-bottom:6px;">
+                            <i class="ph ph-truck" style="color:#d97706;"></i> ${placaTxt}${modTxt}
+                        </div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                            <span style="background:#fef3c7;color:#b45309;font-weight:700;padding:2px 8px;border-radius:999px;font-size:0.75rem;">🆕 Novo</span>
+                            ${rodBadge}
+                        </div>
+                        ${dados.origem ? `<div style="color:#475569;font-size:0.78rem;margin-bottom:4px;"><b>Origem:</b> ${dados.origem}${dados.usuario_nome ? ' · <b>Por:</b> ' + dados.usuario_nome : ''}</div>` : ''}
+                        <div style="color:#334155;font-size:0.83rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-top:4px;max-height:70px;overflow-y:auto;">
+                            ${itensTxt}
+                        </div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16026,6 +16052,9 @@ async function checkUserNotificacoes() {
                     } else {
                         btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('${_rsTgt}'); window.${_rsInit} && window.${_rsInit}();`;
                     }
+                } else if (notif.tipo === 'solicitacao_manutencao') {
+                    const _manId = Number(dados.manutencao_id) || 0;
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); navigateTo('frota'); setTimeout(function(){ if(window.frotaMudarAba) window.frotaMudarAba('manutencoes'); setTimeout(function(){ if(window.mnMudarSubAba) window.mnMudarSubAba('corretivas'); if(${_manId} && window.mnCorrEditarInterno) setTimeout(function(){ window.mnCorrEditarInterno(${_manId}); }, 400); }, 250); }, 200);`;
                 }
 
                 const hasEmojiIcon = ['sac_atribuicao', 'sac_atribuicao_gestor', 'sac_novo_chamado', 'novo_sac', 'sac_sla_vencido', 'sac_acompanhamento_vencido'].includes(notif.tipo);
@@ -16070,6 +16099,10 @@ window.markUserNotifLida = function (id) {
     fetch('/api/notificacoes/me/' + id + '/lida', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token } }).catch(() => { });
 };
 
+window.checkUserNotificacoes = function() {
+    if (_checkUserNotifRunning) { setTimeout(checkUserNotificacoes, 400); return; }
+    return checkUserNotificacoes();
+};
 setInterval(checkUserNotificacoes, 60000);
 setTimeout(checkUserNotificacoes, 8000);
 

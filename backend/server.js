@@ -7123,6 +7123,17 @@ app.patch('/api/colaboradores/:id/sinistros/:sinistroId', authenticateToken, mul
                                 [manItem || null, manObs || null, manRodando, manId, sinistroId], () => r()));
                             if (manItem) await _fmSyncSolicitados(manId, manItem);
                             await _fmAtualizaEmManutencao(manVeiculoId);
+                            _fmNotificarSolicitacaoManutencao({
+                                manutencao_id: manId,
+                                veiculo_id: manVeiculoId,
+                                descricao: descMan,
+                                itens: itemEfetivo,
+                                observacoes: manObs || null,
+                                veiculo_rodando: manRodando,
+                                usuario_nome: usuarioMan,
+                                origem: 'Sinistro #' + sinistroId,
+                                sinistro_id: sinistroId
+                            }).catch(errN => console.error('[NOTIF MANUT SINISTRO]', errN.message));
                         } else {
                             const curMan = await new Promise(r => db.get('SELECT status, veiculo_rodando, parado_desde, COALESCE(parado_segundos_acum, 0) AS parado_segundos_acum FROM frota_manutencoes WHERE id=?', [sinistro.manutencao_id], (e, row) => r(row)));
                             const manStatusAtual = curMan ? curMan.status : 'agendada';
@@ -23552,27 +23563,127 @@ app.get('/api/frota/veiculos/em-manutencao', authenticateToken, (req, res) => {
     });
 });
 
+// Utilitário: envia popup e e-mail para os usuários configurados no quadro "Solicitação de manutenção"
+async function _fmNotificarSolicitacaoManutencao(opts) {
+    try {
+        opts = opts || {};
+        const veic = opts.veiculo_id
+            ? await new Promise(r => db.get('SELECT id, placa, marca_modelo_versao, tipo_veiculo FROM frota_veiculos WHERE id = ?', [opts.veiculo_id], (e, row) => r(row || null)))
+            : null;
+        const placa = (veic && veic.placa) || opts.placa || 'Veículo';
+        const modelo = (veic && veic.marca_modelo_versao) || opts.modelo || '';
+        const rodVal = opts.veiculo_rodando === 'nao' ? 'nao' : 'sim';
+        const rodLabel = rodVal === 'nao' ? 'Não, está parado (indisponível)' : 'Sim, está rodando (agendar)';
+        const origem = opts.origem || 'Gestão de Frota';
+        const usuarioNome = opts.usuario_nome || 'Sistema';
+        const itensTxt = String(opts.itens || opts.descricao || 'Manutenção Corretiva').trim();
+        const obsTxt = String(opts.observacoes || '').trim();
+        const descCompleta = String(opts.descricao || itensTxt).trim();
+
+        const msg = `Nova solicitação de manutenção corretiva para ${placa}${modelo ? ' (' + modelo + ')' : ''}: ${itensTxt} — ${rodLabel}`;
+        const dadosStr = JSON.stringify({
+            manutencao_id: opts.manutencao_id || null,
+            veiculo_id: opts.veiculo_id || null,
+            placa,
+            modelo,
+            descricao: descCompleta,
+            itens: itensTxt,
+            observacoes: obsTxt || null,
+            veiculo_rodando: rodVal,
+            origem,
+            usuario_nome: usuarioNome,
+            sinistro_id: opts.sinistro_id || null
+        });
+
+        // 1. Inserir popup na tabela notificacoes_usuarios para todos os usuários do quadro "Solicitação de manutenção"
+        db.all("SELECT usuario_id FROM config_notificacoes WHERE tipo = 'solicitacao_manutencao'", [], (errCR, rowsCR) => {
+            if (!errCR && Array.isArray(rowsCR) && rowsCR.length > 0) {
+                rowsCR.forEach(c => {
+                    db.run(
+                        "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, 'solicitacao_manutencao', ?, ?)",
+                        [c.usuario_id, msg, dadosStr]
+                    );
+                });
+            }
+        });
+
+        // 2. Enviar e-mail padrão de notificações para todos os usuários configurados
+        const dataHoraBr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const corRod = rodVal === 'nao' ? '#dc2626' : '#16a34a';
+        const emailHtml = '<div style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:8px;">'
+            + '<div style="text-align:center;margin-bottom:20px;"><img src="cid:empresa-logo" alt="América Rental" style="max-height:80px;" /></div>'
+            + '<h2 style="color:#d97706;text-align:center;">&#128295; Nova Solicita&ccedil;&atilde;o de Manuten&ccedil;&atilde;o</h2>'
+            + '<p>Uma nova solicita&ccedil;&atilde;o de manuten&ccedil;&atilde;o corretiva foi aberta no sistema com status <b>Novo</b>:</p>'
+            + '<table style="width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:20px;">'
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;width:38%;">Ve&iacute;culo / Placa</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;font-size:15px;">' + escHtml(placa) + (modelo ? ' &mdash; ' + escHtml(modelo) : '') + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Status Inicial</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;color:#d97706;">Novo</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">O ve&iacute;culo est&aacute; rodando?</th><td style="padding:8px;border:1px solid #fed7aa;font-weight:bold;color:' + corRod + ';">' + escHtml(rodLabel) + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Origem</th><td style="padding:8px;border:1px solid #fed7aa;">' + escHtml(origem) + '</td></tr>'
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Itens / Categorias</th><td style="padding:8px;border:1px solid #fed7aa;">' + escHtml(itensTxt) + '</td></tr>'
+            + (obsTxt ? '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Descri&ccedil;&atilde;o / Observa&ccedil;&atilde;o</th><td style="padding:8px;border:1px solid #fed7aa;">' + escHtml(obsTxt) + '</td></tr>' : '')
+            + '<tr><th style="text-align:left;padding:8px;background:#fff7ed;border:1px solid #fed7aa;">Solicitado por</th><td style="padding:8px;border:1px solid #fed7aa;">' + escHtml(usuarioNome) + ' (' + escHtml(dataHoraBr) + ')</td></tr>'
+            + '</table>'
+            + '<p style="font-size:12px;color:#64748b;">Acesse o sistema na aba <b>Frota &rsaquo; Manuten&ccedil;&otilde;es &rsaquo; Manuten&ccedil;&otilde;es Corretivas</b> para acompanhar os detalhes.</p>'
+            + '</div>';
+
+        await sendEmailParaNotificados('solicitacao_manutencao', {
+            subject: `[MANUTENÇÃO] Nova Solicitação (${placa}) - ${origem}`,
+            html: emailHtml
+        });
+    } catch (e) {
+        console.error('[_fmNotificarSolicitacaoManutencao] Erro:', e.message);
+    }
+}
+
 // POST - agendar manutenção diretamente do card do veiculo (popup)
 app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, res) => {
-    const { veiculo_id, tipo, data_inicio, descricao_corretiva, servicos_preventivos } = req.body;
+    const { veiculo_id, tipo, data_inicio, descricao_corretiva, servicos_preventivos, veiculo_rodando, itens_solicitados, observacoes } = req.body;
     if (!veiculo_id || !tipo) return res.status(400).json({ error: 'veiculo_id e tipo são obrigatórios' });
     const usuarioNome = req.user?.username || req.user?.nome || 'Sistema';
     const now = new Date().toISOString();
+    const hojeData = now.split('T')[0];
 
     try {
+        let newManutId = null;
         if (tipo === 'corretiva') {
-            // Registra 1 manutenção corretiva
-            await new Promise((resolve, reject) => {
+            const rodEfetivo = veiculo_rodando === 'nao' ? 'nao' : 'sim';
+            const pDesde = rodEfetivo === 'nao' ? now : null;
+            const descFinal = String(descricao_corretiva || itens_solicitados || 'Manutenção Corretiva').trim();
+            const dtIni = data_inicio || hojeData;
+
+            // Registra 1 manutenção corretiva sempre com status 'agendada' (Novo)
+            newManutId = await new Promise((resolve, reject) => {
                 db.run(
                     `INSERT INTO frota_manutencoes
-                     (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, usuario_nome, created_at, updated_at)
-                     VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                    [veiculo_id, descricao_corretiva || 'Manutenção Corretiva', data_inicio || null, data_inicio || null, usuarioNome],
+                     (veiculo_id, tipo, descricao, status, data_agendamento, data_inicio, observacoes, usuario_nome, veiculo_rodando, parado_desde, parado_segundos_acum, created_at, updated_at)
+                     VALUES (?, 'corretiva', ?, 'agendada', ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                    [veiculo_id, descFinal, dtIni, dtIni, observacoes || null, usuarioNome, rodEfetivo, pDesde],
                     function(err) { err ? reject(err) : resolve(this.lastID); }
                 );
             });
+
+            if (itens_solicitados) {
+                await _fmSyncSolicitados(newManutId, String(itens_solicitados));
+            }
+            await _fmHist(newManutId, 'evento', 'Manutenção registrada via Gestão de Frota (' + (rodEfetivo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', usuarioNome);
+            if (observacoes && String(observacoes).trim()) {
+                await _fmHist(newManutId, 'comentario', String(observacoes).trim(), usuarioNome);
+            }
+            await _fmAtualizaEmManutencao(veiculo_id);
+
+            _fmNotificarSolicitacaoManutencao({
+                manutencao_id: newManutId,
+                veiculo_id,
+                descricao: descFinal,
+                itens: itens_solicitados || descFinal,
+                observacoes: observacoes || null,
+                veiculo_rodando: rodEfetivo,
+                usuario_nome: usuarioNome,
+                origem: 'Gestão de Frota'
+            }).catch(errN => console.error('[NOTIF MANUT CARD]', errN.message));
         } else {
-            // Registra manutenº??es preventivas (uma por servi??o selecionado)
+            // Registra manutenções preventivas (uma por serviço selecionado)
             const servicos = Array.isArray(servicos_preventivos) ? servicos_preventivos : [];
             for (const s of servicos) {
                 await new Promise((resolve, reject) => {
@@ -23585,13 +23696,9 @@ app.post('/api/frota/manutencoes/agendar-card', authenticateToken, async (req, r
                     );
                 });
             }
+            await _fmAtualizaEmManutencao(veiculo_id);
         }
-        // Marca veiculo em manutenção
-        await new Promise((resolve, reject) => {
-            db.run('UPDATE frota_veiculos SET em_manutencao=1, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-                [veiculo_id], err => err ? reject(err) : resolve());
-        });
-        res.json({ ok: true, message: 'Manutenção agendada com sucesso' });
+        res.json({ ok: true, id: newManutId, message: 'Manutenção agendada com sucesso' });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -24547,20 +24654,34 @@ app.get('/api/frota/manutencoes', authenticateToken, (req, res) => {
 app.post('/api/frota/manutencoes', authenticateToken, (req, res) => {
     const { veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao, veiculo_rodando } = req.body;
     if (!veiculo_id || !descricao) return res.status(400).json({ error: 'veiculo_id e descricao são obrigatórios' });
-    const usuario_nome = req.user?.username || 'sistema';
-    const stEfetivo = status || 'programada';
+    const usuario_nome = req.user?.username || req.user?.nome || 'sistema';
+    const tipoEfetivo = tipo || 'preventiva';
+    const stEfetivo = tipoEfetivo === 'corretiva' ? (status || 'agendada') : (status || 'programada');
     const rodEfetivo = stEfetivo === 'em_andamento' ? 'nao' : (veiculo_rodando === 'nao' ? 'nao' : 'sim');
     const pDesde = (rodEfetivo === 'nao' && stEfetivo !== 'concluida' && stEfetivo !== 'cancelada') ? new Date().toISOString() : null;
 
     db.run(
         `INSERT INTO frota_manutencoes (veiculo_id, tipo, descricao, status, km_na_manutencao, km_proxima_manutencao, data_agendamento, data_conclusao, custo, fornecedor, observacoes, usuario_nome, apenas_vistoria, servico_catalogo_id, data_inicio, tipo_conclusao, veiculo_rodando, parado_desde, parado_segundos_acum)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
-        [veiculo_id, tipo||'preventiva', descricao, stEfetivo, km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null, rodEfetivo, pDesde],
+        [veiculo_id, tipoEfetivo, descricao, stEfetivo, km_na_manutencao||null, km_proxima_manutencao||null, data_agendamento||null, data_conclusao||null, custo||null, fornecedor||null, observacoes||null, usuario_nome, apenas_vistoria ? 1 : 0, servico_catalogo_id||null, data_inicio||null, tipo_conclusao||null, rodEfetivo, pDesde],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            const newId = this.lastID;
             _fmAtualizaEmManutencao(veiculo_id).catch(() => {});
-            _fmHist(this.lastID, 'evento', 'Manutenção registrada (' + (rodEfetivo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', _fmUsuario(req)).catch(() => {});
-            res.json({ id: this.lastID, message: 'Manutenção registrada' });
+            _fmHist(newId, 'evento', 'Manutenção registrada (' + (rodEfetivo === 'nao' ? 'Não, está parado' : 'Sim, está rodando') + ')', _fmUsuario(req)).catch(() => {});
+            if (tipoEfetivo === 'corretiva') {
+                _fmNotificarSolicitacaoManutencao({
+                    manutencao_id: newId,
+                    veiculo_id,
+                    descricao,
+                    itens: descricao,
+                    observacoes: observacoes || null,
+                    veiculo_rodando: rodEfetivo,
+                    usuario_nome: _fmUsuario(req),
+                    origem: 'Frota — Manutenções Corretivas'
+                }).catch(errN => console.error('[NOTIF MANUT POST]', errN.message));
+            }
+            res.json({ id: newId, message: 'Manutenção registrada' });
         }
     );
 });

@@ -1429,6 +1429,7 @@ window._mnEdGarantirId = async function() {
     var j = await r.json();
     ed.id = j.id;
     ed.novo = false;
+    if (typeof window.checkUserNotificacoes === 'function') setTimeout(window.checkUserNotificacoes, 400);
     var t = document.getElementById('mned-titulo');
     if (t) t.textContent = 'Editar Manutenção Corretiva';
     return ed.id;
